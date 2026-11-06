@@ -345,7 +345,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		// WITH and FOR are reserved, so neither starts a table name.
 		if p.isIdentToken() {
 			for {
-				ref, err := p.parseTableRef()
+				ref, err := p.parseNamedTableRef()
 				if err != nil {
 					return nil, err
 				}
@@ -530,7 +530,7 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	name, err := p.parseTableRef()
+	name, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -794,7 +794,7 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseNamedTableRef()
 		if err != nil {
 			return nil, err
 		}

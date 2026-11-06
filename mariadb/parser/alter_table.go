@@ -113,6 +113,16 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	var tableOptions []*nodes.TableOption
+	for _, cmd := range stmt.Commands {
+		if cmd.Type == nodes.ATTableOption {
+			tableOptions = append(tableOptions, cmd.Option)
+		}
+	}
+	if err := refuseTableCharsetConflict(tableOptions); err != nil {
+		return nil, err
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -271,7 +281,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 		cmd.Type = nodes.ATAlgorithm
-		val, err := p.consumeOptionValue()
+		val, err := p.parseAlgorithmValue()
 		if err != nil {
 			return nil, err
 		}
@@ -283,7 +293,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.matchEqual()
 		cmd.Type = nodes.ATLock
-		val, err := p.consumeOptionValue()
+		val, err := p.parseLockValue()
 		if err != nil {
 			return nil, err
 		}
@@ -561,6 +571,9 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if err := validatePartitionDefList(cmd.PartitionDefs); err != nil {
 			return nil, err
 		}
 		cmd.Loc.End = p.prev.End
@@ -996,6 +1009,8 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	if _, ok := p.match(kwSET); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
 			cmd.Type = nodes.ATAlterColumnDefault
+			leave := p.enterStoredExpr(storedExprDefault)
+			defer leave()
 			// Default value: literal or (expr)
 			if p.cur.Type == '(' {
 				p.advance()
@@ -1279,6 +1294,9 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		p.advance()
 	}
 	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if err := validatePartitionDefList(cmd.PartitionDefs); err != nil {
 		return nil, err
 	}
 	cmd.Loc.End = p.prev.End

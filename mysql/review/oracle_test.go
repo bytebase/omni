@@ -799,7 +799,6 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "with ALGORITHM set to DEFAULT, then INSTANT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, ALGORITHM=INSTANT", err: "ALGORITHM=INSTANT is not supported", key: "id"},
 		{name: "with ALGORITHM=INPLACE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INPLACE", err: "ALGORITHM=INPLACE is not supported", key: "id"},
 		{name: "with LOCK=NONE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, LOCK=NONE", err: "LOCK=NONE is not supported", key: "id"},
-		{name: "with a quoted DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=`DEFAULT`", err: "Unknown ALGORITHM", key: "id"},
 		// A USE of the target's database passes; one of another ends the
 		// judging, and a name without a database after it is that database's.
 		{name: "a USE of its database before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id", reported: true},

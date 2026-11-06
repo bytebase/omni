@@ -3,6 +3,7 @@ package parser
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
@@ -41,6 +42,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// If we see ON, it's a privilege grant; if TO, it's a role grant.
 	if p.cur.Type == kwTO {
 		// Role grant: GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
 		}
@@ -285,6 +289,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	// If we see FROM, it's a role revoke; if ON, it's a privilege revoke.
 	if p.cur.Type == kwFROM {
 		// Role revoke: REVOKE role [, role] ... FROM user [, user] ...
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
 		}
@@ -519,6 +526,12 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if err != nil {
 		return privOrRole{}, err
 	}
+	// A static privilege word is a privilege and no role, and neither is a privilege
+	// with columns: role_or_privilege gives each its own arm, and the action for TO
+	// answers 1064 for any of them, where a backquoted or dynamic name is a role.
+	if (word.keyword && staticPrivilegeWord(name)) || word.columns {
+		word.multiToken = true
+	}
 	// GRANT on its own is no privilege name, and the word GRANT is no role
 	// name either, so a bare GRANT is neither: the server answers 1064 for
 	// `GRANT GRANT ON *.* TO u` and for `GRANT GRANT TO u`.
@@ -526,6 +539,34 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 		return privOrRole{}, p.syntaxErrorAtCur()
 	}
 	return privOrRole{name: name, privOnly: word.multiToken}, nil
+}
+
+// staticPrivilegeWord reports a word role_or_privilege has an arm for.
+//
+// Ref: role_or_privilege in MySQL 8.0 sql/sql_yacc.yy.
+func staticPrivilegeWord(name string) bool {
+	switch name {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD", "SHUTDOWN", "PROCESS", "FILE",
+		"REFERENCES", "INDEX", "ALTER", "SHOW", "SUPER", "LOCK", "EXECUTE", "REPLICATION", "USAGE", "EVENT", "TRIGGER":
+		return true
+	}
+	return false
+}
+
+// parseUserLimit reads a number of a user's password or lock options, which the action
+// holds to a range with 1525, ER_WRONG_VALUE. A number past 64 bits is the 1064 it is on
+// any other integer here; both are refused while the statement parses.
+//
+// Ref: connect_option and the PASSWORD and account lock options in MySQL 8.0
+// sql/sql_yacc.yy.
+func (p *Parser) parseUserLimit(minimum, maximum int64, what string) (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Ival < minimum || p.cur.Ival > maximum {
+		return "", &ParseError{Message: "Incorrect " + what + " value: '" + p.cur.Str + "'", Position: p.cur.Loc}
+	}
+	return p.advance().Str, nil
 }
 
 // privWord records what parsePrivilegeName read. The caller needs it because
@@ -541,6 +582,9 @@ type privWord struct {
 	// multiToken is true when the name spans more than one token. No role
 	// name does; a backquoted name holding a space is still one token.
 	multiToken bool
+	// columns is true when a column list follows the name. It is read off the tokens, since a
+	// backquoted role may hold a parenthesis in its name.
+	columns bool
 }
 
 // parsePrivilegeName parses a single privilege name.
@@ -688,6 +732,7 @@ func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, priv
 	if _, err := p.expect(')'); err != nil {
 		return "", word, err
 	}
+	word.columns = true
 	return name + "(" + strings.Join(cols, ", ") + ")", word, nil
 }
 
@@ -778,6 +823,16 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 		Name: name,
 	}
 
+	// grant_ident holds a table to check_table_name, and a database to check_db_name
+	// whether a table or a `*` comes after it.
+	if p.cur.Type != '.' {
+		if identifierNameRefused(name) {
+			return nil, &ParseError{Message: "Incorrect table name '" + name + "'", Position: start}
+		}
+	} else if err := refuseDatabaseName(name, start); err != nil {
+		return nil, err
+	}
+
 	if p.cur.Type == '.' {
 		p.advance() // consume '.'
 		if p.cur.Type == '*' {
@@ -785,9 +840,13 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 			ref.Schema = name
 			ref.Name = "*"
 		} else {
+			nameStart := p.pos()
 			name2, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
+			}
+			if identifierNameRefused(name2) {
+				return nil, &ParseError{Message: "Incorrect table name '" + name2 + "'", Position: nameStart}
 			}
 			ref.Schema = name
 			ref.Name = name2
@@ -835,6 +894,9 @@ func (p *Parser) parseUserName() (string, error) {
 // Both halves are a string literal or an identifier, backquoted or not, and a
 // reserved word is not one: mysql:8.0 answers 1064 for
 // CREATE USER select@localhost and runs CREATE USER comment@localhost.
+// maxUserNameLength is USERNAME_CHAR_LENGTH in MySQL 8.0 include/mysql_com.h.
+const maxUserNameLength = 32
+
 func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
 	switch {
 	case p.cur.Type == tokSCONST:
@@ -849,6 +911,14 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 		return "", "", false, &ParseError{
 			Message:  "expected user name",
 			Position: p.cur.Loc,
+		}
+	}
+	// A user or role name is at most 32 characters: mysql:8.0.46 answers 1470 while parsing
+	// for a longer one, quoted or not, wherever an account is named.
+	if utf8.RuneCountInString(name) > maxUserNameLength {
+		return "", "", false, &ParseError{
+			Message:  "String '" + name + "' is too long for user name (should be no longer than 32)",
+			Position: p.prev.Loc,
 		}
 	}
 	host, hasHost, err = p.parseUserHostOpt()
@@ -983,10 +1053,11 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
-		if res != nil {
-			stmt.Resource = res
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Resource = res
 	}
 
 	// [password_option | lock_option] ...
@@ -1190,10 +1261,11 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
-		if res != nil {
-			stmt.Resource = res
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Resource = res
 	}
 
 	// [password_option | lock_option] ...
@@ -1826,7 +1898,7 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	  | MAX_CONNECTIONS_PER_HOUR count
 //	  | MAX_USER_CONNECTIONS count
 //	}
-func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
+func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 	var res *nodes.ResourceOption
 	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
 		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
@@ -1836,38 +1908,44 @@ func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
 		switch p.cur.Type {
 		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxQueriesPerHour = int(p.cur.Ival)
-				res.HasMaxQueries = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxQueriesPerHour = int(p.cur.Ival)
+			res.HasMaxQueries = true
+			p.advance()
 		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUpdatesPerHour = int(p.cur.Ival)
-				res.HasMaxUpdates = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxUpdatesPerHour = int(p.cur.Ival)
+			res.HasMaxUpdates = true
+			p.advance()
 		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxConnectionsPerHour = int(p.cur.Ival)
-				res.HasMaxConnections = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxConnectionsPerHour = int(p.cur.Ival)
+			res.HasMaxConnections = true
+			p.advance()
 		case kwMAX_USER_CONNECTIONS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUserConnections = int(p.cur.Ival)
-				res.HasMaxUserConn = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxUserConnections = int(p.cur.Ival)
+			res.HasMaxUserConn = true
+			p.advance()
 		}
 	}
-	if res != nil {
-		res.Loc.End = p.prev.End
+	// WITH takes at least one: `CREATE USER u WITH` is a 1064.
+	if res == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-	return res
+	res.Loc.End = p.prev.End
+	return res, nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute
@@ -1909,17 +1987,12 @@ func (p *Parser) parseUserAccountOptions(
 					p.advance()
 				} else if p.cur.Type == kwINTERVAL {
 					p.advance() // consume INTERVAL
-					n := "0"
-					if p.cur.Type == tokICONST {
-						n = p.cur.Str
-						if n == "" {
-							n = strconv.FormatInt(p.cur.Ival, 10)
-						}
-						p.advance()
+					n, err := p.parseUserLimit(1, 65535, "PASSWORD EXPIRE INTERVAL")
+					if err != nil {
+						return err
 					}
-					// DAY
-					if p.cur.Type == kwDAY {
-						p.advance()
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordExpire = "INTERVAL " + n + " DAY"
 				} else {
@@ -1934,13 +2007,15 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					*passwordHistory = strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREUSE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REUSE
 				// INTERVAL
-				if p.cur.Type == kwINTERVAL {
-					p.advance()
+				if _, err := p.expect(kwINTERVAL); err != nil {
+					return err
 				}
 				if p.cur.Type == kwDEFAULT {
 					*passwordReuseInterval = "DEFAULT"
@@ -1948,18 +2023,20 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					n := strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
-					if p.cur.Type == kwDAY {
-						p.advance()
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordReuseInterval = n + " DAY"
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREQUIRE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REQUIRE
-				if p.cur.Type == kwDEFAULT {
-					*passwordRequireCurrent = "DEFAULT"
-					p.advance()
-				} else if p.cur.Type == kwCURRENT {
+				if p.cur.Type != kwCURRENT {
+					return p.syntaxErrorAtCur()
+				}
+				{
 					p.advance() // consume CURRENT
 					// Check for DEFAULT or OPTIONAL after CURRENT
 					if p.cur.Type == kwDEFAULT {
@@ -1978,20 +2055,24 @@ func (p *Parser) parseUserAccountOptions(
 
 		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				*failedLoginAttempts = int(p.cur.Ival)
-				*hasFailedLogin = true
-				p.advance()
+			n, err := p.parseUserLimit(0, 32767, "FAILED_LOGIN_ATTEMPTS")
+			if err != nil {
+				return err
 			}
+			*failedLoginAttempts, _ = strconv.Atoi(n)
+			*hasFailedLogin = true
 
 		case p.cur.Type == kwPASSWORD_LOCK_TIME:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				*passwordLockTime = strconv.FormatInt(p.cur.Ival, 10)
-				p.advance()
-			} else if p.cur.Type == kwUNBOUNDED {
+			if p.cur.Type == kwUNBOUNDED {
 				*passwordLockTime = "UNBOUNDED"
 				p.advance()
+			} else {
+				n, err := p.parseUserLimit(0, 32767, "PASSWORD_LOCK_TIME")
+				if err != nil {
+					return err
+				}
+				*passwordLockTime = n
 			}
 
 		case p.cur.Type == kwACCOUNT:
@@ -2002,6 +2083,8 @@ func (p *Parser) parseUserAccountOptions(
 			} else if p.cur.Type == kwUNLOCK {
 				*accountUnlock = true
 				p.advance()
+			} else {
+				return p.syntaxErrorAtCur()
 			}
 
 		// COMMENT and ATTRIBUTE take a quoted string; the server answers 1064

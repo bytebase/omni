@@ -63,7 +63,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.WalkThrough, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", review.Change{}, walkTarget, codes(review.DuplicateName)},
 		{review.WalkThrough, "CREATE TABLE x (a int, a int);", review.Change{}, walkTarget, codes(review.DuplicateName)},
 		{review.WalkThrough, "DROP DATABASE shop;\nDROP VIEW IF EXISTS v;", review.Change{}, walkTarget, codes(review.NoCurrentSchema)},
-		{review.WalkThrough, "CREATE TABLE " + strings.Repeat("x", 65) + " (a int);", review.Change{}, walkTarget, codes(review.NameTooLong)},
+		{review.WalkThrough, "CREATE INDEX " + strings.Repeat("x", 65) + " ON t (a);", review.Change{}, walkTarget, codes(review.NameTooLong)},
 		{review.WalkThrough, "CREATE INDEX `PRIMARY` ON nokey (a);", review.Change{}, walkTarget, codes(review.ReservedName)},
 		{review.WalkThrough, "RENAME TABLE v TO other.v;", review.Change{}, walkTarget, codes(review.UnsupportedForm)},
 
@@ -84,6 +84,9 @@ func TestFindingCodes(t *testing.T) {
 
 		{review.RequireIsNull, "SELECT * FROM t WHERE n = NULL;", review.Change{}, shopTarget, codes(review.NullComparison)},
 		{review.RequireWhere, "DELETE FROM t;", review.Change{}, shopTarget, codes(review.MissingWhere)},
+		// ANALYZE runs the statement it wraps.
+		{review.RequireWhere, "ANALYZE UPDATE t SET n = 1;", review.Change{}, shopTarget, codes(review.MissingWhere)},
+		{review.RequireWhere, "ANALYZE FORMAT=JSON DELETE FROM t;", review.Change{}, shopTarget, codes(review.MissingWhere)},
 
 		{review.DisallowDropObject, "DROP TABLE t;", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "DROP DATABASE shop;", review.Change{}, shopTarget, codes(review.DropsData)},

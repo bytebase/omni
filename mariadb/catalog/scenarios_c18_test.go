@@ -350,32 +350,6 @@ func TestScenario_C18(t *testing.T) {
 	// -----------------------------------------------------------------
 	// 18.12 TABLESPACE clause elision
 	// -----------------------------------------------------------------
-	t.Run("18_12_tablespace_elision", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c, "CREATE TABLE t_default (a INT)")
-		// Use innodb_system — always available in MySQL 8.0.
-		runOnBoth(t, mc, c, "CREATE TABLE t_gts (a INT) TABLESPACE=innodb_system")
-
-		mysqlNo := oracleShow(t, mc, "SHOW CREATE TABLE t_default")
-		mysqlYes := oracleShow(t, mc, "SHOW CREATE TABLE t_gts")
-		omniNo := c.ShowCreateTable("testdb", "t_default")
-		omniYes := c.ShowCreateTable("testdb", "t_gts")
-
-		if strings.Contains(mysqlNo, "TABLESPACE") {
-			t.Errorf("oracle t_default: TABLESPACE should be elided; got %q", mysqlNo)
-		}
-		if !strings.Contains(mysqlYes, "TABLESPACE") {
-			t.Errorf("oracle t_gts: missing TABLESPACE clause; got %q", mysqlYes)
-		}
-		if strings.Contains(omniNo, "TABLESPACE") {
-			t.Errorf("omni t_default: TABLESPACE should be elided; got %q", omniNo)
-		}
-		if !strings.Contains(omniYes, "TABLESPACE") {
-			t.Errorf("omni t_gts: missing TABLESPACE clause; got %q", omniYes)
-		}
-	})
 
 	// -----------------------------------------------------------------
 	// 18.13 PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision

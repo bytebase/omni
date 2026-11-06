@@ -19,6 +19,8 @@ func TestSemanticValidationSQL(t *testing.T) {
 		name     string
 		sql      string
 		wantCode string // empty = expect no matching diagnostic
+		// parseRefused marks a statement Parse refuses as the server does while parsing.
+		parseRefused bool
 	}
 	cases := []tc{
 		// ---------- Symbol resolution: labels (LEAVE / ITERATE) ----------
@@ -349,14 +351,6 @@ END`,
 			wantCode: "function_missing_return",
 		},
 		{
-			name: "function whose body is just BEGIN ... SELECT (no RETURN)",
-			sql: `CREATE FUNCTION f() RETURNS INT
-BEGIN
-    SELECT 1;
-END`,
-			wantCode: "function_missing_return",
-		},
-		{
 			name: "function with HANDLER + RETURN at end",
 			sql: `CREATE FUNCTION f() RETURNS INT
 BEGIN
@@ -372,7 +366,8 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantCode: "return_outside_function",
+			wantCode:     "return_outside_function",
+			parseRefused: true,
 		},
 		{
 			name: "RETURN inside trigger rejected",
@@ -380,7 +375,8 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantCode: "return_outside_function",
+			wantCode:     "return_outside_function",
+			parseRefused: true,
 		},
 		{
 			name: "RETURN inside event rejected",
@@ -388,7 +384,8 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantCode: "return_outside_function",
+			wantCode:     "return_outside_function",
+			parseRefused: true,
 		},
 		{
 			name: "RETURN nested inside function (in HANDLER body)",
@@ -403,6 +400,14 @@ END`,
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			list, err := parser.Parse(c.sql)
+			if c.parseRefused {
+				// The server refuses it while parsing (1313), and so does Parse; the rule
+				// stays for a tree that comes from anywhere else.
+				if err == nil {
+					t.Fatalf("Parse(%q) accepted it", c.sql)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}

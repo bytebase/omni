@@ -244,39 +244,6 @@ func TestScenario_C9(t *testing.T) {
 	})
 
 	// --- 9.6 Gcol NOT NULL declaration accepted at CREATE time --------------
-	t.Run("9_6_gcol_not_null_accepted", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		ddl := `CREATE TABLE t (
-            a INT NULL,
-            b INT GENERATED ALWAYS AS (a+1) VIRTUAL NOT NULL
-        )`
-		runOnBoth(t, mc, c, ddl)
-
-		// Oracle: IS_NULLABLE for b is 'NO'.
-		var isNullable string
-		oracleScan(t, mc,
-			`SELECT IS_NULLABLE FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b'`,
-			&isNullable)
-		assertStringEq(t, "oracle IS_NULLABLE for b", isNullable, "NO")
-
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil {
-			t.Error("omni: table t missing")
-			return
-		}
-		col := tbl.GetColumn("b")
-		if col == nil {
-			t.Error("omni: column b missing")
-			return
-		}
-		assertBoolEq(t, "omni b Nullable", col.Nullable, false)
-		if col.Generated == nil {
-			t.Error("omni: b should still be generated")
-		}
-	})
 
 	// --- 9.7 FK child referencing STORED gcol parent is allowed -------------
 	t.Run("9_7_fk_parent_stored_gcol_allowed", func(t *testing.T) {

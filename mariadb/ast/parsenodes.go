@@ -1807,6 +1807,7 @@ func (c *RoutineCharacteristic) nodeTag() {}
 
 // CreateTriggerStmt represents a CREATE TRIGGER statement.
 type CreateTriggerStmt struct {
+	Schema      string // database the trigger's name was qualified with
 	Loc         Loc
 	OrReplace   bool // CREATE OR REPLACE TRIGGER: drops an existing trigger first
 	Definer     string
@@ -1834,6 +1835,7 @@ func (o *TriggerOrder) nodeTag() {}
 
 // CreateEventStmt represents a CREATE EVENT statement.
 type CreateEventStmt struct {
+	Schema       string // database the event's name was qualified with
 	Loc          Loc
 	OrReplace    bool // CREATE OR REPLACE EVENT: drops an existing event first
 	IfNotExists  bool
@@ -2641,6 +2643,8 @@ func (s *UninstallComponentStmt) nodeTag()  {}
 func (s *UninstallComponentStmt) stmtNode() {}
 
 // CreateTablespaceStmt represents a CREATE TABLESPACE statement.
+// MariaDB has no CREATE TABLESPACE, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type CreateTablespaceStmt struct {
 	Loc             Loc
 	Undo            bool   // UNDO tablespace
@@ -2664,6 +2668,8 @@ func (s *CreateTablespaceStmt) nodeTag()  {}
 func (s *CreateTablespaceStmt) stmtNode() {}
 
 // AlterTablespaceStmt represents an ALTER TABLESPACE statement.
+// MariaDB has no ALTER TABLESPACE, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type AlterTablespaceStmt struct {
 	Loc             Loc
 	Undo            bool   // UNDO tablespace
@@ -2685,6 +2691,8 @@ func (s *AlterTablespaceStmt) nodeTag()  {}
 func (s *AlterTablespaceStmt) stmtNode() {}
 
 // DropTablespaceStmt represents a DROP TABLESPACE statement.
+// MariaDB has no DROP TABLESPACE, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type DropTablespaceStmt struct {
 	Loc    Loc
 	Undo   bool   // UNDO tablespace
@@ -2729,6 +2737,8 @@ func (s *DropServerStmt) nodeTag()  {}
 func (s *DropServerStmt) stmtNode() {}
 
 // CreateLogfileGroupStmt represents a CREATE LOGFILE GROUP statement (NDB).
+// MariaDB has no CREATE LOGFILE GROUP, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type CreateLogfileGroupStmt struct {
 	Loc            Loc
 	Name           string // logfile group name
@@ -2746,6 +2756,8 @@ func (s *CreateLogfileGroupStmt) nodeTag()  {}
 func (s *CreateLogfileGroupStmt) stmtNode() {}
 
 // AlterLogfileGroupStmt represents an ALTER LOGFILE GROUP statement (NDB).
+// MariaDB has no ALTER LOGFILE GROUP, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type AlterLogfileGroupStmt struct {
 	Loc         Loc
 	Name        string // logfile group name
@@ -2759,6 +2771,8 @@ func (s *AlterLogfileGroupStmt) nodeTag()  {}
 func (s *AlterLogfileGroupStmt) stmtNode() {}
 
 // DropLogfileGroupStmt represents a DROP LOGFILE GROUP statement (NDB).
+// MariaDB has no DROP LOGFILE GROUP, so the parser never builds this. It stays because Bytebase
+// builds against this tree.
 type DropLogfileGroupStmt struct {
 	Loc    Loc
 	Name   string // logfile group name
@@ -2861,12 +2875,14 @@ func (s *AlterViewStmt) stmtNode() {}
 
 // AlterEventStmt represents an ALTER EVENT statement.
 type AlterEventStmt struct {
+	Schema       string // database the event's name was qualified with
 	Loc          Loc
 	Definer      string
 	Name         string
 	Schedule     *EventSchedule
 	OnCompletion string // PRESERVE, NOT PRESERVE
 	RenameTo     string
+	RenameSchema string // database RENAME TO qualified the new name with
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
 	Body         Node   // parsed sp_proc_stmt (nil when no DO clause)
@@ -2910,6 +2926,7 @@ func (s *DropTriggerStmt) stmtNode() {}
 
 // DropEventStmt represents a DROP EVENT statement.
 type DropEventStmt struct {
+	Schema   string // database the event's name was qualified with
 	Loc      Loc
 	IfExists bool
 	Name     string

@@ -36,10 +36,11 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 	}
 
 	// Trigger name
-	name, _, err := p.parseIdent()
+	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
+	stmt.Schema = schema
 	stmt.Name = name
 
 	// Completion: after trigger name, offer BEFORE/AFTER.
@@ -98,7 +99,7 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedTableRef()
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +134,9 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 
 	// Trigger body — parse via the grammar.
 	bodyStart := p.pos()
+	outerRoutine := p.routine
+	p.routine = routineScope{triggerTiming: stmt.Timing, triggerEvent: stmt.Event, noResultSet: true}
+	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
@@ -176,10 +180,11 @@ func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error)
 	}
 
 	// Event name
-	name, _, err := p.parseIdent()
+	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
+	stmt.Schema = schema
 	stmt.Name = name
 
 	// ON SCHEDULE
@@ -254,6 +259,9 @@ func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error)
 
 	// Event body — parse via the grammar.
 	bodyStart := p.pos()
+	outerRoutine := p.routine
+	p.routine = routineScope{}
+	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err

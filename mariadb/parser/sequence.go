@@ -9,6 +9,9 @@
 package parser
 
 import (
+	"math"
+	"math/big"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -95,6 +98,9 @@ func (p *Parser) parseCreateSequenceStmt(start int, orReplace, temporary bool) (
 	stmt.Cache = opts.cache
 	stmt.NoCache = opts.noCache
 	stmt.Cycle = opts.cycle
+	if err := p.refuseSequenceRange(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -193,7 +199,27 @@ func (p *Parser) parseDropSequenceStmt(start int, temporary bool) (*nodes.DropSe
 // RESTART is accepted only when isAlter is true (CREATE ... RESTART is 1064).
 func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 	opts := &sequenceOptions{}
+	// Each option is once, a word and its NO form being one option: the action answers 1225,
+	// ER_DUP_ARGUMENT, for the second.
+	seen := map[int]bool{}
 	for {
+		slot := p.cur.Type
+		switch slot {
+		case kwNOCACHE:
+			slot = kwCACHE
+		case kwNOCYCLE:
+			slot = kwCYCLE
+		case kwNOMINVALUE:
+			slot = kwMINVALUE
+		case kwNOMAXVALUE:
+			slot = kwMAXVALUE
+		case kwNO:
+			slot = p.peekNext().Type
+		}
+		if seen[slot] {
+			return nil, &ParseError{Message: "Option used twice in statement", Position: p.cur.Loc}
+		}
+		seen[slot] = true
 		switch p.cur.Type {
 		case kwAS:
 			p.advance()
@@ -225,11 +251,14 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			if err != nil {
 				return nil, err
 			}
+			if lit, ok := v.(*nodes.IntLit); ok && lit.Value == math.MaxInt64 && p.prev.Str != "9223372036854775807" {
+				return nil, p.syntaxErrorAtTok(p.prev)
+			}
 			opts.increment = v
 		case kwMINVALUE:
 			p.advance()
 			p.matchEqual()
-			v, err := p.parseSequenceValue()
+			v, err := p.parseTruncatedSequenceValue()
 			if err != nil {
 				return nil, err
 			}
@@ -237,7 +266,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 		case kwMAXVALUE:
 			p.advance()
 			p.matchEqual()
-			v, err := p.parseSequenceValue()
+			v, err := p.parseTruncatedSequenceValue()
 			if err != nil {
 				return nil, err
 			}
@@ -312,6 +341,16 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 // deliberately does not call parseExpr (which would also swallow a following
 // non-reserved option keyword such as CYCLE).
 func (p *Parser) parseSequenceValue() (nodes.ExprNode, error) {
+	return p.parseSequenceValueRange(true)
+}
+
+// parseTruncatedSequenceValue parses MINVALUE's and MAXVALUE's value, which the server
+// truncates to the type where the others answer 1064 past 64 bits.
+func (p *Parser) parseTruncatedSequenceValue() (nodes.ExprNode, error) {
+	return p.parseSequenceValueRange(false)
+}
+
+func (p *Parser) parseSequenceValueRange(bounded bool) (nodes.ExprNode, error) {
 	start := p.pos()
 	neg := false
 	switch p.cur.Type {
@@ -323,6 +362,17 @@ func (p *Parser) parseSequenceValue() (nodes.ExprNode, error) {
 	}
 	if p.cur.Type != tokICONST {
 		return nil, p.syntaxErrorAtCur()
+	}
+	// longlong_num on the minus side and ulonglong_num on the plus: what is past those is
+	// a 1064.
+	if neg && bounded {
+		if _, err := strconv.ParseInt("-"+p.cur.Str, 10, 64); err != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else if bounded {
+		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	tok := p.advance()
 	lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
@@ -366,6 +416,9 @@ func (p *Parser) parseSequenceASType() (*nodes.DataType, error) {
 // clause (1064) — so, unlike the mssql donor, no OVER is parsed. The caller has
 // already confirmed p.cur is NEXT and the next token is VALUE.
 func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
+	if err := p.refuseStoredExprSubquery(p.pos(), true); err != nil {
+		return nil, err
+	}
 	start := p.pos()
 	p.advance() // consume NEXT
 	if _, err := p.expect(kwVALUE); err != nil {
@@ -403,4 +456,116 @@ func (p *Parser) parsePreviousValueFor() (nodes.ExprNode, error) {
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Sequence: seq,
 	}, nil
+}
+
+// sequenceBound holds a type's range as check_and_adjust reads it: the type's own maximum less
+// one, and its minimum plus one when it is signed.
+func sequenceBound(dt *nodes.DataType) (lo, hi *big.Int) {
+	bits, unsigned := uint(64), false
+	if dt != nil {
+		switch dt.Name {
+		case "TINYINT":
+			bits = 8
+		case "SMALLINT":
+			bits = 16
+		case "MEDIUMINT":
+			bits = 24
+		case "INT":
+			bits = 32
+		}
+		unsigned = dt.Unsigned
+	}
+	one := big.NewInt(1)
+	if unsigned {
+		top := new(big.Int).Lsh(one, bits)
+		return big.NewInt(0), top.Sub(top, big.NewInt(2))
+	}
+	half := new(big.Int).Lsh(one, bits-1)
+	return new(big.Int).Add(new(big.Int).Neg(half), one), new(big.Int).Sub(half, big.NewInt(2))
+}
+
+// sequenceValue reads what parseSequenceValue built, from the text: a value may not fit a
+// signed 64 bits, which is what the literal holds.
+func (p *Parser) sequenceValue(v nodes.ExprNode) *big.Int {
+	neg := false
+	if unary, ok := v.(*nodes.UnaryExpr); ok {
+		neg = true
+		v = unary.Operand
+	}
+	lit, ok := v.(*nodes.IntLit)
+	if !ok {
+		return new(big.Int)
+	}
+	n, _ := new(big.Int).SetString(p.inputText(lit.Loc.Start, lit.Loc.End), 10)
+	if n == nil {
+		return new(big.Int)
+	}
+	if neg {
+		n.Neg(n)
+	}
+	return n
+}
+
+// refuseSequenceRange is sequence_definition::check_and_adjust, which CREATE SEQUENCE runs while
+// it parses and answers 4085, ER_SEQUENCE_INVALID_DATA, for. MINVALUE and MAXVALUE are truncated
+// to the type's range first, and START is not. ALTER SEQUENCE checks against what the sequence
+// already holds, so it is not checked here.
+//
+// Ref: sequence_definition::check_and_adjust in MariaDB 11.8 sql/sql_sequence.cc.
+func (p *Parser) refuseSequenceRange(stmt *nodes.CreateSequenceStmt) error {
+	lo, hi := sequenceBound(stmt.DataType)
+	clamp := func(v *big.Int) *big.Int {
+		if v.Cmp(lo) < 0 {
+			return lo
+		}
+		if v.Cmp(hi) > 0 {
+			return hi
+		}
+		return v
+	}
+	increment := big.NewInt(1)
+	if stmt.Increment != nil {
+		increment = p.sequenceValue(stmt.Increment)
+	}
+	descending := increment.Sign() < 0
+	minimum, maximum := big.NewInt(1), hi
+	if descending {
+		minimum, maximum = lo, big.NewInt(-1)
+		if stmt.DataType != nil && stmt.DataType.Unsigned {
+			maximum = hi
+		}
+	}
+	if stmt.MinValue != nil {
+		minimum = clamp(p.sequenceValue(stmt.MinValue))
+	}
+	if stmt.MaxValue != nil {
+		maximum = clamp(p.sequenceValue(stmt.MaxValue))
+	}
+	start := minimum
+	if descending {
+		start = maximum
+	}
+	if stmt.Start != nil {
+		start = p.sequenceValue(stmt.Start)
+	}
+	// cache < (LONGLONG_MAX - max_increment) / max_increment, where an increment of 0 counts as
+	// MAX_AUTO_INCREMENT_VALUE and the default cache is 1000.
+	magnitude := new(big.Int).Abs(increment)
+	if magnitude.Sign() == 0 {
+		magnitude = big.NewInt(65535)
+	}
+	cache := big.NewInt(1000)
+	if stmt.NoCache {
+		cache = big.NewInt(0)
+	}
+	if stmt.Cache != nil {
+		cache = p.sequenceValue(stmt.Cache)
+	}
+	longMax := big.NewInt(math.MaxInt64)
+	limit := new(big.Int).Sub(longMax, magnitude)
+	limit.Div(limit, magnitude)
+	if maximum.Cmp(start) >= 0 && maximum.Cmp(minimum) > 0 && start.Cmp(minimum) >= 0 && cache.Cmp(limit) < 0 {
+		return nil
+	}
+	return &ParseError{Message: "Sequence '" + stmt.Name.Name + "' has out of range value for options", Position: stmt.Loc.Start}
 }

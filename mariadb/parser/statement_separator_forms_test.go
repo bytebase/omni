@@ -201,7 +201,7 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t (a int) select 1 for update", true},
 	{"create table t (a int) (select 1) for update", true},
 	{"create table t (a int) table u for update", false},
-	{"create table t (a int) (select 1) union (select 2) for update", true},
+	{"create table t (a int) (select 1) union (select 2) for update", false},
 	{"create table t (a int) select 1 union select 2 for update", true},
 	{"create table t (a int) (select 1) order by 1 for update", true},
 	{"create table t as (select 1) for update", true},

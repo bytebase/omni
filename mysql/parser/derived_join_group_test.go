@@ -20,8 +20,6 @@ var derivedJoinGroupAccepted = []string{
 	"select * from ((select k1 from j1) as d join j2 on d.k1 = j2.k1)",
 	"select * from ((select k1 from j1) d (x) join j2 on d.x = j2.k1)",
 	"select * from ((select k1 from j1) as d (x) join j2 on d.x = j2.k1)",
-	// no alias: MySQL parses it and then reports 1248, a missing alias
-	"select * from ((select k1 from j1) join j2 on 1)",
 	// join kinds
 	"select * from ((select k1 from j1) d left join j2 on d.k1 = j2.k1)",
 	"select * from ((select k1 from j1) d left outer join j2 on d.k1 = j2.k1)",
@@ -84,6 +82,8 @@ var derivedJoinGroupAccepted = []string{
 // (TestDerivedJoinGroupOracle). MySQL does not parenthesize a lone derived
 // table or table function.
 var derivedJoinGroupRejected = []string{
+	// no alias: 1248, which the action for a derived table raises while it parses
+	"select * from ((select k1 from j1) join j2 on 1)",
 	"select * from ((select k1 from j1) d)",
 	"select * from (((select k1 from j1) d))",
 	"select * from ((select k1 from j1) as d)",

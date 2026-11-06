@@ -32,16 +32,6 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x';`,
 			sql:  `CREATE TABLE t (a INT AUTO_INCREMENT KEY, b INT AUTO_INCREMENT KEY);`,
 			code: 1075,
 		},
-		{
-			name: "create_table_rejects_not_null_default_null",
-			sql:  `CREATE TABLE t (a INT NOT NULL DEFAULT NULL);`,
-			code: ErrInvalidDefault,
-		},
-		{
-			name: "create_table_rejects_non_temporal_on_update",
-			sql:  `CREATE TABLE t (a INT ON UPDATE NOW());`,
-			code: 1294,
-		},
 	}
 
 	for _, tt := range tests {

@@ -54,8 +54,6 @@ var reservedWordSweepGap = map[string]bool{
 	"select default from t": true,
 	// A 1314 is the parser's action refusing the statement before it reads on, so it says nothing
 	// of the label.
-	"create procedure p() help: loop leave help; end loop":     true,
-	"create procedure p() unlock: loop leave unlock; end loop": true,
 }
 
 // TestReservedWordForms holds omni to the recorded verdicts without a server, so a run with no
@@ -213,7 +211,8 @@ var reservedWordCases = []asOfCase{
 	{"create procedure p() begin loop select 1; end loop; end", true},
 	{"create procedure p() begin loop: loop select 1; end loop; end", false},
 	{"create procedure p() begin resignal; end", true},
-	{"create procedure p() begin return 1; end", true},
+	{"create function f() returns int begin return 1; end", true},
+	{"create procedure p() begin return 1; end", false},
 	{"create procedure p() begin select loop; end", false},
 	{"create procedure p() begin set loop = 1; end", false},
 	{"create procedure p() begin signal sqlstate '45000'; end", true},
@@ -322,7 +321,8 @@ var reservedWordCases = []asOfCase{
 	{"select * from t, lateral", true},
 	{"select * from window", true},
 	{"select * from window w", true},
-	{"select * from window, window", true},
+	{"select * from window, t", true},
+	{"select * from window, window", false},
 	{"select 1 + 1 get", true},
 	{"select 1 + count from t", true},
 	{"select 1 from t tablesample system", false},

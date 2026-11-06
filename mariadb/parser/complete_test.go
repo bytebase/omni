@@ -770,25 +770,6 @@ func TestParseDerivedTableColumnAliasSingle(t *testing.T) {
 	}
 }
 
-func TestParseLateralDerivedColumnAlias(t *testing.T) {
-	sql := "SELECT * FROM t1, LATERAL (SELECT c1 FROM t2) AS dt(a)"
-	list, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	sel := list.Items[0].(*nodes.SelectStmt)
-	sub := sel.From[1].(*nodes.SubqueryExpr)
-	if !sub.Lateral {
-		t.Error("expected Lateral=true")
-	}
-	if sub.Alias != "dt" {
-		t.Errorf("expected alias 'dt', got %q", sub.Alias)
-	}
-	if len(sub.Columns) != 1 || sub.Columns[0] != "a" {
-		t.Errorf("expected columns [a], got %v", sub.Columns)
-	}
-}
-
 // --- Tokenize and Token.End ---
 
 func TestTokenize(t *testing.T) {

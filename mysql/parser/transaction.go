@@ -267,8 +267,12 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 
 	for {
 		lockStart := p.pos()
+		qualified := p.peekNext().Type == '.'
 		ref, err := p.parseTableRefWithAlias()
 		if err != nil {
+			return nil, err
+		}
+		if err := refuseTableRefName(ref, qualified, lockStart); err != nil {
 			return nil, err
 		}
 

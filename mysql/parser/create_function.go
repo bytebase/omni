@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"strings"
 )
 
 // parseCreateLoadableFunction parses a CREATE [AGGREGATE] FUNCTION for loadable UDFs.
@@ -104,7 +105,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 	}
 
 	// Function/procedure name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +160,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		dt, err := p.parseDataType()
+		dt, err := p.parseRoutineDataType()
 		if err != nil {
 			return nil, err
 		}
@@ -195,6 +196,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
+	outerRoutine := p.routine
+	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
+	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
@@ -236,7 +240,7 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 	param.Name = name
 
 	// Data type
-	dt, err := p.parseDataType()
+	dt, err := p.parseRoutineDataType()
 	if err != nil {
 		return nil, err
 	}
@@ -345,4 +349,79 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// parseRoutineDataType reads the type of a routine's parameter, return value or local
+// variable. A collation there needs a character set beside it: the action answers 1235,
+// ER_NOT_SUPPORTED_YET, for `a CHAR(5) COLLATE ascii_bin` and runs it with CHARSET ascii.
+//
+// Ref: sp_param_type_with_opt_collate and type_with_opt_collate in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseRoutineDataType() (*nodes.DataType, error) {
+	start := p.pos()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if dt.Collate != "" && dt.Charset == "" {
+		return nil, &ParseError{Message: "COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE", Position: start}
+	}
+	// A column's limits wait for the table to be prepared, and a routine's types have none
+	// to wait for: the action checks them as they are read.
+	hasScale := strings.Contains(p.inputText(start, p.prev.End), ",")
+	if err := refuseRoutineTypeLimits(dt, hasScale, start); err != nil {
+		return nil, err
+	}
+	return dt, nil
+}
+
+// refuseRoutineTypeLimits holds a routine's type to what a column would be held to later: 1439
+// for a display width or length, 1074 for a CHAR or BINARY past 255, 1426 for a precision, 1425
+// for a scale and 1427 for a scale past its precision.
+//
+// Ref: Create_field::init in MySQL 8.0 sql/create_field.cc.
+func refuseRoutineTypeLimits(dt *nodes.DataType, hasScale bool, pos int) error {
+	refuse := func(msg string) error {
+		return &ParseError{Message: msg, Position: pos}
+	}
+	switch dt.Name {
+	case "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT":
+		if dt.Length > 255 {
+			return refuse("Display width out of range")
+		}
+	case "BIT":
+		if dt.Length > 64 {
+			return refuse("Display width out of range")
+		}
+	case "CHAR", "BINARY":
+		if dt.Length > 255 {
+			return refuse("Column length too big")
+		}
+	case "VARCHAR", "VARBINARY", "TEXT", "BLOB":
+		if dt.Length > 4294967295 {
+			return refuse("Display width out of range")
+		}
+	case "DECIMAL", "NUMERIC":
+		switch {
+		case dt.Length > 65:
+			return refuse("Too-big precision")
+		case dt.Scale > 30:
+			return refuse("Too big scale")
+		case hasScale && dt.Scale > dt.Length:
+			return refuse("For float(M,D), double(M,D) or decimal(M,D), M must be >= D")
+		}
+	case "FLOAT", "DOUBLE":
+		switch {
+		case !hasScale && dt.Length > 53:
+			return refuse("Incorrect column specifier")
+		case hasScale && dt.Length > 255:
+			return refuse("Display width out of range")
+		case hasScale && (dt.Scale > 30 || dt.Scale > dt.Length):
+			return refuse("For float(M,D), double(M,D) or decimal(M,D), M must be >= D")
+		}
+	case "TIME", "DATETIME", "TIMESTAMP":
+		if dt.Length > 6 {
+			return refuse("Too-big precision")
+		}
+	}
+	return nil
 }

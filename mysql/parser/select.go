@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"strconv"
 )
 
 // parseWithClause parses a WITH clause (Common Table Expressions).
@@ -744,11 +745,18 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	// FROM clause
 	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parseTableReferenceList()
-		if err != nil {
-			return nil, err
+		// FROM DUAL stands alone: `FROM t, dual`, `FROM dual JOIN t` and `FROM (dual)` are each
+		// a 1064, and so is an alias on it.
+		if p.cur.Type == kwDUAL {
+			tok := p.advance()
+			stmt.From = []nodes.TableExpr{&nodes.TableRef{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Name: "dual"}}
+		} else {
+			from, err := p.parseTableReferenceList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = from
 		}
-		stmt.From = from
 	}
 
 	// WHERE clause — MySQL allows WHERE without FROM (e.g., SELECT 1 WHERE 1=1)
@@ -1378,6 +1386,83 @@ func (p *Parser) scanParenBlock() {
 }
 
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
+// parseOutfileFields parses the one-or-more items of a FIELDS clause in SELECT ... INTO
+// OUTFILE, the same field_term list LOAD DATA reads: BY is required, the value is a string,
+// hex or bit literal, and the items come in any order and may repeat.
+//
+// Ref: field_term in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseOutfileFields(into *nodes.IntoClause) error {
+	for n := 0; ; n++ {
+		var target *string
+		switch p.cur.Type {
+		case kwTERMINATED:
+			target = &into.FieldsTerminatedBy
+		case kwOPTIONALLY:
+			p.advance()
+			if p.cur.Type != kwENCLOSED {
+				return p.syntaxErrorAtCur()
+			}
+			into.FieldsOptionalEncl = true
+			target = &into.FieldsEnclosedBy
+		case kwENCLOSED:
+			target = &into.FieldsEnclosedBy
+		case kwESCAPED:
+			target = &into.FieldsEscapedBy
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err := p.parseOutfileTerminator(target); err != nil {
+			return err
+		}
+	}
+}
+
+// parseOutfileLines parses the one-or-more items of a LINES clause, line_term.
+func (p *Parser) parseOutfileLines(into *nodes.IntoClause) error {
+	for n := 0; ; n++ {
+		var target *string
+		switch p.cur.Type {
+		case kwSTARTING:
+			target = &into.LinesStartingBy
+		case kwTERMINATED:
+			target = &into.LinesTerminatedBy
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err := p.parseOutfileTerminator(target); err != nil {
+			return err
+		}
+	}
+}
+
+// parseOutfileTerminator reads BY and the value after the word that opens an item.
+func (p *Parser) parseOutfileTerminator(target *string) error {
+	p.advance()
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	v, err := p.parseFieldTerminator()
+	if err != nil {
+		return err
+	}
+	*target = v
+	return nil
+}
+
+// refuseDerivedTableWithoutAlias is 1248, ER_DERIVED_MUST_HAVE_ALIAS, which the action for
+// a derived table raises while it parses.
+//
+// Ref: derived_table in MySQL 8.0 sql/sql_yacc.yy.
+func refuseDerivedTableWithoutAlias(pos int) error {
+	return &ParseError{Message: "Every derived table must have its own alias", Position: pos}
+}
+
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -1388,16 +1473,12 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		latStart := p.pos()
 		p.advance() // consume LATERAL
 
-		if _, err := p.expect('('); err != nil {
-			return nil, err
+		// A derived table, whatever query expression it holds: VALUES, TABLE, WITH or
+		// a parenthesized body as well as SELECT.
+		if p.cur.Type != '(' || !p.parenOpensQuery() {
+			return nil, p.syntaxErrorAtCur()
 		}
-
-		if p.cur.Type != kwSELECT {
-			return nil, &ParseError{
-				Message:  "expected SELECT after LATERAL (",
-				Position: p.cur.Loc,
-			}
-		}
+		p.advance()
 
 		sel, err := p.parseSelectStmt()
 		if err != nil {
@@ -1415,13 +1496,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 		// Optional alias: [AS] alias
 		if _, ok := p.match(kwAS); ok {
-			alias, _, err := p.parseIdentOrText()
+			alias, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}
 			sub.Alias = alias
-		} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
-			alias, _, err := p.parseIdentOrText()
+		} else if p.isIdentToken() && !p.isSelectTerminator() {
+			alias, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}
@@ -1435,6 +1516,10 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				return nil, err
 			}
 			sub.Columns = cols
+		}
+
+		if sub.Alias == "" {
+			return nil, refuseDerivedTableWithoutAlias(latStart)
 		}
 
 		sub.Loc.End = p.prev.End
@@ -1470,13 +1555,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
-				alias, _, err := p.parseIdentOrText()
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
 				sub.Alias = alias
-			} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
-				alias, _, err := p.parseIdentOrText()
+			} else if p.isIdentToken() && !p.isSelectTerminator() {
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
@@ -1490,6 +1575,10 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 					return nil, err
 				}
 				sub.Columns = cols
+			}
+
+			if sub.Alias == "" {
+				return nil, refuseDerivedTableWithoutAlias(startPos)
 			}
 
 			sub.Loc.End = p.prev.End
@@ -1522,17 +1611,6 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
 	if p.cur.Type == kwJSON_TABLE {
 		return p.parseJsonTable()
-	}
-
-	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
-	// After registration as a reserved keyword, parseIdent rejects it,
-	// so we handle it explicitly here.
-	if p.cur.Type == kwDUAL {
-		tok := p.advance()
-		return &nodes.TableRef{
-			Loc:  nodes.Loc{Start: tok.Loc, End: p.prev.End},
-			Name: "dual",
-		}, nil
 	}
 
 	// Regular table reference with alias
@@ -1609,7 +1687,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 
 	// [AS] alias (required for JSON_TABLE)
 	p.match(kwAS)
-	alias, _, aErr := p.parseIdentOrText()
+	alias, _, aErr := p.parseIdent()
 	if aErr != nil {
 		return nil, aErr
 	}
@@ -1819,6 +1897,11 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 // program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
+		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
+		// bits lexes as DECIMAL_NUM, which it does not take.
+		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parsePrimaryExpr()
 	}
 	if p.isIdentToken() && !p.isVariableRef() {
@@ -2133,39 +2216,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
 			p.advance()
 			into.HasFieldsClause = true
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsTerminatedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [[OPTIONALLY] ENCLOSED BY 'char']
-			if p.cur.Type == kwOPTIONALLY {
-				p.advance()
-				into.FieldsOptionalEncl = true
-			}
-			if p.cur.Type == kwENCLOSED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEnclosedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [ESCAPED BY 'char']
-			if p.cur.Type == kwESCAPED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEscapedBy = p.cur.Str
-					p.advance()
-				}
+			if err := p.parseOutfileFields(into); err != nil {
+				return nil, err
 			}
 		}
 
@@ -2173,25 +2225,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwLINES {
 			p.advance()
 			into.HasLinesClause = true
-
-			// [STARTING BY 'string']
-			if p.cur.Type == kwSTARTING {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesStartingBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesTerminatedBy = p.cur.Str
-					p.advance()
-				}
+			if err := p.parseOutfileLines(into); err != nil {
+				return nil, err
 			}
 		}
 
@@ -2547,6 +2582,10 @@ func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 // the stored form (a perpetual no-op view replace), the same residual class
 // as the unexpanded row-compare and set-op ARM paren forms.
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
+	// A partition's method takes no subquery: 1064 from the action.
+	if p.partitionExpr == partitionExprMethod {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {

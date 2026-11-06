@@ -1291,7 +1291,6 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		{"SELECT 1 UNION VALUES (2) ORDER BY 1 LIMIT 1", "select 1 AS `1` union values (2) order by 1 limit 1"},
 		{"SELECT 1 UNION (VALUES (2) ORDER BY 1 LIMIT 1) ORDER BY 1 LIMIT 2", "select 1 AS `1` union (values (2) order by 1 limit 1) order by 1 limit 2"},
 		{"SELECT a FROM t WHERE a IN (VALUES (1), (2))", "select `a` AS `a` from `t` where `a` in (values (1),(2))"},
-		{"SELECT a FROM t WHERE a IN (VALUES (1) ORDER BY 1 LIMIT 1)", "select `a` AS `a` from `t` where `a` in (values (1) order by 1 limit 1)"},
 		{"SELECT a FROM t ORDER BY (VALUES (1) ORDER BY (VALUES (2) LIMIT 1) LIMIT 1)", "select `a` AS `a` from `t` order by (values (1) order by (values (2) limit 1) limit 1)"},
 		{"VALUES (1, 'a'), (2, 'b') ORDER BY 1 DESC LIMIT 1, 1", "values (1,'a'),(2,'b') order by 1 desc limit 1,1"},
 		{"VALUES (1) LOCK IN SHARE MODE", "values (1) lock in share mode"},

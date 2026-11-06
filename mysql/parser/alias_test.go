@@ -18,40 +18,19 @@ func TestSelectAliasStringLiteral(t *testing.T) {
 	}
 }
 
-func TestTableAliasStringLiteral(t *testing.T) {
-	cases := []string{
+// TestFromAliasIsNoString: a select item's alias may be a string, and an alias in FROM may
+// not: table_alias reads an identifier, on a table, a derived table and a JSON_TABLE alike.
+func TestFromAliasIsNoString(t *testing.T) {
+	for _, sql := range []string{
 		`SELECT * FROM t AS 'a'`,
 		`SELECT * FROM t 'a'`,
 		`SELECT * FROM t AS "a" JOIN u AS 'b' ON t.id = b.id`,
-	}
-	for _, sql := range cases {
-		t.Run(sql, func(t *testing.T) {
-			if _, err := Parse(sql); err != nil {
-				t.Fatalf("Parse(%q) error: %v", sql, err)
-			}
-		})
-	}
-}
-
-func TestJsonTableAliasStringLiteral(t *testing.T) {
-	sql := `SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (v INT PATH '$')) AS 'j'`
-	if _, err := Parse(sql); err != nil {
-		t.Fatalf("Parse(%q) error: %v", sql, err)
-	}
-}
-
-func TestDerivedTableAliasStringLiteral(t *testing.T) {
-	cases := []string{
+		`SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (v INT PATH '$')) AS 'j'`,
 		`SELECT * FROM (SELECT 1) AS 'a'`,
 		`SELECT * FROM (SELECT 1) 'a'`,
-		`SELECT * FROM LATERAL (SELECT 1) AS 'a'`,
-		`SELECT * FROM LATERAL (SELECT 1) 'a'`,
-	}
-	for _, sql := range cases {
-		t.Run(sql, func(t *testing.T) {
-			if _, err := Parse(sql); err != nil {
-				t.Fatalf("Parse(%q) error: %v", sql, err)
-			}
-		})
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) took a string as an alias", sql)
+		}
 	}
 }

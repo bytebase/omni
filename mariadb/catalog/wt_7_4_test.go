@@ -382,13 +382,14 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.
 	      SUBPARTITION s3
 	    )
 	  )`, nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
+	// The action for the partition list refuses it while the statement parses, so it
+	// never reaches the catalog.
+	if err == nil {
+		t.Fatalf("Exec parsed it: %+v", results)
 	}
-	if len(results) != 1 {
-		t.Fatalf("expected one result, got %d", len(results))
+	if !strings.Contains(err.Error(), "Wrong number of subpartitions") {
+		t.Fatalf("Exec error = %v, want the parser's mismatch", err)
 	}
-	assertError(t, results[0].Error, 1064)
 }
 
 // Scenario 7: ALTER TABLE TRUNCATE PARTITION — no structural change

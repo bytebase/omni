@@ -234,6 +234,10 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 
 	// Functional index: (expr)
 	if p.cur.Type == '(' {
+		// MariaDB has no functional key part: `KEY k ((a))` is a 1064.
+		if !p.completing {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -621,7 +625,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 			}
 			p.advance()
 			p.matchEqual() // optional =
-			if algorithm, err = p.parseIndexLockAlgorithmValue(); err != nil {
+			if algorithm, err = p.parseAlgorithmValue(); err != nil {
 				return "", "", err
 			}
 			haveAlgorithm = true
@@ -631,7 +635,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 			}
 			p.advance()
 			p.matchEqual() // optional =
-			if lock, err = p.parseIndexLockAlgorithmValue(); err != nil {
+			if lock, err = p.parseLockValue(); err != nil {
 				return "", "", err
 			}
 			haveLock = true
@@ -641,20 +645,46 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 	}
 }
 
-// parseIndexLockAlgorithmValue reads the value ALGORITHM or LOCK takes: the
-// DEFAULT keyword, or an identifier.
+// parseAlgorithmValue reads the value of ALGORITHM: the DEFAULT keyword, or an identifier
+// naming DEFAULT, COPY, INPLACE, NOCOPY or INSTANT in any case, backquoted or not. Any other
+// identifier is 1800, ER_UNKNOWN_ALTER_ALGORITHM, from the action. The value is not optional,
+// and a string, a number and a reserved word are no identifier: MariaDB 11.8.8 answers 1064
+// for ALGORITHM = 'inplace', ALGORITHM = 1 and ALGORITHM = select.
 //
-// DEFAULT is reserved, so the grammar gives it an arm of its own beside ident
-// rather than leaving it to be read as one. The value is not optional, and a
-// reserved word that is not DEFAULT is not a name: mariadb:11.8.8 answers 1064 for
-// ALGORITHM with nothing after it, for ALGORITHM =, and for ALGORITHM = select.
-//
-// Ref: alter_algorithm_option_value and alter_lock_option_value in MySQL 8.0
-// sql/sql_yacc.yy.
-func (p *Parser) parseIndexLockAlgorithmValue() (string, error) {
+// Ref: alter_algorithm_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseAlgorithmValue() (string, error) {
 	if tok, ok := p.match(kwDEFAULT); ok {
 		return tok.Str, nil
 	}
+	start := p.pos()
 	name, _, err := p.parseIdent()
-	return name, err
+	if err != nil {
+		return "", err
+	}
+	switch strings.ToUpper(name) {
+	case "DEFAULT", "COPY", "INPLACE", "NOCOPY", "INSTANT":
+		return name, nil
+	}
+	return "", &ParseError{Message: "Unknown ALGORITHM '" + name + "'", Position: start}
+}
+
+// parseLockValue reads the value of LOCK the same way: the DEFAULT keyword, or an identifier
+// naming DEFAULT, NONE, SHARED or EXCLUSIVE, where any other identifier is 1801,
+// ER_UNKNOWN_ALTER_LOCK.
+//
+// Ref: alter_lock_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseLockValue() (string, error) {
+	if tok, ok := p.match(kwDEFAULT); ok {
+		return tok.Str, nil
+	}
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
+	}
+	switch strings.ToUpper(name) {
+	case "DEFAULT", "NONE", "SHARED", "EXCLUSIVE":
+		return name, nil
+	}
+	return "", &ParseError{Message: "Unknown LOCK TYPE '" + name + "'", Position: start}
 }

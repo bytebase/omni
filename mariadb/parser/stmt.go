@@ -135,6 +135,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseDeallocateStmt()
 
 	case kwANALYZE:
+		if p.analyzeTakesStatement() {
+			return p.parseAnalyzeStatement()
+		}
 		return p.parseAnalyzeTableStmt()
 
 	case kwOPTIMIZE:
@@ -422,18 +425,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		orReplace = true
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		if orReplace {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseCreateTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	// TEMPORARY — opt_temporary precedes only TABLE and SEQUENCE in the create
 	// rule; MariaDB rejects it before any other object at parse (1064).
 	if p.cur.Type == kwTEMPORARY {
@@ -512,20 +503,8 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwROLE:
 		return p.parseCreateRoleStmt(start, orReplace)
 
-	case kwTABLESPACE:
-		if orReplace {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateTablespaceStmt(start, false)
-
 	case kwSERVER:
 		return p.parseCreateServerStmt(start, orReplace)
-
-	case kwLOGFILE:
-		if orReplace {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateLogfileGroupStmt(start)
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
@@ -647,15 +626,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseAlterTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt(start)
@@ -668,9 +638,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	case kwUSER:
 		return p.parseAlterUserStmt(start)
-
-	case kwTABLESPACE:
-		return p.parseAlterTablespaceStmt(start, false)
 
 	case kwSERVER:
 		return p.parseAlterServerStmt(start)
@@ -734,9 +701,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwPROCEDURE:
 		return p.parseAlterRoutineStmt(start, true)
 
-	case kwLOGFILE:
-		return p.parseAlterLogfileGroupStmt(start)
-
 	case kwINSTANCE:
 		return p.parseAlterInstanceStmt(start)
 
@@ -760,15 +724,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
-	}
-
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseDropTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
 	temporary := false
@@ -811,14 +766,8 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwEVENT:
 		return p.parseDropEventStmt(start)
 
-	case kwTABLESPACE:
-		return p.parseDropTablespaceStmt(start, false)
-
 	case kwSERVER:
 		return p.parseDropServerStmt(start)
-
-	case kwLOGFILE:
-		return p.parseDropLogfileGroupStmt(start)
 
 	case kwSPATIAL:
 		p.advance() // consume SPATIAL

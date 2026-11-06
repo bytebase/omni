@@ -10,6 +10,12 @@ import (
 
 // Parser is a recursive descent parser for MySQL SQL.
 type Parser struct {
+	// partitionExpr is the part of a partition clause around the current token.
+	partitionExpr partitionExprKind
+
+	// routine is what the stored program around the current token holds its body to.
+	routine routineScope
+
 	lexer   *Lexer
 	cur     Token // current token
 	prev    Token // previous token (for error reporting)

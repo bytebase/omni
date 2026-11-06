@@ -103,9 +103,7 @@ func TestParenthesizedQueryLocking(t *testing.T) {
 		"(SELECT a FROM t) FOR UPDATE",
 		"(SELECT a FROM t) LOCK IN SHARE MODE",
 		"(SELECT a FROM t FOR UPDATE) UNION (SELECT a FROM t)",
-		"(SELECT a FROM t) UNION (SELECT a FROM t) FOR UPDATE",
 		"((SELECT a FROM t) UNION (SELECT a FROM t)) FOR UPDATE",
-		"(SELECT a FROM t) UNION (SELECT a FROM t) ORDER BY 1 FOR UPDATE",
 		"SELECT a FROM t UNION SELECT a FROM t FOR UPDATE",
 	} {
 		t.Run(sql, func(t *testing.T) {

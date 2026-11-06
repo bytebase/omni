@@ -78,14 +78,12 @@ const (
 )
 
 // classify runs sqlStr against MariaDB and maps the result to a PARSE verdict.
-// Only 1064 (ER_PARSE_ERROR) is a reject — MariaDB reserves 1064 for parse-time
-// errors (unlike StarRocks's 1064 overload). Any other *gomysql.MySQLError means
-// it PARSED → accepted (code captured): 1146 (missing table), 1235
-// (ER_NOT_SUPPORTED_YET feature-gate), and 1969 (ER_STATEMENT_TIMEOUT from the
-// server-side max_statement_time guard) all surface as MySQLErrors = "parsed
-// fine, failed/killed at runtime" → accepted. A NON-MySQLError (conn reset, pool
-// exhaustion) is a distinct vErrored state — surfaced loudly, never folded into
-// accept (that would corrupt the exact-set gate).
+// 1064 (ER_PARSE_ERROR) is a reject, and any other *gomysql.MySQLError goes to
+// prepareParses, which tells a code the parser's actions raised, as 1235's LIMIT
+// under IN and 1582's argument counts are, from one raised after parsing, as 1146's
+// missing table and 1969's max_statement_time guard are. A NON-MySQLError (conn
+// reset, pool exhaustion) is a distinct vErrored state — surfaced loudly, never
+// folded into accept (that would corrupt the exact-set gate).
 func (o *parserOracle) classify(sqlStr string) (verdict, uint16, string) {
 	_, err := o.db.ExecContext(o.ctx, sqlStr)
 	if err == nil {
@@ -94,6 +92,13 @@ func (o *parserOracle) classify(sqlStr string) (verdict, uint16, string) {
 	if myErr, ok := err.(*gomysql.MySQLError); ok {
 		if myErr.Number == 1064 {
 			return vRejected, 1064, myErr.Message
+		}
+		parses, err := o.prepareParsesErr(sqlStr)
+		if err != nil {
+			return vErrored, 0, err.Error()
+		}
+		if !parses {
+			return vRejected, myErr.Number, myErr.Message
 		}
 		return vAccepted, myErr.Number, myErr.Message
 	}
