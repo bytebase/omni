@@ -186,15 +186,16 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					switch cmd.Type {
 					case ast.ATAddConstraint, ast.ATAddIndex:
 						// A check constraint makes no index; its name is
-						// another namespace's.
-						if cmd.Constraint != nil && cmd.Constraint.Type != ast.ConstrCheck {
+						// another namespace's. IF NOT EXISTS may leave an index of
+						// the name as it was.
+						if cmd.Constraint != nil && cmd.Constraint.Type != ast.ConstrCheck && !cmd.Constraint.IfNotExists {
 							touch(v.Table, keyName(cmd.Constraint), cmd.Constraint.Type == ast.ConstrUnique)
 						}
 					case ast.ATAddColumn:
 						// `ADD [COLUMN] ( ... )` reads a table element list,
 						// so a key written beside the columns is added here.
 						for _, con := range cmd.Constraints {
-							if con != nil && con.Type != ast.ConstrCheck {
+							if con != nil && con.Type != ast.ConstrCheck && !con.IfNotExists {
 								touch(v.Table, keyName(con), con.Type == ast.ConstrUnique)
 							}
 						}

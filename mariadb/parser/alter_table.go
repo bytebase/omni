@@ -570,7 +570,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// ADD [CONSTRAINT ...] PRIMARY KEY / UNIQUE / FOREIGN KEY / CHECK
 	if p.isTableConstraintStart() {
 		cmd.Type = nodes.ATAddConstraint
-		constr, err := p.parseTableConstraint(true)
+		constr, err := p.parseTableConstraint(placeAlterAdd)
 		if err != nil {
 			return nil, err
 		}
@@ -626,7 +626,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		p.advance()
 		for {
 			if p.isTableConstraintStart() {
-				constr, err := p.parseTableConstraint(true)
+				constr, err := p.parseTableConstraint(placeAlterAddList)
 				if err != nil {
 					return nil, err
 				}

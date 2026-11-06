@@ -62,13 +62,13 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 //
 // Ref: https://mariadb.com/kb/en/drop-index/
 //
-//	DROP INDEX [IF EXISTS] index_name ON tbl_name
+//	DROP INDEX [IF EXISTS] index_name ON tbl_name [WAIT n | NOWAIT]
 //
 // MariaDB reads IF EXISTS here, which MySQL does not, and reads neither of the
 // clauses MySQL closes the statement with: mariadb:11.8.8 answers 0 for DROP
 // INDEX IF EXISTS i ON t and 1064 for ALGORITHM and LOCK in every spelling,
-// DEFAULT and INPLACE alike (read on 2026-11-04). The WAIT and NOWAIT clauses
-// it also takes there are not read yet.
+// DEFAULT and INPLACE alike (read on 2026-11-04). It closes the statement with
+// [WAIT n | NOWAIT] instead.
 func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	p.advance() // consume INDEX
 
@@ -112,6 +112,10 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 		return nil, err
 	}
 	stmt.Table = ref
+
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
