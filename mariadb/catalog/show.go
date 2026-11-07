@@ -1207,6 +1207,14 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 // A default carrying more fraction digits than the scale is left as written:
 // rounding it is the server's to do, and this has not been measured.
 func scaleNumberDefault(digits string, col *Column) string {
+	// A number default is written as a plain decimal, so exponent notation is
+	// worked out rather than carried: measured on mariadb:11.8.8,
+	// `DECIMAL(5,2) DEFAULT 1e2` comes back 100.00, `DECIMAL(6,2) DEFAULT
+	// 1.5e2` 150.00, `DECIMAL(5,2) DEFAULT 1e-1` 0.10, and on a column with
+	// no scale, `INT DEFAULT 1e2` and `DOUBLE DEFAULT 1e2` both come back 100.
+	if plain, ok := expandExponent(digits); ok {
+		digits = plain
+	}
 	if normalizedTypeName(col.DataType) != "decimal" {
 		return digits
 	}
@@ -1402,4 +1410,95 @@ func declaredTypeLength(columnType string) int {
 		n = n*10 + int(digits[i]-'0')
 	}
 	return n
+}
+
+// expandExponent rewrites a number in exponent notation as a plain decimal,
+// and reports whether it applied. The point is moved through the digits rather
+// than the value passed through a float, so no precision is invented.
+func expandExponent(text string) (string, bool) {
+	mantissa, exponent, found := cutAnyFold(text, "e")
+	if !found || mantissa == "" || exponent == "" {
+		return "", false
+	}
+	sign := ""
+	if mantissa[0] == '+' || mantissa[0] == '-' {
+		if mantissa[0] == '-' {
+			sign = "-"
+		}
+		mantissa = mantissa[1:]
+	}
+	exp, ok := parseSignedInt(exponent)
+	if !ok {
+		return "", false
+	}
+	whole, fraction, _ := strings.Cut(mantissa, ".")
+	if whole == "" && fraction == "" {
+		return "", false
+	}
+	if !allDigits(whole) || !allDigits(fraction) {
+		return "", false
+	}
+
+	digits := whole + fraction
+	point := len(whole) + exp
+	var out string
+	switch {
+	case point <= 0:
+		out = "0." + strings.Repeat("0", -point) + digits
+	case point >= len(digits):
+		out = digits + strings.Repeat("0", point-len(digits))
+	default:
+		out = digits[:point] + "." + digits[point:]
+	}
+
+	// A shifted mantissa can carry leading zeros, as 0.5e1 does; one digit
+	// stays before the point.
+	whole, fraction, hasPoint := strings.Cut(out, ".")
+	whole = strings.TrimLeft(whole, "0")
+	if whole == "" {
+		whole = "0"
+	}
+	if hasPoint {
+		return sign + whole + "." + fraction, true
+	}
+	return sign + whole, true
+}
+
+// cutAnyFold cuts text at the first occurrence of sep in either case.
+func cutAnyFold(text, sep string) (before, after string, found bool) {
+	i := strings.IndexAny(text, strings.ToLower(sep)+strings.ToUpper(sep))
+	if i < 0 {
+		return text, "", false
+	}
+	return text[:i], text[i+1:], true
+}
+
+// parseSignedInt reads an optionally signed run of digits.
+func parseSignedInt(text string) (int, bool) {
+	negative := false
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		negative = text[0] == '-'
+		text = text[1:]
+	}
+	if text == "" || !allDigits(text) || len(text) > 4 {
+		return 0, false // a wild exponent is left as written
+	}
+	n := 0
+	for i := 0; i < len(text); i++ {
+		n = n*10 + int(text[i]-'0')
+	}
+	if negative {
+		return -n, true
+	}
+	return n, true
+}
+
+// allDigits reports whether text is only decimal digits; the empty string is.
+func allDigits(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] < '0' || text[i] > '9' {
+			return false
+		}
+	}
+	return true
 }

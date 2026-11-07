@@ -991,36 +991,41 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 	// Analyze CHECK expressions on constraints.
 	// We iterate constraints and match CHECK ones; the AST sources are both
 	// column-level and table-level constraint nodes.
+	// The statement's CHECK clauses are matched to the table's CHECK
+	// constraints in order. A JSON column's implicit json_valid check is not
+	// one of the statement's clauses, so nextCheck passes it over: counting it
+	// would hand the following clause's analyzed expression to the wrong
+	// constraint, and leave that clause's own constraint without one.
 	checkIdx := 0
+	nextCheck := func() *Constraint {
+		for checkIdx < len(tbl.Constraints) {
+			con := tbl.Constraints[checkIdx]
+			checkIdx++
+			if con.Type == ConCheck && !isImplicitJSONCheck(con) {
+				return con
+			}
+		}
+		return nil
+	}
+	analyze := func(expr nodes.ExprNode) {
+		con := nextCheck()
+		if con == nil {
+			return
+		}
+		if analyzed, err := c.AnalyzeStandaloneExpr(expr, tbl); err == nil {
+			con.CheckAnalyzed = analyzed
+		}
+	}
 	for _, colDef := range stmt.Columns {
 		for _, cc := range colDef.Constraints {
 			if cc.Type == nodes.ColConstrCheck && cc.Expr != nil {
-				// Find matching CHECK constraint by index.
-				for checkIdx < len(tbl.Constraints) {
-					if tbl.Constraints[checkIdx].Type == ConCheck {
-						if analyzed, err := c.AnalyzeStandaloneExpr(cc.Expr, tbl); err == nil {
-							tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
-						}
-						checkIdx++
-						break
-					}
-					checkIdx++
-				}
+				analyze(cc.Expr)
 			}
 		}
 	}
 	for _, con := range stmt.Constraints {
 		if con.Type == nodes.ConstrCheck && con.Expr != nil {
-			for checkIdx < len(tbl.Constraints) {
-				if tbl.Constraints[checkIdx].Type == ConCheck {
-					if analyzed, err := c.AnalyzeStandaloneExpr(con.Expr, tbl); err == nil {
-						tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
-					}
-					checkIdx++
-					break
-				}
-				checkIdx++
-			}
+			analyze(con.Expr)
 		}
 	}
 }

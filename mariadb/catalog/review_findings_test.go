@@ -1079,3 +1079,103 @@ func TestReview_IntroducedAndScaledDefaults(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ExponentNumberDefault covers a number default in exponent
+// notation, which is worked out rather than carried: padding it to a DECIMAL's
+// scale would have produced `1e2.00`, which does not parse.
+func TestReview_ExponentNumberDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"decimal_exponent", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 1e2)"},
+		{"decimal_exponent_quoted", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '1e2')"},
+		{"decimal_exponent_upper", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 1E2)"},
+		{"decimal_exponent_fraction", "CREATE TABLE t (a DECIMAL(6,2) DEFAULT 1.5e2)"},
+		{"decimal_exponent_negative", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 1e-1)"},
+		{"double_exponent", "CREATE TABLE t (a DOUBLE DEFAULT 1e2)"},
+		{"int_exponent", "CREATE TABLE t (a INT DEFAULT 1e2)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			// The written default has to be something the server can read.
+			create := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx,
+				strings.Replace(create, "CREATE TABLE `t`", "CREATE TABLE `t_reparse`", 1)); err != nil {
+				t.Errorf("the written table does not reparse: %v\n%s", err, create)
+			}
+		})
+	}
+}
+
+// TestReview_AnalyzedChecksSkipTheImplicitOne covers the analyzed CHECK
+// expressions a table exposes. They are matched to the statement's CHECK
+// clauses in order, and a JSON column's implicit json_valid check is not one
+// of those clauses, so it is passed over rather than counted.
+func TestReview_AnalyzedChecksSkipTheImplicitOne(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ddl      string
+		analyzed map[string]bool
+	}{
+		{
+			name:     "json_column_before_a_check",
+			ddl:      "CREATE TABLE t (j JSON, a INT, CONSTRAINT positive CHECK (a > 0))",
+			analyzed: map[string]bool{"j": false, "positive": true},
+		},
+		{
+			name: "json_column_between_two_checks",
+			ddl: "CREATE TABLE t (a INT, CONSTRAINT lo CHECK (a > 0), j JSON," +
+				" CONSTRAINT hi CHECK (a < 9))",
+			analyzed: map[string]bool{"lo": true, "j": false, "hi": true},
+		},
+		{
+			name:     "column_check_after_a_json_column",
+			ddl:      "CREATE TABLE t (j JSON, a INT CHECK (a > 0))",
+			analyzed: map[string]bool{"j": false, "a": true},
+		},
+		{
+			name:     "no_json_column",
+			ddl:      "CREATE TABLE t (a INT, CONSTRAINT positive CHECK (a > 0))",
+			analyzed: map[string]bool{"positive": true},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			results, err := c.Exec("CREATE DATABASE d; USE d; "+tc.ddl+";", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatal(r.Error)
+				}
+			}
+			tbl := c.GetDatabase("d").GetTable("t")
+			seen := map[string]bool{}
+			for _, con := range tbl.Constraints {
+				if con.Type != ConCheck {
+					continue
+				}
+				seen[con.Name] = con.CheckAnalyzed != nil
+			}
+			for name, want := range tc.analyzed {
+				got, ok := seen[name]
+				if !ok {
+					t.Errorf("no CHECK constraint named %q; got %v", name, seen)
+					continue
+				}
+				if got != want {
+					t.Errorf("constraint %q analyzed=%v, want %v", name, got, want)
+				}
+			}
+			if len(seen) != len(tc.analyzed) {
+				t.Errorf("CHECK constraints: got %v, want %v", seen, tc.analyzed)
+			}
+		})
+	}
+}
