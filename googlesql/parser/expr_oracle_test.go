@@ -39,7 +39,7 @@ import (
 	"sync"
 	"testing"
 
-	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // exprFixture pairs a bare expression (fed to omni's ParseExpression) with a
@@ -292,8 +292,8 @@ type exprHarness struct {
 
 func newExprHarness(t *testing.T) *exprHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")

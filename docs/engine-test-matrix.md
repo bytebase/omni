@@ -35,7 +35,7 @@ Existing shared helpers use the same package path and filenames:
   container_test.go  # only when the helper has tests
 ```
 
-`container.go` contains image selection, startup, connections, protocol support, and cleanup. Tests of that helper belong in `container_test.go`. Do not add empty files or share helper implementations across engines. Tests may retain an import alias while migrating from an older helper package name.
+`container.go` contains image selection, startup, connections, protocol support, and cleanup. Tests of that helper belong in `container_test.go`. Do not add empty files or share helper implementations across engines. Import the engine-owned package without an alias and call it as `testcontainer.*`.
 
 Inline setup in other engines has not yet been extracted by this initial change. The nested Spanner harness also remains an independent Go module.
 

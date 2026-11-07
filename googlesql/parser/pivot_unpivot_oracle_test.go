@@ -43,7 +43,7 @@ import (
 	"sync"
 	"testing"
 
-	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // qcFixture is a full query statement (no trailing ';') fed to BOTH the oracle
@@ -189,8 +189,8 @@ type qcHarness struct {
 
 func newQCHarness(t *testing.T) *qcHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
+	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the lexer node's slice of the differential-oracle gate described
@@ -141,7 +141,7 @@ func TestLexer_CorpusNoSpuriousErrors(t *testing.T) {
 // every corpus statement Trino's parser accepts (no SYNTAX_ERROR), the lexer
 // must not emit a hard error. Skipped when no Trino is reachable.
 func TestLexer_OracleDifferential(t *testing.T) {
-	o := trinooracle.ForTest(t)
+	o := testcontainer.ForTest(t)
 
 	for _, sql := range oracleCorpus {
 		sql := sql

@@ -33,7 +33,7 @@ import (
 	"sync"
 	"testing"
 
-	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // typeFixture pairs a bare type (fed to omni's parseType) with a full statement
@@ -201,8 +201,8 @@ type typeHarness struct {
 
 func newTypeHarness(t *testing.T) *typeHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")

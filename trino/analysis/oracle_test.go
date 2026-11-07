@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
+	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the analysis node's slice of the differential-oracle gate
@@ -22,12 +22,12 @@ import (
 // convention (oracle_foundation_test.go).
 
 // connectOracle dials the live Trino oracle, skipping the test when unreachable.
-func connectOracle(t *testing.T) *trinooracle.Oracle {
+func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return trinooracle.ForTest(t)
+	return testcontainer.ForTest(t)
 }
 
-func oracleAccepts(t *testing.T, o *trinooracle.Oracle, sql string) (accepted, ok bool) {
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

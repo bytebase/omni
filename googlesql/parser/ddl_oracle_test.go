@@ -46,7 +46,7 @@ import (
 	"sync"
 	"testing"
 
-	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // ddlFixture is a full DDL statement (no trailing ';') fed to BOTH the oracle and
@@ -248,8 +248,8 @@ type ddlHarness struct {
 
 func newDDLHarness(t *testing.T) *ddlHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")

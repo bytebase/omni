@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/trino/catalog"
-	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
+	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the completion node's slice of the differential-oracle gate
@@ -27,12 +27,12 @@ import (
 // All subtests skip cleanly when no Trino is reachable, matching the harness
 // convention (analysis/oracle_test.go, trinooracle/oracle_test.go).
 
-func connectOracle(t *testing.T) *trinooracle.Oracle {
+func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return trinooracle.ForTest(t)
+	return testcontainer.ForTest(t)
 }
 
-func oracleAccepts(t *testing.T, o *trinooracle.Oracle, sql string) (accepted, ok bool) {
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -69,7 +69,7 @@ func oracleCatalog() *catalog.Catalog {
 // without a missing-table error. (A missing-table error is SEMANTIC, which
 // CheckSyntax already treats as "accepted"; seeding just keeps the corpus
 // end-to-end runnable and lets us assert acceptance unambiguously.)
-func seedMemorySchema(t *testing.T, o *trinooracle.Oracle) {
+func seedMemorySchema(t *testing.T, o *testcontainer.Oracle) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

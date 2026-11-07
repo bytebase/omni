@@ -11,7 +11,7 @@ import (
 // This file is the parser-routines node's differential-oracle gate
 // (correctness-protocol.md): for every statement in the corpus below, omni's
 // Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (trinooracle.CheckSyntax, which classifies a SYNTAX_ERROR as
+// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
 // reject and every other outcome — success or a semantic error like
 // NOT_SUPPORTED / FUNCTION_NOT_FOUND / TYPE_MISMATCH — as accept). Most
 // CREATE/DROP FUNCTION forms fail at execution with NOT_SUPPORTED (the disposable

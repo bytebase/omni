@@ -4,11 +4,11 @@ import (
 	"os"
 	"testing"
 
-	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	spannertest.RemoveHarness()
+	testcontainer.RemoveHarness()
 	os.Exit(code)
 }

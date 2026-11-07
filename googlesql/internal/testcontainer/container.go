@@ -88,7 +88,7 @@ func HarnessBinary(t testing.TB) string {
 	t.Helper()
 	harness.once.Do(func() {
 		_, thisFile, _, _ := runtime.Caller(0)
-		// googlesql/internal/testcontainer/harness.go → repo root is ../../..
+		// googlesql/internal/testcontainer/container.go → repo root is ../../..
 		repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", ".."))
 		projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")
 		if _, err := os.Stat(projDir); err != nil {

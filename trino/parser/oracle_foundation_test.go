@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
+	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the parser-foundation node's slice of the differential-oracle
@@ -37,14 +37,14 @@ import (
 
 // connectOracle dials the live Trino oracle, skipping the test when it is
 // unreachable. Shared by the oracle-backed subtests below.
-func connectOracle(t *testing.T) *trinooracle.Oracle {
+func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return trinooracle.ForTest(t)
+	return testcontainer.ForTest(t)
 }
 
 // oracleAccepts asks the oracle whether Trino syntactically accepts sql,
 // treating an oracle transport error as a skip signal (returns ok=false).
-func oracleAccepts(t *testing.T, o *trinooracle.Oracle, sql string) (accepted, ok bool) {
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

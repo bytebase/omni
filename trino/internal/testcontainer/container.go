@@ -12,7 +12,7 @@
 //
 // A grammar node wires the differential like so (in package parser, test only):
 //
-//	func assertOracleMatch(t *testing.T, o *trinooracle.Oracle, sql string) {
+//	func assertOracleMatch(t *testing.T, o *testcontainer.Oracle, sql string) {
 //	    _, omniErr := Parse(sql)
 //	    res, err := o.CheckSyntax(context.Background(), sql)
 //	    if err != nil { t.Skipf("oracle unreachable: %v", err) }
