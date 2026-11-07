@@ -192,6 +192,29 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 				Collation: collation,
 			}
 			continue
+
+		case p.cur.Type == tokJsonExtract || p.cur.Type == tokJsonUnquote:
+			// -> and ->> are not general operators: SimpleIdent jss|juss stringLit
+			// (parser.y:8052) takes a column reference on the left and a string
+			// literal on the right. `'{}'->'$.a'`, `a->3` and `a->b` are 1064s on
+			// v8.5.5.
+			op := binOp
+			if ref, ok := left.(*nodes.ColumnRef); !ok || ref.Star {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume -> or ->>
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			strTok := p.advance()
+			left = &nodes.BinaryExpr{
+				Loc:   nodes.Loc{Start: start, End: strTok.End},
+				Op:    op,
+				Left:  left,
+				Right: &nodes.StringLit{Loc: nodes.Loc{Start: strTok.Loc, End: strTok.End}, Value: strTok.Str},
+			}
+			level = precJsonAccess
+			continue
 		}
 
 		// Regular binary operator
