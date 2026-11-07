@@ -1434,6 +1434,11 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				// Optional USING role [, role] ...
 				if _, ok := p.match(kwUSING); ok {
 					for {
+						// CURRENT_USER is a user and not a role, so mariadb:11.8
+						// answers 1064 for SHOW GRANTS ... USING current_user.
+						if p.cur.Type == kwCURRENT_USER {
+							return nil, p.syntaxErrorAtCur()
+						}
 						role, err := p.parseUserSpec()
 						if err != nil {
 							return nil, err

@@ -1025,6 +1025,34 @@ func (p *Parser) parseUserList() ([]string, error) {
 	return users, nil
 }
 
+// parseRoleRefList parses a comma-separated list of role references. It is
+// parseUserList with CURRENT_USER refused: CURRENT_USER is a user and not a
+// role, so mariadb:11.8 answers 1064 for it wherever a role is named --
+// CREATE USER u DEFAULT ROLE current_user, CREATE/DROP/SET ROLE current_user.
+// A quoted 'CURRENT_USER' is an ordinary role name.
+func (p *Parser) parseRoleRefList() ([]string, error) {
+	var roles []string
+	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
+		role, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return roles, nil
+}
+
 // parseUserName parses a user identifier, which may be 'user'@'host'.
 func (p *Parser) parseUserName() (string, error) {
 	name, host, hasHost, err := p.parseUserAndHost()
@@ -1043,8 +1071,23 @@ func (p *Parser) parseUserName() (string, error) {
 // Both halves are a string literal or an identifier, backquoted or not, and a
 // reserved word is not one: mariadb:11.8 answers 1064 for
 // CREATE USER select@localhost and runs CREATE USER comment@localhost.
+//
+// CURRENT_USER is the one reserved word a user accepts, as its own alternative
+// `CURRENT_USER optional_braces`: it names the connected user, takes no @host,
+// and allows an optional empty "()" like the function spelling. It reaches
+// every statement that names a user through here, so all accept it where
+// mariadb:11.8 does.
 func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
 	switch {
+	case p.cur.Type == kwCURRENT_USER:
+		p.advance() // consume CURRENT_USER
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			if _, err = p.expect(')'); err != nil {
+				return "", "", false, err
+			}
+		}
+		return "CURRENT_USER", "", false, nil
 	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()
@@ -1169,7 +1212,7 @@ func (p *Parser) parseCreateUserStmt(start int, orReplace bool) (*nodes.CreateUs
 		if next.Type == kwROLE {
 			p.advance() // consume DEFAULT
 			p.advance() // consume ROLE
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleRefList()
 			if err != nil {
 				return nil, err
 			}
@@ -1364,7 +1407,7 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 				stmt.DefaultRoleType = "ALL"
 				p.advance()
 			default:
-				roles, err := p.parseUserList()
+				roles, err := p.parseRoleRefList()
 				if err != nil {
 					return nil, err
 				}
@@ -1717,7 +1760,7 @@ func (p *Parser) parseCreateRoleStmt(start int, orReplace bool) (*nodes.CreateRo
 	stmt.IfNotExists = ifNotExists
 
 	// role [, role] ...
-	roles, err := p.parseUserList()
+	roles, err := p.parseRoleRefList()
 	if err != nil {
 		return nil, err
 	}
@@ -1743,7 +1786,7 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	}
 
 	// role [, role] ...
-	roles, err := p.parseUserList()
+	roles, err := p.parseRoleRefList()
 	if err != nil {
 		return nil, err
 	}
@@ -1836,6 +1879,16 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 		stmt.None = true
 		p.advance()
 	} else {
+		// The role operand is a Rolename, not a Username: CURRENT_USER is a user
+		// and not a role, so mariadb:11.8 answers 1064 for SET DEFAULT ROLE
+		// current_user (the quoted 'CURRENT_USER' stays an ordinary role name).
+		// The FOR user below is a Username and does read CURRENT_USER.
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
 		role, err := p.parseUserName()
 		if err != nil {
 			return nil, err
@@ -1877,14 +1930,14 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 		// ALL EXCEPT role [, role] ...
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleRefList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.AllExcept = roles
 		}
 	default:
-		roles, err := p.parseUserList()
+		roles, err := p.parseRoleRefList()
 		if err != nil {
 			return nil, err
 		}

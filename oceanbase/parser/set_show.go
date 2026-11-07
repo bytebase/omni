@@ -158,6 +158,15 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// Optional FOR user[@host]
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
+		// oceanbase-ce:4.3.5 answers 1064 for SET PASSWORD FOR CURRENT_USER
+		// (measured), while accepting SET PASSWORD FOR 'u'@'h' and CURRENT_USER
+		// as a user elsewhere.
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "CURRENT_USER is not allowed in SET PASSWORD FOR",
+				Position: p.cur.Loc,
+			}
+		}
 		user, err := p.parseUserSpec(false)
 		if err != nil {
 			return nil, err
@@ -1455,6 +1464,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				// Optional USING role [, role] ...
 				if _, ok := p.match(kwUSING); ok {
 					for {
+						// CURRENT_USER is a user and not a role, so
+						// oceanbase-ce:4.3.5 answers 1064 for SHOW GRANTS ...
+						// USING current_user.
+						if p.cur.Type == kwCURRENT_USER {
+							return nil, p.syntaxErrorAtCur()
+						}
 						role, err := p.parseUserSpec(false)
 						if err != nil {
 							return nil, err

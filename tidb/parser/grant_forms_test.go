@@ -274,6 +274,27 @@ var grantFormCases = []grantFormCase{
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED", false},
 	{"REVOKE SELECT ON *.* FROM u1 IDENTIFIED", false},
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED BY", false},
+	// CURRENT_USER names the connected user wherever a user is named, its own
+	// alternative of Username (parser.y:11346), with an optional empty "()".
+	// TiDB v8.5.5 reads it in every account statement, SET DEFAULT ROLE and SET
+	// PASSWORD among them; the parser.y corpus pins the full set.
+	{"CREATE USER CURRENT_USER", true},
+	{"CREATE USER CURRENT_USER()", true},
+	{"ALTER USER CURRENT_USER IDENTIFIED BY 'notarealpw'", true},
+	{"DROP USER CURRENT_USER", true},
+	{"RENAME USER CURRENT_USER TO CURRENT_USER", true},
+	{"GRANT 'role1' TO CURRENT_USER", true},
+	{"REVOKE 'role1' FROM CURRENT_USER", true},
+	{"GRANT PROXY ON CURRENT_USER TO CURRENT_USER", true},
+	{"GRANT SELECT ON *.* TO CURRENT_USER", true},
+	{"SET PASSWORD FOR CURRENT_USER = 'notarealpw'", true},
+	{"SET DEFAULT ROLE NONE TO CURRENT_USER", true},
+	// CURRENT_USER is a Username (parser.y:11346) and not a Rolename, so v8.5.5
+	// answers 1064 for the keyword in the DEFAULT ROLE clause. The role-name
+	// positions of CREATE/DROP/SET ROLE and SHOW GRANTS ... USING are pinned by
+	// the role-name sweep.
+	{"CREATE USER u1@localhost DEFAULT ROLE current_user", false},
+	{"ALTER USER u1@localhost DEFAULT ROLE current_user", false},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no

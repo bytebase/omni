@@ -885,6 +885,34 @@ func (p *Parser) parseUserList() ([]string, error) {
 	return users, nil
 }
 
+// parseRoleRefList parses a comma-separated list of role references where the
+// grammar wants a RolenameList but the surrounding code reads each as a user
+// name (the DEFAULT ROLE clause of CREATE/ALTER USER). It is parseUserList with
+// CURRENT_USER refused: CURRENT_USER is a Username (parser.y:11346) and not a
+// Rolename, so v8.5.5 answers 1064 for CREATE USER u DEFAULT ROLE current_user.
+func (p *Parser) parseRoleRefList() ([]string, error) {
+	var roles []string
+	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
+		role, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return roles, nil
+}
+
 // parseGranteeList parses the UserSpecList (TiDB v8.5.5 parser.y:14037) the
 // privilege forms of GRANT and REVOKE take, where each grantee may carry an
 // AuthOption of its own: `GRANT ALL ON db.* TO 'u'@'localhost' IDENTIFIED BY
@@ -962,6 +990,17 @@ func (p *Parser) parseRoleName() (string, error) {
 // checkRoleName refuses a keyword upstream's scanner would not hand over as a bare
 // identifier, unless the role@host form lets a StringName through.
 func (p *Parser) checkRoleName() error {
+	// CURRENT_USER is a Username (parser.y:11346) but not a Rolename
+	// (parser.y:11395 has no CURRENT_USER alternative, and the keyword is not a
+	// StringName), so it is refused wherever a role is named: v8.5.5 answers
+	// 1064 for CREATE/DROP/SET ROLE current_user, SET DEFAULT ROLE current_user
+	// TO u, and SHOW GRANTS ... USING current_user.
+	if p.cur.Type == kwCURRENT_USER {
+		return &ParseError{
+			Message:  "expected role name",
+			Position: p.cur.Loc,
+		}
+	}
 	if p.cur.Type >= 700 && !isReserved(p.cur.Type) && !p.isPlainIdentifier() {
 		next := p.peekNext()
 		if next.Type != tokIDENT || !strings.HasPrefix(next.Str, "@") {
@@ -992,8 +1031,24 @@ func (p *Parser) parseUserName() (string, error) {
 // StringName (parser.y:13843) covers the name, so it is a string literal or an
 // identifier, backquoted or not, and a reserved word is not one: v8.5.5,
 // mysql:8.0 and mariadb:11.8 all answer 1064 for CREATE USER select@localhost.
+//
+// CURRENT_USER is the one reserved word a Username accepts, as its own
+// alternative `"CURRENT_USER" OptionalBraces` (parser.y:11346): it names the
+// connected user, takes no @host, and allows an optional empty "()" like the
+// function spelling. It reaches every account-management statement through
+// here -- CREATE/ALTER/DROP/RENAME USER, GRANT/REVOKE role, GRANT PROXY, SET
+// DEFAULT ROLE, SET PASSWORD FOR -- so all accept it where TiDB does.
 func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
 	switch {
+	case p.cur.Type == kwCURRENT_USER:
+		p.advance() // consume CURRENT_USER
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			if _, err = p.expect(')'); err != nil {
+				return "", "", false, err
+			}
+		}
+		return "CURRENT_USER", "", false, nil
 	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()
@@ -1105,7 +1160,7 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 		if next.Type == kwROLE {
 			p.advance() // consume DEFAULT
 			p.advance() // consume ROLE
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleRefList()
 			if err != nil {
 				return nil, err
 			}
@@ -1335,7 +1390,7 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 				stmt.DefaultRoleType = "ALL"
 				p.advance()
 			default:
-				roles, err := p.parseUserList()
+				roles, err := p.parseRoleRefList()
 				if err != nil {
 					return nil, err
 				}

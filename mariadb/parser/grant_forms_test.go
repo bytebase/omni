@@ -267,6 +267,35 @@ var grantFormCases = []grantFormCase{
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED", false},
 	{"REVOKE SELECT ON *.* FROM u1 IDENTIFIED", false},
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED BY", false},
+	// CURRENT_USER names the connected user wherever a user is named, its own
+	// alternative of the user grammar, with an optional empty "()". mariadb:11.8
+	// reads it in CREATE/ALTER/DROP/RENAME USER, GRANT/REVOKE, GRANT PROXY and
+	// SET PASSWORD.
+	{"CREATE USER CURRENT_USER", true},
+	{"CREATE USER CURRENT_USER()", true},
+	{"ALTER USER CURRENT_USER IDENTIFIED BY 'notarealpw'", true},
+	{"DROP USER CURRENT_USER", true},
+	{"RENAME USER CURRENT_USER TO CURRENT_USER", true},
+	{"GRANT 'role1' TO CURRENT_USER", true},
+	{"REVOKE 'role1' FROM CURRENT_USER", true},
+	{"GRANT PROXY ON CURRENT_USER TO CURRENT_USER", true},
+	{"GRANT SELECT ON *.* TO CURRENT_USER", true},
+	{"SET PASSWORD FOR CURRENT_USER = 'notarealpw'", true},
+	// CURRENT_USER is a Username and not a Rolename, so mariadb:11.8 answers 1064
+	// for the keyword wherever a role is named.
+	{"CREATE ROLE current_user", false},
+	{"DROP ROLE current_user", false},
+	{"SET ROLE current_user", false},
+	{"CREATE USER u1@localhost DEFAULT ROLE current_user", false},
+	{"ALTER USER u1@localhost DEFAULT ROLE current_user", false},
+	{"SHOW GRANTS FOR u1@localhost USING current_user", false},
+	// MariaDB's SET DEFAULT ROLE role [FOR user]: the role is a Rolename and
+	// refuses the keyword, while the FOR user is a Username and reads it. A
+	// quoted 'CURRENT_USER' stays an ordinary role name.
+	{"SET DEFAULT ROLE CURRENT_USER", false},
+	{"SET DEFAULT ROLE CURRENT_USER() FOR 'u'@'localhost'", false},
+	{"SET DEFAULT ROLE 'CURRENT_USER'", true},
+	{"SET DEFAULT ROLE role1 FOR CURRENT_USER", true},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no
