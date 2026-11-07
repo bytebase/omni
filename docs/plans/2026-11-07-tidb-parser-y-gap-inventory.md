@@ -14,15 +14,15 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #724 | now |
-|---|---:|---:|---:|
-| both accept | 2,670 | 2,766 | 2,782 |
-| gap: TiDB accepts, omni rejects | 152 | 56 | 40 |
-| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 |
-| both reject | 121 | 121 | 121 |
-| no verdict | 0 | 0 | 0 |
+| | first | after #724 | after #725 | now |
+|---|---:|---:|---:|---:|
+| both accept | 2,670 | 2,766 | 2,782 | 2,790 |
+| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 |
+| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 |
+| both reject | 121 | 121 | 121 | 121 |
+| no verdict | 0 | 0 | 0 | 0 |
 
-omni parses **2,782 of the 2,822 alternatives TiDB accepts — 98.6%**, with zero
+omni parses **2,790 of the 2,822 alternatives TiDB accepts — 98.9%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
@@ -30,9 +30,12 @@ with a non-hash, a repeated option, and so on); they are not work.
 The **after #724** column is after the `CURRENT_USER`-in-username-position
 cluster closed (`fix(tidb,mysql,mariadb,oceanbase): accept CURRENT_USER as a
 username`): 96 account-management rows flipped from gap to both-accept, zero new
-over-acceptances. The **now** column is after the set-operation / LIMIT cluster
-closed (`fix(tidb): accept ? as a LIMIT operand and ASC/DESC on GROUP BY items`):
-16 rows flipped from gap to both-accept, zero new over-acceptances.
+over-acceptances. The **after #725** column is after the set-operation / LIMIT
+cluster closed (`fix(tidb): accept ? as a LIMIT operand and ASC/DESC on GROUP BY
+items`): 16 rows flipped from gap to both-accept, zero new over-acceptances. The **now**
+column is after the stored-procedure cluster closed (`fix(tidb,mysql,mariadb,
+oceanbase): accept a bare IF ... END IF procedure body`): 8 rows flipped from gap
+to both-accept, zero new over-acceptances.
 
 ## The gaps, by theme
 
@@ -65,10 +68,23 @@ The general `?`-in-expression rows (`SimpleExpr`, `WindowFrameStart/Bound`,
 `OptLeadLagInfo`) stay gaps: they are a separate param-marker-as-expression
 cluster.
 
-The 40 that remain are unrelated to usernames or LIMIT:
+The stored-procedure cluster (8 rows: `procedurceElseIfs`,
+`ProcedureProcStmt1s`, `ProcedureIf`, `ProcedureIfstmt`, `ProcedureProcStmt`)
+**closed** in the splitter, not the parser. A routine body is a single
+`sp_proc_stmt`, which may be a bare `IF ... THEN ... END IF` with its own inner
+`;` and no surrounding `BEGIN ... END`. `Split` broke that body at the inner `;`
+because `IF` is a compound opener only at a statement-start position (to keep
+`SELECT IF(...)` and `DROP TABLE IF EXISTS` out), and the position right after a
+`CREATE PROCEDURE` parameter list was not marked as one. The splitter now tracks
+that parameter list and marks the body that follows as statement-start, so the
+bare `IF` opens a compound and the inner `;` no longer splits. `WHILE`/`CASE`/
+`REPEAT`/`LOOP` bodies already opened unconditionally, so only `IF` was affected.
+The same splitter fix ported to `mysql`, `mariadb`, and `oceanbase`, each
+measured against its own engine (a bare `IF`/`WHILE`/`CASE` body is valid in all
+three); zero new over-acceptances.
 
-- **Stored procedures (~8 rows).** `procedurceElseIfs`, `ProcedureProcStmt(1s)`,
-  `ProcedureIf(stmt)`, `ProcedureProcStmt`.
+The 32 that remain are unrelated to usernames, LIMIT, or procedures:
+
 - **Statistics, hypo indexes, TiFlash (~9 rows).** `StatsType`, `AlterTableSpec`
   (`SET HYPO TIFLASH REPLICA`), `DropIndexStmt` (`DROP HYPO INDEX`),
   `IndexNameList`.
@@ -95,12 +111,10 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 | `AlterTableSpec` | 3 | ALTER TABLE ident DROP STATS_EXTENDED ident |
 | `SimpleExpr` | 3 | DO ? |
 | `StatsType` | 3 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident) |
-| `procedurceElseIfs` | 3 | CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF |
 | `FieldItem` | 2 | SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' |
 | `FunctionCallNonKeyword` | 2 | DO WEIGHT_STRING(ident AS BINARY(1)) |
 | `IndexNameList` | 2 | ANALYZE TABLE ident INDEX PRIMARY |
 | `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
-| `ProcedureProcStmt1s` | 2 | CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF |
 | `ShowTargetFilterable` | 2 | SHOW AFFINITY |
 | `CancelImportStmt` | 1 | CANCEL IMPORT JOB 1 |
 | `CharsetKw` | 1 | SHOW CHAR SET |
@@ -110,9 +124,6 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 | `FieldItemList` | 1 | SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's' |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
 | `OptLeadLagInfo` | 1 | DO LEAD(ident, ?) OVER ident |
-| `ProcedureIf` | 1 | CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF |
-| `ProcedureIfstmt` | 1 | CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF |
-| `ProcedureProcStmt` | 1 | CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF |
 | `ShowStmt` | 1 | SHOW IMPORT JOB 1 |
 | `Statement` | 1 | CANCEL IMPORT JOB 1 |
 | `TableOption` | 1 | CREATE SEQUENCE ident AFFINITY 's' |

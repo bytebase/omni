@@ -106,6 +106,19 @@ END`, 0},
 		{"compound+", "labeled BEGIN with end-label", dropProc("p_lbl"),
 			`CREATE PROCEDURE p_lbl() my_block: BEGIN SELECT 1; END my_block`, 0},
 
+		// ---------------- B2. Bare (BEGIN-less) compound body ----------------
+		// The routine body is a single sp_proc_stmt, which may be a compound
+		// statement with its own inner ';' and no surrounding BEGIN ... END. The
+		// splitter must not break at that inner ';'.
+		{"bare+", "bare IF / ELSEIF / ELSE body", dropProc("p_bare_if"),
+			"CREATE PROCEDURE p_bare_if(IN x INT) IF x = 0 THEN SET @r = 'z'; ELSEIF x > 0 THEN SET @r = 'p'; ELSE SET @r = 'n'; END IF", 0},
+		{"bare+", "bare IF body, multi-statement THEN", dropProc("p_bare_if2"),
+			"CREATE PROCEDURE p_bare_if2(IN x INT) IF x = 0 THEN SET @a = 1; SET @b = 2; END IF", 0},
+		{"bare+", "bare WHILE body", dropProc("p_bare_while"),
+			"CREATE PROCEDURE p_bare_while(IN x INT) WHILE x > 0 DO SET x = x - 1; END WHILE", 0},
+		{"bare+", "bare CASE body", dropProc("p_bare_case"),
+			"CREATE PROCEDURE p_bare_case(IN x INT) CASE x WHEN 1 THEN SET @r = 'one'; ELSE SET @r = 'o'; END CASE", 0},
+
 		// ---------------- C. DECLARE / cursor / handler ----------------
 		{"decl+", "cursor + continue handler + loop", dropProc("p_cur"),
 			`CREATE PROCEDURE p_cur() BEGIN
