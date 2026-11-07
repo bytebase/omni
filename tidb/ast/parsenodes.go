@@ -1306,6 +1306,12 @@ type Limit struct {
 	Loc    Loc
 	Count  ExprNode // LIMIT value
 	Offset ExprNode // OFFSET value
+	// OffsetKeyword is true when the offset was written as
+	// "LIMIT count OFFSET offset" rather than the comma form
+	// "LIMIT offset, count". The two forms place a `?` parameter marker in
+	// opposite positions, so deparse must reproduce the original form to keep
+	// the positional binding order. False when there is no offset.
+	OffsetKeyword bool
 }
 
 func (l *Limit) nodeTag() {}

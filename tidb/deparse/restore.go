@@ -385,6 +385,15 @@ func restoreOrderLimit(b *restorer, orderBy []*ast.OrderByItem, limit *ast.Limit
 	if limit != nil && limit.Count != nil {
 		b.kw(" LIMIT ")
 		if limit.Offset != nil {
+			// The comma form LIMIT offset,count swaps the operands, which is
+			// harmless for literals but reorders the positional bindings of `?`
+			// markers; reproduce the original OFFSET form in that case.
+			if limit.OffsetKeyword && limitHasParamMarker(limit) {
+				restoreExpr(b, limit.Count)
+				b.kw(" OFFSET ")
+				restoreExpr(b, limit.Offset)
+				return
+			}
 			restoreExpr(b, limit.Offset)
 			b.WriteByte(',')
 		}

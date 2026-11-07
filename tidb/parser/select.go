@@ -1635,6 +1635,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		limit.Offset = offset
+		limit.OffsetKeyword = true
 	}
 
 	limit.Loc.End = p.prev.End
