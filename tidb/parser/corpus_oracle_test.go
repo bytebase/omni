@@ -148,11 +148,11 @@ func (ct *corpusTally) addNoVerdict() {
 
 // report prints every number in one block, so a run answers "how far along is
 // the TiDB parser" without anything else being read.
-func (ct corpusTally) report(t *testing.T, engineSource string) {
+func (ct corpusTally) report(t *testing.T, path, engineSource string) {
 	t.Helper()
 	engineAccepts := ct.bothAccept + ct.engineAcceptsOmniRejects
 	omniAccepts := ct.bothAccept + ct.engineRejectsOmniAccepts
-	t.Logf("TiDB %s corpus (%s), engine verdicts %s:", tidbCorpusVersion, tidbCorpusPath, engineSource)
+	t.Logf("TiDB %s corpus (%s), engine verdicts %s:", tidbCorpusVersion, path, engineSource)
 	t.Logf("  total cases                      %5d", ct.total)
 	t.Logf("  both accept                      %5d", ct.bothAccept)
 	t.Logf("  TiDB accepts, omni rejects (gap) %5d", ct.engineAcceptsOmniRejects)
@@ -202,7 +202,7 @@ func TestTiDBCorpusOmniVerdicts(t *testing.T) {
 	if drift > corpusMaxReported {
 		t.Errorf("%d more rows drifted from the recorded omni verdict; rerun with -update and read the diff", drift-corpusMaxReported)
 	}
-	tally.report(t, "as recorded")
+	tally.report(t, tidbCorpusPath, "as recorded")
 
 	if *update {
 		writeCorpus(t, header, cases)
@@ -282,7 +282,7 @@ func TestTiDBCorpusEngineVerdicts(t *testing.T) {
 	if omniDrift > 0 {
 		t.Errorf("%d rows drifted from the recorded omni verdict; TestTiDBCorpusOmniVerdicts names them", omniDrift)
 	}
-	tally.report(t, "live, via PREPARE")
+	tally.report(t, tidbCorpusPath, "live, via PREPARE")
 	for _, u := range unanswered {
 		t.Errorf("no verdict: %s", u)
 	}
