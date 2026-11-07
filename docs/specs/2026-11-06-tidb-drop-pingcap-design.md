@@ -174,11 +174,12 @@ writes the shortest statement that uses it:
   few dozen are expected.
 
 The generator is a root-module command, `tidb/parser/cmd/grammarcorpus`, like
-each engine's `genwalker`: `./...` compiles it but never runs it, so the fetch
-fires only on an explicit run. It fetches `parser.y` at the tag and writes the
-corpus. Only the generated TSV is checked in, with a provenance note like
-`testdata/README.md`'s. Tests read the TSV and never `parser.y`, and omni's
-own code imports nothing from pingcap.
+each engine's `genwalker`: `./...` compiles it but never runs it. It reads a
+vendored copy of `parser.y` (`testdata/parser.y`, verbatim at the tag,
+Apache-2.0 header intact) and writes the corpus, so regeneration is
+deterministic and offline. The vendored grammar and the TSV are the only
+checked-in inputs; nothing imports or compiles the grammar, tests read the TSV
+and never `parser.y`, and omni's own code imports nothing from pingcap.
 
 **What it records.** `tidb/parser/testdata/parser_y_corpus.tsv` has four
 columns: the omni and engine verdicts, the rule and the alternative's index

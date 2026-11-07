@@ -5,19 +5,42 @@ Builds the parser.y completeness corpus,
 in TiDB's grammar, the shortest statement that exercises it.
 
 It is a plain root-module command, like each engine's `genwalker`: `go test
-./...` compiles it but never runs it, so the fetch fires only on an explicit
-run. It imports nothing from pingcap or omni: it reads grammar text and writes
-SQL text. Only the generated TSV is checked in, never `parser.y` itself.
+./...` compiles it but never runs it. It imports nothing from pingcap or omni:
+it reads grammar text and writes SQL text.
+
+## When to run it
+
+Only when moving to a new TiDB release. Day to day nobody runs it — the
+checked-in TSV is the artifact the oracle tests read. You run it when you bump
+the pinned grammar: refresh `testdata/parser.y`, rerun, and the TSV diff is the
+set of forms the release added or removed.
+
+## The vendored grammar
+
+`testdata/parser.y` is a verbatim copy of `pkg/parser/parser.y` from
+`github.com/pingcap/tidb` at tag `v8.5.5` (commit
+`1fa258b833ff113883beeba40bc130be7ce66610`), Apache-2.0, license header intact.
+It is vendored, not fetched, so regeneration is deterministic and offline and
+does not depend on pingcap keeping that raw path alive. It is reference input
+for this tool only: nothing imports or compiles it.
 
 ## Run
 
 From the repo root:
 
 ```bash
-go run ./tidb/parser/cmd/grammarcorpus                   # fetch parser.y at v8.5.5, rewrite the corpus
-go run ./tidb/parser/cmd/grammarcorpus -tag v8.5.5       # a specific release tag
-go run ./tidb/parser/cmd/grammarcorpus -grammar parser.y # read a local file instead of fetching
+go run ./tidb/parser/cmd/grammarcorpus                   # read the vendored parser.y, rewrite the corpus
 ```
+
+To move to a new release, refresh the vendored copy, then rerun:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pingcap/tidb/<tag>/pkg/parser/parser.y \
+  -o tidb/parser/cmd/grammarcorpus/testdata/parser.y
+go run ./tidb/parser/cmd/grammarcorpus -tag <tag>
+```
+
+`-grammar <file>` reads any other local file; `-grammar ''` fetches at `-tag`.
 
 It writes the statements and their `Rule#alternative` labels with placeholder
 verdicts. `tidb/parser`'s `TestTiDBParserYCorpus{Omni,Engine}Verdicts` fill the
