@@ -108,6 +108,15 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 // dropIndex handles standalone DROP INDEX statements.
 func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
+	// DROP HYPO INDEX removes a hypothetical index the optimizer holds for
+	// what-if planning; it never touches a persistent index. This catalog
+	// models no hypothetical indexes, so the statement changes nothing here.
+	// Routing it through the physical removal below would delete a real index
+	// (and its constraint) that happens to share the name.
+	if stmt.IsHypo {
+		return nil
+	}
+
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

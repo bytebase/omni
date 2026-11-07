@@ -114,6 +114,14 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATPartitionBy:
 		return validateRepartition(tbl, cmd.PartitionBy)
 	case nodes.ATSetTiFlashReplica:
+		// SET HYPO TIFLASH REPLICA pins a hypothetical replica for the
+		// optimizer and leaves the physical replica untouched, so the catalog
+		// keeps its real TiFlashReplica and labels: overwriting them would
+		// record one real replica and no labels for a table that has neither
+		// changed.
+		if cmd.Hypo {
+			return nil
+		}
 		tbl.TiFlashReplica = cmd.TiFlashReplica
 		// LOCATION LABELS is optional; assign (possibly empty slice)
 		// so SET TIFLASH REPLICA 0 with no clause clears prior labels.
