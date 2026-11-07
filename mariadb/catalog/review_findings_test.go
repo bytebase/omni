@@ -376,3 +376,198 @@ func assertViewBodyMatches(t *testing.T, mc *mariadbContainer, c *Catalog, view 
 		t.Errorf("%s body mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", view, oracleBody, omniBody)
 	}
 }
+
+// The third round of review findings, measured the same way.
+
+// TestReview_WindowReferenceExtendsDefinition covers an OVER clause that names
+// a window and adds to it. The name supplies what it declares and the
+// reference adds what it leaves out, so neither side is lost.
+func TestReview_WindowReferenceExtendsDefinition(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+	for _, tc := range []struct{ name, ddl string }{
+		{"w_order_added", "CREATE VIEW w_order_added AS SELECT ROW_NUMBER() OVER (w ORDER BY b) AS x FROM t WINDOW w AS (PARTITION BY a)"},
+		{"w_frame_added", "CREATE VIEW w_frame_added AS SELECT SUM(b) OVER (w ROWS UNBOUNDED PRECEDING) AS x FROM t WINDOW w AS (ORDER BY a)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertViewBodyMatches(t, mc, c, tc.name)
+		})
+	}
+}
+
+// TestReview_WindowNameIsScopedToItsQuery covers where a window name resolves.
+// It belongs to the query that declares it, so an inner query keeps its own
+// definition even where an outer one declares the same name, and a query
+// nested anywhere has its own clause inlined and dropped.
+func TestReview_WindowNameIsScopedToItsQuery(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+	for _, tc := range []struct{ name, ddl string }{
+		{"w_shadowed", "CREATE VIEW w_shadowed AS SELECT (SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1) AS x FROM t WINDOW w AS (ORDER BY a)"},
+		{"w_subquery", "CREATE VIEW w_subquery AS SELECT (SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1) AS x FROM t"},
+		{"w_derived", "CREATE VIEW w_derived AS SELECT x FROM (SELECT ROW_NUMBER() OVER w AS x FROM t WINDOW w AS (ORDER BY a)) d"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertViewBodyMatches(t, mc, c, tc.name)
+
+			body := c.ShowCreateView("testdb", tc.name)
+			if strings.Contains(strings.ToLower(body), "window `w`") {
+				t.Errorf("no WINDOW clause should be left in the body: %s", body)
+			}
+		})
+	}
+}
+
+// TestReview_TriggerDDLEchoesItsStatement covers SHOW CREATE TRIGGER, which
+// echoes the statement the trigger was created by rather than rebuilding it.
+// The writer's quoting, spacing and case all survive, so a name that needs
+// backticks keeps them and one that does not never gains them.
+func TestReview_TriggerDDLEchoesItsStatement(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE `order` (a INT);")
+	runOnBoth(t, mc, c, "CREATE TABLE tg (a INT);")
+	for _, tc := range []struct{ name, ddl string }{
+		{"my trigger", "CREATE TRIGGER `my trigger` BEFORE INSERT ON `order` FOR EACH ROW SET NEW.a = 1"},
+		{"tr_bare", "CREATE TRIGGER tr_bare BEFORE INSERT ON tg FOR EACH ROW SET NEW.a = 1"},
+		{"tr_spaced", "create   trigger   tr_spaced   before  insert on   tg\n  for each row\n   set NEW.a = 1"},
+		{"tr_ifne", "CREATE TRIGGER IF NOT EXISTS tr_ifne BEFORE INSERT ON tg FOR EACH ROW SET NEW.a = 1"},
+		{"tr_replace", "CREATE OR REPLACE TRIGGER tr_replace BEFORE INSERT ON tg FOR EACH ROW SET NEW.a = 1"},
+		{"tr_follows", "CREATE TRIGGER tr_follows BEFORE INSERT ON tg FOR EACH ROW FOLLOWS tr_bare SET NEW.a = 1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, tc.ddl+";")
+			want := oracleColumn(t, mc, "SHOW CREATE TRIGGER "+backtickIDQ(tc.name), 2)
+			if got := c.ShowCreateTrigger("testdb", tc.name); got != want {
+				t.Errorf("trigger DDL mismatch\n  oracle: %q\n  omni:   %q", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_TriggerDDLWithoutAStatement covers the synced trigger, which has
+// no statement to echo. Its DDL is rebuilt with every identifier backticked,
+// since a name that needs them would otherwise come out unparseable.
+func TestReview_TriggerDDLWithoutAStatement(t *testing.T) {
+	c := New()
+	results, err := c.Exec("CREATE DATABASE d; USE d; CREATE TABLE `order` (a INT);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatal(r.Error)
+		}
+	}
+	stmt := mustParseTrigger(t, "CREATE TRIGGER `my trigger` BEFORE INSERT ON `order` FOR EACH ROW SET NEW.a = 1")
+	if err := c.DefineTrigger(stmt); err != nil {
+		t.Fatalf("DefineTrigger: %v", err)
+	}
+	got := c.ShowCreateTrigger("d", "my trigger")
+	const want = "CREATE DEFINER=`root`@`%` TRIGGER `my trigger` BEFORE INSERT ON `order` FOR EACH ROW SET NEW.a = 1"
+	if got != want {
+		t.Errorf("rebuilt trigger DDL:\n  got:  %q\n  want: %q", got, want)
+	}
+}
+
+// TestReview_FunctionReturnsCollation covers which collation a RETURNS clause
+// is shown with: the one it names, else the charset's default where it names a
+// charset, else the database's own.
+func TestReview_FunctionReturnsCollation(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+
+	fns := []string{
+		"CREATE FUNCTION f_plain() RETURNS VARCHAR(20) RETURN 'a'",
+		"CREATE FUNCTION f_cs_other() RETURNS VARCHAR(20) CHARACTER SET utf8mb3 RETURN 'a'",
+		"CREATE FUNCTION f_cs_same() RETURNS VARCHAR(20) CHARACTER SET utf8mb4 RETURN 'a'",
+		"CREATE FUNCTION f_text() RETURNS TEXT RETURN 'a'",
+		"CREATE FUNCTION f_collate() RETURNS VARCHAR(20) COLLATE utf8mb4_general_ci RETURN 'a'",
+		"CREATE FUNCTION f_int() RETURNS INT RETURN 1",
+	}
+	const createDB = "CREATE DATABASE fdb CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
+	for _, stmt := range append([]string{"DROP DATABASE IF EXISTS fdb", createDB, "USE fdb"}, fns...) {
+		if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil {
+			t.Fatalf("oracle %q: %v", stmt, err)
+		}
+	}
+
+	c := New()
+	ddl := createDB + "; USE fdb;"
+	for _, fn := range fns {
+		ddl += fn + ";"
+	}
+	results, err := c.Exec(ddl, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("omni stmt %d: %v", r.Index, r.Error)
+		}
+	}
+
+	for _, name := range []string{
+		"f_plain", "f_cs_other", "f_cs_same", "f_text", "f_collate", "f_int",
+	} {
+		t.Run(name, func(t *testing.T) {
+			want := oracleColumn(t, mc, "SHOW CREATE FUNCTION "+name, 2)
+			if got := c.ShowCreateFunction("fdb", name); got != want {
+				t.Errorf("function DDL mismatch\n  oracle: %q\n  omni:   %q", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_QuantifiedComparisonDropsParens is the finding that was not a
+// bug. MariaDB writes a quantified comparison's operands with no parentheses
+// of its own, and its own stored view then means something else: the
+// expression is 0 where the view it was stored in reads 1. Adding the
+// parentheses would make omni disagree with the engine it mirrors.
+func TestReview_QuantifiedComparisonDropsParens(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT);")
+	runOnBoth(t, mc, c, "INSERT INTO t VALUES (1);")
+	runOnBoth(t, mc, c, "CREATE VIEW q AS SELECT (1 OR 0) > ALL (SELECT 2) AS x FROM t;")
+	assertViewBodyMatches(t, mc, c, "q")
+
+	var direct, throughView int
+	oracleScan(t, mc, "SELECT (1 OR 0) > ALL (SELECT 2)", &direct)
+	oracleScan(t, mc, "SELECT x FROM q", &throughView)
+	if direct != 0 || throughView != 1 {
+		t.Errorf("oracle: expected the expression to be 0 and the stored view to read 1, got %d and %d",
+			direct, throughView)
+	}
+}
+
+// oracleColumn runs a SHOW statement and returns one column of its first row.
+// SHOW CREATE TRIGGER and SHOW CREATE FUNCTION both hold their DDL in column
+// 2, after the name and the sql_mode.
+func oracleColumn(t *testing.T, mc *mariadbContainer, stmt string, col int) string {
+	t.Helper()
+	rows := oracleRows(t, mc, stmt)
+	if len(rows) == 0 || col >= len(rows[0]) {
+		t.Errorf("oracleColumn: %q gave no column %d", stmt, col)
+		return ""
+	}
+	s, _ := rows[0][col].(string)
+	return s
+}

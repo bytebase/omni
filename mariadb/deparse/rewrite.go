@@ -325,7 +325,9 @@ func wrapBooleanContext(node ast.ExprNode) ast.ExprNode {
 // stores no WINDOW clause: `rank() OVER w ... WINDOW w AS (ORDER BY a)` comes
 // back as `rank() over ( order by a)`. Measured on mariadb:11.8.8.
 func inlineNamedWindows(stmt *ast.SelectStmt) {
-	if len(stmt.WindowClause) == 0 {
+	// A query with no clause of its own still walks, because a query nested in
+	// it may have one.
+	if stmt == nil {
 		return
 	}
 	byName := make(map[string]*ast.WindowDef, len(stmt.WindowClause))
@@ -337,23 +339,42 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 	// is found by walking rather than by looking only at the top of each
 	// target. Dropping the clause while leaving a reference behind would make
 	// the stored body name a window it does not define.
+	//
+	// A window name belongs to the query that declares it, so the walk stops
+	// where a nested query begins and that query is inlined against its own
+	// clause. Measured on mariadb:11.8.8: under an outer `WINDOW w AS (ORDER
+	// BY a)`, the body of
+	// `(SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1)` comes
+	// back `over ( order by `t`.`b`)`, its own definition, and neither WINDOW
+	// clause is left in the stored body.
 	inline := func(n ast.Node) bool {
+		if nested, ok := n.(*ast.SelectStmt); ok && nested != stmt {
+			inlineNamedWindows(nested)
+			return false
+		}
 		call, ok := n.(*ast.FuncCallExpr)
 		if !ok || call.Over == nil || call.Over.RefName == "" {
 			return true
 		}
 		if def, ok := byName[strings.ToLower(call.Over.RefName)]; ok {
-			inlined := *def
-			inlined.Name = ""
-			call.Over = &inlined
+			call.Over = extendWindowDef(def, call.Over)
 		}
 		return true
+	}
+	for _, cte := range stmt.CTEs {
+		inlineNamedWindows(cte.Select)
 	}
 	for _, target := range stmt.TargetList {
 		ast.Inspect(target, inline)
 	}
+	for _, src := range stmt.From {
+		ast.Inspect(src, inline)
+	}
 	if stmt.Where != nil {
 		ast.Inspect(stmt.Where, inline)
+	}
+	for _, item := range stmt.GroupBy {
+		ast.Inspect(item.Expr, inline)
 	}
 	if stmt.Having != nil {
 		ast.Inspect(stmt.Having, inline)
@@ -362,6 +383,35 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 		ast.Inspect(item.Expr, inline)
 	}
 	stmt.WindowClause = nil
+}
+
+// extendWindowDef resolves a reference to a named window. A reference may
+// carry a specification of its own, which extends the named window instead of
+// replacing it: the name supplies what it declares and the reference adds what
+// the name leaves out.
+//
+// Measured on mariadb:11.8.8. `OVER (w ORDER BY b)` over
+// `WINDOW w AS (PARTITION BY a)` comes back `over ( partition by `t`.`a` order
+// by `t`.`b`)`, and `OVER (w ROWS UNBOUNDED PRECEDING)` over
+// `WINDOW w AS (ORDER BY a)` keeps the ordering and the frame together. The
+// server refuses the cases where the two would collide rather than choosing
+// between them: a reference adding PARTITION BY is 4011, one adding ORDER BY
+// to a name that has one is 4012, and one adding a frame to a name that has
+// one is 4013. So each field here can only come from one side.
+func extendWindowDef(def, ref *ast.WindowDef) *ast.WindowDef {
+	extended := *def
+	extended.Name = ""
+	extended.RefName = ""
+	if len(ref.PartitionBy) > 0 {
+		extended.PartitionBy = ref.PartitionBy
+	}
+	if len(ref.OrderBy) > 0 {
+		extended.OrderBy = ref.OrderBy
+	}
+	if ref.Frame != nil {
+		extended.Frame = ref.Frame
+	}
+	return &extended
 }
 
 // applyCTEColumnNames renames the output aliases of each CTE's query to the

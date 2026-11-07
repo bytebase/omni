@@ -196,13 +196,18 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name                string
-	Database            *Database
-	Table               string // table name the trigger is on
-	Timing              string // BEFORE, AFTER
-	Event               string // INSERT, UPDATE, DELETE
-	Definer             string
-	Body                string
+	Name     string
+	Database *Database
+	Table    string // table name the trigger is on
+	Timing   string // BEFORE, AFTER
+	Event    string // INSERT, UPDATE, DELETE
+	Definer  string
+	Body     string
+	// SourceText is the CREATE TRIGGER statement from its TRIGGER keyword to
+	// its end, as the statement was written, which is what SHOW CREATE TRIGGER
+	// echoes. It is empty for a trigger that did not come from a statement
+	// this catalog executed, such as a synced one.
+	SourceText          string
 	CharacterSetClient  string
 	CollationConnection string
 	DatabaseCollation   string

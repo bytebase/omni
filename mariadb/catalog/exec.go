@@ -265,7 +265,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.AlterRoutineStmt:
 		return c.alterRoutine(s)
 	case *nodes.CreateTriggerStmt:
-		return c.createTrigger(s)
+		return c.createTrigger(s, source)
 	case *nodes.DropTriggerStmt:
 		return c.dropTrigger(s)
 	case *nodes.CreateEventStmt:

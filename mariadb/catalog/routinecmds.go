@@ -44,7 +44,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	// Build return type -- MySQL shows lowercase with CHARSET for string types.
 	var returns string
 	if stmt.Returns != nil {
-		returns = formatReturnType(stmt.Returns, db.Charset)
+		returns = formatReturnType(stmt.Returns, db.Charset, db.Collation)
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -211,7 +211,7 @@ func formatParamType(dt *nodes.DataType) string {
 // so an integer type carries its display width and a string type its charset
 // and collation. MySQL 8.0 writes neither the width nor the collation.
 // Measured on mariadb:11.8.8 through SHOW CREATE FUNCTION.
-func formatReturnType(dt *nodes.DataType, dbCharset string) string {
+func formatReturnType(dt *nodes.DataType, dbCharset, dbCollation string) string {
 	raw := formatDataType(dt)
 	name := strings.ToLower(dt.Name)
 	if normalized := normalizedTypeName(name); isIntegerType(normalized) && dt.Length == 0 {
@@ -229,7 +229,23 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+		// The collation comes from the RETURNS clause where it names one, and
+		// otherwise from the database — not from the charset — because a
+		// function with neither attribute takes the database's defaults at
+		// creation time. Naming a CHARACTER SET, even the database's own,
+		// takes that charset's default collation instead.
+		//
+		// Measured on mariadb:11.8.8 in a database declared
+		// `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`:
+		// `RETURNS VARCHAR(20)` is utf8mb4 COLLATE utf8mb4_bin,
+		// `RETURNS VARCHAR(20) CHARACTER SET utf8mb4` is
+		// utf8mb4 COLLATE utf8mb4_uca1400_ai_ci, and
+		// `RETURNS VARCHAR(20) COLLATE utf8mb4_general_ci` keeps the one it
+		// names.
 		collation := dt.Collate
+		if collation == "" && dt.Charset == "" {
+			collation = dbCollation
+		}
 		if collation == "" {
 			collation = defaultCollationForCharset[toLower(charset)]
 		}
