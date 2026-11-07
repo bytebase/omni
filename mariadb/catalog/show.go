@@ -557,7 +557,7 @@ func formatDefault(val string, col *Column) string {
 	// A numeric column's default is unquoted, and loses the quotes it was
 	// written with.
 	if isNumericColumnType(col.DataType) {
-		return strings.Trim(val, "'")
+		return scaleNumberDefault(strings.Trim(val, "'"), col)
 	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
@@ -1081,12 +1081,14 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			return val, true // a string default keeps its quotes
 		}
 	}
-	if family == familyString || family == familyNumber {
-		// A string literal is already in the column's own notation; only a
-		// hex or bit literal has to be converted.
-		if kind == literalString {
-			return "", false
-		}
+	if (family == familyString || family == familyNumber) && kind == literalString {
+		// A plain string literal is already in the column's own notation. A
+		// hex, bit or introduced one has to be converted: measured on
+		// mariadb:11.8.8, `INT DEFAULT _utf8mb4'7'` comes back DEFAULT 7,
+		// `DECIMAL(5,2) DEFAULT _utf8mb4'7'` DEFAULT 7.00, and
+		// `VARCHAR(4) DEFAULT _latin1'x'` DEFAULT 'x' with the introducer
+		// gone, while a TEXT column keeps the literal as written.
+		return "", false
 	}
 	switch family {
 	case familyFixedBinary, familyVarBinary:
@@ -1097,7 +1099,7 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 	case familyString:
 		return quoteStringDefault(raw), true
 	case familyNumber:
-		return numberDefaultOf(raw, col)
+		return numberDefaultOf(kind, raw, col)
 	}
 	return "", false
 }
@@ -1175,33 +1177,63 @@ func quoteStringDefault(raw []byte) string {
 
 // numberDefaultOf reads the bytes as a big-endian unsigned number and writes
 // it in the column's notation, which for DECIMAL carries the declared scale.
-func numberDefaultOf(raw []byte, col *Column) (string, bool) {
-	if len(raw) > 8 {
-		return "", false // wider than a number the column could hold
+func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
+	// A hex or bit literal is the number its bytes spell, while a string one
+	// is the number its text spells: INT DEFAULT 0x37 is 55 and
+	// INT DEFAULT '7' is 7, the same byte read two ways. Measured on
+	// mariadb:11.8.8.
+	digits := ""
+	switch kind {
+	case literalString, literalIntroduced:
+		digits = string(raw)
+	default:
+		if len(raw) > 8 {
+			return "", false // wider than a number the column could hold
+		}
+		var n uint64
+		for _, c := range raw {
+			n = n<<8 | uint64(c)
+		}
+		digits = strconv.FormatUint(n, 10)
 	}
-	var n uint64
-	for _, c := range raw {
-		n = n<<8 | uint64(c)
-	}
-	digits := strconv.FormatUint(n, 10)
+	return scaleNumberDefault(digits, col), true
+}
+
+// scaleNumberDefault writes a number default the way the column carries it. A
+// DECIMAL is shown to its declared scale however the default was written:
+// DECIMAL(5,2) DEFAULT 7, '7', 7.5 and 0x41 come back 7.00, 7.00, 7.50 and
+// 65.00, while DECIMAL(5,0) DEFAULT 7 stays 7. Measured on mariadb:11.8.8.
+//
+// A default carrying more fraction digits than the scale is left as written:
+// rounding it is the server's to do, and this has not been measured.
+func scaleNumberDefault(digits string, col *Column) string {
 	if normalizedTypeName(col.DataType) != "decimal" {
-		return digits, true
+		return digits
 	}
-	if scale := declaredTypeScale(col.ColumnType); scale > 0 {
-		return digits + "." + strings.Repeat("0", scale), true
+	scale := declaredTypeScale(col.ColumnType)
+	if scale <= 0 {
+		return digits
 	}
-	return digits, true
+	whole, fraction, hasPoint := strings.Cut(digits, ".")
+	if len(fraction) > scale {
+		return digits
+	}
+	if !hasPoint {
+		fraction = ""
+	}
+	return whole + "." + fraction + strings.Repeat("0", scale-len(fraction))
 }
 
 // literalKind is the notation a literal default was written in.
 type literalKind int
 
 const (
-	literalNone   literalKind = iota
-	literalHexX               // X'ff'
-	literalHex0x              // 0xff
-	literalBits               // b'101'
-	literalString             // 'a'
+	literalNone       literalKind = iota
+	literalHexX                   // X'ff'
+	literalHex0x                  // 0xff
+	literalBits                   // b'101'
+	literalString                 // 'a'
+	literalIntroduced             // _utf8mb4'a'
 )
 
 // literalDefaultBytes decodes a literal default to the bytes it stands for and
@@ -1219,15 +1251,39 @@ func literalDefaultBytes(val string) (literalKind, []byte, bool) {
 		raw, ok := decodeBits(val[2 : len(val)-1])
 		return literalBits, raw, ok
 	case len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'':
-		// The quotes come off and a doubled quote stands for one. A string
-		// holding an escape is left to the caller, which keeps it as written.
-		inner := val[1 : len(val)-1]
-		if strings.ContainsRune(inner, '\\') {
+		raw, ok := unquoteStringLiteral(val)
+		return literalString, raw, ok
+	case val != "" && val[0] == '_':
+		// A character-set introducer, `_utf8mb4'a'`, is another spelling of a
+		// string literal: the charset says how to read the bytes and the value
+		// is the quoted part.
+		quote := strings.IndexByte(val, '\'')
+		if quote < 2 {
 			return literalNone, nil, false
 		}
-		return literalString, []byte(strings.ReplaceAll(inner, "''", "'")), true
+		for i := 1; i < quote; i++ {
+			if !isNameByte(val[i]) {
+				return literalNone, nil, false
+			}
+		}
+		raw, ok := unquoteStringLiteral(val[quote:])
+		return literalIntroduced, raw, ok
 	}
 	return literalNone, nil, false
+}
+
+// unquoteStringLiteral takes the quotes off a single-quoted literal, where a
+// doubled quote stands for one. A literal holding a backslash escape is
+// refused, and its caller keeps it as written.
+func unquoteStringLiteral(val string) ([]byte, bool) {
+	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
+		return nil, false
+	}
+	inner := val[1 : len(val)-1]
+	if strings.ContainsRune(inner, '\\') {
+		return nil, false
+	}
+	return []byte(strings.ReplaceAll(inner, "''", "'")), true
 }
 
 // declaredTypeScale reads the scale out of a column type, as the 2 of

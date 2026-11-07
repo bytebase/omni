@@ -1040,3 +1040,42 @@ func TestReview_PositionIsStoredAsLocate(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_IntroducedAndScaledDefaults covers a default written with a
+// character-set introducer, which is another spelling of a string literal and
+// so follows the same family rule, and the scale a DECIMAL carries whatever
+// the default was written as.
+func TestReview_IntroducedAndScaledDefaults(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// An introducer on a column that holds a value: coerced, introducer gone.
+		{"int_introduced", "CREATE TABLE t (a INT DEFAULT _utf8mb4'7')"},
+		{"int_introduced_latin1", "CREATE TABLE t (a INT DEFAULT _latin1'7')"},
+		{"varchar_introduced", "CREATE TABLE t (a VARCHAR(4) DEFAULT _utf8mb4'x')"},
+		{"varchar_introduced_latin1", "CREATE TABLE t (a VARCHAR(4) DEFAULT _latin1'x')"},
+		{"binary_introduced", "CREATE TABLE t (a BINARY(2) DEFAULT _binary'ab')"},
+		{"decimal_introduced", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT _utf8mb4'7')"},
+		// On one that holds an expression, the literal survives as written.
+		{"text_introduced", "CREATE TABLE t (a TEXT DEFAULT _utf8mb4'x')"},
+		// N'' is the national-charset spelling, which the parser folds away.
+		{"int_national", "CREATE TABLE t (a INT DEFAULT N'7')"},
+		{"varchar_national", "CREATE TABLE t (a VARCHAR(4) DEFAULT N'x')"},
+		// A DECIMAL shows its declared scale however the default was written.
+		{"decimal_plain", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 7)"},
+		{"decimal_quoted", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7')"},
+		{"decimal_fraction", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 7.5)"},
+		{"decimal_quoted_fraction", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7.5')"},
+		{"decimal_hex", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 0x41)"},
+		{"decimal_no_scale", "CREATE TABLE t (a DECIMAL(5,0) DEFAULT 7)"},
+		{"double_keeps_fraction", "CREATE TABLE t (a DOUBLE DEFAULT '7.5')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
