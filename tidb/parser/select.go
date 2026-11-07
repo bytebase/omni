@@ -231,13 +231,11 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
 		}
 	}
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return err
-		}
+	if limit, ok, err := p.parseSelectStmtLimitOpt(); err != nil {
+		return err
+	} else if ok {
 		stmt.Limit = limit
-		if p.cur.Type == kwLIMIT {
+		if p.cur.Type == kwLIMIT || p.cur.Type == kwFETCH {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
 	}
@@ -652,12 +650,10 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	// LIMIT clause
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
-		}
+	// LIMIT clause, or FETCH FIRST
+	if limit, ok, err := p.parseSelectStmtLimitOpt(); err != nil {
+		return nil, err
+	} else if ok {
 		stmt.Limit = limit
 	}
 
@@ -814,7 +810,7 @@ func (p *Parser) parseDerivedColumnList() ([]string, error) {
 // when the SELECT expression list is empty (e.g. "SELECT FROM t").
 func (p *Parser) isClauseKeyword() bool {
 	switch p.cur.Type {
-	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFETCH, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT:
 		return true
 	}
@@ -825,7 +821,7 @@ func (p *Parser) isClauseKeyword() bool {
 // the select expression list. Used to avoid consuming clause keywords as aliases.
 func (p *Parser) isSelectTerminator() bool {
 	switch p.cur.Type {
-	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFETCH, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
 		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
@@ -1158,7 +1154,7 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 		// `((SELECT 1) FOR UPDATE) x`. Inheriting `nested` (not blind true) keeps
 		// a join body safe: `((t1 JOIN t2) ORDER BY 1)` inherits false → join.
 		switch p.cur.Type {
-		case ')', kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
+		case ')', kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT, kwFETCH:
 			isSubquery = nested
 		default:
 			isSubquery = false
@@ -1500,6 +1496,55 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 		return p.parsePrimaryExpr()
 	}
 	return nil, p.syntaxErrorAtCur()
+}
+
+// parseSelectStmtLimitOpt reads TiDB's SelectStmtLimitOpt (parser.y:10156, v8.5.5):
+// nothing, LIMIT in its three forms, or "FETCH" FirstOrNext FetchFirstOpt RowOrRows
+// "ONLY" (parser.y:10151), which is LIMIT n and LIMIT 1 when n is left out. ok
+// reports whether a clause was read.
+func (p *Parser) parseSelectStmtLimitOpt() (limit *nodes.Limit, ok bool, err error) {
+	switch p.cur.Type {
+	case kwLIMIT:
+		p.advance()
+		limit, err = p.parseLimitClause()
+		return limit, true, err
+	case kwFETCH:
+		limit, err = p.parseFetchFirst()
+		return limit, true, err
+	}
+	return nil, false, nil
+}
+
+// parseFetchFirst parses FETCH {FIRST | NEXT} [count] {ROW | ROWS} ONLY. The count
+// is a LimitOption, as LIMIT's is, and TiDB builds the same Limit for it, with a
+// count of one when it is left out; that one has no text, so its Loc is NoLoc.
+// The Limit spans the clause from FETCH to ONLY.
+func (p *Parser) parseFetchFirst() (*nodes.Limit, error) {
+	start := p.pos()
+	p.advance() // consume FETCH
+	if p.cur.Type != kwFIRST && p.cur.Type != kwNEXT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	limit := &nodes.Limit{Loc: nodes.Loc{Start: start}}
+	if p.cur.Type == kwROW || p.cur.Type == kwROWS {
+		limit.Count = &nodes.IntLit{Loc: nodes.NoLoc(), Value: 1}
+	} else {
+		count, err := p.parseLimitValue()
+		if err != nil {
+			return nil, err
+		}
+		limit.Count = count
+	}
+	if p.cur.Type != kwROW && p.cur.Type != kwROWS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect(kwONLY); err != nil {
+		return nil, err
+	}
+	limit.Loc.End = p.prev.End
+	return limit, nil
 }
 
 // parseLimitClause parses LIMIT [offset,] count or LIMIT count OFFSET offset.
@@ -2096,13 +2141,11 @@ func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 		}
 	}
 
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return err
-		}
+	if limit, ok, err := p.parseSelectStmtLimitOpt(); err != nil {
+		return err
+	} else if ok {
 		stmt.Limit = limit
-		if p.cur.Type == kwLIMIT {
+		if p.cur.Type == kwLIMIT || p.cur.Type == kwFETCH {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
 	}

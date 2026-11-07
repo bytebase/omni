@@ -390,12 +390,12 @@ accept	accept	UPDATE t1 USE INDEX(idx_a) SET t1.price=3.25 WHERE t1.id=1;
 accept	accept	UPDATE t1 USE INDEX(idx_a) JOIN t2 SET t1.price=t2.price WHERE t1.id=t2.id;
 accept	accept	UPDATE t1 USE INDEX(idx_a) JOIN t2 USE INDEX(idx_a) SET t1.price=t2.price WHERE t1.id=t2.id;
 accept	accept	SELECT * FROM t WHERE 1 = 1
-reject	accept	SELECT * FROM t FETCH FIRST 5 ROW ONLY
-reject	accept	SELECT * FROM t FETCH NEXT 5 ROW ONLY
-reject	accept	SELECT * FROM t FETCH FIRST 5 ROWS ONLY
-reject	accept	SELECT * FROM t FETCH NEXT 5 ROWS ONLY
-reject	accept	SELECT * FROM t FETCH FIRST ROW ONLY
-reject	accept	SELECT * FROM t FETCH NEXT ROW ONLY
+accept	accept	SELECT * FROM t FETCH FIRST 5 ROW ONLY
+accept	accept	SELECT * FROM t FETCH NEXT 5 ROW ONLY
+accept	accept	SELECT * FROM t FETCH FIRST 5 ROWS ONLY
+accept	accept	SELECT * FROM t FETCH NEXT 5 ROWS ONLY
+accept	accept	SELECT * FROM t FETCH FIRST ROW ONLY
+accept	accept	SELECT * FROM t FETCH NEXT ROW ONLY
 accept	accept	select 1 from dual
 accept	accept	select 1 from dual limit 1
 accept	accept	select 1 where exists (select 2)

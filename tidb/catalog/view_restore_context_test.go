@@ -317,3 +317,24 @@ func TestViewRestoreAdjacentStrings(t *testing.T) {
 		}
 	})
 }
+
+// TestViewRestoreFetchFirst: a view stores FETCH FIRST as the LIMIT it is, as
+// TiDB v8.5.5 stores it (SHOW CREATE VIEW, 2026-11-06), LIMIT 1 when the count is
+// left out.
+func TestViewRestoreFetchFirst(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{"SELECT a FROM t FETCH FIRST 5 ROWS ONLY", "SELECT `a` AS `a` FROM `d`.`t` LIMIT 5"},
+		{"SELECT a FROM t ORDER BY a FETCH NEXT ROW ONLY", "SELECT `a` AS `a` FROM `d`.`t` ORDER BY `a` LIMIT 1"},
+		{
+			"SELECT a FROM t UNION SELECT a FROM t FETCH FIRST 2 ROWS ONLY",
+			"SELECT `a` AS `a` FROM `d`.`t` UNION SELECT `a` AS `a` FROM `d`.`t` LIMIT 2",
+		},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT); CREATE VIEW v AS "+tc.body+";")
+			if got := c.GetDatabase("d").Views["v"].Definition; got != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", got, tc.want)
+			}
+		})
+	}
+}
