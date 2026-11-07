@@ -197,8 +197,8 @@ diff is the list of forms the release added or removed.
 **Status (2026-11-07).** Landed: `tidb/parser/cmd/grammarcorpus` and the first
 measurement. parser.y at v8.5.5 has 690 rules and 2,946 alternatives (two,
 `||` concat and high-precedence `NOT`, need a non-default SQL mode and are
-reported uncovered); omni parses 2,670 of the 2,822 the server accepts (94.6%)
-with zero over-acceptances. The 152 gaps, grouped by rule, are
+reported uncovered); omni parses 2,766 of the 2,822 the server accepts (98.0%)
+with zero over-acceptances. The 56 remaining gaps, grouped by rule, are
 `docs/plans/2026-11-07-tidb-parser-y-gap-inventory.md`, and are the grammar
 work list that replaces §3.2.
 

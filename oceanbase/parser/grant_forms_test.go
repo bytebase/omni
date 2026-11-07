@@ -255,6 +255,21 @@ var grantFormCases = []grantFormCase{
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED", false},
 	{"REVOKE SELECT ON *.* FROM u1 IDENTIFIED", false},
 	{"GRANT SELECT ON *.* TO u1 IDENTIFIED BY", false},
+	// CURRENT_USER names the connected user wherever a user is named, but
+	// oceanbase-ce:4.3.5 answers 1064 for it as a RENAME USER target and after
+	// SET PASSWORD FOR (measured), where mysql:8.0 reads it. The positions that
+	// do accept it execute against the connected account, so they are measured by
+	// probe rather than run here; these two stay rejected on both sides.
+	{"RENAME USER CURRENT_USER TO CURRENT_USER", false},
+	{"RENAME USER u1@localhost TO CURRENT_USER", false},
+	{"SET PASSWORD FOR CURRENT_USER = 'notarealpw'", false},
+	// CURRENT_USER is a Username and not a Rolename, so oceanbase-ce:4.3.5 answers
+	// 1064 for the keyword wherever a role is named. DROP ROLE current_user is the
+	// one the engine reads, and the accepting positions execute against a real
+	// account, so neither is run here.
+	{"CREATE ROLE current_user", false},
+	{"SET ROLE current_user", false},
+	{"SET DEFAULT ROLE current_user TO u1@localhost", false},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no

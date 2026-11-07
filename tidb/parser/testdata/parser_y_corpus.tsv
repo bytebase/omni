@@ -189,10 +189,10 @@ accept	accept	RenameTableStmt#1	RENAME TABLE ident TO ident
 accept	accept	TableToTableList#1	RENAME TABLE ident TO ident
 accept	accept	TableToTableList#2	RENAME TABLE ident TO ident, ident TO ident
 accept	accept	TableToTable#1	RENAME TABLE ident TO ident
-reject	accept	RenameUserStmt#1	RENAME USER CURRENT_USER TO CURRENT_USER
-reject	accept	UserToUserList#1	RENAME USER CURRENT_USER TO CURRENT_USER
-reject	accept	UserToUserList#2	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER TO CURRENT_USER
-reject	accept	UserToUser#1	RENAME USER CURRENT_USER TO CURRENT_USER
+accept	accept	RenameUserStmt#1	RENAME USER CURRENT_USER TO CURRENT_USER
+accept	accept	UserToUserList#1	RENAME USER CURRENT_USER TO CURRENT_USER
+accept	accept	UserToUserList#2	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER TO CURRENT_USER
+accept	accept	UserToUser#1	RENAME USER CURRENT_USER TO CURRENT_USER
 accept	accept	RecoverTableStmt#1	RECOVER TABLE BY JOB 1
 accept	accept	RecoverTableStmt#2	RECOVER TABLE ident
 accept	accept	RecoverTableStmt#3	RECOVER TABLE ident 1
@@ -552,8 +552,8 @@ accept	accept	OptTemporary#2	CREATE TEMPORARY TABLE ident
 reject	reject	OptTemporary#3	CREATE GLOBAL TEMPORARY TABLE ident
 accept	accept	DropViewStmt#1	DROP VIEW ident
 accept	accept	DropViewStmt#2	DROP VIEW IF EXISTS ident
-reject	accept	DropUserStmt#1	DROP USER CURRENT_USER
-reject	accept	DropUserStmt#2	DROP USER IF EXISTS CURRENT_USER
+accept	accept	DropUserStmt#1	DROP USER CURRENT_USER
+accept	accept	DropUserStmt#2	DROP USER IF EXISTS CURRENT_USER
 accept	accept	DropRoleStmt#1	DROP ROLE 's'
 accept	accept	DropRoleStmt#2	DROP ROLE IF EXISTS 's'
 accept	accept	DropStatsStmt#1	DROP STATS ident
@@ -767,10 +767,10 @@ accept	accept	HavingClause#2	SELECT * HAVING ident
 accept	accept	AsOfClauseOpt#1	DELETE ident FROM ident
 accept	accept	AsOfClauseOpt#2	DELETE ident FROM ident AS OF TIMESTAMP ident
 accept	accept	AsOfClause#1	START TRANSACTION READ ONLY AS OF TIMESTAMP ident
-reject	accept	IfExists#1	ALTER USER CURRENT_USER
-reject	accept	IfExists#2	ALTER USER IF EXISTS CURRENT_USER
-reject	accept	IfNotExists#1	CREATE USER CURRENT_USER
-reject	accept	IfNotExists#2	CREATE USER IF NOT EXISTS CURRENT_USER
+accept	accept	IfExists#1	ALTER USER CURRENT_USER
+accept	accept	IfExists#2	ALTER USER IF EXISTS CURRENT_USER
+accept	accept	IfNotExists#1	CREATE USER CURRENT_USER
+accept	accept	IfNotExists#2	CREATE USER IF NOT EXISTS CURRENT_USER
 accept	accept	IgnoreOptional#1	ALTER TABLE ident
 reject	accept	IgnoreOptional#2	ALTER IGNORE TABLE ident
 accept	accept	IndexName#1	ALTER TABLE ident ADD FULLTEXT(ident)
@@ -1910,7 +1910,7 @@ accept	accept	SetOpr#3	SELECT * INTERSECT SELECT *
 accept	accept	SetOprOpt#1	SELECT * UNION SELECT *
 accept	accept	SetStmt#1	SET NAMES DEFAULT
 accept	accept	SetStmt#2	SET PASSWORD = 's'
-reject	accept	SetStmt#3	SET PASSWORD FOR CURRENT_USER = 's'
+accept	accept	SetStmt#3	SET PASSWORD FOR CURRENT_USER = 's'
 accept	accept	SetStmt#4	SET GLOBAL TRANSACTION READ WRITE
 accept	accept	SetStmt#5	SET SESSION TRANSACTION READ WRITE
 accept	accept	SetStmt#6	SET TRANSACTION READ WRITE
@@ -1919,7 +1919,7 @@ accept	accept	SetStmt#8	SET CONFIG 's' ident = ON
 accept	accept	SetStmt#9	SET SESSION_STATES 's'
 accept	accept	SetStmt#10	SET RESOURCE GROUP DEFAULT
 accept	accept	SetRoleStmt#1	SET ROLE NONE
-reject	accept	SetDefaultRoleStmt#1	SET DEFAULT ROLE NONE TO CURRENT_USER
+accept	accept	SetDefaultRoleStmt#1	SET DEFAULT ROLE NONE TO CURRENT_USER
 accept	accept	SetDefaultRoleOpt#1	SET ROLE NONE
 accept	accept	SetDefaultRoleOpt#2	SET ROLE ALL
 accept	accept	SetDefaultRoleOpt#3	SET ROLE 's'
@@ -1972,18 +1972,18 @@ accept	accept	UserVariable#1	DO @v
 accept	accept	Username#1	DROP USER 's'
 accept	accept	Username#2	DROP USER 's'@'s'
 accept	accept	Username#3	DROP USER 's' @v
-reject	accept	Username#4	DROP USER CURRENT_USER
-reject	accept	UsernameList#1	DROP USER CURRENT_USER
-reject	accept	UsernameList#2	DROP USER CURRENT_USER, CURRENT_USER
+accept	accept	Username#4	DROP USER CURRENT_USER
+accept	accept	UsernameList#1	DROP USER CURRENT_USER
+accept	accept	UsernameList#2	DROP USER CURRENT_USER, CURRENT_USER
 accept	accept	PasswordOpt#1	SET PASSWORD = 's'
 accept	accept	PasswordOpt#2	SET PASSWORD = PASSWORD('s')
-reject	accept	AuthString#1	CREATE USER CURRENT_USER IDENTIFIED BY 's'
+accept	accept	AuthString#1	CREATE USER CURRENT_USER IDENTIFIED BY 's'
 accept	accept	RoleNameString#1	DROP ROLE 's'
 accept	accept	RoleNameString#2	DROP ROLE ident
 accept	accept	RolenameComposed#1	DROP ROLE 's'@'s'
 accept	accept	RolenameComposed#2	DROP ROLE 's' @v
-reject	accept	RolenameWithoutIdent#1	GRANT 's' TO CURRENT_USER
-reject	accept	RolenameWithoutIdent#2	GRANT 's' @v TO CURRENT_USER
+accept	accept	RolenameWithoutIdent#1	GRANT 's' TO CURRENT_USER
+accept	accept	RolenameWithoutIdent#2	GRANT 's' @v TO CURRENT_USER
 accept	accept	Rolename#1	DROP ROLE 's'
 accept	accept	Rolename#2	DROP ROLE 's' @v
 accept	accept	RolenameList#1	DROP ROLE 's'
@@ -2176,7 +2176,7 @@ accept	accept	Statement#1
 accept	accept	Statement#2	ADMIN SHOW DDL
 reject	reject	Statement#3	ALTER DATABASE CHARSET BINARY
 accept	accept	Statement#4	ALTER TABLE ident
-reject	accept	Statement#5	ALTER USER CURRENT_USER
+accept	accept	Statement#5	ALTER USER CURRENT_USER
 accept	accept	Statement#6	ALTER INSTANCE RELOAD TLS
 accept	accept	Statement#7	ALTER RANGE ident PLACEMENT POLICY 's'
 accept	accept	Statement#8	ALTER SEQUENCE ident NOMINVALUE
@@ -2197,7 +2197,7 @@ accept	accept	Statement#22	CREATE DATABASE ident
 accept	accept	Statement#23	CREATE INDEX ident ON ident(ident)
 accept	accept	Statement#24	CREATE TABLE ident
 accept	accept	Statement#25	CREATE VIEW ident AS SELECT *
-reject	accept	Statement#26	CREATE USER CURRENT_USER
+accept	accept	Statement#26	CREATE USER CURRENT_USER
 accept	accept	Statement#27	CREATE ROLE 's'
 accept	accept	Statement#28	CREATE BINDING USING SELECT *
 accept	accept	Statement#29	CREATE PLACEMENT POLICY ident PRIMARY_REGION 's'
@@ -2215,7 +2215,7 @@ accept	accept	Statement#40	DROP PROCEDURE ident
 accept	accept	Statement#41	DROP PLACEMENT POLICY ident
 accept	accept	Statement#42	DROP SEQUENCE ident
 accept	accept	Statement#43	DROP VIEW ident
-reject	accept	Statement#44	DROP USER CURRENT_USER
+accept	accept	Statement#44	DROP USER CURRENT_USER
 accept	accept	Statement#45	DROP RESOURCE GROUP DEFAULT
 accept	accept	Statement#46	QUERY WATCH REMOVE 1
 accept	accept	Statement#47	DROP ROLE 's'
@@ -2227,8 +2227,8 @@ accept	accept	Statement#52	FLASHBACK TABLE ident
 accept	accept	Statement#53	FLASHBACK CLUSTER TO TIMESTAMP 's'
 accept	accept	Statement#54	FLASHBACK DATABASE ident
 reject	reject	Statement#55	GRANT 's' ON * TO CURRENT_USER
-reject	accept	Statement#56	GRANT PROXY ON CURRENT_USER TO CURRENT_USER
-reject	accept	Statement#57	GRANT 's' TO CURRENT_USER
+accept	accept	Statement#56	GRANT PROXY ON CURRENT_USER TO CURRENT_USER
+accept	accept	Statement#57	GRANT 's' TO CURRENT_USER
 accept	accept	Statement#58	CALL ident
 accept	accept	Statement#59	IMPORT INTO ident FROM 's'
 accept	accept	Statement#60	INSERT ident SELECT *
@@ -2241,12 +2241,12 @@ accept	accept	Statement#66	PLAN REPLAYER LOAD 's'
 accept	accept	Statement#67	PREPARE ident FROM 's'
 accept	accept	Statement#68	ROLLBACK
 accept	accept	Statement#69	RENAME TABLE ident TO ident
-reject	accept	Statement#70	RENAME USER CURRENT_USER TO CURRENT_USER
+accept	accept	Statement#70	RENAME USER CURRENT_USER TO CURRENT_USER
 accept	accept	Statement#71	REPLACE ident SELECT *
 accept	accept	Statement#72	RECOVER TABLE ident
 accept	accept	Statement#73	RELEASE SAVEPOINT ident
 reject	reject	Statement#74	REVOKE 's' ON * FROM CURRENT_USER
-reject	accept	Statement#75	REVOKE 's' FROM CURRENT_USER
+accept	accept	Statement#75	REVOKE 's' FROM CURRENT_USER
 accept	accept	Statement#76	SAVEPOINT ident
 accept	accept	Statement#77	SELECT * UNION SELECT *
 accept	accept	Statement#78	SELECT *
@@ -2255,7 +2255,7 @@ accept	accept	Statement#80	(SELECT *)
 accept	accept	Statement#81	SET SESSION_STATES 's'
 accept	accept	Statement#82	SET BINDING ENABLED FOR SELECT *
 accept	accept	Statement#83	SET ROLE NONE
-reject	accept	Statement#84	SET DEFAULT ROLE NONE TO CURRENT_USER
+accept	accept	Statement#84	SET DEFAULT ROLE NONE TO CURRENT_USER
 accept	accept	Statement#85	SPLIT TABLE ident BY()
 accept	accept	Statement#86	SHOW GRANTS
 accept	accept	Statement#87	TRACE BEGIN
@@ -2511,71 +2511,71 @@ accept	accept	UseStmt#1	USE ident
 accept	accept	WhereClause#1	SELECT * WHERE ident
 accept	accept	WhereClauseOptional#1	SELECT *
 accept	accept	WhereClauseOptional#2	SELECT * WHERE ident
-reject	accept	CreateUserStmt#1	CREATE USER CURRENT_USER
+accept	accept	CreateUserStmt#1	CREATE USER CURRENT_USER
 accept	accept	CreateRoleStmt#1	CREATE ROLE 's'
-reject	accept	AlterUserStmt#1	ALTER USER CURRENT_USER
+accept	accept	AlterUserStmt#1	ALTER USER CURRENT_USER
 accept	accept	AlterUserStmt#2	ALTER USER USER() IDENTIFIED BY 's'
 accept	accept	AlterInstanceStmt#1	ALTER INSTANCE RELOAD TLS
 accept	accept	AlterRangeStmt#1	ALTER RANGE ident PLACEMENT POLICY 's'
 accept	accept	InstanceOption#1	ALTER INSTANCE RELOAD TLS
 accept	accept	InstanceOption#2	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR
-reject	accept	UserSpec#1	CREATE USER CURRENT_USER
-reject	accept	UserSpecList#1	CREATE USER CURRENT_USER
-reject	accept	UserSpecList#2	CREATE USER CURRENT_USER, CURRENT_USER
-reject	accept	ConnectionOptions#1	CREATE USER CURRENT_USER
-reject	accept	ConnectionOptions#2	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
-reject	accept	ConnectionOptionList#1	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
-reject	accept	ConnectionOptionList#2	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1 MAX_QUERIES_PER_HOUR 1
-reject	accept	ConnectionOption#1	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
-reject	accept	ConnectionOption#2	CREATE USER CURRENT_USER WITH MAX_UPDATES_PER_HOUR 1
-reject	accept	ConnectionOption#3	CREATE USER CURRENT_USER WITH MAX_CONNECTIONS_PER_HOUR 1
-reject	accept	ConnectionOption#4	CREATE USER CURRENT_USER WITH MAX_USER_CONNECTIONS 1
-reject	accept	RequireClauseOpt#1	CREATE USER CURRENT_USER
-reject	accept	RequireClauseOpt#2	CREATE USER CURRENT_USER REQUIRE NONE
-reject	accept	RequireClause#1	CREATE USER CURRENT_USER REQUIRE NONE
-reject	accept	RequireClause#2	CREATE USER CURRENT_USER REQUIRE SSL
-reject	accept	RequireClause#3	CREATE USER CURRENT_USER REQUIRE X509
-reject	accept	RequireClause#4	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
-reject	accept	RequireList#1	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
-reject	accept	RequireList#2	CREATE USER CURRENT_USER REQUIRE ISSUER 's' AND ISSUER 's'
-reject	accept	RequireList#3	CREATE USER CURRENT_USER REQUIRE ISSUER 's' ISSUER 's'
-reject	accept	RequireListElement#1	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
-reject	accept	RequireListElement#2	CREATE USER CURRENT_USER REQUIRE SUBJECT 's'
-reject	accept	RequireListElement#3	CREATE USER CURRENT_USER REQUIRE CIPHER 's'
-reject	accept	RequireListElement#4	CREATE USER CURRENT_USER REQUIRE SAN 's'
-reject	accept	RequireListElement#5	CREATE USER CURRENT_USER REQUIRE TOKEN_ISSUER 's'
-reject	accept	CommentOrAttributeOption#1	CREATE USER CURRENT_USER
-reject	accept	CommentOrAttributeOption#2	CREATE USER CURRENT_USER COMMENT 's'
-reject	accept	CommentOrAttributeOption#3	CREATE USER CURRENT_USER ATTRIBUTE 's'
-reject	accept	ResourceGroupNameOption#1	CREATE USER CURRENT_USER
-reject	accept	ResourceGroupNameOption#2	CREATE USER CURRENT_USER RESOURCE GROUP DEFAULT
-reject	accept	PasswordOrLockOptions#1	CREATE USER CURRENT_USER
-reject	accept	PasswordOrLockOptions#2	CREATE USER CURRENT_USER ACCOUNT UNLOCK
-reject	accept	PasswordOrLockOptionList#1	CREATE USER CURRENT_USER ACCOUNT UNLOCK
-reject	accept	PasswordOrLockOptionList#2	CREATE USER CURRENT_USER ACCOUNT UNLOCK ACCOUNT UNLOCK
-reject	accept	PasswordOrLockOption#1	CREATE USER CURRENT_USER ACCOUNT UNLOCK
-reject	accept	PasswordOrLockOption#2	CREATE USER CURRENT_USER ACCOUNT LOCK
-reject	accept	PasswordOrLockOption#3	CREATE USER CURRENT_USER PASSWORD HISTORY DEFAULT
-reject	accept	PasswordOrLockOption#4	CREATE USER CURRENT_USER PASSWORD HISTORY 1
-reject	accept	PasswordOrLockOption#5	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL DEFAULT
-reject	accept	PasswordOrLockOption#6	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL 1 DAY
-reject	accept	PasswordOrLockOption#7	CREATE USER CURRENT_USER PASSWORD EXPIRE
-reject	accept	PasswordOrLockOption#8	CREATE USER CURRENT_USER PASSWORD EXPIRE INTERVAL 1 DAY
-reject	accept	PasswordOrLockOption#9	CREATE USER CURRENT_USER PASSWORD EXPIRE NEVER
-reject	accept	PasswordOrLockOption#10	CREATE USER CURRENT_USER PASSWORD EXPIRE DEFAULT
-reject	accept	PasswordOrLockOption#11	CREATE USER CURRENT_USER FAILED_LOGIN_ATTEMPTS 1
-reject	accept	PasswordOrLockOption#12	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME 1
-reject	accept	PasswordOrLockOption#13	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME UNBOUNDED
-reject	accept	PasswordOrLockOption#14	CREATE USER CURRENT_USER PASSWORD REQUIRE CURRENT DEFAULT
-reject	accept	AuthOption#1	CREATE USER CURRENT_USER
-reject	accept	AuthOption#2	CREATE USER CURRENT_USER IDENTIFIED BY 's'
-reject	accept	AuthOption#3	CREATE USER CURRENT_USER IDENTIFIED WITH 's'
-reject	accept	AuthOption#4	CREATE USER CURRENT_USER IDENTIFIED WITH 's' BY 's'
-reject	accept	AuthOption#5	CREATE USER CURRENT_USER IDENTIFIED WITH 's' AS 's'
-reject	accept	AuthOption#6	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 's'
-reject	accept	AuthPlugin#1	CREATE USER CURRENT_USER IDENTIFIED WITH 's'
-reject	accept	HashString#1	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 's'
-reject	accept	HashString#2	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 0x1
+accept	accept	UserSpec#1	CREATE USER CURRENT_USER
+accept	accept	UserSpecList#1	CREATE USER CURRENT_USER
+accept	accept	UserSpecList#2	CREATE USER CURRENT_USER, CURRENT_USER
+accept	accept	ConnectionOptions#1	CREATE USER CURRENT_USER
+accept	accept	ConnectionOptions#2	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
+accept	accept	ConnectionOptionList#1	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
+accept	accept	ConnectionOptionList#2	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1 MAX_QUERIES_PER_HOUR 1
+accept	accept	ConnectionOption#1	CREATE USER CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
+accept	accept	ConnectionOption#2	CREATE USER CURRENT_USER WITH MAX_UPDATES_PER_HOUR 1
+accept	accept	ConnectionOption#3	CREATE USER CURRENT_USER WITH MAX_CONNECTIONS_PER_HOUR 1
+accept	accept	ConnectionOption#4	CREATE USER CURRENT_USER WITH MAX_USER_CONNECTIONS 1
+accept	accept	RequireClauseOpt#1	CREATE USER CURRENT_USER
+accept	accept	RequireClauseOpt#2	CREATE USER CURRENT_USER REQUIRE NONE
+accept	accept	RequireClause#1	CREATE USER CURRENT_USER REQUIRE NONE
+accept	accept	RequireClause#2	CREATE USER CURRENT_USER REQUIRE SSL
+accept	accept	RequireClause#3	CREATE USER CURRENT_USER REQUIRE X509
+accept	accept	RequireClause#4	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
+accept	accept	RequireList#1	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
+accept	accept	RequireList#2	CREATE USER CURRENT_USER REQUIRE ISSUER 's' AND ISSUER 's'
+accept	accept	RequireList#3	CREATE USER CURRENT_USER REQUIRE ISSUER 's' ISSUER 's'
+accept	accept	RequireListElement#1	CREATE USER CURRENT_USER REQUIRE ISSUER 's'
+accept	accept	RequireListElement#2	CREATE USER CURRENT_USER REQUIRE SUBJECT 's'
+accept	accept	RequireListElement#3	CREATE USER CURRENT_USER REQUIRE CIPHER 's'
+accept	accept	RequireListElement#4	CREATE USER CURRENT_USER REQUIRE SAN 's'
+accept	accept	RequireListElement#5	CREATE USER CURRENT_USER REQUIRE TOKEN_ISSUER 's'
+accept	accept	CommentOrAttributeOption#1	CREATE USER CURRENT_USER
+accept	accept	CommentOrAttributeOption#2	CREATE USER CURRENT_USER COMMENT 's'
+accept	accept	CommentOrAttributeOption#3	CREATE USER CURRENT_USER ATTRIBUTE 's'
+accept	accept	ResourceGroupNameOption#1	CREATE USER CURRENT_USER
+accept	accept	ResourceGroupNameOption#2	CREATE USER CURRENT_USER RESOURCE GROUP DEFAULT
+accept	accept	PasswordOrLockOptions#1	CREATE USER CURRENT_USER
+accept	accept	PasswordOrLockOptions#2	CREATE USER CURRENT_USER ACCOUNT UNLOCK
+accept	accept	PasswordOrLockOptionList#1	CREATE USER CURRENT_USER ACCOUNT UNLOCK
+accept	accept	PasswordOrLockOptionList#2	CREATE USER CURRENT_USER ACCOUNT UNLOCK ACCOUNT UNLOCK
+accept	accept	PasswordOrLockOption#1	CREATE USER CURRENT_USER ACCOUNT UNLOCK
+accept	accept	PasswordOrLockOption#2	CREATE USER CURRENT_USER ACCOUNT LOCK
+accept	accept	PasswordOrLockOption#3	CREATE USER CURRENT_USER PASSWORD HISTORY DEFAULT
+accept	accept	PasswordOrLockOption#4	CREATE USER CURRENT_USER PASSWORD HISTORY 1
+accept	accept	PasswordOrLockOption#5	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL DEFAULT
+accept	accept	PasswordOrLockOption#6	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL 1 DAY
+accept	accept	PasswordOrLockOption#7	CREATE USER CURRENT_USER PASSWORD EXPIRE
+accept	accept	PasswordOrLockOption#8	CREATE USER CURRENT_USER PASSWORD EXPIRE INTERVAL 1 DAY
+accept	accept	PasswordOrLockOption#9	CREATE USER CURRENT_USER PASSWORD EXPIRE NEVER
+accept	accept	PasswordOrLockOption#10	CREATE USER CURRENT_USER PASSWORD EXPIRE DEFAULT
+accept	accept	PasswordOrLockOption#11	CREATE USER CURRENT_USER FAILED_LOGIN_ATTEMPTS 1
+accept	accept	PasswordOrLockOption#12	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME 1
+accept	accept	PasswordOrLockOption#13	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME UNBOUNDED
+accept	accept	PasswordOrLockOption#14	CREATE USER CURRENT_USER PASSWORD REQUIRE CURRENT DEFAULT
+accept	accept	AuthOption#1	CREATE USER CURRENT_USER
+accept	accept	AuthOption#2	CREATE USER CURRENT_USER IDENTIFIED BY 's'
+accept	accept	AuthOption#3	CREATE USER CURRENT_USER IDENTIFIED WITH 's'
+accept	accept	AuthOption#4	CREATE USER CURRENT_USER IDENTIFIED WITH 's' BY 's'
+accept	accept	AuthOption#5	CREATE USER CURRENT_USER IDENTIFIED WITH 's' AS 's'
+accept	accept	AuthOption#6	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 's'
+accept	accept	AuthPlugin#1	CREATE USER CURRENT_USER IDENTIFIED WITH 's'
+accept	accept	HashString#1	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 's'
+accept	accept	HashString#2	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 0x1
 accept	accept	RoleSpec#1	CREATE ROLE 's'
 accept	accept	RoleSpecList#1	CREATE ROLE 's'
 accept	accept	RoleSpecList#2	CREATE ROLE 's', 's'
@@ -2612,23 +2612,23 @@ accept	accept	RecommendIndexOptionList#1	RECOMMEND INDEX SET ident = FALSE
 accept	accept	RecommendIndexOptionList#2	RECOMMEND INDEX SET ident = FALSE, ident = FALSE
 accept	accept	RecommendIndexOption#1	RECOMMEND INDEX SET ident = FALSE
 reject	reject	GrantStmt#1	GRANT 's' ON * TO CURRENT_USER
-reject	accept	GrantProxyStmt#1	GRANT PROXY ON CURRENT_USER TO CURRENT_USER
-reject	accept	GrantRoleStmt#1	GRANT 's' TO CURRENT_USER
+accept	accept	GrantProxyStmt#1	GRANT PROXY ON CURRENT_USER TO CURRENT_USER
+accept	accept	GrantRoleStmt#1	GRANT 's' TO CURRENT_USER
 reject	reject	WithGrantOptionOpt#1	GRANT 's' ON * TO CURRENT_USER
 reject	reject	WithGrantOptionOpt#2	GRANT 's' ON * TO CURRENT_USER WITH GRANT OPTION
 reject	reject	WithGrantOptionOpt#3	GRANT 's' ON * TO CURRENT_USER WITH MAX_QUERIES_PER_HOUR 1
 reject	reject	WithGrantOptionOpt#4	GRANT 's' ON * TO CURRENT_USER WITH MAX_UPDATES_PER_HOUR 1
 reject	reject	WithGrantOptionOpt#5	GRANT 's' ON * TO CURRENT_USER WITH MAX_CONNECTIONS_PER_HOUR 1
 reject	reject	WithGrantOptionOpt#6	GRANT 's' ON * TO CURRENT_USER WITH MAX_USER_CONNECTIONS 1
-reject	accept	ExtendedPriv#1	GRANT ident TO CURRENT_USER
-reject	accept	ExtendedPriv#2	GRANT ident ident TO CURRENT_USER
+accept	accept	ExtendedPriv#1	GRANT ident TO CURRENT_USER
+accept	accept	ExtendedPriv#2	GRANT ident ident TO CURRENT_USER
 reject	reject	RoleOrPrivElem#1	GRANT ALL TO CURRENT_USER
-reject	accept	RoleOrPrivElem#2	GRANT 's' TO CURRENT_USER
-reject	accept	RoleOrPrivElem#3	GRANT ident TO CURRENT_USER
-reject	accept	RoleOrPrivElem#4	GRANT LOAD FROM S3 TO CURRENT_USER
-reject	accept	RoleOrPrivElem#5	GRANT SELECT INTO S3 TO CURRENT_USER
-reject	accept	RoleOrPrivElemList#1	GRANT 's' TO CURRENT_USER
-reject	accept	RoleOrPrivElemList#2	GRANT 's', 's' TO CURRENT_USER
+accept	accept	RoleOrPrivElem#2	GRANT 's' TO CURRENT_USER
+accept	accept	RoleOrPrivElem#3	GRANT ident TO CURRENT_USER
+accept	accept	RoleOrPrivElem#4	GRANT LOAD FROM S3 TO CURRENT_USER
+accept	accept	RoleOrPrivElem#5	GRANT SELECT INTO S3 TO CURRENT_USER
+accept	accept	RoleOrPrivElemList#1	GRANT 's' TO CURRENT_USER
+accept	accept	RoleOrPrivElemList#2	GRANT 's', 's' TO CURRENT_USER
 reject	reject	PrivElem#1	GRANT ALL TO CURRENT_USER
 reject	reject	PrivElem#2	GRANT ALL(ident) TO CURRENT_USER
 reject	reject	PrivType#1	GRANT ALL TO CURRENT_USER
@@ -2676,7 +2676,7 @@ reject	reject	PrivLevel#3	GRANT 's' ON ident.* TO CURRENT_USER
 reject	reject	PrivLevel#4	GRANT 's' ON ident.ident TO CURRENT_USER
 reject	reject	PrivLevel#5	GRANT 's' ON ident TO CURRENT_USER
 reject	reject	RevokeStmt#1	REVOKE 's' ON * FROM CURRENT_USER
-reject	accept	RevokeRoleStmt#1	REVOKE 's' FROM CURRENT_USER
+accept	accept	RevokeRoleStmt#1	REVOKE 's' FROM CURRENT_USER
 accept	accept	LoadDataStmt#1	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	LowPriorityOpt#1	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	LowPriorityOpt#2	LOAD DATA LOW_PRIORITY INFILE 's' INTO TABLE ident

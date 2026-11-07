@@ -876,6 +876,63 @@ func (p *Parser) parseUserList() ([]string, error) {
 	return users, nil
 }
 
+// parseRoleRefList parses a comma-separated list of role references. It is
+// parseUserList with CURRENT_USER refused: CURRENT_USER is a user and not a
+// role, so mysql:8.0 answers 1064 for it wherever a role is named -- CREATE
+// USER u DEFAULT ROLE current_user, DROP/SET ROLE current_user, SET DEFAULT
+// ROLE current_user TO u. A quoted 'CURRENT_USER' is an ordinary role name.
+func (p *Parser) parseRoleRefList() ([]string, error) {
+	var roles []string
+	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
+		role, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return roles, nil
+}
+
+// parseDefaultRoleTargetList parses the `TO user [, user] ...` list of SET
+// DEFAULT ROLE. It is parseUserList with one difference: mysql:8.0 rejects
+// CURRENT_USER as a default-role target while accepting it as a user
+// everywhere else (CREATE/ALTER/DROP/RENAME USER, GRANT/REVOKE, SET PASSWORD),
+// so the keyword is refused here. A quoted 'CURRENT_USER' is an ordinary name
+// and stays allowed.
+func (p *Parser) parseDefaultRoleTargetList() ([]string, error) {
+	var users []string
+	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "CURRENT_USER is not a valid SET DEFAULT ROLE target",
+				Position: p.cur.Loc,
+			}
+		}
+		user, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return users, nil
+}
+
 // parseUserName parses a user identifier, which may be 'user'@'host'.
 func (p *Parser) parseUserName() (string, error) {
 	name, host, hasHost, err := p.parseUserAndHost()
@@ -895,10 +952,25 @@ func (p *Parser) parseUserName() (string, error) {
 // reserved word is not one: mysql:8.0 answers 1064 for
 // CREATE USER select@localhost and runs CREATE USER comment@localhost.
 // maxUserNameLength is USERNAME_CHAR_LENGTH in MySQL 8.0 include/mysql_com.h.
+//
+// CURRENT_USER is the one reserved word a user accepts, as its own alternative
+// `CURRENT_USER optional_braces` (sql/sql_yacc.yy user): it names the connected
+// user, takes no @host or length check, and allows an optional empty "()" like
+// the function spelling. It reaches every statement that names a user through
+// here, so all accept it where mysql:8.0 does.
 const maxUserNameLength = 32
 
 func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
 	switch {
+	case p.cur.Type == kwCURRENT_USER:
+		p.advance() // consume CURRENT_USER
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			if _, err = p.expect(')'); err != nil {
+				return "", "", false, err
+			}
+		}
+		return "CURRENT_USER", "", false, nil
 	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()
@@ -1033,7 +1105,7 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 		if next.Type == kwROLE {
 			p.advance() // consume DEFAULT
 			p.advance() // consume ROLE
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleRefList()
 			if err != nil {
 				return nil, err
 			}
@@ -1228,7 +1300,7 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 				stmt.DefaultRoleType = "ALL"
 				p.advance()
 			default:
-				roles, err := p.parseUserList()
+				roles, err := p.parseRoleRefList()
 				if err != nil {
 					return nil, err
 				}
@@ -1583,8 +1655,11 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	}
 
 	// role [, role] ... An unquoted role_ident refuses a word that is a name elsewhere, so
-	// `CREATE ROLE event` is a 1064.
+	// `CREATE ROLE event` is a 1064. CURRENT_USER is a user and not a role, so it is one too.
 	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type >= 700 && !isReserved(p.cur.Type) && !isRoleKeyword(p.cur.Type) {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -1618,7 +1693,7 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	}
 
 	// role [, role] ...
-	roles, err := p.parseUserList()
+	roles, err := p.parseRoleRefList()
 	if err != nil {
 		return nil, err
 	}
@@ -1704,7 +1779,7 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 		stmt.All = true
 		p.advance()
 	default:
-		roles, err := p.parseUserList()
+		roles, err := p.parseRoleRefList()
 		if err != nil {
 			return nil, err
 		}
@@ -1716,7 +1791,7 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 		return nil, err
 	}
 
-	users, err := p.parseUserList()
+	users, err := p.parseDefaultRoleTargetList()
 	if err != nil {
 		return nil, err
 	}
@@ -1746,14 +1821,14 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 		// ALL EXCEPT role [, role] ...
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleRefList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.AllExcept = roles
 		}
 	default:
-		roles, err := p.parseUserList()
+		roles, err := p.parseRoleRefList()
 		if err != nil {
 			return nil, err
 		}
