@@ -28,9 +28,9 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
-		// A `?` placeholder carries no lineage, like any constant. Keyword marks
-		// it so deparse emits the bare `?` rather than quoting it as a string.
-		return &ConstExprQ{Value: "?", Keyword: true}, nil
+		// A `?` placeholder carries no value or lineage. It keeps its own IR
+		// type so deparse can tell two markers apart and preserve their order.
+		return &ParamMarkerExprQ{}, nil
 	case *nodes.FuncCallExpr:
 		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:

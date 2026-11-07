@@ -88,14 +88,7 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
-	}
+	writeLimitQ(b, q)
 }
 
 func deparseCTEsQ(b *strings.Builder, q *deparseScope) {
@@ -326,14 +319,39 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
+	writeLimitQ(b, q)
+}
+
+// writeLimitQ emits the LIMIT/OFFSET clause. Count-first `limit count offset
+// offset` is the normal form, but a comma-form `?` marker binds by position, so
+// when a marker is present and the source used the comma form the operands are
+// emitted as `limit offset,count` to keep the original binding order.
+func writeLimitQ(b *strings.Builder, q *deparseScope) {
+	if q.LimitCount == nil {
+		return
 	}
+	b.WriteString(" limit ")
+	if q.LimitOffset != nil && !q.LimitOffsetKeyword && queryLimitHasParamMarker(q.Query) {
+		writeAnalyzedExpr(b, q.LimitOffset, q)
+		b.WriteString(",")
+		writeAnalyzedExpr(b, q.LimitCount, q)
+		return
+	}
+	writeAnalyzedExpr(b, q.LimitCount, q)
+	if q.LimitOffset != nil {
+		b.WriteString(" offset ")
+		writeAnalyzedExpr(b, q.LimitOffset, q)
+	}
+}
+
+// queryLimitHasParamMarker reports whether the LIMIT count or offset is a `?`
+// parameter marker.
+func queryLimitHasParamMarker(q *Query) bool {
+	if _, ok := q.LimitCount.(*ParamMarkerExprQ); ok {
+		return true
+	}
+	_, ok := q.LimitOffset.(*ParamMarkerExprQ)
+	return ok
 }
 
 // backtickIDQ wraps an identifier in backticks.

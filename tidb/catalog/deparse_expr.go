@@ -30,6 +30,8 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeVarExprQ(b, e, q)
 	case *ConstExprQ:
 		writeConstExprQ(b, e)
+	case *ParamMarkerExprQ:
+		b.WriteByte('?')
 	case *OpExprQ:
 		writeOpExprQ(b, e, q)
 	case *BoolExprQ:
