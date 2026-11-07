@@ -29,12 +29,16 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
-		// A `?` parameter marker is only ever reached here from a view body (the
-		// only thing this analyzer processes), where it is a LIMIT/OFFSET
-		// operand. Represent it as a keyword-like constant; the engine itself
-		// rejects a `?` in a non-prepared statement, so this never round-trips
-		// to executable SQL.
-		return &ConstExprQ{Value: "?", Keyword: true}, nil
+		// A `?` parameter marker cannot appear in a view definition — the only
+		// thing this analyzer processes — and the engine rejects such a view.
+		// Reject it here rather than carry a marker through the normalizing
+		// deparse, which cannot round-trip its positional binding (a comma-form
+		// LIMIT ?,? reverses the count/offset bindings).
+		return nil, &Error{
+			Code:     1351,
+			SQLState: "HY000",
+			Message:  "View's SELECT contains a '?' (parameter marker)",
+		}
 	case *nodes.FuncCallExpr:
 		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:
