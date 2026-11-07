@@ -195,6 +195,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRowExpr(sb, n)
 	case *StarExpr:
 		fmt.Fprintf(sb, "{STAR :loc %d}", n.Loc.Start)
+	case *ParamMarkerExpr:
+		fmt.Fprintf(sb, "{PARAM_MARKER :loc %d}", n.Loc.Start)
 
 	// References and literals
 	case *ColumnRef:

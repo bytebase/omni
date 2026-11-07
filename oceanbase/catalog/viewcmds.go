@@ -9,8 +9,11 @@ import (
 )
 
 // createView applies CREATE VIEW. source is the text the statement was parsed
-// from, or "" when there is none (see deparseViewSelect).
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
+// from, or "" when there is none (see deparseViewSelect). checkBody refuses a
+// view body the engine rejects (a `?` parameter marker); it is true on the
+// CREATE VIEW path (Exec) and false on a DefineView sync, whose body the engine
+// already accepted.
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody bool) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -23,6 +26,18 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	if _, exists := db.Views[key]; exists {
 		if !stmt.OrReplace {
 			return errDupTable(stmt.Name.Name)
+		}
+	}
+
+	// A `?` parameter marker is not allowed in a view body; OceanBase rejects
+	// CREATE VIEW with one. The grammar permits it (it is a LIMIT operand), so
+	// the rejection lives here, not in the parser, and must fail Exec rather
+	// than be swallowed as the analyzer error below is.
+	if checkBody && stmt.Select != nil && containsParamMarker(stmt.Select) {
+		return &Error{
+			Code:     1351,
+			SQLState: "HY000",
+			Message:  "View's SELECT contains a '?' (parameter marker)",
 		}
 	}
 
@@ -85,6 +100,20 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	return nil
 }
 
+// containsParamMarker reports whether the subtree holds a `?` parameter
+// marker, at any depth including nested subqueries.
+func containsParamMarker(n nodes.Node) bool {
+	found := false
+	nodes.Inspect(n, func(x nodes.Node) bool {
+		if _, ok := x.(*nodes.ParamMarkerExpr); ok {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
 // alterView applies ALTER VIEW; source is as for createView.
 func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
@@ -95,6 +124,17 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	// ALTER VIEW requires the view to exist.
 	if _, exists := db.Views[key]; !exists {
 		return errUnknownTable(db.Name, stmt.Name.Name)
+	}
+
+	// A `?` parameter marker is not allowed in a view body; the engine rejects
+	// ALTER VIEW with one just as it rejects CREATE VIEW. ALTER VIEW comes only
+	// from Exec, so its body is always checked.
+	if stmt.Select != nil && containsParamMarker(stmt.Select) {
+		return &Error{
+			Code:     1351,
+			SQLState: "HY000",
+			Message:  "View's SELECT contains a '?' (parameter marker)",
+		}
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -321,8 +361,8 @@ func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]vi
 			return err
 		}
 	}
-	for _, expr := range sel.GroupBy {
-		if _, err := inferViewExprCollation(expr, relations); err != nil {
+	for _, item := range sel.GroupBy {
+		if _, err := inferViewExprCollation(item.Expr, relations); err != nil {
 			return err
 		}
 	}

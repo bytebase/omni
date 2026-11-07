@@ -854,7 +854,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		groupBy, err := p.parseExprList()
+		groupBy, err := p.parseGroupByList()
 		if err != nil {
 			return nil, err
 		}
@@ -1874,6 +1874,50 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 	return items, nil
 }
 
+// parseGroupByList parses GROUP BY items. OceanBase (MySQL mode) keeps an
+// optional ASC/DESC direction on a GROUP BY item, e.g. "GROUP BY a DESC",
+// which MySQL 8.0 removed. ASC is the default and is dropped on deparse,
+// matching ORDER BY. GROUP BY has no NULLS FIRST/LAST.
+// Container-verified by TestGroupByDirectionOracle.
+func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
+	var items []*nodes.OrderByItem
+
+	for {
+		start := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+
+		item := &nodes.OrderByItem{
+			Loc:  nodes.Loc{Start: start},
+			Expr: expr,
+		}
+
+		if _, ok := p.match(kwDESC); ok {
+			item.Direction = nodes.OrderDirectionDesc
+			item.Desc = true
+		} else if _, ok := p.match(kwASC); ok {
+			item.Direction = nodes.OrderDirectionAsc
+		} else {
+			item.Direction = nodes.OrderDirectionDefault
+		}
+
+		item.Loc.End = p.prev.End
+		items = append(items, item)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return items, nil
+}
+
 // parseLimitValue reads one LIMIT or OFFSET value. It is no expression but an
 // integer literal (limit_expr in OceanBase's grammar, measured on 4.3.5.6), so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR
 // 2`, `LIMIT 1 || 2`, `LIMIT @a`, `LIMIT a`, `LIMIT 0x10` and `LIMIT 1.5` are all
@@ -1881,6 +1925,10 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		return p.parsePrimaryExpr()
+	}
+	if p.cur.Type == '?' {
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }
@@ -1927,6 +1975,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		limit.Offset = offset
+		limit.OffsetKeyword = true
 	}
 
 	limit.Loc.End = p.prev.End

@@ -118,11 +118,14 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	// GROUP BY clause
 	if len(stmt.GroupBy) > 0 {
 		b.WriteString(" group by ")
-		for i, expr := range stmt.GroupBy {
+		for i, item := range stmt.GroupBy {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			writeExpr(b, expr)
+			writeExpr(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" desc")
+			}
 		}
 		if stmt.WithRollup {
 			b.WriteString(" with rollup")
@@ -166,13 +169,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 
 	// LIMIT clause
 	if stmt.Limit != nil {
-		b.WriteString(" limit ")
-		if stmt.Limit.Offset != nil {
-			// MySQL comma syntax: LIMIT offset,count
-			writeExpr(b, stmt.Limit.Offset)
-			b.WriteString(",")
-		}
-		writeExpr(b, stmt.Limit.Count)
+		writeLimit(b, stmt.Limit)
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
@@ -242,12 +239,7 @@ func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt) {
 
 	// Outer LIMIT (applies to the parenthesized result).
 	if stmt.Limit != nil {
-		b.WriteString(" limit ")
-		if stmt.Limit.Offset != nil {
-			writeExpr(b, stmt.Limit.Offset)
-			b.WriteString(",")
-		}
-		writeExpr(b, stmt.Limit.Count)
+		writeLimit(b, stmt.Limit)
 	}
 }
 
@@ -306,6 +298,36 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 	return b.String()
 }
 
+// limitHasParamMarker reports whether the LIMIT's count or offset is a `?`
+// parameter marker.
+func limitHasParamMarker(limit *ast.Limit) bool {
+	if _, ok := limit.Count.(*ast.ParamMarkerExpr); ok {
+		return true
+	}
+	_, ok := limit.Offset.(*ast.ParamMarkerExpr)
+	return ok
+}
+
+// writeLimit emits a LIMIT clause (lowercase). The MySQL comma form
+// `limit offset,count` swaps the two operands, which is harmless for literals
+// but reorders the positional bindings of `?` parameter markers; when a marker
+// is present and the source used the OFFSET keyword, the original
+// `limit count offset offset` form is reproduced so the binding order is kept.
+func writeLimit(b *strings.Builder, limit *ast.Limit) {
+	b.WriteString(" limit ")
+	if limit.Offset != nil {
+		if limit.OffsetKeyword && limitHasParamMarker(limit) {
+			writeExpr(b, limit.Count)
+			b.WriteString(" offset ")
+			writeExpr(b, limit.Offset)
+			return
+		}
+		writeExpr(b, limit.Offset)
+		b.WriteString(",")
+	}
+	writeExpr(b, limit.Count)
+}
+
 func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *ast.Limit) {
 	if len(orderBy) > 0 {
 		b.WriteString(" order by ")
@@ -322,6 +344,12 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 	if limit != nil {
 		b.WriteString(" limit ")
 		if limit.Offset != nil {
+			if limit.OffsetKeyword && limitHasParamMarker(limit) {
+				b.WriteString(deparseExpr(limit.Count))
+				b.WriteString(" offset ")
+				b.WriteString(deparseExpr(limit.Offset))
+				return
+			}
 			b.WriteString(deparseExpr(limit.Offset))
 			b.WriteString(",")
 		}
@@ -385,12 +413,7 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 
 	// LIMIT clause (applies to the entire set operation)
 	if stmt.Limit != nil {
-		b.WriteString(" limit ")
-		if stmt.Limit.Offset != nil {
-			writeExpr(b, stmt.Limit.Offset)
-			b.WriteString(",")
-		}
-		writeExpr(b, stmt.Limit.Count)
+		writeLimit(b, stmt.Limit)
 	}
 }
 
@@ -593,6 +616,8 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString("'")
 	case *ast.NullLit:
 		b.WriteString("NULL")
+	case *ast.ParamMarkerExpr:
+		b.WriteByte('?')
 	case *ast.BoolLit:
 		if n.Value {
 			b.WriteString("TRUE")
@@ -1019,11 +1044,14 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 
 	if len(stmt.GroupBy) > 0 {
 		b.WriteString(" GROUP BY ")
-		for i, expr := range stmt.GroupBy {
+		for i, item := range stmt.GroupBy {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			writeExprAlias(b, expr)
+			writeExprAlias(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" DESC")
+			}
 		}
 		if stmt.WithRollup {
 			b.WriteString(" WITH ROLLUP")
@@ -1083,6 +1111,12 @@ func writeOrderByLimitAlias(b *strings.Builder, orderBy []*ast.OrderByItem, limi
 	if limit != nil {
 		b.WriteString(" LIMIT ")
 		if limit.Offset != nil {
+			if limit.OffsetKeyword && limitHasParamMarker(limit) {
+				writeExprAlias(b, limit.Count)
+				b.WriteString(" OFFSET ")
+				writeExprAlias(b, limit.Offset)
+				return
+			}
 			writeExprAlias(b, limit.Offset)
 			b.WriteString(", ")
 		}
@@ -1347,6 +1381,8 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(deparseStringLit(n))
 	case *ast.NullLit:
 		b.WriteString("NULL")
+	case *ast.ParamMarkerExpr:
+		b.WriteByte('?')
 	case *ast.HexLit:
 		b.WriteString(deparseHexLit(n))
 	case *ast.BitLit:

@@ -692,7 +692,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		groupBy, err := p.parseExprList()
+		groupBy, err := p.parseGroupByList()
 		if err != nil {
 			return nil, err
 		}
@@ -1738,6 +1738,50 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 	return items, nil
 }
 
+// parseGroupByList parses GROUP BY items. MariaDB shares one ByItem rule
+// between ORDER BY and GROUP BY, so a GROUP BY item is an expression with an
+// optional ASC/DESC direction, e.g. "GROUP BY a DESC". ASC is the default and
+// is dropped on deparse, matching ORDER BY. GROUP BY has no NULLS FIRST/LAST.
+// Container-verified by TestGroupByDirectionOracle.
+func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
+	var items []*nodes.OrderByItem
+
+	for {
+		start := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+
+		item := &nodes.OrderByItem{
+			Loc:  nodes.Loc{Start: start},
+			Expr: expr,
+		}
+
+		if _, ok := p.match(kwDESC); ok {
+			item.Direction = nodes.OrderDirectionDesc
+			item.Desc = true
+		} else if _, ok := p.match(kwASC); ok {
+			item.Direction = nodes.OrderDirectionAsc
+		} else {
+			item.Direction = nodes.OrderDirectionDefault
+		}
+
+		item.Loc.End = p.prev.End
+		items = append(items, item)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return items, nil
+}
+
 // parseLimitValue reads one LIMIT or OFFSET value. It is no expression: the
 // grammar's limit_option is an identifier, a parameter marker or an integer
 // literal, so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR 2`, `LIMIT 1 || 2`,
@@ -1775,6 +1819,10 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 			ref.Loc.End = p.prev.End
 		}
 		return ref, nil
+	}
+	if p.cur.Type == '?' {
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }
@@ -1821,6 +1869,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		limit.Offset = offset
+		limit.OffsetKeyword = true
 	}
 
 	limit.Loc.End = p.prev.End

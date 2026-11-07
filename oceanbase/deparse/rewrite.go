@@ -361,8 +361,8 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt.Where != nil {
 		stmt.Where = RewriteExpr(stmt.Where)
 	}
-	for i, expr := range stmt.GroupBy {
-		stmt.GroupBy[i] = RewriteExpr(expr)
+	for _, item := range stmt.GroupBy {
+		item.Expr = RewriteExpr(item.Expr)
 	}
 	if stmt.Having != nil {
 		stmt.Having = RewriteExpr(stmt.Having)
