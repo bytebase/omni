@@ -301,7 +301,7 @@ accept	accept	ColumnOption#13	ALTER TABLE ident ADD ident JSON COMMENT 's'
 accept	accept	ColumnOption#14	ALTER TABLE ident ADD ident JSON CHECK(ident)
 accept	accept	ColumnOption#15	ALTER TABLE ident ADD ident JSON AS(ident)
 accept	accept	ColumnOption#16	ALTER TABLE ident ADD ident JSON REFERENCES ident
-reject	accept	ColumnOption#17	ALTER TABLE ident ADD ident JSON COLLATE BINARY
+accept	accept	ColumnOption#17	ALTER TABLE ident ADD ident JSON COLLATE BINARY
 accept	accept	ColumnOption#18	ALTER TABLE ident ADD ident JSON COLUMN_FORMAT DEFAULT
 accept	accept	ColumnOption#19	ALTER TABLE ident ADD ident JSON STORAGE DEFAULT
 accept	accept	ColumnOption#20	ALTER TABLE ident ADD ident JSON AUTO_RANDOM
@@ -1440,7 +1440,7 @@ accept	accept	SimpleExpr#1	DO ident
 accept	accept	SimpleExpr#2	DO CURRENT_USER
 accept	accept	SimpleExpr#3	DO CURTIME()
 accept	accept	SimpleExpr#4	DO ident()
-reject	accept	SimpleExpr#5	DO ident COLLATE BINARY
+accept	accept	SimpleExpr#5	DO ident COLLATE BINARY
 accept	accept	SimpleExpr#6	DO ROW_NUMBER() OVER ident
 accept	accept	SimpleExpr#7	DO FALSE
 reject	accept	SimpleExpr#8	DO ?
@@ -1460,7 +1460,7 @@ accept	accept	SimpleExpr#23	DO BINARY ident
 accept	accept	SimpleExpr#24	DO CAST(ident AS DATE)
 accept	accept	SimpleExpr#25	DO CASE WHEN ident THEN ident END
 accept	accept	SimpleExpr#26	DO CONVERT(ident, DATE)
-reject	accept	SimpleExpr#27	DO CONVERT(ident USING BINARY)
+accept	accept	SimpleExpr#27	DO CONVERT(ident USING BINARY)
 accept	accept	SimpleExpr#28	DO DEFAULT(ident)
 accept	accept	SimpleExpr#29	DO VALUES(ident)
 accept	accept	SimpleExpr#30	DO ident -> 's'
@@ -1553,8 +1553,8 @@ accept	accept	FunctionCallNonKeyword#16	DO TRIM(ident FROM ident)
 accept	accept	FunctionCallNonKeyword#17	DO TRIM(BOTH FROM ident)
 accept	accept	FunctionCallNonKeyword#18	DO TRIM(BOTH ident FROM ident)
 accept	accept	FunctionCallNonKeyword#19	DO WEIGHT_STRING(ident)
-reject	accept	FunctionCallNonKeyword#20	DO WEIGHT_STRING(ident AS CHARACTER(1))
-reject	accept	FunctionCallNonKeyword#21	DO WEIGHT_STRING(ident AS BINARY(1))
+accept	accept	FunctionCallNonKeyword#20	DO WEIGHT_STRING(ident AS CHARACTER(1))
+accept	accept	FunctionCallNonKeyword#21	DO WEIGHT_STRING(ident AS BINARY(1))
 accept	accept	FunctionCallNonKeyword#22	DO LASTVAL(ident)
 accept	accept	FunctionCallNonKeyword#23	DO TRANSLATE(ident, ident, ident)
 accept	accept	GetFormatSelector#1	DO GET_FORMAT(DATE, ident)

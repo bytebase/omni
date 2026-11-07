@@ -1320,6 +1320,23 @@ func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {
 	case "GROUP_CONCAT":
 		restoreGroupConcat(b, n)
 		return
+	case "WEIGHT_STRING":
+		// weight_string(expr [AS CHAR(n) | AS BINARY(n)]) — the AS clause is
+		// weight_string's own grammar, not a general cast (parser.y:8374,8381).
+		restoreFuncName(b, n, name)
+		b.WriteByte('(')
+		if len(n.Args) == 1 {
+			restoreExpr(b, n.Args[0])
+		}
+		if n.WeightAs != "" {
+			b.kw(" AS ")
+			b.kw(n.WeightAs)
+			b.WriteByte('(')
+			b.WriteString(strconv.FormatUint(n.WeightAsLen, 10))
+			b.WriteByte(')')
+		}
+		b.WriteByte(')')
+		return
 	}
 
 	restoreFuncName(b, n, name)

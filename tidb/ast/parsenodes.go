@@ -907,6 +907,12 @@ type FuncCallExpr struct {
 	FromLast   bool       // NTH_VALUE ... FROM LAST, vs the default FROM FIRST
 	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// WEIGHT_STRING(expr AS CHAR(n)) / AS BINARY(n): the AS clause of
+	// weight_string's own grammar (FunctionCallNonKeyword, parser.y:8374,8381).
+	// WeightAs is "" when no AS clause is written, else "CHAR" or "BINARY";
+	// WeightAsLen holds its FieldLen (n).
+	WeightAs    string
+	WeightAsLen uint64
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the

@@ -460,7 +460,10 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			return false, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		collName, _, err := p.parseIdent()
+		// collate_clause is COLLATE collation_name, and collation_name is
+		// ident_or_text | BINARY_SYM (sql_yacc.yy): `c JSON COLLATE BINARY`
+		// parses on MySQL 8.0.
+		collName, err := p.parseCollationName()
 		if err != nil {
 			return false, err
 		}

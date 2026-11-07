@@ -314,14 +314,9 @@ var subtractiveDivergences = []divergence{
 		reason:   "JSON ->> column-path unquote operator: MySQL-only; same divergence as -> (omni over-accepts, MariaDB rejects 1064). Deferred with the -> prune.",
 	},
 	{
-		sql:      "SELECT WEIGHT_STRING(name AS CHAR(4)) FROM t",
-		omniSide: false, // MariaDB accepts; omni rejects for want of the production.
-		reason:   "WEIGHT_STRING(x AS CHAR(n)): MariaDB 11.8.8 and MySQL 8.0 both accept it; mysql/parser has parseWeightStringFunc and the mariadb tree never inherited it, so omni rejects at parse. Candidate: port parseWeightStringFunc to mariadb and tidb.",
-	},
-	{
 		sql:      "SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
-		omniSide: false, // the LEVEL form of the same missing production.
-		reason:   "WEIGHT_STRING(x LEVEL n): the LEVEL form of the same missing production — ports with parseWeightStringFunc.",
+		omniSide: false, // the LEVEL form of WEIGHT_STRING, which mariadb's parseWeightStringFunc does not read yet.
+		reason:   "WEIGHT_STRING(x LEVEL n): MariaDB accepts the 5.7-style LEVEL clause; mariadb's parseWeightStringFunc reads only the AS CHAR(n)/BINARY(n) clause (the collate/convert/weight_string cluster), not LEVEL, so omni rejects at parse. Candidate: port the LEVEL clause from mysql/parser.",
 	},
 }
 

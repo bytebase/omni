@@ -1535,6 +1535,7 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		p.addRuleCandidate("func_name")
 		return nil, &ParseError{Message: "collecting"}
 	}
+	argStart := p.cur.Loc
 	arg, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -1550,7 +1551,10 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		p.advance()
 		var typeName string
 		switch p.cur.Type {
-		case kwCHAR:
+		case kwCHAR, kwCHARACTER:
+			// CHARACTER is a spelling of CHAR_SYM (MySQL-compatible grammar),
+			// so WEIGHT_STRING('x' AS CHARACTER(1)) parses on OceanBase (MySQL
+			// mode) as WEIGHT_STRING('x' AS CHAR(1)) does.
 			typeName = "CHAR"
 		case kwBINARY:
 			typeName = "BINARY"
@@ -1583,8 +1587,11 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			// weight_string(cast(expr as char(n) charset binary)).
 			dt.Charset = "binary"
 			asBinary = true
+			// The synthetic cast wraps arg, so its Loc must start at arg, not
+			// at the BINARY token, to stay inside WeightStringExpr and keep arg
+			// inside it (the Loc contract: a child lies within its parent).
 			ws.Expr = &nodes.CastExpr{
-				Loc:      nodes.Loc{Start: typeTok.Loc, End: p.prev.End},
+				Loc:      nodes.Loc{Start: argStart, End: p.prev.End},
 				Expr:     arg,
 				TypeName: dt,
 			}
@@ -2042,7 +2049,10 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		charset, _, err := p.parseIdentifier()
+		// charset_name is ident_or_text | BINARY_SYM (MySQL-compatible
+		// grammar): an identifier, a string literal, or the reserved word
+		// BINARY, so CONVERT(x USING BINARY) parses on OceanBase (MySQL mode).
+		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}
