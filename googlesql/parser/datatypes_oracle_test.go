@@ -6,7 +6,7 @@
 //
 // It is the PROVE gate for googlesql/types (correctness-protocol.md): for every
 // fixture it (1) feeds a full statement embedding the type to the emulator via
-// the harness/googlesql-spanner CLI and reads the accept/reject verdict, then
+// the googlesql/spanner-oracle CLI and reads the accept/reject verdict, then
 // (2) parses the bare type text with omni's parseType, and asserts the two
 // agree — BOTH polarities (the corpus has accept AND reject cases). A harness
 // `error` verdict (oracle could not decide) fails the fixture loudly; it is

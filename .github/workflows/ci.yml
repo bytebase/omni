@@ -53,7 +53,7 @@ jobs:
           targets=$(scripts/affected-packages.sh origin/${{ github.base_ref }})
           echo "$targets"
           echo "pkgs=$(tr ' ' '\n' <<< "$targets" | grep '^\./' | xargs)" >> "$GITHUB_OUTPUT"
-          echo "modules=$(tr ' ' '\n' <<< "$targets" | grep '^harness/' | xargs)" >> "$GITHUB_OUTPUT"
+          echo "modules=$(tr ' ' '\n' <<< "$targets" | grep -v '^\./' | xargs)" >> "$GITHUB_OUTPUT"
 
       # Builds every test binary and runs none, so a test that does not compile
       # fails the job in a minute instead of after the half-hour run.

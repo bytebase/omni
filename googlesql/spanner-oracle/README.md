@@ -5,7 +5,7 @@ runs SQL through a live **Cloud Spanner emulator** (gRPC) and emits a compact
 accept/reject verdict per statement, so grammar-node tests can diff omni's
 parser accept/reject against a real GoogleSQL implementation.
 
-This is the GoogleSQL analogue of `harness/mssql-scriptdom`: an external
+This is the GoogleSQL analogue of `mssql/scriptdom`: an external
 reference engine omni diffs against. Unlike ScriptDOM (which exposes an AST),
 the emulator only answers "did it parse?", so this harness emits a **verdict +
 error classification**, not an AST shape.

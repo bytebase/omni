@@ -6,7 +6,7 @@
 //
 // It is the PROVE gate for googlesql/expressions (correctness-protocol.md): for
 // every fixture it (1) feeds a full statement embedding the expression to the
-// emulator via the harness/googlesql-spanner CLI and reads the accept/reject
+// emulator via the googlesql/spanner-oracle CLI and reads the accept/reject
 // verdict, then (2) parses the bare expression text with omni's ParseExpression,
 // and asserts the two agree — BOTH polarities (the corpus has accept AND reject
 // cases). A harness `error` verdict (oracle could not decide) fails the fixture

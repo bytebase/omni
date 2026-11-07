@@ -90,11 +90,12 @@ omni/
 │   ├── ast/                AST node types
 │   ├── parser/             Recursive descent parser + BNF reference material
 │   ├── parsertest/         Parser test cases (where present)
+│   ├── <oracle>/           Differential oracle against the real engine, exec'd by
+│   │                       tests and never imported: mssql/scriptdom (.NET project),
+│   │                       googlesql/spanner-oracle (own go.mod, not built by ./...)
 │   └── ...                 catalog, completion, analysis, ... per engine
 ├── metadata/               Database schema snapshot types, generated from proto/
 ├── proto/                  Protobuf sources (`make proto` regenerates)
-├── harness/                Standalone differential harnesses against real engines
-│                           (separate Go modules / .NET project, not built by ./...)
 ├── scripts/                Build, test, and agent-pipeline tooling
 │   └── prompts/            Prompt templates used by the pipeline scripts
 └── docs/
@@ -111,10 +112,10 @@ Some engines also keep working documents next to the code they describe (for exa
 ## Development
 
 ```bash
-# Every engine plus the conformance harness (several engines start database containers)
+# Every engine (several engines start database containers)
 make test
 
-# Spanner differential harness; needs a running emulator (SPANNER_EMULATOR_HOST).
+# The googlesql/spanner-oracle module; needs a running emulator (SPANNER_EMULATOR_HOST).
 # CI runs this too, so a green `make test` alone is not the full CI result.
 make test-spanner
 

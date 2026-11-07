@@ -6,7 +6,7 @@
 //
 // It is the PROVE gate for googlesql/parser-scripting (correctness-protocol.md):
 // for every AUTHORITATIVE fixture it (1) feeds the statement to the emulator via
-// the harness/googlesql-spanner CLI and reads the accept/reject verdict, then
+// the googlesql/spanner-oracle CLI and reads the accept/reject verdict, then
 // (2) parses the same statement with omni's Parse, and asserts the two agree —
 // BOTH polarities. A harness `error` verdict fails loudly; it is never folded
 // into accept or reject. The harness plumbing (newSelectHarness / verdict /
