@@ -1007,14 +1007,6 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
 		}
 
-		// A LEFT or RIGHT join requires ON or USING (JoinTable, parser.y:9937:
-		// its outer-join arms end in JoinCondition, which is not optional). A
-		// plain, INNER, CROSS or NATURAL join does not. TiDB v8.5.5 answers 1064
-		// for `t1 LEFT JOIN t2` with no condition.
-		if join.Condition == nil && (jt == nodes.JoinLeft || jt == nodes.JoinRight) {
-			return nil, p.syntaxErrorAtCur()
-		}
-
 		join.Loc.End = p.prev.End
 		left = join
 	}
