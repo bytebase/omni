@@ -43,7 +43,7 @@ these:
 - **Optimizer hint structure.** TiDB reads `/*+ ... */` with a separate hint
   parser and turns a bad hint into a warning, never a syntax error, so hints do
   not affect acceptance. No Bytebase consumer reads hints.
-- **TiDB releases other than the pinned one** (§3.6).
+- **TiDB releases other than the pinned one** (§3.7).
 
 ## 2. Approach, and what was rejected
 
@@ -248,7 +248,51 @@ the tree against the server:
   already do.
 - **Stored text:** compare view bodies and defaults with what TiDB stores.
 
-### 3.6 Target version
+### 3.6 The rejection space
+
+§3.3–3.5 check what omni accepts and how it shapes it; they say little about
+the far larger space the server rejects. A hand-written recursive-descent
+parser's characteristic fault is over-acceptance — it is more lenient than the
+grammar — so §1's "rejects what it rejects" is the half most at risk. The
+completeness corpus checks rejection only for grammar-shaped forms (its ~121
+both-reject rows), not for arbitrary malformed input. Two ways to close that,
+both anchored to `parser.y` as §2.1 requires.
+
+**1-to-1 syntax mapping (a ledger, not a proof).** omni's productions already
+cite the rule each implements (`// Ref: ... parser.y:…`, 403 today).
+Systematize it: a check that every citation names a real v8.5.5 rule, and a
+report of rules with no citing production. This keeps coverage visible and the
+grammar navigable. It is not a correctness proof — omni is hand-written to its
+own contract, not generated from `parser.y` (§2), and matching rule names can
+still differ in precedence, FIRST-sets, backtracking, and lexing. A citation
+says "meant to implement," not "accepts exactly." So the map guides and audits;
+it does not gate.
+
+**Differential rejection testing (the gate).** Prove rejection the way §3.1
+proves acceptance: give omni and TiDB the same invalid input and require they
+agree. The negative space is unbounded, so sample it two ways:
+
+- **Grammar-guided negatives.** Reuse `grammarcorpus`: for each alternative,
+  derive near-misses that break the production in one place — drop a required
+  terminal, swap a keyword for a neighbour, truncate it, insert a stray
+  terminal. Each is one step from valid, where a lenient parser is likeliest to
+  accept. The expected verdict is reject/reject; a row omni accepts and the
+  server rejects is an over-acceptance bug. Deterministic, checked in as their
+  own TSV labelled by rule and mutation.
+- **Differential mutation fuzzing.** Mutate the §3.3 corpus and §3.4 samples at
+  the token and byte level, run both omni and the server, and flag every
+  disagreement — a sweep like `PAREN_FUZZ`/`SPLITTEST`, seeded and sized by
+  `TIDB_REJECT_FUZZ_N`. It reaches strings enumeration never will. CI runs a
+  fixed-seed budget; a failing seed is minimised to the shortest disagreeing
+  input and added to the grammar-guided TSV as a permanent regression row.
+
+Do both: the map as a lint and ledger so coverage stays visible, the
+differential tests as the gate. The gating direction is over-acceptance — omni
+accepting what the server rejects; omni rejecting what the server accepts is
+already a §3.3 gap. An over-acceptance is checked against `mysql`, `mariadb`,
+and `oceanbase` in the same PR, like a gap.
+
+### 3.7 Target version
 
 Stay on v8.5.5. It is the latest LTS, and every TiDB oracle test pins it.
 
@@ -306,9 +350,12 @@ All three must hold:
 1. **No consumer needs pingcap.** Every row in §4 is done, so nothing calls
    `GetTiDBAST` or `ParseTiDB`.
 2. **The corpora are clean.** The `parser.y` corpus (§3.3) and every sample
-   (§3.4) have no gap and no over-acceptance, or each remaining row is waived
-   in its TSV with a reason. The `parser.y` corpus is the proof of
-   completeness; the samples catch forms that only fail in combination.
+   (§3.4) have no gap and no over-acceptance, and the rejection suite (§3.6)
+   finds no unexplained over-acceptance — its grammar-guided negatives are all
+   reject/reject and a fixed-seed fuzz budget is clean — or each remaining row
+   is waived in its TSV with a reason. The `parser.y` corpus proves acceptance
+   completeness; the samples catch forms that only fail in combination; the
+   rejection suite guards the negative space.
 3. **Production agrees, where it can see.** `tidb_dispatcher_omni_fallback_total`
    shows no `unknown` reason and stays under 0.1% of statements for 30 days.
    That is the threshold Bytebase's `metrics.go` already states. The counter
@@ -342,7 +389,7 @@ One Bytebase PR:
     rejects, and those statements become syntax errors. The server would have
     rejected them anyway.
   - **Wrong new errors.** Statements only a TiDB release newer than the pin
-    accepts become syntax errors too. Moving the pin promptly (§3.6) keeps
+    accepts become syntax errors too. Moving the pin promptly (§3.7) keeps
     these few.
 - **Visible output changes:**
   - error messages in diagnostics and walk-through advice;
@@ -370,17 +417,20 @@ that pin.
    list, replacing §3.2 once it is closed.
 3. **omni: add §3.4's three samples.** One PR each, each listing its gaps;
    then close those gaps.
-4. **Bytebase: the small consumers.** `diagnose.go`, `statement_type.go`,
+4. **omni: build the rejection suite (§3.6).** The grammar-guided negatives
+   from `grammarcorpus`, then the differential fuzz sweep; each over-acceptance
+   it finds closes like a gap, across the forks in the same PR.
+5. **Bytebase: the small consumers.** `diagnose.go`, `statement_type.go`,
    `query.go`, `resource_change.go`, `db/tidb/stats.go`, the prior-backup
    check, `generate_migration_test.go`, and dead code. These are independent of
    each other.
-5. **Bytebase: `limit.go`**, after D2.
-6. **Bytebase: the query span extractor.**
-7. **Bytebase: `get_database_metadata.go`, then `walk_through.go`.** The second
+6. **Bytebase: `limit.go`**, after D2.
+7. **Bytebase: the query span extractor.**
+8. **Bytebase: `get_database_metadata.go`, then `walk_through.go`.** The second
    reuses the first's `catalogToProto`.
-8. **Check §5.1's gate, then make §5.2's deletion.**
+9. **Check §5.1's gate, then make §5.2's deletion.**
 
-Steps 1–3 (omni) and steps 4–7 (Bytebase) can run at the same time. Steps 4–7
+Steps 1–4 (omni) and steps 5–8 (Bytebase) can run at the same time. Steps 5–8
 need only grammar the dispatcher already parses with omni. A consumer that
 meets a statement omni cannot parse returns no result, as the bridge does
 today.
