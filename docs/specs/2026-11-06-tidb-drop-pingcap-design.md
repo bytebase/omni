@@ -173,9 +173,10 @@ writes the shortest statement that uses it:
   hand-written sentence, kept in the generator beside the rule it covers. A
   few dozen are expected.
 
-The generator lives in a nested module, `harness/tidb-grammar`, which `./...`
-does not reach. It fetches `parser.y` at the tag and writes the corpus. Only
-the generated TSV is checked in, with a provenance note like
+The generator is a root-module command, `tidb/parser/cmd/grammarcorpus`, like
+each engine's `genwalker`: `./...` compiles it but never runs it, so the fetch
+fires only on an explicit run. It fetches `parser.y` at the tag and writes the
+corpus. Only the generated TSV is checked in, with a provenance note like
 `testdata/README.md`'s. Tests read the TSV and never `parser.y`, and omni's
 own code imports nothing from pingcap.
 
@@ -192,7 +193,7 @@ without a row is incomplete.
 **When the pin moves**, the new tag's `parser.y` regenerates the file. The
 diff is the list of forms the release added or removed.
 
-**Status (2026-11-07).** Landed: `harness/tidb-grammar` and the first
+**Status (2026-11-07).** Landed: `tidb/parser/cmd/grammarcorpus` and the first
 measurement. parser.y at v8.5.5 has 690 rules and 2,946 alternatives; omni
 parses 2,654 of the 2,807 the server accepts (94.5%) with zero
 over-acceptances. The 153 gaps, grouped by rule, are

@@ -1,21 +1,22 @@
-# tidb-grammar
+# grammarcorpus
 
 Builds the parser.y completeness corpus,
 `tidb/parser/testdata/parser_y_corpus.tsv`: for every alternative of every rule
 in TiDB's grammar, the shortest statement that exercises it.
 
-This is a nested module so `go test ./...` at the repo root does not reach it,
-like the other `harness/` modules. It imports nothing from pingcap or omni: it
-reads grammar text and writes SQL text. Only the generated TSV is checked in,
-never `parser.y` itself.
+It is a plain root-module command, like each engine's `genwalker`: `go test
+./...` compiles it but never runs it, so the fetch fires only on an explicit
+run. It imports nothing from pingcap or omni: it reads grammar text and writes
+SQL text. Only the generated TSV is checked in, never `parser.y` itself.
 
 ## Run
 
+From the repo root:
+
 ```bash
-cd harness/tidb-grammar
-go run .                      # fetch parser.y at v8.5.5, rewrite the corpus
-go run . -tag v8.5.5          # a specific release tag
-go run . -grammar parser.y    # read a local file instead of fetching
+go run ./tidb/parser/cmd/grammarcorpus                   # fetch parser.y at v8.5.5, rewrite the corpus
+go run ./tidb/parser/cmd/grammarcorpus -tag v8.5.5       # a specific release tag
+go run ./tidb/parser/cmd/grammarcorpus -grammar parser.y # read a local file instead of fetching
 ```
 
 It writes the statements and their `Rule#alternative` labels with placeholder

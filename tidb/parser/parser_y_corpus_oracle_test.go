@@ -15,7 +15,7 @@ import (
 // grammar itself, so a clean run is evidence that omni covers every form the
 // grammar has, not just the ones someone wrote a test for.
 //
-// harness/tidb-grammar generates the statements and the Rule#alternative
+// tidb/parser/cmd/grammarcorpus generates the statements and the Rule#alternative
 // labels; these two tests fill the verdict columns, exactly as the pingcap
 // corpus's pair does, and share that pair's engine harness (syntaxVerdict,
 // prepareVerdict) and tally. Regenerate the statements when the pin moves; the
