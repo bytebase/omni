@@ -15,8 +15,8 @@ import (
 // value that reaches Channel is the string's contents with no quotes.
 func TestShowChannelShape(t *testing.T) {
 	for _, tc := range []struct{ sql, typ, channel string }{
-		{"SHOW SLAVE STATUS", "SLAVE STATUS", ""},
-		{"SHOW SLAVE STATUS FOR CHANNEL 'ch1'", "SLAVE STATUS", "ch1"},
+		{"SHOW REPLICA STATUS", "REPLICA STATUS", ""},
+		{"SHOW REPLICA STATUS FOR CHANNEL 'ch1'", "REPLICA STATUS", "ch1"},
 		{"SHOW REPLICA STATUS FOR CHANNEL 'ch1'", "REPLICA STATUS", "ch1"},
 		{"SHOW REPLICA STATUS FOR CHANNEL ''", "REPLICA STATUS", ""},
 		{"SHOW RELAYLOG EVENTS FOR CHANNEL 'ch1'", "RELAYLOG EVENTS", "ch1"},

@@ -59,8 +59,8 @@ const (
 	ErrTooBigPrecision                   = 1426
 	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
-	ErrCheckConstraintNotAllowed         = 3815
-	ErrCheckConstraintDupName            = 3822
+	ErrCheckConstraintNotAllowed         = 1901
+	ErrCheckConstraintDupName            = 1826
 	ErrWrongSystemVersioning             = 4123
 	ErrRowColumnWrongType                = 4110
 	ErrNotSystemVersioned                = 4124
@@ -149,7 +149,6 @@ var sqlStateMap = map[int]string{
 	ErrInvalidYearColumnLength:           "HY000",
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
-	ErrCheckConstraintDupName:            "HY000",
 	ErrKeyDoesNotExist:                   "42000",
 	ErrPKIndexCantBeIgnored:              "HY000",
 }
@@ -333,7 +332,7 @@ func errFKDupName(name string) error {
 
 func errCheckConstraintDupName(name string) error {
 	return &Error{Code: ErrCheckConstraintDupName, SQLState: sqlState(ErrCheckConstraintDupName),
-		Message: fmt.Sprintf("Duplicate check constraint name '%s'.", name)}
+		Message: fmt.Sprintf("Duplicate CHECK constraint name '%s'", name)}
 }
 
 func errCheckConstraintNotAllowed(name string) error {
@@ -533,4 +532,12 @@ func errFKCannotUseVirtualColumn(col string) error {
 func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
+}
+
+// MariaDB's InnoDB handler reports malformed foreign keys through CREATE TABLE.
+func errForeignKeyDefinition(database, table string) error {
+	return &Error{Code: 1005, SQLState: "HY000", Message: fmt.Sprintf("Can't create table `%s`.`%s` (errno: 150 \"Foreign key constraint is incorrectly formed\")", database, table)}
+}
+func errMissingDropObject(kind, name string) error {
+	return &Error{Code: 1091, SQLState: "42000", Message: fmt.Sprintf("Can't DROP %s `%s`; check that it exists", kind, name)}
 }

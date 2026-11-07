@@ -19,7 +19,7 @@ The third copy drifted: it was missing `JSON`, `DEC`, `NATIONAL`, `NCHAR`. A byt
 
 Drift is caught at three layers:
 
-1. **PG testcontainer oracle tests** (`first_set_oracle_test.go`) probe each predicate against a real PG 17 instance and assert the predicate's accept set matches PG's. Any drift between omni's slice and PG's grammar fails CI loudly. Not all productions can be oracle-tested — see "Why no PG oracle for X" below.
+1. **PG testcontainer oracle tests** (`first_set_oracle_test.go`) probe each predicate against a real PG 18 instance and assert the predicate's accept set matches PG's. Any drift between omni's slice and PG's grammar fails CI loudly. Not all productions can be oracle-tested — see "Why no PG oracle for X" below.
 
 2. **In-Go bidirectional unit tests** for productions that cannot be oracle-tested (currently only `ConstTypename`, because PG's `AexprConst` grammar position is ambiguous with `func_name Sconst`). These iterate the entire `Keywords` table and assert the predicate matches the slice exactly.
 
@@ -131,7 +131,7 @@ Each probe template MUST:
 
 ## Docker is required
 
-Oracle tests use `testcontainers-go` to spin up `postgres:17-alpine`. When Docker is unavailable the test fails; it does not skip. This is deliberate: a misconfigured runner that skipped every FIRST-set test would silently disable the whole guardrail, and CI runs every test on every PR with no `-short` path. Run the parser tests on a machine with Docker, or run the non-oracle tests by name.
+Oracle tests use `pg/internal/testcontainer` to start the pinned PostgreSQL 18 image recorded in `docs/engine-test-matrix.md`. When Docker is unavailable the test fails; it does not skip. This is deliberate: a misconfigured runner that skipped every FIRST-set test would silently disable the whole guardrail, and CI runs every test on every PR with no `-short` path. Run the parser tests on a machine with Docker, or run the non-oracle tests by name.
 
 ### Known operational quirk: Ryuk reaper race
 
@@ -139,9 +139,9 @@ When tests are re-run rapidly in the same shell session (e.g., during local iter
 
 ## PG version upgrade flow
 
-The oracle pins `postgres:17-alpine` to match omni's pg parser grammar target (see `pg/parser/type.go:9` and similar references throughout the package). When omni eventually upgrades its parser target to PG 18 or later:
+The oracle pins `postgres:18.6-alpine`. When upgrading its PostgreSQL baseline:
 
-1. Bump the image tag in `startFirstSetOracle` (`first_set_oracle_test.go`).
+1. Bump the image tag in `pg/internal/testcontainer` and `docs/engine-test-matrix.md`. Keep the temporary Redshift baseline on the same patch.
 2. Run the oracle tests. Expect drift on any production where PG added new lead tokens.
 3. For each drift entry: read the relevant `gram.y` change in the upstream PG release notes, then either (a) add the new token to the omni slice if omni's parser handles it, or (b) leave it on the gap list if omni doesn't yet support that PG-N+1 feature.
 4. Update the image tag in this file.

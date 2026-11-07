@@ -14,13 +14,14 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
 	"github.com/bytebase/omni/tidb/parser"
+
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // walkBase is the shop database the curated cases start from: tables with
@@ -201,7 +202,7 @@ func startSweepTiDB(t *testing.T, image string, shard int) *sql.DB {
 			_ = db.Close()
 		}
 		if c != nil {
-			_ = testcontainers.TerminateContainer(c)
+			_ = testcontainer.TerminateContainer(c)
 		}
 	})
 	if err != nil {

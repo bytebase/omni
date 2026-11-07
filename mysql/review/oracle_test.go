@@ -11,12 +11,12 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
+
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from.
@@ -37,7 +37,7 @@ CREATE VIEW pv AS SELECT id, note FROM p;
 
 var mysqlOracle struct {
 	once      sync.Once
-	container testcontainers.Container
+	container testcontainer.Container
 	db        *sql.DB
 	err       error
 }
@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	if mysqlOracle.container != nil {
 		_ = mysqlOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mysqlOracle.container)
+		_ = testcontainer.TerminateContainer(mysqlOracle.container)
 	}
 	for _, e := range walkServers.dbs {
 		if e.db != nil {
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	for _, c := range walkServers.containers {
-		_ = testcontainers.TerminateContainer(c)
+		_ = testcontainer.TerminateContainer(c)
 	}
 	os.Exit(code)
 }
@@ -65,7 +65,7 @@ func startMySQL(t *testing.T) *sql.DB {
 	t.Helper()
 	mysqlOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmysql.Run(ctx, "mysql:8.0", tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test"))
+		c, err := testcontainer.Start(ctx, "shop")
 		if err != nil {
 			mysqlOracle.err = err
 			return
@@ -771,7 +771,8 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a table altered to be renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE y RENAME TO x", err: "already exists", reported: true},
 		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 0X41;\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
 		{name: "foreign_key_checks set with := before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks := OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a column of the key held by a prefix dropped before from a table partitioned by KEY (), which leaves the prefix out", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (a VARCHAR(20), b INT, v INT, PRIMARY KEY (a(10), b), UNIQUE KEY ub (b)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN a;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// MySQL 8.4 requires the partition key to exclude prefix key parts explicitly.
+		{name: "a prefix key column dropped before from a table partitioned by another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (a VARCHAR(20), b INT, v INT, PRIMARY KEY (a(10), b), UNIQUE KEY ub (b)) PARTITION BY KEY (b) PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN a;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "tables flushed after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nFLUSH TABLES", reported: true},
 		{name: "tables flushed with a read lock before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE x DROP COLUMN id", err: "conflicting read lock", key: "id"},
 		{name: "a column of only some unique keys dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT NOT NULL, w INT, UNIQUE KEY uu (u), UNIQUE KEY uv (u, v)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},

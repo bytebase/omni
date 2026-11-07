@@ -51,7 +51,7 @@ func TestLongChainsDeparseStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name, sql, marker string
 	}{
-		{"sum", "SELECT " + repeatTerms(n, "1", " + ", "1"), " + 1)"},
+		{"sum", "SELECT " + repeatTerms(n, "1", " + ", "1"), " + 1"},
 		{"UNION ALL", repeatTerms(n, "SELECT 1", " UNION ALL ", "SELECT 1"), " union all "},
 		{"AND", "SELECT * FROM t WHERE " + repeatTerms(n, "a = 1", " AND ", "a = 1"), " and "},
 		{"OR", "SELECT * FROM t WHERE " + repeatTerms(n, "a = 1", " OR ", "a = 1"), " or "},
@@ -94,7 +94,7 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 		// inputs; SELECT * lists each such column once.
 		{"USING chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (a)"), "` AS `b`", n},
 		{"USING chain on two columns", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (b, a)"), "` AS `b`", 1},
-		{"NATURAL chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " NATURAL JOIN t AS t%d"), "(`t0`.`b` = `t", n - 1},
+		{"NATURAL chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " NATURAL JOIN t AS t%d"), "`t0`.`b` = `t", n - 1},
 		{"right-nested USING", "SELECT * FROM " + numberedTerms(9000, "", "t AS t%d JOIN (") + "t AS t0" + strings.Repeat(") USING (a)", 8999), "` AS `b`", 9000},
 	} {
 		stmt := parseSelectOrFatal(t, tc.name, tc.sql)

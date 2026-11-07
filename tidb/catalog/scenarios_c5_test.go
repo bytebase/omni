@@ -303,11 +303,15 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             CONSTRAINT chk_pos CHECK (a > 0)
         );`)
 
-		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='chk_pos'`,
-			&enforced)
-		assertStringEq(t, "oracle CHECK ENFORCED", enforced, "YES")
+		var checkCount int
+		oracleScan(t, mc, `SELECT COUNT(*) FROM information_schema.TIDB_CHECK_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='chk_pos'`,
+			&checkCount)
+		assertIntEq(t, "oracle CHECK count", checkCount, 1)
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mysqlErrorCode(err) != 3819 {
+			t.Errorf("native default CHECK enforcement: %v", err)
+		}
+		assertScenarioReadback(t, mc, c, "t")
 
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		if strings.Contains(strings.ToUpper(create), "NOT ENFORCED") {

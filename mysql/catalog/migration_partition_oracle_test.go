@@ -177,72 +177,72 @@ func partitionMigrationProbes() []migrationProbe {
 	return []migrationProbe{
 		// ---- Define partitioning on a freshly created table (DiffAdd → CREATE + ALTER PARTITION BY) ----
 		{"create-range", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 		{"create-range-columns", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, PRIMARY KEY (id,a)) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (MAXVALUE))", both()},
+			"CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, PRIMARY KEY (id,a)) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (MAXVALUE))", oracleVersions()},
 		{"create-list", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", both()},
+			"CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", oracleVersions()},
 		{"create-hash-n", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", oracleVersions()},
 		{"create-key", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 3", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 3", oracleVersions()},
 		{"create-linear-key", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", oracleVersions()},
 		{"create-subpart-n", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", oracleVersions()},
 		{"create-part-comment", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", both()},
+			"CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", oracleVersions()},
 
 		// ---- Add partitioning to an existing (unpartitioned) table ----
 		{"add-partitioning-hash", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", oracleVersions()},
 		{"add-partitioning-range", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt))",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 
 		// ---- Remove partitioning ----
 		{"remove-partitioning", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", oracleVersions()},
 		{"remove-partitioning-range", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt))", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt))", oracleVersions()},
 
 		// ---- Re-partition (change the scheme on an existing partitioned table) ----
 		{"repartition-count", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 8", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 8", oracleVersions()},
 		{"repartition-type", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 4", oracleVersions()},
 		{"repartition-range-bound", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2015), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2015), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 		{"repartition-add-range", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 		{"repartition-toggle-linear", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 4", oracleVersions()},
 
 		// ---- A non-partition table change leaves partitioning untouched (partitioned both sides,
 		//      only a column is added): the partition generator must emit NOTHING for it. ----
 		{"add-column-keep-partitioning", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", oracleVersions()},
 
 		// ---- REMOVE PARTITIONING while DROPPING a column the OLD partition function references:
 		//      the REMOVE must run (PhasePre) before the DROP COLUMN, else MySQL rejects dropping a
 		//      column bound by the live partition function. Regression guard for the ordering fix. ----
 		{"remove-partitioning-drop-key-column", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)", oracleVersions()},
 
 		// ---- KEY ALGORITHM=2 (the stripped default) defined on a fresh table: the generated
 		//      PARTITION BY must apply and read back equal to `to` (which folds ALGORITHM=2 away). ----
 		{"create-key-algorithm-2", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", oracleVersions()},
 
 		// ---- REPARTITION while DROPPING a column the OLD partition function references: the old
 		//      RANGE(YEAR(dt)) scheme references dt, which `to` drops while repartitioning to
@@ -250,29 +250,29 @@ func partitionMigrationProbes() []migrationProbe {
 		//      PARTITION BY HASH. Regression guard for oldPartitionColumnDropped. ----
 		{"repartition-drop-old-key-column", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4", oracleVersions()},
 		// ---- Same, but the OLD expression-partition column has a SPECIAL-CHARACTER name (`a-b`):
 		//      column references can't be extracted from the expression SQL text, so ANY drop while
 		//      expression-partitioned must conservatively strip first. Without that, the DROP COLUMN
 		//      fails errno 3855. Regression guard for the expression-path conservative strip. ----
 		{"repartition-drop-special-col", "t",
 			"CREATE TABLE t (`a-b` INT NOT NULL, id INT NOT NULL, PRIMARY KEY (`a-b`, id)) PARTITION BY HASH (`a-b`) PARTITIONS 4",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 2", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 2", oracleVersions()},
 
 		// ---- Constant-folded bounds in the GENERATED PARTITION BY (entry partition-constant-folding):
 		//      defining partitioning whose `to` was written with non-literal bounds must emit a
 		//      PARTITION BY whose folded literals apply and read back equal to `to`. ----
 		{"create-range-bound-arith", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 		{"create-range-bound-todays", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", oracleVersions()},
 	}
 }
 
 // TestOracle_PartitionApplyCorrectness proves gate 2 for every partition transition: the generated
 // DDL, applied to a real `from` database, yields a table whose canonical form equals `to`.
 func TestOracle_PartitionApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, p := range partitionMigrationProbes() {
@@ -290,7 +290,7 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 // table in its real stored form generates an EMPTY plan, and the user-form-vs-stored round-trip
 // plan is empty too. A non-empty no-op plan is a partition normalization/ordering bug.
 func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range partitionDiffProbes() {

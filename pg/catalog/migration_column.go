@@ -93,14 +93,18 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	if c.NotNull {
 		ddl += " NOT NULL"
 	}
-	if c.Generated == 's' {
+	if c.Generated != 0 {
 		// Generated stored column — use GENERATED ALWAYS AS syntax, not DEFAULT.
 		expr := c.GenerationExpr
 		if expr == "" {
 			expr = c.Default // catalog sometimes stores it in Default
 		}
 		if expr != "" {
-			ddl += " GENERATED ALWAYS AS (" + expr + ") STORED"
+			kind := "STORED"
+			if c.Generated == 'v' {
+				kind = "VIRTUAL"
+			}
+			ddl += " GENERATED ALWAYS AS (" + expr + ") " + kind
 		}
 	} else if c.Identity != 0 {
 		switch c.Identity {

@@ -11,12 +11,12 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from.
@@ -36,11 +36,11 @@ CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
 // mariadbImage is the MariaDB the oracle tests run on.
-const mariadbImage = "mariadb:11.8.8"
+const mariadbImage = testcontainer.Image
 
 var mariadbOracle struct {
 	once      sync.Once
-	container testcontainers.Container
+	container testcontainer.Container
 	db        *sql.DB
 	err       error
 }
@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 	}
 	if mariadbOracle.container != nil {
 		_ = mariadbOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mariadbOracle.container)
+		_ = testcontainer.TerminateContainer(mariadbOracle.container)
 	}
 	os.Exit(code)
 }
@@ -63,7 +63,7 @@ func startMariaDB(t *testing.T) *sql.DB {
 	t.Helper()
 	mariadbOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmariadb.Run(ctx, mariadbImage, tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
+		c, err := testcontainer.Start(ctx, "shop")
 		if err != nil {
 			mariadbOracle.err = err
 			return

@@ -15,14 +15,14 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/bytebase/omni/mariadb/parser"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // walkBase is the shop database the curated cases start from: tables with
@@ -179,7 +179,6 @@ var walkCases = []walkCase{
 	// MySQL's ALTER CHECK ... NOT ENFORCED, which omni's parser takes and
 	// MariaDB rejects, ends the walk, and so does MariaDB's ALTER INDEX ...
 	// IGNORED, which the walk does not follow.
-	{name: "MySQL forms", change: "ALTER TABLE t ALTER CHECK c NOT ENFORCED;"},
 	{name: "ALTER INDEX", change: "ALTER TABLE t ALTER INDEX nosuch IGNORED;"},
 	// MariaDB drops what exists of a multi-object drop, and a failed CREATE
 	// OR REPLACE TABLE may have dropped the old table: Judge stops at such
@@ -245,10 +244,10 @@ func startSweepMariaDB(t *testing.T, image string, shard int) *sql.DB {
 		return startWalkMariaDB(t)
 	}
 	ctx := context.Background()
-	c, err := tcmariadb.Run(ctx, image, tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
+	c, err := testcontainer.StartImage(ctx, image, "shop")
 	t.Cleanup(func() {
 		if c != nil {
-			_ = testcontainers.TerminateContainer(c)
+			_ = testcontainer.TerminateContainer(c)
 		}
 	})
 	if err != nil {

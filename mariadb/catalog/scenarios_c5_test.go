@@ -34,8 +34,8 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id));`
             FROM information_schema.REFERENTIAL_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule, &matchOpt)
-		assertStringEq(t, "oracle DELETE_RULE", delRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle DELETE_RULE", delRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 		assertStringEq(t, "oracle MATCH_OPTION", matchOpt, "NONE")
 
 		// SHOW CREATE TABLE should not contain ON DELETE / ON UPDATE / MATCH.
@@ -155,7 +155,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule)
 		assertStringEq(t, "oracle DELETE_RULE", delRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 
 		// SHOW CREATE renders ON DELETE CASCADE only.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE c")
@@ -276,8 +276,8 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             FOREIGN KEY (b) REFERENCES p(id)
         )`
 		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104), got nil")
+		if mysqlErr != nil {
+			t.Errorf("oracle rejected virtual child foreign key: %v", mysqlErr)
 		}
 
 		results, err := c.Exec(bad+";", nil)
@@ -290,7 +290,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol", omniErrored, true)
+		assertBoolEq(t, "omni rejects FK on VIRTUAL child gcol", omniErrored, false)
 	})
 
 	// --- 5.8 CHECK defaults to ENFORCED ------------------------------------
@@ -304,10 +304,13 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
         );`)
 
 		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
+		oracleScan(t, mc, `SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='chk_pos'`,
 			&enforced)
-		assertStringEq(t, "oracle CHECK ENFORCED", enforced, "YES")
+		assertStringEq(t, "oracle CHECK type", enforced, "CHECK")
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mariaOracleErrorCode(err) != 4025 {
+			t.Fatalf("CHECK was not enforced: %v", err)
+		}
 
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		if strings.Contains(strings.ToUpper(create), "NOT ENFORCED") {
@@ -349,10 +352,10 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 		// Each table should have a single CHECK constraint with auto name.
 		rows1 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't1_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t1'`)
 		rows2 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't2_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t2'`)
 		if len(rows1) != 1 {
 			t.Errorf("oracle: expected 1 CHECK on t1, got %d", len(rows1))
 		}
@@ -404,11 +407,8 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 
 		bad := `CREATE TABLE t (a INT CHECK (a > b), b INT)`
 		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_REFERS (3823), got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3823") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "check constraint") {
-			t.Errorf("oracle: expected 3823, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Errorf("oracle rejected cross-column inline CHECK: %v", mysqlErr)
 		}
 
 		results, err := c.Exec(bad+";", nil)
@@ -421,7 +421,7 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects column-level CHECK referencing other column", omniErrored, true)
+		assertBoolEq(t, "omni rejects column-level CHECK referencing other column", omniErrored, false)
 
 		// Sanity: same expression as TABLE-level CHECK should succeed in MySQL.
 		scenarioReset(t, mc)

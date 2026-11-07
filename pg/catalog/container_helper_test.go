@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -12,9 +13,8 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 // pgContainer wraps a real PostgreSQL container connection for container testing.
@@ -31,12 +31,12 @@ var (
 )
 
 // startPGContainer returns the database the container tests share on the
-// PostgreSQL 17 server; individual tests get schema-level isolation.
+// PostgreSQL 18 server; individual tests get schema-level isolation.
 func startPGContainer(t *testing.T) *pgContainer {
 	t.Helper()
 	pgContainerOnce.Do(func() {
 		ctx := context.Background()
-		db, err := pg17Database(ctx, "omni_test")
+		db, err := pg18Database(ctx, "omni_test")
 		if err != nil {
 			pgContainerErr = fmt.Errorf("failed to start PG container: %w", err)
 			return
@@ -51,18 +51,17 @@ func startPGContainer(t *testing.T) *pgContainer {
 	return pgContainerInst
 }
 
-// pg17Server is the one PostgreSQL 17 server of this package. Each oracle has a
-// database of its own on it. analyzeOracle has its own PostgreSQL 18 server:
-// pg_proc_generated.go is generated from that release, and the PG 17 oracles
-// hold results that 18 changes, such as named NOT NULL constraints.
-var pg17Server struct {
-	once  sync.Once
-	dsn   *url.URL
-	admin *sql.DB
-	err   error
+// pg18Server is the package's pinned PostgreSQL 18 server. Catalog and
+// analyzer oracles use separate databases on it.
+var pg18Server struct {
+	container testcontainer.Container
+	once      sync.Once
+	dsn       *url.URL
+	admin     *sql.DB
+	err       error
 }
 
-func startPG17Server(ctx context.Context) (err error) {
+func startPG18Server(ctx context.Context) (err error) {
 	// testcontainers-go panics from MustExtractDockerHost when the Docker
 	// socket is reachable but access is denied.
 	defer func() {
@@ -70,14 +69,8 @@ func startPG17Server(ctx context.Context) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := tcpg.Run(ctx, "postgres:17-alpine",
-		tcpg.WithDatabase("omni_admin"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
+	container, err := testcontainer.Start(ctx, "omni_admin")
+	pg18Server.container = container
 	if err != nil {
 		return fmt.Errorf("container start: %w", err)
 	}
@@ -85,26 +78,26 @@ func startPG17Server(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("conn string: %w", err)
 	}
-	if pg17Server.dsn, err = url.Parse(connStr); err != nil {
+	if pg18Server.dsn, err = url.Parse(connStr); err != nil {
 		return fmt.Errorf("conn string %q: %w", connStr, err)
 	}
-	if pg17Server.admin, err = sql.Open("pgx", connStr); err != nil {
+	if pg18Server.admin, err = sql.Open("pgx", connStr); err != nil {
 		return fmt.Errorf("db open: %w", err)
 	}
-	return pg17Server.admin.PingContext(ctx)
+	return pg18Server.admin.PingContext(ctx)
 }
 
-// pg17Database creates the named database on the PostgreSQL 17 server, started
+// pg18Database creates the named database on the PostgreSQL 18 server, started
 // on first use, and returns a pool of connections to it.
-func pg17Database(ctx context.Context, name string) (*sql.DB, error) {
-	pg17Server.once.Do(func() { pg17Server.err = startPG17Server(ctx) })
-	if pg17Server.err != nil {
-		return nil, pg17Server.err
+func pg18Database(ctx context.Context, name string) (*sql.DB, error) {
+	pg18Server.once.Do(func() { pg18Server.err = startPG18Server(ctx) })
+	if pg18Server.err != nil {
+		return nil, pg18Server.err
 	}
-	if _, err := pg17Server.admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
+	if _, err := pg18Server.admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
 		return nil, fmt.Errorf("create database %s: %w", name, err)
 	}
-	dsn := *pg17Server.dsn
+	dsn := *pg18Server.dsn
 	dsn.Path = "/" + name
 	db, err := sql.Open("pgx", dsn.String())
 	if err != nil {
@@ -1078,4 +1071,19 @@ func assertOracleRoundtrip(t *testing.T, o *pgContainer, beforeDDL, afterDDL str
 
 	// 5. Compare schemas.
 	o.assertSchemasEqual(t, migrated, expected)
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if analyzeOracleInst != nil {
+		_ = analyzeOracleInst.db.Close()
+	}
+	if pgContainerInst != nil {
+		_ = pgContainerInst.db.Close()
+	}
+	if pg18Server.admin != nil {
+		_ = pg18Server.admin.Close()
+	}
+	_ = testcontainer.TerminateContainer(pg18Server.container)
+	os.Exit(code)
 }

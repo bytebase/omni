@@ -254,6 +254,9 @@ func (p *Parser) parseCharsetName() (string, error) {
 // Ref: collation_name in MySQL 8.0.46 sql/sql_yacc.yy; read against MariaDB
 // 11.8.8.
 func (p *Parser) parseCollationName() (string, error) {
+	if tok, ok := p.match(kwDEFAULT); ok {
+		return tok.Str, nil
+	}
 	return p.parseCharsetName()
 }
 

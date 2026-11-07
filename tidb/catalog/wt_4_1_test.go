@@ -374,14 +374,19 @@ SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS;
 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION;
 `
 
-	results, err := c.Exec(sql, nil)
+	results, err := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
+	unsupported := 0
 	for _, r := range results {
 		if r.Error != nil {
-			t.Fatalf("exec error on stmt %d (line %d): %v", r.Index, r.Line, r.Error)
+			assertError(t, r.Error, 8108)
+			unsupported++
 		}
+	}
+	if unsupported != 1 {
+		t.Fatalf("dump should report exactly its unsupported CREATE PROCEDURE: %v", results)
 	}
 
 	db := c.GetDatabase("dumpdb")
@@ -423,8 +428,8 @@ SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION;
 
 	// Verify procedure.
 	proc := db.Procedures[toLower("get_user_orders")]
-	if proc == nil {
-		t.Fatal("procedure 'get_user_orders' not found")
+	if proc != nil {
+		t.Fatal("rejected CREATE PROCEDURE installed get_user_orders")
 	}
 
 	// Verify FK checks were re-enabled at the end.

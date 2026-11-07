@@ -985,7 +985,14 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 		name, _ := p.parseName()
 		// ConstraintAttributeSpec (we consume but don't store — matches
 		// yacc behavior). Only a foreign key's deferrability changes.
-		if _, err := p.parseKindAttributes("FOREIGN KEY", true, false, false); err != nil {
+		attrs, loc, err := p.parseConstraintAttributeSpec()
+		if err != nil {
+			return nil, err
+		}
+		if attrs&int64(nodes.CAS_NOT_VALID) != 0 {
+			return nil, &ParseError{Code: "0A000", Message: "constraints cannot be altered to be NOT VALID", Position: loc}
+		}
+		if err := p.processCASbits(attrs, loc, "FOREIGN KEY", true, false, true); err != nil {
 			return nil, err
 		}
 		return &nodes.AlterTableCmd{

@@ -220,10 +220,10 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 		p.advance()
 		if p.cur.Type == kwON {
 			next := p.peekNext()
-			if next.Type == kwSLAVE {
+			if next.Type == kwSLAVE || next.Type == kwREPLICA {
 				p.advance()
 				p.advance()
-				stmt.Enable = "DISABLE ON SLAVE"
+				stmt.Enable = "DISABLE ON " + strings.ToUpper(next.Str)
 			}
 		}
 	}

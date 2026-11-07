@@ -42,16 +42,22 @@ func (p *Parser) parseExpr() (ast.Node, error) {
 
 // parseExprPrec parses an expression with the given minimum binding power.
 func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
+	return p.parseExprPrecUntil(minBP, tokEOF)
+}
+
+// parseExprPrecUntil reserves a top-level delimiter for a surrounding production.
+// Parenthesized expressions and nested function arguments use their own boundary.
+func (p *Parser) parseExprPrecUntil(minBP int, stop TokenKind) (ast.Node, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	left, err := p.parsePrefixExpr()
+	left, err := p.parsePrefixExpr(stop)
 	if err != nil {
 		return nil, err
 	}
 
-	for {
+	for p.cur.Kind != stop {
 		bp, op, special, ok := p.infixBindingPower()
 		if !ok || bp < minBP {
 			break
@@ -86,7 +92,7 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 
 		// Regular binary operator: consume the operator, parse right side.
 		p.advance()
-		right, err := p.parseExprPrec(bp + 1)
+		right, err := p.parseExprPrecUntil(bp+1, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -201,12 +207,12 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 
 // parsePrefixExpr handles prefix unary operators (-, +, ~, NOT) and delegates
 // everything else to parsePrimaryExpr.
-func (p *Parser) parsePrefixExpr() (ast.Node, error) {
+func (p *Parser) parsePrefixExpr(stop TokenKind) (ast.Node, error) {
 	switch p.cur.Kind {
 	case int('-'):
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpUnary)
+		operand, err := p.parseExprPrecUntil(bpUnary, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +225,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 	case int('+'):
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpUnary)
+		operand, err := p.parseExprPrecUntil(bpUnary, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -232,7 +238,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 	case int('~'):
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpUnary)
+		operand, err := p.parseExprPrecUntil(bpUnary, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -249,7 +255,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		// acts as prefix.
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpNot)
+		operand, err := p.parseExprPrecUntil(bpNot, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -591,11 +597,16 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 
 	if p.cur.Kind != int(')') {
-		args, err := p.parseFuncArgList()
+		argumentKind := ""
+		if len(name.Parts) == 1 && !fc.Distinct {
+			argumentKind = funcName
+		}
+		args, trimDirection, err := p.parseFunctionArguments(argumentKind)
 		if err != nil {
 			return nil, err
 		}
 		fc.Args = args
+		fc.TrimDirection = trimDirection
 
 		// Trailing USING charset, as in CHAR(65 USING utf8): the argument
 		// parser stops at USING because it is not a comma. Only CHAR takes it
@@ -857,6 +868,113 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 		Body:   body,
 		Loc:    ast.Loc{Start: start, End: ast.NodeLoc(body).End},
 	}, true, nil
+}
+
+// parseFunctionArguments handles Doris 4.0 string functions with SQL delimiters.
+// https://github.com/apache/doris/blob/branch-4.0/fe/fe-core/src/main/antlr4/org/apache/doris/nereids/DorisParser.g4#L1591
+func (p *Parser) parseFunctionArguments(name string) ([]ast.Node, string, error) {
+	if name == "TRIM" && (p.cur.Kind == kwBOTH || p.cur.Kind == kwLEADING || p.cur.Kind == kwTRAILING) {
+		direction := strings.ToUpper(p.advance().Str)
+		var removal ast.Node
+		if p.cur.Kind != kwFROM {
+			var err error
+			removal, err = p.parseExpr()
+			if err != nil {
+				return nil, "", err
+			}
+		}
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, "", err
+		}
+		value, err := p.parseExpr()
+		if err != nil {
+			return nil, "", err
+		}
+		args := []ast.Node{value}
+		if removal != nil {
+			args = append(args, removal)
+		}
+		return args, direction, nil
+	}
+	if name == "POSITION" && p.positionHasInArguments() {
+		first, err := p.parseExprPrecUntil(bpNone+1, kwIN)
+		if err != nil {
+			return nil, "", err
+		}
+		if _, err := p.expect(kwIN); err != nil {
+			return nil, "", err
+		}
+		second, err := p.parseExpr()
+		if err != nil {
+			return nil, "", err
+		}
+		return []ast.Node{first, second}, "", nil
+	}
+
+	args, err := p.parseFuncArgList()
+	if err != nil {
+		return nil, "", err
+	}
+	if p.cur.Kind != kwFROM || (name != "TRIM" && name != "SUBSTRING" && name != "SUBSTR" && name != "MID") {
+		return args, "", nil
+	}
+	if len(args) != 1 {
+		return nil, "", p.syntaxErrorAtCur()
+	}
+	if _, lambda := args[0].(*ast.LambdaExpr); lambda {
+		return nil, "", p.syntaxErrorAtCur()
+	}
+	p.advance() // FROM
+	next, err := p.parseExpr()
+	if err != nil {
+		return nil, "", err
+	}
+	if name == "TRIM" {
+		return []ast.Node{next, args[0]}, "BOTH", nil
+	}
+	args = append(args, next)
+	if p.cur.Kind == kwFOR {
+		p.advance()
+		length, err := p.parseExpr()
+		if err != nil {
+			return nil, "", err
+		}
+		args = append(args, length)
+	}
+	return args, "", nil
+}
+
+// positionHasInArguments distinguishes POSITION(expr IN expr) from the
+// ordinary comma-separated function call. Cached parenthesis scanning keeps
+// nested POSITION calls from repeatedly scanning their entire bodies.
+func (p *Parser) positionHasInArguments() bool {
+	saved := p.save()
+	defer p.restore(saved)
+	brackets := 0
+	foundIn := false
+	for p.cur.Kind != tokEOF && p.cur.Kind != int(')') {
+		switch p.cur.Kind {
+		case int('('):
+			p.skipParenGroup()
+			if p.cur.Kind == tokEOF {
+				return false
+			}
+		case int('['), int('{'):
+			brackets++
+		case int(']'), int('}'):
+			brackets--
+		case int(','), tokArrow:
+			if brackets == 0 {
+				return false
+			}
+		case kwIN:
+			if brackets == 0 {
+				foundIn = true
+			}
+		}
+		p.advance()
+	}
+	return foundIn
 }
 
 // parseFuncArgList parses a function-call argument list. Unlike a plain

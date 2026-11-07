@@ -1,6 +1,11 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/bytebase/omni/tidb/parser"
+)
 
 // wtSetup creates a Catalog with database "testdb" selected, ready for walk-through tests.
 func wtSetup(t *testing.T) *Catalog {
@@ -29,6 +34,46 @@ func wtExec(t *testing.T, c *Catalog, sql string) {
 		if r.Error != nil {
 			t.Fatalf("wtExec exec error on stmt %d: %v", r.Index, r.Error)
 		}
+	}
+}
+
+// assertRejectedDDL preserves the complete modeled schema on native-rejected DDL.
+func assertRejectedDDL(t *testing.T, c *Catalog, sql string, code int) {
+	t.Helper()
+	before := make(map[string]string)
+	for _, db := range c.Databases() {
+		for _, tbl := range db.Tables {
+			before[db.Name+"."+tbl.Name] = c.ShowCreateTable(db.Name, tbl.Name)
+		}
+	}
+	err := execExpectError(t, c, sql)
+	var syntax *parser.ParseError
+	if code != 1064 || !errors.As(err, &syntax) {
+		assertError(t, err, code)
+	}
+	after := make(map[string]string)
+	for _, db := range c.Databases() {
+		for _, tbl := range db.Tables {
+			after[db.Name+"."+tbl.Name] = c.ShowCreateTable(db.Name, tbl.Name)
+		}
+	}
+	if len(before) != len(after) {
+		t.Fatalf("rejected DDL changed table count: before %v, after %v", before, after)
+	}
+	for table, ddl := range before {
+		if after[table] != ddl {
+			t.Errorf("rejected DDL changed %s: before %s; after %s", table, ddl, after[table])
+		}
+	}
+}
+
+// Snapshots can still contain procedure metadata. This fixture deliberately uses
+// the metadata API after proving the corresponding SQL execution is unsupported.
+func installProcedureMetadataFixture(t *testing.T, c *Catalog, sql string) {
+	t.Helper()
+	assertRejectedDDL(t, c, sql, 8108)
+	if err := c.DefineProcedure(mustParseRoutine(t, sql)); err != nil {
+		t.Fatal(err)
 	}
 }
 

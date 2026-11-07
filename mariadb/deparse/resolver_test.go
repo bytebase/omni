@@ -116,7 +116,7 @@ func TestResolver_Section_6_1_ColumnQualification(t *testing.T) {
 		{
 			"column_in_where",
 			"SELECT a FROM t WHERE a > 0",
-			"select `t`.`a` AS `a` from `t` where (`t`.`a` > 0)",
+			"select `t`.`a` AS `a` from `t` where `t`.`a` > 0",
 		},
 		{
 			"column_in_order_by",
@@ -131,17 +131,17 @@ func TestResolver_Section_6_1_ColumnQualification(t *testing.T) {
 		{
 			"column_in_having",
 			"SELECT a, COUNT(*) FROM t GROUP BY a HAVING a > 0",
-			"select `t`.`a` AS `a`,count(0) AS `COUNT(*)` from `t` group by `t`.`a` having (`t`.`a` > 0)",
+			"select `t`.`a` AS `a`,count(0) AS `COUNT(*)` from `t` group by `t`.`a` having `t`.`a` > 0",
 		},
 		{
 			"column_in_on_condition",
 			"SELECT t1.a, t2.d FROM t1 JOIN t2 ON t1.a = t2.a",
-			"select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))",
+			"select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))",
 		},
 		{
 			"qualified_star",
 			"SELECT t1.*, t2.d FROM t1 JOIN t2 ON t1.a = t2.a",
-			"select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))",
+			"select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))",
 		},
 	}
 
@@ -164,7 +164,7 @@ func TestResolver_Section_6_1_AmbiguousColumn(t *testing.T) {
 	t.Run("ambiguous_column_two_tables", func(t *testing.T) {
 		got := resolveAndDeparse(t, cat, "SELECT a FROM t1 JOIN t2 ON t1.a = t2.a")
 		// The unqualified 'a' in SELECT will match t1 first (insertion order)
-		expected := "select `t1`.`a` AS `a` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"
+		expected := "select `t1`.`a` AS `a` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))"
 		if got != expected {
 			t.Errorf("resolveAndDeparse(ambiguous) =\n  %q\nwant:\n  %q", got, expected)
 		}
@@ -219,7 +219,7 @@ func TestResolver_Section_6_2_SelectStarExpansion(t *testing.T) {
 		{
 			"star_with_where",
 			"SELECT * FROM t WHERE a > 0",
-			"select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c` from `t` where (`t`.`a` > 0)",
+			"select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c` from `t` where `t`.`a` > 0",
 		},
 	}
 
@@ -254,7 +254,7 @@ func TestResolver_Section_6_3_AutoAliasGeneration(t *testing.T) {
 		{
 			"expression_auto_alias",
 			"SELECT a + b FROM t",
-			"select (`t`.`a` + `t`.`b`) AS `a + b` from `t`",
+			"select `t`.`a` + `t`.`b` AS `a + b` from `t`",
 		},
 		{
 			"literal_int",
@@ -322,7 +322,7 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 		// Test with explicit column selection to verify ON expansion
 		cat := setupCatalogForJoins(t)
 		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b, t2.d FROM t1 NATURAL JOIN t2")
-		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))"
 		if got != expected {
 			t.Errorf("NATURAL JOIN:\n  got:  %q\n  want: %q", got, expected)
 		}
@@ -332,17 +332,17 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 		// t1(a, b) NATURAL JOIN t3(a, b) → common columns: a, b
 		cat := setupCatalogForJoins(t)
 		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b FROM t1 NATURAL JOIN t3")
-		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(`t1`.`a` = `t3`.`a` and `t1`.`b` = `t3`.`b`))"
 		if got != expected {
 			t.Errorf("NATURAL JOIN multi common:\n  got:  %q\n  want: %q", got, expected)
 		}
 	})
 
 	t.Run("using_single_column", func(t *testing.T) {
-		// USING (a) → on((`t1`.`a` = `t2`.`a`))
+		// USING (a) → on(`t1`.`a` = `t2`.`a`)
 		cat := setupCatalogForJoins(t)
 		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b, t2.d FROM t1 JOIN t2 USING (a)")
-		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))"
 		if got != expected {
 			t.Errorf("USING single:\n  got:  %q\n  want: %q", got, expected)
 		}
@@ -370,7 +370,7 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 		got := deparse.DeparseSelect(resolved)
 		// SELECT * lists each column USING joins on once (MySQL 8.0:
 		// SELECT * FROM t1 JOIN t2 USING (a, b, c) lists t1's a, b, c only).
-		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(`t1`.`a` = `t3`.`a` and `t1`.`b` = `t3`.`b`))"
 		if got != expected {
 			t.Errorf("USING multi:\n  got:  %q\n  want: %q", got, expected)
 		}
@@ -380,7 +380,7 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 		// RIGHT JOIN → LEFT JOIN with table swap
 		cat := setupCatalogForJoins(t)
 		got := resolveAndDeparse(t, cat, "SELECT t1.a, t2.d FROM t1 RIGHT JOIN t2 ON t1.a = t2.a")
-		expected := "select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t2` left join `t1` on((`t1`.`a` = `t2`.`a`)))"
+		expected := "select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t2` left join `t1` on(`t1`.`a` = `t2`.`a`))"
 		if got != expected {
 			t.Errorf("RIGHT JOIN:\n  got:  %q\n  want: %q", got, expected)
 		}

@@ -293,16 +293,11 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 		}
 		stmt.BrokerName = brokerName
 
-		// Optional broker properties (...). The grammar gives them as a
-		// propertyItemList, whose items may take an identifier or any
-		// constant on either side, but the engine holds a broker load to a
-		// string on both: (username = "u"), ("k" = 1) and ("k" = v) are
-		// rejects, reported by its legacy parser ("Syntax error ...
-		// Encountered: IDENTIFIER"), while EXPORT's list takes all three
-		// (container-verified both ways).
+		// Doris 4.0 withRemoteStorageSystem uses the full propertyItemList.
+		// https://github.com/apache/doris/blob/branch-4.0/fe/fe-core/src/main/antlr4/org/apache/doris/nereids/DorisParser.g4
 		if p.cur.Kind == int('(') {
 			p.advance() // consume '('
-			props, err := p.parsePropertyItems(p.parseStringProperty)
+			props, err := p.parsePropertyItems(p.parsePropertyItem)
 			if err != nil {
 				return nil, err
 			}

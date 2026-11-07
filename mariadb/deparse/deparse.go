@@ -47,6 +47,7 @@ func deparseExpr(node ast.ExprNode) string {
 // writeSelectStmt writes a query expression. suppressAlias omits the target
 // list aliases, for subquery contexts (IN, EXISTS) where MySQL omits AS alias.
 func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
+	expandNamedWindows(stmt)
 	// Parenthesized query expression: ( inner ) with optional OUTER ORDER BY /
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
 	// silently loses the inner query.
@@ -74,7 +75,6 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	// CTE (WITH clause) — emit before the SELECT keyword
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	b.WriteString("select ")
@@ -133,21 +133,6 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	if stmt.Having != nil {
 		b.WriteString(" having ")
 		writeExpr(b, stmt.Having)
-	}
-
-	// WINDOW clause: WINDOW `w` AS (window_spec) [, ...]
-	// MySQL 8.0 appends a trailing space after the window clause.
-	if len(stmt.WindowClause) > 0 {
-		b.WriteString(" window ")
-		for i, wd := range stmt.WindowClause {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			b.WriteString(quoteIdent(wd.Name))
-			b.WriteString(" AS ")
-			writeWindowBody(b, wd)
-		}
-		b.WriteString(" ")
 	}
 
 	// ORDER BY clause
@@ -219,7 +204,6 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt) {
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	b.WriteString("(")
@@ -337,7 +321,6 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	writeSelectStmt(b, stmt.Left, suppressAlias)
@@ -422,11 +405,15 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(quoteIdent(cte.Name))
+		if cte.NameSQL != "" {
+			b.WriteString(cte.NameSQL)
+		} else {
+			b.WriteString(quoteIdent(cte.Name))
+		}
 
 		// Column list
 		if len(cte.Columns) > 0 {
-			b.WriteString(" (")
+			b.WriteString("(")
 			for j, col := range cte.Columns {
 				if j > 0 {
 					b.WriteString(",")
@@ -438,7 +425,7 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 
 		b.WriteString(" as (")
 		if cte.Select != nil {
-			writeSelectStmt(b, cte.Select, false)
+			writeSelectStmt(b, selectWithAliases(cte.Select, cte.Columns), false)
 		}
 		b.WriteString(")")
 	}
@@ -480,13 +467,7 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 		alias = autoAlias(expr, b.String()[exprStart:], position)
 	}
 
-	// MySQL 8.0 uses double-space before AS for window function expressions.
-	// The OVER clause already ends with " )", and MySQL adds an extra space.
-	if hasWindowFunction(expr) {
-		b.WriteString("  AS ")
-	} else {
-		b.WriteString(" AS ")
-	}
+	b.WriteString(" AS ")
 	b.WriteString(quoteIdent(alias))
 }
 
@@ -1255,18 +1236,11 @@ func tableExprName(tbl ast.TableExpr) string {
 // e.g., USING (a, b) with left=t1, right=t2 → ((`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`))
 // MySQL 8.0 format: on((`t1`.`a` = `t2`.`a`))
 func writeUsingAsOn(b *strings.Builder, columns []string, leftName, rightName string) {
-	// Multiple columns: chain with "and", left-deep.
-	for i := 1; i < len(columns); i++ {
-		b.WriteString("(")
-	}
 	for i, col := range columns {
 		if i > 0 {
 			b.WriteString(" and ")
 		}
-		b.WriteString("(" + quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col) + ")")
-		if i > 0 {
-			b.WriteString(")")
-		}
+		b.WriteString(quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col))
 	}
 }
 
@@ -1339,9 +1313,9 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(n.Value)
 	case *ast.BoolLit:
 		if n.Value {
-			b.WriteString("true")
+			b.WriteString("1")
 		} else {
-			b.WriteString("false")
+			b.WriteString("0")
 		}
 	case *ast.StringLit:
 		b.WriteString(deparseStringLit(n))
@@ -1428,7 +1402,7 @@ func deparseHexLit(n *ast.HexLit) string {
 		return "0x" + strings.ToLower(val[2:])
 	}
 	// X'FF' form — value is just the hex digits
-	return "0x" + strings.ToLower(val)
+	return "X'" + strings.ToLower(val) + "'"
 }
 
 func deparseBitLit(n *ast.BitLit) string {
@@ -1492,27 +1466,8 @@ func bareLevel(node ast.ExprNode) int {
 }
 
 // writeBitOperand writes an operand the grammar reads as a bit_expr.
-func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
-	if bareLevel(node) == printsDelimited {
-		writeExpr(b, node)
-		return
-	}
-	b.WriteString("(")
-	writeExpr(b, node)
-	b.WriteString(")")
-}
-
-// writeComparisonRight writes the right side of a comparison, which the grammar reads
-// as a predicate.
-func writeComparisonRight(b *strings.Builder, node ast.ExprNode) {
-	if bareLevel(node) != printsBoolPri {
-		writeExpr(b, node)
-		return
-	}
-	b.WriteString("(")
-	writeExpr(b, node)
-	b.WriteString(")")
-}
+func writeBitOperand(b *strings.Builder, node ast.ExprNode)      { writeOperand(b, node, 8) }
+func writeComparisonRight(b *strings.Builder, node ast.ExprNode) { writeOperand(b, node, 6) }
 
 // isComparison reports whether op is one of the grammar's comp_op operators.
 func isComparison(op ast.BinaryOp) bool {
@@ -1579,7 +1534,7 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 	// -> → json_extract(left, right)
 	// ->> → json_unquote(json_extract(left, right))
 	switch n.Op {
-	case ast.BinOpRegexp, ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
+	case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
 		closing := ")"
 		switch n.Op {
 		case ast.BinOpRegexp:
@@ -1605,24 +1560,22 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 			left, right = right, left
 		}
 	}
-	b.WriteString("(")
-	if isLogical(n.Op) || isComparison(n.Op) {
-		writeExpr(b, left)
-	} else {
-		writeBitOperand(b, left)
+	prec := expressionPrecedence(n)
+	writeOperand(b, left, prec)
+	op := binaryOpToString(n.Op)
+	if n.Op == ast.BinOpRegexp {
+		op = "regexp"
 	}
-	b.WriteString(" ")
-	b.WriteString(binaryOpToString(n.Op))
-	b.WriteString(" ")
-	switch {
-	case isLogical(n.Op):
-		writeExpr(b, right)
-	case isComparison(n.Op):
-		writeComparisonRight(b, right)
-	default:
-		writeBitOperand(b, right)
+	if n.Op == ast.BinOpMod && n.OriginalOp == "MOD" {
+		op = "MOD"
 	}
-	b.WriteString(")")
+	b.WriteString(" " + op + " ")
+	rightMinimum := prec + 1
+	if inner, ok := unwrapParen(right).(*ast.BinaryExpr); ok && isLogical(n.Op) && inner.Op == n.Op {
+		rightMinimum = prec
+	}
+	writeOperand(b, right, rightMinimum)
+
 }
 
 func deparseColumnRef(n *ast.ColumnRef) string {
@@ -1752,16 +1705,9 @@ func writeWindowDefAlias(b *strings.Builder, wd *ast.WindowDef) {
 func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 	switch n.Op {
 	case ast.UnaryMinus:
-		// MySQL 8.0 wraps non-literal operands in parens: -(`t`.`a`) but keeps -5
-		switch n.Operand.(type) {
-		case *ast.IntLit, *ast.FloatLit:
-			b.WriteString("-")
-			writeExpr(b, n.Operand)
-		default:
-			b.WriteString("-(")
-			writeExpr(b, n.Operand)
-			b.WriteString(")")
-		}
+		b.WriteString("-")
+		writeOperand(b, n.Operand, 14)
+
 	case ast.UnaryNot:
 		// MariaDB 11.8 stores NOT over an IN subquery as `!(a in (q))`.
 		if in, ok := unwrapParen(n.Operand).(*ast.InExpr); ok && in.Select != nil {
@@ -1770,13 +1716,13 @@ func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 			b.WriteString(")")
 			return
 		}
-		b.WriteString("(not(")
-		writeExpr(b, n.Operand)
-		b.WriteString("))")
-	case ast.UnaryBitNot:
-		b.WriteString("~(")
+		b.WriteString("!(")
 		writeExpr(b, n.Operand)
 		b.WriteString(")")
+	case ast.UnaryBitNot:
+		b.WriteString("~")
+		writeOperand(b, n.Operand, 14)
+
 	default:
 		// MySQL drops unary plus entirely
 		writeExpr(b, n.Operand)
@@ -1801,7 +1747,6 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 	}
 
 	// Build the value list with no spaces after commas
-	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
 	b.WriteString(keyword)
 	for i, item := range n.List {
@@ -1810,11 +1755,10 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 		}
 		writeExpr(b, item)
 	}
-	b.WriteString("))")
+	b.WriteString(")")
 }
 
 func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
-	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
 	if n.Not {
 		b.WriteString(" not between ")
@@ -1824,24 +1768,19 @@ func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
 	writeBitOperand(b, n.Low)
 	b.WriteString(" and ")
 	writeBitOperand(b, n.High)
-	b.WriteString(")")
 }
 
 func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
-	if n.Not {
-		b.WriteString("(not(")
-	}
-	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
-	b.WriteString(" like ")
+	if n.Not {
+		b.WriteString("  not like ")
+	} else {
+		b.WriteString(" like ")
+	}
 	writeBitOperand(b, n.Pattern)
 	if n.Escape != nil {
 		b.WriteString(" escape ")
 		writeBitOperand(b, n.Escape)
-	}
-	b.WriteString(")")
-	if n.Not {
-		b.WriteString("))")
 	}
 }
 
@@ -1875,11 +1814,9 @@ func writeIsExpr(b *strings.Builder, n *ast.IsExpr) {
 	default:
 		test = "is ?"
 	}
-	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeOperand(b, n.Expr, 5)
 	b.WriteString(" ")
 	b.WriteString(test)
-	b.WriteString(")")
 }
 
 func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
@@ -1894,7 +1831,7 @@ func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
 }
 
 func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
-	b.WriteString("(case")
+	b.WriteString("case")
 	if n.Operand != nil {
 		b.WriteString(" ")
 		writeExpr(b, n.Operand)
@@ -1909,7 +1846,7 @@ func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 		b.WriteString(" else ")
 		writeExpr(b, n.Default)
 	}
-	b.WriteString(" end)")
+	b.WriteString(" end")
 }
 
 func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
@@ -2030,24 +1967,24 @@ func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
 }
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
-	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
 	b.WriteString(" collate ")
 	b.WriteString(n.Collation)
-	b.WriteString(")")
 }
 
 // funcNameRewrites maps uppercase function names to their MySQL 8.0 canonical forms.
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
+	"UPPER":             "ucase",
+	"LOWER":             "lcase",
 	"SUBSTRING":         "substr",
-	"CURRENT_TIMESTAMP": "now",
+	"CURRENT_TIMESTAMP": "current_timestamp",
 	"CURRENT_DATE":      "curdate",
 	"CURRENT_TIME":      "curtime",
 	"CURRENT_USER":      "current_user",
-	"NOW":               "now",
-	"LOCALTIME":         "now",
-	"LOCALTIMESTAMP":    "now",
+	"NOW":               "current_timestamp",
+	"LOCALTIME":         "current_timestamp",
+	"LOCALTIMESTAMP":    "current_timestamp",
 }
 
 // writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -2157,11 +2094,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
 	// Named window reference: OVER `window_name`
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		b.WriteString("OVER " + quoteIdent(wd.RefName))
+		b.WriteString("over " + quoteIdent(wd.RefName))
 		return
 	}
 
-	b.WriteString("OVER ")
+	b.WriteString("over ")
 	writeWindowBody(b, wd)
 }
 
@@ -2174,7 +2111,7 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 
 	// PARTITION BY
 	if len(wd.PartitionBy) > 0 {
-		b.WriteString("PARTITION BY ")
+		b.WriteString(" partition by ")
 		for i, expr := range wd.PartitionBy {
 			if i > 0 {
 				b.WriteString(",")
@@ -2187,9 +2124,8 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 	// ORDER BY
 	if len(wd.OrderBy) > 0 {
 		if needSpace {
-			b.WriteString(" ")
 		}
-		b.WriteString("ORDER BY ")
+		b.WriteString(" order by ")
 		for i, item := range wd.OrderBy {
 			if i > 0 {
 				b.WriteString(",")
@@ -2212,7 +2148,7 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 		b.WriteString(")")
 	} else {
 		// No frame clause — MySQL 8.0 puts a trailing space before )
-		b.WriteString(" )")
+		b.WriteString(")")
 	}
 }
 
@@ -2222,18 +2158,18 @@ func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 	// Frame type
 	switch f.Type {
 	case ast.FrameRows:
-		b.WriteString("ROWS")
+		b.WriteString("rows")
 	case ast.FrameRange:
-		b.WriteString("RANGE")
+		b.WriteString("range")
 	case ast.FrameGroups:
-		b.WriteString("GROUPS")
+		b.WriteString("groups")
 	}
 
 	if f.End != nil {
 		// BETWEEN ... AND ... form
-		b.WriteString(" BETWEEN ")
+		b.WriteString(" between ")
 		writeWindowFrameBound(b, f.Start)
-		b.WriteString(" AND ")
+		b.WriteString(" and ")
 		writeWindowFrameBound(b, f.End)
 	} else {
 		// Single bound form
@@ -2246,17 +2182,17 @@ func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 	switch fb.Type {
 	case ast.BoundUnboundedPreceding:
-		b.WriteString("UNBOUNDED PRECEDING")
+		b.WriteString(" unbounded  preceding ")
 	case ast.BoundPreceding:
 		writeExpr(b, fb.Offset)
-		b.WriteString(" PRECEDING")
+		b.WriteString(" preceding ")
 	case ast.BoundCurrentRow:
-		b.WriteString("CURRENT ROW")
+		b.WriteString(" current row ")
 	case ast.BoundFollowing:
 		writeExpr(b, fb.Offset)
-		b.WriteString(" FOLLOWING")
+		b.WriteString(" following ")
 	case ast.BoundUnboundedFollowing:
-		b.WriteString("UNBOUNDED FOLLOWING")
+		b.WriteString(" unbounded  following ")
 	default:
 		b.WriteString("/* unknown bound */")
 	}
@@ -2267,7 +2203,11 @@ func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 func writeExistsExpr(b *strings.Builder, n *ast.ExistsExpr) {
 	if n.Select != nil {
 		b.WriteString("exists(")
-		writeSelectStmt(b, n.Select, true)
+		query := *n.Select
+		if query.Limit == nil {
+			query.Limit = &ast.Limit{Count: &ast.IntLit{Value: 1}}
+		}
+		writeSelectStmt(b, &query, true)
 		b.WriteString(")")
 		return
 	}

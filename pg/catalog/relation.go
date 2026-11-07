@@ -16,7 +16,7 @@ type PartitionInfo struct {
 
 // PartitionBound stores partition bound for a partition child.
 type PartitionBound struct {
-	Strategy   byte     // must match parent's strategy
+	Strategy   byte // must match parent's strategy
 	IsDefault  bool
 	ListValues []string // deparsed datum strings (LIST)
 	LowerBound []string // deparsed lower bound values (RANGE)
@@ -27,27 +27,28 @@ type PartitionBound struct {
 
 // Column represents a table column.
 type Column struct {
-	AttNum      int16
-	Name        string
-	TypeOID     uint32
-	TypeMod     int32
-	NotNull     bool
-	HasDefault  bool
-	Default     string
-	Len         int16
-	ByVal       bool
-	Align       byte
-	Storage     byte
-	Collation   uint32
+	AttNum          int16
+	Name            string
+	TypeOID         uint32
+	TypeMod         int32
+	NotNullName     string // pg_constraint entry for this column
+	NotNull         bool
+	HasDefault      bool
+	Default         string
+	Len             int16
+	ByVal           bool
+	Align           byte
+	Storage         byte
+	Collation       uint32
 	DefaultAnalyzed AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
 	Generated       byte         // 's' = stored generated, 0 = none
-	Identity    byte // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IsLocal     bool // true if defined locally (not only inherited)
-	InhCount    int  // number of inheritance ancestors that define this column
-	Compression    byte   // attcompression: 'p'=pglz, 'l'=lz4, 0=default
-	GenerationExpr string // expression text for generated columns
-	CollationName  string // explicit collation name (empty = type default)
-	Ndims          int16  // attndims — declared array dimensions
+	Identity        byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IsLocal         bool         // true if defined locally (not only inherited)
+	InhCount        int          // number of inheritance ancestors that define this column
+	Compression     byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
+	GenerationExpr  string       // expression text for generated columns
+	CollationName   string       // explicit collation name (empty = type default)
+	Ndims           int16        // attndims — declared array dimensions
 }
 
 // Relation represents a table, view, or other relation.
@@ -87,11 +88,11 @@ type Relation struct {
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
 
 	// Relation flags (pg_class).
-	Owner        uint32 // relowner
-	HasRules     bool   // relhasrules
-	HasSubclass  bool   // relhassubclass — has child tables/partitions
-	IsPopulated  bool   // relispopulated — matview populated state
-	IsPartition  bool   // relispartition
+	Owner       uint32 // relowner
+	HasRules    bool   // relhasrules
+	HasSubclass bool   // relhassubclass — has child tables/partitions
+	IsPopulated bool   // relispopulated — matview populated state
+	IsPartition bool   // relispartition
 }
 
 // findRelation locates a relation by schema (or search path) and name.

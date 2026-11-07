@@ -93,8 +93,9 @@ func TestWalkThrough_5_4(t *testing.T) {
 		// droppedByCleanup tracking. The ALTER succeeds in MySQL.
 		c := setupTestTable(t)
 
-		mustExec(t, c,
+		assertRejectedDDL(t, c,
 			"ALTER TABLE t1 ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x",
+			1072,
 		)
 
 		tbl := c.GetDatabase("test").GetTable("t1")

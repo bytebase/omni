@@ -102,7 +102,7 @@ func TestScenario_C2(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INTEGER)`)
 
 		assertStringEq(t, "oracle DATA_TYPE", oracleDataType(t, "c"), "int")
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(11)")
 
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni DataType", strings.ToLower(col.DataType), "int")
@@ -166,10 +166,10 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INT(11))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(11)")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int(11)")
 		}
 	})
 
@@ -192,7 +192,7 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c SERIAL)`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "bigint unsigned")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "bigint(20) unsigned")
 		var nullable, extra string
 		oracleScan(t, mc,
 			`SELECT IS_NULLABLE, EXTRA FROM information_schema.COLUMNS
@@ -202,7 +202,7 @@ func TestScenario_C2(t *testing.T) {
 		assertStringEq(t, "oracle EXTRA", strings.ToLower(extra), "auto_increment")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "bigint unsigned")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "bigint(20) unsigned")
 			assertBoolEq(t, "omni Nullable", col.Nullable, false)
 			assertBoolEq(t, "omni AutoIncrement", col.AutoIncrement, true)
 		}
@@ -485,10 +485,10 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c YEAR(4))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year(4)")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year(4)")
 		}
 	})
 

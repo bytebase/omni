@@ -278,45 +278,17 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("omni: column a type got %q want bigint", col.DataType)
 		}
 
-		// 22.6b: MODIFY + ALGORITHM=INPLACE → MySQL rejects.
-		_, oracleErr := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE")
-		if oracleErr == nil {
-			t.Errorf("oracle: expected error for MODIFY ... ALGORITHM=INPLACE, got nil")
-		} else if !strings.Contains(oracleErr.Error(), "ALGORITHM") &&
-			!strings.Contains(oracleErr.Error(), "not supported") {
-			t.Errorf("oracle: unexpected error form: %v", oracleErr)
-		}
-		// omni must at least parse and (per catalog contract) apply the change.
-		results, err := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on MODIFY + ALGORITHM=INPLACE: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		// TiDB accepts these algorithm/lock hints and applies both type changes.
+		runOnBoth(t, mc, c, "ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE")
+		assertScenarioReadback(t, mc, c, "t1")
 
 		// 22.6c: MODIFY with a genuine type change + LOCK=NONE → MySQL
 		// rejects. Column `a` is currently bigint (from 22.6a); changing it
 		// to INT UNSIGNED is a real type change, which forces COPY, which is
 		// incompatible with LOCK=NONE. (A no-op MODIFY to the same type is
 		// silently optimized away and would not error.)
-		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
-		}
-		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
-		if err2 != nil {
-			t.Errorf("omni: parse error on MODIFY + LOCK=NONE: %v", err2)
-		}
-		for _, r := range results2 {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, "ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
+		assertScenarioReadback(t, mc, c, "t1")
 	})
 
 	// -----------------------------------------------------------------
@@ -340,17 +312,8 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
 
-		// omni: parser must accept; catalog applies PK swap regardless.
-		results, err := c.Exec(
-			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on PK rebuild + ALGORITHM=INSTANT: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		assertRejectedDDL(t, c, "ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT", 8200)
+		assertScenarioReadback(t, mc, c, "t1")
 	})
 
 	// -----------------------------------------------------------------
@@ -366,36 +329,13 @@ func TestScenario_C22(t *testing.T) {
 		// 22.8a: COPY-only operation + LOCK=NONE → hard error. CHANGE COLUMN
 		// with a real type change forces COPY, and COPY cannot honor
 		// LOCK=NONE.
-		_, oracleErr := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
-		if oracleErr == nil {
-			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
-		}
-		results, _ := c.Exec(
-			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni 22.8a: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, "ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
+		assertScenarioReadback(t, mc, c, "t1")
 
 		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
 		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
-		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle 22.8b: expected error for INSTANT + LOCK=NONE, got nil")
-		}
-		results2, err2 := c.Exec(
-			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)
-		if err2 != nil {
-			t.Errorf("omni 22.8b: parse error: %v", err2)
-		}
-		for _, r := range results2 {
-			if r.Error != nil {
-				t.Errorf("omni 22.8b: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, "ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
+		assertScenarioReadback(t, mc, c, "t1")
 
 		// 22.8c: ADD COLUMN + ALGORITHM=INSTANT (no LOCK) → succeeds.
 		// Note: b may already exist in omni catalog from 22.8b above; use c.

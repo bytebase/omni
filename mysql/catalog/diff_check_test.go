@@ -80,7 +80,7 @@ func checkDiffProbes() []diffProbe {
 // TestOracle_CheckDiffIdempotence proves gates 1 & 2 for every 8.0 CHECK form: the user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty.
 func TestOracle_CheckDiffIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		for _, probe := range checkDiffProbes() {
 			if !containsVersion(probe.versions, version) {
@@ -99,64 +99,30 @@ func TestOracle_CheckDiffIdempotence(t *testing.T) {
 // with ConCheck entries) is diffed against the 5.7 readback under a 5.7 Normalizer — the result
 // must be EMPTY. This is the no-phantom-on-5.7 guarantee made concrete: diffChecks returns nil on
 // 5.7, so the loader's ConCheck entries never surface as a diff against the check-less readback.
-func check57Cases() []diffProbe {
-	return []diffProbe{
-		{"unnamed", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CHECK (a > 0))", "t", only(MySQL57)},
-		{"named", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CONSTRAINT chk_a CHECK (a > 0))", "t", only(MySQL57)},
-		{"multiple", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, CHECK (a > 0), CONSTRAINT c2 CHECK (b < 100))", "t", only(MySQL57)},
-		{"column-level", "CREATE TABLE t (id INT PRIMARY KEY, a INT CHECK (a > 0))", "t", only(MySQL57)},
-	}
-}
-
-// TestOracle_CheckDiff57NoPhantom proves the version gate: on 5.7, a table with a CHECK clause
-// yields NO check diff. It asserts the property two ways:
-//
-//  1. STRUCTURAL — the loaded user-form catalog DOES carry a ConCheck constraint (the loader stores
-//     it unconditionally), yet diffChecks(from, to, NormalizerFor(MySQL57)) on that table returns
-//     no entries (the gate fires), so a self-diff under the 5.7 normalizer is empty.
-//  2. AGAINST THE LIVE 5.7 READBACK — apply the CHECK DDL to real 5.7, read it back (the engine
-//     dropped the CHECK), and diff the user form vs the readback under the 5.7 normalizer; the
-//     result must be EMPTY despite the user side carrying a ConCheck the readback lacks.
-func TestOracle_CheckDiff57NoPhantom(t *testing.T) {
-	o := connectOracle(t, MySQL57)
+// TestCheckDiff57NoPhantom checks the legacy model using recorded check-less
+// schemas. Live oracle tests use MySQL 8.4, which enforces CHECK constraints.
+func TestCheckDiff57NoPhantom(t *testing.T) {
 	n := NormalizerFor(MySQL57)
 	sc := serverCharsetFor(MySQL57)
-
-	// Sanity: the version gate must report CHECK unsupported on 5.7 (so diffChecks short-circuits).
 	if n.CheckSupported() {
-		t.Fatal("precondition failed: CheckSupported() must be false on MySQL57")
+		t.Fatal("CHECK must be unsupported in the MySQL 5.7 model")
 	}
-
-	for _, c := range check57Cases() {
-		t.Run(c.id, func(t *testing.T) {
-			// (1) STRUCTURAL: the loaded user catalog carries a ConCheck, but the 5.7 differ ignores it.
-			userCat, userTbl := loadOneTable(t, sc, c.create, c.table)
-			if countChecks(userTbl) == 0 {
-				t.Fatalf("precondition failed: loader stored no ConCheck for %q (expected ≥1)", c.create)
+	for _, tc := range []struct{ name, declared, stored string }{
+		{"unnamed", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CHECK (a > 0))", "CREATE TABLE t (id INT PRIMARY KEY, a INT)"},
+		{"named", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CONSTRAINT chk_a CHECK (a > 0))", "CREATE TABLE t (id INT PRIMARY KEY, a INT)"},
+		{"multiple", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, CHECK (a > 0), CONSTRAINT c2 CHECK (b < 100))", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)"},
+		{"column", "CREATE TABLE t (id INT PRIMARY KEY, a INT CHECK (a > 0))", "CREATE TABLE t (id INT PRIMARY KEY, a INT)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			declared, table := loadOneTable(t, sc, tc.declared, "t")
+			if countChecks(table) == 0 {
+				t.Fatal("fixture must carry a CHECK constraint")
 			}
-			if entries := diffChecks(userTbl, userTbl, n); len(entries) != 0 {
-				t.Errorf("diffChecks on 5.7 must return nil, got %d entries", len(entries))
-			}
-			// A full self-diff under the 5.7 normalizer must also be empty (no phantom from the check).
-			if d := DiffWithNormalizer(userCat, userCat, n); !d.IsEmpty() {
-				t.Errorf("5.7 self-diff of a CHECK table not empty: %s%s", describeDiff(d), describeChecks(d))
-			}
-
-			// (2) AGAINST LIVE 5.7 READBACK: the engine dropped the CHECK; the diff must still be empty.
-			readback, ok := o.applyAndReadback(t, "chk57_"+strings.ReplaceAll(c.id, "-", "_"), c.create, c.table)
-			if !ok {
-				t.Skipf("[5.7] could not obtain readback for %s", c.id)
-			}
-			if strings.Contains(strings.ToUpper(readback), "CHECK") {
-				t.Logf("[5.7] note: readback unexpectedly mentions CHECK (engine may have stored it): %s", strings.TrimSpace(readback))
-			}
-			storedCat, _ := loadOneTable(t, sc, readback, c.table)
-			if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
-				t.Errorf("[5.7] user CHECK form vs check-less readback not empty (phantom check diff):\n  user:   %s\n  stored: %s\n  diff: %s%s",
-					strings.TrimSpace(c.create), strings.TrimSpace(readback), describeDiff(d), describeChecks(d))
-			}
-			if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
-				t.Errorf("[5.7] reverse (readback vs user CHECK form) not empty: %s%s", describeDiff(d), describeChecks(d))
+			stored, _ := loadOneTable(t, sc, tc.stored, "t")
+			for _, pair := range [][2]*Catalog{{declared, declared}, {declared, stored}, {stored, declared}} {
+				if d := DiffWithNormalizer(pair[0], pair[1], n); !d.IsEmpty() {
+					t.Errorf("legacy CHECK diff: %s%s", describeDiff(d), describeChecks(d))
+				}
 			}
 		})
 	}

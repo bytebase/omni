@@ -7,11 +7,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	_ "github.com/sijms/go-ora/v2"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 )
 
 // oracleDB wraps a real Oracle Database container connection for cross-validation testing.
@@ -36,22 +35,7 @@ func startOracleDB(t *testing.T) *oracleDB {
 	oracleOnce.Do(func() {
 		ctx := context.Background()
 
-		req := testcontainers.ContainerRequest{
-			Image:        "gvenzl/oracle-free:23.26.3-slim-faststart",
-			ExposedPorts: []string{"1521/tcp"},
-			Env: map[string]string{
-				"ORACLE_PASSWORD":   "testpass",
-				"APP_USER":          "testuser",
-				"APP_USER_PASSWORD": "testpass",
-			},
-			WaitingFor: wait.ForLog("DATABASE IS READY TO USE!").
-				WithStartupTimeout(5 * time.Minute),
-		}
-
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := testcontainer.Start(ctx)
 		if err != nil {
 			oracleInitErr = fmt.Errorf("failed to start Oracle container: %w", err)
 			return
@@ -59,14 +43,14 @@ func startOracleDB(t *testing.T) *oracleDB {
 
 		host, err := container.Host(ctx)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			oracleInitErr = fmt.Errorf("failed to get container host: %w", err)
 			return
 		}
 
 		mappedPort, err := container.MappedPort(ctx, "1521")
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			oracleInitErr = fmt.Errorf("failed to get mapped port: %w", err)
 			return
 		}
@@ -76,21 +60,21 @@ func startOracleDB(t *testing.T) *oracleDB {
 
 		db, err := sql.Open("oracle", connStr)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			oracleInitErr = fmt.Errorf("failed to open database: %w", err)
 			return
 		}
 
 		if err := db.PingContext(ctx); err != nil {
 			db.Close()
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			oracleInitErr = fmt.Errorf("failed to ping Oracle database: %w", err)
 			return
 		}
 		adminDB, err := openOracleAdminDB(ctx, host, mappedPort.Port())
 		if err != nil {
 			db.Close()
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			oracleInitErr = fmt.Errorf("failed to open Oracle admin database: %w", err)
 			return
 		}

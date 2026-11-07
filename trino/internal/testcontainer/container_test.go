@@ -6,12 +6,8 @@ import (
 	"time"
 )
 
-// testOracle connects to a live Trino server for differential testing. It
-// prefers $TRINO_ORACLE_URL, falling back to DefaultURL. The test is skipped
-// (not failed) locally when no oracle is reachable, and fails in CI, which
-// always starts one; see ci.yml. Start one locally with:
-//
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
+// testOracle uses the configured Trino endpoint or the package's pinned
+// container. An unavailable oracle fails the test.
 func testOracle(t *testing.T) *Oracle {
 	t.Helper()
 	return ForTest(t)

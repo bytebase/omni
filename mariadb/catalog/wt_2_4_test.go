@@ -10,7 +10,7 @@ func TestWalkThrough_2_4_CreateTableFKUnknownTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, 1005)
 }
 
 // TestWalkThrough_2_4_CreateTableFKUnknownColumn tests that CREATE TABLE with a FK
@@ -25,7 +25,7 @@ func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	// The referenced column "nonexistent" doesn't exist, so there's no matching index.
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, 1005)
 }
 
 // TestWalkThrough_2_4_DropTableReferencedByFK tests that DROP TABLE on a table
@@ -67,7 +67,7 @@ func TestWalkThrough_2_4_AlterTableAddFKUnknownTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, 1005)
 }
 
 // TestWalkThrough_2_4_AlterTableDropColumnUsedInFK tests that ALTER TABLE DROP COLUMN
@@ -106,7 +106,7 @@ func TestWalkThrough_2_4_AlterTableAddFKMissingIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, 1005)
 }
 
 // TestWalkThrough_2_4_AlterTableAddFKIncompatibleColumns tests that ALTER TABLE ADD FK
@@ -120,7 +120,7 @@ func TestWalkThrough_2_4_AlterTableAddFKIncompatibleColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKIncompatibleColumns)
+	assertError(t, results[0].Error, 1005)
 }
 
 // TestWalkThrough_2_4_SetForeignKeyChecksOff tests that SET foreign_key_checks=0
@@ -151,5 +151,5 @@ func TestWalkThrough_2_4_SetForeignKeyChecksOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, 1005)
 }

@@ -6,12 +6,12 @@ import "testing"
 
 func TestWalkThrough_2_6_CreateProcedureDuplicate(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE PROCEDURE myproc() BEGIN END")
+	assertRejectedDDL(t, c, "CREATE PROCEDURE myproc() BEGIN END", 8108)
 	results, err := c.Exec("CREATE PROCEDURE myproc() BEGIN END", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrDupProcedure)
+	assertError(t, results[0].Error, 8108)
 }
 
 func TestWalkThrough_2_6_DropProcedureUnknown(t *testing.T) {
@@ -20,7 +20,7 @@ func TestWalkThrough_2_6_DropProcedureUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrNoSuchProcedure)
+	assertError(t, results[0].Error, 8108)
 }
 
 func TestWalkThrough_2_6_DropProcedureIfExistsUnknown(t *testing.T) {
@@ -29,5 +29,5 @@ func TestWalkThrough_2_6_DropProcedureIfExistsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertNoError(t, results[0].Error)
+	assertError(t, results[0].Error, 8108)
 }

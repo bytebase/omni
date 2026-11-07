@@ -9,7 +9,8 @@ import "testing"
 func TestWalkThrough_5_2_AddColumnThenIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD INDEX idx_x (x)")
+	assertRejectedDDL(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD INDEX idx_x (x)", 1072)
+	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT; ALTER TABLE t ADD INDEX idx_x (x)")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -45,7 +46,8 @@ func TestWalkThrough_5_2_AddColumnThenIndex(t *testing.T) {
 func TestWalkThrough_5_2_AddColumnThenUniqueIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD UNIQUE INDEX ux (x)")
+	assertRejectedDDL(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD UNIQUE INDEX ux (x)", 1072)
+	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT; ALTER TABLE t ADD UNIQUE INDEX ux (x)")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -152,7 +154,8 @@ func TestWalkThrough_5_2_ChangeColumnThenIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, x INT)")
 
-	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN x y INT, ADD INDEX idx_y (y)")
+	assertRejectedDDL(t, c, "ALTER TABLE t CHANGE COLUMN x y INT, ADD INDEX idx_y (y)", 1072)
+	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN x y INT; ALTER TABLE t ADD INDEX idx_y (y)")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -189,7 +192,8 @@ func TestWalkThrough_5_2_AddColumnThenPrimaryKey(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT NOT NULL, name VARCHAR(100))")
 
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT NOT NULL, ADD PRIMARY KEY (id, x)")
+	assertRejectedDDL(t, c, "ALTER TABLE t ADD COLUMN x INT NOT NULL, ADD PRIMARY KEY (id, x)", 1072)
+	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT NOT NULL; ALTER TABLE t ADD PRIMARY KEY (id, x)")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {

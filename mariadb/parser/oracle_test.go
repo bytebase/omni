@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/testcontainers/testcontainers-go"
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -25,7 +25,7 @@ var sharedMariaDB118 sharedEngine
 // each test the same empty schema a fresh container would.
 type sharedEngine struct {
 	once      sync.Once
-	container testcontainers.Container
+	container testcontainer.Container
 	db        *sql.DB
 	err       error
 }
@@ -33,7 +33,7 @@ type sharedEngine struct {
 // acquire returns the shared engine as a parserOracle, starting it on first
 // use via start. It fails the test in CI when the engine cannot start and
 // skips locally, so a laptop without Docker still runs the rest of the package.
-func (e *sharedEngine) acquire(t *testing.T, start func(ctx context.Context) (testcontainers.Container, *sql.DB, error)) *parserOracle {
+func (e *sharedEngine) acquire(t *testing.T, start func(ctx context.Context) (testcontainer.Container, *sql.DB, error)) *parserOracle {
 	t.Helper()
 	ctx := context.Background()
 	e.once.Do(func() {
@@ -64,7 +64,7 @@ func (e *sharedEngine) terminate() {
 		_ = e.db.Close()
 	}
 	if e.container != nil {
-		_ = testcontainers.TerminateContainer(e.container)
+		_ = testcontainer.TerminateContainer(e.container)
 	}
 }
 

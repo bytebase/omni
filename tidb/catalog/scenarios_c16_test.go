@@ -428,10 +428,7 @@ func TestScenario_C16(t *testing.T) {
 		for _, k := range cases {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
-			// Use explicit_defaults_for_timestamp so TIMESTAMP doesn't pick up promotion.
-			if _, err := mc.db.ExecContext(mc.ctx, `SET SESSION explicit_defaults_for_timestamp=1`); err != nil {
-				t.Errorf("oracle SET: %v", err)
-			}
+			assertReadonlyTimestampMode(t, mc, c)
 			ddl := `CREATE TABLE t (a ` + k.decl + ` NULL)`
 			runOnBoth(t, mc, c, ddl)
 
@@ -490,13 +487,13 @@ func TestScenario_C16(t *testing.T) {
 			}
 		}
 
-		// YEAR(4) normalized to YEAR in SHOW CREATE.
+		// TiDB retains YEAR(4) in both SHOW CREATE and COLUMN_TYPE.
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (y YEAR(4))`)
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
-		if !strings.Contains(show, "`y` year") || strings.Contains(show, "year(4)") {
-			t.Errorf("oracle SHOW CREATE: YEAR(4) not normalized: %s", show)
+		if !strings.Contains(show, "`y` year(4)") {
+			t.Errorf("native SHOW CREATE lost YEAR(4): %s", show)
 		}
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl != nil {
@@ -505,11 +502,12 @@ func TestScenario_C16(t *testing.T) {
 				if omniType == "" {
 					omniType = strings.ToLower(col.DataType)
 				}
-				if strings.Contains(omniType, "year(4)") || strings.Contains(omniType, "year(2)") {
-					t.Errorf("omni: KNOWN BUG — YEAR(4) not normalized: %q", omniType)
+				if omniType != "year(4)" {
+					t.Errorf("catalog YEAR(4) type: %q", omniType)
 				}
 			}
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------
@@ -527,20 +525,18 @@ func TestScenario_C16(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		// Default explicit_defaults_for_timestamp=ON on MySQL 8.0, so turn it
 		// off to trigger implicit promotion on the oracle side.
-		if _, err := mc.db.ExecContext(mc.ctx, `SET SESSION explicit_defaults_for_timestamp=0`); err != nil {
-			t.Errorf("oracle SET: %v", err)
-		}
+		assertReadonlyTimestampMode(t, mc, c)
 		runOnBoth(t, mc, c, `CREATE TABLE t (ts TIMESTAMP(3) NOT NULL)`)
 
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
 		if !strings.Contains(show, "timestamp(3)") {
 			t.Errorf("oracle SHOW CREATE: missing timestamp(3): %s", show)
 		}
-		if !strings.Contains(show, "default current_timestamp(3)") {
-			t.Errorf("oracle SHOW CREATE: missing DEFAULT CURRENT_TIMESTAMP(3): %s", show)
+		if strings.Contains(show, "default current_timestamp") {
+			t.Errorf("native timestamp acquired an implicit default: %s", show)
 		}
-		if !strings.Contains(show, "on update current_timestamp(3)") {
-			t.Errorf("oracle SHOW CREATE: missing ON UPDATE CURRENT_TIMESTAMP(3): %s", show)
+		if strings.Contains(show, "on update") {
+			t.Errorf("native timestamp acquired an implicit ON UPDATE: %s", show)
 		}
 
 		// omni side: check promotion produced matching fsp on DEFAULT and ON UPDATE.
@@ -554,20 +550,13 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("omni: column ts missing")
 			return
 		}
-		if col.Default == nil {
-			t.Errorf("omni: KNOWN GAP — expected DEFAULT CURRENT_TIMESTAMP(3) after first-col TIMESTAMP promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
-		} else {
-			lo := strings.ToLower(*col.Default)
-			if !strings.Contains(lo, "current_timestamp(3)") && !strings.Contains(lo, "now(3)") {
-				t.Errorf("omni: KNOWN BUG — DEFAULT = %q, expected CURRENT_TIMESTAMP(3), see mysql/catalog/scenarios_bug_queue/c16.md", *col.Default)
-			}
+		if col.Default != nil {
+			t.Errorf("catalog timestamp acquired an implicit default: %q", *col.Default)
 		}
-		if col.OnUpdate == "" {
-			t.Errorf("omni: KNOWN GAP — expected ON UPDATE CURRENT_TIMESTAMP(3) after promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
-		} else if !strings.Contains(strings.ToLower(col.OnUpdate), "current_timestamp(3)") &&
-			!strings.Contains(strings.ToLower(col.OnUpdate), "now(3)") {
-			t.Errorf("omni: KNOWN BUG — ON UPDATE = %q, expected CURRENT_TIMESTAMP(3)", col.OnUpdate)
+		if col.OnUpdate != "" {
+			t.Errorf("catalog timestamp acquired an implicit ON UPDATE: %q", col.OnUpdate)
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 }
 

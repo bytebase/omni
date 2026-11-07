@@ -87,8 +87,8 @@ func TestCreateTableBasic(t *testing.T) {
 	if age == nil {
 		t.Fatal("column age not found")
 	}
-	if age.ColumnType != "int unsigned" {
-		t.Errorf("expected column type 'int unsigned', got %q", age.ColumnType)
+	if age.ColumnType != "int(10) unsigned" {
+		t.Errorf("expected column type 'int(10) unsigned', got %q", age.ColumnType)
 	}
 	if age.Default == nil || *age.Default != "0" {
 		t.Errorf("expected default '0', got %v", age.Default)

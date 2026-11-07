@@ -28,6 +28,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 0 {
 		return nil
 	}
+	if err := validateTiDBAlterColumns(tbl, stmt.Commands); err != nil {
+		return err
+	}
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
 		return c.execAlterCmd(db, tbl, stmt.Commands[0])
@@ -207,12 +210,15 @@ func (c *Catalog) addSingleColumnIfNotExists(tbl *Table, colDef *nodes.ColumnDef
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	if err := validateTiDBColumn(colDef); err != nil {
+		return err
+	}
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
 
-	col, err := buildColumnFromDef(tbl, colDef)
+	col, err := c.buildColumnFromDef(tbl, colDef)
 	if err != nil {
 		return err
 	}
@@ -285,6 +291,20 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		// MySQL 8.0 returns error 1091 for DROP COLUMN on nonexistent column,
 		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
 		return errCantDropKey(cmd.Name)
+	}
+	if len(tbl.Columns) == 1 {
+		return &Error{Code: 1090, SQLState: "42000", Message: "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"}
+	}
+
+	for _, idx := range tbl.Indexes {
+		if len(idx.Columns) < 2 && !idx.Primary {
+			continue
+		}
+		for _, part := range idx.Columns {
+			if strings.EqualFold(part.Name, cmd.Name) {
+				return &Error{Code: 8200, SQLState: "HY000", Message: fmt.Sprintf("can't drop column %s with composite index covered or Primary Key covered now", cmd.Name)}
+			}
+		}
 	}
 
 	// Check if column is referenced by a generated column expression.
@@ -421,6 +441,9 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
+	if err := validateTiDBColumn(colDef); err != nil {
+		return err
+	}
 	oldKey := toLower(oldName)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
@@ -443,7 +466,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
-	col, err := buildColumnFromDef(tbl, colDef)
+	col, err := c.buildColumnFromDef(tbl, colDef)
 	if err != nil {
 		return err
 	}
@@ -474,6 +497,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	con := cmd.Constraint
 	if con == nil {
 		return nil
+	}
+	switch con.Type {
+	case nodes.ConstrUnique, nodes.ConstrIndex, nodes.ConstrFulltextIndex, nodes.ConstrSpatialIndex, nodes.ConstrVector:
+		if strings.EqualFold(con.Name, "PRIMARY") {
+			return errWrongNameForIndex(con.Name)
+		}
 	}
 
 	// IF NOT EXISTS covers an index the table already has: TiDB v8.5.5 raises
@@ -522,6 +551,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errPrimaryKeyInvisible()
 		}
 		pkIdx.addedByAlter = true
+		if err := c.prepareTiDBIndexExpressions(tbl, pkIdx); err != nil {
+			return err
+		}
 		// TiDB refuses an added CLUSTERED primary key outright (8200), before it
 		// would look at the partitioning.
 		if con.Clustered == nil || !*con.Clustered {
@@ -551,8 +583,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	case nodes.ConstrUnique:
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
+		if idxName == "" {
+			idxName = implicitTiDBIndexName(tbl, con)
 		} else if idxName != "" && indexNameExists(tbl, idxName) {
 			return errDupKeyName(idxName)
 		}
@@ -566,6 +598,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
+		if err := c.prepareTiDBIndexExpressions(tbl, uqIdx); err != nil {
+			return err
+		}
 		if err := validateNewUniqueKey(tbl, uqIdx); err != nil {
 			return err
 		}
@@ -611,12 +646,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if !hasIndexCoveringColumns(tbl, cols) && indexNameExists(tbl, conName) {
 			return errDupKeyName(conName)
 		}
-		// Validate FK before adding (unless foreign_key_checks=0).
+		// Validate before adding; disabled FK checks only permit a missing parent.
 		db := tbl.Database
-		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
-				return err
-			}
+		if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
+			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
@@ -633,6 +666,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
 		}
+		if err := validateTiDBCheck(tbl, conName, con.Expr, ""); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
@@ -643,8 +679,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	case nodes.ConstrIndex:
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
+		if idxName == "" {
+			idxName = implicitTiDBIndexName(tbl, con)
 		} else if idxName != "" && indexNameExists(tbl, idxName) {
 			return errDupKeyName(idxName)
 		}
@@ -657,6 +693,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(keyIdx, con.IndexOptions)
+		if err := c.prepareTiDBIndexExpressions(tbl, keyIdx); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -711,6 +750,14 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	name := cmd.Name
 	key := toLower(name)
 
+	if key == "primary" {
+		for _, idx := range tbl.Indexes {
+			if idx.Primary && primaryKeyClustered(tbl, idx) {
+				return &Error{Code: 8200, SQLState: "HY000", Message: "Unsupported drop primary key when the table is using clustered index"}
+			}
+		}
+	}
+
 	found := false
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
@@ -728,7 +775,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return &Error{Code: 1091, SQLState: "42000", Message: fmt.Sprintf("index %s doesn't exist", name)}
 	}
 
 	// Also remove any constraint that references this index.
@@ -746,6 +793,14 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	name := cmd.Name
 	key := toLower(name)
+
+	if key == "primary" {
+		for _, idx := range tbl.Indexes {
+			if idx.Primary && primaryKeyClustered(tbl, idx) {
+				return &Error{Code: 8200, SQLState: "HY000", Message: "Unsupported drop primary key when the table is using clustered index"}
+			}
+		}
+	}
 
 	found := false
 	isForeignKey := false
@@ -893,15 +948,23 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if err != nil {
 			return err
 		}
+		if !tiDBTableCharsetChangeAllowed(tbl.Charset, cs) {
+			return &Error{Code: 8200, SQLState: "HY000", Message: fmt.Sprintf("Unsupported modify charset from %s to %s", tbl.Charset, cs)}
+		}
 		tbl.Charset, tbl.Collation = cs, coll
 	case "collate", "default collate":
 		cs, coll, err := resolveCharsetCollation("", opt.Value)
 		if err != nil {
 			return err
 		}
+		if !tiDBTableCharsetChangeAllowed(tbl.Charset, cs) {
+			return &Error{Code: 8200, SQLState: "HY000", Message: fmt.Sprintf("Unsupported modify charset from %s to %s", tbl.Charset, cs)}
+		}
 		tbl.Charset, tbl.Collation = cs, coll
 	case "comment":
 		tbl.Comment = opt.Value
+	case "compression":
+		return &Error{Code: 8200, SQLState: "HY000", Message: "This type of ALTER TABLE is currently unsupported"}
 	case "auto_increment":
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 	case "row_format":
@@ -949,7 +1012,15 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		s := defaultToSQL(cmd.DefaultExpr)
+		typeName := &nodes.DataType{Name: col.DataType}
+		switch strings.ToLower(col.DataType) {
+		case "datetime", "timestamp", "time":
+			fmt.Sscanf(col.ColumnType, col.DataType+"(%d)", &typeName.Length)
+		}
+		if err := validateTiDBColumn(&nodes.ColumnDef{Name: col.Name, TypeName: typeName, DefaultValue: cmd.DefaultExpr}); err != nil {
+			return err
+		}
+		s := c.defaultToSQL(cmd.DefaultExpr)
 		probe := *col
 		probe.Default = &s
 		if err := checkLiteralDefaultAllowed(&probe); err != nil {
@@ -989,7 +1060,7 @@ func insertColumn(tbl *Table, col *Column, first bool, after string) error {
 	} else if after != "" {
 		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
-			return errNoSuchColumn(after, tbl.Name)
+			return errNoSuchColumn(after, "generated column function")
 		}
 		pos := afterIdx + 1
 		tbl.Columns = append(tbl.Columns, nil)
@@ -1012,7 +1083,12 @@ func rebuildColIndex(tbl *Table) {
 }
 
 // buildColumnFromDef builds a catalog Column from an AST ColumnDef.
-func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
+func (c *Catalog) buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
+	var err error
+	colDef, err = normalizeTiDBStringType(colDef, tbl.Charset, c.strictDDL)
+	if err != nil {
+		return nil, err
+	}
 	col := &Column{
 		Name:     colDef.Name,
 		Nullable: true,
@@ -1020,12 +1096,13 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 
 	// Type info.
 	if colDef.TypeName != nil {
-		col.DataType = toLower(colDef.TypeName.Name)
+		col.DataType = tiDBDataType(colDef.TypeName)
 		// MySQL 8.0 normalizes GEOMETRYCOLLECTION → geomcollection.
 		if col.DataType == "geometrycollection" {
 			col.DataType = "geomcollection"
 		}
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		col.Zerofill = colDef.TypeName.Zerofill && col.DataType != "year"
 		cs, coll, err := resolveCharsetCollation(colDef.TypeName.Charset, colDef.TypeName.Collate)
 		if err != nil {
 			return nil, err
@@ -1078,7 +1155,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		s := defaultToSQL(colDef.DefaultValue)
+		s := c.defaultToSQL(colDef.DefaultValue)
 		col.Default = &s
 	}
 	if colDef.OnUpdate != nil {
@@ -1100,7 +1177,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				s := defaultToSQL(cc.Expr)
+				s := c.defaultToSQL(cc.Expr)
 				col.Default = &s
 			}
 		case nodes.ColConstrAutoIncrement:

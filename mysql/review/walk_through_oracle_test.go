@@ -14,14 +14,14 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
+
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // walkBase is the shop database the curated cases start from: tables with
@@ -160,7 +160,7 @@ type walkDB struct {
 var walkServers = struct {
 	mu         sync.Mutex
 	dbs        map[walkServer]*walkDB
-	containers []testcontainers.Container
+	containers []testcontainer.Container
 }{dbs: make(map[walkServer]*walkDB)}
 
 // startWalkMySQL returns a server of the configuration, started once.
@@ -183,11 +183,12 @@ func startWalkMySQL(t *testing.T, s walkServer) *sql.DB {
 // openWalkMySQL starts a server of the configuration and connects to it.
 func openWalkMySQL(s walkServer) (*sql.DB, error) {
 	ctx := context.Background()
-	opts := []testcontainers.ContainerCustomizer{tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test")}
+	var args []string
 	if s.lctn != 0 {
-		opts = append(opts, testcontainers.WithCmdArgs("--lower-case-table-names="+strconv.Itoa(s.lctn)))
+		args = append(args, "--lower-case-table-names="+strconv.Itoa(s.lctn))
 	}
-	c, err := tcmysql.Run(ctx, s.image, opts...)
+
+	c, err := testcontainer.StartImage(ctx, s.image, "shop", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,17 +226,13 @@ func session(t testing.TB, db *sql.DB) *sql.Conn {
 }
 
 func TestWalkThroughAgainstMySQL(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0"})
+	runWalkCases(t, walkServer{image: testcontainer.Image})
 }
 
 // TestWalkThroughAgainstMySQLFolded runs the cases with lower_case_table_names=1,
 // where table and database names fold.
 func TestWalkThroughAgainstMySQLFolded(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0", lctn: 1})
-}
-
-func TestWalkThroughAgainstMySQL84(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.4"})
+	runWalkCases(t, walkServer{image: testcontainer.Image, lctn: 1})
 }
 
 func runWalkCases(t *testing.T, s walkServer) {
@@ -745,7 +742,7 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 // recall is logged. WALK_SWEEP_N sets the number of changes,
 // WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the MySQL image.
 func TestWalkThroughSweepMySQL(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261023, "mysql:8.0")
+	n, seed, image := walktest.SweepParams(t, 40, 20261023, testcontainer.Image)
 	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
 		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
 	})

@@ -345,19 +345,22 @@ func TestWalkThrough_3_5_AlterCheckEnforced(t *testing.T) {
 		t.Error("CHECK should be enforced by default")
 	}
 
-	// Set NOT ENFORCED.
-	wtExec(t, c, "ALTER TABLE t ALTER CHECK chk_age NOT ENFORCED")
+	// MariaDB rejects the MySQL enforcement toggle and preserves the check.
+	if _, err := c.Exec("ALTER TABLE t ALTER CHECK chk_age NOT ENFORCED", nil); err == nil {
+		t.Fatal("expected unsupported ALTER CHECK syntax")
+	}
 	tbl = c.GetDatabase("testdb").GetTable("t")
 	for _, con := range tbl.Constraints {
 		if con.Name == "chk_age" && con.Type == ConCheck {
-			if !con.NotEnforced {
-				t.Error("CHECK should be NOT ENFORCED after ALTER CHECK NOT ENFORCED")
+			if con.NotEnforced {
+				t.Error("rejected ALTER CHECK changed enforcement")
 			}
 		}
 	}
 
-	// Set ENFORCED.
-	wtExec(t, c, "ALTER TABLE t ALTER CHECK chk_age ENFORCED")
+	if _, err := c.Exec("ALTER TABLE t ALTER CHECK chk_age ENFORCED", nil); err == nil {
+		t.Fatal("expected unsupported ALTER CHECK syntax")
+	}
 	tbl = c.GetDatabase("testdb").GetTable("t")
 	for _, con := range tbl.Constraints {
 		if con.Name == "chk_age" && con.Type == ConCheck {

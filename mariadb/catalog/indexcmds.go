@@ -54,7 +54,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateKeyPartPrefixes(stmt.Columns, stmt.Spatial); err != nil {
 		return err
 	}
-	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial, stmt.Unique); err != nil {
 		return err
 	}
 
@@ -87,6 +87,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if err := c.validateFulltextParser(idx); err != nil {
+		return err
+	}
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
 		return err
 	}

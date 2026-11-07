@@ -456,7 +456,7 @@ func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 		},
 		{
 			"fk_auto_naming",
-			"CREATE TABLE t_parent11 (id INT NOT NULL, id2 INT NOT NULL, PRIMARY KEY (id), KEY (id2)) ENGINE=InnoDB",
+			"CREATE TABLE t_parent11 (id INT NOT NULL, id2 INT NOT NULL, PRIMARY KEY (id), UNIQUE KEY (id2)) ENGINE=InnoDB",
 			"CREATE TABLE t_fk11 (id INT, pid INT, pid2 INT, FOREIGN KEY (pid) REFERENCES t_parent11(id), FOREIGN KEY (pid2) REFERENCES t_parent11(id2))",
 			"t_fk11",
 			"DROP TABLE IF EXISTS t_fk11; DROP TABLE IF EXISTS t_parent11",
@@ -3670,7 +3670,7 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("1822_fk_missing_index_on_ref_table", func(t *testing.T) {
+	t.Run("6125_fk_missing_unique_key_on_ref_table", func(t *testing.T) {
 		// Create a parent table without a key on the referenced column,
 		// then try to create a child with FK referencing that column.
 		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
@@ -3684,12 +3684,13 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
 		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if ctrCode != 1822 {
-			t.Fatalf("container: expected error code 1822, got %d", ctrCode)
+		if ctrCode != 6125 {
+			t.Fatalf("container: expected error code 6125, got %d", ctrCode)
 		}
 
 		// Run on omni.
 		c := New()
+		c.SetVersion(MySQL84)
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		c.Exec("CREATE TABLE t_fk_parent_nokey (id INT, val INT)", nil)

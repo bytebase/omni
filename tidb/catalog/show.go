@@ -190,6 +190,9 @@ func stripOuterParens(s string) string {
 func showColumn(col *Column, tblCharset, tblCollate string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s %s", quoteIdent(col.Name), col.ColumnType)
+	if col.Zerofill {
+		b.WriteString(" zerofill")
+	}
 
 	// A column with a charset (a string type, which CHARACTER SET binary turns
 	// into a binary one except for ENUM and SET) names it when it differs from
@@ -528,6 +531,11 @@ func showTableOptions(tbl *Table, charset, collate string) string {
 		fmt.Fprintf(&b, " DEFAULT CHARSET=%s", charset)
 	} else {
 		fmt.Fprintf(&b, " DEFAULT CHARSET=%s COLLATE=%s", charset, collate)
+	}
+	// TiDB stores and prints COMPRESSION even though it ignores several
+	// other MySQL storage options. pkg/executor/show.go, v8.5.5.
+	if tbl.Compression != "" {
+		fmt.Fprintf(&b, " COMPRESSION='%s'", outputFormat(tbl.Compression))
 	}
 	if tbl.AutoIncrement > 1 {
 		for _, col := range tbl.Columns {

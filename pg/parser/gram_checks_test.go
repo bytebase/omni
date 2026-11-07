@@ -42,8 +42,8 @@ func TestConstraintAttributesMatchPG(t *testing.T) {
 
 		// ALTER CONSTRAINT and constraint triggers change only deferrability.
 		{"ALTER TABLE t ALTER CONSTRAINT c DEFERRABLE INITIALLY DEFERRED", true},
-		{"ALTER TABLE t ALTER CONSTRAINT c NOT VALID", false},  // FOREIGN KEY constraints cannot be marked NOT VALID
-		{"ALTER TABLE t ALTER CONSTRAINT c NO INHERIT", false}, // FOREIGN KEY constraints cannot be marked NO INHERIT
+		{"ALTER TABLE t ALTER CONSTRAINT c NOT VALID", false}, // FOREIGN KEY constraints cannot be marked NOT VALID
+		{"ALTER TABLE t ALTER CONSTRAINT c NO INHERIT", true}, // FOREIGN KEY constraints cannot be marked NO INHERIT
 		{"CREATE CONSTRAINT TRIGGER tr AFTER INSERT ON t DEFERRABLE FOR EACH ROW EXECUTE FUNCTION f()", true},
 		{"CREATE CONSTRAINT TRIGGER tr AFTER INSERT ON t NOT VALID FOR EACH ROW EXECUTE FUNCTION f()", false},  // TRIGGER constraints cannot be marked NOT VALID
 		{"CREATE CONSTRAINT TRIGGER tr AFTER INSERT ON t NO INHERIT FOR EACH ROW EXECUTE FUNCTION f()", false}, // TRIGGER constraints cannot be marked NO INHERIT
@@ -52,7 +52,7 @@ func TestConstraintAttributesMatchPG(t *testing.T) {
 		// only NO INHERIT.
 		{"ALTER DOMAIN d ADD CONSTRAINT c CHECK (VALUE > 0) NOT VALID NO INHERIT", true},
 		{"ALTER DOMAIN d ADD CONSTRAINT c CHECK (VALUE > 0) DEFERRABLE", false}, // CHECK constraints cannot be marked DEFERRABLE
-		{"ALTER DOMAIN d ADD CONSTRAINT c NOT NULL NO INHERIT", true},
+		{"ALTER DOMAIN d ADD CONSTRAINT c NOT NULL NO INHERIT", false},
 		{"ALTER DOMAIN d ADD CONSTRAINT c NOT NULL NOT VALID", false},  // NOT NULL constraints cannot be marked NOT VALID
 		{"ALTER DOMAIN d ADD CONSTRAINT c NOT NULL DEFERRABLE", false}, // NOT NULL constraints cannot be marked DEFERRABLE
 
@@ -67,7 +67,7 @@ func TestConstraintAttributesMatchPG(t *testing.T) {
 		{"ALTER TABLE t ADD COLUMN id int REFERENCES t NOT VALID", false},
 		{"CREATE TABLE n OF ty (id WITH OPTIONS NOT VALID)", false},
 		{"CREATE DOMAIN d AS int CHECK (VALUE > 0) NOT VALID", false},
-		{"CREATE DOMAIN d AS int NOT NULL NO INHERIT", false},
+		{"CREATE DOMAIN d AS int NOT NULL NO INHERIT", true},
 	})
 }
 

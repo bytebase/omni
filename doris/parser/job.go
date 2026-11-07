@@ -96,6 +96,8 @@ func (p *Parser) parseCreateJob(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
+// Doris 4.0 supportedDmlStatement includes MERGE and TRUNCATE.
+// https://github.com/apache/doris/blob/branch-4.0/fe/fe-core/src/main/antlr4/org/apache/doris/nereids/DorisParser.g4
 // parseJobDoBody parses the statement after a job's DO, which the grammar
 // limits to a DML statement:
 //
@@ -118,7 +120,7 @@ func (p *Parser) parseJobDoBody() (ast.Node, error) {
 	start := p.cur.Loc
 	switch p.cur.Kind {
 	case kwINSERT, kwUPDATE, kwDELETE, kwLOAD, kwEXPORT,
-		kwWITH, kwEXPLAIN, kwDESC, kwDESCRIBE, kwPLAN:
+		kwWITH, kwEXPLAIN, kwDESC, kwDESCRIBE, kwPLAN, kwMERGE, kwTRUNCATE:
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -145,12 +147,12 @@ func (p *Parser) parseJobDoBody() (ast.Node, error) {
 // grammar's supportedDmlStatement forms that this parser builds.
 func isJobDML(n ast.Node) bool {
 	switch n := n.(type) {
-	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.ExportStmt:
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.ExportStmt, *ast.MergeStmt, *ast.TruncateTableStmt:
 		return true
 	case *ast.ExplainStmt:
 		// explain? applies to INSERT, UPDATE and DELETE only.
 		switch n.Query.(type) {
-		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 			return true
 		}
 	}

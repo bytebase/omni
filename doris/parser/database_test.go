@@ -709,9 +709,8 @@ func TestPartitionWithoutValues(t *testing.T) {
 	}
 }
 
-// TestBrokerPropertyItems: a broker load's list takes a string on both sides
-// of each item, while EXPORT's takes the grammar's full item form; the engine
-// differs between the two (container-verified).
+// TestBrokerPropertyItems covers the full property item form accepted by
+// Doris 4.0 for both LOAD and EXPORT broker properties.
 func TestBrokerPropertyItems(t *testing.T) {
 	const load = `LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b (%s)`
 	const export = `EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b (%s)`
@@ -721,9 +720,9 @@ func TestBrokerPropertyItems(t *testing.T) {
 	}{
 		{`"username"="u"`, true, true},
 		{`'k'='v'`, true, true},
-		{`username="u"`, false, true},
-		{`"k"=1`, false, true},
-		{`"k"=v`, false, true},
+		{`username="u"`, true, true},
+		{`"k"=1`, true, true},
+		{`"k"=v`, true, true},
 		{`"k"=SELECT`, false, false},
 		{`"k" "v" SELECT DROP *`, false, false},
 	} {
@@ -736,27 +735,26 @@ func TestBrokerPropertyItems(t *testing.T) {
 	}
 }
 
-// TestRoutineLoadSourcePropertyItems: a routine load's data-source list takes
-// a string on both sides of each item. Its value used to be any single token,
-// so ("a" = ,) and ("a" = )) parsed.
+// TestRoutineLoadSourcePropertyItems retains malformed-value checks while
+// accepting the identifier and constant atoms supported by Doris 4.0.
 func TestRoutineLoadSourcePropertyItems(t *testing.T) {
 	const tmpl = `CREATE ROUTINE LOAD j ON t FROM KAFKA (%s)`
 	stmt := parseOne(t, fmt.Sprintf(tmpl, `"kafka_broker_list"="h:9092", 'kafka_topic'='tp'`)).(*ast.CreateRoutineLoadStmt)
 	if len(stmt.DataSourceProperties) != 2 || stmt.DataSourceProperties[1].Value != "tp" {
 		t.Errorf("DataSourceProperties = %+v", stmt.DataSourceProperties)
 	}
-	for _, item := range []string{
-		`"a" = ,`, `"a" = )`, `"a" = (`, `"a" =`,
-		`kafka_broker_list="h:9092"`, `comment="v"`, `"k"=1`, `"k"=1.5`, `"k"=tp`,
-		`"k"=NULL`, `"k"=true`, `"k"=SELECT`, `"k"=*`, "\"k\"=`v`",
+	for _, tc := range []struct {
+		item   string
+		accept bool
+	}{
+		{`"a" = ,`, false}, {`"a" = )`, false}, {`"a" = (`, false}, {`"a" =`, false}, {`"k"=SELECT`, false}, {`"k"=*`, false},
+		{`kafka_broker_list="h:9092"`, true}, {`comment="v"`, true}, {`"k"=1`, true}, {`"k"=1.5`, true}, {`"k"=tp`, true}, {`"k"=NULL`, true}, {`"k"=true`, true}, {"\"k\"=`v`", true},
 	} {
-		sql := fmt.Sprintf(tmpl, item)
-		if _, errs := parseForTest(sql); len(errs) == 0 {
-			t.Errorf("%q parsed; the engine rejects it", sql)
-		}
-		alter := fmt.Sprintf(`ALTER ROUTINE LOAD FOR j FROM KAFKA (%s)`, item)
-		if _, errs := parseForTest(alter); len(errs) == 0 {
-			t.Errorf("%q parsed; the engine rejects it", alter)
+		for _, prefix := range []string{"CREATE ROUTINE LOAD j ON t FROM KAFKA ", "ALTER ROUTINE LOAD FOR j FROM KAFKA "} {
+			sql := prefix + "(" + tc.item + ")"
+			if _, errs := parseForTest(sql); (len(errs) == 0) != tc.accept {
+				t.Errorf("%q: accept=%v, want %v: %v", sql, len(errs) == 0, tc.accept, errs)
+			}
 		}
 	}
 }

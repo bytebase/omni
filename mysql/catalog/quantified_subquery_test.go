@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
-	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"github.com/bytebase/omni/mysql/parser"
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // quantifiedSchema is the database every quantified-comparison test reads: qt
@@ -217,7 +218,7 @@ func quantifiedOracleQueries() []string {
 // MySQL 8.0 and requires the same answer: the same rows, or the same error.
 func TestQuantifiedComparisonMySQL(t *testing.T) {
 	ctx := context.Background()
-	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_quantified")
+	d, err := testcontainer.MySQL84.Database(ctx, "mysql_catalog_quantified")
 	if err != nil {
 		t.Fatal(err)
 	}

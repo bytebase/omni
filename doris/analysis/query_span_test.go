@@ -732,7 +732,7 @@ func TestGetQuerySpan_RepeatedClauseKeepsSubquery(t *testing.T) {
 	// table read inside the inner ORDER BY stays in AccessTables.
 	for _, sql := range []string{
 		"(SELECT 1 ORDER BY (SELECT x FROM secret) LIMIT 1) ORDER BY 2",
-		"SELECT 1 ORDER BY (SELECT x FROM secret) ORDER BY 2",
+		"(SELECT 1 ORDER BY (SELECT x FROM secret)) ORDER BY 2",
 	} {
 		span, err := GetQuerySpan(sql)
 		if err != nil {
@@ -781,7 +781,7 @@ func TestGetQuerySpan_ParenBoundsCTEScope(t *testing.T) {
 func TestGetQuerySpan_GroupedCTEBody(t *testing.T) {
 	// A CTE body that parses to a GroupedQuery (repeated clause groups) must
 	// still be walked: its table read stays in AccessTables.
-	span, err := GetQuerySpan("WITH c AS (SELECT 1 FROM secret ORDER BY 1 ORDER BY 2) SELECT * FROM c")
+	span, err := GetQuerySpan("WITH c AS ((SELECT 1 FROM secret ORDER BY 1) ORDER BY 2) SELECT * FROM c")
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}
@@ -794,7 +794,7 @@ func TestGetQuerySpan_GroupedCTEBody(t *testing.T) {
 func TestGetQuerySpan_GroupedSubqueryBody(t *testing.T) {
 	// A subquery body with repeated trailing clause groups is engine-valid
 	// and must analyze instead of erroring as a non-query.
-	span, err := GetQuerySpan("SELECT EXISTS (SELECT 1 FROM secret ORDER BY 1 ORDER BY 2)")
+	span, err := GetQuerySpan("SELECT EXISTS ((SELECT 1 FROM secret ORDER BY 1) ORDER BY 2)")
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}
@@ -805,12 +805,9 @@ func TestGetQuerySpan_GroupedSubqueryBody(t *testing.T) {
 }
 
 func TestGetQuerySpan_GroupedClausesOutsideCTEScope(t *testing.T) {
-	// Engine-verified: a repeated trailing clause group sits OUTSIDE the
-	// query's WITH scope — WITH zzg AS (SELECT 1) SELECT 1 LIMIT 1 ORDER BY
-	// (SELECT count(*) FROM zzg) fails with "Table [zzg] does not exist".
-	// The wrapper's subquery therefore reads a physical table c, and the
-	// span must keep reporting it.
-	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 LIMIT 1 ORDER BY (SELECT count(*) FROM c)")
+	// Parentheses bound the WITH scope. The outer ORDER BY subquery reads
+	// a physical table c, and the span must keep reporting it.
+	span, err := GetQuerySpan("(WITH c AS (SELECT * FROM secret) SELECT 1 LIMIT 1) ORDER BY (SELECT count(*) FROM c)")
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}

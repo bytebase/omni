@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/mariadb/parser"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 type routineValidationOracle struct {
@@ -23,15 +23,11 @@ func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
 
 	ctx := context.Background()
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	container, err := testcontainer.Start(ctx, "test")
 	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+		t.Fatalf("failed to start MariaDB container: %v", err)
 	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
+	t.Cleanup(func() { _ = testcontainer.TerminateContainer(container) })
 
 	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
 	if err != nil {

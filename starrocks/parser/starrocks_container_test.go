@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -11,8 +12,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/starrocks/internal/testcontainer"
 )
 
 // srContainer wraps a StarRocks allin1 container for parse-conformance testing.
@@ -26,12 +27,13 @@ type srContainer struct {
 }
 
 var (
+	srServer  testcontainer.Container
 	srOnce    sync.Once
 	srInst    *srContainer
 	srInitErr error
 )
 
-// startStarRocks starts (once) the StarRocks 3.4 container and returns a ready
+// startStarRocks starts (once) the pinned StarRocks container and returns a ready
 // srContainer. Fails the test when the container cannot start (mirrors
 // tidb/parser/tidb_container_test.go).
 func startStarRocks(t *testing.T) *srContainer {
@@ -39,36 +41,28 @@ func startStarRocks(t *testing.T) *srContainer {
 
 	srOnce.Do(func() {
 		ctx := context.Background()
-		req := testcontainers.ContainerRequest{
-			Image:         "starrocks/allin1-ubuntu:3.4.10",
-			ImagePlatform: "linux/amd64", // arm64 #65095 workaround
-			ExposedPorts:  []string{"9030/tcp"},
-			WaitingFor:    wait.ForListeningPort("9030/tcp").WithStartupTimeout(4 * time.Minute),
-		}
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := testcontainer.Start(ctx)
+		srServer = container
 		if err != nil {
 			srInitErr = fmt.Errorf("start StarRocks container: %w", err)
 			return
 		}
 		host, err := container.Host(ctx)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			srInitErr = err
 			return
 		}
 		port, err := container.MappedPort(ctx, "9030")
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			srInitErr = err
 			return
 		}
 		dsn := fmt.Sprintf("root@tcp(%s:%s)/?multiStatements=true&timeout=10s", host, port.Port())
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			srInitErr = err
 			return
 		}
@@ -89,7 +83,7 @@ func startStarRocks(t *testing.T) *srContainer {
 			}
 			if time.Now().After(deadline) {
 				_ = db.Close()
-				_ = testcontainers.TerminateContainer(container)
+				_ = testcontainer.TerminateContainer(container)
 				srInitErr = fmt.Errorf("readiness: SELECT 1 never succeeded")
 				return
 			}
@@ -100,14 +94,14 @@ func startStarRocks(t *testing.T) *srContainer {
 		// "No database selected" (which would obscure whether they parsed).
 		if _, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS srtest"); err != nil {
 			_ = db.Close()
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			srInitErr = fmt.Errorf("create srtest db: %w", err)
 			return
 		}
 		_ = db.Close()
 		db, err = sql.Open("mysql", fmt.Sprintf("root@tcp(%s:%s)/srtest?multiStatements=true&timeout=10s", host, port.Port()))
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			srInitErr = err
 			return
 		}
@@ -170,4 +164,15 @@ func TestStarRocksConnectivity(t *testing.T) {
 	if err := c.db.QueryRowContext(c.ctx, "SELECT 1").Scan(&one); err != nil || one != 1 {
 		t.Fatalf("SELECT 1 = %d, err=%v", one, err)
 	}
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if srInst != nil {
+		_ = srInst.db.Close()
+	}
+	if srServer != nil {
+		_ = testcontainer.TerminateContainer(srServer)
+	}
+	os.Exit(code)
 }

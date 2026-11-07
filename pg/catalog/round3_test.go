@@ -472,7 +472,7 @@ func TestConstraintConIsLocal(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "cfl")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -491,7 +491,13 @@ func TestConstraintQueryPgConstraintFields(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "qpc")
-	rows := c.QueryPgConstraint(rel.OID)
+	allRows := c.QueryPgConstraint(rel.OID)
+	var rows []PgConstraintRow
+	for _, row := range allRows {
+		if row.ConType != 'n' {
+			rows = append(rows, row)
+		}
+	}
 	if len(rows) != 1 {
 		t.Fatalf("expected 1 row, got %d", len(rows))
 	}
@@ -525,7 +531,7 @@ func TestFKOperatorArrays(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "fk_src")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	var fk *Constraint
 	for _, cc := range cons {
 		if cc.Type == ConstraintFK {
@@ -560,7 +566,13 @@ func TestFKOperatorArraysInQueryPgConstraint(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "fkq_src")
-	rows := c.QueryPgConstraint(rel.OID)
+	allRows := c.QueryPgConstraint(rel.OID)
+	var rows []PgConstraintRow
+	for _, row := range allRows {
+		if row.ConType != 'n' {
+			rows = append(rows, row)
+		}
+	}
 	var fkRow *PgConstraintRow
 	for i := range rows {
 		if rows[i].ConType == 'f' {

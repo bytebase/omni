@@ -10,12 +10,12 @@ import (
 	"testing"
 
 	_ "github.com/microsoft/go-mssqldb"
-	"github.com/testcontainers/testcontainers-go"
-	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review"
+
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from, in database shop.
@@ -33,7 +33,7 @@ var oracleBase = []string{
 
 var mssqlOracle struct {
 	once      sync.Once
-	container *tcmssql.MSSQLServerContainer
+	container *testcontainer.DatabaseContainer
 	db        *sql.DB
 	err       error
 }
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 		_ = mssqlOracle.db.Close()
 	}
 	if mssqlOracle.container != nil {
-		_ = testcontainers.TerminateContainer(mssqlOracle.container)
+		_ = testcontainer.TerminateContainer(mssqlOracle.container)
 	}
 	os.Exit(code)
 }
@@ -55,7 +55,7 @@ func startMSSQL(t *testing.T) *sql.DB {
 	t.Helper()
 	mssqlOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04", tcmssql.WithAcceptEULA(), tcmssql.WithPassword("Str0ngPa$$w0rd!"))
+		c, err := testcontainer.Start(ctx)
 		if err != nil {
 			mssqlOracle.err = err
 			return

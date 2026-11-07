@@ -833,6 +833,7 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		Walk(v, n.SamplePercentage)
 	case *TableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

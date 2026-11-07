@@ -13,9 +13,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // analyzeOracle is a PostgreSQL 18 server, the release pg_proc_generated.go
@@ -36,34 +33,9 @@ func startAnalyzeOracle(t *testing.T) *analyzeOracle {
 	t.Helper()
 	analyzeOracleOnce.Do(func() {
 		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:18-alpine",
-			tcpg.WithDatabase("omni_analyze"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		db, err := pg18Database(ctx, "omni_analyze")
 		if err != nil {
-			analyzeOracleErr = fmt.Errorf("container start: %w", err)
-			return
-		}
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("ping: %w", err)
+			analyzeOracleErr = fmt.Errorf("analyzer database: %w", err)
 			return
 		}
 		analyzeOracleInst = &analyzeOracle{db: db, ctx: ctx}

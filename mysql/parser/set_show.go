@@ -1126,34 +1126,6 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		stmt.Type = "PLUGINS"
 		p.advance()
 
-	case kwMASTER:
-		p.advance() // consume MASTER
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "MASTER STATUS"
-			p.advance()
-		} else if p.cur.Type == kwLOGS {
-			// SHOW MASTER LOGS (synonym for SHOW BINARY LOGS)
-			stmt.Type = "BINARY LOGS"
-			p.advance()
-		} else {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	case kwSLAVE:
-		p.advance() // consume SLAVE
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "SLAVE STATUS"
-			p.advance()
-			if err := p.parseShowChannel(stmt); err != nil {
-				return nil, err
-			}
-		} else if p.cur.Type == kwHOSTS {
-			stmt.Type = "REPLICAS"
-			p.advance()
-		} else {
-			return nil, p.syntaxErrorAtCur()
-		}
-
 	case kwREPLICA:
 		p.advance() // consume REPLICA
 		if _, err := p.expect(kwSTATUS); err != nil {
@@ -1165,11 +1137,18 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 
 	case kwBINARY:
-		p.advance() // consume BINARY
-		if _, err := p.expect(kwLOGS); err != nil {
-			return nil, err
+		p.advance()
+		if _, ok := p.match(kwLOG); ok {
+			if _, err := p.expect(kwSTATUS); err != nil {
+				return nil, err
+			}
+			stmt.Type = "BINARY LOG STATUS"
+		} else {
+			if _, err := p.expect(kwLOGS); err != nil {
+				return nil, err
+			}
+			stmt.Type = "BINARY LOGS"
 		}
-		stmt.Type = "BINARY LOGS"
 
 	case kwBINLOG:
 		p.advance() // consume BINLOG
@@ -1812,24 +1791,44 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		stmt.Format = name
 	}
 
-	// EXPLAIN [ANALYZE] [FORMAT = format] FOR CONNECTION connection_id.
-	// CONNECTION and the id are both required, and the id is an unsigned
-	// integer: FOR 1, FOR CONNECTION and FOR CONNECTION 'x' are each a 1064.
+	// MySQL 8.4 sql_yacc.yy: opt_explain_into precedes
+	// explainable_stmt, whose optional schema follows the options.
+	// https://github.com/mysql/mysql-server/blob/8.4/sql/sql_yacc.yy
+	if p.cur.Type == kwINTO {
+		if stmt.Analyze || !hasFormat || !strings.EqualFold(stmt.Format, "JSON") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != tokIDENT || !strings.HasPrefix(p.cur.Str, "@") || len(p.cur.Str) < 2 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Into = strings.TrimPrefix(p.cur.Str, "@")
+		p.advance()
+	}
 	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		if _, err := p.expect(kwCONNECTION); err != nil {
-			return nil, err
+		p.advance()
+		if p.cur.Type == kwDATABASE || p.cur.Type == kwSCHEMA {
+			p.advance()
+			name, _, err := p.parseIdentOrText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Schema = name
+		} else {
+			if _, err := p.expect(kwCONNECTION); err != nil {
+				return nil, err
+			}
+			tok, err := p.expect(tokICONST)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := strconv.ParseUint(tok.Str, 10, 64); err != nil {
+				return nil, p.syntaxErrorAtTok(tok)
+			}
+			stmt.ForConnection = tok.Ival
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
 		}
-		tok, err := p.expect(tokICONST)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := strconv.ParseUint(tok.Str, 10, 64); err != nil {
-			return nil, p.syntaxErrorAtTok(tok)
-		}
-		stmt.ForConnection = tok.Ival
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
 	}
 
 	// Completion: after EXPLAIN [options], offer explainable statement keywords.

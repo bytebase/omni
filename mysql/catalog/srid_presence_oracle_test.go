@@ -28,7 +28,7 @@ import (
 //     that, applied to a real from-state database, yields a to-equal table.
 //
 // The harness reuses connectOracle / showCreate / assertDiffEmptyAgainstReadback /
-// assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable / both() / only() from
+// assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable / oracleVersions() / only() from
 // the sibling oracle tests. It falls back to a shared testcontainer when the local
 // engine is unreachable (oracle_fallback_test.go).
 

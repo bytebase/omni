@@ -73,7 +73,7 @@ var separatorFormCases = []separatorFormCase{
 	// follows the first with no separator.
 	{"select 1 /*! select 2 */", false},
 	{"select 1 /*!80000 select 2 */", false},
-	{"select 1 /*!100000 select 2 */", false},
+	{"select 1 /*!100000 select 2 */", true},
 	// A statement after a stored program body, with no separator after its END.
 	{"create procedure p() begin select 1; end select 2", false},
 	{"create procedure p() select 1 select 2", false},

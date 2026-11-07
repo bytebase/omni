@@ -815,7 +815,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 			return nil, err
 		}
 		paren := &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}
-		if !validColumnDefault(paren) {
+		if !p.validColumnDefault(paren) {
 			return nil, &ParseError{Message: "Invalid default value", Position: start}
 		}
 		return paren, nil
@@ -827,7 +827,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if !validColumnDefault(expr) {
+	if !p.validColumnDefault(expr) {
 		return nil, &ParseError{Message: "Invalid default value", Position: start}
 	}
 	return expr, nil
@@ -839,11 +839,21 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 // function call wrapped in parentheses. A parenthesized literal, column or
 // arithmetic is not one: `DEFAULT (0)`, `(b)`, `(1+1)` and `DEFAULT 1+1` are
 // 1064s on v8.5.5, while `DEFAULT 0`, `-1`, `now()` and `(now())` parse.
-func validColumnDefault(expr nodes.ExprNode) bool {
+func (p *Parser) validColumnDefault(expr nodes.ExprNode) bool {
 	switch n := expr.(type) {
 	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.HexLit,
-		*nodes.BitLit, *nodes.NullLit, *nodes.BoolLit, *nodes.TemporalLit,
-		*nodes.FuncCallExpr:
+		*nodes.BitLit, *nodes.NullLit, *nodes.BoolLit, *nodes.TemporalLit:
+		return true
+	case *nodes.FuncCallExpr:
+		// BuiltinFunction uses the identifier-call grammar, not the special
+		// SUBSTRING/TRIM keyword productions. Quoting makes these identifiers.
+		// https://github.com/pingcap/tidb/blob/v8.5.5/pkg/parser/parser.y
+		if !p.backtickQuotedAt(n.Loc.Start) {
+			switch strings.ToLower(n.Name) {
+			case "substring", "substr", "trim":
+				return false
+			}
+		}
 		return true
 	case *nodes.UnaryExpr:
 		// SignedLiteral: a numeric literal with a leading + or -.
@@ -865,8 +875,8 @@ func validColumnDefault(expr nodes.ExprNode) bool {
 			}
 			inner = pe.Expr
 		}
-		_, ok := inner.(*nodes.FuncCallExpr)
-		return ok
+		fn, ok := inner.(*nodes.FuncCallExpr)
+		return ok && p.validColumnDefault(fn)
 	}
 	return false
 }

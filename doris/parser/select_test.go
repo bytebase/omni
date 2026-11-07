@@ -846,10 +846,9 @@ func TestQueryTailStatementLevel(t *testing.T) {
 		t.Fatalf("CTE query = %T, want *ast.SetOpStmt", sel.With.CTEs[0].Query)
 	}
 
-	// The engine is lenient about clause order and repetition
-	// (container-verified). A second group lands on a wrapper so the two
-	// stay ordered: LIMIT-first-then-ORDER is not ORDER-then-LIMIT.
-	file, errs = parseForTest("SELECT 1 LIMIT 5 ORDER BY 1")
+	// Parenthesized queries retain separate clause layers in Doris 4.0.
+	// The outer ORDER BY applies after the inner LIMIT.
+	file, errs = parseForTest("(SELECT 1 LIMIT 5) ORDER BY 1")
 	if len(errs) != 0 {
 		t.Fatalf("LIMIT-then-ORDER errors: %v", errs)
 	}
@@ -860,8 +859,8 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	if len(g.OrderBy) != 1 || g.Query.(*ast.SelectStmt).Limit == nil {
 		t.Fatalf("clause layers wrong: outer OrderBy=%d inner Limit=%v", len(g.OrderBy), g.Query.(*ast.SelectStmt).Limit)
 	}
-	if _, errs := parseForTest("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) != 0 {
-		t.Fatalf("repeated ORDER BY errors: %v", errs)
+	if _, errs := parseForTest("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) == 0 {
+		t.Fatal("ungrouped repeated ORDER BY must fail")
 	}
 
 	// Junk after the clauses still errors.
@@ -892,7 +891,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 		t.Fatal("inner ORDER BY overwritten by the outer group")
 	}
 
-	file, errs = parseForTest("SELECT 1 LIMIT 1 LIMIT 2")
+	file, errs = parseForTest("(SELECT 1 LIMIT 1) LIMIT 2")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -929,7 +928,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 	}
 
 	// Both clause layers are reachable from Walk.
-	file, errs = parseForTest("SELECT 1 ORDER BY a ORDER BY b")
+	file, errs = parseForTest("(SELECT 1 ORDER BY a) ORDER BY b")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}

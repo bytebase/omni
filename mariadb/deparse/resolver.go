@@ -108,7 +108,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		return
 	}
 	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
-	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
+	// MariaDB preserves positional ORDER BY expressions.
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
@@ -150,7 +150,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
 		if len(stmt.OrderBy) > 0 {
-			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
+			// MariaDB preserves positional ORDER BY expressions.
 		}
 		return stmt
 	}
@@ -256,7 +256,19 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Resolve ORDER BY
 	for _, item := range stmt.OrderBy {
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		resolvedAlias := false
+		if col, ok := item.Expr.(*ast.ColumnRef); ok && col.Table == "" && col.Schema == "" {
+			for _, target := range stmt.TargetList {
+				if rt, ok := target.(*ast.ResTarget); ok && strings.EqualFold(rt.Name, col.Column) {
+					item.Expr = rt.Val
+					resolvedAlias = true
+					break
+				}
+			}
+		}
+		if !resolvedAlias {
+			item.Expr = r.resolveExpr(item.Expr, sc)
+		}
 	}
 
 	return stmt

@@ -8,7 +8,8 @@ func TestWalkThrough_5_1_AddAfterJustAdded(t *testing.T) {
 	// ADD COLUMN x AFTER a, ADD COLUMN y AFTER x — second command references column added by first
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT)")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x")
+	assertRejectedDDL(t, c, "ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x", 1054)
+	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT AFTER a; ALTER TABLE t ADD COLUMN y INT AFTER x")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -164,7 +165,8 @@ func TestWalkThrough_5_1_ChangeThenAddAfterNewName(t *testing.T) {
 	// Note: using b_new instead of b to avoid conflict with existing column b
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT)")
-	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN a a_new INT, ADD COLUMN d INT AFTER a_new")
+	assertRejectedDDL(t, c, "ALTER TABLE t CHANGE COLUMN a a_new INT, ADD COLUMN d INT AFTER a_new", 1054)
+	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN a a_new INT; ALTER TABLE t ADD COLUMN d INT AFTER a_new")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {

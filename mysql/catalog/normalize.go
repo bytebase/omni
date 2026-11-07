@@ -45,6 +45,8 @@ const (
 	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
 	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
 	MySQL80
+	// MySQL84 retains the 8.0 stored form and restricts foreign keys to unique keys.
+	MySQL84
 )
 
 // Normalizer carries the engine version plus the session/server variables that the
@@ -69,12 +71,12 @@ type Normalizer struct {
 func NormalizerFor(v Version) *Normalizer {
 	return &Normalizer{
 		Version:                      v,
-		ExplicitDefaultsForTimestamp: v == MySQL80,
+		ExplicitDefaultsForTimestamp: v >= MySQL80,
 	}
 }
 
 // is80 reports whether the target reproduces 8.0 stored form.
-func (n *Normalizer) is80() bool { return n.Version == MySQL80 }
+func (n *Normalizer) is80() bool { return n.Version >= MySQL80 }
 
 // ---------------------------------------------------------------------------
 // Charset / collation — the dominant phantom-diff surface (HIGHEST RISK).

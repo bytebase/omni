@@ -23,16 +23,16 @@ func TestScenario_C14(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CHECK (a > 0));`)
 
-		// Oracle: information_schema.TABLE_CONSTRAINTS.ENFORCED should be YES.
-		// Note: information_schema.CHECK_CONSTRAINTS in MySQL 8.0 does NOT
-		// expose an ENFORCED column — it only has (CONSTRAINT_CATALOG,
-		// CONSTRAINT_SCHEMA, CONSTRAINT_NAME, CHECK_CLAUSE). The ENFORCED
-		// metadata lives in TABLE_CONSTRAINTS instead.
-		var tcEnforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_TYPE='CHECK'`,
-			&tcEnforced)
-		assertStringEq(t, "oracle TABLE_CONSTRAINTS.ENFORCED", tcEnforced, "YES")
+		// TiDB has no TABLE_CONSTRAINTS.ENFORCED column. Check presence,
+		// stored DDL, and actual row enforcement independently.
+		var checkCount int
+		oracleScan(t, mc, `SELECT COUNT(*) FROM information_schema.TIDB_CHECK_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t'`,
+			&checkCount)
+		assertIntEq(t, "oracle CHECK count", checkCount, 1)
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mysqlErrorCode(err) != 3819 {
+			t.Errorf("native default CHECK enforcement: %v", err)
+		}
 
 		// SHOW CREATE TABLE must not contain NOT ENFORCED.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
@@ -62,12 +62,13 @@ func TestScenario_C14(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CONSTRAINT c_pos CHECK (a > 0));
 ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
 
-		// Oracle: after NOT ENFORCED, TABLE_CONSTRAINTS.ENFORCED should be NO.
-		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='c_pos'`,
-			&enforced)
-		assertStringEq(t, "oracle after NOT ENFORCED", enforced, "NO")
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); err != nil {
+			t.Errorf("native NOT ENFORCED rejected a row: %v", err)
+		}
+		if _, err := mc.db.ExecContext(mc.ctx, "DELETE FROM t"); err != nil {
+			t.Fatal(err)
+		}
+		assertScenarioReadback(t, mc, c, "t")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -84,10 +85,10 @@ ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
 		// Toggle back to ENFORCED and re-check both sides.
 		runOnBoth(t, mc, c, `ALTER TABLE t ALTER CHECK c_pos ENFORCED;`)
 
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='c_pos'`,
-			&enforced)
-		assertStringEq(t, "oracle after re-ENFORCED", enforced, "YES")
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mysqlErrorCode(err) != 3819 {
+			t.Errorf("native re-enabled CHECK enforcement: %v", err)
+		}
+		assertScenarioReadback(t, mc, c, "t")
 
 		tbl2 := c.GetDatabase("testdb").GetTable("t")
 		chk2 := c14FindCheck(tbl2, "c_pos")

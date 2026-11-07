@@ -35,40 +35,40 @@ func partitionDiffProbes() []diffProbe {
 	return []diffProbe{
 		// RANGE over an expression — the headline expr-canonicalization case (8.0 backtick-quotes
 		// + lower-cases `year(`dt`)`, 5.7 keeps `YEAR(dt)`, user wrote `YEAR(dt)`).
-		{"range-expr", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-expr", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// RANGE COLUMNS (single + multi) — /*!50500*/ comment, double-space `RANGE  COLUMNS`.
-		{"range-columns", "CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, PRIMARY KEY (id,a)) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (MAXVALUE))", "t", both()},
-		{"range-columns-multi", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) PARTITION BY RANGE COLUMNS(a,b) (PARTITION p0 VALUES LESS THAN (10,10), PARTITION p1 VALUES LESS THAN (MAXVALUE,MAXVALUE))", "t", both()},
+		{"range-columns", "CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, PRIMARY KEY (id,a)) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (MAXVALUE))", "t", oracleVersions()},
+		{"range-columns-multi", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) PARTITION BY RANGE COLUMNS(a,b) (PARTITION p0 VALUES LESS THAN (10,10), PARTITION p1 VALUES LESS THAN (MAXVALUE,MAXVALUE))", "t", oracleVersions()},
 		// LIST over an expression.
-		{"list-expr", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", "t", both()},
+		{"list-expr", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", "t", oracleVersions()},
 		// LIST COLUMNS with multi-column tuple values IN ((1,1),(2,2)).
-		{"list-columns-multi", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) PARTITION BY LIST COLUMNS(a,b) (PARTITION p0 VALUES IN ((1,1),(2,2)), PARTITION p1 VALUES IN ((3,3),(4,4)))", "t", both()},
+		{"list-columns-multi", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) PARTITION BY LIST COLUMNS(a,b) (PARTITION p0 VALUES IN ((1,1),(2,2)), PARTITION p1 VALUES IN ((3,3),(4,4)))", "t", oracleVersions()},
 		// HASH with PARTITIONS N (auto-gen defs → `PARTITIONS 4`, no per-partition engine echo).
-		{"hash-n", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", "t", both()},
+		{"hash-n", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", "t", oracleVersions()},
 		// HASH with explicit named partitions (each echoed with ENGINE = InnoDB).
-		{"hash-explicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) (PARTITION pa, PARTITION pb, PARTITION pc)", "t", both()},
+		{"hash-explicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) (PARTITION pa, PARTITION pb, PARTITION pc)", "t", oracleVersions()},
 		// LINEAR HASH.
-		{"linear-hash", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR HASH (id) PARTITIONS 4", "t", both()},
+		{"linear-hash", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR HASH (id) PARTITIONS 4", "t", oracleVersions()},
 		// KEY over the PK (no explicit column list → loader fills from PK).
-		{"key-implicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY () PARTITIONS 3", "t", both()},
+		{"key-implicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY () PARTITIONS 3", "t", oracleVersions()},
 		// KEY over an explicit column.
-		{"key-explicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY (id) PARTITIONS 3", "t", both()},
+		{"key-explicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY (id) PARTITIONS 3", "t", oracleVersions()},
 		// KEY ALGORITHM=2 — the DEFAULT algorithm, STRIPPED from SHOW CREATE (`KEY (id)`), so the
 		// explicit user form must fold to the stripped stored form (keyAlgorithmDefault fold).
-		{"key-algorithm-2", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", "t", both()},
+		{"key-algorithm-2", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", "t", oracleVersions()},
 		// KEY ALGORITHM=1 — the LEGACY algorithm, ECHOED by SHOW CREATE via a /*!50611 ALGORITHM = 1
 		// */ split comment, so it must round-trip WITHOUT being folded.
-		{"key-algorithm-1", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=1 (id) PARTITIONS 3", "t", both()},
+		{"key-algorithm-1", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=1 (id) PARTITIONS 3", "t", oracleVersions()},
 		// LINEAR KEY.
-		{"linear-key", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", "t", both()},
+		{"linear-key", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", "t", oracleVersions()},
 		// Per-partition COMMENT (echoed as `COMMENT = '...' ENGINE = ...`).
-		{"part-comment", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", "t", both()},
+		{"part-comment", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", "t", oracleVersions()},
 		// Subpartitions via SUBPARTITIONS N (default subpartition names psp).
-		{"subpart-n", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"subpart-n", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// Subpartitions with explicit subpartition definitions (named, parenthesized per partition).
-		{"subpart-explicit", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (2010) (SUBPARTITION s0a, SUBPARTITION s0b), PARTITION p1 VALUES LESS THAN MAXVALUE (SUBPARTITION s1a, SUBPARTITION s1b))", "t", both()},
+		{"subpart-explicit", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (2010) (SUBPARTITION s0a, SUBPARTITION s0b), PARTITION p1 VALUES LESS THAN MAXVALUE (SUBPARTITION s1a, SUBPARTITION s1b))", "t", oracleVersions()},
 		// Subpartition BY KEY.
-		{"subpart-key", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY KEY (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"subpart-key", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY KEY (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// MyISAM-partitioned table (5.7 only — 8.0 rejects native MyISAM partitioning): the
 		// per-partition engine echo is ENGINE = MyISAM, so the empty→table-engine fold must use
 		// the table's engine, not a hardcoded InnoDB.
@@ -78,21 +78,21 @@ func partitionDiffProbes() []diffProbe {
 		//     a non-literal RANGE/LIST bound to an integer literal at storage time (verified on both
 		//     5.7 and 8.0); the loader must fold the user form identically or it phantom-diffs. ---
 		// Integer arithmetic in RANGE bounds: 5+5→10, 10*2→20.
-		{"range-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// DIV / parenthesized arithmetic (folded values must stay strictly increasing): 100 DIV 3 →
 		// 33, (20+5)*4 → 100.
-		{"range-bound-divmod", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100 DIV 3), PARTITION p1 VALUES LESS THAN ((20+5)*4), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-bound-divmod", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100 DIV 3), PARTITION p1 VALUES LESS THAN ((20+5)*4), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// TO_DAYS on a literal date in a RANGE bound: TO_DAYS('2020-01-01') → 737790.
-		{"range-bound-todays", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION p1 VALUES LESS THAN (TO_DAYS('2021-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-bound-todays", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION p1 VALUES LESS THAN (TO_DAYS('2021-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// YEAR on a literal date in a RANGE bound: YEAR('2020-06-15') → 2020.
-		{"range-bound-year-fn", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-bound-year-fn", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 		// Arithmetic in LIST bounds: 1+1,2+2 → 2,4.
-		{"list-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2), PARTITION p1 VALUES IN (10, 20))", "t", both()},
+		{"list-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2), PARTITION p1 VALUES IN (10, 20))", "t", oracleVersions()},
 		// RANGE COLUMNS tuple: the integer position folds (5+5→10), the string position stays quoted.
-		{"range-columns-bound-arith", "CREATE TABLE t (a INT NOT NULL, b VARCHAR(10) NOT NULL, PRIMARY KEY (a,b)) PARTITION BY RANGE COLUMNS(a,b) (PARTITION p0 VALUES LESS THAN (5+5, 'm'), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE))", "t", both()},
+		{"range-columns-bound-arith", "CREATE TABLE t (a INT NOT NULL, b VARCHAR(10) NOT NULL, PRIMARY KEY (a,b)) PARTITION BY RANGE COLUMNS(a,b) (PARTITION p0 VALUES LESS THAN (5+5, 'm'), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE))", "t", oracleVersions()},
 		// REGRESSION GUARD: already-literal bounds (the common case) must stay idempotent — folding
 		// must be a no-op on a plain integer literal and on a negative literal.
-		{"range-bound-literal-guard", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (-10), PARTITION p1 VALUES LESS THAN (0), PARTITION p2 VALUES LESS THAN (100), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		{"range-bound-literal-guard", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (-10), PARTITION p1 VALUES LESS THAN (0), PARTITION p2 VALUES LESS THAN (100), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", oracleVersions()},
 	}
 }
 
@@ -100,7 +100,7 @@ func partitionDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY (PartitionChanged=false), and the stored form self-diffs
 // empty, on every supported version.
 func TestOracle_PartitionDiffIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		for _, probe := range partitionDiffProbes() {
 			if !containsVersion(probe.versions, version) {
@@ -131,37 +131,37 @@ func partitionChangeCases() []partitionChangeCase {
 		{"add-partitioning",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4",
-			"t", both()},
+			"t", oracleVersions()},
 		// Remove partitioning.
 		{"remove-partitioning",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
-			"t", both()},
+			"t", oracleVersions()},
 		// Change the partition count.
 		{"change-count",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 8",
-			"t", both()},
+			"t", oracleVersions()},
 		// Change the partition TYPE (HASH → KEY).
 		{"change-type",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 4",
-			"t", both()},
+			"t", oracleVersions()},
 		// Change a RANGE boundary.
 		{"change-range-bound",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2015), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"t", both()},
+			"t", oracleVersions()},
 		// Add a partition (RANGE).
 		{"add-range-partition",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN (2020), PARTITION pmax VALUES LESS THAN MAXVALUE)",
-			"t", both()},
+			"t", oracleVersions()},
 		// LINEAR flag flip.
 		{"toggle-linear",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY (id) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 4",
-			"t", both()},
+			"t", oracleVersions()},
 	}
 }
 
@@ -170,7 +170,7 @@ func partitionChangeCases() []partitionChangeCase {
 // marked DiffModify. Run from real readbacks so it exercises the same canonical path as the
 // idempotence proof.
 func TestOracle_PartitionChangeDetected(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, tc := range partitionChangeCases() {

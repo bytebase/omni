@@ -1601,7 +1601,32 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
 	// that starts with the referenced columns in order.
-	if !hasIndexOnColumns(refTbl, con.RefColumns) {
+	// MySQL 8.4 defaults restrict_fk_on_non_standard_key to ON. A
+	// unique key must match the complete referenced column list; a unique
+	// prefix of a larger key does not establish uniqueness.
+	// https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_restrict_fk_on_non_standard_key
+	if c.session.RestrictFKOnNonStandardKey {
+		unique := false
+		for _, idx := range refTbl.Indexes {
+			if !idx.Unique || len(idx.Columns) != len(con.RefColumns) {
+				continue
+			}
+			matches := true
+			for i, col := range con.RefColumns {
+				if !strings.EqualFold(idx.Columns[i].Name, col) || idx.Columns[i].Length != 0 {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				unique = true
+				break
+			}
+		}
+		if !unique {
+			return &Error{Code: 6125, SQLState: "HY000", Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing unique key for constraint '%s' in the referenced table '%s'", con.Name, con.RefTable)}
+		}
+	} else if !hasIndexOnColumns(refTbl, con.RefColumns) {
 		return errFKMissingIndex(con.Name, con.RefTable)
 	}
 

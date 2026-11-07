@@ -19,6 +19,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if eqFoldStr(stmt.IndexName, "PRIMARY") {
+		return errWrongNameForIndex(stmt.IndexName)
+	}
 
 	// CREATE FULLTEXT INDEX and CREATE SPATIAL INDEX parse, and v8.5.5 refuses
 	// both once the table is found: 8200 "FULLTEXT and SPATIAL index is not
@@ -48,6 +51,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			col.Name = cr.Column
 		} else {
 			col.Expr = nodeToSQL(ic.Expr)
+			col.ExprNode = ic.Expr
 		}
 		idxCols = append(idxCols, col)
 	}
@@ -78,6 +82,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if err := validateTiDBIndexColumns(tbl, idx.Columns); err != nil {
+		return err
+	}
+	if err := c.prepareTiDBIndexExpressions(tbl, idx); err != nil {
+		return err
+	}
 	if idx.Unique {
 		if err := validateNewUniqueKey(tbl, idx); err != nil {
 			return err

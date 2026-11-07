@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -12,8 +13,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/doris/internal/testcontainer"
 )
 
 // dorisContainer wraps an Apache Doris standalone container used as a parse
@@ -29,6 +30,7 @@ type dorisContainer struct {
 }
 
 var (
+	dorisServer  testcontainer.Container
 	dorisOnce    sync.Once
 	dorisInst    *dorisContainer
 	dorisInitErr error
@@ -42,36 +44,21 @@ func startDoris(t *testing.T) *dorisContainer {
 
 	dorisOnce.Do(func() {
 		ctx := context.Background()
-		req := testcontainers.ContainerRequest{
-			Image:        "dyrnq/doris:3.1.4",
-			ExposedPorts: []string{"9030/tcp"},
-			Env: map[string]string{
-				"RUN_MODE": "STANDALONE",
-				// bin/start_be.sh refuses to boot unless vm.max_map_count >=
-				// 2000000 and swap is off. Neither is settable from inside a
-				// container (vm.max_map_count is not namespaced), so use the
-				// script's own escape hatch rather than patching it.
-				"SKIP_CHECK_ULIMIT": "true",
-			},
-			WaitingFor: wait.ForListeningPort("9030/tcp").WithStartupTimeout(5 * time.Minute),
-		}
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := testcontainer.Start(ctx)
+		dorisServer = container
 		if err != nil {
 			dorisInitErr = fmt.Errorf("start Doris container: %w", err)
 			return
 		}
 		host, err := container.Host(ctx)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			dorisInitErr = err
 			return
 		}
 		port, err := container.MappedPort(ctx, "9030")
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			dorisInitErr = err
 			return
 		}
@@ -80,7 +67,7 @@ func startDoris(t *testing.T) *dorisContainer {
 		}
 		db, err := sql.Open("mysql", dsn(""))
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			dorisInitErr = err
 			return
 		}
@@ -100,7 +87,7 @@ func startDoris(t *testing.T) *dorisContainer {
 			}
 			if time.Now().After(deadline) {
 				_ = db.Close()
-				_ = testcontainers.TerminateContainer(container)
+				_ = testcontainer.TerminateContainer(container)
 				dorisInitErr = fmt.Errorf("readiness: SELECT 1 never succeeded")
 				return
 			}
@@ -111,14 +98,14 @@ func startDoris(t *testing.T) *dorisContainer {
 		// analysis, which would mask whether a probe parsed. Select a database.
 		if _, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS doristest"); err != nil {
 			_ = db.Close()
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			dorisInitErr = fmt.Errorf("create doristest db: %w", err)
 			return
 		}
 		_ = db.Close()
 		db, err = sql.Open("mysql", dsn("doristest"))
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			dorisInitErr = err
 			return
 		}
@@ -370,18 +357,18 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"cte_body_union", "WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c", true},
 		{"paren_inner_trailing_limit", "(SELECT 1 UNION (SELECT 2) LIMIT 5)", true},
 		// Unlike StarRocks, clause order and repetition are lenient here.
-		{"select_limit_then_order", "SELECT 1 LIMIT 5 ORDER BY 1", true},
-		{"union_limit_then_order", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", true},
-		{"select_double_order_by", "SELECT 1 ORDER BY 1 ORDER BY 2", true},
+		{"select_limit_then_order", "SELECT 1 LIMIT 5 ORDER BY 1", false},
+		{"union_limit_then_order", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", false},
+		{"select_double_order_by", "SELECT 1 ORDER BY 1 ORDER BY 2", false},
 		{"paren_nested_double_order", "((SELECT 1 ORDER BY 1) ORDER BY 1)", true},
 		{"order_by_subquery", "SELECT 1 ORDER BY (SELECT 1)", true},
 		{"setop_order_by_subquery", "(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT 1)", true},
 		{"insert_union_paren_limit", "INSERT INTO t SELECT 1 UNION (SELECT 2) LIMIT 5", true},
 		{"cte_body_paren", "WITH c AS ((SELECT 1)) SELECT * FROM c", true},
-		{"cte_body_double_order", "WITH c AS (SELECT 1 ORDER BY 1 ORDER BY 2) SELECT * FROM c", true},
+		{"cte_body_double_order", "WITH c AS (SELECT 1 ORDER BY 1 ORDER BY 2) SELECT * FROM c", false},
 		{"paren_limit_then_outer_order", "(SELECT 1 LIMIT 1) ORDER BY 1", true},
 		{"paren_scoped_cte_union", "(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c", true},
-		{"exists_grouped_subquery", "SELECT EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2)", true},
+		{"exists_grouped_subquery", "SELECT EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2)", false},
 
 		// LATERAL VIEW — previously hidden by the trailing-token swallow.
 		{"lateral_view", "SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age", true},
@@ -441,12 +428,16 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 
 		// --- Negative arm: the grammar file allows these, the engine does not.
-		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", false},
-		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},
-		{"trim_both_from", "SELECT TRIM(BOTH 'x' FROM 'xax')", false},
-		{"trim_leading_from", "SELECT TRIM(LEADING 'x' FROM 'xax')", false},
-		{"trim_expr_from", "SELECT TRIM(' ' FROM ' a ')", false},
-		{"position_in", "SELECT POSITION('b' IN 'abc')", false},
+		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", true},
+		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", true},
+		{"trim_both_from", "SELECT TRIM(BOTH 'x' FROM 'xax')", true},
+		{"trim_leading_from", "SELECT TRIM(LEADING 'x' FROM 'xax')", true},
+		{"trim_expr_from", "SELECT TRIM(' ' FROM ' a ')", true},
+		{"position_in", "SELECT POSITION('b' IN 'abc')", true},
+		{"position_comma_predicate", "SELECT POSITION('a' IN ('a'), 'b')", true},
+		{"position_nested_predicate", "SELECT POSITION(('a' IN ('a')) IN 'abc')", true},
+		{"trim_trailing_from", "SELECT TRIM(TRAILING 'x' FROM 'xaxx')", true},
+		{"trim_implicit_space", "SELECT TRIM(BOTH FROM ' a ')", true},
 		{"values_func", "SELECT VALUES(a) FROM t", false},
 		{"quantified_any", "SELECT * FROM t WHERE a = ANY (SELECT b FROM t)", false},
 		{"quantified_all", "SELECT * FROM t WHERE a > ALL (SELECT b FROM t)", false},
@@ -510,8 +501,8 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"job_do_create_table_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE TABLE zzx (a INT)", false},
 		{"job_do_show_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SHOW TABLES", false},
 		{"job_do_set_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SET x = 1", false},
-		{"job_do_truncate_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO TRUNCATE TABLE zz_nope", false},
-		{"job_do_merge_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO MERGE INTO zz_nope USING zz_nope2 ON zz_nope.a = zz_nope2.a WHEN MATCHED THEN DELETE", false},
+		{"job_do_truncate", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO TRUNCATE TABLE zz_nope", true},
+		{"job_do_merge", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO MERGE INTO zz_nope USING zz_nope2 ON zz_nope.a = zz_nope2.a WHEN MATCHED THEN DELETE", true},
 		{"job_do_create_job_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE JOB zzjob2 ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope SELECT 1", false},
 		// ALTER JOB gets no rows: the engine has no ALTER JOB statement, so a
 		// row would pin the form, not its body. Its DO body is held to the
@@ -677,9 +668,9 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"props_load_broker_missing_comma_rejected", `LOAD LABEL zzl05 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u" "password"="p")`, false},
 		{"props_load_broker_junk_rejected", `LOAD LABEL zzl06 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k" "v" SELECT DROP *)`, false},
 		{"props_load_broker_unclosed_rejected", `LOAD LABEL zzl07 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (`, false},
-		{"props_load_broker_bare_key_rejected", `LOAD LABEL zzl08 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (username="u")`, false},
-		{"props_load_broker_number_value_rejected", `LOAD LABEL zzl09 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=1)`, false},
-		{"props_load_broker_identifier_value_rejected", `LOAD LABEL zzl10 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=v)`, false},
+		{"props_load_broker_bare_key", `LOAD LABEL zzl08 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (username="u")`, true},
+		{"props_load_broker_number_value", `LOAD LABEL zzl09 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=1)`, true},
+		{"props_load_broker_identifier_value", `LOAD LABEL zzl10 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=v)`, true},
 		{"props_export_broker", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u","password"="p")`, true},
 		{"props_export_broker_empty_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ()`, false},
 		{"props_export_broker_trailing_comma_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u",)`, false},
@@ -696,15 +687,15 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"props_routine_load_source_comma_value_rejected", `CREATE ROUTINE LOAD zzrl7 ON zz_nope FROM KAFKA ("a" = ,)`, false},
 		{"props_routine_load_source_paren_value_rejected", `CREATE ROUTINE LOAD zzrl8 ON zz_nope FROM KAFKA ("a" = ))`, false},
 		{"props_routine_load_source_open_paren_value_rejected", `CREATE ROUTINE LOAD zzrl9 ON zz_nope FROM KAFKA ("a" = ( )`, false},
-		{"props_routine_load_source_bare_key_rejected", `CREATE ROUTINE LOAD zzrl10 ON zz_nope FROM KAFKA (kafka_broker_list="h:9092")`, false},
-		{"props_routine_load_source_keyword_key_rejected", `CREATE ROUTINE LOAD zzrl11 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", comment="v")`, false},
-		{"props_routine_load_source_number_value_rejected", `CREATE ROUTINE LOAD zzrl12 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_partitions"=1)`, false},
-		{"props_routine_load_source_identifier_value_rejected", `CREATE ROUTINE LOAD zzrl13 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_topic"=tp)`, false},
-		{"props_routine_load_source_null_value_rejected", `CREATE ROUTINE LOAD zzrl14 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=NULL)`, false},
-		{"props_routine_load_source_boolean_value_rejected", `CREATE ROUTINE LOAD zzrl15 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=true)`, false},
+		{"props_routine_load_source_bare_key", `CREATE ROUTINE LOAD zzrl10 ON zz_nope FROM KAFKA (kafka_broker_list="h:9092")`, true},
+		{"props_routine_load_source_keyword_key", `CREATE ROUTINE LOAD zzrl11 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", comment="v")`, true},
+		{"props_routine_load_source_number_value", `CREATE ROUTINE LOAD zzrl12 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_partitions"=1)`, true},
+		{"props_routine_load_source_identifier_value", `CREATE ROUTINE LOAD zzrl13 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_topic"=tp)`, true},
+		{"props_routine_load_source_null_value", `CREATE ROUTINE LOAD zzrl14 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=NULL)`, true},
+		{"props_routine_load_source_boolean_value", `CREATE ROUTINE LOAD zzrl15 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=true)`, true},
 		{"props_alter_routine_load_source", `ALTER ROUTINE LOAD FOR zzrl16 FROM KAFKA ("kafka_partitions"="1")`, true},
 		{"props_alter_routine_load_source_comma_value_rejected", `ALTER ROUTINE LOAD FOR zzrl17 FROM KAFKA ("a" = ,)`, false},
-		{"props_alter_routine_load_source_number_value_rejected", `ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA ("kafka_partitions"=1)`, false},
+		{"props_alter_routine_load_source_number_value", `ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA ("kafka_partitions"=1)`, true},
 
 		// MySQL spellings the engine does not share.
 		{"outfile_into_var_rejected", "SELECT 1 INTO @v", false},
@@ -731,4 +722,15 @@ func TestDorisSyntaxConformance(t *testing.T) {
 			c.assertParity(t, tc.sql, tc.wantAccept)
 		})
 	}
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if dorisInst != nil {
+		_ = dorisInst.db.Close()
+	}
+	if dorisServer != nil {
+		_ = testcontainer.TerminateContainer(dorisServer)
+	}
+	os.Exit(code)
 }

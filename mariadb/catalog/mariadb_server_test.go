@@ -8,16 +8,15 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // sharedMariaDB is the one mariadb:11.8.8 server the tests of this package ask.
-// startContainer's server is MySQL 8.0, so it is no substitute for a MariaDB
-// verdict.
+// Both the catalog comparison tests and dialect-specific oracles share it.
 var sharedMariaDB struct {
 	once      sync.Once
-	container *tcmariadb.MariaDBContainer
+	container *testcontainer.DatabaseContainer
 	config    *gomysql.Config
 	admin     *sql.DB
 	err       error
@@ -26,10 +25,7 @@ var sharedMariaDB struct {
 
 func startSharedMariaDB(ctx context.Context) error {
 	s := &sharedMariaDB
-	container, err := tcmariadb.Run(ctx, "mariadb:11.8.8",
-		tcmariadb.WithUsername("root"),
-		tcmariadb.WithPassword("test"),
-	)
+	container, err := testcontainer.Start(ctx, "test")
 	if container != nil {
 		s.container = container
 	}
@@ -96,6 +92,6 @@ func terminateSharedMariaDB() {
 		_ = sharedMariaDB.admin.Close()
 	}
 	if sharedMariaDB.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMariaDB.container)
+		_ = testcontainer.TerminateContainer(sharedMariaDB.container)
 	}
 }

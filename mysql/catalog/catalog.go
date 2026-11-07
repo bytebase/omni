@@ -15,6 +15,7 @@ type Catalog struct {
 }
 
 type SessionState struct {
+	RestrictFKOnNonStandardKey   bool // MySQL 8.4 default; can be disabled explicitly
 	ForeignKeyChecks             bool
 	GenerateInvisiblePrimaryKey  bool
 	ShowGIPK                     bool
@@ -76,7 +77,10 @@ func (c *Catalog) Version() Version { return c.session.Version }
 // diff/generate canonicalizer reproduces for this catalog. bytebase's
 // mysqlDiffSDLMigration sets it from the synced database's server version so a
 // 5.7-synced schema canonicalizes (and generates DDL) as 5.7 rather than 8.0.
-func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
+func (c *Catalog) SetVersion(v Version) {
+	c.session.Version = v
+	c.session.RestrictFKOnNonStandardKey = v >= MySQL84
+}
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }
 func (c *Catalog) CurrentDatabase() string        { return c.currentDB }

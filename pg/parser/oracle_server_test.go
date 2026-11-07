@@ -8,12 +8,11 @@ import (
 	"sync"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
-// oracleServer is the one postgres:17-alpine the oracles of this package ask.
+// oracleServer is the pinned PostgreSQL 18 server the package's oracles ask.
 // Each oracle has a database of its own, because each brings its own fixtures;
 // everything they probe runs in a transaction they roll back, or only parses.
 var oracleServer struct {
@@ -32,14 +31,7 @@ func startOracleServer(ctx context.Context) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := tcpg.Run(ctx, "postgres:17-alpine",
-		tcpg.WithDatabase("omni_admin"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
+	container, err := testcontainer.Start(ctx, "omni_admin")
 	if err != nil {
 		return fmt.Errorf("container start: %w", err)
 	}

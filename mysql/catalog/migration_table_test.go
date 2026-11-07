@@ -41,21 +41,21 @@ func autoIncSupportProbes() []autoIncProbe {
 		// The headline case: AUTO_INCREMENT on a single-column NON-PK UNIQUE key (errno 1075 without
 		// the inline key).
 		{"autoinc-nonpk-unique", "t",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, name VARCHAR(20), UNIQUE KEY uk (id)) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, name VARCHAR(20), UNIQUE KEY uk (id)) ENGINE=InnoDB", oracleVersions()},
 		// AUTO_INCREMENT first in a COMPOSITE unique key (valid: it is the leading column).
 		{"autoinc-nonpk-unique-composite", "t",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, UNIQUE KEY uk (id, a)) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, UNIQUE KEY uk (id, a)) ENGINE=InnoDB", oracleVersions()},
 		// AUTO_INCREMENT backed only by a PLAIN (non-unique) secondary key.
 		{"autoinc-plain-key", "t",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT, KEY k (id)) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT, KEY k (id)) ENGINE=InnoDB", oracleVersions()},
 		// AUTO_INCREMENT backed by a non-PK unique while the table ALSO has a separate PRIMARY KEY on
 		// another column (the PK does not cover the auto column, so the unique key must be inline).
 		{"autoinc-unique-with-other-pk", "t",
-			"CREATE TABLE t (pk INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (pk), UNIQUE KEY uk (id)) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (pk INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (pk), UNIQUE KEY uk (id)) ENGINE=InnoDB", oracleVersions()},
 		// REGRESSION GUARD: AUTO_INCREMENT AS the PRIMARY KEY — the common case must keep rendering
 		// the PK inline (and NOT additionally inline a supporting key).
 		{"autoinc-primary-key-guard", "t",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB", oracleVersions()},
 	}
 }
 
@@ -74,7 +74,7 @@ func autoIncFKProbes() []struct {
 		{"autoinc-fk-implicit-only",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY)",
 			"CREATE TABLE c (id INT NOT NULL AUTO_INCREMENT, x INT, FOREIGN KEY (id) REFERENCES p(id)) ENGINE=InnoDB",
-			"c", both()},
+			"c", oracleVersions()},
 	}
 }
 
@@ -82,7 +82,7 @@ func autoIncFKProbes() []struct {
 // generated multi-table plan (parent + child + deferred FK) applies cleanly and the child reads
 // back equal to its stored form.
 func TestOracle_AutoIncFKImplicitApply(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, p := range autoIncFKProbes() {
@@ -171,7 +171,7 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 // TestOracle_AutoIncSupportingKeyApply proves the generated plan for an AUTO_INCREMENT column backed
 // only by a non-PK key applies cleanly on a real engine and reads back equal to `to`.
 func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, p := range autoIncSupportProbes() {
@@ -259,7 +259,7 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 // round-trip empty: the stored form self-diffs empty and the user form vs the stored form diffs
 // empty (no phantom diff introduced by the inlined key).
 func TestOracle_AutoIncSupportingKeyIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		for _, p := range autoIncSupportProbes() {
 			if !containsVersion(p.versions, version) {

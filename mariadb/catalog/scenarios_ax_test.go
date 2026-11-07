@@ -140,8 +140,8 @@ ALTER TABLE t MODIFY COLUMN b BIGINT;`)
 		if isNullable != "YES" {
 			t.Errorf("oracle b nullable: got %q, want YES", isNullable)
 		}
-		if colDefault != nil {
-			t.Errorf("oracle b default: got %v, want nil", *colDefault)
+		if colDefault == nil || *colDefault != "NULL" {
+			t.Errorf("oracle b default: got %v, want SQL NULL", colDefault)
 		}
 		if colComment != "" {
 			t.Errorf("oracle b comment: got %q, want empty", colComment)
@@ -278,8 +278,8 @@ ALTER TABLE t ADD FULLTEXT (b);`)
 		}
 	})
 
-	// --- AX.9 FK column-level shorthand silent-ignored in CREATE --------
-	t.Run("AX_9_FK_column_shorthand_silent_ignore", func(t *testing.T) {
+	// MariaDB 10.5 and later enforce column-level REFERENCES.
+	t.Run("AX_9_FK_column_shorthand_enforced", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -288,14 +288,14 @@ CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ADD FOREIGN KEY (a) REFERENCES parent(id);
 CREATE TABLE t2 (a INT REFERENCES parent(id));`)
 
-		// Oracle: t1 has FK, t2 has none.
+		// Both the table-level and column-level forms create a foreign key.
 		oracleT1 := oracleFKNames(t, mc, "t1")
 		if len(oracleT1) != 1 {
 			t.Errorf("oracle t1 FK count: got %d, want 1", len(oracleT1))
 		}
 		oracleT2 := oracleFKNames(t, mc, "t2")
-		if len(oracleT2) != 0 {
-			t.Errorf("oracle t2 FK count: got %d, want 0 (column-level REFERENCES should be ignored)", len(oracleT2))
+		if len(oracleT2) != 1 {
+			t.Errorf("oracle t2 FK count: got %d, want 1", len(oracleT2))
 		}
 
 		tbl1 := c.GetDatabase("testdb").GetTable("t1")
@@ -307,8 +307,8 @@ CREATE TABLE t2 (a INT REFERENCES parent(id));`)
 		if n := len(omniFKNames(tbl1)); n != 1 {
 			t.Errorf("omni t1 FK count: got %d, want 1", n)
 		}
-		if n := len(omniFKNames(tbl2)); n != 0 {
-			t.Errorf("omni t2 FK count: got %d, want 0 (column-level REFERENCES should be parsed-but-ignored)", n)
+		if n := len(omniFKNames(tbl2)); n != 1 {
+			t.Errorf("omni t2 FK count: got %d, want 1", n)
 		}
 	})
 

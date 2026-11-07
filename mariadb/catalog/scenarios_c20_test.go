@@ -11,10 +11,10 @@ import (
 // the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,
@@ -75,10 +75,10 @@ func TestScenario_C20(t *testing.T) {
 		if !strings.Contains(idLine, "DEFAULT NULL") {
 			t.Errorf("oracle: c20_2 SHOW CREATE expected `DEFAULT NULL` on id; got %q", idLine)
 		}
-		// information_schema.COLUMN_DEFAULT is NULL (no string default stored).
+		// MariaDB exposes the SQL default as the text NULL for nullable columns.
 		colDef := c20oracleColumnDefault(t, mc, "c20_2", "id")
-		if colDef.Valid {
-			t.Errorf("oracle: c20_2.id COLUMN_DEFAULT expected NULL, got %q", colDef.String)
+		if !colDef.Valid || colDef.String != "NULL" {
+			t.Errorf("oracle: c20_2.id COLUMN_DEFAULT expected text NULL, got %v", colDef)
 		}
 
 		// omni catalog: Default nil, Nullable true.
@@ -145,12 +145,12 @@ func TestScenario_C20(t *testing.T) {
 			kind   ENUM('a','b','c')
 		)`)
 
-		// Oracle: status COLUMN_DEFAULT is NULL (catalog property — even
-		// though runtime fills in 'active'). kind COLUMN_DEFAULT is NULL too.
+		// A non-nullable column has no stored default; a nullable column
+		// exposes its default as the SQL expression text NULL.
 		for _, cname := range []string{"status", "kind"} {
 			colDef := c20oracleColumnDefault(t, mc, "c20_4", cname)
-			if colDef.Valid {
-				t.Errorf("oracle: c20_4.%s COLUMN_DEFAULT expected NULL, got %q", cname, colDef.String)
+			if cname == "status" && colDef.Valid || cname == "kind" && (!colDef.Valid || colDef.String != "NULL") {
+				t.Errorf("oracle: c20_4.%s unexpected COLUMN_DEFAULT: %v", cname, colDef)
 			}
 		}
 
@@ -239,37 +239,47 @@ func TestScenario_C20(t *testing.T) {
 		}
 	})
 
-	// --- 20.6 BLOB/TEXT/JSON/GEOMETRY literal DEFAULT → ER 1101 -----------
+	// --- 20.6 MariaDB permits BLOB/TEXT/JSON defaults; invalid geometry fails.
 	t.Run("20_6_blob_text_literal_default_rejected", func(t *testing.T) {
 		type caze struct {
 			name string
 			ddl  string
+			code uint16
 		}
 		cases := []caze{
-			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')"},
-			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')"},
-			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')"},
-			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')"},
+			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')", 0},
+			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')", 0},
+			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')", 1416},
+			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')", 0},
 		}
 		for _, tc := range cases {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
 
 			_, mysqlErr := mc.db.ExecContext(mc.ctx, tc.ddl)
-			if mysqlErr == nil {
-				t.Errorf("oracle: expected ER_BLOB_CANT_HAVE_DEFAULT (1101) for %s, got nil", tc.name)
-			} else if !strings.Contains(mysqlErr.Error(), "1101") &&
-				!strings.Contains(strings.ToLower(mysqlErr.Error()), "can't have a default value") {
-				t.Errorf("oracle: expected 1101 for %s, got %v", tc.name, mysqlErr)
+			if mariaOracleErrorCode(mysqlErr) != tc.code {
+				t.Errorf("native %s: expected code %d, got %v", tc.name, tc.code, mysqlErr)
 			}
 
-			omniErrored := c20execExpectError(t, c, tc.ddl+";")
-			if !omniErrored {
-				t.Errorf("omni: expected rejection of %s DDL; got success", tc.name)
+			results, err := c.Exec(tc.ddl, nil)
+			if err != nil || len(results) != 1 {
+				t.Fatalf("catalog %s: %v %v", tc.name, err, results)
 			}
-			// No table row should exist.
-			if c20getTable(c, tc.name) != nil {
-				t.Errorf("omni: %s should not be in catalog after rejected DDL", tc.name)
+			if tc.code == 0 {
+				if results[0].Error != nil {
+					t.Fatalf("catalog default rejected: %v", results[0].Error)
+				}
+				want, got := oracleShow(t, mc, "SHOW CREATE TABLE "+tc.name), c.ShowCreateTable("testdb", tc.name)
+				if normalizeWhitespace(got) != normalizeWhitespace(want) {
+					t.Errorf("default schema mismatch:\nnative: %s\ncatalog: %s", want, got)
+				}
+			} else {
+				if modeled, ok := results[0].Error.(*Error); !ok || modeled.Code != int(tc.code) {
+					t.Errorf("catalog default rejection: %v", results[0].Error)
+				}
+				if c20getTable(c, tc.name) != nil {
+					t.Errorf("%s exists after rejected default", tc.name)
+				}
 			}
 		}
 	})

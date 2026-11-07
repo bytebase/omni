@@ -23,16 +23,16 @@ func TestScenario_C14(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CHECK (a > 0));`)
 
-		// Oracle: information_schema.TABLE_CONSTRAINTS.ENFORCED should be YES.
-		// Note: information_schema.CHECK_CONSTRAINTS in MySQL 8.0 does NOT
-		// expose an ENFORCED column — it only has (CONSTRAINT_CATALOG,
-		// CONSTRAINT_SCHEMA, CONSTRAINT_NAME, CHECK_CLAUSE). The ENFORCED
-		// metadata lives in TABLE_CONSTRAINTS instead.
+		// MariaDB records the check type and enforces it without an ENFORCED
+		// column in TABLE_CONSTRAINTS. Verify the actual row rejection too.
 		var tcEnforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
+		oracleScan(t, mc, `SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_TYPE='CHECK'`,
 			&tcEnforced)
-		assertStringEq(t, "oracle TABLE_CONSTRAINTS.ENFORCED", tcEnforced, "YES")
+		assertStringEq(t, "oracle constraint type", tcEnforced, "CHECK")
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mariaOracleErrorCode(err) != 4025 {
+			t.Fatalf("expected CHECK violation 4025, got %v", err)
+		}
 
 		// SHOW CREATE TABLE must not contain NOT ENFORCED.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
@@ -45,29 +45,36 @@ func TestScenario_C14(t *testing.T) {
 			t.Errorf("omni: table t missing")
 			return
 		}
-		chk := c14FindCheck(tbl, "t_chk_1")
+		chk := c14FindCheck(tbl, "CONSTRAINT_1")
 		if chk == nil {
-			t.Errorf("omni: CHECK constraint t_chk_1 missing")
+			t.Errorf("omni: CHECK constraint CONSTRAINT_1 missing")
 			return
 		}
 		// Default = ENFORCED → NotEnforced must be false.
-		assertBoolEq(t, "omni t_chk_1 NotEnforced", chk.NotEnforced, false)
+		assertBoolEq(t, "omni CONSTRAINT_1 NotEnforced", chk.NotEnforced, false)
 	})
 
-	// --- 14.2 ALTER CHECK NOT ENFORCED / ENFORCED toggles the flag -------
+	// MariaDB rejects both MySQL ALTER CHECK forms and keeps enforcing the check.
 	t.Run("14_2_alter_check_enforcement_toggle", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CONSTRAINT c_pos CHECK (a > 0));
-ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CONSTRAINT c_pos CHECK (a > 0));`)
+		for _, sql := range []string{"ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED", "ALTER TABLE t ALTER CHECK c_pos ENFORCED"} {
+			if _, err := mc.db.ExecContext(mc.ctx, sql); mariaOracleErrorCode(err) != 1064 {
+				t.Fatalf("native %q: expected 1064, got %v", sql, err)
+			}
+			if _, err := c.Exec(sql, nil); err == nil {
+				t.Fatalf("catalog accepted %q", sql)
+			}
+		}
 
-		// Oracle: after NOT ENFORCED, TABLE_CONSTRAINTS.ENFORCED should be NO.
+		// The rejected statements leave the constraint registered.
 		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
+		oracleScan(t, mc, `SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='c_pos'`,
 			&enforced)
-		assertStringEq(t, "oracle after NOT ENFORCED", enforced, "NO")
+		assertStringEq(t, "oracle after rejected ALTER", enforced, "CHECK")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -79,15 +86,16 @@ ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
 			t.Errorf("omni: CHECK c_pos missing after initial CREATE+ALTER")
 			return
 		}
-		assertBoolEq(t, "omni c_pos NotEnforced after NOT ENFORCED", chk.NotEnforced, true)
+		assertBoolEq(t, "omni c_pos remains enforced", chk.NotEnforced, false)
 
-		// Toggle back to ENFORCED and re-check both sides.
-		runOnBoth(t, mc, c, `ALTER TABLE t ALTER CHECK c_pos ENFORCED;`)
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(-1)"); mariaOracleErrorCode(err) != 4025 {
+			t.Fatalf("check lost enforcement after rejected ALTER: %v", err)
+		}
 
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
+		oracleScan(t, mc, `SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='c_pos'`,
 			&enforced)
-		assertStringEq(t, "oracle after re-ENFORCED", enforced, "YES")
+		assertStringEq(t, "oracle constraint retained", enforced, "CHECK")
 
 		tbl2 := c.GetDatabase("testdb").GetTable("t")
 		chk2 := c14FindCheck(tbl2, "c_pos")
@@ -124,12 +132,11 @@ ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
 		if _, err := mc.db.ExecContext(mc.ctx, `INSERT INTO t (a) VALUES (5)`); err != nil {
 			t.Errorf("oracle: expected INSERT a=5 to succeed, got %v", err)
 		}
-		// Invalid INSERT: a=-1 → g=-2 violates CHECK, MySQL error 3819.
+		// Invalid INSERT: a=-1 → g=-2 violates CHECK, MariaDB error 4025.
 		_, err := mc.db.ExecContext(mc.ctx, `INSERT INTO t (a) VALUES (-1)`)
 		if err == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_VIOLATED (3819) for a=-1, got nil")
-		} else if !strings.Contains(err.Error(), "3819") &&
-			!strings.Contains(strings.ToLower(err.Error()), "check constraint") {
+			t.Errorf("oracle: expected CHECK violation 4025 for a=-1, got nil")
+		} else if mariaOracleErrorCode(err) != 4025 {
 			t.Errorf("oracle: expected CHECK violation error, got %v", err)
 		}
 
@@ -246,7 +253,7 @@ func c14IsCheckRejection(err error) bool {
 	}
 	msg := err.Error()
 	lower := strings.ToLower(msg)
-	for _, code := range []string{"3812", "3813", "3814", "3815"} {
+	for _, code := range []string{"1901"} {
 		if strings.Contains(msg, code) {
 			return true
 		}

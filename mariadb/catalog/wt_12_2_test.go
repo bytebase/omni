@@ -16,7 +16,7 @@ func TestWalkThrough_12_2(t *testing.T) {
 			id INT NOT NULL,
 			name VARCHAR(100),
 			body TEXT,
-			geo GEOMETRY NOT NULL SRID 0,
+			geo GEOMETRY NOT NULL,
 			PRIMARY KEY (id),
 			KEY idx_name (name),
 			UNIQUE KEY uk_name (name),
@@ -101,8 +101,8 @@ func TestWalkThrough_12_2(t *testing.T) {
 
 		got := c.ShowCreateTable("testdb", "t")
 		assertContains(t, got, "KEY `idx_name` (`name`)")
-		if strings.Contains(got, "KEY_BLOCK_SIZE") {
-			t.Errorf("expected SHOW CREATE TABLE to omit index-level KEY_BLOCK_SIZE (MySQL 8.0 behavior), got:\n%s", got)
+		if !strings.Contains(got, "KEY `idx_name` (`name`) KEY_BLOCK_SIZE=4") {
+			t.Errorf("expected MariaDB to retain index-level KEY_BLOCK_SIZE, got:\n%s", got)
 		}
 	})
 

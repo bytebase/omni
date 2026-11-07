@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
+
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // mysqlContainer wraps a connection to the package-shared TiDB container for
@@ -52,19 +53,8 @@ var sharedTiDB sync.Mutex
 // the whole package: booting an engine per test is what made this package take
 // ~16 minutes, while the reset takes milliseconds. Callers are serialised so a
 // test never sees another test's objects.
-//
-// QUARANTINE: every test that goes through here is a differential test forked
-// from mysql/catalog, and its expectations are still MySQL-shaped. Against
-// TiDB v8.5.5, 93 of them fail (SHOW CREATE TABLE and view-body mismatches);
-// against the mysql:8.0 container this helper used to boot, 59 failed. They
-// are skipped unless TIDB_CATALOG_PARITY=1 so CI stays green; run with it set
-// when working on parity. Fixing the family and deleting this skip is the
-// follow-up.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	if os.Getenv("TIDB_CATALOG_PARITY") == "" {
-		t.Skip("quarantined: tidb/catalog differential tests are not yet at parity with TiDB v8.5.5; set TIDB_CATALOG_PARITY=1 to run (see startContainer)")
-	}
 	tc := startTiDBForCatalog(t)
 	sharedTiDB.Lock()
 	ctr := &mysqlContainer{db: tc.db, ctx: tc.ctx}
@@ -111,19 +101,12 @@ func resetSharedContainer(ctr *mysqlContainer) error {
 
 	// MySQL-only knobs some scenarios toggle; TiDB rejects the ones it does
 	// not know, so these are best effort.
-	for _, stmt := range []string{
-		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
-		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
-		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
-	} {
-		_, _ = ctr.db.ExecContext(ctr.ctx, stmt)
-	}
-
 	return resetExec(ctr,
 		"CREATE DATABASE IF NOT EXISTS test",
 		"USE test",
 		"SET SESSION sql_mode = DEFAULT",
 		"SET SESSION foreign_key_checks = 1",
+		"SET GLOBAL tidb_enable_check_constraint = OFF",
 		"SET SESSION time_zone = DEFAULT",
 	)
 }
@@ -191,7 +174,7 @@ func TestMain(m *testing.M) {
 	if tidbCatalogInst != nil {
 		_ = tidbCatalogInst.db.Close()
 		if tidbCatalogInst.container != nil {
-			_ = testcontainers.TerminateContainer(tidbCatalogInst.container)
+			_ = testcontainer.TerminateContainer(tidbCatalogInst.container)
 		}
 	}
 	os.Exit(code)

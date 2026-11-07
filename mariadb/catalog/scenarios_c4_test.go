@@ -113,10 +113,10 @@ func TestScenario_C4(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c,
-			`CREATE TABLE t (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`)
+			`CREATE TABLE t (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci`)
 
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb4_0900_ai_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8mb4_uca1400_ai_ci")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -213,8 +213,8 @@ func TestScenario_C4(t *testing.T) {
 	t.Run("4_5_charset_collation_mismatch", func(t *testing.T) {
 		scenarioReset(t, mc)
 
-		// Mismatch case: latin1 + utf8mb4_0900_ai_ci should fail.
-		mismatchStmt := `CREATE TABLE t_bad (c VARCHAR(10)) CHARACTER SET latin1 COLLATE utf8mb4_0900_ai_ci`
+		// Mismatch case: latin1 + utf8mb4_uca1400_ai_ci should fail.
+		mismatchStmt := `CREATE TABLE t_bad (c VARCHAR(10)) CHARACTER SET latin1 COLLATE utf8mb4_uca1400_ai_ci`
 		if _, err := mc.db.ExecContext(mc.ctx, mismatchStmt); err == nil {
 			t.Error("oracle: expected mismatch error, got none")
 		}
@@ -240,16 +240,16 @@ func TestScenario_C4(t *testing.T) {
 		scenarioReset(t, mc)
 		c2 := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c2,
-			`CREATE TABLE t_ok (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`)
+			`CREATE TABLE t_ok (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci`)
 		assertStringEq(t, "oracle ok table collation",
-			c4OracleTableCollation(t, "t_ok"), "utf8mb4_0900_ai_ci")
+			c4OracleTableCollation(t, "t_ok"), "utf8mb4_uca1400_ai_ci")
 		tbl := c2.GetDatabase("testdb").GetTable("t_ok")
 		if tbl == nil {
 			t.Error("omni: table t_ok not found")
 			return
 		}
 		assertStringEq(t, "omni ok table collation",
-			strings.ToLower(tbl.Collation), "utf8mb4_0900_ai_ci")
+			strings.ToLower(tbl.Collation), "utf8mb4_uca1400_ai_ci")
 	})
 
 	// --- 4.6 BINARY modifier → {charset}_bin rewrite ---
@@ -377,7 +377,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle col charset",
 			c4OracleColCharset(t, "t", "c"), "utf8mb3")
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb3_general_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8mb3_uca1400_ai_ci")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -417,7 +417,7 @@ func TestScenario_C4(t *testing.T) {
 			assertStringEq(t, "oracle "+name+" charset",
 				c4OracleColCharset(t, "t", name), "utf8mb3")
 			assertStringEq(t, "oracle "+name+" collation",
-				c4OracleColCollation(t, "t", name), "utf8mb3_general_ci")
+				c4OracleColCollation(t, "t", name), "utf8mb3_uca1400_ai_ci")
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -571,11 +571,11 @@ func TestScenario_C4(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c,
-			`CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci)`)
+			`CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci)`)
 
 		// Oracle: baseline column collation.
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb4_0900_ai_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8mb4_uca1400_ai_ci")
 
 		// Oracle runtime checks for each comparison shape. These are queries
 		// against an empty table — we care about whether MySQL accepts or
@@ -612,7 +612,7 @@ func TestScenario_C4(t *testing.T) {
 			return
 		}
 		assertStringEq(t, "omni col collation",
-			strings.ToLower(col.Collation), "utf8mb4_0900_ai_ci")
+			strings.ToLower(col.Collation), "utf8mb4_uca1400_ai_ci")
 
 		// Best-effort: omni's catalog currently does not expose a SELECT
 		// expression evaluator with DTCollation, so the 4 query-time checks

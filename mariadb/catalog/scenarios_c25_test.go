@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 
@@ -106,7 +106,7 @@ func TestScenario_C25(t *testing.T) {
 	})
 
 	// -----------------------------------------------------------------
-	// 25.3 DECIMAL bounds: max P=65, S=30, scale > precision rejection
+	// 25.3 MariaDB DECIMAL bounds: max P=65, S=38, scale > precision rejection
 	// -----------------------------------------------------------------
 	t.Run("25_3_bounds_max_p_s_and_scale_gt_precision", func(t *testing.T) {
 		scenarioReset(t, mc)
@@ -130,12 +130,15 @@ func TestScenario_C25(t *testing.T) {
 		// 25.3b: DECIMAL(66,0) → ER_TOO_BIG_PRECISION (1426).
 		c25AssertBothError(t, mc, c,
 			"CREATE TABLE err_p_gt_65 (d DECIMAL(66, 0))",
-			"precision 66", "25.3b precision > 65")
+			"precision", "25.3b precision > 65")
 
-		// 25.3c: DECIMAL(40,31) → ER_TOO_BIG_SCALE (1425).
+		// MariaDB accepts scale 31 and up to 38; MySQL's limit of 30 does not apply.
+		runOnBoth(t, mc, c, "CREATE TABLE ok_scale_31(d DECIMAL(40,31))")
+		runOnBoth(t, mc, c, "CREATE TABLE ok_scale_38(d DECIMAL(40,38))")
+		// 25.3c: DECIMAL(40,39) → ER_TOO_BIG_SCALE (1425).
 		c25AssertBothError(t, mc, c,
-			"CREATE TABLE err_s_gt_30 (d DECIMAL(40, 31))",
-			"scale 31", "25.3c scale > 30")
+			"CREATE TABLE err_s_gt_38 (d DECIMAL(40, 39))",
+			"scale", "25.3c scale > 38")
 
 		// 25.3d: DECIMAL(5,6) → ER_M_BIGGER_THAN_D (1427).
 		c25AssertBothError(t, mc, c,

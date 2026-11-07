@@ -47,6 +47,7 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 		}
 
 		cte := &nodes.CommonTableExpr{
+			NameSQL:   cteIdentifierSQL(name, p.inputText(start, p.prev.End)),
 			Loc:       nodes.Loc{Start: start},
 			Name:      name,
 			Recursive: recursive,
@@ -2629,4 +2630,24 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 
 	hint.Loc.End = p.prev.End
 	return hint, nil
+}
+
+// MariaDB's stored WITH syntax leaves ordinary names bare. Delimiters
+// remain necessary for a reserved or non-identifier name.
+func cteIdentifierSQL(name, raw string) string {
+	if name == "" {
+		return raw
+	}
+	if kw, ok := keywords[strings.ToLower(name)]; ok && keywordCategories[kw] == kwCatReserved {
+		return raw
+	}
+	if !isIdentStart(name[0]) {
+		return raw
+	}
+	for i := range len(name) {
+		if !isIdentChar(name[i]) {
+			return raw
+		}
+	}
+	return name
 }

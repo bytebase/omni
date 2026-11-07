@@ -91,6 +91,12 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
 		varName := normalizeSetVariableName(asgn.Column)
 		switch varName {
+		case "restrict_fk_on_non_standard_key":
+			if isDefaultSetValue(asgn.Value) {
+				c.session.RestrictFKOnNonStandardKey = c.Version() >= MySQL84
+			} else if v, ok := parseSetBool(asgn.Value); ok {
+				c.session.RestrictFKOnNonStandardKey = v
+			}
 		case "foreign_key_checks":
 			if v, ok := parseSetBool(asgn.Value); ok {
 				c.foreignKeyChecks = v

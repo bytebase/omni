@@ -12,12 +12,12 @@ import (
 	"time"
 
 	_ "github.com/sijms/go-ora/v2"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/review"
+
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from, in schema SHOP,
@@ -46,7 +46,7 @@ const oraclePassword = "testpass"
 
 var oracleOracle struct {
 	once      sync.Once
-	container testcontainers.Container
+	container testcontainer.Container
 	admin     *sql.DB
 	host      string
 	port      string
@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 		if oracleOracle.admin != nil {
 			_ = oracleOracle.admin.Close()
 		}
-		_ = testcontainers.TerminateContainer(oracleOracle.container)
+		_ = testcontainer.TerminateContainer(oracleOracle.container)
 	}
 	os.Exit(code)
 }
@@ -73,15 +73,7 @@ func startOracle(t *testing.T) *sql.DB {
 	o := &oracleOracle
 	o.once.Do(func() {
 		ctx := context.Background()
-		c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "gvenzl/oracle-free:23.26.3-slim-faststart",
-				ExposedPorts: []string{"1521/tcp"},
-				Env:          map[string]string{"ORACLE_PASSWORD": oraclePassword},
-				WaitingFor:   wait.ForLog("DATABASE IS READY TO USE!").WithStartupTimeout(5 * time.Minute),
-			},
-			Started: true,
-		})
+		c, err := testcontainer.Start(ctx)
 		if err != nil {
 			o.err = err
 			return

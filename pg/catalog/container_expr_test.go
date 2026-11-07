@@ -351,6 +351,15 @@ func TestContainerExprDomain(t *testing.T) {
 func TestContainerExprGenerated(t *testing.T) {
 	ctr := startPGContainer(t)
 
+	for _, kind := range []string{"VIRTUAL", "STORED", ""} {
+		t.Run("add_generated_"+kind, func(t *testing.T) {
+			assertOracleRoundtrip(t, ctr,
+				`CREATE TABLE t (a int);`,
+				`CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a + 1) `+kind+`);`,
+			)
+		})
+	}
+
 	// 3.1 Generated Column Expressions
 
 	t.Run("simple_arithmetic", func(t *testing.T) {

@@ -89,7 +89,7 @@ func TestScenario_C8(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT)`)
 
 		got := c8OracleStr(t, "ROW_FORMAT", "t")
-		assertStringEq(t, "oracle ROW_FORMAT", strings.ToLower(got), "dynamic")
+		assertStringEq(t, "native I_S ROW_FORMAT", strings.ToLower(got), "compact")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -149,7 +149,7 @@ func TestScenario_C8(t *testing.T) {
 		// Oracle: information_schema.TABLES.TABLE_COLLATION should be
 		// latin1_swedish_ci (the default collation of latin1).
 		got := c8OracleStr(t, "TABLE_COLLATION", "t")
-		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_swedish_ci")
+		assertStringEq(t, "native TABLE_COLLATION", strings.ToLower(got), "latin1_bin")
 
 		// Oracle: column a charset is latin1.
 		var colCS string
@@ -174,11 +174,12 @@ func TestScenario_C8(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT) COLLATE=latin1_german2_ci`)
+		assertNativeRejectedDDL(t, mc, c, `CREATE TABLE t (a INT) COLLATE=latin1_german2_ci`, 1273)
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT) COLLATE=latin1_bin`)
 
 		// Oracle: TABLE_COLLATION should be latin1_german2_ci.
 		got := c8OracleStr(t, "TABLE_COLLATION", "t")
-		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_german2_ci")
+		assertStringEq(t, "native TABLE_COLLATION", strings.ToLower(got), "latin1_bin")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -188,7 +189,8 @@ func TestScenario_C8(t *testing.T) {
 		assertStringEq(t, "omni table Charset",
 			strings.ToLower(tbl.Charset), "latin1")
 		assertStringEq(t, "omni table Collation",
-			strings.ToLower(tbl.Collation), "latin1_german2_ci")
+			strings.ToLower(tbl.Collation), "latin1_bin")
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 8.6 KEY_BLOCK_SIZE defaults to 0 and elided in SHOW -------------
@@ -330,25 +332,16 @@ func TestScenario_C8(t *testing.T) {
 		// Oracle: information_schema.INNODB_TABLES has a row for the
 		// table, and its SPACE column is non-zero (each
 		// file_per_table tablespace has its own id).
-		var space int64
-		oracleScan(t, mc,
-			`SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES
-            WHERE NAME='testdb/t'`,
-			&space)
-		if space == 0 {
-			t.Errorf("oracle INNODB_TABLES.SPACE for testdb/t: got 0, want non-zero (file_per_table)")
+		if rows, err := mc.db.QueryContext(mc.ctx, `SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES WHERE NAME='testdb/t'`); err == nil {
+			rows.Close()
+			t.Fatal("TiDB unexpectedly exposed MySQL's physical InnoDB tablespaces")
+		} else if !strings.Contains(err.Error(), "1146") {
+			t.Fatalf("native InnoDB metadata rejection: %v", err)
 		}
 
 		// Omni gap: no Tablespace field. Verify parser accepts an
 		// explicit TABLESPACE clause without crashing.
-		results, err := c.Exec(`CREATE TABLE t_ts (a INT) TABLESPACE=innodb_file_per_table;`, nil)
-		if err != nil {
-			t.Errorf("omni: parse error for TABLESPACE=innodb_file_per_table: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error for TABLESPACE=innodb_file_per_table: %v", r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, `CREATE TABLE t_ts (a INT) TABLESPACE=innodb_file_per_table`)
+		assertScenarioReadback(t, mc, c, "t_ts")
 	})
 }

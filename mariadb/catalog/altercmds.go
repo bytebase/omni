@@ -510,14 +510,16 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			})
 		case nodes.ColConstrUnique:
 			idxName := allocIndexName(tbl, colDef.Name)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			idx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   []*IndexColumn{{Name: colDef.Name}},
 				Unique:    true,
 				IndexType: "",
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(idx, nil)
+			tbl.Indexes = append(tbl.Indexes, idx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
 				Type:      ConUniqueKey,
@@ -525,10 +527,29 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Columns:   []string{colDef.Name},
 				IndexName: idxName,
 			})
+		case nodes.ColConstrReferences:
+			con := &nodes.Constraint{Type: nodes.ConstrForeignKey, Name: cc.Name, Columns: []string{colDef.Name}, RefTable: cc.RefTable, RefColumns: cc.RefColumns, OnDelete: cc.OnDelete, OnUpdate: cc.OnUpdate, Match: cc.Match}
+			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{Constraint: con}); err != nil {
+				return err
+			}
+		case nodes.ColConstrCheck:
+			name := cc.Name
+			if name == "" {
+				name = col.Name
+			}
+			if checkConstraintNameExists(tbl.Database, tbl, name) {
+				return errCheckConstraintDupName(name)
+			}
+			if err := validateCheckExpr(name, cc.Expr); err != nil {
+				return err
+			}
+			if err := validateCheckColumnReferences(tbl, cc.Expr); err != nil {
+				return err
+			}
+			tbl.Constraints = append(tbl.Constraints, &Constraint{Name: name, Type: ConCheck, Table: tbl, ColumnName: col.Name, CheckExpr: nodeToSQL(cc.Expr)})
 		}
 	}
-
-	return nil
+	return addJSONAliasCheck(tbl, col)
 }
 
 // alterDropColumn removes a column from the table.
@@ -540,8 +561,19 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 		// MySQL 8.0 returns error 1091 for DROP COLUMN on nonexistent column,
 		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
-		return errCantDropKey(cmd.Name)
+		return errMissingDropObject("COLUMN", cmd.Name)
 	}
+	for _, key := range tbl.Indexes {
+		if !key.Primary || len(key.Columns) < 2 {
+			continue
+		}
+		for _, col := range key.Columns {
+			if strings.EqualFold(col.Name, cmd.Name) {
+				return &Error{Code: 1072, SQLState: "42000", Message: fmt.Sprintf("Key column '%s' doesn't exist in table", cmd.Name)}
+			}
+		}
+	}
+
 	idx := tbl.colByName[colKey]
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
 		return errCannotDropColumnFunctionalIndex(cmd.Name)
@@ -865,7 +897,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
-		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+		if err := validatePrimaryKeyColumns(tbl, cols, buildIndexColumns(con)...); err != nil {
 			return err
 		}
 		// Mark PK columns as NOT NULL.
@@ -913,7 +945,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -973,12 +1005,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			conName = fmt.Sprintf("CONSTRAINT_%d", nextCheckNumber(tbl))
 		}
-		if checkConstraintNameExists(tbl.Database, nil, conName) {
+		if checkConstraintNameExists(tbl.Database, tbl, conName) {
 			return errCheckConstraintDupName(conName)
 		}
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
+			return err
+		}
+		if err := validateCheckColumnReferences(tbl, con.Expr); err != nil {
 			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -1002,7 +1037,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := validateIndexColumns(tbl, idxCols, false, false, false); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -1015,7 +1050,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment and block size.
 		applyIndexOptions(keyIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -1040,6 +1074,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(ftIdx, con.IndexOptions)
+		if err := c.validateFulltextParser(ftIdx); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrVector:
@@ -1082,7 +1119,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+		if err := validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
@@ -1125,7 +1162,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return errMissingDropObject("INDEX", name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -1312,7 +1349,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "key_block_size":
 		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 	case "compression":
-		tbl.Compression = opt.Value
+		return &Error{Code: 1911, SQLState: "HY000", Message: "Unknown option 'COMPRESSION'"}
 	case "encryption":
 		tbl.Encryption = opt.Value
 	case "stats_persistent":
@@ -1434,6 +1471,11 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		}
 	}
 
+	if col.DataType == "json" {
+		col.DataType, col.ColumnType = "longtext", "longtext"
+		col.Charset, col.Collation = "utf8mb4", "utf8mb4_bin"
+		col.JSONAlias = true
+	}
 	// Default charset/collation for string types.
 	if isStringType(col.DataType) {
 		if col.Charset == "" {
@@ -1469,9 +1511,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-			Stored:   colDef.Generated.Stored,
-			RowBound: rowBoundSQL(colDef.Generated.RowBound),
+			Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Nondeterministic: generatedExprNondeterministic(colDef.Generated.Expr),
+			Stored:           colDef.Generated.Stored,
+			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 		}
 	}
 	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -1518,8 +1561,11 @@ func validateDefaultExprForExistingColumn(col *Column, expr nodes.ExprNode) erro
 	if isNullDefault(expr) && !col.Nullable {
 		return errInvalidDefault(col.Name)
 	}
-	if isLiteralDefaultForbiddenType(col.DataType) && isLiteralDefault(expr) {
-		return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(col.Name)}
+	switch col.DataType {
+	case "geometry", "point", "linestring", "polygon", "multipoint", "multilinestring", "multipolygon", "geometrycollection":
+		if isLiteralDefault(expr) {
+			return &Error{Code: 1416, SQLState: "22003", Message: "Cannot get geometry object from data you send to the GEOMETRY field"}
+		}
 	}
 	return validateTemporalExprForColumn(col.Name, col.DataType, columnTemporalFSP(col), expr, true)
 }

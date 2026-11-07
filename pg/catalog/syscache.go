@@ -22,20 +22,20 @@ type PgNamespaceRow struct {
 
 // PgClassRow mirrors pg_class (subset of columns relevant to DDL).
 type PgClassRow struct {
-	OID             uint32
-	RelName         string
-	RelNamespace    uint32
-	RelType         uint32 // composite type OID
-	RelKind         byte   // 'r', 'v', 'i', 'S'
-	RelNatts        int16
-	RelChecks       int16
-	RelHasTriggers  bool
-	RelHasIndex     bool
-	RelPersistence  byte   // 'p'=permanent, 'u'=unlogged, 't'=temp
-	ReplicaIdentity byte   // 'd'=default, 'f'=full, 'n'=nothing, 'i'=index
-	RelOfType          uint32 // reloftype — 0 if not a typed table
-	RelRowSecurity     bool   // relrowsecurity
-	RelForceRowSecurity bool  // relforcerowsecurity
+	OID                 uint32
+	RelName             string
+	RelNamespace        uint32
+	RelType             uint32 // composite type OID
+	RelKind             byte   // 'r', 'v', 'i', 'S'
+	RelNatts            int16
+	RelChecks           int16
+	RelHasTriggers      bool
+	RelHasIndex         bool
+	RelPersistence      byte   // 'p'=permanent, 'u'=unlogged, 't'=temp
+	ReplicaIdentity     byte   // 'd'=default, 'f'=full, 'n'=nothing, 'i'=index
+	RelOfType           uint32 // reloftype — 0 if not a typed table
+	RelRowSecurity      bool   // relrowsecurity
+	RelForceRowSecurity bool   // relforcerowsecurity
 }
 
 // PgAttributeRow mirrors pg_attribute.
@@ -288,16 +288,16 @@ func (c *Catalog) QueryPgClass(schemaName string) []PgClassRow {
 			}
 		}
 		row := PgClassRow{
-			OID:                rel.OID,
-			RelName:            rel.Name,
-			RelNamespace:       schema.OID,
-			RelType:            rel.RowTypeOID,
-			RelKind:            rel.RelKind,
-			RelNatts:           int16(len(rel.Columns)),
-			RelPersistence:     persistence,
-			ReplicaIdentity:    replicaIdentity,
-			RelOfType:          rel.OfTypeOID,
-			RelRowSecurity:     rel.RowSecurity,
+			OID:                 rel.OID,
+			RelName:             rel.Name,
+			RelNamespace:        schema.OID,
+			RelType:             rel.RowTypeOID,
+			RelKind:             rel.RelKind,
+			RelNatts:            int16(len(rel.Columns)),
+			RelPersistence:      persistence,
+			ReplicaIdentity:     replicaIdentity,
+			RelOfType:           rel.OfTypeOID,
+			RelRowSecurity:      rel.RowSecurity,
 			RelForceRowSecurity: rel.ForceRowSecurity,
 		}
 
@@ -486,6 +486,11 @@ func (c *Catalog) QueryPgConstraint(relOID uint32) []PgConstraintRow {
 			ConNoInherit:  con.ConNoInherit,
 		}
 
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
+			if rel := c.relationByOID[relOID]; rel != nil {
+				row.ConExpr = "NOT NULL " + quoteIdentifier(rel.Columns[con.Columns[0]-1].Name)
+			}
+		}
 		if con.Type == ConstraintFK {
 			row.ConFRelID = con.FRelOID
 			row.ConFKey = con.FColumns

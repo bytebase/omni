@@ -137,11 +137,18 @@ func TestScenario_C15(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);
-			ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x;`)
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT)`)
+		ddl := `ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x`
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err == nil {
+			t.Fatal("native multi-ADD accepted a new-column reference")
+		}
+		assertRejectedDDL(t, c, ddl, 1054)
+		assertScenarioReadback(t, mc, c, "t")
+		runOnBoth(t, mc, c, `ALTER TABLE t ADD COLUMN x INT AFTER a; ALTER TABLE t ADD COLUMN y INT AFTER x`)
 
 		want := []string{"a", "x", "y", "b"}
 		c15AssertOrder(t, "oracle order after multi-ADD", c15OracleColumnOrder(t, "t"), want)
 		c15AssertOrder(t, "omni order after multi-ADD", c15OmniColumnOrder(c, "t"), want)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 }

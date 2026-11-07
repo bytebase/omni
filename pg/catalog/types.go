@@ -19,6 +19,7 @@ type TypeName struct {
 type ColumnDef struct {
 	Name             string
 	Type             TypeName
+	NotNullName      string // explicit or synthesized PostgreSQL 18 NOT NULL constraint name
 	NotNull          bool
 	Default          string          // opaque expression; empty = no default
 	RawDefault       nodes.Node      // raw AST node for default expression (for analysis)
@@ -39,6 +40,7 @@ type ColumnDef struct {
 type ConstraintType byte
 
 const (
+	ConstraintNotNull ConstraintType = 'n'
 	ConstraintPK      ConstraintType = 'p'
 	ConstraintUnique  ConstraintType = 'u'
 	ConstraintFK      ConstraintType = 'f'

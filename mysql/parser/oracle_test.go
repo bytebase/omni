@@ -33,7 +33,7 @@ func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	ctx := context.Background()
 	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = testcontainer.MySQL80.Database(ctx, "mysql_parser")
+		oracleDatabase.db, oracleDatabase.err = testcontainer.MySQL84.Database(ctx, "mysql_parser")
 	})
 	if oracleDatabase.err != nil {
 		t.Fatalf("MySQL 8.0 oracle: %v", oracleDatabase.err)
@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	if oracleDatabase.db != nil {
 		oracleDatabase.db.Close(context.Background())
 	}
-	testcontainer.MySQL80.Terminate()
+	testcontainer.MySQL84.Terminate()
 	os.Exit(code)
 }
 

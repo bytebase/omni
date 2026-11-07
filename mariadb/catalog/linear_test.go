@@ -32,7 +32,7 @@ func TestLongChainViewsStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name, sql, defMarker, queryMarker string
 	}{
-		{"sum", "SELECT " + chainSQL(n, "1", " + ", "1"), " + 1)", " + 1)"},
+		{"sum", "SELECT " + chainSQL(n, "1", " + ", "1"), " + 1", " + 1"},
 		{"UNION ALL", chainSQL(n, "SELECT a FROM t", " UNION ALL ", "SELECT a FROM t"), " union all ", " union all "},
 		{"AND", "SELECT a FROM t WHERE " + chainSQL(n, "a = 1", " AND ", "a = 1"), " and ", " and "},
 		{"OR", "SELECT a FROM t WHERE " + chainSQL(n, "a = 1", " OR ", "a = 1"), " or ", " or "},

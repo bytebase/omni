@@ -36,10 +36,10 @@ func TestWalkThrough_7_4_RangeSubpartByHash(t *testing.T) {
 		t.Errorf("expected SUBPARTITIONS 2 in DDL:\n%s", ddl)
 	}
 	// Verify RANGE partitions still rendered
-	if !strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000)") {
+	if !strings.Contains(ddl, "PARTITION `p0` VALUES LESS THAN (2000)") {
 		t.Errorf("expected PARTITION p0 in DDL:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "PARTITION p2 VALUES LESS THAN MAXVALUE") {
+	if !strings.Contains(ddl, "PARTITION `p2` VALUES LESS THAN MAXVALUE") {
 		t.Errorf("expected PARTITION p2 with MAXVALUE in DDL:\n%s", ddl)
 	}
 
@@ -135,16 +135,16 @@ func TestWalkThrough_7_4_ExplicitSubpartNames(t *testing.T) {
 	}
 
 	// Verify explicit subpartition names rendered
-	if !strings.Contains(ddl, "SUBPARTITION s0") {
+	if !strings.Contains(ddl, "SUBPARTITION `s0`") {
 		t.Errorf("expected SUBPARTITION s0 in DDL:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s1") {
+	if !strings.Contains(ddl, "SUBPARTITION `s1`") {
 		t.Errorf("expected SUBPARTITION s1 in DDL:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s2") {
+	if !strings.Contains(ddl, "SUBPARTITION `s2`") {
 		t.Errorf("expected SUBPARTITION s2 in DDL:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s3") {
+	if !strings.Contains(ddl, "SUBPARTITION `s3`") {
 		t.Errorf("expected SUBPARTITION s3 in DDL:\n%s", ddl)
 	}
 	if strings.Contains(ddl, "SUBPARTITIONS ") {
@@ -284,7 +284,7 @@ func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 	if !strings.Contains(ddl, "SUBPARTITIONS 3") {
 		t.Errorf("expected SUBPARTITIONS 3 in DDL:\n%s", ddl)
 	}
-	if strings.Contains(ddl, "SUBPARTITION p0sp") || strings.Contains(ddl, "SUBPARTITION p1sp") {
+	if strings.Contains(ddl, "SUBPARTITION `p0sp") || strings.Contains(ddl, "SUBPARTITION `p1sp") {
 		t.Errorf("default subpartition names should not be rendered when SUBPARTITIONS count is used:\n%s", ddl)
 	}
 
@@ -324,7 +324,7 @@ func TestWalkThrough_7_4_DefaultSubpartitionsDoNotRenderImplicitCount(t *testing
 	if strings.Contains(ddl, "SUBPARTITIONS ") {
 		t.Errorf("implicit default subpartition count should not be rendered:\n%s", ddl)
 	}
-	if strings.Contains(ddl, "SUBPARTITION p0sp") || strings.Contains(ddl, "SUBPARTITION p1sp") {
+	if strings.Contains(ddl, "SUBPARTITION `p0sp") || strings.Contains(ddl, "SUBPARTITION `p1sp") {
 		t.Errorf("implicit default subpartition names should not be rendered:\n%s", ddl)
 	}
 }
@@ -352,13 +352,13 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions(t *testing.T)
 	if ddl == "" {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
-	if strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000) ENGINE = InnoDB COMMENT = 'p0c'") {
+	if strings.Contains(ddl, "PARTITION `p0` VALUES LESS THAN (2000) ENGINE = InnoDB COMMENT = 'p0c'") {
 		t.Errorf("parent partition options should not be rendered directly before explicit subpartition list:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s0 ENGINE = InnoDB COMMENT = 's0c'") {
+	if !strings.Contains(ddl, "SUBPARTITION `s0` ENGINE = InnoDB COMMENT = 's0c'") {
 		t.Errorf("expected explicit subpartition comment to be rendered:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s1 ENGINE = InnoDB COMMENT = 'p0c'") {
+	if !strings.Contains(ddl, "SUBPARTITION `s1` ENGINE = InnoDB COMMENT = 'p0c'") {
 		t.Errorf("expected parent comment to be inherited by subpartition without override:\n%s", ddl)
 	}
 }

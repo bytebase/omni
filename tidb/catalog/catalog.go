@@ -2,13 +2,15 @@ package catalog
 
 // Catalog is the in-memory TiDB catalog.
 type Catalog struct {
-	databases         map[string]*Database        // lowered name -> Database
-	placementPolicies map[string]*PlacementPolicy // lowered name -> PlacementPolicy (TiDB)
-	rangePolicies     map[string]string           // lowered range name -> policy ALTER RANGE set (TiDB)
-	currentDB         string
-	defaultCharset    string
-	defaultCollation  string
-	foreignKeyChecks  bool // SET foreign_key_checks (default true)
+	allowExpressionIndex bool
+	databases            map[string]*Database        // lowered name -> Database
+	placementPolicies    map[string]*PlacementPolicy // lowered name -> PlacementPolicy (TiDB)
+	rangePolicies        map[string]string           // lowered range name -> policy ALTER RANGE set (TiDB)
+	currentDB            string
+	defaultCharset       string
+	defaultCollation     string
+	foreignKeyChecks     bool // SET foreign_key_checks (default true)
+	strictDDL            bool // strict SQL mode controls oversized VARCHAR conversion
 	// checkConstraints is tidb_enable_check_constraint, OFF by default. While it
 	// is off, v8.5.5 parses CHECK and keeps nothing: a CHECK clause in CREATE or
 	// ALTER TABLE adds no constraint, and DROP CHECK, DROP CONSTRAINT and ALTER
@@ -24,6 +26,7 @@ func New() *Catalog {
 		defaultCharset:    "utf8mb4",
 		defaultCollation:  "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
 		foreignKeyChecks:  true,
+		strictDDL:         true,
 	}
 }
 
@@ -32,6 +35,10 @@ func (c *Catalog) CheckConstraints() bool { return c.checkConstraints }
 
 // SetCheckConstraints sets tidb_enable_check_constraint.
 func (c *Catalog) SetCheckConstraints(v bool) { c.checkConstraints = v }
+
+// SetAllowExpressionIndex mirrors TiDB's startup allow-expression-index setting.
+// The default permits only TiDB's generally available expression-index functions.
+func (c *Catalog) SetAllowExpressionIndex(v bool) { c.allowExpressionIndex = v }
 
 // ForeignKeyChecks returns whether FK validation is enabled.
 func (c *Catalog) ForeignKeyChecks() bool { return c.foreignKeyChecks }

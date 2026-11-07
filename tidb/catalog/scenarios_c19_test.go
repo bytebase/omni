@@ -1,25 +1,16 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// TestScenario_C19 covers Section C19 "Virtual / functional indexes" from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. MySQL 8.0.13+ implements
-// functional index key parts by synthesizing a hidden VIRTUAL generated
-// column over the expression and building an ordinary index over it. omni
-// currently represents functional key parts as an `Expr` string on
-// `IndexColumn` with NO synthesized hidden Column, which means:
-//
-//   - type inference on the expression (19.2) has nowhere to store its result
-//   - hidden-column suppression (19.3) is vacuously "fine" but untestable
-//   - deterministic-only / no-LOB validation (19.4) is not enforced at all
-//   - DROP INDEX "cascade" (19.6) is vacuous for the same reason
-//
-// Every subtest here is expected to fail on the omni side and is documented
-// in mysql/catalog/scenarios_bug_queue/c19.md. We use t.Error (not t.Fatal) so all six
-// scenarios run in one pass.
+// TestScenario_C19 checks TiDB's expression-index metadata, inferred key types,
+// restrictions and lifecycle against the native engine. Internal storage column
+// names are not part of its public catalog contract.
 func TestScenario_C19(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -45,7 +36,7 @@ func TestScenario_C19(t *testing.T) {
 		} else {
 			colName := rows[0][0]
 			expr := asString(rows[0][1])
-			if colName != nil {
+			if colName != nil && !strings.EqualFold(asString(colName), "NULL") {
 				t.Errorf("oracle: functional index COLUMN_NAME should be NULL, got %v", colName)
 			}
 			if !strings.Contains(strings.ToLower(expr), "lower(`name`)") {
@@ -82,24 +73,10 @@ func TestScenario_C19(t *testing.T) {
 		} else if idx.Columns[0].Expr == "" {
 			t.Errorf("omni: idx_lower key part has no Expr; MySQL stores this as a hidden generated column")
 		}
-		// omni gap: no hidden column is created alongside the index.
-		// MySQL's dd.columns.is_hidden=HT_HIDDEN_SQL row has no omni analog.
-		// We flag this as a bug: the count of user-visible columns stays at
-		// 2 in both engines, but omni's Column list should gain a
-		// HiddenBySystem entry for round-trip fidelity. Currently it does
-		// not — confirm with a direct probe.
-		hiddenFound := false
-		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
-				hiddenFound = true
-				break
-			}
+		if len(tbl.Columns) != 2 {
+			t.Errorf("catalog exposed %d columns, want the two declared columns", len(tbl.Columns))
 		}
-		if hiddenFound {
-			t.Log("omni: unexpectedly found hidden column — partial support?")
-		} else {
-			t.Errorf("omni: no hidden column synthesized for functional index (MySQL: !hidden!idx_lower!0!0)")
-		}
+		assertScenarioReadback(t, mc, c, "t")
 
 		// Byte-exact SHOW CREATE comparison on the key part line.
 		omniCreate := c.ShowCreateTable("testdb", "t")
@@ -139,35 +116,45 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("oracle: expected 3 functional index rows, got %d", len(rows))
 		}
 
-		// omni: the only way to verify the inferred type today is to look
-		// for a synthesized hidden column. None exists, so this will fail.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Fatal("omni: table t not found")
 		}
-		for _, want := range []struct {
-			idx       string
-			wantType  string // expected hidden-column DataType
-		}{
-			{"k_sum", "bigint"},
-			{"k_low", "varchar"},
-			{"k_cast", "bigint"},
-		} {
-			var hiddenCol *Column
-			for _, col := range tbl.Columns {
-				if strings.Contains(col.Name, want.idx) && strings.HasPrefix(col.Name, "!hidden!") {
-					hiddenCol = col
-					break
+		// Query result metadata independently exposes the types TiDB infers for
+		// these same expressions; no MySQL-specific hidden columns are assumed.
+		nativeRows, err := mc.db.QueryContext(mc.ctx, "SELECT a+b,LOWER(name),CAST(payload->'$.age' AS UNSIGNED) FROM t LIMIT 0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer nativeRows.Close()
+		types, err := nativeRows.ColumnTypes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := nativeRows.Close(); err != nil {
+			t.Fatal(err)
+		}
+		for i, want := range []struct {
+			name   string
+			base   MySQLBaseType
+			native string
+		}{{"k_sum", BaseTypeBigInt, "BIGINT"}, {"k_low", BaseTypeVarchar, "VARCHAR"}, {"k_cast", BaseTypeBigInt, "UNSIGNED BIGINT"}} {
+			if got := types[i].DatabaseTypeName(); got != want.native {
+				t.Errorf("native %s type %q, want %q", want.name, got, want.native)
+			}
+			var part *IndexColumn
+			for _, idx := range tbl.Indexes {
+				if idx.Name == want.name && len(idx.Columns) == 1 {
+					part = idx.Columns[0]
 				}
 			}
-			if hiddenCol == nil {
-				t.Errorf("omni %s: no hidden column synthesized; MySQL types this as %s", want.idx, want.wantType)
-				continue
-			}
-			if !strings.EqualFold(hiddenCol.DataType, want.wantType) {
-				t.Errorf("omni %s: hidden col type %q, want %q", want.idx, hiddenCol.DataType, want.wantType)
+			if part == nil || part.ExprType == nil || part.ExprType.BaseType != want.base {
+				t.Errorf("catalog %s inferred key type: %+v", want.name, part)
+			} else if i == 2 && !part.ExprType.Unsigned {
+				t.Error("unsigned CAST lost its unsigned result type")
 			}
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// -----------------------------------------------------------------
@@ -205,13 +192,7 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("oracle: STATISTICS.EXPRESSION missing for idx_lower; got %v", stats)
 		}
 
-		// omni: the catalog should expose exactly 2 user-visible columns
-		// AND the hidden column must not leak into the visible list. Since
-		// omni synthesizes no hidden column at all, visible-count is
-		// accidentally correct, but the storage-layer invariant (that a
-		// hidden column exists and is queryable via an internal API) is
-		// missing. Assert the hidden column is discoverable — this is the
-		// bug to track.
+		// The model and SELECT * must expose the declared columns only.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Fatal("omni: table t not found")
@@ -227,8 +208,17 @@ func TestScenario_C19(t *testing.T) {
 		if visible != 2 {
 			t.Errorf("omni: visible column count = %d, want 2", visible)
 		}
-		if hidden != 1 {
-			t.Errorf("omni: hidden column count = %d, want 1 (HT_HIDDEN_SQL for idx_lower)", hidden)
+		if hidden != 0 {
+			t.Errorf("catalog leaked %d internal columns", hidden)
+		}
+		starRows, err := mc.db.QueryContext(mc.ctx, "SELECT * FROM t LIMIT 0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer starRows.Close()
+		names, err := starRows.Columns()
+		if err != nil || strings.Join(names, ",") != "id,name" {
+			t.Errorf("native SELECT * columns: %v, error %v", names, err)
 		}
 	})
 
@@ -241,8 +231,8 @@ func TestScenario_C19(t *testing.T) {
 		// Oracle verification: run each bad DDL against MySQL directly
 		// and confirm it's rejected. omni should reject the same.
 		cases := []struct {
-			label  string
-			ddl    string
+			label          string
+			ddl            string
 			mysqlErrSubstr string // expected substring of oracle error text
 		}{
 			{
@@ -253,7 +243,7 @@ func TestScenario_C19(t *testing.T) {
 			{
 				"bare_column_rejected",
 				"CREATE TABLE t4b (a INT, INDEX ((a)))",
-				"Functional index on a column",
+				"Expression index on a column",
 			},
 			{
 				// MySQL 8.0.45 actually reports ER 3753 "JSON or GEOMETRY"
@@ -261,7 +251,7 @@ func TestScenario_C19(t *testing.T) {
 				// "functional index" covers both 3753 and 3754.
 				"lob_json_rejected",
 				"CREATE TABLE t4c (payload JSON, INDEX ((payload->'$.name')))",
-				"functional index",
+				"expression index",
 			},
 		}
 		for _, tc := range cases {
@@ -333,7 +323,7 @@ func TestScenario_C19(t *testing.T) {
 		badDDL := "CREATE TABLE t_bad (doc JSON, INDEX ((doc->>'$.name')))"
 		if _, err := mc.db.ExecContext(mc.ctx, badDDL); err == nil {
 			t.Errorf("oracle: uncast ->> should be rejected as LOB")
-		} else if !strings.Contains(err.Error(), "functional index") {
+		} else if !strings.Contains(err.Error(), "expression index") {
 			t.Errorf("oracle: unexpected error for uncast ->>: %v", err)
 		}
 		cc := scenarioNewCatalog(t)
@@ -359,6 +349,7 @@ func TestScenario_C19(t *testing.T) {
 		runOnBoth(t, mc, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64))")
 		runOnBoth(t, mc, c, "CREATE INDEX idx_lower ON t ((LOWER(name)))")
 		runOnBoth(t, mc, c, "DROP INDEX idx_lower ON t")
+		assertScenarioReadback(t, mc, c, "t")
 
 		// Oracle: SHOW CREATE must show no trace of idx_lower or any
 		// hidden column.
@@ -379,17 +370,13 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("omni: hidden column leaked after DROP INDEX: %q", omniCreate)
 		}
 
-		// Oracle: dropping the hidden column by name must fail with 3108.
-		// First recreate the functional index so there's a hidden column
-		// to try to drop.
-		if _, err := mc.db.ExecContext(mc.ctx, "CREATE INDEX idx_lower ON t ((LOWER(name)))"); err != nil {
-			t.Fatalf("oracle: recreating idx_lower: %v", err)
-		}
+		// The inherited MySQL internal name is not a TiDB column. Keep the
+		// original DROP probe and compare its native unknown-column error.
+		runOnBoth(t, mc, c, "CREATE INDEX idx_lower ON t ((LOWER(name)))")
 		_, dropErr := mc.db.ExecContext(mc.ctx, "ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`")
-		if dropErr == nil {
-			t.Errorf("oracle: dropping hidden column should be rejected with ER 3108")
-		} else if !strings.Contains(dropErr.Error(), "functional index") {
-			t.Errorf("oracle: unexpected error for hidden-column drop: %v", dropErr)
+		var nativeErr *gomysql.MySQLError
+		if !errors.As(dropErr, &nativeErr) || nativeErr.Number != 1091 {
+			t.Fatalf("native internal-name DROP error: %v", dropErr)
 		}
 
 		// omni: the same ALTER. omni has no hidden column, so it should
@@ -406,6 +393,14 @@ func TestScenario_C19(t *testing.T) {
 		if !rejected {
 			t.Errorf("omni: DROP COLUMN `!hidden!idx_lower!0!0` silently accepted; MySQL returns ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX (3108)")
 		}
+		if parseErr != nil || len(results) != 1 {
+			t.Fatalf("catalog DROP results: %v, %v", results, parseErr)
+		}
+		var catalogErr *Error
+		if !errors.As(results[0].Error, &catalogErr) || catalogErr.Code != int(nativeErr.Number) {
+			t.Errorf("catalog internal-name DROP error: %v, native: %v", results[0].Error, nativeErr)
+		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 }
 

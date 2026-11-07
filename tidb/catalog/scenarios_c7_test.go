@@ -129,9 +129,11 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 			t.Errorf("oracle: t1 unexpectedly contains USING BTREE: %s", ct1)
 		}
 		// t2 SHOULD contain USING BTREE
-		if !strings.Contains(ct2, "USING BTREE") {
-			t.Errorf("oracle: t2 missing USING BTREE: %s", ct2)
+		if strings.Contains(ct2, "USING BTREE") {
+			t.Errorf("native should omit the explicit default index method: %s", ct2)
 		}
+		assertScenarioReadback(t, mc, c, "t1")
+		assertScenarioReadback(t, mc, c, "t2")
 
 		// omni: both tables exist; presence of explicit-flag distinction
 		// is an open omni gap. We assert both indexes parse and exist.
@@ -291,12 +293,13 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 
 		// Form 3: FULLTEXT exempt from prefix requirement.
 		runOnBoth(t, mc, c, `CREATE TABLE t_ft (a TEXT, FULLTEXT KEY (a));`)
-		var idxType string
-		oracleScan(t, mc,
+		rows := oracleRows(t, mc,
 			`SELECT INDEX_TYPE FROM information_schema.STATISTICS
-             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t_ft' AND INDEX_NAME='a'`,
-			&idxType)
-		assertStringEq(t, "oracle FULLTEXT index type", idxType, "FULLTEXT")
+             WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t_ft' AND INDEX_NAME='a'`)
+		if len(rows) != 0 || c7findIndex(c, "t_ft", "a") != nil {
+			t.Errorf("FULLTEXT table constraint must be ignored: native %v", rows)
+		}
+		assertScenarioReadback(t, mc, c, "t_ft")
 	})
 
 	// --- 7.8 FULLTEXT WITH PARSER optionality ---------------------------
@@ -312,23 +315,21 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		if strings.Contains(ct1, "WITH PARSER") {
 			t.Errorf("oracle: t1 (no parser) unexpectedly contains WITH PARSER: %s", ct1)
 		}
-		if !strings.Contains(ct2, "WITH PARSER") {
-			t.Errorf("oracle: t2 missing WITH PARSER ngram: %s", ct2)
+		if strings.Contains(ct2, "WITH PARSER") {
+			t.Errorf("native retained ignored FULLTEXT parser: %s", ct2)
 		}
 
 		// omni: catalog Index has no ParserName field — gap. We assert
 		// only that both tables and FULLTEXT indexes exist.
 		idx1 := c7findIndex(c, "t1", "a")
 		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
-			return
+		if idx1 != nil || idx2 != nil {
+			t.Errorf("catalog retained ignored FULLTEXT constraints: %v, %v", idx1, idx2)
 		}
-		assertBoolEq(t, "omni t1 fulltext", idx1.Fulltext, true)
-		assertBoolEq(t, "omni t2 fulltext", idx2.Fulltext, true)
 		// Distinction (parser name) is omni gap — flag for bug queue.
 		// We can't read ParserName since the field doesn't exist, so log.
-		t.Logf("omni: ParserName field not present on Index; cannot distinguish t1 vs t2 (expected gap)")
+		assertScenarioReadback(t, mc, c, "t1")
+		assertScenarioReadback(t, mc, c, "t2")
 	})
 
 	// --- 7.9 SPATIAL requires NOT NULL ----------------------------------
@@ -337,16 +338,20 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		c := scenarioNewCatalog(t)
 
 		// OK case: NOT NULL geometry with SRID.
-		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g));`)
+		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g))`); err == nil || !strings.Contains(err.Error(), "1064") {
+			t.Fatalf("native geometry syntax rejection: %v", err)
+		}
+		if _, err := c.Exec(`CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g))`, nil); err == nil {
+			t.Fatal("catalog accepted unsupported geometry syntax")
+		}
 
 		// Error case 1: nullable geometry — ER_SPATIAL_CANT_HAVE_NULL 1252.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
 			`CREATE TABLE t_null (g GEOMETRY, SPATIAL KEY (g))`)
 		if mysqlErr == nil {
 			t.Errorf("oracle: expected ER_SPATIAL_CANT_HAVE_NULL, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1252") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "all parts of a spatial index") {
-			t.Errorf("oracle: expected 1252, got %v", mysqlErr)
+		} else if !strings.Contains(mysqlErr.Error(), "1064") {
+			t.Errorf("native: expected geometry syntax error 1064, got %v", mysqlErr)
 		}
 		results, err := c.Exec(`CREATE TABLE t_null (g GEOMETRY, SPATIAL KEY (g));`, nil)
 		omniErrored := err != nil

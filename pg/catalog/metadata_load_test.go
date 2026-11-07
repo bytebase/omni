@@ -609,7 +609,7 @@ func TestLoadMetadataFull(t *testing.T) {
 		t.Errorf("indexes = %v, want %v", indexes, want)
 	}
 	constraints := make(map[string]ConstraintType)
-	for _, con := range c.ConstraintsOf(users.OID) {
+	for _, con := range nonNullabilityConstraints(c.ConstraintsOf(users.OID)) {
 		constraints[con.Name] = con.Type
 	}
 	if constraints["users_pkey"] != ConstraintPK || constraints["users_email_key"] != ConstraintUnique || constraints["users_age_check"] != ConstraintCheck {
@@ -617,7 +617,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	}
 	partition := requireRelation(t, c, "public", "users_2024")
 	partitionConstraints := make(map[string]ConstraintType)
-	for _, con := range c.ConstraintsOf(partition.OID) {
+	for _, con := range nonNullabilityConstraints(c.ConstraintsOf(partition.OID)) {
 		partitionConstraints[con.Name] = con.Type
 	}
 	if len(partitionConstraints) != 2 || partitionConstraints["users_2024_pkey"] != ConstraintPK || partitionConstraints["users_age_check"] != ConstraintCheck {
@@ -627,11 +627,11 @@ func TestLoadMetadataFull(t *testing.T) {
 	if idx := c.IndexesOf(rooms.OID); len(idx) != 1 {
 		t.Errorf("rooms has %d indexes, want only the EXCLUDE constraint's", len(idx))
 	}
-	if excl := c.ConstraintsOf(rooms.OID); len(excl) != 1 || excl[0].Type != ConstraintExclude || !slices.Equal(excl[0].ExclOps, []string{"=", "&&"}) {
+	if excl := nonNullabilityConstraints(c.ConstraintsOf(rooms.OID)); len(excl) != 1 || excl[0].Type != ConstraintExclude || !slices.Equal(excl[0].ExclOps, []string{"=", "&&"}) {
 		t.Errorf("rooms constraints = %+v, want the EXCLUDE with its operators", excl)
 	}
 	posts := requireRelation(t, c, "public", "posts")
-	fks := c.ConstraintsOf(posts.OID)
+	fks := nonNullabilityConstraints(c.ConstraintsOf(posts.OID))
 	if len(fks) != 1 || fks[0].Type != ConstraintFK || fks[0].FKDelAction != 'c' {
 		t.Errorf("posts constraints = %+v, want one FK with ON DELETE CASCADE", fks)
 	}
@@ -665,7 +665,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	c, report = loadSnapshot(t, false, schema)
 	requireDegraded(t, report, "rel:public.broken")
 	users = requireRelation(t, c, "public", "users")
-	if len(c.IndexesOf(users.OID)) != 0 || len(c.ConstraintsOf(users.OID)) != 0 {
+	if len(c.IndexesOf(users.OID)) != 0 || len(nonNullabilityConstraints(c.ConstraintsOf(users.OID))) != 0 {
 		t.Error("indexes and constraints must wait for Full")
 	}
 	if users.Columns[0].Identity != 0 || users.Columns[2].HasDefault {

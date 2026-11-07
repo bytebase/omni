@@ -679,22 +679,24 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-master.html
 //
 //	RESET MASTER [TO binary_log_file_index_number]
+//
+// The AST name retains compatibility with consumers of RESET MASTER;
+// MySQL 8.4 uses RESET BINARY LOGS AND GTIDS for this operation.
+// https://dev.mysql.com/doc/refman/8.4/en/reset-binary-logs-and-gtids.html
 func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error) {
-	p.advance() // consume MASTER
-
-	stmt := &nodes.ResetMasterStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	if p.cur.Type == kwTO {
-		p.advance() // consume TO
-		if p.cur.Type == tokICONST {
-			val, _ := strconv.ParseInt(p.cur.Str, 10, 64)
-			stmt.To = val
-			p.advance()
+	for _, tok := range []int{kwBINARY, kwLOGS, kwAND, kwGTIDS} {
+		if _, err := p.expect(tok); err != nil {
+			return nil, err
 		}
 	}
-
+	stmt := &nodes.ResetMasterStmt{Loc: nodes.Loc{Start: start}}
+	if _, ok := p.match(kwTO); ok {
+		tok, err := p.expect(tokICONST)
+		if err != nil {
+			return nil, err
+		}
+		stmt.To = tok.Ival
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

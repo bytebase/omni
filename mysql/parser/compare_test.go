@@ -4583,15 +4583,15 @@ func TestParseShow(t *testing.T) {
 	})
 
 	t.Run("master status", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW MASTER STATUS")
-		if stmt.Type != "MASTER STATUS" {
+		stmt := parseShow(t, "SHOW BINARY LOG STATUS")
+		if stmt.Type != "BINARY LOG STATUS" {
 			t.Errorf("Type = %s, want MASTER STATUS", stmt.Type)
 		}
 	})
 
 	t.Run("slave status", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW SLAVE STATUS")
-		if stmt.Type != "SLAVE STATUS" {
+		stmt := parseShow(t, "SHOW REPLICA STATUS")
+		if stmt.Type != "REPLICA STATUS" {
 			t.Errorf("Type = %s, want SLAVE STATUS", stmt.Type)
 		}
 	})
@@ -6015,7 +6015,7 @@ OPTIMIZE TABLE t;
 CHECK TABLE t;
 REPAIR TABLE t;
 FLUSH TABLES;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 KILL 42;
 DO 1;
 CHECKSUM TABLE t1;
@@ -8409,7 +8409,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"STOP REPLICA",
 		"RESET REPLICA",
 		"PURGE BINARY LOGS TO 'mysql-bin.010'",
-		"RESET MASTER",
+		"RESET BINARY LOGS AND GTIDS",
 	}
 
 	for _, sql := range tests {
@@ -8531,7 +8531,7 @@ func TestParseChangeReplicationFilter(t *testing.T) {
 func TestParseStartReplica(t *testing.T) {
 	tests := []string{
 		"START REPLICA",
-		"START SLAVE",
+		"START REPLICA",
 		"START REPLICA IO_THREAD",
 		"START REPLICA SQL_THREAD",
 		"START REPLICA IO_THREAD, SQL_THREAD",
@@ -8553,7 +8553,7 @@ func TestParseStartReplica(t *testing.T) {
 func TestParseStopReplica(t *testing.T) {
 	tests := []string{
 		"STOP REPLICA",
-		"STOP SLAVE",
+		"STOP REPLICA",
 		"STOP REPLICA IO_THREAD",
 		"STOP REPLICA SQL_THREAD",
 		"STOP REPLICA IO_THREAD, SQL_THREAD",
@@ -8569,7 +8569,7 @@ func TestParseStopReplica(t *testing.T) {
 func TestParseResetReplica(t *testing.T) {
 	tests := []string{
 		"RESET REPLICA",
-		"RESET SLAVE",
+		"RESET REPLICA",
 		"RESET REPLICA ALL",
 		"RESET REPLICA FOR CHANNEL ch1",
 		"RESET REPLICA ALL FOR CHANNEL ch1",
@@ -8596,8 +8596,8 @@ func TestParsePurgeBinaryLogs(t *testing.T) {
 
 func TestParseResetMaster(t *testing.T) {
 	tests := []string{
-		"RESET MASTER",
-		"RESET MASTER TO 1234",
+		"RESET BINARY LOGS AND GTIDS",
+		"RESET BINARY LOGS AND GTIDS TO 1234",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8800,7 +8800,7 @@ func TestParseShowReplicas(t *testing.T) {
 			`{SHOW :loc 0 :type REPLICAS}`,
 		},
 		{
-			"SHOW SLAVE HOSTS",
+			"SHOW REPLICAS",
 			`{SHOW :loc 0 :type REPLICAS}`,
 		},
 	}
@@ -8920,28 +8920,28 @@ func TestParseShowProcedureCode(t *testing.T) {
 func TestParseChangeMasterTo(t *testing.T) {
 	tests := []string{
 		// Basic single option
-		"CHANGE MASTER TO MASTER_HOST = 'host1'",
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
 		// Multiple options
-		"CHANGE MASTER TO MASTER_HOST = 'host1', MASTER_PORT = 3306",
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1', SOURCE_PORT = 3306",
 		// String options
-		"CHANGE MASTER TO MASTER_USER = 'repl', MASTER_PASSWORD = 'secret'",
+		"CHANGE REPLICATION SOURCE TO SOURCE_USER = 'repl', SOURCE_PASSWORD = 'secret'",
 		// Numeric options
-		"CHANGE MASTER TO MASTER_PORT = 3306, MASTER_LOG_POS = 1234",
+		"CHANGE REPLICATION SOURCE TO SOURCE_PORT = 3306, SOURCE_LOG_POS = 1234",
 		// Boolean-like options (0/1)
-		"CHANGE MASTER TO MASTER_AUTO_POSITION = 1",
-		"CHANGE MASTER TO MASTER_SSL = 0",
+		"CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1",
+		"CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0",
 		// NULL value
-		"CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
+		"CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL",
 		// Identifier value options
-		"CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM",
+		"CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM",
 		// IGNORE_SERVER_IDS
-		"CHANGE MASTER TO IGNORE_SERVER_IDS = (1, 2, 3)",
+		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1, 2, 3)",
 		// Empty IGNORE_SERVER_IDS
-		"CHANGE MASTER TO IGNORE_SERVER_IDS = ()",
+		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ()",
 		// FOR CHANNEL
-		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
 		// SSL options
-		"CHANGE MASTER TO MASTER_SSL = 1, MASTER_SSL_CA = '/ca.pem', MASTER_SSL_CERT = '/cert.pem'",
+		"CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1, SOURCE_SSL_CA = '/ca.pem', SOURCE_SSL_CERT = '/cert.pem'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8956,20 +8956,20 @@ func TestParseChangeMasterToOptions(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1'",
-			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1})}",
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_HOST :val host1})}",
 		},
 		{
-			sql:  "CHANGE MASTER TO MASTER_PORT = 3306",
-			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_PORT :val 3306})}",
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_PORT = 3306",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_PORT :val 3306})}",
 		},
 		{
-			sql:  "CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
-			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name PRIVILEGE_CHECKS_USER :val NULL})}",
+			sql:  "CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name PRIVILEGE_CHECKS_USER :val NULL})}",
 		},
 		{
-			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
-			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1}) :channel ch1}",
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_HOST :val host1}) :channel ch1}",
 		},
 	}
 	for _, tt := range tests {
@@ -10414,7 +10414,7 @@ func TestParseFlush(t *testing.T) {
 		"FLUSH PRIVILEGES",
 		"FLUSH STATUS",
 		"FLUSH BINARY LOGS",
-		"FLUSH HOSTS",
+		"FLUSH LOGS",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11383,7 +11383,7 @@ func TestReviewBatch108_ShowStorageEngines(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
-	stmt := parseShow(t, "SHOW MASTER LOGS")
+	stmt := parseShow(t, "SHOW BINARY LOGS")
 	if stmt.Type != "BINARY LOGS" {
 		t.Errorf("expected BINARY LOGS, got %s", stmt.Type)
 	}
@@ -11400,8 +11400,8 @@ func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL 'ch1'")
-	if stmt.Type != "SLAVE STATUS" {
+	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL 'ch1'")
+	if stmt.Type != "REPLICA STATUS" {
 		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
 	}
 	if stmt.Channel != "ch1" {
@@ -11426,11 +11426,11 @@ func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
 func TestReviewBatch108_ShowChannelNeedsAString(t *testing.T) {
 	for _, sql := range []string{
 		"SHOW REPLICA STATUS FOR CHANNEL ch1",
-		"SHOW SLAVE STATUS FOR CHANNEL ch1",
+		"SHOW REPLICA STATUS FOR CHANNEL ch1",
 		"SHOW RELAYLOG EVENTS FOR CHANNEL ch1",
-		"SHOW SLAVE STATUS FOR",
-		"SHOW SLAVE STATUS FOR CHANNEL",
-		"SHOW SLAVE STATUS FOR CHANNEL 1",
+		"SHOW REPLICA STATUS FOR",
+		"SHOW REPLICA STATUS FOR CHANNEL",
+		"SHOW REPLICA STATUS FOR CHANNEL 1",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			if _, err := Parse(sql); err == nil {
@@ -11760,10 +11760,10 @@ func TestReviewBatch111_FlushRelayLogsForChannel(t *testing.T) {
 }
 
 func TestReviewBatch111_FlushMultipleOptions(t *testing.T) {
-	result := ParseAndCheck(t, "FLUSH HOSTS, STATUS")
+	result := ParseAndCheck(t, "FLUSH LOGS, STATUS")
 	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "HOSTS") || !strings.Contains(s, "STATUS") {
-		t.Errorf("expected HOSTS and STATUS, got %s", s)
+	if !strings.Contains(s, "LOGS") || !strings.Contains(s, "STATUS") {
+		t.Errorf("expected LOGS and STATUS, got %s", s)
 	}
 }
 

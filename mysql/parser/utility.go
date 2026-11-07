@@ -399,7 +399,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) (string, error) {
 	word := p.flushWord()
 	switch word {
-	case "HOSTS", "LOGS", "PRIVILEGES", "OPTIMIZER_COSTS", "STATUS", "USER_RESOURCES":
+	case "LOGS", "PRIVILEGES", "OPTIMIZER_COSTS", "STATUS", "USER_RESOURCES":
 		p.advance()
 		return word, nil
 	case "BINARY", "ENGINE", "ERROR", "GENERAL", "SLOW":

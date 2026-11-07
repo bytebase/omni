@@ -257,6 +257,9 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if pc == nil || pc.Type == nodes.PartitionSystemTime {
 		return nil
 	}
+	if err := validateTiDBPartition(tbl, pc); err != nil {
+		return err
+	}
 	if pc.Interval != nil {
 		// The partitions are not applied, as no repartition is here, but the statement
 		// answers for them.

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -26,11 +27,12 @@ func TestScenario_C24(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// Helper: set a session variable on the pinned container connection.
+	// MariaDB has neither MySQL GIPK setting. Test rejection on the pinned
+	// connection before checking that rejected settings leave table DDL intact.
 	setSession := func(t *testing.T, stmt string) {
 		t.Helper()
-		if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil {
-			t.Errorf("session set %q: %v", stmt, err)
+		if _, err := mc.db.ExecContext(mc.ctx, stmt); mariaOracleErrorCode(err) != 1193 {
+			t.Errorf("session set %q: expected unknown variable 1193, got %v", stmt, err)
 		}
 	}
 
@@ -42,10 +44,12 @@ func TestScenario_C24(t *testing.T) {
 		if err != nil {
 			t.Fatalf("catalog session set %q parse/exec: %v", stmt, err)
 		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Fatalf("catalog session set %q result error: %v", stmt, r.Error)
-			}
+		if len(results) != 1 {
+			t.Fatalf("catalog session set %q: unexpected results %v", stmt, results)
+		}
+		var dbErr *Error
+		if !errors.As(results[0].Error, &dbErr) || dbErr.Code != 1193 {
+			t.Fatalf("catalog session set %q: expected unknown variable 1193, got %v", stmt, results[0].Error)
 		}
 	}
 
@@ -90,18 +94,18 @@ func TestScenario_C24(t *testing.T) {
 			&colsHidden)
 		assertIntEq(t, "oracle 24.1 information_schema hidden", colsHidden, 0)
 
-		// Toggle visibility ON: SHOW CREATE TABLE now reveals my_row_id.
+		// An unsupported visibility setting cannot inject or reveal a column.
 		setSession(t, "SET SESSION show_gipk_in_create_table_and_information_schema = ON")
 		shown := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(shown, "my_row_id") {
-			t.Errorf("oracle 24.1: SHOW CREATE TABLE under visibility=ON should reveal my_row_id, got:\n%s", shown)
+		if strings.Contains(shown, "my_row_id") {
+			t.Errorf("oracle 24.1: rejected visibility setting changed schema:\n%s", shown)
 		}
 		var colsShown int
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='my_row_id'`,
 			&colsShown)
-		assertIntEq(t, "oracle 24.1 information_schema visible", colsShown, 1)
+		assertIntEq(t, "oracle 24.1 information_schema after rejected setting", colsShown, 0)
 
 		// omni: catalog should have generated my_row_id at position 0 with a
 		// PRIMARY KEY index.
@@ -110,8 +114,8 @@ func TestScenario_C24(t *testing.T) {
 			t.Errorf("omni 24.1: table t missing")
 			return
 		}
-		if tbl.GetColumn("my_row_id") == nil {
-			t.Errorf("omni 24.1: expected catalog to generate my_row_id GIPK column (sql_generate_invisible_primary_key not honored)")
+		if tbl.GetColumn("my_row_id") != nil {
+			t.Errorf("omni 24.1: rejected GIPK setting injected my_row_id")
 		}
 
 		omniHidden := c.ShowCreateTable("testdb", "t")
@@ -120,8 +124,8 @@ func TestScenario_C24(t *testing.T) {
 		}
 		setCatalogSession(t, c, "SET SESSION show_gipk_in_create_table_and_information_schema = ON")
 		omniShown := c.ShowCreateTable("testdb", "t")
-		if !strings.Contains(omniShown, "my_row_id") {
-			t.Errorf("omni 24.1: ShowCreateTable should reveal GIPK while visibility=ON, got:\n%s", omniShown)
+		if strings.Contains(omniShown, "my_row_id") {
+			t.Errorf("omni 24.1: rejected visibility setting changed schema:\n%s", omniShown)
 		}
 	})
 
@@ -138,7 +142,9 @@ func TestScenario_C24(t *testing.T) {
 		setCatalogSession(t, c, "SET SESSION sql_generate_invisible_primary_key = ON")
 		setCatalogSession(t, c, "SET SESSION show_gipk_in_create_table_and_information_schema = ON")
 
-		runOnBoth(t, mc, c, "CREATE TABLE t (a INT)")
+		// MariaDB supports an explicitly declared invisible auto-increment PK.
+		// Keep the column-specification assertions separate from automatic GIPK.
+		runOnBoth(t, mc, c, "CREATE TABLE t (my_row_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT INVISIBLE PRIMARY KEY, a INT)")
 
 		// Oracle: my_row_id has the documented spec.
 		var colName, colType, isNullable, extra, colKey string
@@ -148,7 +154,7 @@ func TestScenario_C24(t *testing.T) {
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='my_row_id'`,
 			&colName, &colType, &isNullable, &extra, &colKey)
 		assertStringEq(t, "oracle 24.2 name", colName, "my_row_id")
-		assertStringEq(t, "oracle 24.2 type", strings.ToLower(colType), "bigint unsigned")
+		assertStringEq(t, "oracle 24.2 type", strings.ToLower(colType), "bigint(20) unsigned")
 		assertStringEq(t, "oracle 24.2 nullable", isNullable, "NO")
 		// EXTRA is e.g. "auto_increment INVISIBLE"
 		extraLower := strings.ToLower(extra)
@@ -193,8 +199,8 @@ func TestScenario_C24(t *testing.T) {
 			t.Errorf("omni 24.2: expected GIPK column my_row_id in catalog")
 			return
 		}
-		if col.Position != 0 {
-			t.Errorf("omni 24.2: expected my_row_id at position 0, got %d", col.Position)
+		if col.Position != 1 {
+			t.Errorf("omni 24.2: expected my_row_id at position 1, got %d", col.Position)
 		}
 		if !strings.Contains(strings.ToLower(col.ColumnType), "bigint") ||
 			!strings.Contains(strings.ToLower(col.ColumnType), "unsigned") {
@@ -249,12 +255,12 @@ func TestScenario_C24(t *testing.T) {
 			&n1)
 		assertIntEq(t, "oracle 24.3 t1 has no GIPK", n1, 0)
 
-		// Oracle: t2 — UNIQUE NOT NULL does NOT suppress GIPK → my_row_id PRESENT.
+		// MariaDB also leaves a UNIQUE NOT NULL table without an injected PK.
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t2' AND COLUMN_NAME='my_row_id'`,
 			&n2)
-		assertIntEq(t, "oracle 24.3 t2 has GIPK (UNIQUE NOT NULL is not a PK)", n2, 1)
+		assertIntEq(t, "oracle 24.3 t2 has no injected GIPK", n2, 0)
 
 		// Oracle: t3 — table-level PRIMARY KEY → no my_row_id.
 		oracleScan(t, mc,
@@ -272,8 +278,8 @@ func TestScenario_C24(t *testing.T) {
 		t2 := c.GetDatabase("testdb").GetTable("t2")
 		if t2 == nil {
 			t.Errorf("omni 24.3: table t2 missing")
-		} else if t2.GetColumn("my_row_id") == nil {
-			t.Errorf("omni 24.3: expected GIPK my_row_id on t2 (UNIQUE NOT NULL is not a PK)")
+		} else if t2.GetColumn("my_row_id") != nil {
+			t.Errorf("omni 24.3: unexpected GIPK my_row_id on t2")
 		}
 		t3 := c.GetDatabase("testdb").GetTable("t3")
 		if t3 != nil && t3.GetColumn("my_row_id") != nil {
@@ -294,10 +300,8 @@ func TestScenario_C24(t *testing.T) {
 		// must fail with ER_GIPK_FAILED_AUTOINC_COLUMN_NAME_RESERVED (4108).
 		_, oracleErrOn := mc.db.ExecContext(mc.ctx,
 			"CREATE TABLE t (my_row_id INT, a INT)")
-		if oracleErrOn == nil {
-			t.Errorf("oracle 24.4: expected error creating table with my_row_id while GIPK=ON, got nil")
-		} else if !strings.Contains(oracleErrOn.Error(), "my_row_id") {
-			t.Errorf("oracle 24.4: error message should mention my_row_id, got: %v", oracleErrOn)
+		if oracleErrOn != nil {
+			t.Errorf("oracle 24.4: rejected setting must not reserve my_row_id: %v", oracleErrOn)
 		}
 
 		// omni: catalog should reject the same CREATE TABLE while
@@ -314,8 +318,8 @@ func TestScenario_C24(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("omni 24.4: expected error rejecting user-declared my_row_id under GIPK=ON")
+		if omniErr != nil {
+			t.Errorf("omni 24.4: rejected setting must not reserve my_row_id: %v", omniErr)
 		}
 
 		// Now turn GIPK off and verify both sides accept the same CREATE

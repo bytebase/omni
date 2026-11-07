@@ -98,22 +98,22 @@ func eventIdempotenceProbes() []struct {
 		id, event, create string
 		versions          []Version
 	}{
-		{"every-default", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1", both()},
-		{"every-explicit-enable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 SECOND ENABLE DO SET @x = 1", both()},
-		{"every-disable", "e", "CREATE EVENT e ON SCHEDULE EVERY 5 MINUTE DISABLE DO SET @x = 1", both()},
-		{"every-disable-on-slave", "e", "CREATE EVENT e ON SCHEDULE EVERY 30 MINUTE ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SET @x = 1", both()},
-		{"every-preserve", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE DO SET @x = 1", both()},
-		{"every-explicit-starts", "e", "CREATE EVENT e ON SCHEDULE EVERY 5 MINUTE STARTS '2025-03-01 12:00:00' DO SET @x = 1", both()},
-		{"every-starts-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'c' DO SET @q = 1", both()},
-		{"every-only-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", both()},
-		{"every-interval-quoted-hm", "e", "CREATE EVENT e ON SCHEDULE EVERY '1:30' HOUR_MINUTE DO SET @x = 1", both()},
-		{"every-interval-quoted-leadingzero", "e", "CREATE EVENT e ON SCHEDULE EVERY '02:03:04' HOUR_SECOND DO SET @x = 1", both()},
-		{"every-interval-quoted-daysecond", "e", "CREATE EVENT e ON SCHEDULE EVERY '1 12:30:00' DAY_SECOND DO SET @x = 1", both()},
-		{"every-interval-single-quoted", "e", "CREATE EVENT e ON SCHEDULE EVERY '05' MINUTE DO SET @x = 1", both()},
-		{"every-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'it''s a test' DO SET @x = 1", both()},
+		{"every-default", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1", oracleVersions()},
+		{"every-explicit-enable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 SECOND ENABLE DO SET @x = 1", oracleVersions()},
+		{"every-disable", "e", "CREATE EVENT e ON SCHEDULE EVERY 5 MINUTE DISABLE DO SET @x = 1", oracleVersions()},
+		{"every-disable-on-slave", "e", "CREATE EVENT e ON SCHEDULE EVERY 30 MINUTE ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SET @x = 1", oracleVersions()},
+		{"every-preserve", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE DO SET @x = 1", oracleVersions()},
+		{"every-explicit-starts", "e", "CREATE EVENT e ON SCHEDULE EVERY 5 MINUTE STARTS '2025-03-01 12:00:00' DO SET @x = 1", oracleVersions()},
+		{"every-starts-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'c' DO SET @q = 1", oracleVersions()},
+		{"every-only-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", oracleVersions()},
+		{"every-interval-quoted-hm", "e", "CREATE EVENT e ON SCHEDULE EVERY '1:30' HOUR_MINUTE DO SET @x = 1", oracleVersions()},
+		{"every-interval-quoted-leadingzero", "e", "CREATE EVENT e ON SCHEDULE EVERY '02:03:04' HOUR_SECOND DO SET @x = 1", oracleVersions()},
+		{"every-interval-quoted-daysecond", "e", "CREATE EVENT e ON SCHEDULE EVERY '1 12:30:00' DAY_SECOND DO SET @x = 1", oracleVersions()},
+		{"every-interval-single-quoted", "e", "CREATE EVENT e ON SCHEDULE EVERY '05' MINUTE DO SET @x = 1", oracleVersions()},
+		{"every-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'it''s a test' DO SET @x = 1", oracleVersions()},
 		// One-shot AT: near-future literal works on both versions (5.7 rejects far-future AT values).
-		{"at-literal", "e", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @y = 2", both()},
-		{"at-preserve-disable", "e", "CREATE EVENT e ON SCHEDULE AT '2030-06-01 00:00:00' ON COMPLETION PRESERVE DISABLE DO SET @y = 2", both()},
+		{"at-literal", "e", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @y = 2", oracleVersions()},
+		{"at-preserve-disable", "e", "CREATE EVENT e ON SCHEDULE AT '2030-06-01 00:00:00' ON COMPLETION PRESERVE DISABLE DO SET @y = 2", oracleVersions()},
 	}
 }
 
@@ -121,7 +121,7 @@ func eventIdempotenceProbes() []struct {
 // diffs EMPTY, the stored form self-diffs empty, and the no-op plan is "", on every supported
 // version.
 func TestOracle_EventIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
@@ -180,47 +180,47 @@ func eventMigrationProbes() []struct {
 		versions                        []Version
 	}{
 		// CREATE (add).
-		{"create-every", "e", "", base, both()},
-		{"create-at", "e", "", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @y = 2", both()},
-		{"create-full", "e", "", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'c' DO SET @q = 1", both()},
+		{"create-every", "e", "", base, oracleVersions()},
+		{"create-at", "e", "", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @y = 2", oracleVersions()},
+		{"create-full", "e", "", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'c' DO SET @q = 1", oracleVersions()},
 		// DROP.
-		{"drop", "e", base, "", both()},
+		{"drop", "e", base, "", oracleVersions()},
 		// ALTER — schedule interval.
-		{"alter-schedule-interval", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 2 HOUR DO SET @x = 1", both()},
+		{"alter-schedule-interval", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 2 HOUR DO SET @x = 1", oracleVersions()},
 		// ALTER — schedule unit.
-		{"alter-schedule-unit", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SET @x = 1", both()},
+		{"alter-schedule-unit", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SET @x = 1", oracleVersions()},
 		// ALTER — EVERY -> AT (recurring to one-shot).
-		{"alter-every-to-at", "e", base, "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @x = 1", both()},
+		{"alter-every-to-at", "e", base, "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @x = 1", oracleVersions()},
 		// ALTER — status enable -> disable.
-		{"alter-status-disable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", both()},
+		{"alter-status-disable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", oracleVersions()},
 		// ALTER — status disable -> disable on slave.
-		{"alter-status-slave", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE ON SLAVE DO SET @x = 1", both()},
+		{"alter-status-slave", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE ON SLAVE DO SET @x = 1", oracleVersions()},
 		// ALTER — ON COMPLETION not preserve -> preserve.
-		{"alter-completion", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO SET @x = 1", both()},
+		{"alter-completion", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO SET @x = 1", oracleVersions()},
 		// ALTER — comment.
-		{"alter-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'a' DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'b' DO SET @x = 1", both()},
+		{"alter-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'a' DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'b' DO SET @x = 1", oracleVersions()},
 		// ALTER — add a comment where none existed.
-		{"alter-add-comment", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'new' DO SET @x = 1", both()},
+		{"alter-add-comment", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'new' DO SET @x = 1", oracleVersions()},
 		// ALTER — body.
-		{"alter-body", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 2", both()},
+		{"alter-body", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 2", oracleVersions()},
 		// ALTER — add ENDS.
-		{"alter-add-ends", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", both()},
+		{"alter-add-ends", "e", base, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", oracleVersions()},
 
 		// ---- field-CLEARING transitions (an ALTER that omits a clause must RESET it, not keep the
 		// old value). These are the class that hides the comment-removal bug. ----
-		{"alter-remove-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'old' DO SET @x = 1", base, both()},
-		{"alter-remove-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", base, both()},
-		{"alter-status-reenable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENABLE DO SET @x = 1", both()},
-		{"alter-completion-reset", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE DO SET @x = 1", both()},
+		{"alter-remove-comment", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'old' DO SET @x = 1", base, oracleVersions()},
+		{"alter-remove-ends", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1", base, oracleVersions()},
+		{"alter-status-reenable", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENABLE DO SET @x = 1", oracleVersions()},
+		{"alter-completion-reset", "e", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO SET @x = 1", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE DO SET @x = 1", oracleVersions()},
 		// AT one-shot -> recurring EVERY (reverse of alter-every-to-at).
-		{"alter-at-to-every", "e", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @x = 1", base, both()},
+		{"alter-at-to-every", "e", "CREATE EVENT e ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO SET @x = 1", base, oracleVersions()},
 	}
 }
 
 // TestOracle_EventApplyCorrectness proves gate 2: the generated plan transforms a real `from`
 // event-database into a `to`-equal one, for CREATE / DROP / ALTER across every form.
 func TestOracle_EventApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)

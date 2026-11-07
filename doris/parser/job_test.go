@@ -469,6 +469,8 @@ func TestJobDoBodyIsDML(t *testing.T) {
 		want ast.NodeTag
 	}{
 		{"INSERT INTO t SELECT 1", ast.T_InsertStmt},
+		{"TRUNCATE TABLE t", ast.T_TruncateTableStmt},
+		{"MERGE INTO t USING s ON t.a = s.a WHEN MATCHED THEN DELETE", ast.T_MergeStmt},
 		{"INSERT INTO t VALUES (1)", ast.T_InsertStmt},
 		{"INSERT OVERWRITE TABLE t SELECT 1", ast.T_InsertStmt},
 		{"INSERT INTO t SELECT 1 UNION SELECT 2", ast.T_InsertStmt},
@@ -501,8 +503,6 @@ func TestJobDoBodyIsDML(t *testing.T) {
 		{"CREATE TABLE x (a INT)", "CREATE TABLE"},
 		{"SHOW TABLES", "SHOW"},
 		{"SET x = 1", "SET"},
-		{"TRUNCATE TABLE t", "TRUNCATE"},
-		{"MERGE INTO t USING s ON t.a = s.a WHEN MATCHED THEN DELETE", "MERGE"},
 		{"CREATE JOB j2 ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO t SELECT 1", "CREATE JOB j2"},
 	}
 	for _, tc := range rejected {

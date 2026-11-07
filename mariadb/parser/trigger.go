@@ -36,12 +36,14 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) (*nodes.Creat
 	stmt.IfNotExists = ifNotExists
 
 	// Trigger name
+	nameStart := p.pos()
 	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Schema = schema
 	stmt.Name = name
+	stmt.NameSQL = p.inputText(nameStart, p.prev.End)
 
 	// Completion: after trigger name, offer BEFORE/AFTER.
 	p.checkCursor()
@@ -104,6 +106,7 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) (*nodes.Creat
 		return nil, err
 	}
 	stmt.Table = ref
+	stmt.TableSQL = p.inputText(ref.Loc.Start, ref.Loc.End)
 
 	// FOR EACH ROW
 	if _, err := p.expect(kwFOR); err != nil {

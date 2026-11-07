@@ -81,6 +81,8 @@ var nestingShapes = []struct {
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON true)") }},
 	{"parenthesized FROM item", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
+	{"grouped ORDER BY", func(n int) string { return nest(n, "(", "SELECT 1", ") ORDER BY 1") }},
+	{"grouped LIMIT", func(n int) string { return nest(n, "(", "SELECT 1", ") LIMIT 1") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
 	// The CTAS query is captured raw and validated by a nested parse,
@@ -212,9 +214,6 @@ var chainShapes = []struct {
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON true", n) }},
 	{"cross joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" CROSS JOIN t", n) }},
 	{"comma joins in parens", func(n int) string { return "SELECT * FROM (t" + strings.Repeat(", t", n) + ")" }},
-	// A repeated ORDER BY or LIMIT wraps the query in another GroupedQuery.
-	{"ORDER BY groups", func(n int) string { return "SELECT 1" + strings.Repeat(" ORDER BY 1", n) }},
-	{"LIMIT groups", func(n int) string { return "SELECT 1" + strings.Repeat(" LIMIT 1", n) }},
 }
 
 // TestTreeHeightLimit: a left-deep chain longer than maxTreeHeight is

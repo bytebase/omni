@@ -68,7 +68,12 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 	}
 
 	// Query — parse the SELECT statement
-	query, err := p.parseSelectStmt()
+	var query ast.Node
+	query, err = p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	query, err = p.parseQueryTail(query)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +121,12 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 	}
 
 	// Query
-	query, err := p.parseSelectStmt()
+	var query ast.Node
+	query, err = p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	query, err = p.parseQueryTail(query)
 	if err != nil {
 		return nil, err
 	}

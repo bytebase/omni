@@ -326,7 +326,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		del := asString(rows[0][0])
 		upd := asString(rows[0][1])
 		// Real MySQL 8.0 reports "NO ACTION" in info_schema for unspecified.
-		if del != "NO ACTION" || upd != "NO ACTION" {
+		if del != "RESTRICT" || upd != "RESTRICT" {
 			t.Errorf("CATALOG OBS C5.1: REFERENTIAL_CONSTRAINTS reports DELETE=%q UPDATE=%q (catalog says parser default is FK_OPTION_RESTRICT; confirm whether the catalog means semantic behavior vs reporting)", del, upd)
 		} else {
 			t.Logf("OK C5.1 observed: info_schema reports DELETE=%q UPDATE=%q (semantically equivalent to RESTRICT)", del, upd)
@@ -460,7 +460,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		t.Logf("PS1 CREATE observed: %v", names)
 		has1, has5 := false, false
 		for _, n := range names {
-			if n == "tchk_chk_1" {
+			if n == "CONSTRAINT_1" {
 				has1 = true
 			}
 			if n == "tchk_chk_5" {
@@ -522,24 +522,26 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// ---------------------------------------------------------------
 	t.Run("PS5_DatetimeFspMismatch", func(t *testing.T) {
 		reset(t)
-		_, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE tps5 (ts DATETIME(6) DEFAULT NOW())`)
-		if err == nil {
-			// Accepted — catalog MISMATCH. Read back what was stored.
-			rows := spotCheckQuery(t, mc, ``, `
-				SELECT COLUMN_NAME, COLUMN_DEFAULT, DATETIME_PRECISION
-				FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps5'
-			`)
-			t.Errorf("CATALOG MISMATCH PS5: MySQL accepted DATETIME(6) DEFAULT NOW() (catalog says ER_INVALID_DEFAULT). COLUMNS=%v", rows)
-			return
+		ddl := "CREATE TABLE tps5 (ts DATETIME(6) DEFAULT NOW())"
+		rows := spotCheckQuery(t, mc, ddl, `SELECT COLUMN_DEFAULT,DATETIME_PRECISION FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps5'`)
+		if len(rows) != 1 || !strings.EqualFold(asString(rows[0][0]), "current_timestamp(6)") || asString(rows[0][1]) != "6" {
+			t.Fatalf("native default precision: %v", rows)
 		}
-		msg := err.Error()
-		t.Logf("PS5 error observed: %v", msg)
-		if !strings.Contains(strings.ToLower(msg), "invalid default") && !strings.Contains(msg, "1067") {
-			t.Errorf("PS5 UNEXPECTED ERROR TEXT: expected ER_INVALID_DEFAULT (1067), got: %v", msg)
-		} else {
-			t.Logf("OK PS5 verified: MySQL rejects DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT")
+		c := New()
+		results, err := c.Exec("CREATE DATABASE sc; USE sc; "+ddl, nil)
+		if err != nil {
+			t.Fatal(err)
 		}
+		for _, result := range results {
+			if result.Error != nil {
+				t.Fatal(result.Error)
+			}
+		}
+		col := c.GetDatabase("sc").GetTable("tps5").GetColumn("ts")
+		if col.Default == nil || !strings.EqualFold(*col.Default, "current_timestamp(6)") {
+			t.Fatalf("catalog default precision: %+v", col)
+		}
+
 	})
 
 	// ---------------------------------------------------------------
@@ -575,8 +577,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		msg := err.Error()
 		t.Logf("PS7 error observed: %v", msg)
 		// ER_FK_DUP_NAME = 1826
-		if !strings.Contains(msg, "1826") && !strings.Contains(strings.ToLower(msg), "duplicate") {
-			t.Errorf("PS7 UNEXPECTED ERROR: expected ER_FK_DUP_NAME (1826), got: %v", msg)
+		if !strings.Contains(msg, "1005") && !strings.Contains(strings.ToLower(msg), "duplicate") {
+			t.Errorf("PS7 UNEXPECTED ERROR: expected malformed FK error (1005), got: %v", msg)
 		} else {
 			t.Logf("OK PS7 verified: collision rejected")
 		}
@@ -599,7 +601,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rows {
 			names = append(names, asString(row[0]))
 		}
-		want := []string{"cc_chk_1", "cc_chk_2"}
+		want := []string{"CONSTRAINT_1", "CONSTRAINT_2"}
 		if len(names) != 2 || names[0] != want[0] || names[1] != want[1] {
 			t.Errorf("CATALOG MISMATCH C1.3: expected %v, got %v", want, names)
 		} else {
@@ -1006,20 +1008,30 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// ---------------------------------------------------------------
 	t.Run("C14_1_Check_enforced_default", func(t *testing.T) {
 		reset(t)
-		rows := spotCheckQuery(t, mc, `
-			CREATE TABLE tchk14 (a INT, CONSTRAINT chk14 CHECK (a > 0));
-		`, `
-			SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'
-		`)
-		if len(rows) != 1 {
-			t.Fatalf("expected 1 row, got %d", len(rows))
+		rows := spotCheckQuery(t, mc, `CREATE TABLE tchk14 (a INT,CONSTRAINT chk14 CHECK(a>0))`, `SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'`)
+		if len(rows) != 1 || asString(rows[0][0]) != "CHECK" {
+			t.Fatalf("native check metadata: %v", rows)
 		}
-		if asString(rows[0][0]) != "YES" {
-			t.Errorf("CATALOG MISMATCH C14.1: expected ENFORCED=YES, got %q", asString(rows[0][0]))
-		} else {
-			t.Logf("OK C14.1 verified: ENFORCED=YES")
+		_, err := mc.db.ExecContext(mc.ctx, "INSERT INTO tchk14 VALUES(-1)")
+		code := mariaOracleErrorCode(err)
+		if code != 4025 {
+			t.Fatalf("native default check enforcement: %v", err)
 		}
+		c := New()
+		results, err := c.Exec("CREATE DATABASE sc; USE sc; CREATE TABLE tchk14(a INT,CONSTRAINT chk14 CHECK(a>0))", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range results {
+			if r.Error != nil {
+				t.Fatal(r.Error)
+			}
+		}
+		con := c.GetDatabase("sc").GetTable("tchk14").Constraints[0]
+		if con.Type != ConCheck || con.NotEnforced {
+			t.Fatalf("catalog check metadata: %+v", con)
+		}
+
 	})
 
 	// ---------------------------------------------------------------

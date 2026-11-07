@@ -28,7 +28,7 @@ import (
 //     generate → empty — produces no DDL. A non-empty no-op plan is a bug in ordering or
 //     rendering (or an upstream normalization gap → flagged, not patched here).
 //
-// The harness reuses connectOracle / showCreate / serverCharsetFor / loadOneTable / both()
+// The harness reuses connectOracle / showCreate / serverCharsetFor / loadOneTable / oracleVersions()
 // from the diff + normalize oracle tests. It falls back to a shared testcontainer per
 // version when the local engines are unreachable (oracle_fallback_test.go).
 
@@ -75,97 +75,97 @@ func migrationProbes() []migrationProbe {
 	return []migrationProbe{
 		// ---- CREATE TABLE (from empty) — every column rendering surface ----
 		{"create-simple", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20))", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20))", oracleVersions()},
 		{"create-int-widths", "t", "",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT(11), b BIGINT(20), p TINYINT, h INT UNSIGNED, z INT ZEROFILL)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT(11), b BIGINT(20), p TINYINT, h INT UNSIGNED, z INT ZEROFILL)", oracleVersions()},
 		{"create-boolean", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, m BOOLEAN, d TINYINT(1))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, m BOOLEAN, d TINYINT(1))", oracleVersions()},
 		{"create-numeric", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a DECIMAL, b DECIMAL(10,2), j REAL, f FLOAT, g DOUBLE(15,4))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a DECIMAL, b DECIMAL(10,2), j REAL, f FLOAT, g DOUBLE(15,4))", oracleVersions()},
 		{"create-char-bit-year", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a CHAR, d BINARY, c BIT, y YEAR, v VARCHAR(40), bb VARBINARY(8))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a CHAR, d BINARY, c BIT, y YEAR, v VARCHAR(40), bb VARBINARY(8))", oracleVersions()},
 		{"create-enum-set", "t", "",
-			`CREATE TABLE t (id INT PRIMARY KEY, a ENUM('x','y','z'), b SET('a','b','c'))`, both()},
+			`CREATE TABLE t (id INT PRIMARY KEY, a ENUM('x','y','z'), b SET('a','b','c'))`, oracleVersions()},
 		{"create-defaults", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT 0, b INT DEFAULT '7', f DECIMAL(10,2) DEFAULT 0, c VARCHAR(20) DEFAULT 'x', j BOOLEAN DEFAULT TRUE)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT 0, b INT DEFAULT '7', f DECIMAL(10,2) DEFAULT 0, c VARCHAR(20) DEFAULT 'x', j BOOLEAN DEFAULT TRUE)", oracleVersions()},
 		{"create-nullability", "t", "",
-			"CREATE TABLE t (id INT, a INT NULL, b INT DEFAULT NULL, d VARCHAR(10) NOT NULL, PRIMARY KEY (id))", both()},
+			"CREATE TABLE t (id INT, a INT NULL, b INT DEFAULT NULL, d VARCHAR(10) NOT NULL, PRIMARY KEY (id))", oracleVersions()},
 		{"create-comment", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT COMMENT 'has ''quote'' inside') COMMENT='tbl ''c'''", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT COMMENT 'has ''quote'' inside') COMMENT='tbl ''c'''", oracleVersions()},
 		{"create-autoinc", "t", "",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT) AUTO_INCREMENT=100", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT) AUTO_INCREMENT=100", oracleVersions()},
 		{"create-generated", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, c INT GENERATED ALWAYS AS (a*2) STORED)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, c INT GENERATED ALWAYS AS (a*2) STORED)", oracleVersions()},
 		{"create-timestamp", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", oracleVersions()},
 		{"create-datetime-default", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, g DATETIME DEFAULT CURRENT_TIMESTAMP, h DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, g DATETIME DEFAULT CURRENT_TIMESTAMP, h DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)", oracleVersions()},
 		{"create-charset-explicit", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) CHARACTER SET utf8mb4, b VARCHAR(10)) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) CHARACTER SET utf8mb4, b VARCHAR(10)) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 		{"create-engine-myisam", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT) ENGINE=MyISAM", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT) ENGINE=MyISAM", oracleVersions()},
 		{"create-multi-column", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, c1 VARCHAR(10), c2 INT DEFAULT 0, c3 DATE, c4 DECIMAL(8,3), PRIMARY KEY (id))", both()},
+			"CREATE TABLE t (id INT NOT NULL, c1 VARCHAR(10), c2 INT DEFAULT 0, c3 DATE, c4 DECIMAL(8,3), PRIMARY KEY (id))", oracleVersions()},
 		{"create-functional-default", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))", only(MySQL80)},
 		{"create-row-format", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", oracleVersions()},
 
 		// ---- DROP TABLE ----
 		{"drop-table", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"", both()},
+			"", oracleVersions()},
 
 		// ---- ADD COLUMN ----
 		{"add-column", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20))", oracleVersions()},
 		{"add-column-notnull-default", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, n INT NOT NULL DEFAULT 5)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, n INT NOT NULL DEFAULT 5)", oracleVersions()},
 		{"add-generated-column", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) STORED)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) STORED)", oracleVersions()},
 		{"add-timestamp-column", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP)", oracleVersions()},
 
 		// ---- DROP COLUMN ----
 		{"drop-column", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20))",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)", oracleVersions()},
 
 		// ---- MODIFY COLUMN (type / nullability / default / charset / comment / autoinc) ----
 		{"modify-type", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, v BIGINT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v BIGINT)", oracleVersions()},
 		{"modify-type-width-57-vs-80", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v SMALLINT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, v BIGINT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v BIGINT)", oracleVersions()},
 		{"modify-nullability", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT NULL)",
-			"CREATE TABLE t (id INT PRIMARY KEY, v INT NOT NULL)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v INT NOT NULL)", oracleVersions()},
 		{"modify-default", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT DEFAULT 0)",
-			"CREATE TABLE t (id INT PRIMARY KEY, v INT DEFAULT 1)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v INT DEFAULT 1)", oracleVersions()},
 		// bug: changing TO the BIGINT UNSIGNED max default must generate a MODIFY that applies
 		// to the EXACT value 18446744073709551615 (not int64-clamped 9223372036854775807). The
 		// apply-correctness diff catches a corrupted value; TestOracle_BigintUnsignedExactValue
 		// additionally asserts the literal survives byte-for-byte.
 		{"modify-default-bigint-unsigned-max", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 0)",
-			"CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615)", oracleVersions()},
 		// bug: changing TO a BIT default written as hex (0x05) must apply as b'101'.
 		{"modify-default-bit-hex", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, f BIT(8) NOT NULL DEFAULT b'0')",
-			"CREATE TABLE t (id INT PRIMARY KEY, f BIT(8) NOT NULL DEFAULT 0x05)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, f BIT(8) NOT NULL DEFAULT 0x05)", oracleVersions()},
 		// bug: changing TO a numeric YEAR default (2000) must apply and round-trip vs '2000'.
 		{"modify-default-year", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, y YEAR NOT NULL DEFAULT 1999)",
-			"CREATE TABLE t (id INT PRIMARY KEY, y YEAR NOT NULL DEFAULT 2000)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, y YEAR NOT NULL DEFAULT 2000)", oracleVersions()},
 		{"modify-charset", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET latin1) DEFAULT CHARSET=utf8mb4",
-			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 		// bug (Roundcube et al.): the legacy `BINARY` string-column modifier resolves to the
 		// charset's `_bin` collation. The generated DDL for a `varchar BINARY` target must
 		// apply to a real engine and yield a column whose stored form (COLLATE <cs>_bin) equals
@@ -173,38 +173,38 @@ func migrationProbes() []migrationProbe {
 		// (entry char-binary-attribute)
 		{"add-column-binary-modifier", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4",
-			"CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 		// MODIFY a plain column TO its BINARY (_bin) form — a genuine collation change that must
 		// be emitted and applied (proves the fix doesn't make plain↔BINARY an invisible no-op).
 		{"modify-column-to-binary-modifier", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
-			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) BINARY) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) BINARY) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 		{"modify-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT COMMENT 'a')",
-			"CREATE TABLE t (id INT PRIMARY KEY, v INT COMMENT 'b')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, v INT COMMENT 'b')", oracleVersions()},
 		{"modify-add-autoinc", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)", oracleVersions()},
 		{"modify-generated-expr", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED)", oracleVersions()},
 
 		// ---- table-option ALTER (engine / charset / comment / row_format) ----
 		{"alter-engine", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB",
-			"CREATE TABLE t (id INT PRIMARY KEY) ENGINE=MyISAM", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) ENGINE=MyISAM", oracleVersions()},
 		{"alter-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY) COMMENT='old'",
-			"CREATE TABLE t (id INT PRIMARY KEY) COMMENT='new'", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) COMMENT='new'", oracleVersions()},
 		{"alter-charset", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=latin1",
-			"CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 		{"alter-rowformat-add", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", oracleVersions()},
 		{"alter-rowformat-change", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPACT",
-			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=DYNAMIC", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=DYNAMIC", oracleVersions()},
 
 		// ---- review-regression apply proofs (blockers #1, #2) ----
 		// Generated storage-mode flip VIRTUAL→STORED: must be DROP+ADD (in-place MODIFY is
@@ -217,7 +217,7 @@ func migrationProbes() []migrationProbe {
 		// must be dropped first (error 3108 otherwise).
 		{"gen-drop-with-base", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, z INT GENERATED ALWAYS AS (a+1) STORED)",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)", oracleVersions()},
 		// Re-round N2: a generated column `g` (refs base `z`, sorts before it) flips storage
 		// (DROP+ADD) in the same plan as a type-widening MODIFY of `z`. The generated ADD must
 		// land after the base MODIFY (else the re-add references a column mid-change). 8.0 only
@@ -233,14 +233,14 @@ func migrationProbes() []migrationProbe {
 			"CREATE TABLE t (id INT PRIMARY KEY)",
 			"CREATE TABLE t (id INT PRIMARY KEY, secret INT INVISIBLE)", only(MySQL80)},
 		{"create-collate-only-column", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) COLLATE utf8mb4_unicode_ci) DEFAULT CHARSET=utf8mb4", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) COLLATE utf8mb4_unicode_ci) DEFAULT CHARSET=utf8mb4", oracleVersions()},
 	}
 }
 
 // TestOracle_MigrationApplyCorrectness proves gate 2 (apply-correctness) for every probe:
 // the generated DDL transforms a real `from` database into a `to`-equal one.
 func TestOracle_MigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range migrationProbes() {
@@ -418,7 +418,7 @@ func applyDBName(t *testing.T, probeID string) string {
 // form, the generated no-op plan is EMPTY — and the full round-trip (apply → dump → reload →
 // diff → generate) emits nothing. A non-empty no-op plan is a bug.
 func TestOracle_MigrationIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		// Reuse the diff idempotence corpus (the same high-risk forms), but assert the PLAN is
@@ -473,7 +473,7 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 		{"int64-max", "BIGINT", "9223372036854775807"},
 		{"int64-min", "BIGINT", "-9223372036854775808"},
 	}
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)

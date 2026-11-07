@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	_ "github.com/microsoft/go-mssqldb"
-	"github.com/testcontainers/testcontainers-go"
-	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
+
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -33,7 +33,7 @@ type parserOracle struct {
 // statement under test, which then executes for real.
 var sharedMSSQL struct {
 	once      sync.Once
-	container *tcmssql.MSSQLServerContainer
+	container *testcontainer.DatabaseContainer
 	db        *sql.DB
 	conn      *sql.Conn
 	err       error
@@ -46,16 +46,13 @@ func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	sharedMSSQL.once.Do(func() {
 		ctx := context.Background()
-		container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04",
-			tcmssql.WithAcceptEULA(),
-			tcmssql.WithPassword("Str0ngPa$$w0rd!"),
-		)
+		container, err := testcontainer.Start(ctx)
 		if err != nil {
 			sharedMSSQL.err = fmt.Errorf("start SQL Server container: %w", err)
 			return
 		}
 		fail := func(err error) {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			sharedMSSQL.err = err
 		}
 		connStr, err := container.ConnectionString(ctx)
@@ -111,7 +108,7 @@ func TestMain(m *testing.M) {
 		_ = sharedMSSQL.db.Close()
 	}
 	if sharedMSSQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMSSQL.container)
+		_ = testcontainer.TerminateContainer(sharedMSSQL.container)
 	}
 	os.Exit(code)
 }

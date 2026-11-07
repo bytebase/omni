@@ -194,7 +194,7 @@ func TestTableConstraintSyntaxMatchesPG(t *testing.T) {
 
 		// The rest of each constraint's tokens.
 		{"CREATE TABLE t (a int GENERATED ALWAYS AS a + 1 STORED)", false},
-		{"CREATE TABLE t (a int GENERATED ALWAYS AS (a + 1))", false},
+		{"CREATE TABLE t (a int GENERATED ALWAYS AS (a + 1))", true},
 		{"CREATE TABLE t (a int CONSTRAINT c)", false},
 		{"CREATE TABLE t (a int CONSTRAINT c NOT 5)", false},
 		{"CREATE TABLE t (a int PRIMARY)", false},
@@ -356,7 +356,7 @@ func TestSelectLimitMatchesPG(t *testing.T) {
 		{"(SELECT 1 ORDER BY 1) ORDER BY 1", false},
 		{"(SELECT 1 ORDER BY 1) ORDER BY 2, 3", false},
 		{"(SELECT 1 ORDER BY 1) ORDER BY a.b", false},
-		{"(SELECT 1 ORDER BY 1 FETCH FIRST 1 ROW WITH TIES) OFFSET 1", false},
+		{"(SELECT 1 ORDER BY 1 FETCH FIRST 1 ROW WITH TIES) OFFSET 1", true},
 		{"(SELECT 1 ORDER BY 1 FETCH FIRST 1 ROW WITH TIES) LIMIT 1", false},
 		{"SELECT 1 FETCH FIRST 1 ROW WITH TIES", false},
 		{"WITH a AS (SELECT 1) SELECT * FROM a FETCH FIRST 1 ROW WITH TIES", false},

@@ -30,28 +30,28 @@ import (
 func indexDiffProbes() []diffProbe {
 	return []diffProbe{
 		// PRIMARY KEY — single and composite; columns are forced NOT NULL by the PK.
-		{"pk-simple", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", "t", both()},
-		{"pk-composite", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b))", "t", both()},
+		{"pk-simple", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", "t", oracleVersions()},
+		{"pk-composite", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b))", "t", oracleVersions()},
 		// UNIQUE — MySQL's unique constraint is a unique index; single + composite.
-		{"unique-single", "CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))", "t", both()},
-		{"unique-composite", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY uab (a,b))", "t", both()},
+		{"unique-single", "CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))", "t", oracleVersions()},
+		{"unique-composite", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY uab (a,b))", "t", oracleVersions()},
 		// Secondary (non-unique) — single, composite, multiple.
-		{"secondary", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))", "t", both()},
+		{"secondary", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))", "t", oracleVersions()},
 		// Unnamed indexes → MySQL auto-name (a, a_2): the user form vs stored named form must
 		// collapse. The headline auto-name canonicalization case.
-		{"unnamed-autoname", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY (a), KEY (a,b))", "t", both()},
+		{"unnamed-autoname", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY (a), KEY (a,b))", "t", oracleVersions()},
 		// USING BTREE echo (InnoDB coerces HASH→BTREE; BTREE is echoed verbatim).
-		{"using-btree", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB", "t", both()},
+		{"using-btree", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB", "t", oracleVersions()},
 		// Prefix length col(N).
-		{"prefix", "CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), c CHAR(40), KEY sp (s(10)), KEY cp (c(5)))", "t", both()},
+		{"prefix", "CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), c CHAR(40), KEY sp (s(10)), KEY cp (c(5)))", "t", oracleVersions()},
 		// Index COMMENT (escaped).
-		{"comment", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'idx ''c'' here')", "t", both()},
+		{"comment", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'idx ''c'' here')", "t", oracleVersions()},
 		// Index KEY_BLOCK_SIZE — echoed on 5.7, absorbed on 8.0; must round-trip on BOTH.
-		{"key-block-size", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB", "t", both()},
+		{"key-block-size", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB", "t", oracleVersions()},
 		// Descending — stored on 8.0, silently ascending on 5.7; round-trips on both.
-		{"descending", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", "t", both()},
+		{"descending", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", "t", oracleVersions()},
 		// Composite mixed ASC/DESC + prefix together.
-		{"composite-mixed", "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(50), KEY mix (a DESC, s(8)))", "t", both()},
+		{"composite-mixed", "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(50), KEY mix (a DESC, s(8)))", "t", oracleVersions()},
 		// Invisible — 8.0 only (/*!80000 INVISIBLE */).
 		{"invisible", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", "t", only(MySQL80)},
 		// Functional / expression index — 8.0 only.
@@ -66,14 +66,14 @@ func indexDiffProbes() []diffProbe {
 		// Composite MV index: a regular column part combined with an MV (array-cast) part.
 		{"mv-composite", "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50), j JSON, KEY mv (name, (CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(MySQL80)},
 		// FULLTEXT.
-		{"fulltext", "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, ftcol VARCHAR(200), FULLTEXT KEY ftb (body), FULLTEXT KEY ftc (ftcol))", "t", both()},
+		{"fulltext", "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, ftcol VARCHAR(200), FULLTEXT KEY ftb (body), FULLTEXT KEY ftc (ftcol))", "t", oracleVersions()},
 		// SPATIAL — needs a NOT NULL geometry column. 8.0 supports SPATIAL on InnoDB; 5.7 needs
 		// MyISAM. Prove on 8.0 (InnoDB default) to keep the form simple.
 		{"spatial", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", "t", only(MySQL80)},
 		// Mixed bag: PK + unique + secondary + invisible on one table (8.0).
 		{"mixed-all-80", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b DESC), KEY kc (c(5)) /*!80000 INVISIBLE */)", "t", only(MySQL80)},
 		// Mixed bag for 5.7 (no DESC/invisible/functional).
-		{"mixed-all-57", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b), KEY kc (c(5)))", "t", both()},
+		{"mixed-all-57", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b), KEY kc (c(5)))", "t", oracleVersions()},
 	}
 }
 
@@ -81,7 +81,7 @@ func indexDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported
 // version.
 func TestOracle_IndexDiffIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		for _, probe := range indexDiffProbes() {
 			if !containsVersion(probe.versions, version) {
@@ -109,21 +109,21 @@ type fkIndexCase struct {
 func fkIndexCases() []fkIndexCase {
 	return []fkIndexCase{
 		// Named FK, no explicit backing index → MySQL auto-creates KEY `fk`.
-		{"fk-named-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		{"fk-named-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// Unnamed FK → constraint `c_ibfk_1`, backing index named after the column `pid`.
-		{"fk-unnamed-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		{"fk-unnamed-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// Explicit covering index present (distinct name) → MySQL reuses it, no separate backing
 		// index; the explicit index is user-managed and must round-trip.
-		{"fk-explicit-covering", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		{"fk-explicit-covering", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// Composite FK with its own auto-created composite backing index.
-		{"fk-composite", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", both()},
+		{"fk-composite", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", oracleVersions()},
 		// Unnamed FK whose first-column index name collides with a user index, so MySQL/the loader
 		// names the backing index `pid_2` (allocIndexName suffix). The structural FK-implicit
 		// detection must still exclude `pid_2` while keeping the user's `KEY pid (a)`.
-		{"fk-backing-name-collision", "CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		{"fk-backing-name-collision", "CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// FK with a user-chosen constraint name that matches the auto `<table>_ibfk_N` shape; the
 		// backing index is named after the constraint and must be excluded structurally.
-		{"fk-user-named-ibfk", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		{"fk-user-named-ibfk", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 	}
 }
 
@@ -133,7 +133,7 @@ func fkIndexCases() []fkIndexCase {
 // and owned by the FK node) — dropping it would fail errno 1553 ("needed in a foreign key
 // constraint"). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
@@ -191,7 +191,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 // readbacks of BOTH tables. This is the multi-table analog of the idempotence probe — the
 // single-table harness cannot resolve the FK's referenced table.
 func TestOracle_IndexDiffFKImplicit(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)

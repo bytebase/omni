@@ -102,6 +102,7 @@ type Column struct {
 	Name                         string
 	DataType                     string // normalized (int, varchar, etc.)
 	ColumnType                   string // full type string (varchar(100), int unsigned)
+	JSONAlias                    bool   // LONGTEXT alias with an inline JSON_VALID constraint
 	Nullable                     bool
 	Default                      *string
 	DefaultKind                  ColumnDefaultKind
@@ -141,8 +142,9 @@ const (
 )
 
 type GeneratedColumnInfo struct {
-	Expr   string
-	Stored bool
+	Expr             string
+	Stored           bool
+	Nondeterministic bool // allowed only on a virtual column without an index
 	// RowBound is "ROW START" / "ROW END" for a system-versioning period
 	// column (GENERATED ALWAYS AS ROW START/END), else "".
 	RowBound string
@@ -193,6 +195,8 @@ type RoutineParam struct {
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
 	Name                string
+	NameSQL             string
+	TableSQL            string
 	Database            *Database
 	Table               string // table name the trigger is on
 	Timing              string // BEFORE, AFTER

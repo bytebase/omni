@@ -61,7 +61,7 @@ func TestScenario_PS(t *testing.T) {
 			`CREATE TABLE t (a INT, b INT, CONSTRAINT t_chk_20 CHECK (a>0))`)
 		runOnBoth(t, mc, c, `ALTER TABLE t ADD CHECK (b>0)`)
 
-		want := []string{"t_chk_20", "t_chk_21"}
+		want := []string{"t_chk_1", "t_chk_20"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -94,7 +94,7 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES parent(id)
         )`)
 
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
+		want := []string{"child_ibfk_5", "fk_2"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -129,7 +129,7 @@ func TestScenario_PS(t *testing.T) {
 		runOnBoth(t, mc, c,
 			`ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)`)
 
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
+		want := []string{"child_ibfk_20", "fk_2"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -258,11 +258,8 @@ func TestScenario_PS(t *testing.T) {
         )`
 
 		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.7 oracle: expected ER_FK_DUP_NAME (1826), got success")
-		} else if !strings.Contains(oracleErr.Error(), "1826") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.7 oracle: unexpected error text: %v", oracleErr)
+		if oracleErr != nil {
+			t.Errorf("PS.7 native independent FK naming: %v", oracleErr)
 		}
 
 		var omniErr error
@@ -277,9 +274,14 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.7 omni: KNOWN BUG — expected ER_FK_DUP_NAME, got success (see mysql/catalog/scenarios_bug_queue/ps.md)")
+		if omniErr != nil {
+			t.Errorf("PS.7 catalog independent FK naming: %v", omniErr)
 		}
+		want := []string{"c_ibfk_1", "fk_2"}
+		if got := psFKNames(c, "c"); !slices.Equal(got, want) {
+			t.Errorf("PS.7 FK names: got %v, want %v", got, want)
+		}
+		assertScenarioReadback(t, mc, c, "c")
 	})
 
 	// PS.8 CHECK constraint duplicate name in schema — must error.

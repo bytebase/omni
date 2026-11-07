@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func assertScenarioReadback(t *testing.T, mc *mysqlContainer, c *Catalog, table string) {
+	t.Helper()
+	native := oracleShow(t, mc, "SHOW CREATE TABLE `"+strings.ReplaceAll(table, "`", "``")+"`")
+	modeled := c.ShowCreateTable(c.CurrentDatabase(), table)
+	if normalizeWhitespace(native) != normalizeWhitespace(modeled) {
+		t.Errorf("stored schema mismatch:\nnative: %s\ncatalog: %s", native, modeled)
+	}
+}
+
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
 // starmap scenario tests. Section workers in BATCHES 1-7 build on these helpers
 // to run dual-assertion scenarios against both a real MySQL 8.0 container and

@@ -43,9 +43,9 @@ type Server struct {
 	err       error
 }
 
-// MySQL80 is mysql:8.0. The binary log stays off so the restricted account can
+// MySQL84 is the pinned MySQL 8.4 LTS server. The binary log stays off so the restricted account can
 // create routines (1419 otherwise).
-var MySQL80 = &Server{Image: "mysql:8.0", Args: []string{"--skip-log-bin"}}
+var MySQL84 = &Server{Image: Image, Args: []string{"--skip-log-bin"}}
 
 // admin returns a connection that can create databases, starting the server on
 // the first call of this process.
@@ -165,3 +165,25 @@ func (d *Database) Close(ctx context.Context) {
 	_, _ = d.DB.ExecContext(ctx, "DROP DATABASE IF EXISTS "+d.Name)
 	_ = d.DB.Close()
 }
+
+const Image = "mysql:8.4.13"
+
+type Container = testcontainers.Container
+type DatabaseContainer = tcmysql.MySQLContainer
+
+// Start starts the pinned server with the requested fixture database.
+func Start(ctx context.Context, database string, args ...string) (*DatabaseContainer, error) {
+	return StartImage(ctx, Image, database, args...)
+}
+
+// StartImage validates sweep overrides against the engine's selected version.
+func StartImage(ctx context.Context, image, database string, args ...string) (*DatabaseContainer, error) {
+	if image != Image {
+		return nil, fmt.Errorf("test database image must be %s, got %q", Image, image)
+	}
+	return tcmysql.Run(ctx, Image,
+		tcmysql.WithDatabase(database), tcmysql.WithUsername("root"), tcmysql.WithPassword("test"), testcontainers.WithCmdArgs(args...),
+	)
+}
+
+func TerminateContainer(c Container) error { return testcontainers.TerminateContainer(c) }

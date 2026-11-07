@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -39,20 +40,23 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
 	switch typeName {
+	case "geometry", "point", "linestring", "polygon", "multipoint", "multilinestring", "multipolygon", "geometrycollection":
+		if isLiteralDefault(colDef.DefaultValue) || hasLiteralColumnDefaultConstraint(colDef) {
+			return &Error{Code: 1416, SQLState: "22003", Message: "Cannot get geometry object from data you send to the GEOMETRY field"}
+		}
+	}
+
+	switch typeName {
 	case "datetime", "timestamp", "time":
 		if colDef.TypeName.Length > 6 {
 			return errTooBigPrecision(colDef.TypeName.Length, typeName)
 		}
-	case "year":
-		if colDef.TypeName.Length != 0 && colDef.TypeName.Length != 4 {
-			return errInvalidYearColumnLength()
-		}
 	case "decimal", "numeric", "dec", "fixed":
 		if colDef.TypeName.Length > 65 {
-			return errTooBigPrecision(colDef.TypeName.Length, typeName)
+			return &Error{Code: 1426, SQLState: "42000", Message: fmt.Sprintf("Too big precision specified for '%s'. Maximum is 65", colDef.Name)}
 		}
-		if colDef.TypeName.Scale > 30 {
-			return &Error{Code: 1425, SQLState: "42000", Message: "Too big scale specified for column"}
+		if colDef.TypeName.Scale > 38 {
+			return &Error{Code: 1425, SQLState: "42000", Message: fmt.Sprintf("Too big scale specified for '%s'. Maximum is 38", colDef.Name)}
 		}
 		if colDef.TypeName.Scale > colDef.TypeName.Length && colDef.TypeName.Length > 0 {
 			return &Error{Code: 1427, SQLState: "42000", Message: "For float(M,D), double(M,D) or decimal(M,D), M must be >= D"}
@@ -66,25 +70,16 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 		return errInvalidDefault(colDef.Name)
 	}
 	if colDef.Generated != nil {
-		if err := validateGeneratedExpr(colDef.Name, colDef.Generated.Expr); err != nil {
+		if err := validateGeneratedExpr(colDef.Name, colDef.Generated.Expr, !colDef.Generated.Stored); err != nil {
 			return err
 		}
 		if !colDef.Generated.Stored && columnDefHasPrimaryKey(colDef) {
 			return errPrimaryKeyOnGeneratedColumn(colDef.Name)
 		}
 	}
-	if hasExplicitNullPrimaryKey(colDef) {
-		return &Error{Code: 1171, SQLState: "42000", Message: "All parts of a PRIMARY KEY must be NOT NULL"}
-	}
 	if !columnDefNullable(colDef) && hasNullDefault(colDef) {
 		return errInvalidDefault(colDef.Name)
 	}
-	if isLiteralDefaultForbiddenType(typeName) {
-		if isLiteralDefault(colDef.DefaultValue) || hasLiteralColumnDefaultConstraint(colDef) {
-			return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(colDef.Name)}
-		}
-	}
-
 	if err := validateTemporalExprForColumn(colDef.Name, typeName, colDef.TypeName.Length, colDef.DefaultValue, true); err != nil {
 		return err
 	}
@@ -99,6 +94,17 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 		}
 	}
 	return nil
+}
+
+func generatedExprNondeterministic(expr nodes.ExprNode) bool {
+	invalid := false
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if fn, ok := node.(*nodes.FuncCallExpr); ok && isNondeterministicFunc(fn.Name) {
+			invalid = true
+		}
+		return !invalid
+	})
+	return invalid
 }
 
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {
@@ -140,7 +146,7 @@ func columnDefNullable(colDef *nodes.ColumnDef) bool {
 	return nullable
 }
 
-func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
+func validateGeneratedExpr(colName string, expr nodes.ExprNode, allowNondeterministic bool) error {
 	var invalid bool
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		if invalid {
@@ -152,14 +158,14 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
 		case *nodes.VariableRef:
 			invalid = true
 		case *nodes.FuncCallExpr:
-			if isNondeterministicFunc(x.Name) {
+			if !allowNondeterministic && isNondeterministicFunc(x.Name) {
 				invalid = true
 			}
 		}
 		return !invalid
 	})
 	if invalid {
-		return &Error{Code: 3763, SQLState: "HY000", Message: "Expression of generated column '" + colName + "' contains a disallowed function"}
+		return &Error{Code: 1901, SQLState: "HY000", Message: "Expression of generated column '" + colName + "' contains a disallowed function"}
 	}
 	return nil
 }
@@ -168,9 +174,20 @@ func errPrimaryKeyOnGeneratedColumn(colName string) error {
 	return &Error{Code: 3106, SQLState: "HY000", Message: "Defining a virtual generated column as primary key is not supported"}
 }
 
-func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
+func validatePrimaryKeyColumns(tbl *Table, cols []string, parts ...*IndexColumn) error {
 	for _, colName := range cols {
 		col := tbl.GetColumn(colName)
+		if col != nil && isTextBlobType(col.DataType) {
+			prefixed := false
+			for _, part := range parts {
+				if strings.EqualFold(part.Name, colName) && part.Length > 0 {
+					prefixed = true
+				}
+			}
+			if !prefixed {
+				return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column '" + colName + "' used in key specification without a key length"}
+			}
+		}
 		if col != nil && col.Generated != nil && !col.Generated.Stored {
 			return errPrimaryKeyOnGeneratedColumn(colName)
 		}
@@ -179,21 +196,19 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 }
 
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
-	bad := false
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if bad {
-			return false
-		}
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && !strings.EqualFold(cr.Column, colName) {
-			bad = true
-			return false
-		}
-		return true
-	})
-	if bad {
-		return &Error{Code: 3823, SQLState: "HY000", Message: "Column check constraint cannot reference other columns"}
-	}
+	// MariaDB allows another column of the same table in an inline CHECK.
 	return validateCheckExpr(conName, expr)
+}
+
+func validateCheckColumnReferences(tbl *Table, expr nodes.ExprNode) error {
+	var err error
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if ref, ok := node.(*nodes.ColumnRef); ok && tbl.GetColumn(ref.Column) == nil {
+			err = errNoSuchColumn(ref.Column, "CHECK")
+		}
+		return err == nil
+	})
+	return err
 }
 
 func hasColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
@@ -271,25 +286,14 @@ func validateTemporalExprForColumn(colName, typeName string, colFsp int, expr no
 	if err := validateExpressionSemantics(expr); err != nil {
 		return err
 	}
-	fn, ok := unwrapTemporalFunc(expr)
+	_, ok := unwrapTemporalFunc(expr)
 	if !ok {
 		return nil
-	}
-	name := strings.ToLower(fn.Name)
-	if isDefault && (name == "sysdate" || name == "utc_timestamp") {
-		return errInvalidDefault(colName)
 	}
 	if !isDefault && typeName != "datetime" && typeName != "timestamp" {
 		return errInvalidOnUpdate(colName)
 	}
-	if typeName == "datetime" || typeName == "timestamp" {
-		if fsp, ok := temporalFuncFSP(fn); ok && fsp != colFsp {
-			if !isDefault {
-				return errInvalidOnUpdate(colName)
-			}
-			return errInvalidDefault(colName)
-		}
-	}
+
 	return nil
 }
 

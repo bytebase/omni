@@ -89,12 +89,12 @@ func TestScenario_C4(t *testing.T) {
 
 	// --- 4.1 Table charset inherits from database ---
 	t.Run("4_1_table_charset_from_db", func(t *testing.T) {
-		c := c4ResetDBWithCharset(t, "latin1", "latin1_swedish_ci")
+		c := c4ResetDBWithCharset(t, "latin1", "latin1_bin")
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (c VARCHAR(10))`)
 
 		assertStringEq(t, "oracle table collation",
-			c4OracleTableCollation(t, "t"), "latin1_swedish_ci")
+			c4OracleTableCollation(t, "t"), "latin1_bin")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -104,7 +104,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "omni table charset",
 			strings.ToLower(tbl.Charset), "latin1")
 		assertStringEq(t, "omni table collation",
-			strings.ToLower(tbl.Collation), "latin1_swedish_ci")
+			strings.ToLower(tbl.Collation), "latin1_bin")
 	})
 
 	// --- 4.2 Column charset inherits from table (elided in SHOW) ---
@@ -191,7 +191,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle col charset",
 			c4OracleColCharset(t, "t", "c"), "latin1")
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "latin1_swedish_ci")
+			c4OracleColCollation(t, "t", "c"), "latin1_bin")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -206,7 +206,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "omni col charset",
 			strings.ToLower(col.Charset), "latin1")
 		assertStringEq(t, "omni col collation",
-			strings.ToLower(col.Collation), "latin1_swedish_ci")
+			strings.ToLower(col.Collation), "latin1_bin")
 	})
 
 	// --- 4.5 Table CHARSET/COLLATE mismatch error ---
@@ -375,9 +375,9 @@ func TestScenario_C4(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8)`)
 
 		assertStringEq(t, "oracle col charset",
-			c4OracleColCharset(t, "t", "c"), "utf8mb3")
+			c4OracleColCharset(t, "t", "c"), "utf8")
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb3_general_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8_bin")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -390,15 +390,14 @@ func TestScenario_C4(t *testing.T) {
 			return
 		}
 		assertStringEq(t, "omni col charset (normalized)",
-			strings.ToLower(col.Charset), "utf8mb3")
+			strings.ToLower(col.Charset), "utf8")
 
-		// SHOW CREATE TABLE should print utf8mb3, never utf8.
+		// TiDB preserves the utf8 spelling and chooses its binary collation.
 		omniCreate := strings.ToLower(c.ShowCreateTable("testdb", "t"))
-		if strings.Contains(omniCreate, "character set utf8 ") ||
-			strings.Contains(omniCreate, "character set utf8,") ||
-			strings.HasSuffix(omniCreate, "character set utf8") {
-			t.Errorf("omni SHOW CREATE TABLE: expected utf8mb3, got unnormalized utf8 in: %s", omniCreate)
+		if !strings.Contains(omniCreate, "character set utf8 collate utf8_bin") {
+			t.Errorf("catalog lost the native utf8 spelling: %s", omniCreate)
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 4.9 NCHAR/NATIONAL → utf8mb3 hardcoding ---
@@ -415,9 +414,9 @@ func TestScenario_C4(t *testing.T) {
 
 		for _, name := range []string{"a", "b", "cc", "d"} {
 			assertStringEq(t, "oracle "+name+" charset",
-				c4OracleColCharset(t, "t", name), "utf8mb3")
+				c4OracleColCharset(t, "t", name), "utf8mb4")
 			assertStringEq(t, "oracle "+name+" collation",
-				c4OracleColCollation(t, "t", name), "utf8mb3_general_ci")
+				c4OracleColCollation(t, "t", name), "utf8mb4_bin")
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -432,7 +431,7 @@ func TestScenario_C4(t *testing.T) {
 				continue
 			}
 			assertStringEq(t, "omni "+name+" charset",
-				strings.ToLower(col.Charset), "utf8mb3")
+				strings.ToLower(col.Charset), "utf8mb4")
 		}
 	})
 
@@ -454,7 +453,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle b charset",
 			c4OracleColCharset(t, "t", "b"), "latin1")
 		assertStringEq(t, "oracle b collation",
-			c4OracleColCollation(t, "t", "b"), "latin1_swedish_ci")
+			c4OracleColCollation(t, "t", "b"), "latin1_bin")
 		// cc: charset derived from COLLATE
 		assertStringEq(t, "oracle cc charset",
 			c4OracleColCharset(t, "t", "cc"), "utf8mb4")
@@ -470,7 +469,7 @@ func TestScenario_C4(t *testing.T) {
 			assertStringEq(t, "omni b charset",
 				strings.ToLower(colB.Charset), "latin1")
 			assertStringEq(t, "omni b collation",
-				strings.ToLower(colB.Collation), "latin1_swedish_ci")
+				strings.ToLower(colB.Collation), "latin1_bin")
 		} else {
 			t.Error("omni: column b not found")
 		}

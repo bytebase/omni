@@ -48,15 +48,16 @@ ALTER TABLE t ADD COLUMN f INT AFTER a;`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT, c INT, INDEX idx_a(a), INDEX idx_ab(a, b), INDEX idx_bc(b, c));
-ALTER TABLE t DROP COLUMN a;`)
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT, c INT, INDEX idx_a(a), INDEX idx_ab(a, b), INDEX idx_bc(b, c))`)
+		assertNativeRejectedDDL(t, mc, c, `ALTER TABLE t DROP COLUMN a`, 8200)
+		assertScenarioReadback(t, mc, c, "t")
 
 		// Oracle: scenario doc claims idx_ab should be removed entirely,
 		// but MySQL 8.0 actually strips only the dropped column and keeps
 		// idx_ab as an index on the surviving column(s). Verify dual-agreement
 		// against observed MySQL behavior rather than the doc's stale claim.
 		oracleIdx := axOracleIndexNames(t, mc, "t")
-		want := []string{"idx_ab", "idx_bc"}
+		want := []string{"idx_a", "idx_ab", "idx_bc"}
 		assertStringEq(t, "oracle surviving indexes", strings.Join(oracleIdx, ","), strings.Join(want, ","))
 
 		// omni
@@ -243,8 +244,8 @@ ALTER TABLE t ADD FULLTEXT (b);`)
 		// Oracle check: examine STATISTICS for counts.
 		rows := oracleRows(t, mc, `SELECT INDEX_NAME, NON_UNIQUE, INDEX_TYPE FROM information_schema.STATISTICS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY INDEX_NAME`)
-		if len(rows) < 3 {
-			t.Errorf("oracle: expected >=3 index rows, got %d", len(rows))
+		if len(rows) != 2 {
+			t.Errorf("native should retain UNIQUE and KEY and ignore FULLTEXT: %v", rows)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -273,9 +274,10 @@ ALTER TABLE t ADD FULLTEXT (b);`)
 		if !havePlain {
 			t.Errorf("omni: expected a plain KEY index after ADD KEY")
 		}
-		if !haveFulltext {
-			t.Errorf("omni: expected a FULLTEXT index after ADD FULLTEXT")
+		if haveFulltext {
+			t.Error("catalog retained an ignored FULLTEXT constraint")
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- AX.9 FK column-level shorthand silent-ignored in CREATE --------
@@ -510,19 +512,11 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
   DROP COLUMN b,
   ADD INDEX (c),
   RENAME COLUMN a TO aa`
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr != nil {
-			t.Errorf("oracle ALTER failed: %v", oracleErr)
-		}
-
-		// omni
-		results, perr := c.Exec(ddl, nil)
-		if perr != nil {
-			t.Errorf("omni parse error: %v", perr)
-		}
-		if axExecHasError(results) {
-			t.Errorf("omni ALTER exec error: %v", results)
-		}
+		assertNativeRejectedDDL(t, mc, c, ddl, 1072)
+		assertScenarioReadback(t, mc, c, "t")
+		runOnBoth(t, mc, c, `ALTER TABLE t ADD COLUMN c INT;
+ALTER TABLE t DROP COLUMN b, ADD INDEX(c), RENAME COLUMN a TO aa`)
+		assertScenarioReadback(t, mc, c, "t")
 
 		want := []string{"aa", "c"}
 		oracle := axOracleColumnOrder(t, mc, "t")

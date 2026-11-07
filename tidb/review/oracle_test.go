@@ -12,12 +12,12 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/tidb/ast"
+
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from. Its primary keys
@@ -39,7 +39,7 @@ CREATE VIEW pv AS SELECT id, note FROM p;
 
 var tidbOracle struct {
 	once      sync.Once
-	container testcontainers.Container
+	container testcontainer.Container
 	db        *sql.DB
 	err       error
 }
@@ -50,13 +50,13 @@ func TestMain(m *testing.M) {
 		_ = tidbOracle.db.Close()
 	}
 	if tidbOracle.container != nil {
-		_ = testcontainers.TerminateContainer(tidbOracle.container)
+		_ = testcontainer.TerminateContainer(tidbOracle.container)
 	}
 	os.Exit(code)
 }
 
 // tidbImage is the TiDB the oracle tests run on.
-const tidbImage = "pingcap/tidb:v8.5.5"
+const tidbImage = testcontainer.Image
 
 // startTiDB returns the TiDB the oracle tests of this package ask,
 // started once, with CHECK constraints enforced, which TiDB otherwise
@@ -75,15 +75,11 @@ func startTiDB(t *testing.T) *sql.DB {
 // runTiDB starts a TiDB of the image, with CHECK constraints enforced. The
 // container is returned even when the server then fails, so the caller can
 // end it.
-func runTiDB(ctx context.Context, image string) (testcontainers.Container, *sql.DB, error) {
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        image,
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
-	})
+func runTiDB(ctx context.Context, image string) (testcontainer.Container, *sql.DB, error) {
+	if !strings.HasPrefix(image, "pingcap/tidb:") {
+		return nil, nil, fmt.Errorf("TiDB oracle requires a pingcap/tidb image, got %q", image)
+	}
+	c, err := testcontainer.StartImage(ctx, image)
 	if err != nil {
 		return c, nil, err
 	}
@@ -107,6 +103,10 @@ func runTiDB(ctx context.Context, image string) (testcontainers.Container, *sql.
 		time.Sleep(500 * time.Millisecond)
 	}
 	if err == nil {
+		var version string
+		if err = db.QueryRowContext(ctx, "SELECT tidb_version()").Scan(&version); err != nil {
+			return c, db, fmt.Errorf("test oracle must be TiDB: %w", err)
+		}
 		_, err = db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = ON")
 	}
 	return c, db, err

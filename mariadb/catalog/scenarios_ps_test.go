@@ -30,7 +30,7 @@ func TestScenario_PS(t *testing.T) {
             CHECK (b < 100)
         )`)
 
-		want := []string{"t_chk_1", "t_chk_5"}
+		want := []string{"CONSTRAINT_1", "t_chk_5"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -61,7 +61,7 @@ func TestScenario_PS(t *testing.T) {
 			`CREATE TABLE t (a INT, b INT, CONSTRAINT t_chk_20 CHECK (a>0))`)
 		runOnBoth(t, mc, c, `ALTER TABLE t ADD CHECK (b>0)`)
 
-		want := []string{"t_chk_20", "t_chk_21"}
+		want := []string{"CONSTRAINT_1", "t_chk_20"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -150,38 +150,15 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.5 DEFAULT NOW() / fsp precision mismatch must error.
-	// MySQL rejects DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT (1067).
-	// omni should reject as well.
+	// PS.5 MariaDB coerces DEFAULT NOW() to DATETIME(6)'s precision.
 	t.Run("PS_5_Datetime_fsp_mismatch_errors", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		ddl := `CREATE TABLE t (a DATETIME(6) DEFAULT NOW())`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.5 oracle: expected MySQL to reject DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT, got success")
-		} else if !strings.Contains(oracleErr.Error(), "1067") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "invalid default") {
-			t.Errorf("PS.5 oracle: unexpected error text: %v", oracleErr)
-		}
-
-		var omniErr error
-		results, parseErr := c.Exec(ddl, nil)
-		if parseErr != nil {
-			omniErr = parseErr
-		} else {
-			for _, r := range results {
-				if r.Error != nil {
-					omniErr = r.Error
-					break
-				}
-			}
-		}
-		if omniErr == nil {
-			t.Errorf("PS.5 omni: expected ER_INVALID_DEFAULT-style error, got success")
-		}
+		runOnBoth(t, mc, c, ddl)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// PS.6 HASH partition ADD — seeded from count.
@@ -255,11 +232,8 @@ func TestScenario_PS(t *testing.T) {
         )`
 
 		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.7 oracle: expected ER_FK_DUP_NAME (1826), got success")
-		} else if !strings.Contains(oracleErr.Error(), "1826") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.7 oracle: unexpected error text: %v", oracleErr)
+		if mariaOracleErrorCode(oracleErr) != 1005 {
+			t.Errorf("PS.7 native: expected FK creation error 1005, got %v", oracleErr)
 		}
 
 		var omniErr error
@@ -274,8 +248,8 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.7 omni: expected ER_FK_DUP_NAME, got success")
+		if modeled, ok := omniErr.(*Error); !ok || modeled.Code != 1005 {
+			t.Errorf("PS.7 catalog: expected FK creation error 1005, got %v", omniErr)
 		}
 	})
 
@@ -294,11 +268,8 @@ func TestScenario_PS(t *testing.T) {
 		ddl2 := `CREATE TABLE t2 (b INT, CONSTRAINT my_rule CHECK (b > 0))`
 
 		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl2)
-		if oracleErr == nil {
-			t.Errorf("PS.8 oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
-		} else if !strings.Contains(oracleErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.8 oracle: unexpected error text: %v", oracleErr)
+		if oracleErr != nil {
+			t.Errorf("PS.8 native rejected table-scoped CHECK name reuse: %v", oracleErr)
 		}
 
 		var omniErr error
@@ -313,8 +284,10 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.8 omni: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
+		if omniErr != nil {
+			t.Errorf("PS.8 catalog rejected table-scoped CHECK name reuse: %v", omniErr)
+		} else {
+			assertStringEq(t, "second table CHECK name", strings.Join(psCheckNames(c, "t2"), ","), "my_rule")
 		}
 	})
 }

@@ -180,7 +180,7 @@ func TestWalkThrough_3_3_FulltextIndex(t *testing.T) {
 
 func TestWalkThrough_3_3_SpatialIndex(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, geo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_geo (geo))")
+	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, geo GEOMETRY NOT NULL, SPATIAL INDEX sp_geo (geo))")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
@@ -348,7 +348,13 @@ func TestWalkThrough_3_3_CheckConstraint(t *testing.T) {
 
 func TestWalkThrough_3_3_CheckConstraintNotEnforced(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0) NOT ENFORCED)")
+	if _, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0) NOT ENFORCED)", nil); err == nil {
+		t.Fatal("expected unsupported NOT ENFORCED syntax")
+	}
+	if c.GetDatabase("testdb").GetTable("t") != nil {
+		t.Fatal("rejected CREATE left a table behind")
+	}
+	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0))")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
@@ -364,8 +370,8 @@ func TestWalkThrough_3_3_CheckConstraintNotEnforced(t *testing.T) {
 	if chk == nil {
 		t.Fatal("CHECK constraint chk_age not found")
 	}
-	if !chk.NotEnforced {
-		t.Error("CHECK should be NOT ENFORCED")
+	if chk.NotEnforced {
+		t.Error("MariaDB CHECK should remain enforced")
 	}
 }
 
@@ -448,7 +454,7 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	if chk.Name == "" {
 		t.Error("unnamed CHECK constraint should get auto-generated name")
 	}
-	expectedChk := "t_chk_1"
+	expectedChk := "CONSTRAINT_1"
 	if chk.Name != expectedChk {
 		t.Errorf("expected auto-generated CHECK name %q, got %q", expectedChk, chk.Name)
 	}
@@ -602,7 +608,7 @@ func TestBugFix_CheckCounterCreateTable(t *testing.T) {
 	// Real MySQL 8.0 produces t_chk_1 here — the user-named _5 is NOT seeded
 	// into the counter during CREATE (verified by source code analysis;
 	// sql/sql_table.cc:19073 starts cc_max_generated_number at 0).
-	if autoGenName != "t_chk_1" {
+	if autoGenName != "CONSTRAINT_1" {
 		t.Errorf("expected t_chk_1 (first unnamed CHECK, ignoring user-named _5), got %s", autoGenName)
 	}
 }

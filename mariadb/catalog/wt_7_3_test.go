@@ -22,7 +22,7 @@ func TestWalkThrough_7_3_HashByExpr(t *testing.T) {
 	}
 
 	// Verify partition type marker
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY HASH") {
+	if !strings.Contains(ddl, "PARTITION BY HASH") || strings.Contains(ddl, "/*!50100") {
 		t.Errorf("expected /*!50100 PARTITION BY HASH, got:\n%s", ddl)
 	}
 	// MySQL 8.0 backtick-quotes identifiers in HASH expression
@@ -102,11 +102,11 @@ func TestWalkThrough_7_3_KeyPartition(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY KEY") {
+	if !strings.Contains(ddl, "PARTITION BY KEY") || strings.Contains(ddl, "/*!50100") {
 		t.Errorf("expected /*!50100 PARTITION BY KEY, got:\n%s", ddl)
 	}
 	// KEY columns are rendered without backticks (plain)
-	if !strings.Contains(ddl, "KEY (id)") {
+	if !strings.Contains(ddl, "KEY (`id`)") {
 		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
@@ -154,7 +154,7 @@ func TestWalkThrough_7_3_KeyEmptyColumns(t *testing.T) {
 	}
 
 	// KEY() uses PK columns; MySQL renders the resolved partition key.
-	if !strings.Contains(ddl, "KEY (id)") {
+	if !strings.Contains(ddl, "KEY (`id`)") {
 		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
@@ -192,7 +192,7 @@ func TestWalkThrough_7_3_KeyAlgorithm(t *testing.T) {
 	}
 
 	// ALGORITHM=2 should be rendered as ALGORITHM = 2
-	if !strings.Contains(ddl, "KEY ALGORITHM = 2 (id)") {
+	if !strings.Contains(ddl, "KEY ALGORITHM = 2 (`id`)") {
 		t.Errorf("expected KEY ALGORITHM = 2 (id) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {

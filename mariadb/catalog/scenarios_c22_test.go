@@ -305,8 +305,8 @@ func TestScenario_C22(t *testing.T) {
 		// silently optimized away and would not error.)
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("MariaDB MODIFY type with LOCK=NONE: %v", oracleErr2)
 		}
 		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
 		if err2 != nil {
@@ -316,6 +316,9 @@ func TestScenario_C22(t *testing.T) {
 			if r.Error != nil {
 				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
 			}
+		}
+		if want, got := oracleShow(t, mc, "SHOW CREATE TABLE t1"), c.ShowCreateTable("testdb", "t1"); normalizeWhitespace(got) != normalizeWhitespace(want) {
+			t.Errorf("native type change result mismatch:\nnative: %s\ncatalog: %s", want, got)
 		}
 	})
 
@@ -354,7 +357,7 @@ func TestScenario_C22(t *testing.T) {
 	})
 
 	// -----------------------------------------------------------------
-	// 22.8 LOCK=NONE on COPY-only op errors; LOCK=... with INSTANT errors
+	// 22.8 MariaDB accepts these LOCK=NONE combinations.
 	// -----------------------------------------------------------------
 	t.Run("22_8_lock_none_copy_and_instant", func(t *testing.T) {
 		scenarioReset(t, mc)
@@ -363,13 +366,11 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// 22.8a: COPY-only operation + LOCK=NONE → hard error. CHANGE COLUMN
-		// with a real type change forces COPY, and COPY cannot honor
-		// LOCK=NONE.
+		// 22.8a: MariaDB supports this type change with LOCK=NONE.
 		_, oracleErr := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
-		if oracleErr == nil {
-			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
+		if oracleErr != nil {
+			t.Errorf("MariaDB 22.8a: CHANGE with LOCK=NONE: %v", oracleErr)
 		}
 		results, _ := c.Exec(
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
@@ -379,12 +380,11 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
-		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
+		// 22.8b: INSTANT ADD COLUMN also accepts LOCK=NONE.
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle 22.8b: expected error for INSTANT + LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("MariaDB 22.8b: INSTANT with LOCK=NONE: %v", oracleErr2)
 		}
 		results2, err2 := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)
@@ -398,7 +398,7 @@ func TestScenario_C22(t *testing.T) {
 		}
 
 		// 22.8c: ADD COLUMN + ALGORITHM=INSTANT (no LOCK) → succeeds.
-		// Note: b may already exist in omni catalog from 22.8b above; use c.
+		// Use a distinct name from the preceding accepted ADD COLUMN.
 		runOnBoth(t, mc, c,
 			"ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INSTANT")
 
@@ -409,6 +409,9 @@ func TestScenario_C22(t *testing.T) {
 		}
 		if tbl.GetColumn("c") == nil {
 			t.Errorf("omni 22.8c: column c should be added")
+		}
+		if want, got := oracleShow(t, mc, "SHOW CREATE TABLE t1"), c.ShowCreateTable("testdb", "t1"); normalizeWhitespace(got) != normalizeWhitespace(want) {
+			t.Errorf("native LOCK/ALGORITHM result mismatch:\nnative: %s\ncatalog: %s", want, got)
 		}
 	})
 }

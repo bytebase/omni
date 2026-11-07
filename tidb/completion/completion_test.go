@@ -273,15 +273,35 @@ func setupCatalog(t *testing.T) *catalog.Catalog {
 	mustExec(t, cat, "CREATE INDEX idx_name ON users (name)")
 	mustExec(t, cat, "CREATE INDEX idx_user_id ON orders (user_id)")
 	mustExec(t, cat, "CREATE VIEW active_users AS SELECT * FROM users WHERE id > 0")
-	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+	assertUnsupportedProcedure(t, cat)
 	return cat
 }
 
 // mustExec executes SQL on the catalog, failing the test on error.
 func mustExec(t *testing.T, cat *catalog.Catalog, sql string) {
 	t.Helper()
-	if _, err := cat.Exec(sql, nil); err != nil {
+	results, err := cat.Exec(sql, nil)
+	if err != nil {
 		t.Fatalf("Exec(%q) failed: %v", sql, err)
+	}
+	for _, result := range results {
+		if result.Error != nil {
+			t.Fatalf("Exec(%q) statement %d failed: %v", sql, result.Index, result.Error)
+		}
+	}
+}
+
+func assertUnsupportedProcedure(t *testing.T, cat *catalog.Catalog) {
+	t.Helper()
+	results, err := cat.Exec("CREATE PROCEDURE my_proc() BEGIN SELECT 1; END", nil)
+	if err != nil || len(results) != 1 {
+		t.Fatalf("procedure rejection: %v %v", err, results)
+	}
+	if modeled, ok := results[0].Error.(*catalog.Error); !ok || modeled.Code != 8108 {
+		t.Fatalf("expected native TiDB procedure rejection 8108: %v", results[0].Error)
+	}
+	if len(cat.GetDatabase("testdb").Procedures) != 0 {
+		t.Fatal("rejected procedure became visible to completion")
 	}
 }
 
@@ -356,8 +376,8 @@ func TestResolve_2_2_ProcedureRef(t *testing.T) {
 	// Scenario: "procedure_ref" rule -> catalog procedures
 	cat := setupCatalog(t)
 	candidates := resolveRule("procedure_ref", cat, "", 0)
-	if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
-		t.Error("missing procedure 'my_proc'")
+	if containsCandidate(candidates, "my_proc", CandidateProcedure) {
+		t.Error("completion suggested a procedure TiDB rejected")
 	}
 }
 
@@ -1607,7 +1627,7 @@ func TestComplete_4_3_DeleteLoadCall(t *testing.T) {
 	mustExec(t, cat, "CREATE TABLE t (a INT, b INT, c INT)")
 	mustExec(t, cat, "CREATE TABLE t1 (a INT, b INT)")
 	mustExec(t, cat, "CREATE TABLE t2 (a INT, b INT)")
-	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+	assertUnsupportedProcedure(t, cat)
 
 	// Scenario 1: DELETE FROM | → table_ref
 	t.Run("delete_from_table_ref", func(t *testing.T) {
@@ -1664,8 +1684,8 @@ func TestComplete_4_3_DeleteLoadCall(t *testing.T) {
 	// Scenario 6: CALL | → procedure_ref
 	t.Run("call_procedure_ref", func(t *testing.T) {
 		candidates := Complete("CALL ", 5, cat)
-		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
-			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
+		if containsCandidate(candidates, "my_proc", CandidateProcedure) {
+			t.Errorf("completion suggested a rejected procedure; got %v", candidates)
 		}
 	})
 }
@@ -2157,8 +2177,8 @@ func TestComplete_6_1_FunctionsAndProcedures(t *testing.T) {
 	// Scenario 2: DROP PROCEDURE | → procedure_ref
 	t.Run("drop_procedure_ref", func(t *testing.T) {
 		candidates := Complete("DROP PROCEDURE ", 15, cat)
-		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
-			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
+		if containsCandidate(candidates, "my_proc", CandidateProcedure) {
+			t.Errorf("completion suggested a rejected procedure; got %v", candidates)
 		}
 	})
 }
@@ -2395,8 +2415,8 @@ func TestComplete_7_1_SetAndShow(t *testing.T) {
 	// Scenario 10: SHOW CREATE PROCEDURE | → procedure_ref
 	t.Run("show_create_procedure_ref", func(t *testing.T) {
 		candidates := Complete("SHOW CREATE PROCEDURE ", 22, cat)
-		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
-			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
+		if containsCandidate(candidates, "my_proc", CandidateProcedure) {
+			t.Errorf("completion suggested a rejected procedure; got %v", candidates)
 		}
 	})
 

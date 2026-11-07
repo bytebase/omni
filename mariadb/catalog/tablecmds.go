@@ -115,7 +115,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		case "compression":
-			tbl.Compression = opt.Value
+			return &Error{Code: 1911, SQLState: "HY000", Message: "Unknown option 'COMPRESSION'"}
 		case "encryption":
 			tbl.Encryption = opt.Value
 		case "stats_persistent":
@@ -225,6 +225,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tbl.AppPeriodStartCol = stmt.AppPeriodStartCol
 	tbl.AppPeriodEndCol = stmt.AppPeriodEndCol
 
+	var inlineReferences []*nodes.Constraint
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		if err := validateColumnDefSemantics(colDef); err != nil {
@@ -249,7 +251,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
 				col.DataType = "bigint"
-				col.ColumnType = "bigint unsigned"
+				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "boolean" || typeName == "bool" {
@@ -265,7 +267,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if colDef.TypeName.Charset != "" {
 				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 			}
-			if colDef.TypeName.Collate != "" {
+			if colDef.TypeName.Collate != "" && !strings.EqualFold(colDef.TypeName.Collate, "DEFAULT") {
 				col.Collation = colDef.TypeName.Collate
 				if col.Charset == "" {
 					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
@@ -277,6 +279,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
 				col = convertToBinaryType(col, colDef.TypeName)
 			}
+		}
+
+		if col.DataType == "json" {
+			col.DataType = "longtext"
+			col.ColumnType = "longtext"
+			col.Charset = "utf8mb4"
+			col.Collation = "utf8mb4_bin"
+			col.JSONAlias = true
 		}
 
 		// Default charset/collation for string types.
@@ -317,9 +327,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-				Stored:   colDef.Generated.Stored,
-				RowBound: rowBoundSQL(colDef.Generated.RowBound),
+				Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Nondeterministic: generatedExprNondeterministic(colDef.Generated.Expr),
+				Stored:           colDef.Generated.Stored,
+				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 			}
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -366,8 +377,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Add check constraint.
 				conName := cc.Name
 				if conName == "" {
-					unnamedCheckCount++
-					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+					conName = colDef.Name
 				}
 				if checkConstraintNameExists(db, tbl, conName) {
 					return errCheckConstraintDupName(conName)
@@ -380,10 +390,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Type:        ConCheck,
 					Table:       tbl,
 					CheckExpr:   nodeToSQL(cc.Expr),
+					ColumnName:  colDef.Name,
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
-				// MySQL parses but ignores column-level REFERENCES for non-NDB tables.
+				// MariaDB 10.5+ enforces column-level REFERENCES.
+				// https://mariadb.com/kb/en/foreign-keys/
+				inlineReferences = append(inlineReferences, &nodes.Constraint{Type: nodes.ConstrForeignKey, Name: cc.Name, Columns: []string{colDef.Name}, RefTable: cc.RefTable, RefColumns: cc.RefColumns, OnDelete: cc.OnDelete, OnUpdate: cc.OnUpdate, Match: cc.Match})
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
 			case nodes.ColConstrCollate:
@@ -394,6 +407,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					}
 				}
 			}
+		}
+
+		if err := addJSONAliasCheck(tbl, col); err != nil {
+			return err
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -504,14 +521,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				})
 			case nodes.ColConstrUnique:
 				idxName := allocIndexName(tbl, colDef.Name)
-				tbl.Indexes = append(tbl.Indexes, &Index{
+				idx := &Index{
 					Name:      idxName,
 					Table:     tbl,
 					Columns:   []*IndexColumn{{Name: colDef.Name}},
 					Unique:    true,
 					IndexType: "",
 					Visible:   true,
-				})
+				}
+				applyIndexOptions(idx, nil)
+				tbl.Indexes = append(tbl.Indexes, idx)
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:      idxName,
 					Type:      ConUniqueKey,
@@ -524,7 +543,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	// Process table-level constraints.
-	for _, con := range stmt.Constraints {
+	for _, con := range append(inlineReferences, stmt.Constraints...) {
 		cols := extractColumnNames(con)
 		if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
 			return err
@@ -535,7 +554,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if hasPK {
 				return errMultiplePriKey()
 			}
-			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+			if err := validatePrimaryKeyColumns(tbl, cols, buildIndexColumns(con)...); err != nil {
 				return err
 			}
 			hasPK = true
@@ -582,7 +601,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return errDupKeyName(idxName)
 				}
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			if err := validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 				return err
 			}
 			uqIdx := &Index{
@@ -613,7 +632,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
 			if foreignKeyConstraintNameExists(db, tbl, conName) {
-				return errFKDupName(conName)
+				return errForeignKeyDefinition(db.Name, tableName)
 			}
 			refDB := ""
 			refTable := ""
@@ -639,7 +658,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			conName := con.Name
 			if conName == "" {
 				unnamedCheckCount++
-				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+				conName = fmt.Sprintf("CONSTRAINT_%d", unnamedCheckCount)
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
@@ -668,7 +687,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return errDupKeyName(idxName)
 				}
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			if err := validateIndexColumns(tbl, idxCols, false, false, false); err != nil {
 				return err
 			}
 			keyIdx := &Index{
@@ -679,7 +698,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, keyIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
 				return err
 			}
@@ -707,6 +725,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(ftIdx, con.IndexOptions)
+			if err := c.validateFulltextParser(ftIdx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrVector:
@@ -749,7 +770,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
-			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+			if err := validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
@@ -786,6 +807,26 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
+	// A virtual generated expression may be nondeterministic until indexed.
+	for _, def := range stmt.Columns {
+		if def.Generated == nil || def.Generated.Stored {
+			continue
+		}
+		indexed := false
+		for _, idx := range tbl.Indexes {
+			for _, col := range idx.Columns {
+				if strings.EqualFold(col.Name, def.Name) {
+					indexed = true
+				}
+			}
+		}
+		if indexed {
+			if err := validateGeneratedExpr(def.Name, def.Generated.Expr, false); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Validate foreign key constraints (unless foreign_key_checks=0).
 	if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
@@ -803,6 +844,22 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
 	// columns are present in the table.
+	for _, def := range stmt.Columns {
+		for _, con := range def.Constraints {
+			if con.Type == nodes.ColConstrCheck {
+				if err := validateCheckColumnReferences(tbl, con.Expr); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for _, con := range stmt.Constraints {
+		if con.Type == nodes.ConstrCheck {
+			if err := validateCheckColumnReferences(tbl, con.Expr); err != nil {
+				return err
+			}
+		}
+	}
 	c.analyzeTableExpressions(tbl, stmt)
 
 	if err := validateWithoutOverlaps(tbl); err != nil {
@@ -813,6 +870,29 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	db.Tables[key] = tbl
+	return nil
+}
+
+// MariaDB's JSON alias supplies json_valid only when the column has no explicit
+// inline CHECK. The constraint is visible in information_schema under the
+// column name, as well as in SHOW CREATE TABLE.
+// https://mariadb.com/docs/server/reference/data-types/string-data-types/json
+func addJSONAliasCheck(tbl *Table, col *Column) error {
+	if !col.JSONAlias {
+		return nil
+	}
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && strings.EqualFold(con.ColumnName, col.Name) {
+			return nil
+		}
+	}
+	if checkConstraintNameExists(tbl.Database, tbl, col.Name) {
+		return errCheckConstraintDupName(col.Name)
+	}
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name: col.Name, Type: ConCheck, Table: tbl, ColumnName: col.Name,
+		CheckExpr: "json_valid(`" + strings.ReplaceAll(col.Name, "`", "``") + "`)",
+	})
 	return nil
 }
 
@@ -1266,13 +1346,32 @@ func timestampZeroDefault(fsp int) string {
 
 func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	val, kind := columnDefaultValue(expr)
+	if kind == ColumnDefaultCurrentTimestamp {
+		val = columnTimestampValue(col, val)
+	}
 	col.Default = &val
 	col.DefaultKind = kind
 	col.DefaultDropped = false
 }
 
+func columnTimestampValue(col *Column, value string) string {
+	if col.DataType == "datetime" || col.DataType == "timestamp" {
+		start := strings.IndexByte(col.ColumnType, '(')
+		if start >= 0 {
+			var fsp int
+			if _, err := fmt.Sscanf(col.ColumnType[start:], "(%d)", &fsp); err == nil && fsp > 0 {
+				return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp)
+			}
+		}
+	}
+	return value
+}
+
 func setColumnOnUpdateFromExpr(col *Column, expr nodes.ExprNode) {
 	val, kind := columnDefaultValue(expr)
+	if kind == ColumnDefaultCurrentTimestamp {
+		val = columnTimestampValue(col, val)
+	}
 	col.OnUpdate = val
 	col.OnUpdateKind = kind
 }
@@ -1284,6 +1383,11 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 			return ts, ColumnDefaultCurrentTimestamp
 		}
 		return nodeToSQL(e.Expr), ColumnDefaultExpression
+	case *nodes.FuncCallExpr:
+		if ts, ok := currentTimestampExpr(e); ok {
+			return ts, ColumnDefaultCurrentTimestamp
+		}
+		return nodeToSQL(e), ColumnDefaultExpression
 	case *nodes.BoolLit:
 		if e.Value {
 			return "1", ColumnDefaultConstant
@@ -1793,13 +1897,13 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	if refTbl == nil {
-		return errFKNoRefTable(con.RefTable)
+		return errForeignKeyDefinition(db.Name, tbl.Name)
 	}
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
 	// that starts with the referenced columns in order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
-		return errFKMissingIndex(con.Name, con.RefTable)
+		return errForeignKeyDefinition(db.Name, tbl.Name)
 	}
 
 	// Check column type compatibility.
@@ -1815,14 +1919,12 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
 			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
 		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
+
 		if refCol.Generated != nil && !refCol.Generated.Stored {
 			return errFKCannotUseVirtualColumn(con.RefColumns[i])
 		}
 		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+			return errForeignKeyDefinition(db.Name, tbl.Name)
 		}
 	}
 
@@ -2034,7 +2136,7 @@ func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
 	return nil
 }
 
-func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2043,14 +2145,32 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		if col == nil {
 			continue
 		}
+		if col.Generated != nil && !col.Generated.Stored && col.Generated.Nondeterministic {
+			return &Error{Code: 1901, SQLState: "HY000", Message: "Non-deterministic expression cannot be used in an indexed generated column '" + col.Name + "'"}
+		}
 		if spatial {
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
 			}
 			continue
 		}
-		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
-			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
+		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 && !unique {
+			// MariaDB 11.8 fills an omitted nonunique prefix up to the
+			// InnoDB key limit. Unique long keys instead use a hash index.
+			// https://mariadb.com/docs/server/reference/data-types/string-data-types/text
+			bytes := 1
+			switch strings.ToLower(col.Charset) {
+			case "utf8mb4", "utf16", "utf32":
+				bytes = 4
+			case "utf8mb3", "utf8":
+				bytes = 3
+			case "ucs2":
+				bytes = 2
+			}
+			ic.Length = 3072 / bytes
+			if strings.HasPrefix(strings.ToLower(col.DataType), "tiny") {
+				ic.Length = 255
+			}
 		}
 		if ic.Length > 0 {
 			if maxLen, ok := fixedLengthStringColumnLimit(col); ok && ic.Length > maxLen {
@@ -2082,12 +2202,6 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 	return n, n > 0
 }
 
-func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
-	if strings.EqualFold(tbl.Engine, "InnoDB") && strings.EqualFold(idx.IndexType, "HASH") {
-		idx.IndexType = "BTREE"
-	}
-}
-
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
 	key := toLower(name)
 	for _, con := range tbl.Constraints {
@@ -2099,18 +2213,8 @@ func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bo
 }
 
 func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
-	if pending != nil && constraintNameExistsInTable(pending, ConCheck, name) {
-		return true
-	}
-	key := toLower(name)
-	for _, tbl := range db.Tables {
-		for _, con := range tbl.Constraints {
-			if con.Type == ConCheck && toLower(con.Name) == key {
-				return true
-			}
-		}
-	}
-	return false
+	// MariaDB names CHECK constraints per table; another table may reuse one.
+	return pending != nil && constraintNameExistsInTable(pending, ConCheck, name)
 }
 
 func foreignKeyConstraintNameExists(db *Database, pending *Table, name string) bool {
@@ -2176,6 +2280,14 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 // INVISIBLE, which the parser lets through only inside a comment MariaDB skips
 // by its MySQL version, so MariaDB never reads it (verified on 11.8.8).
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
+	if idx.Unique && !idx.Primary {
+		for _, part := range idx.Columns {
+			col := idx.Table.GetColumn(part.Name)
+			if col != nil && isTextBlobType(col.DataType) && part.Length == 0 {
+				idx.IndexType = "HASH"
+			}
+		}
+	}
 	for _, opt := range opts {
 		// An engine-defined option's name is the engine's, so a quoted `comment`=1 is
 		// not a COMMENT.
@@ -2184,6 +2296,10 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			continue
 		}
 		switch strings.ToUpper(opt.Name) {
+		case "PARSER":
+			if s, ok := opt.Value.(*nodes.StringLit); ok {
+				idx.ParserName = s.Value
+			}
 		case "COMMENT":
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				idx.Comment = s.Value
@@ -2313,7 +2429,7 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 // nextCheckNumber returns max(existing generated tableName_chk_N) + 1.
 // ALTER TABLE seeds the generated CHECK counter from existing names.
 func nextCheckNumber(tbl *Table) int {
-	prefix := toLower(tbl.Name) + "_chk_"
+	prefix := "constraint_"
 	max := 0
 	for _, con := range tbl.Constraints {
 		if con.Type != ConCheck {
@@ -2401,7 +2517,7 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // versioning, or BIGINT UNSIGNED for transaction-precise versioning.
 func isRowColumnType(col *Column) bool {
 	return strings.EqualFold(col.ColumnType, "timestamp(6)") ||
-		strings.EqualFold(col.ColumnType, "bigint unsigned")
+		strings.EqualFold(col.ColumnType, "bigint(20) unsigned")
 }
 
 // checkDuplicateRowColumns rejects a second ROW START or ROW END column (4134).
@@ -2622,13 +2738,12 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
-		// MySQL adds charset introducer for string literals in generated columns.
-		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
-		}
-		return "'" + n.Value + "'"
+		return deparse.Deparse(n)
 	case *nodes.FuncCallExpr:
 		funcName := strings.ToLower(n.Name)
+		if funcName == "now" {
+			funcName = "current_timestamp"
+		}
 		if n.Star {
 			return funcName + "(*)"
 		}
@@ -2666,17 +2781,7 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// keeps the function under its other name.
 		return "locate(" + nodeToSQLGenerated(n.Substr, charset) + "," + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.BinaryExpr:
-		left := nodeToSQLGenerated(n.Left, charset)
-		right := nodeToSQLGenerated(n.Right, charset)
-		// MySQL rewrites JSON operators to function calls in generated column expressions.
-		switch n.Op {
-		case nodes.BinOpJsonExtract:
-			return "json_extract(" + left + "," + right + ")"
-		case nodes.BinOpJsonUnquote:
-			return "json_unquote(json_extract(" + left + "," + right + "))"
-		}
-		op := binaryOpToString(n.Op)
-		return "(" + left + " " + op + " " + right + ")"
+		return deparse.Deparse(n)
 	case *nodes.UnaryExpr:
 		operand := nodeToSQLGenerated(n.Operand, charset)
 		switch n.Op {
@@ -2775,28 +2880,21 @@ func formatColumnType(dt *nodes.DataType) string {
 	case "boolean", "bool":
 		return "tinyint(1)"
 	case "serial":
-		return "bigint unsigned"
+		return "bigint(20) unsigned"
 	}
 
 	var buf strings.Builder
 	buf.WriteString(name)
 
-	// Integer display width handling for MySQL 8.0:
-	// - Display width is deprecated and NOT shown by default
-	// - EXCEPTION: When ZEROFILL is used, MySQL 8.0 still shows the display width
-	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
-	isIntType := isIntegerType(name)
-	if isIntType {
-		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
-			buf.WriteString("(1)")
-		} else if dt.Zerofill {
-			width := dt.Length
-			if width == 0 {
-				width = defaultIntDisplayWidth(name, dt.Unsigned)
-			}
-			fmt.Fprintf(&buf, "(%d)", width)
+	// MariaDB retains integer display widths in its stored definition.
+	// https://mariadb.com/kb/en/int/
+	if isIntegerType(name) {
+		width := dt.Length
+		if width == 0 {
+			width = defaultIntDisplayWidth(name, dt.Unsigned || dt.Zerofill)
 		}
-		// Non-zerofill integer types: strip display width (MySQL 8.0 deprecated)
+		fmt.Fprintf(&buf, "(%d)", width)
+
 	} else if name == "decimal" {
 		if dt.Length == 0 && dt.Scale == 0 {
 			// DECIMAL with no precision → MySQL shows decimal(10,0)
@@ -2809,7 +2907,11 @@ func formatColumnType(dt *nodes.DataType) string {
 		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
 		// Do not emit length.
 	} else if name == "year" {
-		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+		if dt.Length == 2 {
+			buf.WriteString("(2)")
+		} else {
+			buf.WriteString("(4)")
+		}
 	} else if name == "bit" && dt.Length == 0 {
 		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
@@ -2887,7 +2989,7 @@ func normalizedTypeName(name string) string {
 	case "national char", "nchar":
 		return "char"
 	case "geometrycollection":
-		return "geomcollection"
+		return "geometrycollection"
 	default:
 		return strings.ToLower(strings.TrimSpace(name))
 	}
@@ -3218,6 +3320,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Name:                         srcCol.Name,
 			DataType:                     srcCol.DataType,
 			ColumnType:                   srcCol.ColumnType,
+			JSONAlias:                    srcCol.JSONAlias,
 			Nullable:                     srcCol.Nullable,
 			AutoIncrement:                srcCol.AutoIncrement,
 			Charset:                      srcCol.Charset,
@@ -3237,9 +3340,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     srcCol.Generated.Expr,
-				Stored:   srcCol.Generated.Stored,
-				RowBound: srcCol.Generated.RowBound,
+				Expr:             srcCol.Generated.Expr,
+				Nondeterministic: srcCol.Generated.Nondeterministic,
+				Stored:           srcCol.Generated.Stored,
+				RowBound:         srcCol.Generated.RowBound,
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)
@@ -3258,6 +3362,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Vector:        srcIdx.Vector,
 			EngineOptions: srcIdx.EngineOptions,
 			IndexType:     srcIdx.IndexType,
+			ParserName:    srcIdx.ParserName,
 			Visible:       srcIdx.Visible,
 			Comment:       srcIdx.Comment,
 			KeyBlockSize:  srcIdx.KeyBlockSize,
@@ -3289,6 +3394,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Columns:     append([]string{}, srcCon.Columns...),
 			IndexName:   srcCon.IndexName,
 			CheckExpr:   srcCon.CheckExpr,
+			ColumnName:  srcCon.ColumnName,
 			NotEnforced: srcCon.NotEnforced,
 			RefDatabase: srcCon.RefDatabase,
 			RefTable:    srcCon.RefTable,
@@ -3316,7 +3422,7 @@ func refActionToString(action nodes.ReferenceAction) string {
 	case nodes.RefActNoAction:
 		return "NO ACTION"
 	default:
-		return "NO ACTION"
+		return "RESTRICT"
 	}
 }
 

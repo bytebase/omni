@@ -760,7 +760,7 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 	if constraint.Contype == nodes.CONSTR_CHECK {
 		attrs, err = p.parseKindAttributes("CHECK", false, true, true)
 	} else {
-		attrs, err = p.parseKindAttributes("NOT NULL", false, false, true)
+		attrs, err = p.parseKindAttributes("NOT NULL", false, false, false)
 	}
 	if err != nil {
 		return nil, err

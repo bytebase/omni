@@ -34,9 +34,10 @@ func TestWalkThrough_8_3_CollationNonDefaultSameAsTable(t *testing.T) {
 	wtExec(t, c, "CREATE TABLE t (id INT, name VARCHAR(100)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci")
 	got := c.ShowCreateTable("testdb", "t")
 	// The column inherits utf8mb4_unicode_ci from table, which is non-default for utf8mb4.
-	// MySQL shows COLLATE in this case (collation inherited but non-default for charset).
-	if !strings.Contains(got, "COLLATE utf8mb4_unicode_ci") {
-		t.Errorf("expected COLLATE utf8mb4_unicode_ci in column def\ngot:\n%s", got)
+	// MariaDB keeps the inherited collation on the table, without repeating it
+	// on every column.
+	if !strings.Contains(got, "COLLATE=utf8mb4_unicode_ci") || strings.Contains(got, "COLLATE utf8mb4_unicode_ci") {
+		t.Errorf("expected inherited collation only in table options\ngot:\n%s", got)
 	}
 	// CHARACTER SET should NOT be shown since charset matches table
 	lines := strings.Split(got, "\n")
@@ -82,8 +83,8 @@ func TestWalkThrough_8_3_Utf8mb4DefaultCollation(t *testing.T) {
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=utf8mb4")
 	got := c.ShowCreateTable("testdb", "t")
 	// MySQL 8.0 always shows COLLATE for utf8mb4 tables
-	if !strings.Contains(got, "COLLATE=utf8mb4_0900_ai_ci") {
-		t.Errorf("expected COLLATE=utf8mb4_0900_ai_ci in table options for utf8mb4\ngot:\n%s", got)
+	if !strings.Contains(got, "COLLATE=utf8mb4_uca1400_ai_ci") {
+		t.Errorf("expected COLLATE=utf8mb4_uca1400_ai_ci in table options for utf8mb4\ngot:\n%s", got)
 	}
 }
 
@@ -92,8 +93,8 @@ func TestWalkThrough_8_3_Latin1DefaultCollation(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=latin1")
 	got := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(got, "COLLATE=") {
-		t.Errorf("expected no COLLATE in table options for latin1 with default collation\ngot:\n%s", got)
+	if !strings.Contains(got, "COLLATE=latin1_swedish_ci") {
+		t.Errorf("expected default latin1 collation in table options\ngot:\n%s", got)
 	}
 }
 

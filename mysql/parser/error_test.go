@@ -109,7 +109,7 @@ func TestParseError_Section_1_2_StmtDispatch(t *testing.T) {
 		contains string
 	}{
 		// parseChangeMasterStmtInner — truncated after MASTER (needs TO + options)
-		{"change_master_trunc", "CHANGE MASTER TO", "at end of input"},
+		{"change_master_trunc", "CHANGE REPLICATION SOURCE TO", "at end of input"},
 		// parseStartReplicaStmt — truncated mid-clause (FOR without CHANNEL name)
 		{"start_replica_for_trunc", "START REPLICA FOR", "at end of input"},
 		// parseStartGroupReplicationStmt — valid as standalone; test CHANGE REPLICATION with no target

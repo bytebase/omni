@@ -43,7 +43,7 @@ func TestExcludeConstraintBasic(t *testing.T) {
 		t.Fatal("table not found")
 	}
 
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -99,7 +99,7 @@ func TestExcludeConstraintAutoName(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -470,7 +470,7 @@ func TestATAddIndexConstraint(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -580,7 +580,7 @@ func TestLikeIncludingConstraints(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "dst")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -690,7 +690,7 @@ func TestLikeIncludingAll(t *testing.T) {
 	if !rel.Columns[0].HasDefault {
 		t.Error("expected default copied with INCLUDING ALL")
 	}
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("expected 1 constraint, got %d", len(cons))
 	}
@@ -849,9 +849,9 @@ func TestAlterConstraintDeferrable(t *testing.T) {
 	atCmd := &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AlterConstraint),
 		Def: &nodes.Constraint{
-			Conname:       "t_pk",
-			Deferrable:    true,
-			Initdeferred:  true,
+			Conname:      "t_pk",
+			Deferrable:   true,
+			Initdeferred: true,
 		},
 	}
 	if err := c.AlterTableStmt(makeAlterTableStmt("", "t", atCmd)); err != nil {
@@ -859,7 +859,7 @@ func TestAlterConstraintDeferrable(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if !cons[0].Deferrable {
 		t.Error("expected Deferrable=true")
 	}
@@ -900,7 +900,7 @@ func TestAlterConstraintRevert(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if cons[0].Deferrable {
 		t.Error("expected Deferrable=false after revert")
 	}

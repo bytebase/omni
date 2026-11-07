@@ -3370,37 +3370,20 @@ func TestParseCreateTableColumnInvisible(t *testing.T) {
 
 func TestParseCreateTableCheckNotEnforced(t *testing.T) {
 	t.Run("column check not enforced", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (id INT, CONSTRAINT chk_id CHECK (id > 0) NOT ENFORCED)")
-		if len(stmt.Constraints) != 1 {
-			t.Fatalf("Constraints count = %d, want 1", len(stmt.Constraints))
-		}
-		chk := stmt.Constraints[0]
-		if chk.Type != ast.ConstrCheck {
-			t.Errorf("Type = %d, want ConstrCheck", chk.Type)
-		}
-		if !chk.NotEnforced {
-			t.Error("expected NotEnforced = true")
+		if _, err := Parse("CREATE TABLE t (id INT, CONSTRAINT chk_id CHECK (id > 0) NOT ENFORCED)"); err == nil {
+			t.Fatal("MariaDB must reject MySQL's NOT ENFORCED modifier")
 		}
 	})
 
 	t.Run("check enforced (default)", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (id INT, CHECK (id > 0) ENFORCED)")
-		chk := stmt.Constraints[0]
-		if chk.NotEnforced {
-			t.Error("expected NotEnforced = false for ENFORCED")
+		if _, err := Parse("CREATE TABLE t (id INT, CHECK (id > 0) ENFORCED)"); err == nil {
+			t.Fatal("MariaDB must reject MySQL's ENFORCED modifier")
 		}
 	})
 
 	t.Run("column-level check not enforced", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (id INT CHECK (id > 0) NOT ENFORCED)")
-		found := false
-		for _, c := range stmt.Columns[0].Constraints {
-			if c.Type == ast.ColConstrCheck && c.NotEnforced {
-				found = true
-			}
-		}
-		if !found {
-			t.Error("expected column-level CHECK NOT ENFORCED")
+		if _, err := Parse("CREATE TABLE t (id INT CHECK (id > 0) NOT ENFORCED)"); err == nil {
+			t.Fatal("MariaDB must reject column-level NOT ENFORCED")
 		}
 	})
 }
@@ -9268,7 +9251,9 @@ func TestParseAlterCheckEnforced(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("MariaDB must reject %q", sql)
+			}
 		})
 	}
 }

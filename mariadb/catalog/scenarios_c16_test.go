@@ -5,10 +5,8 @@ import (
 	"testing"
 )
 
-// TestScenario_C16 covers section C16 (Date/time function precision defaults)
-// from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 12 scenarios, each asserted on
-// both MySQL 8.0 container and the omni catalog. Failures in omni assertions
-// are documented in mysql/catalog/scenarios_bug_queue/c16.md (NOT proof failures).
+// TestScenario_C16 checks twelve temporal precision/default scenarios against
+// native MariaDB, retaining rejection probes and exact stored schema checks.
 func TestScenario_C16(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -75,9 +73,10 @@ func TestScenario_C16(t *testing.T) {
 		if !strings.Contains(lo, "default current_timestamp") {
 			t.Errorf("oracle SHOW CREATE TABLE missing DEFAULT CURRENT_TIMESTAMP: %s", create)
 		}
-		if strings.Contains(lo, "current_timestamp(") {
-			t.Errorf("oracle SHOW CREATE TABLE unexpectedly has fsp suffix: %s", create)
+		if !strings.Contains(lo, "current_timestamp()") || strings.Contains(lo, "current_timestamp(0)") {
+			t.Errorf("oracle SHOW CREATE TABLE should retain empty parentheses: %s", create)
 		}
+		assertScenarioReadback(t, mc, c, "t")
 
 		// Oracle: DATETIME_PRECISION = 0 for plain DATETIME col.
 		if p, ok := c16OracleDatetimePrecision(t, "ts"); !ok {
@@ -235,25 +234,17 @@ func TestScenario_C16(t *testing.T) {
 		}
 	})
 
-	// ---- 16.5 SYSDATE cannot be used as DEFAULT --------------------------
+	// ---- 16.5 MariaDB permits SYSDATE() as a DEFAULT ---------------------
 	t.Run("16_5_SYSDATE_not_allowed_as_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// SYSDATE is not a valid bareword in DEFAULT (parser rejects as syntax
-		// error) and SYSDATE() also fails add_field (not Item_func_now). Both
-		// forms must be rejected by MySQL.
 		ddl := `CREATE TABLE t (a DATETIME DEFAULT SYSDATE())`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: DATETIME DEFAULT SYSDATE() unexpectedly accepted")
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT SYSDATE should error (not a NOW_FUNC), see mysql/catalog/scenarios_bug_queue/c16.md")
-		}
+		runOnBoth(t, mc, c, ddl)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
-	// ---- 16.6 UTC_TIMESTAMP precision defaults to 0; not valid as DEFAULT -
+	// ---- 16.6 UTC_TIMESTAMP precision defaults to 0; permitted as DEFAULT -
 	t.Run("16_6_UTC_TIMESTAMP_precision_and_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 
@@ -270,16 +261,11 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle LENGTH(UTC_TIMESTAMP(3))=%d, want 23", l3)
 		}
 
-		// UTC_TIMESTAMP as DEFAULT → ER_INVALID_DEFAULT on oracle.
+		// MariaDB retains UTC_TIMESTAMP as a default expression.
 		c := scenarioNewCatalog(t)
 		ddl := `CREATE TABLE t (a DATETIME DEFAULT UTC_TIMESTAMP)`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: DATETIME DEFAULT UTC_TIMESTAMP unexpectedly accepted")
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT UTC_TIMESTAMP should error, see mysql/catalog/scenarios_bug_queue/c16.md")
-		}
+		runOnBoth(t, mc, c, ddl)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// ---- 16.7 UNIX_TIMESTAMP return type depends on arg ------------------
@@ -309,6 +295,8 @@ func TestScenario_C16(t *testing.T) {
 			scale := 0
 			switch x := s6.(type) {
 			case int64:
+				scale = int(x)
+			case uint64:
 				scale = int(x)
 			case []byte:
 				for _, c := range x {
@@ -351,10 +339,9 @@ func TestScenario_C16(t *testing.T) {
 		}
 	})
 
-	// ---- 16.8 DATETIME(N) DEFAULT NOW() fsp mismatch → ER_INVALID_DEFAULT -
+	// ---- 16.8 MariaDB coerces default precision to the column's precision -
 	t.Run("16_8_Datetime_fsp_mismatch_DEFAULT", func(t *testing.T) {
 		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
 
 		cases := []string{
 			`CREATE TABLE t (a DATETIME(6) DEFAULT NOW())`,
@@ -363,38 +350,25 @@ func TestScenario_C16(t *testing.T) {
 		for _, ddl := range cases {
 			scenarioReset(t, mc)
 			c2 := scenarioNewCatalog(t)
-			oracleErr, omniErr := c16RunExpectError(t, c2, ddl)
-			if oracleErr == nil {
-				t.Errorf("oracle: %q unexpectedly accepted", ddl)
-			} else if !strings.Contains(oracleErr.Error(), "1067") &&
-				!strings.Contains(strings.ToLower(oracleErr.Error()), "invalid default") {
-				t.Errorf("oracle: %q unexpected error: %v", ddl, oracleErr)
-			}
-			if omniErr == nil {
-				t.Errorf("omni: KNOWN BUG — %q should error (fsp mismatch), see mysql/catalog/scenarios_bug_queue/c16.md", ddl)
-			}
+			runOnBoth(t, mc, c2, ddl)
+			assertScenarioReadback(t, mc, c2, "t")
 		}
 
 		// And the valid pair must succeed on both.
 		scenarioReset(t, mc)
 		c3 := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c3, `CREATE TABLE t (a DATETIME(6) DEFAULT NOW(6))`)
-		_ = c
+		assertScenarioReadback(t, mc, c3, "t")
 	})
 
-	// ---- 16.9 ON UPDATE NOW(N) must match column fsp ---------------------
+	// ---- 16.9 ON UPDATE is coerced to DATETIME fsp; DATE remains invalid --
 	t.Run("16_9_On_update_fsp_mismatch", func(t *testing.T) {
 		// DATETIME(6) ON UPDATE NOW() → fsp mismatch (0 vs 6).
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		ddl := `CREATE TABLE t (a DATETIME(6) DEFAULT NOW(6) ON UPDATE NOW())`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: %q unexpectedly accepted", ddl)
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — ON UPDATE NOW() fsp 0 on DATETIME(6) should error, see mysql/catalog/scenarios_bug_queue/c16.md")
-		}
+		runOnBoth(t, mc, c, ddl)
+		assertScenarioReadback(t, mc, c, "t")
 
 		// DATE ON UPDATE NOW() → not allowed (ON UPDATE only on TIMESTAMP/DATETIME).
 		scenarioReset(t, mc)
@@ -474,28 +448,29 @@ func TestScenario_C16(t *testing.T) {
 		}
 	})
 
-	// ---- 16.11 YEAR(N) deprecation — only YEAR(4) accepted ----------------
+	// ---- 16.11 MariaDB retains YEAR(2), normalizes other widths to 4 -----
 	t.Run("16_11_YEAR_normalization", func(t *testing.T) {
-		// YEAR(2), YEAR(3), YEAR(5) → ER_INVALID_YEAR_COLUMN_LENGTH (1818).
 		for _, n := range []string{"2", "3", "5"} {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
 			ddl := `CREATE TABLE t (y YEAR(` + n + `))`
-			oErr, mErr := c16RunExpectError(t, c, ddl)
-			if oErr == nil {
-				t.Errorf("oracle: YEAR(%s) unexpectedly accepted", n)
+			runOnBoth(t, mc, c, ddl)
+			assertScenarioReadback(t, mc, c, "t")
+			want := "year(4)"
+			if n == "2" {
+				want = "year(2)"
 			}
-			if mErr == nil {
-				t.Errorf("omni: KNOWN BUG — YEAR(%s) should error (ER_INVALID_YEAR_COLUMN_LENGTH), see mysql/catalog/scenarios_bug_queue/c16.md", n)
+			if got := c.GetDatabase(c.CurrentDatabase()).GetTable("t").GetColumn("y").ColumnType; got != want {
+				t.Errorf("YEAR(%s) stored as %s, want %s", n, got, want)
 			}
 		}
 
-		// YEAR(4) normalized to YEAR in SHOW CREATE.
+		// YEAR(4) retains its width in SHOW CREATE.
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (y YEAR(4))`)
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
-		if !strings.Contains(show, "`y` year") || strings.Contains(show, "year(4)") {
+		if !strings.Contains(show, "`y` year(4)") {
 			t.Errorf("oracle SHOW CREATE: YEAR(4) not normalized: %s", show)
 		}
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -505,11 +480,12 @@ func TestScenario_C16(t *testing.T) {
 				if omniType == "" {
 					omniType = strings.ToLower(col.DataType)
 				}
-				if strings.Contains(omniType, "year(4)") || strings.Contains(omniType, "year(2)") {
-					t.Errorf("omni: KNOWN BUG — YEAR(4) not normalized: %q", omniType)
+				if omniType != "year(4)" {
+					t.Errorf("omni: YEAR(4) lost its width: %q", omniType)
 				}
 			}
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------

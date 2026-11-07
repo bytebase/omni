@@ -36,7 +36,7 @@ func TestFunctionArgumentDeparse(t *testing.T) {
 		{"SELECT JSON_ARRAYAGG(DISTINCT c1) FROM t", "select json_arrayagg(distinct `c1`) AS `JSON_ARRAYAGG(DISTINCT c1)` from `t`"},
 		{"SELECT JSON_OBJECTAGG(c1, c2) FROM t", "select json_objectagg(`c1`,`c2`) AS `JSON_OBJECTAGG(c1, c2)` from `t`"},
 		{"SELECT GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-') FROM t", "select group_concat(distinct `c2`,`c1` order by `c1` ASC separator '-') AS `GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-')` from `t`"},
-		{"SELECT GROUP_CONCAT(c1) OVER () FROM t", "select group_concat(`c1` separator ',') OVER ( )  AS `GROUP_CONCAT(c1 SEPARATOR ',') OVER ()` from `t`"},
+		{"SELECT GROUP_CONCAT(c1) OVER () FROM t", "select group_concat(`c1` separator ',') over () AS `GROUP_CONCAT(c1 SEPARATOR ',') OVER ()` from `t`"},
 		{"SELECT EXTRACT(DAY_HOUR FROM a) FROM t", "select extract(day_hour from `a`) AS `EXTRACT(DAY_HOUR FROM a)` from `t`"},
 		{"SELECT EXTRACT(SQL_TSI_DAY FROM a) FROM t", "select extract(day from `a`) AS `EXTRACT(DAY FROM a)` from `t`"},
 		{"SELECT CAST(b AS SIGNED) FROM t", "select cast(`b` as signed) AS `CAST(b AS SIGNED)` from `t`"},

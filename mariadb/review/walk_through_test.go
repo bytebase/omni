@@ -219,7 +219,6 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 func TestWalkThroughMariaDBMySQLForms(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	for _, sql := range []string{
-		"ALTER TABLE t ALTER CHECK c NOT ENFORCED;\nCREATE TABLE t (a int);",
 		"ALTER TABLE t SECONDARY_LOAD;\nCREATE TABLE t (a int);",
 	} {
 		noFinding(t, sql, shop)
@@ -549,4 +548,14 @@ func TestWalkThroughMariaDBLowersEveryForm(t *testing.T) {
 		}
 		return len(stmts), len(stmts), false
 	})
+}
+
+func TestWalkThroughRejectedMySQLCheckSyntax(t *testing.T) {
+	result, err := Review(context.Background(), "ALTER TABLE t ALTER CHECK c NOT ENFORCED; CREATE TABLE t(a int)", review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{{Schema: walkSchema()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Rule != review.Syntax {
+		t.Fatalf("expected syntax finding: %+v", result.Findings)
+	}
 }

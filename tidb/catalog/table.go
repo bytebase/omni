@@ -11,6 +11,7 @@ type Table struct {
 	Charset       string
 	Collation     string
 	Comment       string
+	Compression   string
 	AutoIncrement int64
 	Temporary     bool
 	RowFormat     string
@@ -95,6 +96,7 @@ type Column struct {
 	Name              string
 	DataType          string // normalized (int, varchar, etc.)
 	ColumnType        string // full type string (varchar(100), int unsigned)
+	Zerofill          bool   // SHOW CREATE retains this flag; information_schema.COLUMN_TYPE omits it
 	Nullable          bool
 	Default           *string
 	DefaultDropped    bool // true when ALTER COLUMN DROP DEFAULT was used

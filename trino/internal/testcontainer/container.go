@@ -15,7 +15,7 @@
 //	func assertOracleMatch(t *testing.T, o *testcontainer.Oracle, sql string) {
 //	    _, omniErr := Parse(sql)
 //	    res, err := o.CheckSyntax(context.Background(), sql)
-//	    if err != nil { t.Skipf("oracle unreachable: %v", err) }
+//	    if err != nil { t.Fatalf("oracle unreachable: %v", err) }
 //	    if (omniErr == nil) != res.Accepted {
 //	        t.Errorf("MISMATCH %q: omni accepts=%v (err=%v), trino accepts=%v (%s)",
 //	            sql, omniErr == nil, omniErr, res.Accepted, res.ErrorName)

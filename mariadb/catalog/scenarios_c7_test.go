@@ -89,8 +89,8 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		assertBoolEq(t, "omni FK backing index exists", hasBackingIdx, true)
 	})
 
-	// --- 7.3 USING HASH coerced to BTREE on InnoDB ----------------------
-	t.Run("7_3_hash_coerced_to_btree", func(t *testing.T) {
+	// MariaDB retains the explicitly requested HASH index type.
+	t.Run("7_3_hash_index_type", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -101,7 +101,7 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			`SELECT INDEX_TYPE FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='a'`,
 			&got)
-		assertStringEq(t, "oracle index type after HASH coercion", got, "BTREE")
+		assertStringEq(t, "oracle index type", got, "HASH")
 
 		idx := c7findIndex(c, "t", "a")
 		if idx == nil {
@@ -109,8 +109,8 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			return
 		}
 		got2 := strings.ToUpper(idx.IndexType)
-		if got2 != "" && got2 != "BTREE" {
-			t.Errorf("omni: expected empty or BTREE (HASH coercion), got %q", idx.IndexType)
+		if got2 != "HASH" {
+			t.Errorf("omni: expected HASH, got %q", idx.IndexType)
 		}
 	})
 
@@ -210,10 +210,10 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 
 		var visYes string
 		oracleScan(t, mc,
-			`SELECT IS_VISIBLE FROM information_schema.STATISTICS
+			`SELECT IGNORED FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='ix'`,
 			&visYes)
-		assertStringEq(t, "oracle IS_VISIBLE default", visYes, "YES")
+		assertStringEq(t, "oracle IGNORED default", visYes, "NO")
 
 		idx := c7findIndex(c, "t", "ix")
 		if idx == nil {
@@ -227,9 +227,8 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 			`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE)`)
 		if mysqlErr == nil {
 			t.Errorf("oracle: expected ER_PK_INDEX_CANT_BE_INVISIBLE, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3522") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "primary key cannot be invisible") {
-			t.Errorf("oracle: expected 3522, got %v", mysqlErr)
+		} else if mariaOracleErrorCode(mysqlErr) != 1064 {
+			t.Errorf("oracle: expected unsupported INVISIBLE syntax 1064, got %v", mysqlErr)
 		}
 
 		results, err := c.Exec(`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE);`, nil)
@@ -250,15 +249,15 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Form 1: TEXT KEY without length should error (1170).
+		// MariaDB supplies a prefix when a nonunique TEXT key omits it.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
 			`CREATE TABLE t_noprefix (a TEXT, KEY (a))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_BLOB_KEY_WITHOUT_LENGTH, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1170") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "blob/text column") {
-			t.Errorf("oracle: expected 1170, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Fatalf("oracle rejected implicit TEXT key prefix: %v", mysqlErr)
 		}
+		var implicitPrefix int
+		oracleScan(t, mc, "SELECT SUB_PART FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t_noprefix' AND INDEX_NAME='a'", &implicitPrefix)
+		assertIntEq(t, "native implicit TEXT prefix", implicitPrefix, 768)
 		results, err := c.Exec(`CREATE TABLE t_noprefix (a TEXT, KEY (a));`, nil)
 		omniErrored := err != nil
 		if !omniErrored {
@@ -269,7 +268,10 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 				}
 			}
 		}
-		assertBoolEq(t, "omni: rejects TEXT KEY without prefix", omniErrored, true)
+		assertBoolEq(t, "omni: rejects TEXT KEY without prefix", omniErrored, false)
+		if !omniErrored {
+			assertIntEq(t, "catalog implicit TEXT prefix", c7findIndex(c, "t_noprefix", "a").Columns[0].Length, implicitPrefix)
+		}
 
 		// Form 2: TEXT KEY with prefix length succeeds; SUB_PART=100.
 		runOnBoth(t, mc, c, `CREATE TABLE t_prefix (a TEXT, KEY (a(100)));`)
@@ -304,31 +306,37 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a));
-CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
+		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a))`)
+		ddl := "CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram)"
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); mariaOracleErrorCode(err) != 1128 {
+			t.Errorf("native missing FULLTEXT plugin: %v", err)
+		}
+		results, err := c.Exec(ddl, nil)
+		if err != nil || len(results) != 1 {
+			t.Fatalf("catalog parser plugin: %v %v", err, results)
+		}
+		if modeled, ok := results[0].Error.(*Error); !ok || modeled.Code != 1128 {
+			t.Errorf("catalog missing FULLTEXT plugin: %v", results[0].Error)
+		}
 
 		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
-		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
 		if strings.Contains(ct1, "WITH PARSER") {
 			t.Errorf("oracle: t1 (no parser) unexpectedly contains WITH PARSER: %s", ct1)
 		}
-		if !strings.Contains(ct2, "WITH PARSER") {
-			t.Errorf("oracle: t2 missing WITH PARSER ngram: %s", ct2)
-		}
-
-		// omni: catalog Index has no ParserName field — gap. We assert
-		// only that both tables and FULLTEXT indexes exist.
 		idx1 := c7findIndex(c, "t1", "a")
-		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
+		if idx1 == nil {
+			t.Error("catalog default FULLTEXT index missing")
 			return
 		}
 		assertBoolEq(t, "omni t1 fulltext", idx1.Fulltext, true)
-		assertBoolEq(t, "omni t2 fulltext", idx2.Fulltext, true)
-		// Distinction (parser name) is omni gap — flag for bug queue.
-		// We can't read ParserName since the field doesn't exist, so log.
-		t.Logf("omni: ParserName field not present on Index; cannot distinguish t1 vs t2 (expected gap)")
+		if idx1.ParserName != "" || c.GetDatabase("testdb").GetTable("t2") != nil {
+			t.Error("catalog installed a missing parser plugin or its rejected table")
+		}
+		var created int
+		oracleScan(t, mc, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t2'", &created)
+		if created != 0 {
+			t.Error("native installed the rejected table")
+		}
 	})
 
 	// --- 7.9 SPATIAL requires NOT NULL ----------------------------------
@@ -336,8 +344,8 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// OK case: NOT NULL geometry with SRID.
-		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g));`)
+		// MariaDB indexes NOT NULL geometry without MySQL's SRID attribute.
+		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL, SPATIAL KEY (g));`)
 
 		// Error case 1: nullable geometry — ER_SPATIAL_CANT_HAVE_NULL 1252.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,

@@ -21,11 +21,11 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL;`,
 			code: ErrInvalidDefault,
 		},
 		{
-			name: "alter_column_set_default_rejects_lob_literal_default",
+			name: "alter_column_set_default_accepts_lob_literal_default",
 			sql: `CREATE TABLE t (a INT);
 ALTER TABLE t CHANGE COLUMN a a BLOB;
 ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x';`,
-			code: 1101,
+			code: 0,
 		},
 		{
 			name: "create_table_rejects_duplicate_auto_increment",
@@ -43,6 +43,16 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x';`,
 				t.Fatalf("parse error: %v", err)
 			}
 			catErr := lastExecError(results)
+			if tt.code == 0 {
+				if catErr != nil {
+					t.Fatalf("accepted MariaDB DDL failed: %v", catErr)
+				}
+				col := c.GetDatabase("testdb").GetTable("t").GetColumn("a")
+				if col.DataType != "blob" || col.Default == nil || *col.Default != "'x'" {
+					t.Fatalf("lost altered BLOB default: %+v", col)
+				}
+				return
+			}
 			if catErr == nil {
 				t.Fatalf("expected catalog error code %d, got nil", tt.code)
 			}

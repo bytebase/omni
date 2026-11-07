@@ -59,6 +59,11 @@ func TestScenario_C6(t *testing.T) {
 		if len(rows) != 2 {
 			t.Errorf("oracle subpartition rows: got %d, want 2", len(rows))
 		}
+		for _, row := range rows {
+			if row[1] != nil {
+				t.Errorf("native retained an ignored subpartition: %v", row)
+			}
+		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
@@ -69,7 +74,8 @@ func TestScenario_C6(t *testing.T) {
 		for _, p := range tbl.Partitioning.Partitions {
 			total += len(p.SubPartitions)
 		}
-		assertIntEq(t, "omni subpartition count", total, 2)
+		assertIntEq(t, "catalog ignores subpartition definitions", total, 0)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 6.3 Partition ENGINE defaults to table ENGINE ------------------
@@ -150,10 +156,11 @@ func TestScenario_C6(t *testing.T) {
 			t.Errorf("omni: table or partitioning missing")
 			return
 		}
-		got := strings.Join(tbl.Partitioning.Columns, ",")
+		got := strings.Join(tbl.Partitioning.keyColumns, ",")
 		if got != "id" {
 			t.Errorf("omni partition columns: got %q, want %q", got, "id")
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 6.6 LINEAR HASH / LINEAR KEY preserved -------------------------
@@ -165,8 +172,8 @@ func TestScenario_C6(t *testing.T) {
 			`CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4`)
 
 		sc := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(sc, "LINEAR HASH") {
-			t.Errorf("oracle SHOW CREATE: expected LINEAR HASH, got %s", sc)
+		if strings.Contains(sc, "LINEAR") || !strings.Contains(sc, "PARTITION BY HASH") {
+			t.Errorf("native SHOW CREATE should discard LINEAR: %s", sc)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -174,7 +181,8 @@ func TestScenario_C6(t *testing.T) {
 			t.Errorf("omni: table or partitioning missing")
 			return
 		}
-		assertBoolEq(t, "omni Linear", tbl.Partitioning.Linear, true)
+		assertBoolEq(t, "catalog ignores LINEAR", tbl.Partitioning.Linear, false)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 6.7 RANGE/LIST require explicit partition definitions ---------
@@ -258,18 +266,11 @@ func TestScenario_C6(t *testing.T) {
 	})
 
 	// --- 6.10 LIST DEFAULT partition --------------------------------
-	// Requires MySQL 8.0.4+ (introduction of LIST ... VALUES IN (DEFAULT)).
-	// Skip on older server versions so the test survives contributors
-	// running pinned-older images or CI lanes behind the rolling 8.0 tag.
+	// TiDB supports LIST DEFAULT. Its MySQL protocol version does not
+	// describe TiDB capabilities, so it must not gate this native probe.
 	t.Run("6_10_list_default_partition", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
-
-		var ver string
-		oracleScan(t, mc, `SELECT VERSION()`, &ver)
-		if !mysqlAtLeast(ver, 8, 0, 4) {
-			t.Skipf("6.10 requires MySQL >= 8.0.4 for LIST DEFAULT partition, got %q", ver)
-		}
 
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (c INT) PARTITION BY LIST(c)
@@ -456,7 +457,12 @@ func TestScenario_C6(t *testing.T) {
             FROM information_schema.PARTITIONS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
             ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION`)
-		assertIntEq(t, "oracle subpartition count", len(rows), 4)
+		assertIntEq(t, "native parent partition rows", len(rows), 2)
+		for _, row := range rows {
+			if row[0] != nil {
+				t.Errorf("native retained ignored subpartition options: %v", row)
+			}
+		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
@@ -467,7 +473,8 @@ func TestScenario_C6(t *testing.T) {
 		for _, p := range tbl.Partitioning.Partitions {
 			total += len(p.SubPartitions)
 		}
-		assertIntEq(t, "omni subpartition count", total, 4)
+		assertIntEq(t, "catalog ignores subpartition options", total, 0)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 6.16 ALTER ADD PARTITION auto-naming ---------------------
@@ -560,4 +567,3 @@ func c6OmniPartitionNames(tbl *Table) []string {
 	}
 	return names
 }
-

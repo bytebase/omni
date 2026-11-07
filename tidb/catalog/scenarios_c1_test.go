@@ -31,7 +31,7 @@ CREATE TABLE child (
 
 		// Oracle
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
+		want := []string{"child_ibfk_5", "fk_2"}
 		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
 
 		// omni
@@ -58,7 +58,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		runOnBoth(t, mc, c, ddl)
 
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
+		want := []string{"child_ibfk_20", "fk_2"}
 		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
 
 		tbl := c.GetDatabase("testdb").GetTable("child")
@@ -325,7 +325,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		for _, r := range rows {
 			got = append(got, asString(r[0]))
 		}
-		want := []string{"functional_index", "functional_index_2"}
+		want := []string{"expression_index", "expression_index_2"}
 		assertStringEq(t, "oracle functional index names", strings.Join(got, ","), strings.Join(want, ","))
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -367,16 +367,21 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			t.Errorf("omni: table t missing (functional index support gap)")
 			return
 		}
-		// omni will almost certainly not synthesize hidden generated columns
-		// with MySQL's !hidden! naming scheme. Check and report.
-		hasHidden := false
-		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
-				hasHidden = true
-				break
+		// TiDB exposes one user column and stores the expression key parts
+		// directly in SHOW CREATE; MySQL's !hidden! names are not metadata.
+		var visibleColumns int
+		oracleScan(t, mc, "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t'", &visibleColumns)
+		assertIntEq(t, "native visible columns", visibleColumns, 1)
+		assertIntEq(t, "catalog visible columns", len(tbl.Columns), 1)
+		if len(tbl.Indexes) != 1 || len(tbl.Indexes[0].Columns) != 2 {
+			t.Fatalf("lost expression key parts: %+v", tbl.Indexes)
+		}
+		for _, part := range tbl.Indexes[0].Columns {
+			if part.Expr == "" {
+				t.Error("functional key part lost its stored expression")
 			}
 		}
-		assertBoolEq(t, "omni has hidden functional col", hasHidden, true)
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 1.13 CHECK constraint name is schema-scoped ---------------------

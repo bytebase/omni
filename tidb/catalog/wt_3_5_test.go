@@ -231,9 +231,10 @@ func TestWalkThrough_3_5_DropIndex(t *testing.T) {
 func TestWalkThrough_3_5_DropPrimaryKey(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
-	wtExec(t, c, "ALTER TABLE t DROP PRIMARY KEY")
+	assertRejectedDDL(t, c, "ALTER TABLE t DROP PRIMARY KEY", 8200)
+	wtExec(t, c, "CREATE TABLE nonclustered (id INT,PRIMARY KEY(id) NONCLUSTERED); ALTER TABLE nonclustered DROP PRIMARY KEY")
 
-	tbl := c.GetDatabase("testdb").GetTable("t")
+	tbl := c.GetDatabase("testdb").GetTable("nonclustered")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}

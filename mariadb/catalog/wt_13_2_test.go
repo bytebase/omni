@@ -22,7 +22,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 		got := c.ShowCreateTable("testdb", "t")
 		assertContains(t, got, "ENGINE=InnoDB")
 		assertContains(t, got, "DEFAULT CHARSET=utf8mb4")
-		assertContains(t, got, "COLLATE=utf8mb4_0900_ai_ci")
+		assertContains(t, got, "COLLATE=utf8mb4_uca1400_ai_ci")
 	})
 
 	// Scenario 2: Table with ROW_FORMAT=DYNAMIC
@@ -86,7 +86,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 
 		got := c.ShowCreateTable("testdb", "t")
 		assertContains(t, got, "CREATE TEMPORARY TABLE `t`")
-		assertContains(t, got, "`id` int NOT NULL")
+		assertContains(t, got, "`id` int(11) NOT NULL")
 		assertContains(t, got, "PRIMARY KEY (`id`)")
 	})
 
@@ -115,7 +115,8 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 		assertContains(t, got, "`col_varchar` varchar(255)")
 		assertContains(t, got, "`col_text` text")
 		assertContains(t, got, "`col_blob` blob")
-		assertContains(t, got, "`col_json` json")
+		assertContains(t, got, "`col_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin")
+		assertContains(t, got, "CHECK (json_valid(`col_json`))")
 		assertContains(t, got, "`col_enum` enum('a','b','c')")
 		assertContains(t, got, "`col_set` set('x','y','z')")
 		assertContains(t, got, "`col_date` date")
@@ -123,14 +124,14 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 		assertContains(t, got, "`col_timestamp` timestamp")
 
 		// INT rendered
-		assertContains(t, got, "`id` int NOT NULL")
+		assertContains(t, got, "`id` int(11) NOT NULL")
 
-		// TEXT and BLOB should NOT show DEFAULT NULL
-		if strings.Contains(got, "`col_text` text DEFAULT NULL") {
-			t.Error("TEXT column should not show DEFAULT NULL")
+		// MariaDB renders DEFAULT NULL for nullable TEXT and BLOB too.
+		if !strings.Contains(got, "`col_text` text DEFAULT NULL") {
+			t.Error("TEXT column should show DEFAULT NULL")
 		}
-		if strings.Contains(got, "`col_blob` blob DEFAULT NULL") {
-			t.Error("BLOB column should not show DEFAULT NULL")
+		if !strings.Contains(got, "`col_blob` blob DEFAULT NULL") {
+			t.Error("BLOB column should show DEFAULT NULL")
 		}
 
 		// TIMESTAMP with explicit NULL should show NULL
@@ -148,7 +149,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 
 		got := c.ShowCreateTable("testdb", "t")
 		// ON UPDATE should appear after DEFAULT
-		assertContains(t, got, "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+		assertContains(t, got, "DEFAULT current_timestamp() ON UPDATE current_timestamp()")
 	})
 
 	// Scenario 9: Column DEFAULT expression (CURRENT_TIMESTAMP, literal, NULL)
@@ -164,9 +165,9 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 
 		got := c.ShowCreateTable("testdb", "t")
 		// CURRENT_TIMESTAMP default
-		assertContains(t, got, "DEFAULT CURRENT_TIMESTAMP")
+		assertContains(t, got, "DEFAULT current_timestamp()")
 		// Literal default — MySQL 8.0 quotes numeric defaults
-		assertContains(t, got, "DEFAULT '0'")
+		assertContains(t, got, "DEFAULT 0")
 		// NULL default
 		assertContains(t, got, "`note` varchar(100) DEFAULT NULL")
 	})

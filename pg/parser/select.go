@@ -517,7 +517,8 @@ func (p *Parser) parseSelectOptions() (*nodes.List, *selectLimit, error) {
 // WITH, or, for the limit options, which the server reports without a
 // position, at the limit clause.
 //
-// pg: src/backend/parser/gram.y — insertSelectOptions
+// pg: REL_18_STABLE src/backend/parser/gram.y — insertSelectOptions
+// https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/parser/gram.y
 func (p *Parser) insertSelectOptions(stmt *nodes.SelectStmt, sortClause, locking *nodes.List, limit *selectLimit, withClause *nodes.WithClause) error {
 	if sortClause != nil {
 		if stmt.SortClause != nil {
@@ -531,27 +532,24 @@ func (p *Parser) insertSelectOptions(stmt *nodes.SelectStmt, sortClause, locking
 	if limit != nil {
 		if limit.offset != nil {
 			if stmt.LimitOffset != nil {
-				return &ParseError{Message: "multiple OFFSET clauses not allowed", Position: p.exprLocation(limit.offset, limit.offsetStart)}
+				return &ParseError{Message: "multiple OFFSET clauses not allowed", Position: limit.offsetLoc}
 			}
 			stmt.LimitOffset = limit.offset
 		}
 		if limit.count != nil {
 			if stmt.LimitCount != nil {
-				return &ParseError{Message: "multiple LIMIT clauses not allowed", Position: p.limitCountLocation(limit)}
+				return &ParseError{Message: "multiple LIMIT clauses not allowed", Position: limit.countLoc}
 			}
 			stmt.LimitCount = limit.count
 		}
-		if stmt.LimitOption != nodes.LIMIT_OPTION_COUNT {
-			return &ParseError{Message: "multiple limit options not allowed", Position: limit.loc}
-		}
 		if limit.option == nodes.LIMIT_OPTION_WITH_TIES {
 			if stmt.SortClause == nil {
-				return &ParseError{Message: "WITH TIES cannot be specified without ORDER BY clause", Position: limit.loc}
+				return &ParseError{Message: "WITH TIES cannot be specified without ORDER BY clause", Position: limit.optionLoc}
 			}
 			if stmt.LockingClause != nil {
 				for _, item := range stmt.LockingClause.Items {
 					if lc, ok := item.(*nodes.LockingClause); ok && lc.WaitPolicy == int(nodes.LockWaitSkip) {
-						return &ParseError{Message: "SKIP LOCKED and WITH TIES options cannot be used together", Position: limit.loc}
+						return &ParseError{Message: "SKIP LOCKED and WITH TIES options cannot be used together", Position: limit.optionLoc}
 					}
 				}
 			}
@@ -687,6 +685,9 @@ func skipSQLSpace(s string, i int) int {
 // selectLimit is gram.y's SelectLimit: what one select_limit sets, with
 // where its parts start for insertSelectOptions's errors.
 type selectLimit struct {
+	offsetLoc    int // OFFSET token
+	countLoc     int // LIMIT or FETCH token
+	optionLoc    int // WITH token
 	offset       nodes.Node
 	count        nodes.Node
 	option       nodes.LimitOption
@@ -705,7 +706,7 @@ type selectLimit struct {
 //	    | limit_clause
 //	    | offset_clause
 func (p *Parser) parseSelectLimit() (*selectLimit, error) {
-	l := &selectLimit{offsetStart: -1, countStart: -1, loc: p.pos()}
+	l := &selectLimit{offsetLoc: -1, countLoc: -1, optionLoc: -1, offsetStart: -1, countStart: -1, loc: p.pos()}
 	if p.cur.Type == OFFSET {
 		if err := p.parseOffsetClause(l); err != nil {
 			return nil, err
@@ -752,6 +753,7 @@ func (p *Parser) parseSelectLimit() (*selectLimit, error) {
 // gram.y reads the LIMIT #,# form only to refuse it, at LIMIT, once the
 // offset after the comma is read.
 func (p *Parser) parseLimitClause(l *selectLimit) error {
+	l.countLoc = p.pos()
 	if p.cur.Type == FETCH {
 		return p.parseFetchClause(l)
 	}
@@ -801,6 +803,7 @@ func (p *Parser) parseLimitClause(l *selectLimit) error {
 // ROWS. The value is read as a c_expr first and continued as an a_expr
 // only when no ROW or ROWS follows it, without parsing it twice.
 func (p *Parser) parseOffsetClause(l *selectLimit) error {
+	l.offsetLoc = p.pos()
 	p.advance() // OFFSET
 	start := p.pos()
 	var offset nodes.Node
@@ -945,6 +948,7 @@ func (p *Parser) parseFetchClause(l *selectLimit) error {
 
 	// ONLY or WITH TIES
 	if p.cur.Type == WITH {
+		l.optionLoc = p.pos()
 		p.advance()
 		if _, err := p.expect(TIES); err != nil {
 			return err

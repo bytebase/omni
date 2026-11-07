@@ -453,16 +453,12 @@ func (p *Parser) parseSyncStmt(startLoc ast.Loc) (ast.Node, error) {
 //
 // cur must be '(' on entry.
 //
-// The grammar gives the list as a propertyItemList, whose items may take an
-// identifier or any constant on either side, but the engine holds a routine
-// load to a string on both: (kafka_broker_list = "h:9092"), ("k" = 1),
-// ("k" = tp), ("k" = NULL) and ("k" = true) are all rejects, reported by its
-// legacy parser (container-verified). The item used to take any single token
-// as the value, so ("a" = ,), ("a" = )) and ("a" = ( ) parsed.
+// Doris 4.0 data-source properties use identifier or constant atoms.
+// https://github.com/apache/doris/blob/branch-4.0/fe/fe-core/src/main/antlr4/org/apache/doris/nereids/DorisParser.g4
 func (p *Parser) parseParenthesisedProperties() ([]*ast.Property, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
 
-	return p.parsePropertyItems(p.parseStringProperty)
+	return p.parsePropertyItems(p.parsePropertyItem)
 }

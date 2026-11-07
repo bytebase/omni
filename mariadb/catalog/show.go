@@ -31,9 +31,9 @@ func charsetForCollation(collation string) string {
 
 // defaultCollationForCharset returns the default collation for common MySQL charsets.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
-	"utf8mb3":  "utf8mb3_general_ci",
-	"utf8":     "utf8mb3_general_ci",
+	"utf8mb4":  "utf8mb4_uca1400_ai_ci",
+	"utf8mb3":  "utf8mb3_uca1400_ai_ci",
+	"utf8":     "utf8mb3_uca1400_ai_ci",
 	"latin1":   "latin1_swedish_ci",
 	"ascii":    "ascii_general_ci",
 	"binary":   "binary",
@@ -85,7 +85,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl))
+		definition := showColumnWithTable(col, tbl)
+		for _, con := range tbl.Constraints {
+			if con.Type == ConCheck && strings.EqualFold(con.ColumnName, col.Name) {
+				definition += " CHECK (" + con.CheckExpr + ")"
+			}
+		}
+		parts = append(parts, definition)
 	}
 
 	// Application-time period — rendered before SYSTEM_TIME; the name is
@@ -140,15 +146,15 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		case ConForeignKey:
 			fkConstraints = append(fkConstraints, con)
 		case ConCheck:
-			chkConstraints = append(chkConstraints, con)
+			if con.ColumnName == "" {
+				chkConstraints = append(chkConstraints, con)
+			}
 		}
 	}
 	sort.Slice(fkConstraints, func(i, j int) bool {
 		return fkConstraints[i].Name < fkConstraints[j].Name
 	})
-	sort.Slice(chkConstraints, func(i, j int) bool {
-		return chkConstraints[i].Name < chkConstraints[j].Name
-	})
+	// MariaDB retains CHECK constraints in declaration order.
 	for _, con := range fkConstraints {
 		parts = append(parts, showConstraint(con))
 	}
@@ -240,7 +246,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
 			}
 			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
-		} else if collationNonDefault {
+		} else if collationNonDefault && charsetDiffers {
 			// Collation inherited from table but non-default for charset.
 			// MySQL shows only COLLATE (no CHARACTER SET).
 			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
@@ -257,7 +263,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 			}
 			if col.Invisible {
-				b.WriteString(" /*!80023 INVISIBLE */")
+				b.WriteString(" INVISIBLE")
 			}
 			return b.String()
 		}
@@ -273,7 +279,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 		}
 		if col.Invisible {
-			b.WriteString(" /*!80023 INVISIBLE */")
+			b.WriteString(" INVISIBLE")
 		}
 		return b.String()
 	}
@@ -295,7 +301,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	if col.Default != nil {
 		b.WriteString(" DEFAULT ")
 		b.WriteString(formatDefault(*col.Default, col))
-	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
+	} else if col.Nullable && !col.AutoIncrement {
 		b.WriteString(" DEFAULT NULL")
 	}
 
@@ -316,7 +322,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 	// INVISIBLE.
 	if col.Invisible {
-		b.WriteString(" /*!80023 INVISIBLE */")
+		b.WriteString(" INVISIBLE")
 	}
 
 	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
@@ -335,8 +341,11 @@ func formatDefault(val string, col *Column) string {
 	}
 	switch col.DefaultKind {
 	case ColumnDefaultCurrentTimestamp:
-		return formatCurrentTimestamp(val)
+		return mariaCurrentTimestamp(val)
 	case ColumnDefaultExpression:
+		if strings.Contains(val, "(") && !strings.HasPrefix(val, "(") {
+			return val
+		}
 		return "(" + val + ")"
 	}
 	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
@@ -354,21 +363,35 @@ func formatDefault(val string, col *Column) string {
 	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
+		if isIntegerType(col.DataType) || col.DataType == "decimal" || col.DataType == "double" || col.DataType == "float" {
+			return val[1 : len(val)-1]
+		}
 		return val
 	}
-	// MySQL 8.0 quotes all literal defaults (including numerics).
+	// String defaults retain quotes (including numerics).
+	if isIntegerType(col.DataType) || col.DataType == "decimal" || col.DataType == "double" || col.DataType == "float" {
+		return val
+	}
 	return "'" + val + "'"
 }
 
 // formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
 func formatOnUpdate(val string, kind ColumnDefaultKind) string {
 	if kind == ColumnDefaultCurrentTimestamp {
-		return formatCurrentTimestamp(val)
+		return mariaCurrentTimestamp(val)
 	}
 	if ts, ok := currentTimestampSQL(val); ok {
 		return ts
 	}
 	return val
+}
+
+func mariaCurrentTimestamp(val string) string {
+	s := strings.ToLower(formatCurrentTimestamp(val))
+	if !strings.Contains(s, "(") {
+		s += "()"
+	}
+	return s
 }
 
 func formatCurrentTimestamp(val string) string {
@@ -433,13 +456,20 @@ func showIndex(idx *Index) string {
 	}
 	b.WriteString(strings.Join(cols, ","))
 	b.WriteString(")")
+	if idx.Fulltext && idx.ParserName != "" {
+		b.WriteString(" WITH PARSER `" + strings.ReplaceAll(idx.ParserName, "`", "``") + "`")
+	}
 
 	// USING clause: shown when explicitly specified, not for PRIMARY/FULLTEXT/SPATIAL.
 	if !idx.Primary && !idx.Fulltext && !idx.Spatial && !idx.Vector && idx.IndexType != "" {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
-	// KEY_BLOCK_SIZE is intentionally NOT rendered here: MySQL 8.0 parses
+	if idx.KeyBlockSize > 0 {
+		fmt.Fprintf(&b, " KEY_BLOCK_SIZE=%d", idx.KeyBlockSize)
+	}
+
+	// MariaDB preserves index KEY_BLOCK_SIZE; MySQL 8.0 parses
 	// the index-level KEY_BLOCK_SIZE option but does not include it in
 	// SHOW CREATE TABLE output (only the table-level KEY_BLOCK_SIZE is
 	// shown). The catalog still preserves the value for programmatic
@@ -554,10 +584,7 @@ func showTableOptions(tbl *Table) string {
 		if effectiveCollation == "" {
 			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
 		}
-		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
-		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
-		isUtf8mb4 := eqFoldStr(tbl.Charset, "utf8mb4")
-		if isNonDefaultCollation || isUtf8mb4 {
+		if effectiveCollation != "" {
 			if effectiveCollation != "" {
 				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
 			}
@@ -626,7 +653,7 @@ func unquoteTableOption(s string) string {
 // MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
 func isFKDefault(action string) bool {
 	upper := strings.ToUpper(action)
-	return upper == "NO ACTION"
+	return upper == "RESTRICT" || upper == "SET DEFAULT"
 }
 
 func isEnumSetType(dt string) bool {
@@ -662,12 +689,7 @@ func escapeComment(s string) string {
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
 
-	// MySQL uses /*!50500 for RANGE COLUMNS and LIST COLUMNS, /*!50100 for others.
-	versionComment := "50100"
-	if pi.Type == "RANGE COLUMNS" || pi.Type == "LIST COLUMNS" {
-		versionComment = "50500"
-	}
-	b.WriteString(fmt.Sprintf("/*!%s PARTITION BY ", versionComment))
+	b.WriteString(" PARTITION BY ")
 	if pi.Linear {
 		b.WriteString("LINEAR ")
 	}
@@ -676,19 +698,19 @@ func showPartitioning(pi *PartitionInfo) string {
 		b.WriteString(fmt.Sprintf("RANGE (%s)", pi.Expr))
 	case "RANGE COLUMNS":
 		// MySQL uses double space before COLUMNS and no backticks on column names.
-		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "LIST":
 		b.WriteString(fmt.Sprintf("LIST (%s)", pi.Expr))
 	case "LIST COLUMNS":
-		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "HASH":
 		b.WriteString(fmt.Sprintf("HASH (%s)", pi.Expr))
 	case "KEY":
 		// MySQL does not backtick-quote KEY column names.
 		if pi.Algorithm > 0 {
-			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumns(pi.Columns)))
 		} else {
-			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.Columns)))
 		}
 	case "SYSTEM_TIME":
 		b.WriteString("SYSTEM_TIME")
@@ -741,7 +763,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(",\n ")
 			}
 			b.WriteString("PARTITION ")
-			b.WriteString(pd.Name)
+			b.WriteString("`" + pd.Name + "`")
 			if pd.SystemTime != "" {
 				b.WriteString(" " + pd.SystemTime)
 			}
@@ -776,7 +798,7 @@ func showPartitioning(pi *PartitionInfo) string {
 						b.WriteString(",\n  ")
 					}
 					b.WriteString("SUBPARTITION ")
-					b.WriteString(spd.Name)
+					b.WriteString("`" + spd.Name + "`")
 					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
@@ -788,7 +810,6 @@ func showPartitioning(pi *PartitionInfo) string {
 		b.WriteString(")")
 	}
 
-	b.WriteString(" */")
 	return b.String()
 }
 

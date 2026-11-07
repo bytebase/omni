@@ -26,7 +26,7 @@ func startLoaderCompatOracle(t *testing.T) *loaderCompatOracle {
 	t.Helper()
 	loaderCompatOracleOnce.Do(func() {
 		ctx := context.Background()
-		db, err := pg17Database(ctx, "omni_loader_compat")
+		db, err := pg18Database(ctx, "omni_loader_compat")
 		if err != nil {
 			loaderCompatOracleSetupErr = err
 			return

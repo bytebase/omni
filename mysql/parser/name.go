@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"strings"
 )
 
 // keywordCategory classifies MySQL 8.0 keywords into 6 categories matching
@@ -325,7 +326,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwNOW:                 kwCatUnambiguous,
 	kwPARALLEL:            kwCatUnambiguous,
 	kwPERSIST_ONLY:        kwCatAmbiguous4,
-	kwQUALIFY:             kwCatUnambiguous,
+	kwQUALIFY:             kwCatReserved,
 	kwREAD_WRITE:          kwCatReserved,
 	kwSETS:                kwCatUnambiguous,
 	kwSTD:                 kwCatUnambiguous,
@@ -335,7 +336,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwSUBSTR:              kwCatUnambiguous,
 	kwSUPER:               kwCatAmbiguous3,
 	kwSYSDATE:             kwCatUnambiguous,
-	kwTABLESAMPLE:         kwCatUnambiguous,
+	kwTABLESAMPLE:         kwCatReserved,
 	kwUNICODE:             kwCatAmbiguous2,
 	kwVAR_POP:             kwCatUnambiguous,
 	kwVAR_SAMP:            kwCatUnambiguous,
@@ -898,6 +899,41 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 			return nil, err
 		}
 		ref.IndexHints = hints
+		ref.Loc.End = p.prev.End
+	}
+
+	// MySQL 8.4 single_table ends with opt_tablesample_clause after index hints.
+	// https://github.com/mysql/mysql-server/blob/8.4/sql/sql_yacc.yy
+	if p.cur.Type == kwTABLESAMPLE {
+		p.advance()
+		if p.cur.Type != kwSYSTEM && p.cur.Type != kwBERNOULLI {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref.SampleMethod = strings.ToUpper(p.cur.Str)
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case tokICONST, tokFCONST, '?':
+			value, err := p.parsePrimaryExpr()
+			if err != nil {
+				return nil, err
+			}
+			ref.SamplePercentage = value
+		default:
+			if p.cur.Type != tokIDENT || !strings.HasPrefix(p.cur.Str, "@") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			value, err := p.parseVariableRef()
+			if err != nil {
+				return nil, err
+			}
+			ref.SamplePercentage = value
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		ref.Loc.End = p.prev.End
 	}
 

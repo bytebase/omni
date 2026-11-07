@@ -9,9 +9,8 @@ import "testing"
 // first, and EXTRACT's compound units arrive with it.
 //
 // The stored texts are mariadb:11.8.8's, read with SHOW CREATE TABLE; it keeps
-// the call under the function's other name. The charset introducer on a string
-// literal is omni's own — this engine stores concat('x',`s`) too — and predates
-// this test. An aggregate cannot appear here at all: the engine answers 1901
+// the call under the function's other name, without adding a charset introducer
+// to its string literal. An aggregate cannot appear here: the engine answers 1901
 // for `g INT AS (COUNT(c1))`.
 func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 	c := New()
@@ -34,7 +33,7 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 		t.Fatal("table tg is not in the catalog")
 	}
 	want := map[string]string{
-		"p": "locate(_utf8mb4'x',`s`)",
+		"p": "locate('x',`s`)",
 		"e": "extract(day_hour from `a`)",
 		"i": "interval(`c1`,1,2)",
 	}

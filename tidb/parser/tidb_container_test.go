@@ -10,8 +10,8 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 type tidbContainer struct {
@@ -20,12 +20,12 @@ type tidbContainer struct {
 
 	// container is kept so a run that loses the server can rebuild it. The
 	// harness is used from sequential tests, so nothing guards these fields.
-	container testcontainers.Container
+	container testcontainer.Container
 }
 
 // tidbImage is the TiDB release every oracle test in this package is recorded
 // against. Changing it means rerunning those tests and reading the drift.
-const tidbImage = "pingcap/tidb:v8.5.5"
+const tidbImage = testcontainer.Image
 
 var (
 	tidbOnce    sync.Once
@@ -47,7 +47,7 @@ func startTiDB(t *testing.T) *tidbContainer {
 
 		db, err := dialTiDB(ctx, container, newContainerReady)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			tidbInitErr = err
 			return
 		}
@@ -64,20 +64,8 @@ func startTiDB(t *testing.T) *tidbContainer {
 }
 
 // runTiDBContainer starts the pinned TiDB image.
-func runTiDBContainer(ctx context.Context) (testcontainers.Container, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        tidbImage,
-		ExposedPorts: []string{"4000/tcp"},
-		WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-	}
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start TiDB container: %w", err)
-	}
-	return container, nil
+func runTiDBContainer(ctx context.Context) (testcontainer.Container, error) {
+	return testcontainer.Start(ctx)
 }
 
 // newContainerReady is how long a freshly started container gets to answer:
@@ -92,7 +80,7 @@ const runningServerReady = 5 * time.Second
 
 // dialTiDB opens a pool on the container's mapped port and waits up to ready
 // for the server to answer.
-func dialTiDB(ctx context.Context, container testcontainers.Container, ready time.Duration) (*sql.DB, error) {
+func dialTiDB(ctx context.Context, container testcontainer.Container, ready time.Duration) (*sql.DB, error) {
 	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
@@ -109,6 +97,11 @@ func dialTiDB(ctx context.Context, container testcontainers.Container, ready tim
 	if err := pingTiDBUntilReady(ctx, db, ready); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping TiDB: %w", err)
+	}
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT tidb_version()").Scan(&version); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("test oracle must be TiDB: %w", err)
 	}
 	return db, nil
 }
@@ -152,7 +145,7 @@ func (tc *tidbContainer) restart() error {
 		tc.db = nil
 	}
 	if tc.container != nil {
-		_ = testcontainers.TerminateContainer(tc.container)
+		_ = testcontainer.TerminateContainer(tc.container)
 		tc.container = nil
 	}
 	container, err := runTiDBContainer(tc.ctx)

@@ -22,7 +22,7 @@ import (
 // TestOracle_RoutineDiffIdempotence; this file proves the EMITTED DDL is correct, and additionally
 // asserts the chosen PATH (single ALTER vs DROP+CREATE) for the characteristic-only cases.
 //
-// The harness reuses connectOracle / serverCharsetFor / both() and skips cleanly when the engines
+// The harness reuses connectOracle / serverCharsetFor / oracleVersions() and skips cleanly when the engines
 // are unreachable.
 
 const routineApplyDB = "rtn_apply"
@@ -47,72 +47,72 @@ type routineMigrationProbe struct {
 func routineMigrationProbes() []routineMigrationProbe {
 	return []routineMigrationProbe{
 		// ---- CREATE (from empty) ----
-		{"create-fn-simple", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b", false, both()},
-		{"create-fn-string", "FUNCTION", "f", "", "CREATE FUNCTION f(s VARCHAR(50)) RETURNS VARCHAR(100) DETERMINISTIC RETURN CONCAT(s, s)", false, both()},
-		{"create-fn-all-chars", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'c' RETURN a", false, both()},
-		{"create-fn-begin", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC\nBEGIN\n  DECLARE r INT;\n  SET r = a * 2;\n  RETURN r;\nEND", false, both()},
-		{"create-proc-inout", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN x INT, OUT y INT, INOUT z INT) BEGIN SET y = x + z; SET z = z + 1; END", false, both()},
-		{"create-proc-modifies", "PROCEDURE", "p", "", "CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END", false, both()},
-		{"create-proc-comment", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN a INT) SQL SECURITY INVOKER COMMENT 'pc' BEGIN SET @v = a; END", false, both()},
+		{"create-fn-simple", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b", false, oracleVersions()},
+		{"create-fn-string", "FUNCTION", "f", "", "CREATE FUNCTION f(s VARCHAR(50)) RETURNS VARCHAR(100) DETERMINISTIC RETURN CONCAT(s, s)", false, oracleVersions()},
+		{"create-fn-all-chars", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'c' RETURN a", false, oracleVersions()},
+		{"create-fn-begin", "FUNCTION", "f", "", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC\nBEGIN\n  DECLARE r INT;\n  SET r = a * 2;\n  RETURN r;\nEND", false, oracleVersions()},
+		{"create-proc-inout", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN x INT, OUT y INT, INOUT z INT) BEGIN SET y = x + z; SET z = z + 1; END", false, oracleVersions()},
+		{"create-proc-modifies", "PROCEDURE", "p", "", "CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END", false, oracleVersions()},
+		{"create-proc-comment", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN a INT) SQL SECURITY INVOKER COMMENT 'pc' BEGIN SET @v = a; END", false, oracleVersions()},
 		// Type-rendering surfaces: DECIMAL precision, ENUM/SET member lists, reserved-word param.
-		{"create-fn-decimal", "FUNCTION", "f", "", "CREATE FUNCTION f(a DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN a", false, both()},
-		{"create-fn-enum-return", "FUNCTION", "f", "", "CREATE FUNCTION f() RETURNS ENUM('a','b','c') DETERMINISTIC RETURN 'a'", false, both()},
-		{"create-proc-enum-set-params", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN s SET('x','y'), IN e ENUM('p','q')) BEGIN SET @v = s; END", false, both()},
-		{"create-proc-reserved-param", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN `select` INT, IN `from` INT) BEGIN SET @v = `select`; END", false, both()},
+		{"create-fn-decimal", "FUNCTION", "f", "", "CREATE FUNCTION f(a DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN a", false, oracleVersions()},
+		{"create-fn-enum-return", "FUNCTION", "f", "", "CREATE FUNCTION f() RETURNS ENUM('a','b','c') DETERMINISTIC RETURN 'a'", false, oracleVersions()},
+		{"create-proc-enum-set-params", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN s SET('x','y'), IN e ENUM('p','q')) BEGIN SET @v = s; END", false, oracleVersions()},
+		{"create-proc-reserved-param", "PROCEDURE", "p", "", "CREATE PROCEDURE p(IN `select` INT, IN `from` INT) BEGIN SET @v = `select`; END", false, oracleVersions()},
 
 		// ---- DROP (to empty) ----
-		{"drop-fn", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a", "", false, both()},
-		{"drop-proc", "PROCEDURE", "p", "CREATE PROCEDURE p() BEGIN SET @v = 1; END", "", false, both()},
+		{"drop-fn", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a", "", false, oracleVersions()},
+		{"drop-proc", "PROCEDURE", "p", "CREATE PROCEDURE p() BEGIN SET @v = 1; END", "", false, oracleVersions()},
 
 		// ---- MODIFY via ALTER (only SQL SECURITY / COMMENT / DATA ACCESS change) ----
 		{"alter-fn-comment", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'old' RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'new' RETURN a", true, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'new' RETURN a", true, oracleVersions()},
 		{"alter-fn-security", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC SQL SECURITY DEFINER RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC SQL SECURITY INVOKER RETURN a", true, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC SQL SECURITY INVOKER RETURN a", true, oracleVersions()},
 		{"alter-fn-dataaccess", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA RETURN a", true, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA RETURN a", true, oracleVersions()},
 		{"alter-fn-add-comment", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'added' RETURN a", true, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'added' RETURN a", true, oracleVersions()},
 		{"alter-proc-security", "PROCEDURE", "p",
 			"CREATE PROCEDURE p(IN a INT) SQL SECURITY DEFINER BEGIN SET @v = a; END",
-			"CREATE PROCEDURE p(IN a INT) SQL SECURITY INVOKER BEGIN SET @v = a; END", true, both()},
+			"CREATE PROCEDURE p(IN a INT) SQL SECURITY INVOKER BEGIN SET @v = a; END", true, oracleVersions()},
 		{"alter-proc-dataaccess", "PROCEDURE", "p",
 			"CREATE PROCEDURE p() CONTAINS SQL BEGIN SET @v = 1; END",
-			"CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END", true, both()},
+			"CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END", true, oracleVersions()},
 
 		// ---- MODIFY via DROP+CREATE (body / params / RETURNS / DETERMINISTIC change) ----
 		{"body-change-fn", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 2", false, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 2", false, oracleVersions()},
 		{"param-change-fn", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a",
-			"CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b", false, both()},
+			"CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b", false, oracleVersions()},
 		{"returns-change-fn", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS BIGINT DETERMINISTIC RETURN a", false, both()},
+			"CREATE FUNCTION f(a INT) RETURNS BIGINT DETERMINISTIC RETURN a", false, oracleVersions()},
 		{"determ-change-fn", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT NOT DETERMINISTIC READS SQL DATA RETURN a",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA RETURN a", false, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA RETURN a", false, oracleVersions()},
 		{"body-change-proc", "PROCEDURE", "p",
 			"CREATE PROCEDURE p() BEGIN SET @v = 1; END",
-			"CREATE PROCEDURE p() BEGIN SET @v = 2; END", false, both()},
+			"CREATE PROCEDURE p() BEGIN SET @v = 2; END", false, oracleVersions()},
 		{"param-change-proc", "PROCEDURE", "p",
 			"CREATE PROCEDURE p(IN x INT) BEGIN SET @v = x; END",
-			"CREATE PROCEDURE p(IN x INT, OUT y INT) BEGIN SET y = x; END", false, both()},
+			"CREATE PROCEDURE p(IN x INT, OUT y INT) BEGIN SET y = x; END", false, oracleVersions()},
 		// ENUM member-case change in a parameter: a real domain change → DROP+CREATE, and the
 		// re-created routine must carry the NEW member case (proves member case survives render).
 		{"param-enum-case-change-proc", "PROCEDURE", "p",
 			"CREATE PROCEDURE p(IN e ENUM('a','b')) BEGIN SET @v = e; END",
-			"CREATE PROCEDURE p(IN e ENUM('A','b')) BEGIN SET @v = e; END", false, both()},
+			"CREATE PROCEDURE p(IN e ENUM('A','b')) BEGIN SET @v = e; END", false, oracleVersions()},
 		// Combined: a body change AND a comment change at once → still DROP+CREATE (body forces it),
 		// and the re-created routine carries the new comment.
 		{"body-and-comment-fn", "FUNCTION", "f",
 			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'old' RETURN a + 1",
-			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'new' RETURN a + 2", false, both()},
+			"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'new' RETURN a + 2", false, oracleVersions()},
 	}
 }
 
@@ -120,7 +120,7 @@ func routineMigrationProbes() []routineMigrationProbe {
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback),
 // and the chosen path (ALTER vs DROP+CREATE) matches the probe's expectation.
 func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range routineMigrationProbes() {
@@ -265,7 +265,7 @@ func classifyRoutineOps(ops []MigrationOp) (alter, create, drop int) {
 // (loaded from real engine readbacks) self-diffs empty and yields an empty plan — the realistic
 // release-path idempotence check across the whole routine set, not just single forms.
 func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)

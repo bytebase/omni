@@ -11,10 +11,10 @@ import (
 // the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,
@@ -255,18 +255,11 @@ func TestScenario_C20(t *testing.T) {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
 
-			_, mysqlErr := mc.db.ExecContext(mc.ctx, tc.ddl)
-			if mysqlErr == nil {
-				t.Errorf("oracle: expected ER_BLOB_CANT_HAVE_DEFAULT (1101) for %s, got nil", tc.name)
-			} else if !strings.Contains(mysqlErr.Error(), "1101") &&
-				!strings.Contains(strings.ToLower(mysqlErr.Error()), "can't have a default value") {
-				t.Errorf("oracle: expected 1101 for %s, got %v", tc.name, mysqlErr)
+			code := 1101
+			if tc.name == "c20_6c" {
+				code = 1064 // TiDB has no GEOMETRY column grammar.
 			}
-
-			omniErrored := c20execExpectError(t, c, tc.ddl+";")
-			if !omniErrored {
-				t.Errorf("omni: expected rejection of %s DDL; got success", tc.name)
-			}
+			assertNativeRejectedDDL(t, mc, c, tc.ddl, code)
 			// No table row should exist.
 			if c20getTable(c, tc.name) != nil {
 				t.Errorf("omni: %s should not be in catalog after rejected DDL", tc.name)
@@ -287,11 +280,17 @@ func TestScenario_C20(t *testing.T) {
 			pt    POINT     DEFAULT (POINT(0, 0)),
 			uuid  BINARY(16) DEFAULT (UUID_TO_BIN(UUID()))
 		)`
-		runOnBoth(t, mc, c, ddl)
+		assertNativeRejectedDDL(t, mc, c, ddl, 1064)
+		assertNativeRejectedDDL(t, mc, c, "CREATE TABLE c20_7 (blob1 BLOB DEFAULT (SUBSTRING('abcdef',1,3)))", 1064)
+		runOnBoth(t, mc, c, `CREATE TABLE c20_7 (
+			id INT PRIMARY KEY,
+			tags JSON DEFAULT (JSON_ARRAY()),
+			meta JSON DEFAULT (JSON_OBJECT('v',1)),
+			uuid BINARY(16) DEFAULT (UUID_TO_BIN(UUID())))`)
 
 		// Oracle: each column must have a non-NULL COLUMN_DEFAULT (the
 		// expression text) and EXTRA containing "DEFAULT_GENERATED".
-		expressionCols := []string{"tags", "meta", "blob1", "pt", "uuid"}
+		expressionCols := []string{"tags", "meta", "uuid"}
 		for _, cname := range expressionCols {
 			var colDef sql.NullString
 			var extra string
@@ -319,6 +318,7 @@ func TestScenario_C20(t *testing.T) {
 				t.Errorf("omni: c20_7.%s Default expected non-nil expression, got nil/empty", cname)
 			}
 		}
+		assertScenarioReadback(t, mc, c, "c20_7")
 	})
 
 	// --- 20.8 Generated column with DEFAULT clause → error ---------------

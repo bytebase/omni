@@ -1,32 +1,26 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// TestScenario_C3 covers section C3 (Nullability & default promotion) from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
-// MySQL 8.0 and the omni catalog agree on the implicit nullability/default
-// rules MySQL applies during CREATE TABLE.
-//
-// Failures in omni assertions are NOT proof failures — they are recorded in
-// mysql/catalog/scenarios_bug_queue/c3.md.
+// TestScenario_C3 checks TiDB's nullability and default rules against the
+// native server, including refusal to enable MySQL's legacy timestamp mode.
 func TestScenario_C3(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// --- 3.1 First TIMESTAMP NOT NULL auto-promotes (legacy mode) -------
+	// --- 3.1 NOT NULL timestamps do not implicitly promote -------------
 	t.Run("3_1_first_timestamp_promotion", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Force legacy mode on the container so the first-TS promotion fires.
-		// Also clear sql_mode so MySQL accepts the implicit '0000-00-00' zero
-		// default for the second TIMESTAMP column. omni does not track these
-		// session vars; we still verify omni's static behavior.
-		setLegacyTimestampMode(t, mc)
-		defer restoreTimestampMode(t, mc)
+		// TiDB refuses the legacy mode setting; neither timestamp promotes.
+		assertReadonlyTimestampMode(t, mc, c)
 
 		ddl := `CREATE TABLE t (
     ts1 TIMESTAMP NOT NULL,
@@ -49,22 +43,15 @@ func TestScenario_C3(t *testing.T) {
 		// Oracle: SHOW CREATE TABLE on container.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		lo := strings.ToLower(create)
-		if !strings.Contains(lo, "ts1") ||
-			!strings.Contains(lo, "default current_timestamp") ||
-			!strings.Contains(lo, "on update current_timestamp") {
-			t.Errorf("oracle: expected ts1 promoted to CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n%s", create)
+		if !strings.Contains(lo, "ts1") || strings.Contains(lo, "current_timestamp") {
+			t.Errorf("oracle: TIMESTAMP unexpectedly promoted\n%s", create)
 		}
-		// ts2 should NOT carry an ON UPDATE CURRENT_TIMESTAMP — only one occurrence overall.
-		if strings.Count(lo, "on update current_timestamp") != 1 {
-			t.Errorf("oracle: expected exactly one ON UPDATE CURRENT_TIMESTAMP (ts1 only)\n%s", create)
+		// Neither timestamp acquires an implicit ON UPDATE expression.
+		if strings.Count(lo, "on update current_timestamp") != 0 {
+			t.Errorf("oracle: unexpected implicit ON UPDATE\n%s", create)
 		}
 
-		// omni: this is omni's "static" view. omni does not track
-		// explicit_defaults_for_timestamp, so the expectation here documents
-		// what omni *currently* does. We accept either:
-		//   (a) omni promotes the first TIMESTAMP NOT NULL  (matches legacy)
-		//   (b) omni leaves both ts1 and ts2 alone        (matches default mode)
-		// Anything else is a bug. Document the asymmetry rather than failing.
+		// The catalog keeps both declarations without implicit defaults.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
@@ -77,9 +64,8 @@ func TestScenario_C3(t *testing.T) {
 			return
 		}
 		// Expected omni (default-mode behavior): no promotion.
-		if ts1.Default != nil && strings.Contains(strings.ToLower(*ts1.Default), "current_timestamp") {
-			// Acceptable: omni mirrors legacy mode.
-			t.Logf("omni: ts1 has CURRENT_TIMESTAMP default — promotion happens unconditionally")
+		if ts1.Nullable || ts2.Nullable || ts1.Default != nil || ts1.OnUpdate != "" {
+			t.Errorf("catalog: explicit NOT NULL timestamps changed: %+v %+v", ts1, ts2)
 		}
 		if ts2.Default != nil && strings.Contains(strings.ToLower(*ts2.Default), "current_timestamp") {
 			t.Errorf("omni: ts2 should NEVER auto-promote to CURRENT_TIMESTAMP, got %q", *ts2.Default)
@@ -87,6 +73,7 @@ func TestScenario_C3(t *testing.T) {
 		if ts2.OnUpdate != "" && strings.Contains(strings.ToLower(ts2.OnUpdate), "current_timestamp") {
 			t.Errorf("omni: ts2 should NEVER auto-promote ON UPDATE, got %q", ts2.OnUpdate)
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
 	// --- 3.2 PRIMARY KEY implies NOT NULL -----------------------------------
@@ -283,17 +270,14 @@ func TestScenario_C3(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Container side: legacy mode + permissive sql_mode.
-		setLegacyTimestampMode(t, mc)
-		defer restoreTimestampMode(t, mc)
+		assertReadonlyTimestampMode(t, mc, c)
 
 		ddl := "CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP)"
 		// Run on container.
 		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
 			t.Errorf("oracle CREATE TABLE failed: %v", err)
 		}
-		// Run on omni separately — omni does not track the session var so
-		// its observed state is whatever omni's default branch produces.
+		// Run the same declaration on the catalog after the rejected setting.
 		results, err := c.Exec(ddl+";", nil)
 		if err != nil {
 			t.Errorf("omni parse error: %v", err)
@@ -304,19 +288,17 @@ func TestScenario_C3(t *testing.T) {
 			}
 		}
 
-		// Oracle: ts1 promoted, ts2 NOT NULL DEFAULT zero literal.
+		// The native server leaves both columns nullable with NULL defaults.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		lo := strings.ToLower(create)
-		if !strings.Contains(lo, "default current_timestamp") {
-			t.Errorf("oracle: legacy-mode ts1 should have DEFAULT CURRENT_TIMESTAMP\n%s", create)
+		if strings.Contains(lo, "default current_timestamp") {
+			t.Errorf("oracle: ts1 unexpectedly promoted\n%s", create)
 		}
-		if !strings.Contains(lo, "0000-00-00 00:00:00") {
-			t.Errorf("oracle: legacy-mode ts2 should have DEFAULT '0000-00-00 00:00:00'\n%s", create)
+		if strings.Contains(lo, "0000-00-00 00:00:00") {
+			t.Errorf("oracle: ts2 unexpectedly acquired a zero default\n%s", create)
 		}
 
-		// omni asymmetry: omni does not track explicit_defaults_for_timestamp,
-		// so we cannot expect it to mirror the legacy transform. Document
-		// what omni does for posterity. Anything goes here EXCEPT crashing.
+		// Verify both modeled columns and the complete native readback.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing after legacy-mode CREATE TABLE")
@@ -328,45 +310,33 @@ func TestScenario_C3(t *testing.T) {
 			t.Errorf("omni: ts1/ts2 columns missing")
 			return
 		}
-		t.Logf("omni asymmetry (no session var tracking): ts1.Nullable=%v ts1.Default=%v ts2.Nullable=%v ts2.Default=%v",
-			ts1.Nullable, derefStr(ts1.Default), ts2.Nullable, derefStr(ts2.Default))
+		if !ts1.Nullable || !ts2.Nullable || ts1.Default != nil || ts2.Default != nil || ts1.OnUpdate != "" || ts2.OnUpdate != "" {
+			t.Errorf("catalog: nullable timestamps changed: %+v %+v", ts1, ts2)
+		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 }
 
-func derefStr(p *string) string {
-	if p == nil {
-		return "<nil>"
-	}
-	return *p
-}
-
-// setLegacyTimestampMode flips the container into the deprecated
-// pre-5.6 TIMESTAMP semantics (explicit_defaults_for_timestamp=OFF) and
-// drops the strict-zero-date sql_mode flags so '0000-00-00 00:00:00'
-// defaults are accepted. This is required for C3.1 and C3.8 which exercise
-// the legacy TIMESTAMP promotion path inside `promote_first_timestamp_column`.
-func setLegacyTimestampMode(t *testing.T, mc *mysqlContainer) {
+// TiDB exposes this variable as read-only. Both values must reject without
+// enabling MySQL's old first-timestamp promotion behavior.
+func assertReadonlyTimestampMode(t *testing.T, mc *mysqlContainer, c *Catalog) {
 	t.Helper()
 	stmts := []string{
 		"SET SESSION explicit_defaults_for_timestamp=0",
-		"SET SESSION sql_mode=''",
-	}
-	for _, s := range stmts {
-		if _, err := mc.db.ExecContext(mc.ctx, s); err != nil {
-			t.Fatalf("setLegacyTimestampMode %q: %v", s, err)
-		}
-	}
-}
-
-// restoreTimestampMode reverts the session vars touched by
-// setLegacyTimestampMode back to MySQL 8.0 defaults.
-func restoreTimestampMode(t *testing.T, mc *mysqlContainer) {
-	t.Helper()
-	stmts := []string{
 		"SET SESSION explicit_defaults_for_timestamp=1",
-		"SET SESSION sql_mode=DEFAULT",
 	}
 	for _, s := range stmts {
-		_, _ = mc.db.ExecContext(mc.ctx, s)
+		_, err := mc.db.ExecContext(mc.ctx, s)
+		var native *gomysql.MySQLError
+		if !errors.As(err, &native) || native.Number != 1238 {
+			t.Fatalf("native read-only timestamp setting %q: %v", s, err)
+		}
+		results, err := c.Exec(s, nil)
+		if err != nil || len(results) != 1 {
+			t.Fatalf("catalog timestamp setting: %v %v", err, results)
+		}
+		if modeled, ok := results[0].Error.(*Error); !ok || modeled.Code != 1238 {
+			t.Fatalf("catalog read-only timestamp setting: %v", results[0].Error)
+		}
 	}
 }

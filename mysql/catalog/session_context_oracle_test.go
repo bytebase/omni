@@ -53,7 +53,7 @@ func execUnderSession(t testing.TB, conn sessionExecer, ctx context.Context, sql
 // preserves sql_mode on the live engine.
 func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT,NO_BACKSLASH_ESCAPES"
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
@@ -119,7 +119,7 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {

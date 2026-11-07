@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
@@ -24,7 +22,7 @@ type mysqlContainer struct {
 
 var sharedMySQL = struct {
 	sync.Mutex
-	container *tcmysql.MySQLContainer
+	container *testcontainer.DatabaseContainer
 	db        *sql.DB
 	ctx       context.Context
 }{
@@ -78,36 +76,32 @@ func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	container, err := testcontainer.Start(ctx, "test")
 	if err != nil {
 		t.Fatalf("failed to start MySQL container: %v", err)
 	}
 
 	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to get connection string: %v", err)
 	}
 
 	db, err := sql.Open("mysql", connStr)
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to open database: %v", err)
 	}
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to ping database: %v", err)
 	}
 
 	cleanup := func() {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 	}
 
 	return &mysqlContainer{db: db, ctx: ctx}, cleanup
@@ -118,24 +112,20 @@ func getSharedContainer() (*mysqlContainer, error) {
 		return &mysqlContainer{db: sharedMySQL.db, ctx: sharedMySQL.ctx}, nil
 	}
 
-	container, err := tcmysql.Run(sharedMySQL.ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	container, err := testcontainer.Start(sharedMySQL.ctx, "test")
 	if err != nil {
 		return nil, err
 	}
 
 	connStr, err := container.ConnectionString(sharedMySQL.ctx, "parseTime=true", "multiStatements=true")
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		return nil, err
 	}
 
 	db, err := sql.Open("mysql", connStr)
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
@@ -143,7 +133,7 @@ func getSharedContainer() (*mysqlContainer, error) {
 
 	if err := db.PingContext(sharedMySQL.ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		return nil, err
 	}
 
@@ -264,12 +254,12 @@ func TestMain(m *testing.M) {
 		sharedMySQL.db = nil
 	}
 	if sharedMySQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMySQL.container)
+		_ = testcontainer.TerminateContainer(sharedMySQL.container)
 		sharedMySQL.container = nil
 	}
 	sharedMySQL.Unlock()
 	terminateOracleFallbacks()
-	testcontainer.MySQL80.Terminate()
+	testcontainer.MySQL84.Terminate()
 	os.Exit(code)
 }
 

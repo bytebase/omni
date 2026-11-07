@@ -137,7 +137,7 @@ func TestVersionDispatch_DefaultVersionIs80(t *testing.T) {
 // COLLATE for a default-collation charset, so it is valid on either version.
 func TestVersionDispatch_GeneratedDDLNoMissingCollation(t *testing.T) {
 	// from: empty; to: a bare CHARSET=utf8mb4 table (CREATE TABLE rendering).
-	for _, v := range both() {
+	for _, v := range oracleVersions() {
 		t.Run(versionName(v), func(t *testing.T) {
 			n := NormalizerFor(v)
 			sc := serverCharsetFor(v)
@@ -262,7 +262,7 @@ func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
 // table's non-default collation on apply (non-convergent). The omission is keyed off the
 // table's effective collation (inheritance), not the charset default.
 func TestVersionDispatch_ColumnDefaultUnderNonDefaultTable(t *testing.T) {
-	for _, v := range both() {
+	for _, v := range oracleVersions() {
 		t.Run(versionName(v), func(t *testing.T) {
 			n := NormalizerFor(v)
 			defColl := n.defaultCollationFor("utf8mb4")
@@ -298,7 +298,7 @@ func TestVersionDispatch_ColumnDefaultUnderNonDefaultTable(t *testing.T) {
 func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 	const userTarget = "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(50)) DEFAULT CHARSET=utf8mb4"
 
-	for _, v := range both() {
+	for _, v := range oracleVersions() {
 		o := connectOracle(t, v)
 		t.Run(o.name, func(t *testing.T) {
 			// (1) engine's authentic stored form of the bare-charset target.

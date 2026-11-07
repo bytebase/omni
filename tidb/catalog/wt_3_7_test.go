@@ -6,7 +6,7 @@ import "testing"
 
 func TestWalkThrough_3_7_CreateProcedure(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, `DELIMITER ;;
+	installProcedureMetadataFixture(t, c, `DELIMITER ;;
 CREATE PROCEDURE my_proc(IN a INT, OUT b VARCHAR(100))
 BEGIN
   SET b = CONCAT('hello', a);
@@ -54,7 +54,7 @@ DELIMITER ;`)
 
 func TestWalkThrough_3_7_DropProcedure(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, `DELIMITER ;;
+	installProcedureMetadataFixture(t, c, `DELIMITER ;;
 CREATE PROCEDURE my_proc()
 BEGIN
   SELECT 1;
@@ -67,9 +67,9 @@ DELIMITER ;`)
 		t.Fatal("procedure should exist before drop")
 	}
 
-	wtExec(t, c, "DROP PROCEDURE my_proc")
+	assertRejectedDDL(t, c, "DROP PROCEDURE my_proc", 8108)
 
-	if db.Procedures[toLower("my_proc")] != nil {
-		t.Error("procedure my_proc should be removed after DROP PROCEDURE")
+	if db.Procedures[toLower("my_proc")] == nil {
+		t.Error("rejected DROP removed snapshot procedure metadata")
 	}
 }

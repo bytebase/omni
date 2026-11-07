@@ -235,22 +235,23 @@ func TestScenario_C8(t *testing.T) {
 			t.Errorf("oracle CREATE_OPTIONS unexpectedly contains compression: %q", opts)
 		}
 
-		// Omni: no Compression field exists. We still verify that a
-		// CREATE with an explicit COMPRESSION option parses without
-		// error. This exercises the omni parser path even though the
-		// value is dropped.
+		// COMPRESSION is parsed for compatibility, then rejected with the
+		// native unknown-option error, even when its value is NONE.
+		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE t_cmp (a INT) COMPRESSION='NONE'`); mariaOracleErrorCode(err) != 1911 {
+			t.Errorf("native COMPRESSION='NONE': %v", err)
+		}
 		results, err := c.Exec(`CREATE TABLE t_cmp (a INT) COMPRESSION='NONE';`, nil)
 		if err != nil {
 			t.Errorf("omni: parse error for COMPRESSION='NONE': %v", err)
 		}
 		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error for COMPRESSION='NONE': %v", r.Error)
+			if modeled, ok := r.Error.(*Error); !ok || modeled.Code != 1911 {
+				t.Errorf("omni: expected unknown COMPRESSION option: %v", r.Error)
 			}
 		}
-		// Intentional: document that Compression is not modeled.
-		// This is a MED-severity omni gap. See mysql/catalog/scenarios_bug_queue/c8.md.
-		_ = c.GetDatabase("testdb").GetTable("t_cmp")
+		if c.GetDatabase("testdb").GetTable("t_cmp") != nil {
+			t.Error("rejected COMPRESSION created a catalog table")
+		}
 	})
 
 	// --- 8.8 ENCRYPTION depends on server default_table_encryption ------

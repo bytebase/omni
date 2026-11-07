@@ -143,22 +143,21 @@ func TestScenario_C3(t *testing.T) {
 		assertBoolEq(t, "omni column a Nullable", col.Nullable, false)
 	})
 
-	// --- 3.4 Explicit NULL on PRIMARY KEY column is a hard error ------------
-	t.Run("3_4_explicit_null_pk_errors", func(t *testing.T) {
+	// MariaDB promotes an explicit NULL primary-key column to NOT NULL.
+	t.Run("3_4_explicit_null_pk_promoted", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Oracle: MySQL must reject.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
 			"CREATE TABLE t (a INT NULL PRIMARY KEY)")
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_PRIMARY_CANT_HAVE_NULL (1171), got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1171") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "primary") {
-			t.Errorf("oracle: expected 1171 ER_PRIMARY_CANT_HAVE_NULL, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Fatalf("native rejected NULL primary key declaration: %v", mysqlErr)
 		}
+		var nullable string
+		oracleScan(t, mc, "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t' AND COLUMN_NAME='a'", &nullable)
+		assertStringEq(t, "native primary-key nullability", nullable, "NO")
 
-		// omni: should also reject.
+		// The catalog must make the same promotion.
 		results, err := c.Exec("CREATE TABLE t (a INT NULL PRIMARY KEY);", nil)
 		omniErrored := err != nil
 		if !omniErrored {
@@ -169,7 +168,10 @@ func TestScenario_C3(t *testing.T) {
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects NULL + PK", omniErrored, true)
+		assertBoolEq(t, "omni rejects NULL + PK", omniErrored, false)
+		if !omniErrored {
+			assertBoolEq(t, "catalog primary-key nullability", c.GetDatabase("testdb").GetTable("t").GetColumn("a").Nullable, false)
+		}
 	})
 
 	// --- 3.5 UNIQUE does NOT imply NOT NULL ---------------------------------

@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	mariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // ============================================================================
@@ -35,12 +35,8 @@ import (
 // that a bare port-wait would race.
 func startMariaDB(t *testing.T) *parserOracle {
 	t.Helper()
-	return sharedMariaDB118.acquire(t, func(ctx context.Context) (testcontainers.Container, *sql.DB, error) {
-		c, err := mariadb.Run(ctx, "mariadb:11.8.8",
-			mariadb.WithDatabase("test"),
-			mariadb.WithPassword("test"),
-			// no WithUsername("root"): root is the module default; setting it errors.
-		)
+	return sharedMariaDB118.acquire(t, func(ctx context.Context) (testcontainer.Container, *sql.DB, error) {
+		c, err := testcontainer.Start(ctx, "test")
 		if err != nil {
 			return nil, nil, fmt.Errorf("start MariaDB container: %w", err)
 		}
@@ -52,17 +48,17 @@ func startMariaDB(t *testing.T) *parserOracle {
 			"max_statement_time=5", "lock_wait_timeout=2",
 		)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(c)
+			_ = testcontainer.TerminateContainer(c)
 			return nil, nil, fmt.Errorf("connection string: %w", err)
 		}
 		db, err := sql.Open("mysql", connStr)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(c)
+			_ = testcontainer.TerminateContainer(c)
 			return nil, nil, fmt.Errorf("open db: %w", err)
 		}
 		if err := db.PingContext(ctx); err != nil {
 			_ = db.Close()
-			_ = testcontainers.TerminateContainer(c)
+			_ = testcontainer.TerminateContainer(c)
 			return nil, nil, fmt.Errorf("ping: %w", err)
 		}
 		return c, db, nil

@@ -105,7 +105,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		var got string
 		oracleScan(t, mc, `SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb'`, &got)
-		assertStringEq(t, "oracle CHECK name", got, "t_chk_1")
+		assertStringEq(t, "oracle CHECK name", got, "CONSTRAINT_1")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -113,7 +113,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			return
 		}
 		omniChecks := omniCheckNames(tbl)
-		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "t_chk_1")
+		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "CONSTRAINT_1")
 	})
 
 	// --- 1.5 UNIQUE KEY auto-name uses field name ------------------------
@@ -318,14 +318,11 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		// First table with named check: both should accept.
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, CONSTRAINT mychk CHECK (a > 0));`)
 
-		// Second table with duplicate named check: MySQL errors with 3822.
+		// MariaDB scopes CHECK names to a table, so both tables retain mychk.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
 			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "duplicate check constraint") {
-			t.Errorf("oracle: expected 3822 Duplicate check constraint name, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Errorf("native rejected cross-table CHECK name reuse: %v", mysqlErr)
 		}
 
 		// omni: should also error.
@@ -340,7 +337,10 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects cross-table duplicate CHECK name", omniErrored, true)
+		assertBoolEq(t, "omni rejects cross-table duplicate CHECK name", omniErrored, false)
+		if !omniErrored {
+			assertStringEq(t, "second table CHECK name", strings.Join(omniCheckNames(c.GetDatabase("testdb").GetTable("t2")), ","), "mychk")
+		}
 	})
 }
 

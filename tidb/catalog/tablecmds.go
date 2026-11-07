@@ -31,10 +31,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if stmt.IfNotExists {
 			return nil
 		}
-		return errDupTable(tableName)
+		return errDupTable(db.Name + "." + tableName)
 	}
 	if db.Views[key] != nil {
-		return errDupTable(tableName)
+		return errDupTable(db.Name + "." + tableName)
 	}
 
 	// CREATE TABLE ... LIKE
@@ -81,6 +81,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			tblCollationExplicit = true
 		case "comment":
 			tbl.Comment = opt.Value
+		case "compression":
+			tbl.Compression = strings.Trim(opt.Value, "'\"")
 		case "auto_increment":
 			fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 		case "row_format":
@@ -152,19 +154,27 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// (buildTableInfo in TiDB v8.5.5 pkg/ddl/create_table.go).
 	var foreignKeyID int
 
-	// unnamedCheckCount counts CHECK constraints that received an auto-generated
-	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
-	// at sql/sql_table.cc:19073 (cc_max_generated_number starts at 0, used
-	// via ++cc_max_generated_number). Like the FK counter, this IGNORES
-	// user-named CHECK constraints during CREATE TABLE.
-	//
-	// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
-	//   → unnamed CHECK gets t_chk_1, but t_chk_1 is already taken by user
-	//   → real MySQL errors with ER_CHECK_CONSTRAINT_DUP_NAME
-	//   (see sql/sql_table.cc:19595 check_constraint_dup_name check).
-	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
-	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
-	var unnamedCheckCount int
+	// TiDB reserves explicit names before naming unnamed CHECKs, skipping
+	// occupied suffixes. See setEmptyCheckConstraintName in pkg/ddl/create_table.go.
+	checkNames := make(map[string]bool)
+	for _, con := range stmt.Constraints {
+		switch con.Type {
+		case nodes.ConstrUnique, nodes.ConstrIndex, nodes.ConstrFulltextIndex, nodes.ConstrSpatialIndex, nodes.ConstrVector:
+			if strings.EqualFold(con.Name, "PRIMARY") {
+				return errWrongNameForIndex(con.Name)
+			}
+		}
+		if con.Type == nodes.ConstrCheck && con.Name != "" {
+			checkNames[toLower(con.Name)] = true
+		}
+	}
+	for _, col := range stmt.Columns {
+		for _, con := range col.Constraints {
+			if con.Type == nodes.ColConstrCheck && con.Name != "" {
+				checkNames[toLower(con.Name)] = true
+			}
+		}
+	}
 
 	// columnChecks are the CHECK clauses written on columns. TiDB v8.5.5 adds
 	// them after the table-level constraints and numbers their unnamed ones
@@ -172,9 +182,29 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// t_chk_1 for the second and t_chk_2 for the first, listed in that order
 	// (read on 2026-11-06, with tidb_enable_check_constraint ON).
 	var columnChecks []*nodes.ColumnConstraint
+	columnCheckColumns := make(map[*nodes.ColumnConstraint]string)
+	primaryColumns := make(map[string]bool)
+	for _, con := range stmt.Constraints {
+		if con.Type == nodes.ConstrPrimaryKey {
+			for _, name := range extractColumnNames(con) {
+				primaryColumns[toLower(name)] = true
+			}
+		}
+	}
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
+		var err error
+		colDef, err = normalizeTiDBStringType(colDef, tbl.Charset, c.strictDDL)
+		if err != nil {
+			return err
+		}
+		if err := validateTiDBColumn(colDef); err != nil {
+			return err
+		}
+		if err := validateTiDBColumnNullability(colDef, primaryColumns[toLower(colDef.Name)]); err != nil {
+			return err
+		}
 		if err := checkColumnQualifier(colDef.Schema, colDef.Table, db.Name, tableName); err != nil {
 			return err
 		}
@@ -207,10 +237,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.DataType = "decimal"
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			} else {
-				col.DataType = typeName
+				col.DataType = tiDBDataType(colDef.TypeName)
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
 			cs, coll, err := resolveCharsetCollation(colDef.TypeName.Charset, colDef.TypeName.Collate)
+			col.Zerofill = colDef.TypeName.Zerofill && col.DataType != "year"
 			if err != nil {
 				return err
 			}
@@ -269,7 +300,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			s := defaultToSQL(colDef.DefaultValue)
+			s := c.defaultToSQL(colDef.DefaultValue)
 			col.Default = &s
 		}
 		if colDef.OnUpdate != nil {
@@ -291,7 +322,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					s := defaultToSQL(cc.Expr)
+					s := c.defaultToSQL(cc.Expr)
 					col.Default = &s
 				}
 			case nodes.ColConstrPrimaryKey:
@@ -311,6 +342,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				// Added after the table's own constraints: see columnChecks.
 				if c.checkConstraints {
 					columnChecks = append(columnChecks, cc)
+					columnCheckColumns[cc] = colDef.Name
 				}
 			case nodes.ColConstrReferences:
 				// TiDB reads a REFERENCES clause on a column and keeps nothing:
@@ -453,8 +485,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 		case nodes.ConstrUnique:
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = implicitTiDBIndexName(tbl, con)
 			}
 			idxCols := buildIndexColumns(con)
 			uqIdx := &Index{
@@ -510,8 +542,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			conName := con.Name
 			if conName == "" {
-				unnamedCheckCount++
-				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+				conName = allocateTiDBCheckName(tableName, checkNames)
+			}
+			if err := validateTiDBCheck(tbl, conName, con.Expr, ""); err != nil {
+				return err
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
@@ -523,8 +557,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 		case nodes.ConstrIndex:
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = implicitTiDBIndexName(tbl, con)
 			}
 			idxCols := buildIndexColumns(con)
 			keyIdx := &Index{
@@ -587,8 +621,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	for _, cc := range columnChecks {
 		conName := cc.Name
 		if conName == "" {
-			unnamedCheckCount++
-			conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+			conName = allocateTiDBCheckName(tableName, checkNames)
+		}
+		if err := validateTiDBCheck(tbl, conName, cc.Expr, columnCheckColumns[cc]); err != nil {
+			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
@@ -624,16 +660,29 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
-	// Validate foreign key constraints (unless foreign_key_checks=0).
-	if c.foreignKeyChecks {
-		if err := c.validateForeignKeys(db, tbl); err != nil {
+	// Structural checks still apply when foreign_key_checks permits a missing parent.
+	for _, idx := range tbl.Indexes {
+		if err := validateTiDBIndexColumns(tbl, idx.Columns); err != nil {
 			return err
 		}
+		if err := c.prepareTiDBIndexExpressions(tbl, idx); err != nil {
+			return err
+		}
+	}
+	if err := c.validateForeignKeys(db, tbl); err != nil {
+		return err
+	}
+
+	if err := validateTiDBPrimaryGenerated(tbl); err != nil {
+		return err
 	}
 
 	// Process partition clause. v8.5.5 runs SYSTEM_TIME partitioning and leaves the table with
 	// none, whatever its keys cover.
 	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
+		if err := validateTiDBPartition(tbl, stmt.Partitions); err != nil {
+			return err
+		}
 		if err := validateCreateTableUniqueKeys(tbl, stmt.Partitions); err != nil {
 			return err
 		}
@@ -741,7 +790,7 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "RANGE"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr = partitionExpressionSQL(pc.Expr)
 		}
 	case nodes.PartitionList:
 		if len(pc.Columns) > 0 {
@@ -749,11 +798,11 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "LIST"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr = partitionExpressionSQL(pc.Expr)
 		}
 	case nodes.PartitionHash:
 		pi.Type = "HASH"
-		pi.Expr = nodeToSQL(pc.Expr)
+		pi.Expr = partitionExpressionSQL(pc.Expr)
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
@@ -777,6 +826,12 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 
 	// Auto-generate partition definitions for HASH/KEY when PARTITIONS N is
 	// specified without explicit partition definitions: p0, p1, p2, ...
+	if (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) && pi.NumParts == 0 {
+		pi.NumParts = len(pi.Partitions)
+		if pi.NumParts == 0 {
+			pi.NumParts = 1
+		}
+	}
 	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
 		for i := 0; i < pi.NumParts; i++ {
 			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
@@ -849,6 +904,20 @@ func (c *Catalog) validateForeignKeys(db *Database, tbl *Table) error {
 
 // validateSingleFK validates a single FK constraint against its referenced table.
 func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) error {
+	// TiDB validates the child definition even with foreign_key_checks=0.
+	// https://github.com/pingcap/tidb/blob/v8.5.5/pkg/ddl/create_table.go
+	for _, name := range con.Columns {
+		col := tbl.GetColumn(name)
+		if col == nil {
+			continue
+		}
+		if col.Generated != nil && !col.Generated.Stored {
+			return tiDBVirtualFKColumn(con.Name, name)
+		}
+		if !col.Nullable && (con.OnDelete == "SET NULL" || con.OnUpdate == "SET NULL") {
+			return &Error{Code: 1830, SQLState: "HY000", Message: fmt.Sprintf("Column '%s' cannot be NOT NULL: needed in a foreign key constraint '%s' SET NULL", name, con.Name)}
+		}
+	}
 	// Resolve the referenced table.
 	refDBName := con.RefDatabase
 	var refDB *Database
@@ -869,7 +938,21 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	if refTbl == nil {
+		if !c.foreignKeyChecks {
+			return nil
+		}
 		return errFKNoRefTable(con.RefTable)
+	}
+	// Parent virtual columns are rejected before checking the backing index.
+	// https://github.com/pingcap/tidb/blob/v8.5.5/pkg/ddl/foreign_key.go
+	for _, name := range con.RefColumns {
+		col := refTbl.GetColumn(name)
+		if col == nil {
+			return &Error{Code: 3734, SQLState: "HY000", Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'", name, con.Name, con.RefTable)}
+		}
+		if col.Generated != nil && !col.Generated.Stored {
+			return tiDBVirtualFKColumn(con.Name, name)
+		}
 	}
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
@@ -972,6 +1055,7 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)
+				idxCol.ExprNode = ic.Expr
 			}
 			result = append(result, idxCol)
 		}
@@ -990,11 +1074,28 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 func allocIndexName(tbl *Table, baseName string) string {
 	candidate := baseName
 	suffix := 2
-	for indexNameExists(tbl, candidate) {
+	for strings.EqualFold(candidate, "PRIMARY") || indexNameExists(tbl, candidate) {
 		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
 		suffix++
 	}
 	return candidate
+}
+
+// TiDB calls unnamed expression indexes expression_index, using the first
+// key part's column name only when that part is a plain column reference.
+// https://github.com/pingcap/tidb/blob/v8.5.5/pkg/ddl/index.go
+func implicitTiDBIndexName(tbl *Table, con *nodes.Constraint) string {
+	if len(con.IndexColumns) > 0 {
+		first := con.IndexColumns[0]
+		if col, ok := first.Expr.(*nodes.ColumnRef); ok && !first.Functional {
+			return allocIndexName(tbl, col.Column)
+		}
+		return allocIndexName(tbl, "expression_index")
+	}
+	if len(con.Columns) > 0 {
+		return allocIndexName(tbl, con.Columns[0])
+	}
+	return allocIndexName(tbl, "expression_index")
 }
 
 // hasIndexCoveringColumns returns true if the table already has an index whose
@@ -1096,6 +1197,9 @@ func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
 				declared = strings.ToUpper(s.Value)
 			}
 		}
+	}
+	if declared == "HASH" {
+		return "BTREE"
 	}
 	return declared
 }
@@ -1241,23 +1345,30 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
 func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
+	return storedTiDBExpressionSQL(node, charset, false)
+}
+
+func storedTiDBExpressionSQL(node nodes.ExprNode, charset string, index bool) string {
 	if node == nil {
 		return ""
 	}
 	switch n := node.(type) {
 	case *nodes.ColumnRef:
 		if n.Table != "" {
-			return "`" + n.Table + "`.`" + n.Column + "`"
+			return quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 		}
-		return "`" + n.Column + "`"
+		return quoteIdent(n.Column)
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
 		// MySQL adds charset introducer for string literals in generated columns.
-		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
+		if n.Charset != "" {
+			charset = n.Charset
 		}
-		return "'" + n.Value + "'"
+		if charset != "" {
+			return "_" + charset + "'" + outputFormat(n.Value) + "'"
+		}
+		return "'" + outputFormat(n.Value) + "'"
 	case *nodes.FuncCallExpr:
 		funcName := strings.ToLower(n.Name)
 		if n.Star {
@@ -1265,9 +1376,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		}
 		var args []string
 		for _, a := range n.Args {
-			args = append(args, nodeToSQLGenerated(a, charset))
+			args = append(args, storedTiDBExpressionSQL(a, charset, index))
 		}
-		return funcName + "(" + strings.Join(args, ",") + ")"
+		return funcName + "(" + strings.Join(args, ", ") + ")"
 	case *nodes.NullLit:
 		return "NULL"
 	case *nodes.BoolLit:
@@ -1284,32 +1395,45 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		}
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
-		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
+		return "(" + storedTiDBExpressionSQL(n.Expr, charset, index) + ")"
 	case *nodes.KeywordArg:
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// stored unquoted in generated-column bodies exactly like view bodies.
 		return n.Keyword
 	case *nodes.ExtractExpr:
 		// Oracle TiDB v8.5.5 stored form: extract(day_hour from `a`).
-		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+		return "extract(" + strings.ToLower(n.Unit) + " from " + storedTiDBExpressionSQL(n.Expr, charset, index) + ")"
 	case *nodes.PositionExpr:
 		// Oracle TiDB v8.5.5 stored form: position(_utf8mb4'x' in `s`) — the
 		// keyword, where MySQL 8.0 stores locate(_utf8mb4'x',`s`).
-		return "position(" + nodeToSQLGenerated(n.Substr, charset) + " in " + nodeToSQLGenerated(n.Str, charset) + ")"
+		return "position(" + storedTiDBExpressionSQL(n.Substr, charset, index) + " in " + storedTiDBExpressionSQL(n.Str, charset, index) + ")"
 	case *nodes.BinaryExpr:
-		left := nodeToSQLGenerated(n.Left, charset)
-		right := nodeToSQLGenerated(n.Right, charset)
+		left := storedTiDBExpressionSQL(n.Left, charset, index)
+		right := storedTiDBExpressionSQL(n.Right, charset, index)
 		// MySQL rewrites JSON operators to function calls in generated column expressions.
+		separator := ","
+		if index {
+			separator = ", "
+		}
 		switch n.Op {
 		case nodes.BinOpJsonExtract:
-			return "json_extract(" + left + "," + right + ")"
+			return "json_extract(" + left + separator + right + ")"
 		case nodes.BinOpJsonUnquote:
-			return "json_unquote(json_extract(" + left + "," + right + "))"
+			return "json_unquote(json_extract(" + left + separator + right + "))"
 		}
 		op := binaryOpToString(n.Op)
 		return "(" + left + " " + op + " " + right + ")"
+	case *nodes.CastExpr:
+		target := formatDataType(n.TypeName)
+		if n.TypeName != nil && n.TypeName.Charset != "" {
+			target += " charset " + n.TypeName.Charset
+		}
+		if n.Array {
+			target += " array"
+		}
+		return "cast(" + storedTiDBExpressionSQL(n.Expr, charset, index) + " as " + target + ")"
 	case *nodes.UnaryExpr:
-		operand := nodeToSQLGenerated(n.Operand, charset)
+		operand := storedTiDBExpressionSQL(n.Operand, charset, index)
 		switch n.Op {
 		case nodes.UnaryMinus:
 			return "-" + operand
@@ -1321,6 +1445,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 			return operand
 		}
 	default:
+		if index {
+			return nodeToSQL(node)
+		}
 		return "(?)"
 	}
 }
@@ -1332,10 +1459,12 @@ func nodeToSQL(node nodes.ExprNode) string {
 // defaultToSQL writes a column default the way the catalog keeps it: an
 // expression default in its parentheses, so it stays apart from a literal, and
 // TRUE and FALSE as the 1 and 0 TiDB stores for them.
-func defaultToSQL(node nodes.ExprNode) string {
+func (c *Catalog) defaultToSQL(node nodes.ExprNode) string {
 	switch n := node.(type) {
 	case *nodes.ParenExpr:
-		return "(" + nodeToSQL(n.Expr) + ")"
+		return "(" + storedTiDBExpressionSQL(n.Expr, c.defaultCharset, true) + ")"
+	case *nodes.FuncCallExpr:
+		return storedTiDBExpressionSQL(n, c.defaultCharset, true)
 	case *nodes.BoolLit:
 		if n.Value {
 			return "1"
@@ -1415,9 +1544,6 @@ func formatColumnType(dt *nodes.DataType) string {
 		if dt.Unsigned || dt.Zerofill {
 			t += " unsigned"
 		}
-		if dt.Zerofill {
-			t += " zerofill"
-		}
 		return t
 	case "numeric":
 		name = "decimal"
@@ -1496,9 +1622,6 @@ func formatColumnType(dt *nodes.DataType) string {
 		// ZEROFILL implies UNSIGNED, which SHOW CREATE TABLE writes out.
 		if dt.Unsigned || dt.Zerofill {
 			buf.WriteString(" unsigned")
-		}
-		if dt.Zerofill {
-			buf.WriteString(" zerofill")
 		}
 	}
 	return buf.String()
@@ -1587,6 +1710,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Charset:      srcTbl.Charset,
 		Collation:    srcTbl.Collation,
 		Comment:      srcTbl.Comment,
+		Compression:  srcTbl.Compression,
 		RowFormat:    srcTbl.RowFormat,
 		KeyBlockSize: srcTbl.KeyBlockSize,
 		Temporary:    stmt.Temporary,
@@ -1603,6 +1727,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Name:          srcCol.Name,
 			DataType:      srcCol.DataType,
 			ColumnType:    srcCol.ColumnType,
+			Zerofill:      srcCol.Zerofill,
 			Nullable:      srcCol.Nullable,
 			AutoIncrement: srcCol.AutoIncrement,
 			Charset:       srcCol.Charset,
@@ -1650,6 +1775,8 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 				Length:     sc.Length,
 				Descending: sc.Descending,
 				Expr:       sc.Expr,
+				ExprNode:   sc.ExprNode,
+				ExprType:   sc.ExprType,
 			}
 		}
 		idx.Columns = cols

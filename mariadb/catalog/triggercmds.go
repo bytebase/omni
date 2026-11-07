@@ -60,6 +60,8 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 
 	trigger := &Trigger{
 		Name:                name,
+		NameSQL:             stmt.NameSQL,
+		TableSQL:            stmt.TableSQL,
 		Database:            db,
 		Table:               tableName,
 		Timing:              stmt.Timing,
@@ -159,8 +161,14 @@ func showCreateTrigger(tr *Trigger) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", tr.Definer))
 	}
 
-	b.WriteString(fmt.Sprintf(" TRIGGER `%s` %s %s ON `%s` FOR EACH ROW",
-		tr.Name, tr.Timing, tr.Event, tr.Table))
+	nameSQL, tableSQL := tr.NameSQL, tr.TableSQL
+	if nameSQL == "" {
+		nameSQL = backtickIDQ(tr.Name)
+	}
+	if tableSQL == "" {
+		tableSQL = backtickIDQ(tr.Table)
+	}
+	b.WriteString(fmt.Sprintf(" TRIGGER %s %s %s ON %s FOR EACH ROW", nameSQL, tr.Timing, tr.Event, tableSQL))
 
 	// Note: MySQL 8.0 SHOW CREATE TRIGGER does NOT include FOLLOWS/PRECEDES.
 

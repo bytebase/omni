@@ -10,12 +10,11 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/redshift/internal/testcontainer"
 )
 
-// oracleServer is the one postgres:17-alpine the oracles of this package ask.
+// oracleServer is the pinned PostgreSQL 18 compatibility baseline the package's oracles ask.
 // Each oracle has a database of its own, because each brings its own fixtures;
 // everything they probe runs in a transaction they roll back, or only parses.
 var oracleServer struct {
@@ -63,19 +62,12 @@ func startOracleServerAttempt(ctx context.Context) (err error) {
 	// can exceed a short one.
 	startCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	container, err := tcpg.Run(startCtx, "postgres:17-alpine",
-		tcpg.WithDatabase("omni_admin"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
+	container, err := testcontainer.Start(startCtx, "omni_admin")
 	defer func() {
 		if err != nil {
 			// Run can return a partially-created container alongside its
 			// error, and TerminateContainer takes a nil one.
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 		}
 	}()
 	if err != nil {

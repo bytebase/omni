@@ -28,21 +28,21 @@ func indexMigrationProbes() []migrationProbe {
 	return []migrationProbe{
 		// ---- CREATE TABLE carrying indexes (new table; non-PK indexes added via ALTER) ----
 		{"create-with-secondary", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))", oracleVersions()},
 		{"create-with-unique", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY ua (a), UNIQUE KEY uab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY ua (a), UNIQUE KEY uab (a,b))", oracleVersions()},
 		{"create-with-prefix", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", oracleVersions()},
 		{"create-with-comment", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'hello')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'hello')", oracleVersions()},
 		{"create-with-using-btree", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB", oracleVersions()},
 		{"create-with-kbs", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB", oracleVersions()},
 		{"create-with-composite-pk", "t", "",
-			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b), KEY kc (c))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b), KEY kc (c))", oracleVersions()},
 		{"create-with-fulltext", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", oracleVersions()},
 		// 8.0-only forms.
 		{"create-with-descending", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(MySQL80)},
@@ -58,25 +58,25 @@ func indexMigrationProbes() []migrationProbe {
 		// ---- ADD INDEX (modified table) ----
 		{"add-secondary", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", oracleVersions()},
 		{"add-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))", oracleVersions()},
 		{"add-composite", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))", oracleVersions()},
 		{"add-prefix", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100))",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", oracleVersions()},
 		{"add-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'c')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'c')", oracleVersions()},
 		{"add-fulltext", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", oracleVersions()},
 		{"add-primary-key", "t",
 			"CREATE TABLE t (id INT NOT NULL, a INT)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", oracleVersions()},
 		// 8.0-only.
 		{"add-descending", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)",
@@ -94,16 +94,16 @@ func indexMigrationProbes() []migrationProbe {
 		// ---- DROP INDEX (modified table) ----
 		{"drop-secondary", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", oracleVersions()},
 		{"drop-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", oracleVersions()},
 		{"drop-primary-key", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT NOT NULL, a INT)", both()},
+			"CREATE TABLE t (id INT NOT NULL, a INT)", oracleVersions()},
 		{"drop-one-of-many", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kb (b))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))", oracleVersions()},
 		{"drop-mv-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)", only(MySQL80)},
@@ -111,41 +111,41 @@ func indexMigrationProbes() []migrationProbe {
 		// ---- MODIFY index (DROP+ADD): same name, changed shape ----
 		{"modify-columns", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))", oracleVersions()},
 		{"modify-kind-to-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY k (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY k (a))", oracleVersions()},
 		{"modify-prefix-length", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(10)))",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(20)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(20)))", oracleVersions()},
 		{"modify-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'old')",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'new')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'new')", oracleVersions()},
 		{"modify-pk-columns", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
-			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))", oracleVersions()},
 		// PK change on an AUTO_INCREMENT table: the combined DROP+ADD PRIMARY KEY in one ALTER
 		// avoids the unkeyed window that leaves the AUTO_INCREMENT column without a key (errno
 		// 1075). `a` is promoted to NOT NULL to join the PK (column generator + MySQL auto-promote).
 		{"modify-pk-autoincrement", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT NOT NULL)",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id,a))", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id,a))", oracleVersions()},
 		// PK swap to a different column on an AUTO_INCREMENT table (id stays auto-inc, still keyed
 		// by the new composite PK that includes it).
 		{"modify-pk-swap-autoincrement", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,a))",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))", oracleVersions()},
 		// PK change that ALSO drops a column which was a member of the old PK: the PK must be
 		// dropped (PhasePre) before the column drop auto-removes it, then re-added (PhaseMain) after
 		// — the split form (errno 1091 otherwise).
 		{"modify-pk-drop-old-member", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
-			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))", both()},
+			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))", oracleVersions()},
 		// PK shrink that demotes a removed PK member to nullable: the PK must be dropped before the
 		// MODIFY ... NULL (errno 1171 otherwise — a still-PK column cannot be made nullable).
 		{"modify-pk-shrink-demote-nullable", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))",
-			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))", oracleVersions()},
 		// NOTE: the combination "AUTO_INCREMENT keeps the PK AND a different old-PK member is
 		// demoted to nullable in the same migration" is handled by the AUTO_INCREMENT grouping
 		// pass (mergeAutoIncrementKeyOps) and proven by the aig-pk-keep-ai-demote-member probe in
@@ -163,29 +163,29 @@ func indexMigrationProbes() []migrationProbe {
 		// after the column is gone fails errno 1091. The index drop must precede the column drop.
 		{"drop-column-and-its-single-col-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)", oracleVersions()},
 		// Composite index on (a,b); dropping BOTH columns auto-drops the index → the explicit DROP
 		// INDEX must still come first.
 		{"drop-columns-and-their-composite-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)", oracleVersions()},
 		// Drop one column of a composite index but keep the index name on the remaining column:
 		// k (a,b) → k (b) while dropping a. This is a MODIFY (DROP+ADD) racing a column DROP; the
 		// index DROP (PhasePre) precedes the column DROP, and the re-ADD (PhaseMain) lands after.
 		{"modify-index-shrink-with-column-drop", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))",
-			"CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY k (b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY k (b))", oracleVersions()},
 		// Add a column AND an index on it in the same plan (ADD COLUMN then ADD INDEX).
 		{"add-column-and-index-on-it", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", oracleVersions()},
 	}
 }
 
 // TestOracle_IndexMigrationApplyCorrectness proves gate 2 for every index probe: the generated
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range indexMigrationProbes() {
@@ -205,7 +205,7 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 // This guards against the index node fighting the FK node (duplicate-key-name on ADD, errno 1553
 // on DROP). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)

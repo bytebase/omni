@@ -1364,6 +1364,11 @@ func deparseTableRef(t *ast.TableRef) string {
 	if t.Alias != "" {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
+	if t.SamplePercentage != nil {
+		b.WriteString(" TABLESAMPLE " + t.SampleMethod + " (")
+		writeExpr(&b, t.SamplePercentage)
+		b.WriteString(")")
+	}
 	return b.String()
 }
 

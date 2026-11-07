@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
-// mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
+// mysqlContainer wraps a real MariaDB 11.8.8 container connection for container testing.
 type mysqlContainer struct {
 	db  *sql.DB
 	ctx context.Context
@@ -22,9 +22,8 @@ type mysqlContainer struct {
 
 var sharedMySQL = struct {
 	sync.Mutex
-	container *tcmysql.MySQLContainer
-	db        *sql.DB
-	ctx       context.Context
+	db  *sql.DB
+	ctx context.Context
 }{
 	ctx: context.Background(),
 }
@@ -49,7 +48,7 @@ type constraintInfo struct {
 	Name, Type string
 }
 
-// startContainer starts a MySQL 8.0 container and returns an container handle plus
+// startContainer starts a MariaDB 11.8.8 container and returns an container handle plus
 // a cleanup function. The caller must defer the cleanup function.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
@@ -61,11 +60,11 @@ func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	ctr, err := getSharedContainer()
 	if err != nil {
 		sharedMySQL.Unlock()
-		t.Fatalf("failed to start shared MySQL container: %v", err)
+		t.Fatalf("failed to start shared MariaDB container: %v", err)
 	}
 	if err := resetSharedContainer(ctr); err != nil {
 		sharedMySQL.Unlock()
-		t.Fatalf("failed to reset shared MySQL container: %v", err)
+		t.Fatalf("failed to reset shared MariaDB container: %v", err)
 	}
 	return ctr, func() {
 		sharedMySQL.Unlock()
@@ -76,76 +75,57 @@ func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	container, err := testcontainer.Start(ctx, "test")
 	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+		t.Fatalf("failed to start MariaDB container: %v", err)
 	}
 
 	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to get connection string: %v", err)
 	}
 
 	db, err := sql.Open("mysql", connStr)
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to open database: %v", err)
 	}
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 		t.Fatalf("failed to ping database: %v", err)
 	}
 
 	cleanup := func() {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
+		_ = testcontainer.TerminateContainer(container)
 	}
 
 	return &mysqlContainer{db: db, ctx: ctx}, cleanup
 }
 
 func getSharedContainer() (*mysqlContainer, error) {
-	if sharedMySQL.container != nil {
+	if sharedMySQL.db != nil {
 		return &mysqlContainer{db: sharedMySQL.db, ctx: sharedMySQL.ctx}, nil
 	}
-
-	container, err := tcmysql.Run(sharedMySQL.ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
-	if err != nil {
-		return nil, err
+	sharedMariaDB.once.Do(func() { sharedMariaDB.err = startSharedMariaDB(sharedMySQL.ctx) })
+	if sharedMariaDB.err != nil {
+		return nil, sharedMariaDB.err
 	}
-
-	connStr, err := container.ConnectionString(sharedMySQL.ctx, "parseTime=true", "multiStatements=true")
+	config := sharedMariaDB.config.Clone()
+	config.ParseTime, config.MultiStatements = true, true
+	db, err := sql.Open("mysql", config.FormatDSN())
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, err
-	}
-
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-
 	if err := db.PingContext(sharedMySQL.ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
-
-	sharedMySQL.container = container
 	sharedMySQL.db = db
 	return &mysqlContainer{db: db, ctx: sharedMySQL.ctx}, nil
 }
@@ -188,8 +168,6 @@ func resetSharedContainer(ctr *mysqlContainer) error {
 		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
 		"SET SESSION foreign_key_checks = 1",
 		"SET SESSION time_zone = DEFAULT",
-		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
-		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
 	)
 }
 
@@ -229,7 +207,7 @@ func queryAccountNames(ctr *mysqlContainer) ([]mysqlAccount, error) {
 	rows, err := ctr.db.QueryContext(ctr.ctx, `
 		SELECT User, Host
 		FROM mysql.user
-		WHERE User NOT IN ('root', 'mysql.infoschema', 'mysql.session', 'mysql.sys')`)
+		WHERE User NOT IN ('root', 'mysql.infoschema', 'mysql.session', 'mysql.sys', 'mariadb.sys')`)
 	if err != nil {
 		return nil, err
 	}
@@ -260,10 +238,6 @@ func TestMain(m *testing.M) {
 	if sharedMySQL.db != nil {
 		_ = sharedMySQL.db.Close()
 		sharedMySQL.db = nil
-	}
-	if sharedMySQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMySQL.container)
-		sharedMySQL.container = nil
 	}
 	sharedMySQL.Unlock()
 	terminateSharedMariaDB()

@@ -166,7 +166,7 @@ func canonicalEventStatus(v string) string {
 	switch {
 	case eqFoldStr(strings.TrimSpace(v), "DISABLE"):
 		return "DISABLE"
-	case eqFoldStr(collapseSpaces(v), "DISABLE ON SLAVE"):
+	case eqFoldStr(collapseSpaces(v), "DISABLE ON SLAVE"), eqFoldStr(collapseSpaces(v), "DISABLE ON REPLICA"):
 		return "DISABLE ON SLAVE"
 	default:
 		return "ENABLE"

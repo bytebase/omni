@@ -46,6 +46,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	deparse.ApplySelectAliases(stmt.Select, stmt.Columns)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -114,6 +115,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	deparse.ApplySelectAliases(stmt.Select, stmt.Columns)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -385,7 +387,7 @@ func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRel
 			out = agg
 		}
 		return out, nil
-	case "repeat", "lpad", "rpad":
+	case "repeat":
 		if len(fn.Args) == 0 {
 			return viewCollationInfo{}, nil
 		}
@@ -806,15 +808,6 @@ func showCreateView(v *View) string {
 
 	// VIEW name
 	b.WriteString(" VIEW " + backtickIDQ(v.Name))
-
-	// Column list (only if explicitly specified by user in CREATE VIEW).
-	if v.ExplicitColumns && len(v.Columns) > 0 {
-		cols := make([]string, len(v.Columns))
-		for i, c := range v.Columns {
-			cols[i] = backtickIDQ(c)
-		}
-		b.WriteString(fmt.Sprintf(" (%s)", strings.Join(cols, ",")))
-	}
 
 	// AS select_statement
 	b.WriteString(" AS ")

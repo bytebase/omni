@@ -121,7 +121,8 @@ func TestWalkThrough_6_2_CreateFKNonexistentColumnFKOff(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
 	wtExec(t, c, "SET foreign_key_checks = 0")
-	wtExec(t, c, "CREATE TABLE child (id INT, pid INT, FOREIGN KEY (pid) REFERENCES parent(nonexistent_col))")
+	assertRejectedDDL(t, c, "CREATE TABLE child (id INT, pid INT, FOREIGN KEY (pid) REFERENCES parent(nonexistent_col))", 3734)
+	wtExec(t, c, "CREATE TABLE child (id INT, pid INT, FOREIGN KEY (pid) REFERENCES parent(id))")
 
 	child := c.GetDatabase("testdb").GetTable("child")
 	if child == nil {
@@ -138,8 +139,8 @@ func TestWalkThrough_6_2_CreateFKNonexistentColumnFKOff(t *testing.T) {
 	if fk == nil {
 		t.Fatal("FK constraint should be stored")
 	}
-	if len(fk.RefColumns) == 0 || fk.RefColumns[0] != "nonexistent_col" {
-		t.Errorf("FK should reference 'nonexistent_col', got %v", fk.RefColumns)
+	if len(fk.RefColumns) == 0 || fk.RefColumns[0] != "id" {
+		t.Errorf("FK should reference the existing column 'id', got %v", fk.RefColumns)
 	}
 }
 

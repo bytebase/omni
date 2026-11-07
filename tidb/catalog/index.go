@@ -1,5 +1,7 @@
 package catalog
 
+import nodes "github.com/bytebase/omni/tidb/ast"
+
 type Index struct {
 	Name     string
 	Table    *Table
@@ -29,8 +31,11 @@ type Index struct {
 }
 
 type IndexColumn struct {
-	Name       string
-	Expr       string
+	Name string
+	Expr string
+	// ExprNode retains the parsed key part for validation without reparsing.
+	ExprNode   nodes.ExprNode
+	ExprType   *ResolvedType
 	Length     int
 	Descending bool
 }

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // tidbCatalogContainer wraps a real TiDB instance for catalog
@@ -19,7 +19,7 @@ import (
 // information_schema — the goal is to catch regressions where omni
 // parses TiDB syntax but the catalog fails to execute, or vice versa.
 type tidbCatalogContainer struct {
-	container testcontainers.Container
+	container testcontainer.Container
 	db        *sql.DB
 	ctx       context.Context
 }
@@ -36,16 +36,7 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 	tidbCatalogOnce.Do(func() {
 		ctx := context.Background()
 
-		req := testcontainers.ContainerRequest{
-			Image:        "pingcap/tidb:v8.5.5",
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-		}
-
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := testcontainer.Start(ctx)
 		if err != nil {
 			tidbCatalogInitErr = fmt.Errorf("failed to start TiDB container: %w", err)
 			return
@@ -53,14 +44,14 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 
 		host, err := container.Host(ctx)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			tidbCatalogInitErr = fmt.Errorf("failed to get host: %w", err)
 			return
 		}
 
 		port, err := container.MappedPort(ctx, "4000")
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			tidbCatalogInitErr = fmt.Errorf("failed to get port: %w", err)
 			return
 		}
@@ -68,15 +59,23 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 		connStr := fmt.Sprintf("root@tcp(%s:%s)/test?multiStatements=true", host, port.Port())
 		db, err := sql.Open("mysql", connStr)
 		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			tidbCatalogInitErr = fmt.Errorf("failed to open db: %w", err)
 			return
 		}
 
 		if err := pingTiDBUntilReady(ctx, db); err != nil {
 			db.Close()
-			_ = testcontainers.TerminateContainer(container)
+			_ = testcontainer.TerminateContainer(container)
 			tidbCatalogInitErr = fmt.Errorf("failed to ping TiDB: %w", err)
+			return
+		}
+
+		var version string
+		if err := db.QueryRowContext(ctx, "SELECT tidb_version()").Scan(&version); err != nil {
+			db.Close()
+			_ = testcontainer.TerminateContainer(container)
+			tidbCatalogInitErr = fmt.Errorf("test oracle must be TiDB: %w", err)
 			return
 		}
 

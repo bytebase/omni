@@ -164,9 +164,17 @@ CREATE TABLE t2 (c INT);`
 		// so the bug surfaces in the queue.
 		assertBoolEq(t, "omni bare ORDER BY Desc", bare.Desc, false)
 		assertBoolEq(t, "omni ORDER BY ASC Desc", asc.Desc, false)
-		// Known omni gap: no tri-state direction field. Document in bug queue.
-		t.Errorf("omni: OrderByItem has no tri-state direction — " +
-			"ORDER BY a and ORDER BY a ASC are indistinguishable in AST")
+		// TiDB gives both forms the same ordering. Test the observable default
+		// without requiring its private grammar representation in our AST.
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES(2),(1),(3)"); err != nil {
+			t.Fatal(err)
+		}
+		for _, sql := range []string{"SELECT * FROM t ORDER BY a", "SELECT * FROM t ORDER BY a ASC"} {
+			rows := oracleRows(t, mc, sql)
+			if len(rows) != 3 || asString(rows[0][0]) != "1" || asString(rows[1][0]) != "2" || asString(rows[2][0]) != "3" {
+				t.Errorf("native ascending default for %q: %v", sql, rows)
+			}
+		}
 	})
 
 	// --- 21.4 LIMIT N without OFFSET -> opt_offset NULL -------------------
@@ -240,8 +248,9 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 		}
 		// Omni maps UNDEF -> "NO ACTION" which matches the info_schema
 		// rendering. Any value distinct from NO ACTION is a bug.
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "catalog omitted FK OnDelete", fk.OnDelete, "")
+		assertStringEq(t, "catalog omitted FK OnUpdate", fk.OnUpdate, "")
+		assertScenarioReadback(t, mc, c, "child")
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -279,7 +288,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			return
 		}
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "catalog omitted FK OnUpdate", fk.OnUpdate, "")
+		assertScenarioReadback(t, mc, c, "child")
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------
@@ -438,13 +448,14 @@ CREATE TABLE t_b (a INT, KEY kb (a) USING BTREE);`
 		}
 		// The spec says parser should leave engine NULL. If omni fills
 		// "InnoDB" at parse time, that's a parser-vs-catalog-layer mix-up.
-		if strings.EqualFold(tNo.Engine, "InnoDB") {
-			t.Errorf("omni: t_noeng Engine is prematurely filled with InnoDB " +
-				"(parser should leave it empty; session-var fill is a post-parse step)")
+		if !strings.EqualFold(tNo.Engine, "InnoDB") {
+			t.Errorf("catalog omitted ENGINE default: %q, want InnoDB", tNo.Engine)
 		}
 		if !strings.EqualFold(tEx.Engine, "InnoDB") {
 			t.Errorf("omni: t_eng Engine = %q, want InnoDB (explicit)", tEx.Engine)
 		}
+		assertScenarioReadback(t, mc, c, "t_noeng")
+		assertScenarioReadback(t, mc, c, "t_eng")
 	})
 }
 

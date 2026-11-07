@@ -488,6 +488,7 @@ var Keywords = []Keyword{
 	{"version", VERSION_P, UnreservedKeyword},
 	{"view", VIEW, UnreservedKeyword},
 	{"views", VIEWS, UnreservedKeyword},
+	{"virtual", VIRTUAL, UnreservedKeyword},
 	{"volatile", VOLATILE, UnreservedKeyword},
 	{"when", WHEN, ReservedKeyword},
 	{"where", WHERE, ReservedKeyword},

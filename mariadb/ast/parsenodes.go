@@ -52,6 +52,7 @@ type SelectStmt struct {
 type CommonTableExpr struct {
 	Loc       Loc
 	Name      string
+	NameSQL   string // original identifier spelling, including delimiters
 	Columns   []string
 	Select    *SelectStmt
 	Recursive bool
@@ -1816,6 +1817,8 @@ type CreateTriggerStmt struct {
 	Definer     string
 	IfNotExists bool
 	Name        string
+	NameSQL     string // source spelling, retained by SHOW CREATE TRIGGER
+	TableSQL    string // source spelling of the ON relation
 	Timing      string // BEFORE, AFTER
 	Event       string // INSERT, UPDATE, DELETE
 	Table       *TableRef

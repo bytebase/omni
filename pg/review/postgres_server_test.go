@@ -9,9 +9,8 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 // postgresServer is the one server of an image the oracle tests of this package
@@ -37,14 +36,7 @@ func (s *postgresServer) start(ctx context.Context, image string) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := tcpg.Run(ctx, image,
-		tcpg.WithDatabase("omni_admin"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
+	container, err := testcontainer.StartImage(ctx, image, "omni_admin")
 	if err != nil {
 		return fmt.Errorf("container start: %w", err)
 	}
@@ -65,7 +57,7 @@ func (s *postgresServer) start(ctx context.Context, image string) (err error) {
 // this package ask.
 func startPostgres(t *testing.T) *sql.DB {
 	t.Helper()
-	return startPostgresImage(t, "postgres:17-alpine")
+	return startPostgresImage(t, testcontainer.Image)
 }
 
 // startPostgresImage returns a fresh database on the server of the image, for

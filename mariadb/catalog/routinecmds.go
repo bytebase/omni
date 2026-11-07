@@ -205,8 +205,8 @@ func formatParamType(dt *nodes.DataType) string {
 // formatReturnType formats a DataType for display in the RETURNS clause.
 // MySQL 8.0 shows return types in lowercase but adds CHARSET for string types.
 func formatReturnType(dt *nodes.DataType, dbCharset string) string {
-	raw := formatDataType(dt)
-	// MySQL 8.0 appends CHARSET for string return types.
+	raw := formatColumnType(dt)
+	// MariaDB appends CHARSET and COLLATE for string return types.
 	name := strings.ToLower(dt.Name)
 	if isStringRoutineType(name) {
 		charset := dt.Charset
@@ -217,6 +217,13 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+		collation := dt.Collate
+		if collation == "" {
+			collation = defaultCollationForCharset[strings.ToLower(charset)]
+		}
+		if collation != "" {
+			raw += " COLLATE " + collation
+		}
 	}
 	return raw
 }

@@ -1,9 +1,31 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
+
+func assertNativeRejectedDDL(t *testing.T, mc *mysqlContainer, c *Catalog, sql string, code int) {
+	t.Helper()
+	_, err := mc.db.ExecContext(mc.ctx, sql)
+	var native *gomysql.MySQLError
+	if !errors.As(err, &native) || int(native.Number) != code {
+		t.Fatalf("native expected error %d for %q: %v", code, sql, err)
+	}
+	assertRejectedDDL(t, c, sql, code)
+}
+
+func assertScenarioReadback(t *testing.T, mc *mysqlContainer, c *Catalog, table string) {
+	t.Helper()
+	native := oracleShow(t, mc, "SHOW CREATE TABLE "+quoteIdent(table))
+	modeled := c.ShowCreateTable(c.CurrentDatabase(), table)
+	if normalizeWhitespace(native) != normalizeWhitespace(modeled) {
+		t.Errorf("stored schema mismatch:\nnative: %s\ncatalog: %s", native, modeled)
+	}
+}
 
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
 // starmap scenario tests. Section workers in BATCHES 1-7 build on these helpers
@@ -13,8 +35,9 @@ import (
 // NOTE: asString is already defined in catalog_spotcheck_test.go and is reused
 // here as-is; do not redeclare it.
 
-// scenarioContainer wraps startContainer for naming consistency with the
-// scenario helpers. The caller must defer the cleanup func.
+// These constraint scenarios exercise TiDB with CHECK enforcement enabled on
+// both sides. Native baseline probes separately test its default OFF behavior.
+// The caller must defer cleanup; the next package fixture restores defaults.
 //
 // IMPORTANT: pins the underlying *sql.DB pool to a single connection. Many
 // scenario tests rely on connection-scoped state (USE testdb, SET SESSION
@@ -28,6 +51,10 @@ func scenarioContainer(t *testing.T) (*mysqlContainer, func()) {
 	mc, cleanup := startContainer(t)
 	mc.db.SetMaxOpenConns(1)
 	mc.db.SetMaxIdleConns(1)
+	if err := mc.execSQL("SET GLOBAL tidb_enable_check_constraint=ON"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
 	return mc, cleanup
 }
 
@@ -54,6 +81,7 @@ func scenarioReset(t *testing.T, mc *mysqlContainer) {
 func scenarioNewCatalog(t *testing.T) *Catalog {
 	t.Helper()
 	c := New()
+	c.SetCheckConstraints(true)
 	results, err := c.Exec("CREATE DATABASE testdb; USE testdb;", nil)
 	if err != nil {
 		t.Fatalf("scenarioNewCatalog parse error: %v", err)

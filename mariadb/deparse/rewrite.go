@@ -49,11 +49,11 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		}
 		// Boolean context wrapping: AND/OR/XOR operands that are not boolean
 		// expressions get wrapped in (0 <> expr).
-		if n.Op == ast.BinOpAnd || n.Op == ast.BinOpOr || n.Op == ast.BinOpXor {
-			if !isBooleanExpr(n.Left) {
+		if n.Op == ast.BinOpAnd || n.Op == ast.BinOpOr {
+			if _, ok := unwrapParen(n.Left).(*ast.ColumnRef); ok {
 				n.Left = wrapBooleanContext(n.Left)
 			}
-			if !isBooleanExpr(n.Right) {
+			if _, ok := unwrapParen(n.Right).(*ast.ColumnRef); ok {
 				n.Right = wrapBooleanContext(n.Right)
 			}
 		}
@@ -86,10 +86,6 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 
 	case *ast.IsExpr:
 		n.Expr = rewriteExpr(n.Expr)
-		// IS TRUE / IS FALSE on non-boolean: wrap operand in (0 <> expr)
-		if (n.Test == ast.IsTrue || n.Test == ast.IsFalse) && !n.Not && !isBooleanExpr(n.Expr) {
-			n.Expr = wrapBooleanContext(n.Expr)
-		}
 		return n
 
 	case *ast.CaseExpr:
@@ -230,14 +226,11 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 		}
 	}
 
-	// Case 3: NOT(non-boolean) → (0 = expr)
-	// This handles: NOT(column), NOT(a+1), NOT(func()), etc.
-	// MySQL rewrites these as (0 = expr).
-	return &ast.BinaryExpr{
-		Op:    ast.BinOpEq,
-		Left:  &ast.IntLit{Value: 0},
-		Right: operand,
+	if _, ok := inner.(*ast.ColumnRef); ok {
+		return &ast.BinaryExpr{Op: ast.BinOpEq, Left: operand, Right: &ast.IntLit{Value: 0}}
 	}
+	return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
+
 }
 
 // isBooleanExpr returns true if the expression is inherently boolean-valued.
@@ -282,11 +275,8 @@ func isBooleanExpr(node ast.ExprNode) bool {
 // wrapBooleanContext wraps a non-boolean expression in (0 <> expr) for
 // boolean context (AND/OR/XOR operands, IS TRUE/IS FALSE operands).
 func wrapBooleanContext(node ast.ExprNode) ast.ExprNode {
-	return &ast.BinaryExpr{
-		Op:    ast.BinOpNe,
-		Left:  &ast.IntLit{Value: 0},
-		Right: node,
-	}
+	return &ast.BinaryExpr{Op: ast.BinOpNe, Left: node, Right: &ast.IntLit{Value: 0}}
+
 }
 
 // RewriteSelectStmt applies RewriteExpr to all expression positions in a SelectStmt.

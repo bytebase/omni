@@ -99,9 +99,9 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN FOR CONNECTION t.a", false},
 	{"EXPLAIN FORMAT = TRADITIONAL FOR CONNECTION", false},
 	// Neither FOR DATABASE nor an INTO is MySQL 8.0 grammar.
-	{"EXPLAIN FOR DATABASE d SELECT 1", false},
-	{"EXPLAIN FOR SCHEMA d SELECT 1", false},
-	{"EXPLAIN FORMAT = JSON INTO @v SELECT 1", false},
+	{"EXPLAIN FOR DATABASE d SELECT 1", true},
+	{"EXPLAIN FOR SCHEMA d SELECT 1", true},
+	{"EXPLAIN FORMAT = JSON INTO @v SELECT 1", true},
 	{"EXPLAIN INTO @v SELECT 1", false},
 
 	// EXTENDED and PARTITIONS went with MySQL 5.7: 8.0 folded both into the

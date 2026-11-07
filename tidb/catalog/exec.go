@@ -44,6 +44,14 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 
 		if isDML(item) {
+			if err := validateTiDBFunctionPrecision(item); err != nil {
+				result.Error = err
+				results = append(results, result)
+				if !continueOnError {
+					break
+				}
+				continue
+			}
 			result.Skipped = true
 			results = append(results, result)
 			continue
@@ -82,6 +90,14 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
 		varName := toLower(asgn.Column.Column)
 		switch varName {
+		case "sql_mode":
+			if err := c.setTiDBSQLMode(asgn); err != nil {
+				return err
+			}
+		case "sql_generate_invisible_primary_key", "show_gipk_in_create_table_and_information_schema":
+			return &Error{Code: 1193, SQLState: "HY000", Message: "Unknown system variable '" + varName + "'"}
+		case "explicit_defaults_for_timestamp":
+			return &Error{Code: 1238, SQLState: "HY000", Message: "Variable 'explicit_defaults_for_timestamp' is a read only variable"}
 		case "foreign_key_checks":
 			// Extract the value.
 			val := nodeToSQLValue(asgn.Value)
@@ -92,6 +108,9 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.foreignKeyChecks = true
 			}
 		case "tidb_enable_check_constraint":
+			if asgn.Scope != "GLOBAL" {
+				return &Error{Code: 1229, SQLState: "HY000", Message: "Variable 'tidb_enable_check_constraint' is a GLOBAL variable and should be set with SET GLOBAL"}
+			}
 			switch toLower(nodeToSQLValue(asgn.Value)) {
 			case "0", "off", "false":
 				c.checkConstraints = false
@@ -184,8 +203,16 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.UseStmt:
 		return c.useDatabase(s)
 	case *nodes.CreateFunctionStmt:
+		if s.IsProcedure {
+			// v8.5.5 parses procedure DDL but its executor rejects the
+			// resolved statement wrapper with 8108; it creates no routine.
+			return &Error{Code: 8108, SQLState: "HY000", Message: "Unsupported type *resolve.NodeW"}
+		}
 		return c.createRoutine(s)
 	case *nodes.DropRoutineStmt:
+		if s.IsProcedure {
+			return &Error{Code: 8108, SQLState: "HY000", Message: "Unsupported type *resolve.NodeW"}
+		}
 		return c.dropRoutine(s)
 	case *nodes.AlterRoutineStmt:
 		return c.alterRoutine(s)

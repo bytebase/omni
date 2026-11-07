@@ -171,7 +171,7 @@ CREATE TABLE t3 (id INT NOT NULL);`
 		// Create various objects.
 		wtExec(t, c, "CREATE TABLE t1 (id INT NOT NULL, val INT)")
 		wtExec(t, c, "CREATE VIEW v1 AS SELECT id FROM t1")
-		wtExec(t, c, "CREATE PROCEDURE p1() BEGIN SELECT 1; END")
+		installProcedureMetadataFixture(t, c, "CREATE PROCEDURE p1() BEGIN SELECT 1; END")
 
 		// Verify objects exist.
 		db := c.GetDatabase("testdb")

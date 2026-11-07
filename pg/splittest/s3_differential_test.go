@@ -15,11 +15,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/pg"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 // S3 server-side differential (v1.2 S line, framework G4 proposition).
@@ -49,14 +48,7 @@ func s3Conn(t *testing.T) *sql.DB {
 	s3Once.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
-		container, err := tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("s3diff"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		container, err := testcontainer.Start(ctx, "s3diff")
 		if err != nil {
 			s3InitErr = fmt.Errorf("start PG container: %w", err)
 			return

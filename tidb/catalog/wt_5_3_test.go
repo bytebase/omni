@@ -10,7 +10,8 @@ func TestWalkThrough_5_3_AddColumnThenFK(t *testing.T) {
 	wtExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 	wtExec(t, c, "CREATE TABLE child (id INT NOT NULL)")
 
-	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
+	assertRejectedDDL(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)", 1072)
+	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT; ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
 
 	tbl := c.GetDatabase("testdb").GetTable("child")
 	if tbl == nil {
@@ -63,7 +64,8 @@ func TestWalkThrough_5_3_AddColumnExplicitIndexThenFK(t *testing.T) {
 	wtExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 	wtExec(t, c, "CREATE TABLE child (id INT NOT NULL)")
 
-	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
+	assertRejectedDDL(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)", 1072)
+	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT; ALTER TABLE child ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
 
 	tbl := c.GetDatabase("testdb").GetTable("child")
 	if tbl == nil {

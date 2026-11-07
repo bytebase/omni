@@ -11,10 +11,16 @@ func diffConstraints(from, to *Catalog, fromRelOID, toRelOID uint32) []Constrain
 	// Build name → *Constraint maps.
 	fromMap := make(map[string]*Constraint, len(fromCons))
 	for _, c := range fromCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		fromMap[c.Name] = c
 	}
 	toMap := make(map[string]*Constraint, len(toCons))
 	for _, c := range toCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		toMap[c.Name] = c
 	}
 

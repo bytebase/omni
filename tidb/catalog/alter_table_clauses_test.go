@@ -54,7 +54,8 @@ func newCatalogWithTable(t *testing.T, def string) *Catalog {
 // index.
 func TestAlterTableAddColumnTableElementList(t *testing.T) {
 	c := newCatalogWithTable(t, "(a INT)")
-	execAll(t, c, "ALTER TABLE t ADD COLUMN (b INT, c INT, PRIMARY KEY (a), UNIQUE KEY u (b));")
+	assertRejectedDDL(t, c, "ALTER TABLE t ADD COLUMN (b INT, c INT, PRIMARY KEY (a), UNIQUE KEY u (b));", 1072)
+	execAll(t, c, "ALTER TABLE t ADD COLUMN (b INT, c INT); ALTER TABLE t ADD PRIMARY KEY (a), ADD UNIQUE KEY u (b);")
 
 	ddl := c.ShowCreateTable("d", "t")
 	for _, want := range []string{"`b` int", "`c` int", "PRIMARY KEY (`a`)", "UNIQUE KEY `u` (`b`)"} {

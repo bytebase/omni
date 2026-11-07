@@ -44,40 +44,40 @@ func fkMigrationCases() []fkMigrationCase {
 		// ADD FK with no covering index → engine auto-creates the backing index (named `fk`).
 		{"add-fk-autoindex", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// ADD FK reusing an existing user index (distinct name) → NO duplicate backing index. The
 		// index is already present in `from`, so the FK add in PhasePost reuses it.
 		{"add-fk-reuse-user-index", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// ADD FK with explicit actions.
 		{"add-fk-cascade", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE ON UPDATE SET NULL)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE ON UPDATE SET NULL)", oracleVersions()},
 		// ADD unnamed FK (auto-named constraint + backing index).
 		{"add-fk-unnamed", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))", oracleVersions()},
 		// ADD composite FK (auto-creates a composite backing index).
 		{"add-fk-composite", fkParentComposite,
 			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT)",
-			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", oracleVersions()},
 
 		// ---- DROP FK (modified child) ----
 		// DROP FK whose backing index was auto-created → the FK node drops the leftover index too
 		// (target child has neither FK nor index).
 		{"drop-fk-and-backing-index", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)", oracleVersions()},
 		// DROP FK while a distinctly-named user index covers the columns → the FK node drops ONLY
 		// the FK; the user index `my_idx` is kept (index node's domain) and must remain.
 		{"drop-fk-keep-user-index", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid))", oracleVersions()},
 		// DROP unnamed FK (backing index named after the column `pid`) → drop both.
 		{"drop-fk-unnamed", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)", oracleVersions()},
 		// Two plain same-column indexes (`pid`, `pid_2`) both matching the FK-implicit name/shape,
 		// plus an FK reusing one of them. Dropping the FK and `pid_2` while keeping `pid`: the FK
 		// node and the index node call the SAME fkImplicitIndexNames on the SAME `from` table, so
@@ -86,33 +86,33 @@ func fkMigrationCases() []fkMigrationCase {
 		// double-drop. (Guards the first-match edge case raised in review.)
 		{"drop-fk-two-covering-indexes", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY pid (pid), KEY pid_2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY pid (pid))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY pid (pid))", oracleVersions()},
 
 		// ---- MODIFY FK (DROP+ADD) ----
 		// Action change CASCADE→SET NULL: DROP the old FK, ADD the new one (same name).
 		{"modify-fk-action", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE)",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL)", oracleVersions()},
 		// Referenced-column change a→b: DROP+ADD. The backing index rides along; reused.
 		{"modify-fk-refcol", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(a))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(b))", oracleVersions()},
 		// FK referencing-column change x→y: the backing index changes columns with it (the FK node
 		// owns it; the index node emits nothing). DROP+ADD.
 		{"modify-fk-column", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x) REFERENCES p(a))",
-			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p(b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p(b))", oracleVersions()},
 
 		// ---- self-referential + multiple ----
 		// Self-referential FK (child references itself). Parent `p` exists but is unused by `c`.
 		{"self-referential", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, parent_id INT)",
-			"CREATE TABLE c (id INT PRIMARY KEY, parent_id INT, CONSTRAINT fk_self FOREIGN KEY (parent_id) REFERENCES c(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, parent_id INT, CONSTRAINT fk_self FOREIGN KEY (parent_id) REFERENCES c(id))", oracleVersions()},
 		// Add a second FK alongside an existing one (only the new FK is added; the existing one is
 		// untouched).
 		{"add-second-fk", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a))",
-			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))", oracleVersions()},
 	}
 }
 
@@ -120,7 +120,7 @@ func fkMigrationCases() []fkMigrationCase {
 // DDL transforms a real `from` database into a `to`-equal one (child compared via canonical
 // readback), including the PhasePost ordering and backing-index handling.
 func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, fc := range fkMigrationCases() {
@@ -225,7 +225,7 @@ func loadResultChildSchema(t *testing.T, o *oracleConn, logicalDB, sc, childDDL 
 // schema in its real stored form, the generated no-op plan is EMPTY — including the FK ops. A
 // non-empty no-op plan is a normalization/ordering bug.
 func TestOracle_ForeignKeyMigrationIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, fc := range fkDiffCases() {
@@ -267,32 +267,32 @@ func fkMultiCases() []fkMultiCase {
 		{"drop-column-and-its-fk",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY)",
-			[]string{"p", "c"}, both()},
+			[]string{"p", "c"}, oracleVersions()},
 		// Drop a table that is REFERENCED by a surviving child's FK: the child's FK drop must
 		// precede the parent table drop (errno 3730). Child keeps its (now-FK-less) column.
 		{"drop-referenced-table",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			[]string{"c"}, both()},
+			[]string{"c"}, oracleVersions()},
 		// Two FKs on the SAME column share ONE backing index; drop BOTH: every FK constraint drop
 		// must precede the single backing-index drop (errno 1553 if interleaved).
 		{"drop-two-fks-sharing-index",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fka FOREIGN KEY (pid) REFERENCES p(id), CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			[]string{"p", "c"}, both()},
+			[]string{"p", "c"}, oracleVersions()},
 		// Two FKs sharing one backing index; drop only ONE: the shared backing index must SURVIVE
 		// because the other FK still needs it (errno 1553 if dropped).
 		{"drop-one-of-two-fks-sharing-index",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fka FOREIGN KEY (pid) REFERENCES p(id), CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
-			[]string{"p", "c"}, both()},
+			[]string{"p", "c"}, oracleVersions()},
 		// Drop a FK whose auto backing index name (`fk`) is REUSED by the target as a differently
 		// shaped USER index: the FK constraint drop must precede the index node's DROP INDEX `fk`
 		// reshape (errno 1553 if the reshape runs while the FK lives).
 		{"drop-fk-reuse-name-for-other-index",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, KEY fk (other_col))",
-			[]string{"p", "c"}, both()},
+			[]string{"p", "c"}, oracleVersions()},
 		// Drop BOTH a parent and a child table where the parent name sorts BEFORE the child
 		// (a_parent < z_child): all DROP TABLE ops share priorityTable and sort by name, so the
 		// parent would be dropped first — blocked by the child's FK (errno 3730/1451) — UNLESS the
@@ -300,14 +300,14 @@ func fkMultiCases() []fkMultiCase {
 		{"drop-parent-and-child-name-order",
 			"CREATE TABLE a_parent (id INT NOT NULL PRIMARY KEY); CREATE TABLE z_child (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES a_parent(id))",
 			"",
-			nil, both()},
+			nil, oracleVersions()},
 		// Two UNNAMED FKs on the SAME column share ONE backing index (`KEY pid (pid)`); drop BOTH:
 		// each dropped FK selects the same implicit index, so the leftover DROP INDEX must be
 		// EMITTED ONCE (dedup) — else the second DROP INDEX fails errno 1091.
 		{"drop-two-unnamed-fks-sharing-index",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id), FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
-			[]string{"p", "c"}, both()},
+			[]string{"p", "c"}, oracleVersions()},
 	}
 }
 
@@ -315,7 +315,7 @@ func fkMultiCases() []fkMultiCase {
 // review-found scenarios: each `from→to` schema is applied via the FULL generated plan and every
 // `to` table's canonical form must match.
 func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, mc := range fkMultiCases() {
@@ -465,7 +465,7 @@ func splitSemiStatements(s string) []string {
 // also emit an ADD INDEX (the index is reused), and applying the plan does not create a duplicate
 // index. This is the generate-side guard against errno 1061 (duplicate key name).
 func TestOracle_ForeignKeyAddReusesExistingIndex(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name+"/add-fk-no-extra-index-op", func(t *testing.T) {

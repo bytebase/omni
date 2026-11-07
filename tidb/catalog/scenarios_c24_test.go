@@ -1,72 +1,52 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// TestScenario_C24 covers Section C24 "SHOW CREATE TABLE skip_gipk / Invisible
-// PK" from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md.
-//
-// MySQL 8.0.30+ supports a Generated Invisible Primary Key (GIPK): when
-// `sql_generate_invisible_primary_key=ON` and a CREATE TABLE has no PRIMARY
-// KEY declared, MySQL silently inserts a hidden column
-// `my_row_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT INVISIBLE` at position 0
-// and adds a PRIMARY KEY over it. The presence of this column is hidden from
-// SHOW CREATE TABLE / information_schema unless
-// `show_gipk_in_create_table_and_information_schema=ON` is also set.
-//
-// omni's catalog does NOT implement GIPK generation today — these scenarios
-// document that gap. Failures are recorded in mysql/catalog/scenarios_bug_queue/c24.md.
-//
-// All session settings are issued on the pinned single-conn pool from
-// scenarioContainer so they persist for the duration of each subtest. The
-// session vars are reset to OFF at the end of each subtest so other workers
-// (or later subtests) start from a known state.
+// TestScenario_C24 verifies that TiDB rejects MySQL's GIPK settings and never
+// invents columns or indexes after those rejections. User-declared my_row_id
+// columns remain ordinary columns, regardless of attempted setting changes.
 func TestScenario_C24(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// Helper: set a session variable on the pinned container connection.
 	setSession := func(t *testing.T, stmt string) {
 		t.Helper()
-		if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil {
-			t.Errorf("session set %q: %v", stmt, err)
+		_, err := mc.db.ExecContext(mc.ctx, stmt)
+		var native *gomysql.MySQLError
+		if !errors.As(err, &native) || native.Number != 1193 {
+			t.Fatalf("TiDB must reject MySQL GIPK setting %q with 1193: %v", stmt, err)
 		}
+		assertRejectedDDL(t, scenarioNewCatalog(t), stmt, 1193)
 	}
 
-	// Helper: restore both GIPK session vars to OFF at end of subtest.
 	resetSession := func(t *testing.T) {
 		t.Helper()
 		setSession(t, "SET SESSION sql_generate_invisible_primary_key = OFF")
 		setSession(t, "SET SESSION show_gipk_in_create_table_and_information_schema = OFF")
 	}
 
-	// -----------------------------------------------------------------
-	// 24.1 GIPK omitted from SHOW CREATE TABLE by default
-	// -----------------------------------------------------------------
 	t.Run("24_1_gipk_hidden_by_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 		defer resetSession(t)
 		c := scenarioNewCatalog(t)
 
 		setSession(t, "SET SESSION sql_generate_invisible_primary_key = ON")
-		// Explicitly set the visibility flag OFF for this subtest. Note: in
-		// MySQL 8.0.32+ the default for this var flipped to ON in some
-		// distributions, so we cannot rely on the session inheriting OFF.
 		setSession(t, "SET SESSION show_gipk_in_create_table_and_information_schema = OFF")
 
 		ddl := "CREATE TABLE t (a INT, b INT)"
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: SHOW CREATE TABLE under default visibility must NOT include
-		// my_row_id.
 		hidden := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		if strings.Contains(hidden, "my_row_id") {
 			t.Errorf("oracle 24.1: SHOW CREATE TABLE under default visibility should hide my_row_id, got:\n%s", hidden)
 		}
 
-		// information_schema.COLUMNS under default visibility also hides it.
 		var colsHidden int
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -74,40 +54,29 @@ func TestScenario_C24(t *testing.T) {
 			&colsHidden)
 		assertIntEq(t, "oracle 24.1 information_schema hidden", colsHidden, 0)
 
-		// Toggle visibility ON: SHOW CREATE TABLE now reveals my_row_id.
 		setSession(t, "SET SESSION show_gipk_in_create_table_and_information_schema = ON")
 		shown := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(shown, "my_row_id") {
-			t.Errorf("oracle 24.1: SHOW CREATE TABLE under visibility=ON should reveal my_row_id, got:\n%s", shown)
+		if strings.Contains(shown, "my_row_id") || shown != hidden {
+			t.Errorf("rejected visibility setting changed SHOW CREATE: before %s, after %s", hidden, shown)
 		}
 		var colsShown int
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='my_row_id'`,
 			&colsShown)
-		assertIntEq(t, "oracle 24.1 information_schema visible", colsShown, 1)
+		assertIntEq(t, "native column count after rejected visibility setting", colsShown, 0)
 
-		// omni: catalog should have generated my_row_id at position 0 with a
-		// PRIMARY KEY index. Today's catalog ignores
-		// sql_generate_invisible_primary_key entirely → expected to fail and
-		// land in c24.md.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni 24.1: table t missing")
 			return
 		}
-		if tbl.GetColumn("my_row_id") == nil {
-			t.Errorf("omni 24.1: expected catalog to generate my_row_id GIPK column (sql_generate_invisible_primary_key not honored)")
+		if tbl.GetColumn("my_row_id") != nil {
+			t.Error("catalog invented a MySQL GIPK column")
 		}
-		// And the catalog deparser should hide my_row_id under default
-		// visibility — but we cannot assert deparse output without invoking
-		// SHOW CREATE TABLE on the catalog side. The presence-or-absence
-		// check above is sufficient to flag the gap.
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
-	// -----------------------------------------------------------------
-	// 24.2 GIPK column spec: name, type, attributes
-	// -----------------------------------------------------------------
 	t.Run("24_2_gipk_column_spec", func(t *testing.T) {
 		scenarioReset(t, mc)
 		defer resetSession(t)
@@ -118,74 +87,40 @@ func TestScenario_C24(t *testing.T) {
 
 		runOnBoth(t, mc, c, "CREATE TABLE t (a INT)")
 
-		// Oracle: my_row_id has the documented spec.
-		var colName, colType, isNullable, extra, colKey string
-		oracleScan(t, mc,
+		rows := oracleRows(t, mc,
 			`SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, EXTRA, COLUMN_KEY
 			 FROM information_schema.COLUMNS
-			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='my_row_id'`,
-			&colName, &colType, &isNullable, &extra, &colKey)
-		assertStringEq(t, "oracle 24.2 name", colName, "my_row_id")
-		assertStringEq(t, "oracle 24.2 type", strings.ToLower(colType), "bigint unsigned")
-		assertStringEq(t, "oracle 24.2 nullable", isNullable, "NO")
-		// EXTRA is e.g. "auto_increment INVISIBLE"
-		extraLower := strings.ToLower(extra)
-		if !strings.Contains(extraLower, "auto_increment") {
-			t.Errorf("oracle 24.2 EXTRA missing auto_increment: %q", extra)
+			 WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t' AND COLUMN_NAME='my_row_id'`)
+		if len(rows) != 0 {
+			t.Errorf("native engine invented a MySQL GIPK column: %v", rows)
 		}
-		if !strings.Contains(extraLower, "invisible") {
-			t.Errorf("oracle 24.2 EXTRA missing INVISIBLE: %q", extra)
-		}
-		assertStringEq(t, "oracle 24.2 column_key", colKey, "PRI")
 
-		// Oracle: my_row_id is the FIRST column of the table.
 		var firstCol string
 		oracleScan(t, mc,
 			`SELECT COLUMN_NAME FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
 			 ORDER BY ORDINAL_POSITION LIMIT 1`,
 			&firstCol)
-		assertStringEq(t, "oracle 24.2 first column", firstCol, "my_row_id")
+		assertStringEq(t, "native first declared column", firstCol, "a")
 
-		// Oracle: SHOW INDEX FROM t has a PRIMARY index over my_row_id.
 		idxRows := oracleRows(t, mc, "SHOW INDEX FROM t")
 		foundPK := false
 		for _, r := range idxRows {
-			// SHOW INDEX layout: Table, Non_unique, Key_name, Seq_in_index,
-			// Column_name, ...
 			if len(r) >= 5 && asString(r[2]) == "PRIMARY" && asString(r[4]) == "my_row_id" {
 				foundPK = true
 				break
 			}
 		}
-		assertBoolEq(t, "oracle 24.2 PRIMARY index over my_row_id", foundPK, true)
+		assertBoolEq(t, "native has no fabricated PRIMARY index", foundPK, false)
 
-		// omni: validate the generated column matches MySQL's spec. Expected to
-		// fail today since omni does not generate GIPK.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni 24.2: table t missing")
 			return
 		}
-		col := tbl.GetColumn("my_row_id")
-		if col == nil {
-			t.Errorf("omni 24.2: expected GIPK column my_row_id in catalog (gap)")
-			return
+		if tbl.GetColumn("my_row_id") != nil || len(tbl.Columns) != 1 || tbl.Columns[0].Name != "a" {
+			t.Errorf("catalog must expose exactly the declared column: %+v", tbl.Columns)
 		}
-		if col.Position != 0 {
-			t.Errorf("omni 24.2: expected my_row_id at position 0, got %d", col.Position)
-		}
-		if !strings.Contains(strings.ToLower(col.ColumnType), "bigint") ||
-			!strings.Contains(strings.ToLower(col.ColumnType), "unsigned") {
-			t.Errorf("omni 24.2: expected ColumnType bigint unsigned, got %q", col.ColumnType)
-		}
-		if col.Nullable {
-			t.Errorf("omni 24.2: expected NOT NULL, got Nullable=true")
-		}
-		if !col.AutoIncrement {
-			t.Errorf("omni 24.2: expected AutoIncrement=true")
-		}
-		// PK index over my_row_id.
 		pkOK := false
 		for _, idx := range tbl.Indexes {
 			if idx.Primary {
@@ -195,14 +130,12 @@ func TestScenario_C24(t *testing.T) {
 				break
 			}
 		}
-		if !pkOK {
-			t.Errorf("omni 24.2: expected PRIMARY KEY (my_row_id) in catalog")
+		if pkOK {
+			t.Error("catalog invented PRIMARY KEY(my_row_id)")
 		}
+		assertScenarioReadback(t, mc, c, "t")
 	})
 
-	// -----------------------------------------------------------------
-	// 24.3 GIPK NOT added when table has explicit PK; UNIQUE NOT NULL does NOT suppress
-	// -----------------------------------------------------------------
 	t.Run("24_3_gipk_suppressed_only_by_pk", func(t *testing.T) {
 		scenarioReset(t, mc)
 		defer resetSession(t)
@@ -215,7 +148,6 @@ func TestScenario_C24(t *testing.T) {
 		runOnBoth(t, mc, c, "CREATE TABLE t2 (id INT NOT NULL UNIQUE, a INT)")
 		runOnBoth(t, mc, c, "CREATE TABLE t3 (id INT AUTO_INCREMENT, a INT, PRIMARY KEY (id))")
 
-		// Oracle: t1 — explicit PK → no my_row_id.
 		var n1, n2, n3 int
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -223,23 +155,18 @@ func TestScenario_C24(t *testing.T) {
 			&n1)
 		assertIntEq(t, "oracle 24.3 t1 has no GIPK", n1, 0)
 
-		// Oracle: t2 — UNIQUE NOT NULL does NOT suppress GIPK → my_row_id PRESENT.
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t2' AND COLUMN_NAME='my_row_id'`,
 			&n2)
-		assertIntEq(t, "oracle 24.3 t2 has GIPK (UNIQUE NOT NULL is not a PK)", n2, 1)
+		assertIntEq(t, "native UNIQUE NOT NULL table has no GIPK", n2, 0)
 
-		// Oracle: t3 — table-level PRIMARY KEY → no my_row_id.
 		oracleScan(t, mc,
 			`SELECT COUNT(*) FROM information_schema.COLUMNS
 			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t3' AND COLUMN_NAME='my_row_id'`,
 			&n3)
 		assertIntEq(t, "oracle 24.3 t3 has no GIPK", n3, 0)
 
-		// omni: t1 should not have my_row_id (catalog ignores GIPK so this is
-		// trivially true today); t2 SHOULD have my_row_id (gap — omni does not
-		// generate it); t3 should not.
 		t1 := c.GetDatabase("testdb").GetTable("t1")
 		if t1 != nil && t1.GetColumn("my_row_id") != nil {
 			t.Errorf("omni 24.3: t1 should not have my_row_id (explicit PK present)")
@@ -247,39 +174,30 @@ func TestScenario_C24(t *testing.T) {
 		t2 := c.GetDatabase("testdb").GetTable("t2")
 		if t2 == nil {
 			t.Errorf("omni 24.3: table t2 missing")
-		} else if t2.GetColumn("my_row_id") == nil {
-			t.Errorf("omni 24.3: expected GIPK my_row_id on t2 (UNIQUE NOT NULL is not a PK) — gap")
+		} else if t2.GetColumn("my_row_id") != nil {
+			t.Error("catalog invented a GIPK on a UNIQUE NOT NULL table")
 		}
 		t3 := c.GetDatabase("testdb").GetTable("t3")
 		if t3 != nil && t3.GetColumn("my_row_id") != nil {
 			t.Errorf("omni 24.3: t3 should not have my_row_id (table-level PK present)")
 		}
+		for _, table := range []string{"t1", "t2", "t3"} {
+			assertScenarioReadback(t, mc, c, table)
+		}
 	})
 
-	// -----------------------------------------------------------------
-	// 24.4 my_row_id name collision with user-defined column
-	// -----------------------------------------------------------------
 	t.Run("24_4_gipk_name_collision", func(t *testing.T) {
 		scenarioReset(t, mc)
 		defer resetSession(t)
 
 		setSession(t, "SET SESSION sql_generate_invisible_primary_key = ON")
 
-		// Oracle: CREATE TABLE with user-declared my_row_id under GIPK=ON
-		// must fail with ER_GIPK_FAILED_AUTOINC_COLUMN_NAME_RESERVED (4108).
 		_, oracleErrOn := mc.db.ExecContext(mc.ctx,
 			"CREATE TABLE t (my_row_id INT, a INT)")
-		if oracleErrOn == nil {
-			t.Errorf("oracle 24.4: expected error creating table with my_row_id while GIPK=ON, got nil")
-		} else if !strings.Contains(oracleErrOn.Error(), "my_row_id") {
-			t.Errorf("oracle 24.4: error message should mention my_row_id, got: %v", oracleErrOn)
+		if oracleErrOn != nil {
+			t.Fatalf("native user-declared my_row_id: %v", oracleErrOn)
 		}
 
-		// omni: catalog should reject the same CREATE TABLE while
-		// sql_generate_invisible_primary_key is conceptually ON. The catalog
-		// has no notion of session vars today, so this check exercises the
-		// best-effort path: we expect omni's exec to error if it implemented
-		// the GIPK reservation. Today omni accepts it → recorded as gap.
 		c := scenarioNewCatalog(t)
 		results, err := c.Exec("CREATE TABLE t (my_row_id INT, a INT);", nil)
 		omniErr := err
@@ -291,19 +209,16 @@ func TestScenario_C24(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("omni 24.4: expected error rejecting user-declared my_row_id under GIPK=ON (gap — catalog has no session-var awareness)")
+		if omniErr != nil {
+			t.Fatalf("catalog user-declared my_row_id: %v", omniErr)
 		}
+		assertScenarioReadback(t, mc, c, "t")
 
-		// Now turn GIPK off and verify both sides accept the same CREATE
-		// TABLE. We use a fresh table name to avoid clashing with whatever
-		// omni or oracle may have left behind from the failing path.
 		setSession(t, "SET SESSION sql_generate_invisible_primary_key = OFF")
 		scenarioReset(t, mc)
 		c2 := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c2, "CREATE TABLE t (my_row_id INT, a INT)")
 
-		// Oracle: my_row_id should exist as an ordinary user column.
 		var name string
 		oracleScan(t, mc,
 			`SELECT COLUMN_NAME FROM information_schema.COLUMNS
@@ -311,7 +226,6 @@ func TestScenario_C24(t *testing.T) {
 			&name)
 		assertStringEq(t, "oracle 24.4 my_row_id user column name", name, "my_row_id")
 
-		// omni: catalog should also have it as an ordinary column.
 		tbl := c2.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni 24.4: table t missing under GIPK=OFF")

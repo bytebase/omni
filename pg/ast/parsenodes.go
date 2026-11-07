@@ -383,6 +383,7 @@ type Constraint struct {
 	IsNoInherit        bool       // NO INHERIT?
 	RawExpr            Node       // CHECK expression (raw parse tree)
 	CookedExpr         string     // CHECK expression (cooked)
+	GeneratedKind      byte       // s=STORED, v=VIRTUAL (PostgreSQL 18 default)
 	GeneratedWhen      byte       // ALWAYS or BY DEFAULT
 	NullsNotDistinct   bool       // UNIQUE nulls distinct?
 	Keys               *List      // PRIMARY KEY/UNIQUE column names

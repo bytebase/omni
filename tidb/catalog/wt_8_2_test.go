@@ -26,11 +26,11 @@ func TestWalkThrough_8_2_AlterDefaultCharset(t *testing.T) {
 	}
 
 	// ALTER TABLE DEFAULT CHARACTER SET latin1 — table default changes but columns unchanged.
-	wtExec(t, c, "ALTER TABLE t1 DEFAULT CHARACTER SET latin1")
+	assertRejectedDDL(t, c, "ALTER TABLE t1 DEFAULT CHARACTER SET latin1", 8200)
 
 	tbl = c.GetDatabase("testdb").GetTable("t1")
-	if tbl.Charset != "latin1" {
-		t.Errorf("expected table charset=latin1, got %s", tbl.Charset)
+	if tbl.Charset != "utf8mb4" {
+		t.Errorf("rejected charset shrink changed table charset: %s", tbl.Charset)
 	}
 
 	// Existing columns should still have utf8mb4.

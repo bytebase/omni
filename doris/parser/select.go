@@ -96,29 +96,6 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Qualify = qualify
 	}
 
-	// ORDER BY clause
-	if p.cur.Kind == kwORDER {
-		p.advance() // consume ORDER
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
-	}
-
-	// LIMIT / OFFSET
-	if p.cur.Kind == kwLIMIT {
-		limit, offset, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
-		stmt.Offset = offset
-	}
-
 	// Set End location to the last consumed token.
 	stmt.Loc.End = p.prev.Loc.End
 
@@ -214,13 +191,10 @@ func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
 	return p.parseQueryTail(inner)
 }
 
-// parseQueryTail applies the set-operator tail to a parsed query operand,
-// then any trailing ORDER BY / LIMIT the operands did not consume. The
-// engine is lenient here — SELECT 1 LIMIT 5 ORDER BY 1, SELECT 1 UNION
-// (SELECT 2) LIMIT 5, and even repeated groups like SELECT 1 ORDER BY 1
-// ORDER BY 2 or (SELECT 1 ORDER BY 1) ORDER BY 1 are all engine-verified
-// accepts — so the attach loops, and where a clause repeats the outer
-// (last, semantically governing) one wins.
+// parseQueryTail applies set operations followed by the queryOrganization
+// of Doris 4.0: sortClause? limitClause?. Parenthesized operands keep their
+// own organization through parseParenQueryOperand.
+// https://github.com/apache/doris/blob/branch-4.0/fe/fe-core/src/main/antlr4/org/apache/doris/nereids/DorisParser.g4
 func (p *Parser) parseQueryTail(node ast.Node) (ast.Node, error) {
 	node, err := p.parseSetOpTail(node)
 	if err != nil {
@@ -252,7 +226,7 @@ func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
 	default:
 		return node, nil
 	}
-	for p.cur.Kind == kwORDER || p.cur.Kind == kwLIMIT {
+	if p.cur.Kind == kwORDER || p.cur.Kind == kwLIMIT {
 		var orderBy []*ast.OrderByItem
 		var limit, offset ast.Node
 		if p.cur.Kind == kwORDER {

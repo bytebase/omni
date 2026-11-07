@@ -11,12 +11,12 @@ import (
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	MySQL80.Terminate()
+	MySQL84.Terminate()
 	os.Exit(code)
 }
 
 // escapes are statements that would reach past the test's database if the
-// account could run them. mysql:8.0 parses every one.
+// account could run them. MySQL 8.4 parses every one.
 var escapes = []string{
 	"SHUTDOWN",
 	"RESTART",
@@ -33,7 +33,7 @@ var escapes = []string{
 	"FLUSH PRIVILEGES",
 	"LOCK INSTANCE FOR BACKUP",
 	"CREATE RESOURCE GROUP rg TYPE = USER",
-	"RESET MASTER",
+	"RESET BINARY LOGS AND GTIDS",
 	"PURGE BINARY LOGS BEFORE NOW()",
 	"INSTALL PLUGIN p SONAME 'p.so'",
 	"KILL 1",
@@ -45,12 +45,12 @@ var escapes = []string{
 // still reads it as parsed.
 func TestRestrictedAccountCannotReachTheServer(t *testing.T) {
 	ctx := context.Background()
-	own, err := MySQL80.Database(ctx, "own")
+	own, err := MySQL84.Database(ctx, "own")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer own.Close(ctx)
-	other, err := MySQL80.Database(ctx, "other")
+	other, err := MySQL84.Database(ctx, "other")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestRestrictedAccountCannotReachTheServer(t *testing.T) {
 // TestResetEmptiesTheDatabase holds Reset to what a server of its own would give.
 func TestResetEmptiesTheDatabase(t *testing.T) {
 	ctx := context.Background()
-	db, err := MySQL80.Database(ctx, "reset")
+	db, err := MySQL84.Database(ctx, "reset")
 	if err != nil {
 		t.Fatal(err)
 	}

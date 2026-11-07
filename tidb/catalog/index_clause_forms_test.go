@@ -94,11 +94,11 @@ func TestIndexTypeReachesTheCatalog(t *testing.T) {
 			want:  "BTREE",
 		},
 		{
-			name:  "TYPE HASH on an engine that has HASH indexes",
+			name:  "TiDB normalizes TYPE HASH even with ENGINE MEMORY",
 			ddl:   []string{"CREATE TABLE mt (a INT) ENGINE=MEMORY", "CREATE INDEX i ON mt (a) TYPE HASH"},
 			table: "mt",
 			index: "i",
-			want:  "HASH",
+			want:  "BTREE",
 		},
 		{
 			// CREATE INDEX itself refuses HNSW on an index that is no vector index: its

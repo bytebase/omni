@@ -665,9 +665,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
-		collName, _, err := p.parseIdent()
-		if err != nil {
-			return false, err
+		collName := "DEFAULT"
+		if _, ok := p.match(kwDEFAULT); !ok {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return false, err
+			}
+			collName = name
 		}
 		if err := refuseColumnCollationConflict(col, collName, start); err != nil {
 			return false, err
@@ -724,16 +728,10 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Type: nodes.ColConstrCheck,
 			Expr: expr,
 		}
-		// [[NOT] ENFORCED]
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				cc.NotEnforced = true
-			}
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
+		if p.cur.Type == kwENFORCED || (p.cur.Type == kwNOT && p.peekNext().Type == kwENFORCED) {
+			return false, p.syntaxErrorAtCur()
 		}
+
 		cc.Loc.End = p.prev.End
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
@@ -897,15 +895,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// SRID column option (now lexes as kwSRID keyword token)
+	// MariaDB has no MySQL SRID column attribute.
 	if p.cur.Type == kwSRID {
-		p.advance()
-		if p.cur.Type != tokICONST {
-			return false, nil
-		}
-		col.TypeName.SRID = int(p.cur.Ival)
-		p.advance()
-		return true, nil
+		return false, p.syntaxErrorAtCur()
 	}
 
 	return false, nil
@@ -1371,15 +1363,8 @@ func (p *Parser) parseTableConstraint(place constraintPlace) (*nodes.Constraint,
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// [[NOT] ENFORCED]
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				constr.NotEnforced = true
-			}
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
+		if p.cur.Type == kwENFORCED || (p.cur.Type == kwNOT && p.peekNext().Type == kwENFORCED) {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwINDEX, kwKEY:

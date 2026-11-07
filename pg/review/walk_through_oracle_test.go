@@ -218,13 +218,6 @@ func TestWalkThroughAgainstPostgres(t *testing.T) {
 	runWalkCases(t, startPostgres(t))
 }
 
-// TestWalkThroughAgainstPostgres18 runs the same cases on PostgreSQL 18,
-// whose NOT NULL constraints have names: a fact the walk relies on must
-// hold on every version Bytebase supports.
-func TestWalkThroughAgainstPostgres18(t *testing.T) {
-	runWalkCases(t, startPostgresImage(t, "postgres:18-alpine"))
-}
-
 func runWalkCases(t *testing.T, db *sql.DB) {
 	t.Helper()
 	ctx := context.Background()
@@ -313,7 +306,7 @@ func TestWalkThroughOracleChecksClaims(t *testing.T) {
 // logged. WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the
 // seed, and WALK_SWEEP_IMAGE the PostgreSQL image.
 func TestWalkThroughSweep(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261019, "postgres:17-alpine")
+	n, seed, image := walktest.SweepParams(t, 40, 20261019, "postgres:18.6-alpine")
 	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
 		base := sweepChange(rng, 8+rng.Intn(8))
 		change := sweepChange(rng, 15+rng.Intn(15))

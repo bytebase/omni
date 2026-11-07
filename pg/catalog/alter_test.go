@@ -282,7 +282,7 @@ func TestAlterTableAddConstraint(t *testing.T) {
 	}
 
 	r := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(r.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(r.OID))
 	if len(cons) != 1 {
 		t.Fatalf("constraints: got %d, want 1", len(cons))
 	}
@@ -298,7 +298,7 @@ func TestAlterTableDropConstraint(t *testing.T) {
 	}, []ConstraintDef{{Type: ConstraintPK, Columns: []string{"id"}}}, false), 'r')
 
 	r := c.GetRelation("", "t")
-	if len(c.ConstraintsOf(r.OID)) != 1 {
+	if len(nonNullabilityConstraints(c.ConstraintsOf(r.OID))) != 1 {
 		t.Fatal("expected 1 constraint before DROP")
 	}
 
@@ -309,7 +309,7 @@ func TestAlterTableDropConstraint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(c.ConstraintsOf(r.OID)) != 0 {
+	if len(nonNullabilityConstraints(c.ConstraintsOf(r.OID))) != 0 {
 		t.Error("constraint still exists after DROP")
 	}
 	// Backing index should also be removed.
@@ -342,10 +342,10 @@ func TestAlterTableDropConstraintReferencedByForeignKey(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("%s: DROP CONSTRAINT CASCADE: %v", key, results[0].Error)
 		}
-		if cons := c.ConstraintsOf(c.GetRelation("", "f").OID); len(cons) != 0 {
+		if cons := nonNullabilityConstraints(c.ConstraintsOf(c.GetRelation("", "f").OID)); len(cons) != 0 {
 			t.Errorf("%s: the foreign key survived DROP CONSTRAINT CASCADE: %v", key, cons[0].Name)
 		}
-		if cons := c.ConstraintsOf(c.GetRelation("", "p").OID); len(cons) != 0 {
+		if cons := nonNullabilityConstraints(c.ConstraintsOf(c.GetRelation("", "p").OID)); len(cons) != 0 {
 			t.Errorf("%s: the key survived DROP CONSTRAINT CASCADE", key)
 		}
 	}
@@ -827,7 +827,7 @@ func TestRenameConstraint(t *testing.T) {
 	}
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) != 1 {
 		t.Fatalf("constraints: got %d, want 1", len(cons))
 	}
@@ -847,7 +847,7 @@ func TestRenameConstraintDuplicate(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) < 2 {
 		t.Fatalf("expected >= 2 constraints, got %d", len(cons))
 	}

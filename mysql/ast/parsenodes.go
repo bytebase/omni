@@ -936,12 +936,14 @@ func (r *ColumnRef) exprNode() {}
 
 // TableRef represents a table reference (possibly qualified, with alias).
 type TableRef struct {
-	Loc        Loc
-	Schema     string   // database name
-	Name       string   // table name
-	Alias      string   // AS alias
-	Partitions []string // PARTITION (p0, p1, ...)
-	IndexHints []*IndexHint
+	Loc              Loc
+	Schema           string   // database name
+	Name             string   // table name
+	Alias            string   // AS alias
+	Partitions       []string // PARTITION (p0, p1, ...)
+	IndexHints       []*IndexHint
+	SampleMethod     string // SYSTEM or BERNOULLI
+	SamplePercentage ExprNode
 }
 
 func (r *TableRef) nodeTag()   {}
@@ -1344,6 +1346,8 @@ type ExplainStmt struct {
 	Extended      bool   // EXPLAIN EXTENDED: no MySQL 8.0 syntax sets this
 	Partitions    bool   // EXPLAIN PARTITIONS: no MySQL 8.0 syntax sets this
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
+	Schema        string // EXPLAIN FOR DATABASE/SCHEMA
+	Into          string // EXPLAIN FORMAT=JSON INTO @variable
 	Stmt          StmtNode
 }
 

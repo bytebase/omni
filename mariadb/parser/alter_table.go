@@ -985,26 +985,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
 	// empty arm.
 	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
-		p.advance()
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Type = nodes.ATAlterCheckEnforced
-		if _, ok := p.match(kwNOT); ok {
-			if _, err := p.expect(kwENFORCED); err != nil {
-				return nil, err
-			}
-			cmd.NewName = "NOT ENFORCED"
-		} else {
-			if _, err := p.expect(kwENFORCED); err != nil {
-				return nil, err
-			}
-			cmd.NewName = "ENFORCED"
-		}
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// ALTER [COLUMN] col_name ...

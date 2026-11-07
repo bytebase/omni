@@ -1812,3 +1812,50 @@ func TestExprStringUserVariable(t *testing.T) {
 		t.Error("@@'x' parsed, want error")
 	}
 }
+
+func TestExprSQLStringFunctionArguments(t *testing.T) {
+	for _, tc := range []struct {
+		sql       string
+		direction string
+		arguments []string
+	}{
+		{"SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", "", []string{"'abcdef'", "2", "3"}},
+		{"SELECT MID('abcdef' FROM 2)", "", []string{"'abcdef'", "2"}},
+		{"SELECT TRIM(LEADING 'x' FROM 'xxax')", "LEADING", []string{"'xxax'", "'x'"}},
+		{"SELECT TRIM(TRAILING 'x' FROM 'xaxx')", "TRAILING", []string{"'xaxx'", "'x'"}},
+		{"SELECT TRIM(BOTH FROM ' a ')", "BOTH", []string{"' a '"}},
+		{"SELECT TRIM(' ' FROM ' a ')", "BOTH", []string{"' a '", "' '"}},
+		{"SELECT POSITION('b' IN 'abc')", "", []string{"'b'", "'abc'"}},
+		{"SELECT POSITION('a' IN ('a'), 'b')", "", []string{"'a' IN ('a')", "'b'"}},
+		{"SELECT POSITION(('a' IN ('a')) IN 'abc')", "", []string{"('a' IN ('a'))", "'abc'"}},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			file, errs := parseForTest(tc.sql)
+			if len(errs) != 0 {
+				t.Fatal(errs)
+			}
+			call := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.FuncCallExpr)
+			if call.TrimDirection != tc.direction || len(call.Args) != len(tc.arguments) {
+				t.Fatalf("direction %q, argument count %d", call.TrimDirection, len(call.Args))
+			}
+			for i, arg := range call.Args {
+				loc := ast.NodeLoc(arg)
+				if got := tc.sql[loc.Start:loc.End]; got != tc.arguments[i] {
+					t.Errorf("argument %d source %q, want %q", i, got, tc.arguments[i])
+				}
+			}
+		})
+	}
+	for _, sql := range []string{"SELECT TRIM(LEADING 'x', 'xx')", "SELECT SUBSTRING('abc', 1 FROM 2)", "SELECT POSITION('a' IN)"} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("invalid function parsed: %s", sql)
+		}
+	}
+}
+
+func TestExprNestedPositionArguments(t *testing.T) {
+	sql := "SELECT " + strings.Repeat("POSITION(", 256) + "'a'" + strings.Repeat(" IN ('a'), 'b')", 256)
+	if err := parseWithin(t, "nested POSITION arguments", sql); err != nil {
+		t.Fatal(err)
+	}
+}

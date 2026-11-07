@@ -515,3 +515,6 @@ const YES_P = 57855
 const ZONE = 57856
 const UMINUS = 57857
 const pgPrivate = 57344
+
+// PostgreSQL 18 generated-column storage kind.
+const VIRTUAL = 57858

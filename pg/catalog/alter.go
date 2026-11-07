@@ -375,7 +375,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				col.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 			}
 		}
-		if colDef.RawGenExpr != nil && colDef.Generated == 's' {
+		if colDef.RawGenExpr != nil && colDef.Generated != 0 {
 			col := rel.Columns[len(rel.Columns)-1]
 			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawGenExpr, rel); err == nil && analyzed != nil {
 				if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
@@ -1245,8 +1245,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		col.HasDefault = true
 		col.Default = colDef.Default
 	}
-	if colDef.Generated == 's' {
-		col.Generated = 's'
+	if colDef.Generated != 0 {
+		col.Generated = colDef.Generated
+		col.GenerationExpr = colDef.GenerationExpr
 		col.HasDefault = true
 		col.Default = colDef.GenerationExpr
 	}
@@ -1265,6 +1266,10 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		identitySeq.OwnerAttNum = col.AttNum
 		c.recordDependency('s', identitySeq.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
 	}
+	if col.NotNull {
+		return c.ensureNotNull(rel, col, colDef.NotNullName)
+	}
+
 	return nil
 }
 
@@ -1464,8 +1469,7 @@ func (c *Catalog) atSetNotNull(rel *Relation, colName string) error {
 	if !exists {
 		return errUndefinedColumn(colName)
 	}
-	rel.Columns[idx].NotNull = true
-	return nil
+	return c.ensureNotNull(rel, rel.Columns[idx], "")
 }
 
 func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
@@ -1497,7 +1501,13 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 		}
 	}
 
+	for _, con := range append([]*Constraint(nil), c.consByRel[rel.OID]...) {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {
+			c.removeConstraint(rel.Schema, con)
+		}
+	}
 	col.NotNull = false
+	col.NotNullName = ""
 	return nil
 }
 
@@ -2612,11 +2622,28 @@ func (c *Catalog) atSetExpression(rel *Relation, colName string, expr nodes.Node
 		return errUndefinedColumn(colName)
 	}
 	col := rel.Columns[idx]
-	if col.Generated != 's' {
+	if col.Generated == 0 {
 		return errInvalidObjectDefinition(fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name))
 	}
-	if analyzed, err := c.AnalyzeStandaloneExpr(expr, rel); err == nil && analyzed != nil {
-		if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+	// PostgreSQL 18 ATExecSetExpression rejects virtual expressions while
+	// a table CHECK would need revalidation.
+	if col.Generated == 'v' {
+		for _, con := range c.consByRel[rel.OID] {
+			if con.Type == ConstraintCheck {
+				return &Error{Code: CodeFeatureNotSupported, Message: "ALTER TABLE / SET EXPRESSION is not supported for virtual generated columns in tables with check constraints"}
+			}
+		}
+	}
+	analyzed, err := c.AnalyzeStandaloneExpr(expr, rel)
+	if err != nil {
+		return err
+	}
+	if analyzed != nil {
+		coerced, err := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i')
+		if err != nil {
+			return err
+		}
+		if coerced != nil {
 			analyzed = coerced
 		}
 		col.DefaultAnalyzed = analyzed
@@ -2638,7 +2665,10 @@ func (c *Catalog) atDropExpression(rel *Relation, colName string, ifExists bool)
 		return errUndefinedColumn(colName)
 	}
 	col := rel.Columns[idx]
-	if col.Generated != 's' {
+	if col.Generated == 'v' {
+		return &Error{Code: CodeFeatureNotSupported, Message: "ALTER TABLE / DROP EXPRESSION is not supported for virtual generated columns"}
+	}
+	if col.Generated == 0 {
 		if ifExists {
 			return nil
 		}

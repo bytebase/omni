@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -1076,6 +1077,13 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			if err := ctr.execSQL(tc.setup); err != nil {
 				t.Fatalf("container setup: %v", err)
 			}
+			if tc.name == "drop_column_part_of_index" || tc.name == "drop_column_part_of_pk" {
+				c := New()
+				mustExec(t, c, "CREATE DATABASE test; USE test; "+tc.setup)
+				assertNativeRejectedDDL(t, ctr, c, tc.alter, 8200)
+				assertScenarioReadback(t, ctr, c, tc.table)
+				return
+			}
 			if err := ctr.execSQL(tc.alter); err != nil {
 				t.Fatalf("container alter: %v", err)
 			}
@@ -1214,7 +1222,7 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 		// Scenario marked as [~] partial in SCENARIOS.md.
 		{
 			"drop_primary_key",
-			"CREATE TABLE t_drop_pk (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id))",
+			"CREATE TABLE t_drop_pk (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id) NONCLUSTERED)",
 			"ALTER TABLE t_drop_pk DROP PRIMARY KEY",
 			"t_drop_pk",
 		},
@@ -1465,9 +1473,9 @@ func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 			"t_conv_cs",
 		},
 		{
-			"default_charset_latin1",
-			"CREATE TABLE t_def_cs (id INT PRIMARY KEY, name VARCHAR(100))",
-			"ALTER TABLE t_def_cs DEFAULT CHARACTER SET latin1",
+			"default_charset_utf8mb4",
+			"CREATE TABLE t_def_cs (id INT PRIMARY KEY, name VARCHAR(100)) DEFAULT CHARSET=latin1",
+			"ALTER TABLE t_def_cs DEFAULT CHARACTER SET utf8mb4",
 			"t_def_cs",
 		},
 		{
@@ -1848,51 +1856,20 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 	// Scenario 3: CREATE FULLTEXT INDEX
 	t.Run("create_fulltext_index", func(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci3")
-		ctr.execSQL("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)")
-		if err := ctr.execSQL("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)"); err != nil {
-			t.Fatalf("container CREATE FULLTEXT INDEX error: %v", err)
-		}
-		ctrDDL, _ := ctr.showCreateTable("t_ci3")
-
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)", nil)
-		results, _ := c.Exec("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni CREATE FULLTEXT INDEX error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_ci3")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		mustExec(t, c, "CREATE DATABASE test; USE test")
+		runOnBoth(t, ctr, c, "CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)")
+		assertNativeRejectedDDL(t, ctr, c, "CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)", 8200)
+		assertScenarioReadback(t, ctr, c, "t_ci3")
 	})
 
 	// Scenario 4: CREATE SPATIAL INDEX
 	t.Run("create_spatial_index", func(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci4")
-		ctr.execSQL("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)")
-		if err := ctr.execSQL("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)"); err != nil {
-			t.Fatalf("container CREATE SPATIAL INDEX error: %v", err)
-		}
-		ctrDDL, _ := ctr.showCreateTable("t_ci4")
-
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)", nil)
-		results, _ := c.Exec("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni CREATE SPATIAL INDEX error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_ci4")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		mustExec(t, c, "CREATE DATABASE test; USE test")
+		assertNativeRejectedDDL(t, ctr, c, "CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)", 1064)
+		assertNativeRejectedDDL(t, ctr, c, "CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)", 1146)
 	})
 
 	// Scenario 5: CREATE INDEX IF NOT EXISTS
@@ -1905,8 +1882,8 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
 		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
 		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if ctrErr == nil {
-			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		if ctrErr != nil {
+			t.Fatalf("native CREATE INDEX IF NOT EXISTS: %v", ctrErr)
 		}
 		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
 
@@ -2455,8 +2432,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_bin" {
+			t.Errorf("catalog collation mismatch: got %q, want utf8mb4_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
@@ -2505,8 +2482,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 			t.Errorf("omni charset: got %q, want latin1", db.Charset)
 		}
 		// Default collation for latin1 is latin1_swedish_ci
-		if db.Collation != "latin1_swedish_ci" {
-			t.Errorf("omni collation: got %q, want latin1_swedish_ci", db.Collation)
+		if db.Collation != "latin1_bin" {
+			t.Errorf("catalog collation: got %q, want latin1_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_cs")
 	})
@@ -2603,8 +2580,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_bin" {
+			t.Errorf("catalog collation: got %q, want utf8mb4_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})
@@ -4128,99 +4105,36 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	})
 }
 
+// TiDB parses procedure declarations but rejects execution with 8108.
+// Every signature retains CREATE, DROP IF EXISTS and SHOW readback probes.
+func assertUnsupportedNativeProcedure(t *testing.T, ctr *mysqlContainer, name, createSQL string) *Catalog {
+	t.Helper()
+	c := New()
+	mustExec(t, c, "CREATE DATABASE test; USE test")
+	assertNativeRejectedDDL(t, ctr, c, "DROP PROCEDURE IF EXISTS "+name, 8108)
+	assertNativeRejectedDDL(t, ctr, c, createSQL, 8108)
+	_, err := ctr.showCreateProcedure(name)
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("native SHOW of rejected procedure: %v", err)
+	}
+	if got := c.ShowCreateProcedure("test", name); got != "" || len(c.GetDatabase("test").Procedures) != 0 {
+		t.Fatalf("rejected procedure was installed: %s", got)
+	}
+	return c
+}
+
 func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
-
-	// 4.2.2: CREATE PROCEDURE — store metadata
 	t.Run("create_procedure", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_greet")
-		createSQL := "CREATE PROCEDURE sp_greet(IN name VARCHAR(100)) BEGIN SELECT CONCAT('Hello, ', name); END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_greet")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
-		}
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_greet")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		assertUnsupportedNativeProcedure(t, ctr, "sp_greet", "CREATE PROCEDURE sp_greet(IN name VARCHAR(100)) BEGIN SELECT CONCAT('Hello, ', name); END")
 	})
-
-	// 4.2.3: DROP PROCEDURE
 	t.Run("drop_procedure", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_drop_test")
-		ctr.execSQLDirect("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END", nil)
-
-		// Drop on container
-		if err := ctr.execSQL("DROP PROCEDURE sp_drop_test"); err != nil {
-			t.Fatalf("container DROP PROCEDURE: %v", err)
-		}
-		// Drop on omni
-		results, _ := c.Exec("DROP PROCEDURE sp_drop_test", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni DROP PROCEDURE error: %v", results[0].Error)
-		}
-
-		_, ctrErr := ctr.showCreateProcedure("sp_drop_test")
-		omniDDL := c.ShowCreateProcedure("test", "sp_drop_test")
-
-		if ctrErr == nil {
-			t.Error("expected container error after DROP PROCEDURE")
-		}
-		if omniDDL != "" {
-			t.Error("expected empty omni DDL after DROP PROCEDURE")
-		}
+		c := assertUnsupportedNativeProcedure(t, ctr, "sp_drop_test", "CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
+		assertNativeRejectedDDL(t, ctr, c, "DROP PROCEDURE sp_drop_test", 8108)
 	})
-
-	// 4.2.8: SHOW CREATE PROCEDURE output
 	t.Run("show_create_procedure_output", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_show_test")
-		createSQL := "CREATE PROCEDURE sp_show_test(IN id INT, OUT result VARCHAR(100)) BEGIN SET result = CONCAT('id=', id); END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_show_test")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
-		}
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_show_test")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		assertUnsupportedNativeProcedure(t, ctr, "sp_show_test", "CREATE PROCEDURE sp_show_test(IN id INT, OUT result VARCHAR(100)) BEGIN SET result = CONCAT('id=', id); END")
 	})
 }
 
@@ -4921,6 +4835,27 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			if tc.table != "t_all_constraints" && tc.table != "t_parent" {
 				ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
 			}
+			// Preserve the inherited MySQL statements as native rejection probes,
+			// then compare all supported types, defaults and indexes together.
+			negative := New()
+			mustExec(t, negative, "CREATE DATABASE test; USE test")
+			switch tc.name {
+			case "all_data_types":
+				assertNativeRejectedDDL(t, ctr, negative, tc.sql, 1064)
+				for _, line := range []string{
+					"geo_col GEOMETRY", "point_col POINT", "linestring_col LINESTRING", "polygon_col POLYGON",
+					"multipoint_col MULTIPOINT", "multiline_col MULTILINESTRING", "multipoly_col MULTIPOLYGON", "geocoll_col GEOMETRYCOLLECTION",
+				} {
+					tc.sql = strings.Replace(tc.sql, "\t\t\t"+line+",\n", "", 1)
+				}
+			case "all_defaults":
+				assertNativeRejectedDDL(t, ctr, negative, tc.sql, 3770)
+				tc.sql = strings.Replace(tc.sql, "expr_int INT DEFAULT (FLOOR(RAND()*100))", "expr_int INT DEFAULT (RAND())", 1)
+			case "all_index_types":
+				assertNativeRejectedDDL(t, ctr, negative, tc.sql, 1064)
+				tc.sql = strings.Replace(tc.sql, "\t\t\tgeo_col POINT NOT NULL,\n", "", 1)
+				tc.sql = strings.Replace(tc.sql, "\t\t\tSPATIAL KEY sp_geo (geo_col),\n", "", 1)
+			}
 			if err := ctr.execSQL(tc.sql); err != nil {
 				t.Fatalf("container exec: %v", err)
 			}
@@ -5006,35 +4941,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 	})
 
-	// --- SHOW CREATE PROCEDURE ---
 	t.Run("show_create_procedure", func(t *testing.T) {
-		// Test SHOW CREATE PROCEDURE with INOUT params.
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
-		createSQL := "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_sc_swap")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
-		}
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_sc_swap")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		assertUnsupportedNativeProcedure(t, ctr, "sp_sc_swap", "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END")
 	})
 
 }

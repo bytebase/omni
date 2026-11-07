@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 
@@ -169,7 +169,7 @@ func TestScenario_C25(t *testing.T) {
 			 ORDER BY ORDINAL_POSITION`)
 		want := map[string]string{
 			"d1": "decimal(10,2) unsigned",
-			"d2": "decimal(10,2) unsigned zerofill",
+			"d2": "decimal(10,2) unsigned",
 			"d3": "decimal(10,2) unsigned",
 		}
 		for _, r := range rows {
@@ -193,8 +193,8 @@ func TestScenario_C25(t *testing.T) {
 			if !strings.Contains(ct, "unsigned") {
 				t.Errorf("omni %s column_type: got %q, want substring unsigned", name, ct)
 			}
-			if name == "d2" && !strings.Contains(ct, "zerofill") {
-				t.Errorf("omni d2 column_type: got %q, want substring zerofill", ct)
+			if name == "d2" && !col.Zerofill {
+				t.Error("omni d2 lost its ZEROFILL flag")
 			}
 		}
 	})

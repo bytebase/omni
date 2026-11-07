@@ -28,7 +28,7 @@ func TestScenario_C18(t *testing.T) {
 		ddl := `CREATE TABLE t (
 			a VARCHAR(10),
 			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-		) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
+		) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci`
 		runOnBoth(t, mc, c, ddl)
 
 		mysqlCreate := oracleShow(t, mc, "SHOW CREATE TABLE t")
@@ -139,14 +139,14 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(mysqlCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("oracle: DEFAULT CHARSET=utf8mb4 missing; got %q", mysqlCreate)
 		}
-		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("oracle: COLLATE=utf8mb4_0900_ai_ci missing; got %q", mysqlCreate)
+		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("oracle: COLLATE=utf8mb4_uca1400_ai_ci missing; got %q", mysqlCreate)
 		}
 		if !strings.Contains(omniCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("omni: DEFAULT CHARSET=utf8mb4 missing; got %q", omniCreate)
 		}
-		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("omni: COLLATE=utf8mb4_0900_ai_ci missing; got %q", omniCreate)
+		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("omni: COLLATE=utf8mb4_uca1400_ai_ci missing; got %q", omniCreate)
 		}
 	})
 
@@ -188,7 +188,7 @@ func TestScenario_C18(t *testing.T) {
 
 		runOnBoth(t, mc, c, "CREATE TABLE t_prim (x INT) CHARACTER SET latin1")
 		runOnBoth(t, mc, c, "CREATE TABLE t_nonprim (x INT) CHARACTER SET latin1 COLLATE latin1_bin")
-		runOnBoth(t, mc, c, "CREATE TABLE t_0900 (x INT) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+		runOnBoth(t, mc, c, "CREATE TABLE t_0900 (x INT) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci")
 
 		mysqlPrim := oracleShow(t, mc, "SHOW CREATE TABLE t_prim")
 		mysqlNonPrim := oracleShow(t, mc, "SHOW CREATE TABLE t_nonprim")
@@ -197,15 +197,15 @@ func TestScenario_C18(t *testing.T) {
 		omniNonPrim := c.ShowCreateTable("testdb", "t_nonprim")
 		omni0900 := c.ShowCreateTable("testdb", "t_0900")
 
-		// t_prim: DEFAULT CHARSET=latin1, NO COLLATE=.
+		// MariaDB prints the effective collation even when it is the default.
 		if !strings.Contains(mysqlPrim, "DEFAULT CHARSET=latin1") {
 			t.Errorf("oracle t_prim: missing DEFAULT CHARSET=latin1; got %q", mysqlPrim)
 		}
-		if strings.Contains(mysqlPrim, "COLLATE=") {
-			t.Errorf("oracle t_prim: COLLATE= should be elided; got %q", mysqlPrim)
+		if !strings.Contains(mysqlPrim, "COLLATE=latin1_swedish_ci") {
+			t.Errorf("oracle t_prim: missing default COLLATE=; got %q", mysqlPrim)
 		}
-		if strings.Contains(omniPrim, "COLLATE=") {
-			t.Errorf("omni t_prim: COLLATE= should be elided; got %q", omniPrim)
+		if !strings.Contains(omniPrim, "COLLATE=latin1_swedish_ci") {
+			t.Errorf("omni t_prim: missing default COLLATE=; got %q", omniPrim)
 		}
 		// t_nonprim: COLLATE=latin1_bin.
 		if !strings.Contains(mysqlNonPrim, "COLLATE=latin1_bin") {
@@ -214,12 +214,12 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(omniNonPrim, "COLLATE=latin1_bin") {
 			t.Errorf("omni t_nonprim: missing COLLATE=latin1_bin; got %q", omniNonPrim)
 		}
-		// t_0900: COLLATE=utf8mb4_0900_ai_ci (special case — always rendered).
-		if !strings.Contains(mysql0900, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("oracle t_0900: missing COLLATE=utf8mb4_0900_ai_ci; got %q", mysql0900)
+		// t_0900: COLLATE=utf8mb4_uca1400_ai_ci (special case — always rendered).
+		if !strings.Contains(mysql0900, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("oracle t_0900: missing COLLATE=utf8mb4_uca1400_ai_ci; got %q", mysql0900)
 		}
-		if !strings.Contains(omni0900, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("omni t_0900: missing COLLATE=utf8mb4_0900_ai_ci; got %q", omni0900)
+		if !strings.Contains(omni0900, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("omni t_0900: missing COLLATE=utf8mb4_uca1400_ai_ci; got %q", omni0900)
 		}
 	})
 
@@ -260,24 +260,35 @@ func TestScenario_C18(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, "CREATE TABLE t_nocomp (a INT)")
-		runOnBoth(t, mc, c, "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'")
+		ddl := "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'"
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); mariaOracleErrorCode(err) != 1911 {
+			t.Errorf("native unsupported COMPRESSION: %v", err)
+		}
+		results, err := c.Exec(ddl, nil)
+		if err != nil || len(results) != 1 {
+			t.Fatalf("catalog COMPRESSION result: %v %v", err, results)
+		}
+		if modeled, ok := results[0].Error.(*Error); !ok || modeled.Code != 1911 {
+			t.Errorf("catalog unsupported COMPRESSION: %v", results[0].Error)
+		}
 
 		mysqlNo := oracleShow(t, mc, "SHOW CREATE TABLE t_nocomp")
-		mysqlYes := oracleShow(t, mc, "SHOW CREATE TABLE t_comp")
 		omniNo := c.ShowCreateTable("testdb", "t_nocomp")
 		omniYes := c.ShowCreateTable("testdb", "t_comp")
 
 		if strings.Contains(mysqlNo, "COMPRESSION=") {
 			t.Errorf("oracle t_nocomp: COMPRESSION should be elided; got %q", mysqlNo)
 		}
-		if !strings.Contains(mysqlYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("oracle t_comp: missing COMPRESSION='ZLIB'; got %q", mysqlYes)
+		var created int
+		oracleScan(t, mc, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t_comp'", &created)
+		if created != 0 {
+			t.Error("native rejected COMPRESSION created a table")
 		}
 		if strings.Contains(omniNo, "COMPRESSION=") {
 			t.Errorf("omni t_nocomp: COMPRESSION should be elided; got %q", omniNo)
 		}
-		if !strings.Contains(omniYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("omni t_comp: missing COMPRESSION='ZLIB'; got %q", omniYes)
+		if omniYes != "" {
+			t.Errorf("catalog rejected COMPRESSION created a table: %s", omniYes)
 		}
 	})
 

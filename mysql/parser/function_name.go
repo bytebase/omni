@@ -2,7 +2,7 @@ package parser
 
 import "strings"
 
-// keywordsNotFunctionNames are the keywords MySQL 8.0 refuses as an unquoted function name,
+// keywordsNotFunctionNames are the keywords MySQL 8.4 refuses as an unquoted function name,
 // in every argument shape: `SELECT comment(3)` is 1064 where `SELECT foo(3)` and
 // the quoted `comment`(3) parse. They are no other word's business: all of them still
 // name a column or a table where their category lets them, and a qualified `d.comment(3)`
@@ -10,10 +10,11 @@ import "strings"
 //
 // The list is measured and not derived, because this parser's keyword table is not the
 // engine's: it holds words the engine lexes as plain identifiers, which do take the call.
-// TestKeywordFunctionNamesOracle holds it to mysql:8.0 over every keyword the lexer has.
+// TestKeywordFunctionNamesOracle holds it to mysql:8.4.13 over every keyword the lexer has.
 //
-// Ref: `function_call_generic: IDENT_sys '(' opt_udf_expr_list ')'` in MySQL 8.0 sql/sql_yacc.yy: IDENT_sys is no keyword.
+// Ref: `function_call_generic: IDENT_sys '(' opt_udf_expr_list ')'` in MySQL 8.4 sql/sql_yacc.yy: IDENT_sys is no keyword.
 var keywordsNotFunctionNames = wordSet(`
+auto bernoulli gtids manual parallel parse_tree qualify s3 tablesample
 account action active admin after against aggregate algorithm always any array
 assign_gtids_to_anonymous_transactions at attribute authentication auto_increment
 autoextend_size avg_row_length backup begin binlog bit block bool boolean btree buckets
@@ -27,17 +28,12 @@ dumpfile duplicate dynamic enable encryption end ends enforced engine engine_att
 engines enum error errors escape event events every exchange exclude execute expansion
 expire export extended extent_size factor failed_login_attempts fast faults fields file
 file_block_size filter finish first fixed flush following follows found full general
-generate geometry get_master_public_key get_source_public_key global grants
+generate geometry  get_source_public_key global grants
 group_replication gtid_only handler hash help histogram history host hosts identified
 ignore_server_ids import inactive indexes initial initial_size initiate insert_method
 install instance invisible invoker io io_thread ipc isolation issuer json
 key_block_size keyring language last leaves less level list local locked locks logfile
-logs master master_auto_position master_compression_algorithms master_connect_retry
-master_delay master_heartbeat_period master_host master_log_file master_log_pos
-master_password master_port master_public_key_path master_retry_count master_ssl
-master_ssl_ca master_ssl_capath master_ssl_cert master_ssl_cipher master_ssl_crl
-master_ssl_crlpath master_ssl_key master_tls_ciphersuites master_tls_version master_user
-master_zstd_compression_level max_connections_per_hour max_queries_per_hour max_rows
+logs master max_connections_per_hour max_queries_per_hour max_rows
 max_size max_updates_per_hour max_user_connections medium member memory merge
 message_text migrate min_rows mode modify mutex mysql_errno name names national nchar
 ndb ndbcluster nested network_namespace never new next no no_wait nodegroup none nowait

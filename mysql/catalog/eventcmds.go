@@ -190,8 +190,8 @@ func showCreateEvent(e *Event) string {
 	// ENABLE / DISABLE
 	if e.Enable == "DISABLE" {
 		b.WriteString(" DISABLE")
-	} else if e.Enable == "DISABLE ON SLAVE" {
-		b.WriteString(" DISABLE ON SLAVE")
+	} else if e.Enable == "DISABLE ON SLAVE" || e.Enable == "DISABLE ON REPLICA" {
+		b.WriteString(" " + e.Enable)
 	} else {
 		// MySQL default: ENABLE, shown explicitly in SHOW CREATE EVENT
 		b.WriteString(" ENABLE")

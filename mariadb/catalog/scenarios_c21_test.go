@@ -40,8 +40,8 @@ CREATE TABLE t2 (c INT);`
 			`SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='a'`,
 			&aDefault, &aNullable)
-		if aDefault != nil {
-			t.Errorf("oracle: expected COLUMN_DEFAULT NULL for t.a, got %q", *aDefault)
+		if aDefault == nil || *aDefault != "NULL" {
+			t.Errorf("oracle: expected textual SQL NULL for t.a, got %v", aDefault)
 		}
 		assertStringEq(t, "oracle t.a IS_NULLABLE", aNullable, "YES")
 
@@ -52,8 +52,8 @@ CREATE TABLE t2 (c INT);`
 			`SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t2' AND COLUMN_NAME='c'`,
 			&cDefault, &cNullable)
-		if cDefault != nil {
-			t.Errorf("oracle: expected COLUMN_DEFAULT NULL for t2.c, got %q", *cDefault)
+		if cDefault == nil || *cDefault != "NULL" {
+			t.Errorf("oracle: expected textual SQL NULL for t2.c, got %v", cDefault)
 		}
 		assertStringEq(t, "oracle t2.c IS_NULLABLE", cNullable, "YES")
 
@@ -214,8 +214,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			`SELECT DELETE_RULE, UPDATE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
-		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
+		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
 
 		// omni catalog: the FK constraint's OnDelete/OnUpdate should render as
 		// "NO ACTION" (via refActionToString mapping RefActNone -> "NO ACTION").
@@ -237,8 +237,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 		}
 		// Omni maps UNDEF -> "NO ACTION" which matches the info_schema
 		// rendering. Any value distinct from NO ACTION is a bug.
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "RESTRICT")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -257,7 +257,7 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
 		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
 
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
@@ -276,7 +276,7 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			return
 		}
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------

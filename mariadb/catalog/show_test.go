@@ -16,14 +16,14 @@ func TestShowCreateTableBasic(t *testing.T) {
 
 	got := c.ShowCreateTable("testdb", "t1")
 	assertContains(t, got, "CREATE TABLE `t1`")
-	assertContains(t, got, "`id` int NOT NULL AUTO_INCREMENT")
+	assertContains(t, got, "`id` int(11) NOT NULL AUTO_INCREMENT")
 	assertContains(t, got, "`name` varchar(100) DEFAULT 'test'")
 	assertContains(t, got, "PRIMARY KEY (`id`)")
 	assertContains(t, got, "KEY `idx_name` (`name`)")
 	assertContains(t, got, "ENGINE=InnoDB")
 	assertContains(t, got, "DEFAULT CHARSET=utf8mb4")
 	// MySQL 8.0 always shows COLLATE in SHOW CREATE TABLE.
-	assertContains(t, got, "COLLATE=utf8mb4_0900_ai_ci")
+	assertContains(t, got, "COLLATE=utf8mb4_uca1400_ai_ci")
 }
 
 func TestShowCreateTableUniqueKey(t *testing.T) {
@@ -54,11 +54,10 @@ func TestShowCreateTableDefaults(t *testing.T) {
 	assertContains(t, got, "`nullable_col` varchar(50) DEFAULT NULL")
 	// String default.
 	assertContains(t, got, "`str_default` varchar(50) DEFAULT 'hello'")
-	// Numeric default — MySQL 8.0 quotes it.
-	assertContains(t, got, "`num_default` int DEFAULT '42'")
+	assertContains(t, got, "`num_default` int(11) DEFAULT 42")
 }
 
-func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
+func TestShowCreateTableMariaDBDefaultNormalization(t *testing.T) {
 	c := setupWithDB(t)
 	mustExec(t, c, `CREATE TABLE t_defaults_mysql (
 		tiny TINYINT(1) DEFAULT 1,
@@ -73,15 +72,15 @@ func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
 	)`)
 
 	got := c.ShowCreateTable("testdb", "t_defaults_mysql")
-	assertContains(t, got, "`tiny` tinyint(1) DEFAULT '1'")
-	assertContains(t, got, "`bool_true` tinyint(1) DEFAULT '1'")
-	assertContains(t, got, "`bool_false` tinyint(1) DEFAULT '0'")
+	assertContains(t, got, "`tiny` tinyint(1) DEFAULT 1")
+	assertContains(t, got, "`bool_true` tinyint(1) DEFAULT 1")
+	assertContains(t, got, "`bool_false` tinyint(1) DEFAULT 0")
 	assertContains(t, got, "`bits` bit(8) DEFAULT b'1111'")
-	assertContains(t, got, "`ts3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3)")
-	assertContains(t, got, "`dt6` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
-	assertContains(t, got, "`expr_int` int DEFAULT (floor((rand() * 100)))")
-	assertContains(t, got, "`expr_json` json DEFAULT (json_array())")
-	assertContains(t, got, "`expr_varchar` varchar(36) DEFAULT (uuid())")
+	assertContains(t, got, "`ts3` timestamp(3) NULL DEFAULT current_timestamp(3)")
+	assertContains(t, got, "`dt6` datetime(6) DEFAULT current_timestamp(6) ON UPDATE current_timestamp(6)")
+	assertContains(t, got, "`expr_int` int(11) DEFAULT floor(rand() * 100)")
+	assertContains(t, got, "`expr_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT json_array() CHECK (json_valid(`expr_json`))")
+	assertContains(t, got, "`expr_varchar` varchar(36) DEFAULT uuid()")
 }
 
 func TestShowCreateTableMultipleIndexes(t *testing.T) {
@@ -138,9 +137,9 @@ func TestShowCreateTableForeignKeyRestrict(t *testing.T) {
 	)`)
 
 	got := c.ShowCreateTable("testdb", "fk_tbl")
-	// MySQL 8.0 shows RESTRICT when explicitly specified (unlike NO ACTION which is hidden).
-	assertContains(t, got, "ON DELETE RESTRICT")
-	assertContains(t, got, "ON UPDATE RESTRICT")
+	// MariaDB omits the default RESTRICT action, including explicit RESTRICT.
+	assertNotContains(t, got, "ON DELETE RESTRICT")
+	assertNotContains(t, got, "ON UPDATE RESTRICT")
 }
 
 func TestShowCreateTableComment(t *testing.T) {
@@ -178,7 +177,7 @@ func TestShowCreateTableNotNullNoDefault(t *testing.T) {
 
 	got := c.ShowCreateTable("testdb", "t6")
 	// NOT NULL columns without a default should NOT show DEFAULT NULL.
-	assertContains(t, got, "`id` int NOT NULL")
+	assertContains(t, got, "`id` int(11) NOT NULL")
 	assertContains(t, got, "`name` varchar(100) NOT NULL")
 	assertNotContains(t, got, "DEFAULT NULL")
 }
@@ -203,7 +202,7 @@ func TestShowCreateTableAutoIncrementColumn(t *testing.T) {
 	)`)
 
 	got := c.ShowCreateTable("testdb", "t8")
-	assertContains(t, got, "`id` bigint unsigned NOT NULL AUTO_INCREMENT")
+	assertContains(t, got, "`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT")
 }
 
 func assertContains(t *testing.T, s, substr string) {

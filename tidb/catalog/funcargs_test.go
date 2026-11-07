@@ -14,6 +14,7 @@ import "testing"
 // a CHAR cast is omni's own and predates this test.
 func TestFunctionArgumentKeyParts(t *testing.T) {
 	c := New()
+	c.SetAllowExpressionIndex(true)
 	const ddl = "CREATE DATABASE d; USE d; " +
 		"CREATE TABLE tm (b JSON, " +
 		"KEY mv ((CAST(b AS SIGNED ARRAY))), " +
@@ -36,10 +37,10 @@ func TestFunctionArgumentKeyParts(t *testing.T) {
 	}
 	want := map[string]string{
 		"mv":    "cast(`b` as signed array)",
-		"mvc":   "cast(`b` as char(10) charset utf8mb4 array)",
+		"mvc":   "cast(`b` as char(10) array)",
 		"plain": "cast(`b` as signed)",
 		"ex":    "extract(day_hour from `b`)",
-		"pos":   "position('x' in `b`)",
+		"pos":   "position(_utf8mb4'x' in `b`)",
 	}
 	for _, idx := range tbl.Indexes {
 		w, ok := want[idx.Name]
@@ -92,7 +93,7 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 	want := map[string]string{
 		"p": "position(_utf8mb4'x' in `s`)",
 		"e": "extract(day_hour from `a`)",
-		"i": "interval(`c1`,1,2)",
+		"i": "interval(`c1`, 1, 2)",
 	}
 	for _, col := range tbl.Columns {
 		w, ok := want[col.Name]

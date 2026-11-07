@@ -250,12 +250,6 @@ func (p *Parser) parseChangeDispatch() (nodes.Node, error) {
 		}
 	}
 
-	// CHANGE MASTER TO (legacy alias for CHANGE REPLICATION SOURCE TO)
-	if p.cur.Type == kwMASTER {
-		p.advance() // consume MASTER
-		return p.parseChangeMasterStmtInner(start)
-	}
-
 	return nil, &ParseError{Message: "unexpected token after CHANGE", Position: p.cur.Loc}
 }
 
@@ -265,7 +259,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume START
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+	if p.cur.Type == kwREPLICA {
 		p.advance() // consume REPLICA or SLAVE
 		return p.parseStartReplicaStmt(start)
 	}
@@ -319,10 +313,13 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume RESET
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+	if p.cur.Type == kwREPLICA {
 		return p.parseResetReplicaStmt(start)
 	}
-	if p.cur.Type == kwMASTER {
+	if p.cur.Type == kwMASTER || p.cur.Type == kwSLAVE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwBINARY {
 		return p.parseResetMasterStmt(start)
 	}
 	if p.cur.Type == kwPERSIST {
@@ -365,7 +362,7 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume STOP
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+	if p.cur.Type == kwREPLICA {
 		p.advance() // consume REPLICA or SLAVE
 		return p.parseStopReplicaStmt(start)
 	}

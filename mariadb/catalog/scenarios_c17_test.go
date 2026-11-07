@@ -106,15 +106,15 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v1 AS SELECT CONCAT(a, b) AS c FROM t`)
 
 		cs, co, ok := c17OracleViewCol(t, "v1", "c")
 		if ok {
 			assertStringEq(t, "oracle v1.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v1.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "oracle v1.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 		if ml, ok := c17OracleViewMaxLen(t, "v1", "c"); ok {
 			assertIntEq(t, "oracle v1.c CHARACTER_MAXIMUM_LENGTH", ml, 20)
@@ -122,7 +122,7 @@ func TestScenario_C17(t *testing.T) {
 
 		if cs, co, ok := c17OmniViewCol(t, c, "v1", "c"); ok {
 			assertStringEq(t, "omni v1.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "omni v1.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "omni v1.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 	})
 
@@ -132,7 +132,7 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
 			b VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v2 AS SELECT CONCAT(a, b) AS c FROM t`)
@@ -140,12 +140,12 @@ func TestScenario_C17(t *testing.T) {
 		cs, co, ok := c17OracleViewCol(t, "v2", "c")
 		if ok {
 			assertStringEq(t, "oracle v2.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v2.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "oracle v2.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 
 		if cs, co, ok := c17OmniViewCol(t, c, "v2", "c"); ok {
 			assertStringEq(t, "omni v2.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "omni v2.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "omni v2.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 	})
 
@@ -155,7 +155,7 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
 			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
 		)`)
 		if _, err := mc.db.ExecContext(mc.ctx, `INSERT INTO t VALUES ('x','y')`); err != nil {
@@ -163,7 +163,7 @@ func TestScenario_C17(t *testing.T) {
 		}
 
 		// ORACLE FINDING: MySQL 8.0.45 does NOT raise 1267 for
-		// CONCAT(utf8mb4_0900_ai_ci, utf8mb4_0900_as_cs) — the CONCAT path
+		// CONCAT(utf8mb4_uca1400_ai_ci, utf8mb4_0900_as_cs) — the CONCAT path
 		// silently widens via a newer pad-space-compat rule. The canonical
 		// illegal-mix trigger for this pair is the `=` comparison path
 		// (Item_bool_func2::fix_length_and_dec), which we use here as the
@@ -198,14 +198,14 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v4 AS SELECT CONCAT_WS(',', a, b, NULL) AS c FROM t`)
 
 		if cs, co, ok := c17OracleViewCol(t, "v4", "c"); ok {
 			assertStringEq(t, "oracle v4.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v4.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "oracle v4.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 
 		// Runtime: CONCAT(NULL,'x') is NULL; CONCAT_WS(',',NULL,'x') is 'x'.
@@ -228,7 +228,7 @@ func TestScenario_C17(t *testing.T) {
 
 		if cs, co, ok := c17OmniViewCol(t, c, "v4", "c"); ok {
 			assertStringEq(t, "omni v4.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "omni v4.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
+			assertStringEq(t, "omni v4.c COLLATION_NAME", co, "utf8mb4_uca1400_ai_ci")
 		}
 	})
 
@@ -269,7 +269,7 @@ func TestScenario_C17(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
 			a VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6a AS SELECT REPEAT(a, 3) AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6b AS SELECT LPAD(a, 20, b) AS c FROM t`)
@@ -278,8 +278,8 @@ func TestScenario_C17(t *testing.T) {
 		type want struct{ cs, co string }
 		cases := map[string]want{
 			"v6a": {"latin1", "latin1_swedish_ci"},
-			"v6b": {"latin1", "latin1_swedish_ci"},
-			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
+			"v6b": {"utf8mb4", "utf8mb4_uca1400_ai_ci"},
+			"v6c": {"utf8mb4", "utf8mb4_uca1400_ai_ci"},
 		}
 		for view, w := range cases {
 			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
@@ -303,7 +303,7 @@ func TestScenario_C17(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
 			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
 		)`)
 		// Without CONVERT this would be 17.3 (ER 1267). CONVERT rescues it.
 		ddl := `CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t`
@@ -353,7 +353,7 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
 			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
 		)`)
 
@@ -389,10 +389,10 @@ func TestScenario_C17(t *testing.T) {
 		scenarioReset(t, mc)
 		cB := scenarioNewCatalog(t)
 		runOnBoth(t, mc, cB, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci,
 			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
 		)`)
-		ddlB := `CREATE VIEW v8b AS SELECT CONCAT(a COLLATE utf8mb4_0900_ai_ci, b COLLATE utf8mb4_bin) AS c FROM t`
+		ddlB := `CREATE VIEW v8b AS SELECT CONCAT(a COLLATE utf8mb4_uca1400_ai_ci, b COLLATE utf8mb4_bin) AS c FROM t`
 		oracleErr, omniErr := c17RunExpectError(t, cB, ddlB)
 		if oracleErr == nil {
 			t.Errorf("oracle: %q unexpectedly accepted — expected illegal-mix error (1267/1270)", ddlB)

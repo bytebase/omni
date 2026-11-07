@@ -1,15 +1,15 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// These tests verify that the behaviors described in
-// docs/plans/2026-04-13-mysql-implicit-behaviors-catalog.md
-// match real MySQL 8.0 observable behavior. They run against a
-// testcontainers MySQL container and do NOT involve omni's catalog.
+// These checks pin TiDB's observable metadata independently of the catalog.
 
 // spotCheckQuery runs DDL (possibly multi-statement) then returns the
 // rows of the given query. Fatals on any error.
@@ -86,6 +86,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, "USE sc"); err != nil {
 			t.Fatalf("use sc: %v", err)
 		}
+		if _, err := mc.db.ExecContext(mc.ctx, "SET GLOBAL tidb_enable_check_constraint=ON"); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// ---------------------------------------------------------------
@@ -136,12 +139,12 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			if n == "child2_ibfk_5" {
 				has5 = true
 			}
-			if n == "child2_ibfk_6" {
+			if n == "fk_2" {
 				has6 = true
 			}
 		}
 		if !has5 || !has6 || len(namesB) != 2 {
-			t.Errorf("CATALOG MISMATCH C1.1 (phase B, ALTER TABLE max+1): expected [child2_ibfk_5, child2_ibfk_6], got %v", namesB)
+			t.Errorf("native FK IDs: expected [child2_ibfk_5, fk_2], got %v", namesB)
 		} else {
 			t.Logf("OK C1.1 phase B verified (ALTER TABLE honors max+1): %v", namesB)
 		}
@@ -153,15 +156,17 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 				if n == "child_ibfk_5" {
 					hasA5 = true
 				}
-				if n == "child_ibfk_6" {
+				if n == "fk_2" {
 					hasA6 = true
 				}
 			}
 			if hasA5 && hasA6 {
 				t.Logf("OK C1.1 phase A: CREATE TABLE also follows max+1: %v", namesA)
 			} else {
-				t.Logf("NOTE C1.1 phase A: CREATE TABLE does NOT follow max+1 (catalog may need clarification): %v", namesA)
+				t.Errorf("native CREATE FK IDs: expected [child_ibfk_5, fk_2], got %v", namesA)
 			}
+		} else {
+			t.Errorf("native CREATE foreign keys: %v", namesA)
 		}
 	})
 
@@ -205,10 +210,14 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		// We need explicit_defaults_for_timestamp=OFF to see the promotion,
 		// and we must relax STRICT mode because a second TIMESTAMP NOT NULL
 		// with no default receives the zero-date default which STRICT rejects.
-		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION explicit_defaults_for_timestamp=OFF"); err != nil {
-			t.Fatalf("set sql var: %v", err)
+		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION explicit_defaults_for_timestamp=OFF"); err == nil {
+			t.Fatal("read-only timestamp setting was accepted")
+		} else {
+			var native *gomysql.MySQLError
+			if !errors.As(err, &native) || native.Number != 1238 {
+				t.Fatalf("read-only timestamp setting: %v", err)
+			}
 		}
-		defer mc.db.ExecContext(mc.ctx, "SET SESSION explicit_defaults_for_timestamp=ON")
 		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=''"); err != nil {
 			t.Fatalf("set sql_mode: %v", err)
 		}
@@ -236,11 +245,11 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			strings.Contains(strings.ToUpper(ts1Extra), "ON UPDATE")
 		ts2Promoted := strings.Contains(strings.ToUpper(ts2Default), "CURRENT_TIMESTAMP")
 
-		if !ts1Promoted {
-			t.Errorf("CATALOG MISMATCH C3.1: expected ts1 promoted; got default=%q extra=%q",
+		if ts1Promoted || rows[0][1] != nil {
+			t.Errorf("TiDB must not promote ts1; got default=%q extra=%q",
 				ts1Default, ts1Extra)
 		}
-		if ts2Promoted {
+		if ts2Promoted || rows[1][1] != nil {
 			t.Errorf("CATALOG MISMATCH C3.1: ts2 should NOT be promoted; got default=%q extra=%q",
 				ts2Default, ts2Extra)
 		}
@@ -280,8 +289,16 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, "DROP DATABASE IF EXISTS sc_cs"); err != nil {
 			t.Fatalf("drop: %v", err)
 		}
-		if _, err := mc.db.ExecContext(mc.ctx, "CREATE DATABASE sc_cs CHARACTER SET latin1 COLLATE latin1_swedish_ci"); err != nil {
-			t.Fatalf("create db: %v", err)
+		if _, err := mc.db.ExecContext(mc.ctx, "CREATE DATABASE sc_cs CHARACTER SET latin1 COLLATE latin1_swedish_ci"); err == nil {
+			t.Fatal("unsupported latin1_swedish_ci was accepted")
+		} else {
+			var native *gomysql.MySQLError
+			if !errors.As(err, &native) || native.Number != 1273 {
+				t.Fatal(err)
+			}
+		}
+		if _, err := mc.db.ExecContext(mc.ctx, "CREATE DATABASE sc_cs CHARACTER SET latin1 COLLATE latin1_bin"); err != nil {
+			t.Fatal(err)
 		}
 		defer mc.db.ExecContext(mc.ctx, "DROP DATABASE IF EXISTS sc_cs")
 		if _, err := mc.db.ExecContext(mc.ctx, "CREATE TABLE sc_cs.t (c VARCHAR(10))"); err != nil {
@@ -295,8 +312,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			t.Fatalf("expected 1 row, got %d", len(rows))
 		}
 		coll := asString(rows[0][0])
-		if coll != "latin1_swedish_ci" {
-			t.Errorf("CATALOG MISMATCH C4.1: expected latin1_swedish_ci, got %q", coll)
+		if coll != "latin1_bin" {
+			t.Errorf("native inherited table collation: expected latin1_bin, got %q", coll)
 		} else {
 			t.Logf("OK C4.1 verified: TABLE_COLLATION=%q", coll)
 		}
@@ -449,8 +466,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 				CHECK (b < 100)
 			);
 		`, `
-			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk' AND CONSTRAINT_TYPE='CHECK'
+			SELECT CONSTRAINT_NAME FROM information_schema.TIDB_CHECK_CONSTRAINTS
+			WHERE CONSTRAINT_SCHEMA='sc' AND TABLE_NAME='tchk'
 			ORDER BY CONSTRAINT_NAME
 		`)
 		var names []string
@@ -488,8 +505,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			);
 			ALTER TABLE tchk2 ADD CHECK (b > 0);
 		`, `
-			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk2' AND CONSTRAINT_TYPE='CHECK'
+			SELECT CONSTRAINT_NAME FROM information_schema.TIDB_CHECK_CONSTRAINTS
+			WHERE CONSTRAINT_SCHEMA='sc' AND TABLE_NAME='tchk2'
 			ORDER BY CONSTRAINT_NAME
 		`)
 		var names []string
@@ -509,11 +526,14 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		switch {
 		case hasFresh:
+			if len(names) != 2 {
+				t.Errorf("native ALTER CHECK names: %v", names)
+			}
 			t.Logf("PS1 ALTER FINDING: fresh counter (tchk2_chk_1). Catalog should document ALTER=fresh.")
 		case hasMaxPlus1:
-			t.Logf("PS1 ALTER FINDING: max+1 counter (tchk2_chk_21). Catalog should document ALTER=max+1 (like FK).")
+			t.Errorf("native ALTER CHECK used max+1 instead of first free name: %v", names)
 		default:
-			t.Logf("PS1 ALTER FINDING: unexpected name(s) %v", names)
+			t.Errorf("native ALTER CHECK names: %v", names)
 		}
 	})
 
@@ -569,17 +589,12 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			for _, row := range rows {
 				names = append(names, asString(row[0]))
 			}
-			t.Errorf("CATALOG MISMATCH PS7: expected ER_FK_DUP_NAME, got success with FKs %v", names)
+			if strings.Join(names, ",") != "fk_2,tps7_ibfk_1" {
+				t.Errorf("native foreign-key IDs: %v", names)
+			}
 			return
 		}
-		msg := err.Error()
-		t.Logf("PS7 error observed: %v", msg)
-		// ER_FK_DUP_NAME = 1826
-		if !strings.Contains(msg, "1826") && !strings.Contains(strings.ToLower(msg), "duplicate") {
-			t.Errorf("PS7 UNEXPECTED ERROR: expected ER_FK_DUP_NAME (1826), got: %v", msg)
-		} else {
-			t.Logf("OK PS7 verified: collision rejected")
-		}
+		t.Fatalf("native FK creation: %v", err)
 	})
 
 	// ---------------------------------------------------------------
@@ -591,8 +606,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		rows := spotCheckQuery(t, mc, `
 			CREATE TABLE cc (a INT, CHECK (a > 0), b INT, CHECK (b < 100));
 		`, `
-			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='cc' AND CONSTRAINT_TYPE='CHECK'
+			SELECT CONSTRAINT_NAME FROM information_schema.TIDB_CHECK_CONSTRAINTS
+			WHERE CONSTRAINT_SCHEMA='sc' AND TABLE_NAME='cc'
 			ORDER BY CONSTRAINT_NAME
 		`)
 		var names []string
@@ -810,19 +825,21 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			)
 		`)
 		if err != nil {
-			t.Logf("C6.2 NOTE: subpartition DDL errored: %v (skipping verification)", err)
-			return
+			t.Fatal(err)
 		}
 		rows := spotCheckQuery(t, mc, ``, `
 			SELECT PARTITION_NAME, SUBPARTITION_NAME FROM information_schema.PARTITIONS
 			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='psp'
 			ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
 		`)
-		if len(rows) != 6 {
-			t.Errorf("CATALOG MISMATCH C6.2: expected 6 sub-part rows, got %d: %v", len(rows), rows)
+		if len(rows) != 2 {
+			t.Errorf("native partition metadata: expected two partitions, got %v", rows)
 		} else {
 			var subs []string
 			for _, r := range rows {
+				if r[1] != nil {
+					t.Errorf("TiDB retained ignored subpartition: %v", r)
+				}
 				subs = append(subs, asString(r[1]))
 			}
 			t.Logf("OK C6.2 verified: 6 subparts, names=%v", subs)
@@ -951,8 +968,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		checkOpt := asString(rows[0][1])
 		definer := asString(rows[0][2])
-		if checkOpt != "NONE" {
-			t.Errorf("CATALOG MISMATCH C10.4: expected CHECK_OPTION=NONE, got %q", checkOpt)
+		if checkOpt != "CASCADED" {
+			t.Errorf("native view CHECK_OPTION: expected CASCADED, got %q", checkOpt)
 		} else {
 			t.Logf("OK C10.4 verified: CHECK_OPTION=%s", checkOpt)
 		}
@@ -983,21 +1000,20 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			t.Fatalf("setup: %v", err)
 		}
 		if _, err := mc.db.ExecContext(mc.ctx,
-			`CREATE TRIGGER trg11 BEFORE INSERT ON tt11 FOR EACH ROW SET NEW.a = NEW.a`); err != nil {
-			t.Fatalf("create trigger: %v", err)
+			`CREATE TRIGGER trg11 BEFORE INSERT ON tt11 FOR EACH ROW SET NEW.a = NEW.a`); err == nil {
+			t.Fatal("unsupported trigger was accepted")
+		} else {
+			var native *gomysql.MySQLError
+			if !errors.As(err, &native) || native.Number != 1064 {
+				t.Fatal(err)
+			}
 		}
 		rows := spotCheckQuery(t, mc, ``, `
 			SELECT DEFINER FROM information_schema.TRIGGERS
 			WHERE TRIGGER_SCHEMA='sc' AND TRIGGER_NAME='trg11'
 		`)
-		if len(rows) != 1 {
-			t.Fatalf("expected 1 row, got %d", len(rows))
-		}
-		def := asString(rows[0][0])
-		if def == "" || def == "<nil>" {
-			t.Errorf("CATALOG MISMATCH C11.1: expected DEFINER populated, got %q", def)
-		} else {
-			t.Logf("OK C11.1 verified: DEFINER=%s", def)
+		if len(rows) != 0 {
+			t.Errorf("rejected trigger installed metadata: %v", rows)
 		}
 	})
 
@@ -1009,16 +1025,22 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		rows := spotCheckQuery(t, mc, `
 			CREATE TABLE tchk14 (a INT, CONSTRAINT chk14 CHECK (a > 0));
 		`, `
-			SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'
+			SELECT CONSTRAINT_NAME FROM information_schema.TIDB_CHECK_CONSTRAINTS
+			WHERE CONSTRAINT_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'
 		`)
 		if len(rows) != 1 {
 			t.Fatalf("expected 1 row, got %d", len(rows))
 		}
-		if asString(rows[0][0]) != "YES" {
-			t.Errorf("CATALOG MISMATCH C14.1: expected ENFORCED=YES, got %q", asString(rows[0][0]))
+		if asString(rows[0][0]) != "chk14" {
+			t.Errorf("native CHECK metadata: %v", rows)
+		}
+		if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO tchk14 VALUES(-1)"); err == nil {
+			t.Fatal("default-enforced CHECK accepted a violating row")
 		} else {
-			t.Logf("OK C14.1 verified: ENFORCED=YES")
+			var native *gomysql.MySQLError
+			if !errors.As(err, &native) || native.Number != 3819 {
+				t.Fatal(err)
+			}
 		}
 	})
 

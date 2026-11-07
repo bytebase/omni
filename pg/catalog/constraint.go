@@ -125,7 +125,9 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	isPrimary := typ == ConstraintPK
 	if isPrimary {
 		for _, attnum := range attnums {
-			rel.Columns[attnum-1].NotNull = true
+			if err := c.ensureNotNull(rel, rel.Columns[attnum-1], rel.Columns[attnum-1].NotNullName); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -258,7 +260,9 @@ func (c *Catalog) reusePartitionIndexConstraint(schema *Schema, rel *Relation, c
 	// keep the invariant here for partitions loaded from partial metadata.
 	for _, attnum := range attnums {
 		if int(attnum) > 0 && int(attnum) <= len(rel.Columns) {
-			rel.Columns[attnum-1].NotNull = true
+			if err := c.ensureNotNull(rel, rel.Columns[attnum-1], rel.Columns[attnum-1].NotNullName); err != nil {
+				return false, err
+			}
 		}
 	}
 
@@ -922,6 +926,8 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 // generateConstraintName generates a default constraint name.
 func generateConstraintName(tableName string, columns []string, ctype ConstraintType) string {
 	switch ctype {
+	case ConstraintNotNull:
+		return tableName + "_" + strings.Join(columns, "_") + "_not_null"
 	case ConstraintPK:
 		return tableName + "_pkey"
 	case ConstraintUnique:

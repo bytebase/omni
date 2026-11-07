@@ -271,6 +271,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					// Merge NOT NULL from parent.
 					if pcol.NotNull {
 						existCD.NotNull = true
+						if existCD.NotNullName == "" {
+							existCD.NotNullName = pcol.NotNullName
+						}
 					}
 					// Merge default from parent if child has no default.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (default conflict detection)
@@ -299,12 +302,13 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 						typName = typ.TypeName
 					}
 					newCD := ColumnDef{
-						Name:     pcol.Name,
-						Type:     TypeName{Name: typName, TypeMod: pcol.TypeMod},
-						NotNull:  pcol.NotNull,
-						Default:  pcol.Default,
-						IsLocal:  false,
-						InhCount: 1,
+						Name:        pcol.Name,
+						Type:        TypeName{Name: typName, TypeMod: pcol.TypeMod},
+						NotNull:     pcol.NotNull,
+						NotNullName: pcol.NotNullName,
+						Default:     pcol.Default,
+						IsLocal:     false,
+						InhCount:    1,
 					}
 					// Partitions inherit identity; regular inheritance does not.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (identity handling)
@@ -476,6 +480,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			TypeOID:       typeOID,
 			TypeMod:       typmod,
 			NotNull:       cd.NotNull,
+			NotNullName:   cd.NotNullName,
 			Len:           typ.Len,
 			ByVal:         typ.ByVal,
 			Align:         typ.Align,
@@ -541,8 +546,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			columns[i].HasDefault = true
 			columns[i].Default = cd.Default
 		}
-		if cd.Generated == 's' {
-			columns[i].Generated = 's'
+		if cd.Generated == 's' || cd.Generated == 'v' {
+			columns[i].Generated = cd.Generated
+			columns[i].GenerationExpr = cd.GenerationExpr
 			columns[i].HasDefault = true
 			columns[i].Default = cd.GenerationExpr
 		}
@@ -736,6 +742,14 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 
+		for i, col := range rel.Columns {
+			if col.NotNull {
+				if err := c.ensureNotNull(rel, col, colDefs[i].NotNullName); err != nil {
+					return err
+				}
+			}
+		}
+
 		// Mark implicit sequences as column-owned in the catalog model so
 		// diff/drop logic treats SERIAL and IDENTITY sequences as managed objects.
 		for i, si := range serials {
@@ -775,7 +789,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			rte := c.buildRelationRTE(rel)
 			columns[i].Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
-		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
+		if cd.RawGenExpr != nil && columns[i].Generated != 0 {
 			if rawExprContainsSubLink(cd.RawGenExpr) {
 				c.removeRelation(schema, relName, rel)
 				return &Error{Code: CodeFeatureNotSupported,
@@ -988,8 +1002,8 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	}
 
 	// Handle generated column (ColumnDef.Generated field).
-	if cd.Generated == 's' {
-		result.Generated = 's'
+	if cd.Generated == 's' || cd.Generated == 'v' {
+		result.Generated = cd.Generated
 	}
 
 	// Process inline column constraints.
@@ -1003,6 +1017,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 			switch con.Contype {
 			case nodes.CONSTR_NOTNULL:
 				result.NotNull = true
+				result.NotNullName = con.Conname
 			case nodes.CONSTR_DEFAULT:
 				if con.RawExpr != nil {
 					result.RawDefault = con.RawExpr
@@ -1014,7 +1029,10 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 				result.Identity = con.GeneratedWhen
 				result.IdentityOptions = con.Options
 			case nodes.CONSTR_GENERATED:
-				result.Generated = 's'
+				result.Generated = con.GeneratedKind
+				if result.Generated == 0 {
+					result.Generated = 's'
+				}
 				if con.RawExpr != nil {
 					result.RawGenExpr = con.RawExpr
 				}
@@ -1152,10 +1170,11 @@ func (c *Catalog) expandTableLikeClause(clause *nodes.TableLikeClause) ([]Column
 		}
 
 		cd := ColumnDef{
-			Name:    col.Name,
-			Type:    TypeName{Name: typName, TypeMod: col.TypeMod},
-			NotNull: col.NotNull,
-			IsLocal: true,
+			Name:        col.Name,
+			Type:        TypeName{Name: typName, TypeMod: col.TypeMod},
+			NotNull:     col.NotNull,
+			NotNullName: col.NotNullName,
+			IsLocal:     true,
 		}
 
 		// Copy defaults if INCLUDING DEFAULTS or INCLUDING ALL.
@@ -1164,8 +1183,8 @@ func (c *Catalog) expandTableLikeClause(clause *nodes.TableLikeClause) ([]Column
 		}
 
 		// Copy generated column expression if INCLUDING GENERATED or INCLUDING ALL.
-		if opts&tableLikeGenerated != 0 && col.Generated == 's' {
-			cd.Generated = 's'
+		if opts&tableLikeGenerated != 0 && col.Generated != 0 {
+			cd.Generated = col.Generated
 			cd.GenerationExpr = col.GenerationExpr
 		}
 

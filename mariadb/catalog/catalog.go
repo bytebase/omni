@@ -8,9 +8,10 @@ type Catalog struct {
 	defaultCollation string
 	charsetClient    string
 	collationConn    string
-	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	generateGIPK     bool // SET sql_generate_invisible_primary_key
-	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
+	foreignKeyChecks bool            // SET foreign_key_checks (default true)
+	generateGIPK     bool            // SET sql_generate_invisible_primary_key
+	showGIPK         bool            // SET show_gipk_in_create_table_and_information_schema
+	fulltextParsers  map[string]bool // installed FULLTEXT parser plugins
 	session          SessionState
 }
 
@@ -29,7 +30,7 @@ func New() *Catalog {
 	return &Catalog{
 		databases:        make(map[string]*Database),
 		defaultCharset:   "utf8mb4",
-		defaultCollation: "utf8mb4_0900_ai_ci",
+		defaultCollation: "utf8mb4_uca1400_ai_ci",
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
@@ -43,7 +44,7 @@ func defaultSessionState() SessionState {
 	return SessionState{
 		ForeignKeyChecks:             true,
 		CharsetClient:                "utf8mb4",
-		CollationConnection:          "utf8mb4_0900_ai_ci",
+		CollationConnection:          "utf8mb4_uca1400_ai_ci",
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
 	}
@@ -60,6 +61,24 @@ func (c *Catalog) SetForeignKeyChecks(v bool) {
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }
 func (c *Catalog) CurrentDatabase() string        { return c.currentDB }
+
+// SetFulltextParsers records the parser plugins installed on the modeled
+// server. MariaDB's default installation has none; callers loading a server
+// with additional plugins supply its installed FULLTEXT parser names.
+// https://mariadb.com/docs/server/server-usage/tables/create-table
+func (c *Catalog) SetFulltextParsers(names ...string) {
+	c.fulltextParsers = make(map[string]bool, len(names))
+	for _, name := range names {
+		c.fulltextParsers[toLower(name)] = true
+	}
+}
+
+func (c *Catalog) validateFulltextParser(idx *Index) error {
+	if idx.Fulltext && idx.ParserName != "" && !c.fulltextParsers[toLower(idx.ParserName)] {
+		return &Error{Code: 1128, SQLState: "HY000", Message: "Function '" + idx.ParserName + "' is not defined"}
+	}
+	return nil
+}
 
 func (c *Catalog) GetDatabase(name string) *Database {
 	return c.databases[toLower(name)]

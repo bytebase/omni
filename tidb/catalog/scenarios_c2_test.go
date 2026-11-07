@@ -179,10 +179,11 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INT(5) ZEROFILL)`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(5) unsigned zerofill")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(5) unsigned")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int(5) unsigned zerofill")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int(5) unsigned")
+			assertBoolEq(t, "omni ZEROFILL flag", col.Zerofill, true)
 		}
 	})
 
@@ -339,20 +340,20 @@ func TestScenario_C2(t *testing.T) {
 
 		assertStringEq(t, "oracle a COLUMN_TYPE", oracleColumnType(t, "a"), "char(10)")
 		assertStringEq(t, "oracle b COLUMN_TYPE", oracleColumnType(t, "b"), "char(10)")
-		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb3")
-		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb3")
+		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb4")
+		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb4")
 
 		if col := omniCol(t, c, "a"); col != nil {
 			assertStringEq(t, "omni a ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 		if col := omniCol(t, c, "b"); col != nil {
 			assertStringEq(t, "omni b ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 	})
 
-	// 2.18 NVARCHAR family → VARCHAR utf8mb3
+	// 2.18 TiDB's NVARCHAR family uses utf8mb4.
 	t.Run("2_18_NVARCHAR_family", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -366,11 +367,11 @@ func TestScenario_C2(t *testing.T) {
 
 		for _, name := range []string{"a", "b", "cc", "d", "e"} {
 			assertStringEq(t, "oracle "+name+" COLUMN_TYPE", oracleColumnType(t, name), "varchar(10)")
-			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb3")
+			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb4")
 
 			if col := omniCol(t, c, name); col != nil {
 				assertStringEq(t, "omni "+name+" ColumnType", strings.ToLower(col.ColumnType), "varchar(10)")
-				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb3")
+				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb4")
 			}
 		}
 	})
@@ -479,16 +480,16 @@ func TestScenario_C2(t *testing.T) {
 		}
 	})
 
-	// 2.23 YEAR(4) deprecated → stored as YEAR
+	// 2.23 TiDB stores YEAR(4) with its width.
 	t.Run("2_23_YEAR_4_bare_YEAR", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c YEAR(4))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year(4)")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year(4)")
 		}
 	})
 
@@ -510,10 +511,8 @@ func TestScenario_C2(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Set sql_mode='' on this session (oracle only — omni has no session state).
-		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=''"); err != nil {
-			t.Errorf("oracle SET sql_mode: %v", err)
-		}
+		// Both definitions use the same non-strict SQL mode.
+		runOnBoth(t, mc, c, "SET SESSION sql_mode=''")
 		// Restore strict mode after to avoid leaking.
 		defer func() {
 			_, _ = mc.db.ExecContext(mc.ctx,

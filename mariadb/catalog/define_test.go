@@ -428,7 +428,7 @@ func TestDefineTable_FKForwardRefWithChecksOn(t *testing.T) {
 			CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES parent (id)
 		)`)
 	err := c.DefineTable(child)
-	assertErrCode(t, err, ErrFKNoRefTable)
+	assertErrCode(t, err, 1005)
 }
 
 // -- §6.7 Trigger ordering (both directions) ----------------------------

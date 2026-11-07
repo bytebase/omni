@@ -233,7 +233,7 @@ func TestRenameConstraintDuplicateValidation(t *testing.T) {
 	}, false), 'r')
 
 	rel := c.GetRelation("", "t")
-	cons := c.ConstraintsOf(rel.OID)
+	cons := nonNullabilityConstraints(c.ConstraintsOf(rel.OID))
 	if len(cons) < 2 {
 		t.Fatalf("expected >= 2 constraints, got %d", len(cons))
 	}
