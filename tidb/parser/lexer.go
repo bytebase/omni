@@ -2301,13 +2301,20 @@ func (l *Lexer) nextToken() Token {
 		return l.scanString('"')
 	}
 
-	// Hex literal: 0x or X'...'
+	// Hex literal: X'...' (either case of X). Its content is hex digits only, so
+	// X'0xaa' is a 1064 on v8.5.5 (the 'x' is not a hex digit).
 	if ch == 'X' || ch == 'x' {
 		if l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
 			l.pos++ // skip X
 			tok := l.scanString('\'')
 			tok.Type = tokXCONST
 			tok.Loc = l.start
+			for i := 0; i < len(tok.Str); i++ {
+				if !isHexDigit(tok.Str[i]) {
+					l.setError("invalid hexadecimal literal", l.start)
+					break
+				}
+			}
 			return tok
 		}
 	}
@@ -2632,14 +2639,22 @@ func (l *Lexer) scanString(quote byte) Token {
 func (l *Lexer) scanNumber() Token {
 	start := l.pos
 
-	// Handle 0x hex literals
+	// Handle 0x hex literals. The prefix is lowercase only: `0x11` is a hex
+	// literal, `0X11` is a malformed one and a 1064 on v8.5.5. Either case
+	// followed by a run that is not all hex digits is an ordinary digit-leading
+	// identifier (`0xGG`), so only a `0X` that would otherwise be a hex literal
+	// is the error.
 	if l.input[l.pos] == '0' && l.pos+1 < len(l.input) && (l.input[l.pos+1] == 'x' || l.input[l.pos+1] == 'X') {
+		upper := l.input[l.pos+1] == 'X'
 		l.pos += 2
 		digits := l.pos
 		for l.pos < len(l.input) && isHexDigit(l.input[l.pos]) {
 			l.pos++
 		}
 		if l.pos > digits && !l.identCharAt(l.pos) {
+			if upper {
+				l.setError("invalid hexadecimal literal", start)
+			}
 			return Token{Type: tokXCONST, Str: l.input[start:l.pos], Loc: start}
 		}
 		return l.scanDigitLeadingIdent(start)
