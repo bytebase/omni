@@ -265,16 +265,20 @@ func (p *Parser) parseAnalyzeHistogram(stmt *nodes.AnalyzeTableStmt) error {
 // 1064. That is reproduced rather than tidied: the corpus holds the bare
 // `INDEX` form, and a reader that tidied the leading comma away would differ
 // from the server on text the server takes.
+//
+// IndexNameList also takes PRIMARY as a name, in and beyond the first slot, so
+// v8.5.5 runs `INDEX PRIMARY` and `INDEX ,PRIMARY`; PRIMARY is a reserved word
+// and no Identifier, so it is read on its own.
 func (p *Parser) parseAnalyzeIndexNames() ([]string, error) {
 	var names []string
 	if p.cur.Type != ',' {
 		// An empty list is what follows a bare INDEX, so anything that
 		// cannot start a name ends the arm here and WITH or the end of the
 		// statement reads it.
-		if !p.isIdentToken() {
+		if !p.isIdentToken() && p.cur.Type != kwPRIMARY {
 			return nil, nil
 		}
-		name, _, err := p.parseIdent()
+		name, err := p.parseIndexNameOrPrimary()
 		if err != nil {
 			return nil, err
 		}
@@ -284,12 +288,70 @@ func (p *Parser) parseAnalyzeIndexNames() ([]string, error) {
 		if _, ok := p.match(','); !ok {
 			return names, nil
 		}
-		name, _, err := p.parseIdent()
+		name, err := p.parseIndexNameOrPrimary()
 		if err != nil {
 			return nil, err
 		}
 		names = append(names, name)
 	}
+}
+
+// parseIndexNameOrPrimary reads one entry of an IndexNameList: an identifier,
+// or the PRIMARY keyword naming the primary-key index. Its string is what the
+// token spells.
+func (p *Parser) parseIndexNameOrPrimary() (string, error) {
+	if p.cur.Type == kwPRIMARY {
+		return p.advance().Str, nil
+	}
+	name, _, err := p.parseIdent()
+	return name, err
+}
+
+// parseStatsType reads a StatsType word: CARDINALITY, DEPENDENCY or
+// CORRELATION, each read bare. These are the three extended-statistics kinds
+// CREATE STATISTICS and ADD STATS_EXTENDED share.
+//
+// Ref: StatsType in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseStatsType() (nodes.StatisticsType, error) {
+	switch {
+	case p.isBareWord("CARDINALITY"):
+		p.advance()
+		return nodes.StatisticsCardinality, nil
+	case p.isBareWord("DEPENDENCY"):
+		p.advance()
+		return nodes.StatisticsDependency, nil
+	case p.isBareWord("CORRELATION"):
+		p.advance()
+		return nodes.StatisticsCorrelation, nil
+	}
+	return 0, p.syntaxErrorAtCur()
+}
+
+// parseStatsColumnList reads the parenthesized column list of an extended
+// statistic: `(col [, col] ...)`. The names may be qualified, as in CREATE
+// STATISTICS, but `t.*` is not a name and the list is never empty.
+func (p *Parser) parseStatsColumnList() ([]*nodes.ColumnRef, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var cols []*nodes.ColumnRef
+	for {
+		col, err := p.parseColumnRef()
+		if err != nil {
+			return nil, err
+		}
+		if col.Star {
+			return nil, &ParseError{Message: "expected a column name", Position: col.Loc.Start}
+		}
+		cols = append(cols, col)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 // parseAnalyzeColumnNames reads the column list of ANALYZE's COLUMNS arm.
@@ -518,17 +580,11 @@ func (p *Parser) parseCreateStatisticsStmt(start int) (*nodes.CreateStatisticsSt
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	switch {
-	case p.isBareWord("CARDINALITY"):
-		stmt.Type = nodes.StatisticsCardinality
-	case p.isBareWord("DEPENDENCY"):
-		stmt.Type = nodes.StatisticsDependency
-	case p.isBareWord("CORRELATION"):
-		stmt.Type = nodes.StatisticsCorrelation
-	default:
-		return nil, p.syntaxErrorAtCur()
+	statsType, err := p.parseStatsType()
+	if err != nil {
+		return nil, err
 	}
-	p.advance() // consume the type word
+	stmt.Type = statsType
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -542,25 +598,11 @@ func (p *Parser) parseCreateStatisticsStmt(start int) (*nodes.CreateStatisticsSt
 	}
 	stmt.Table = table
 
-	if _, err := p.expect('('); err != nil {
+	cols, err := p.parseStatsColumnList()
+	if err != nil {
 		return nil, err
 	}
-	for {
-		col, err := p.parseColumnRef()
-		if err != nil {
-			return nil, err
-		}
-		if col.Star {
-			return nil, &ParseError{Message: "expected a column name", Position: col.Loc.Start}
-		}
-		stmt.Columns = append(stmt.Columns, col)
-		if _, ok := p.match(','); !ok {
-			break
-		}
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
+	stmt.Columns = cols
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

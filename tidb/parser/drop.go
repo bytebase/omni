@@ -126,6 +126,48 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	return stmt, nil
 }
 
+// parseDropHypoIndexStmt parses TiDB's DROP HYPO INDEX. HYPO is the current
+// token (read bare) and start is where DROP began.
+//
+//	DROP HYPO INDEX [IF EXISTS] index_name ON tbl_name
+//
+// The arm ends at the table and takes no algorithm or lock option, unlike
+// plain DROP INDEX.
+//
+// Ref: DropIndexStmt in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseDropHypoIndexStmt(start int) (*nodes.DropIndexStmt, error) {
+	p.advance() // consume HYPO
+	p.advance() // consume INDEX
+
+	stmt := &nodes.DropIndexStmt{Loc: nodes.Loc{Start: start}, IsHypo: true}
+
+	if p.cur.Type == kwIF {
+		p.advance()
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = ref
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
 // parseDropViewStmt parses a DROP VIEW statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-view.html

@@ -2589,6 +2589,9 @@ func writeSequenceOption(sb *strings.Builder, n *SequenceOption) {
 func writeDropIndexStmt(sb *strings.Builder, n *DropIndexStmt) {
 	sb.WriteString("{DROP_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IsHypo {
+		sb.WriteString(" :hypo true")
+	}
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
 	}
@@ -3582,6 +3585,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	}
 	if n.Type == ATSetTiFlashReplica {
 		fmt.Fprintf(sb, " :tiflash_replica %d", n.TiFlashReplica)
+		if n.Hypo {
+			sb.WriteString(" :hypo true")
+		}
 		if len(n.TiFlashLocationLabels) > 0 {
 			sb.WriteString(" :tiflash_location_labels (")
 			for i, l := range n.TiFlashLocationLabels {
@@ -3591,6 +3597,22 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 				fmt.Fprintf(sb, "%q", l)
 			}
 			sb.WriteString(")")
+		}
+	}
+	if n.Type == ATAddStatistics || n.Type == ATDropStatistics {
+		fmt.Fprintf(sb, " :stats_name %s", n.StatsName)
+		if n.Type == ATAddStatistics {
+			fmt.Fprintf(sb, " :stats_type %s", n.StatsType)
+			if len(n.StatsColumns) > 0 {
+				sb.WriteString(" :stats_columns (")
+				for i, c := range n.StatsColumns {
+					if i > 0 {
+						sb.WriteString(" ")
+					}
+					writeNode(sb, c)
+				}
+				sb.WriteString(")")
+			}
 		}
 	}
 	sb.WriteString("}")

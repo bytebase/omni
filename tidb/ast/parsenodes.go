@@ -321,6 +321,9 @@ const (
 	ATDropFirstPartition       // FIRST PARTITION LESS THAN (expr)
 	ATReorganizeLastPartition  // SPLIT MAXVALUE PARTITION LESS THAN (expr)
 	ATReorganizeFirstPartition // MERGE FIRST PARTITION LESS THAN (expr)
+	// Extended-statistics actions, TiDB's own, over one or more columns.
+	ATAddStatistics  // ADD STATS_EXTENDED name type (col, ...)
+	ATDropStatistics // DROP STATS_EXTENDED name
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -397,6 +400,16 @@ type AlterTableCmd struct {
 	AnalyzeIndexes   []string
 	// AnalyzeOptions is the WITH list, the same one ANALYZE TABLE takes.
 	AnalyzeOptions []*AnalyzeOption
+	// Hypo records the HYPO modifier of `SET HYPO TIFLASH REPLICA n`, which
+	// pins a hypothetical TiFlash replica for the optimizer rather than a real
+	// one. It is meaningful only when Type is ATSetTiFlashReplica.
+	Hypo bool
+	// StatsName, StatsType and StatsColumns carry the extended-statistics
+	// actions: ADD STATS_EXTENDED (ATAddStatistics) uses all three, DROP
+	// STATS_EXTENDED (ATDropStatistics) only the name.
+	StatsName    string
+	StatsType    StatisticsType
+	StatsColumns []*ColumnRef
 }
 
 // AttributesSpec is the value an ATTRIBUTES or a STATS_OPTIONS clause carries.
@@ -2793,6 +2806,9 @@ type DropIndexStmt struct {
 	Table     *TableRef
 	Algorithm string
 	Lock      string
+	// IsHypo marks DROP HYPO INDEX, TiDB's drop of a hypothetical index. That
+	// form takes no algorithm or lock options.
+	IsHypo bool
 }
 
 func (s *DropIndexStmt) nodeTag()  {}
