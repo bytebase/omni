@@ -75,7 +75,9 @@ function call or a dotted name lexes back the way it was written.
 ## Limits
 
 A generated sentence is grammatically shortest, not idiomatic, and the server
-refuses many on a semantic check its grammar actions make (about 146 of them):
+refuses many on a semantic check its grammar actions make (about 121 of them):
 those are honest `reject`/`reject` rows, not noise to remove. An alternative
-that no derivation from the start symbol reaches, or that never terminates, is
-reported as needing a hand-written sentence; at v8.5.5 there are none.
+that no derivation from the start symbol reaches, that never terminates, or that
+the lexer only produces under a non-default SQL mode, is reported as needing a
+hand-written sentence; at v8.5.5 that is one, `SimpleExpr`'s `||` concat, which
+needs `PIPES_AS_CONCAT` (in the default mode `||` lexes as OR).

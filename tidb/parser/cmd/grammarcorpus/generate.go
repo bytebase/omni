@@ -31,9 +31,27 @@ type ctxt struct {
 	ok     bool
 }
 
+// modeGatedTerminals are tokens the lexer produces only under a non-default SQL
+// mode, so a sentence using one is parsed as a different production in the mode
+// the oracle measures. pipes ("||") needs PIPES_AS_CONCAT; in the default mode
+// it lexes as OR (pipesAsOr), so SimpleExpr's concat alternative would be
+// recorded against a sentence that exercises OR. An alternative needing one is
+// reported uncovered rather than measured against the wrong production.
+var modeGatedTerminals = map[string]bool{"pipes": true}
+
+// altModeGated reports whether an alternative uses a mode-gated terminal.
+func altModeGated(alt []Symbol) bool {
+	for _, sym := range alt {
+		if !sym.nonterm && !sym.literal && modeGatedTerminals[sym.text] {
+			return true
+		}
+	}
+	return false
+}
+
 // generate returns one Row per reachable alternative, and the labels of the
-// alternatives it could not reach or terminate, which need a hand-written
-// sentence instead.
+// alternatives it could not reach, terminate, or exercise in the measured SQL
+// mode, which need a hand-written sentence instead.
 func (g *Grammar) generate() (rows []Row, uncovered []string) {
 	sd := g.shortestDerivations()
 	cx := g.shortestContexts(sd)
@@ -43,7 +61,7 @@ func (g *Grammar) generate() (rows []Row, uncovered []string) {
 		for i, alt := range rule.alts {
 			label := fmt.Sprintf("%s#%d", rule.name, i+1)
 			body, ok := g.altTokens(alt, sd)
-			if !ok || !cxN.ok {
+			if !ok || !cxN.ok || altModeGated(alt) {
 				uncovered = append(uncovered, label)
 				continue
 			}
@@ -235,6 +253,10 @@ func spaceJoin(toks []string) string {
 }
 
 func needSpace(prev, cur string) bool {
+	// The user@host separator binds tightly on both sides: DROP USER 'u'@'h'.
+	if cur == "@" || prev == "@" {
+		return false
+	}
 	switch cur[0] {
 	case ',', ';', ')', '.', '(':
 		return false

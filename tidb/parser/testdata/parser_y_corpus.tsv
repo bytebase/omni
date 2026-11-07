@@ -260,10 +260,10 @@ accept	accept	ColumnName#2	EXPLAIN ident ident.ident
 accept	accept	ColumnName#3	EXPLAIN ident ident.ident.ident
 reject	reject	ColumnNameList#1	GRANT ALL(ident) TO CURRENT_USER
 reject	reject	ColumnNameList#2	GRANT ALL(ident, ident) TO CURRENT_USER
-accept	accept	ColumnNameListOpt#1	INSERT ident() TABLE ident
-accept	accept	ColumnNameListOpt#2	INSERT ident(ident) TABLE ident
-accept	accept	IdentListWithParenOpt#1	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	IdentListWithParenOpt#2	WITH ident(ident) AS(TABLE ident) TABLE ident
+accept	accept	ColumnNameListOpt#1	INSERT ident() SELECT *
+accept	accept	ColumnNameListOpt#2	INSERT ident(ident) SELECT *
+accept	accept	IdentListWithParenOpt#1	WITH ident AS(SELECT *) SELECT *
+accept	accept	IdentListWithParenOpt#2	WITH ident(ident) AS(SELECT *) SELECT *
 accept	accept	IdentList#1	ANALYZE TABLE ident COLUMNS ident
 accept	accept	IdentList#2	ANALYZE TABLE ident COLUMNS ident, ident
 accept	accept	ColumnNameOrUserVarListOpt#1	IMPORT INTO ident() FROM 's'
@@ -380,13 +380,13 @@ accept	accept	SignedLiteral#1	ADMIN ALTER DDL JOBS 1 ident = FALSE
 accept	accept	SignedLiteral#2	ADMIN ALTER DDL JOBS 1 ident = + 1
 accept	accept	SignedLiteral#3	ADMIN ALTER DDL JOBS 1 ident = - 1
 accept	accept	NumLiteral#1	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1
-accept	accept	NumLiteral#2	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1.5
+accept	accept	NumLiteral#2	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1e0
 accept	accept	NumLiteral#3	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1.5
 reject	accept	StatsType#1	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
 reject	accept	StatsType#2	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
 reject	accept	StatsType#3	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
-accept	accept	BindingStatusType#1	SET BINDING ENABLED FOR TABLE ident
-accept	accept	BindingStatusType#2	SET BINDING DISABLED FOR TABLE ident
+accept	accept	BindingStatusType#1	SET BINDING ENABLED FOR SELECT *
+accept	accept	BindingStatusType#2	SET BINDING DISABLED FOR SELECT *
 accept	accept	CreateStatisticsStmt#1	CREATE STATISTICS ident(CARDINALITY) ON ident(ident)
 accept	accept	DropStatisticsStmt#1	DROP STATISTICS ident
 accept	accept	CreateIndexStmt#1	CREATE INDEX ident ON ident(ident)
@@ -505,44 +505,44 @@ accept	accept	DuplicateOpt#3	CREATE TABLE ident REPLACE
 accept	accept	AsOpt#1	CREATE TABLE ident
 accept	accept	AsOpt#2	CREATE TABLE ident AS
 accept	accept	CreateTableSelectOpt#1	CREATE TABLE ident
-accept	accept	CreateTableSelectOpt#2	CREATE TABLE ident TABLE ident UNION TABLE ident
-accept	accept	CreateTableSelectOpt#3	CREATE TABLE ident TABLE ident
-accept	accept	CreateTableSelectOpt#4	CREATE TABLE ident WITH ident AS(TABLE ident) TABLE ident
-reject	reject	CreateTableSelectOpt#5	CREATE TABLE ident(TABLE ident)
-accept	accept	CreateViewSelectOpt#1	CREATE VIEW ident AS TABLE ident UNION TABLE ident
-accept	accept	CreateViewSelectOpt#2	CREATE VIEW ident AS TABLE ident
-accept	accept	CreateViewSelectOpt#3	CREATE VIEW ident AS WITH ident AS(TABLE ident) TABLE ident
-accept	accept	CreateViewSelectOpt#4	CREATE VIEW ident AS(TABLE ident)
+accept	accept	CreateTableSelectOpt#2	CREATE TABLE ident SELECT * UNION SELECT *
+accept	accept	CreateTableSelectOpt#3	CREATE TABLE ident SELECT *
+accept	accept	CreateTableSelectOpt#4	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
+reject	reject	CreateTableSelectOpt#5	CREATE TABLE ident(SELECT *)
+accept	accept	CreateViewSelectOpt#1	CREATE VIEW ident AS SELECT * UNION SELECT *
+accept	accept	CreateViewSelectOpt#2	CREATE VIEW ident AS SELECT *
+accept	accept	CreateViewSelectOpt#3	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+accept	accept	CreateViewSelectOpt#4	CREATE VIEW ident AS(SELECT *)
 accept	accept	LikeTableWithOrWithoutParen#1	CREATE TABLE ident LIKE ident
 accept	accept	LikeTableWithOrWithoutParen#2	CREATE TABLE ident(LIKE ident)
-accept	accept	CreateViewStmt#1	CREATE VIEW ident AS TABLE ident
+accept	accept	CreateViewStmt#1	CREATE VIEW ident AS SELECT *
 accept	accept	OrReplace#1	CREATE PLACEMENT POLICY ident PRIMARY_REGION 's'
 accept	accept	OrReplace#2	CREATE OR REPLACE PLACEMENT POLICY ident PRIMARY_REGION 's'
-accept	accept	ViewAlgorithm#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewAlgorithm#2	CREATE ALGORITHM = UNDEFINED VIEW ident AS TABLE ident
-accept	accept	ViewAlgorithm#3	CREATE ALGORITHM = MERGE VIEW ident AS TABLE ident
-accept	accept	ViewAlgorithm#4	CREATE ALGORITHM = TEMPTABLE VIEW ident AS TABLE ident
-accept	accept	ViewDefiner#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewDefiner#2	CREATE DEFINER = CURRENT_USER VIEW ident AS TABLE ident
-accept	accept	ViewSQLSecurity#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewSQLSecurity#2	CREATE SQL SECURITY DEFINER VIEW ident AS TABLE ident
-accept	accept	ViewSQLSecurity#3	CREATE SQL SECURITY INVOKER VIEW ident AS TABLE ident
-accept	accept	ViewName#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewFieldList#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewFieldList#2	CREATE VIEW ident(ident) AS TABLE ident
-accept	accept	ColumnList#1	CREATE VIEW ident(ident) AS TABLE ident
-accept	accept	ColumnList#2	CREATE VIEW ident(ident, ident) AS TABLE ident
-accept	accept	ViewCheckOption#1	CREATE VIEW ident AS TABLE ident
-accept	accept	ViewCheckOption#2	CREATE VIEW ident AS TABLE ident WITH CASCADED CHECK OPTION
-accept	accept	ViewCheckOption#3	CREATE VIEW ident AS TABLE ident WITH LOCAL CHECK OPTION
+accept	accept	ViewAlgorithm#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewAlgorithm#2	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+accept	accept	ViewAlgorithm#3	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+accept	accept	ViewAlgorithm#4	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+accept	accept	ViewDefiner#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewDefiner#2	CREATE DEFINER = CURRENT_USER VIEW ident AS SELECT *
+accept	accept	ViewSQLSecurity#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewSQLSecurity#2	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+accept	accept	ViewSQLSecurity#3	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+accept	accept	ViewName#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewFieldList#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewFieldList#2	CREATE VIEW ident(ident) AS SELECT *
+accept	accept	ColumnList#1	CREATE VIEW ident(ident) AS SELECT *
+accept	accept	ColumnList#2	CREATE VIEW ident(ident, ident) AS SELECT *
+accept	accept	ViewCheckOption#1	CREATE VIEW ident AS SELECT *
+accept	accept	ViewCheckOption#2	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+accept	accept	ViewCheckOption#3	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
 accept	accept	DoStmt#1	DO ident
 accept	accept	DeleteWithoutUsingStmt#1	DELETE FROM ident
 accept	accept	DeleteWithoutUsingStmt#2	DELETE ident FROM ident
 accept	accept	DeleteWithUsingStmt#1	DELETE FROM ident USING ident
 accept	accept	DeleteFromStmt#1	DELETE FROM ident
 accept	accept	DeleteFromStmt#2	DELETE FROM ident USING ident
-accept	accept	DeleteFromStmt#3	WITH ident AS(TABLE ident) DELETE FROM ident
-accept	accept	DeleteFromStmt#4	WITH ident AS(TABLE ident) DELETE FROM ident USING ident
+accept	accept	DeleteFromStmt#3	WITH ident AS(SELECT *) DELETE FROM ident
+accept	accept	DeleteFromStmt#4	WITH ident AS(SELECT *) DELETE FROM ident USING ident
 accept	accept	DatabaseSym#1	FLASHBACK DATABASE ident
 accept	accept	DropDatabaseStmt#1	DROP DATABASE ident
 accept	accept	DropIndexStmt#1	DROP INDEX ident ON ident
@@ -577,23 +577,23 @@ accept	accept	ExplainSym#2	DESCRIBE ident
 accept	accept	ExplainSym#3	DESC ident
 accept	accept	ExplainStmt#1	EXPLAIN ident
 accept	accept	ExplainStmt#2	EXPLAIN ident ident
-accept	accept	ExplainStmt#3	EXPLAIN TABLE ident
+accept	accept	ExplainStmt#3	EXPLAIN SELECT *
 accept	accept	ExplainStmt#4	EXPLAIN FOR CONNECTION 1
 accept	accept	ExplainStmt#5	EXPLAIN FORMAT = 's' FOR CONNECTION 1
-accept	accept	ExplainStmt#6	EXPLAIN FORMAT = 's' TABLE ident
+accept	accept	ExplainStmt#6	EXPLAIN FORMAT = 's' SELECT *
 accept	accept	ExplainStmt#7	EXPLAIN FORMAT = TRADITIONAL FOR CONNECTION 1
-accept	accept	ExplainStmt#8	EXPLAIN FORMAT = TRADITIONAL TABLE ident
-accept	accept	ExplainStmt#9	EXPLAIN ANALYZE TABLE ident
-accept	accept	ExplainStmt#10	EXPLAIN ANALYZE FORMAT = TRADITIONAL TABLE ident
-accept	accept	ExplainStmt#11	EXPLAIN ANALYZE FORMAT = 's' TABLE ident
-accept	accept	ExplainFormatType#1	EXPLAIN FORMAT = TRADITIONAL TABLE ident
-accept	accept	ExplainFormatType#2	EXPLAIN FORMAT = JSON TABLE ident
-accept	accept	ExplainFormatType#3	EXPLAIN FORMAT = ROW TABLE ident
-accept	accept	ExplainFormatType#4	EXPLAIN FORMAT = DOT TABLE ident
-accept	accept	ExplainFormatType#5	EXPLAIN FORMAT = BRIEF TABLE ident
-accept	accept	ExplainFormatType#6	EXPLAIN FORMAT = VERBOSE TABLE ident
-accept	accept	ExplainFormatType#7	EXPLAIN FORMAT = TRUE_CARD_COST TABLE ident
-accept	accept	ExplainFormatType#8	EXPLAIN FORMAT = TIDB_JSON TABLE ident
+accept	accept	ExplainStmt#8	EXPLAIN FORMAT = TRADITIONAL SELECT *
+accept	accept	ExplainStmt#9	EXPLAIN ANALYZE SELECT *
+accept	accept	ExplainStmt#10	EXPLAIN ANALYZE FORMAT = TRADITIONAL SELECT *
+accept	accept	ExplainStmt#11	EXPLAIN ANALYZE FORMAT = 's' SELECT *
+accept	accept	ExplainFormatType#1	EXPLAIN FORMAT = TRADITIONAL SELECT *
+accept	accept	ExplainFormatType#2	EXPLAIN FORMAT = JSON SELECT *
+accept	accept	ExplainFormatType#3	EXPLAIN FORMAT = ROW SELECT *
+accept	accept	ExplainFormatType#4	EXPLAIN FORMAT = DOT SELECT *
+accept	accept	ExplainFormatType#5	EXPLAIN FORMAT = BRIEF SELECT *
+accept	accept	ExplainFormatType#6	EXPLAIN FORMAT = VERBOSE SELECT *
+accept	accept	ExplainFormatType#7	EXPLAIN FORMAT = TRUE_CARD_COST SELECT *
+accept	accept	ExplainFormatType#8	EXPLAIN FORMAT = TIDB_JSON SELECT *
 accept	accept	SavepointStmt#1	SAVEPOINT ident
 accept	accept	ReleaseSavepointStmt#1	RELEASE SAVEPOINT ident
 accept	accept	BRIEStmt#1	BACKUP DATABASE * TO 's'
@@ -710,7 +710,7 @@ accept	accept	FuncDatetimePrecListOpt#2	DO CURTIME(1)
 accept	accept	FuncDatetimePrecList#1	DO CURTIME(1)
 accept	accept	BoolPri#1	DO ident IS NULL
 accept	accept	BoolPri#2	DO ident >= ident
-accept	accept	BoolPri#3	DO ident >= ANY(TABLE ident)
+accept	accept	BoolPri#3	DO ident >= ANY(SELECT *)
 accept	accept	BoolPri#4	DO ident >= @v := ident
 accept	accept	BoolPri#5	DO ident
 accept	accept	CompareOp#1	DO ident >= ident
@@ -733,11 +733,11 @@ accept	accept	IlikeOrNotOp#1	DO ident ILIKE ident
 accept	accept	IlikeOrNotOp#2	DO ident NOT ILIKE ident
 accept	accept	RegexpOrNotOp#1	DO ident REGEXP ident
 accept	accept	RegexpOrNotOp#2	DO ident NOT REGEXP ident
-accept	accept	AnyOrAll#1	DO ident >= ANY(TABLE ident)
-accept	accept	AnyOrAll#2	DO ident >= SOME(TABLE ident)
-accept	accept	AnyOrAll#3	DO ident >= ALL(TABLE ident)
+accept	accept	AnyOrAll#1	DO ident >= ANY(SELECT *)
+accept	accept	AnyOrAll#2	DO ident >= SOME(SELECT *)
+accept	accept	AnyOrAll#3	DO ident >= ALL(SELECT *)
 accept	accept	PredicateExpr#1	DO ident IN(ident)
-accept	accept	PredicateExpr#2	DO ident IN(TABLE ident)
+accept	accept	PredicateExpr#2	DO ident IN(SELECT *)
 accept	accept	PredicateExpr#3	DO ident BETWEEN ident AND ident
 accept	accept	PredicateExpr#4	DO ident LIKE ident
 accept	accept	PredicateExpr#5	DO ident ILIKE ident
@@ -748,9 +748,9 @@ accept	accept	RegexpSym#1	DO ident REGEXP ident
 accept	accept	RegexpSym#2	DO ident RLIKE ident
 accept	accept	LikeOrIlikeEscapeOpt#1	DO ident LIKE ident
 accept	accept	LikeOrIlikeEscapeOpt#2	DO ident LIKE ident ESCAPE 's'
-reject	reject	Field#1	SELECT * *
-reject	reject	Field#2	SELECT ident.* *
-reject	reject	Field#3	SELECT ident.ident.* *
+accept	accept	Field#1	SELECT *
+accept	accept	Field#2	SELECT ident.*
+accept	accept	Field#3	SELECT ident.ident.*
 accept	accept	Field#4	SELECT ident
 accept	accept	FieldAsNameOpt#1	SELECT ident
 accept	accept	FieldAsNameOpt#2	SELECT ident 's'
@@ -758,13 +758,13 @@ accept	accept	FieldAsName#1	SELECT ident ident
 accept	accept	FieldAsName#2	SELECT ident AS ident
 accept	accept	FieldAsName#3	SELECT ident 's'
 accept	accept	FieldAsName#4	SELECT ident AS 's'
-accept	accept	FieldList#1	SELECT ident
-accept	accept	FieldList#2	SELECT ident, ident
-accept	accept	WithRollupClause#1	SELECT ident GROUP BY ident
-accept	accept	WithRollupClause#2	SELECT ident GROUP BY ident WITH ROLLUP
-accept	accept	GroupByClause#1	SELECT ident GROUP BY ident
-accept	accept	HavingClause#1	SELECT ident
-accept	accept	HavingClause#2	SELECT ident HAVING ident
+accept	accept	FieldList#1	SELECT *
+accept	accept	FieldList#2	SELECT *, *
+accept	accept	WithRollupClause#1	SELECT * GROUP BY ident
+accept	accept	WithRollupClause#2	SELECT * GROUP BY ident WITH ROLLUP
+accept	accept	GroupByClause#1	SELECT * GROUP BY ident
+accept	accept	HavingClause#1	SELECT *
+accept	accept	HavingClause#2	SELECT * HAVING ident
 accept	accept	AsOfClauseOpt#1	DELETE ident FROM ident
 accept	accept	AsOfClauseOpt#2	DELETE ident FROM ident AS OF TIMESTAMP ident
 accept	accept	AsOfClause#1	START TRANSACTION READ ONLY AS OF TIMESTAMP ident
@@ -1359,19 +1359,19 @@ accept	accept	ProcedureCall#1	CALL ident
 accept	accept	ProcedureCall#2	CALL ident.ident
 accept	accept	ProcedureCall#3	CALL ident()
 accept	accept	ProcedureCall#4	CALL ident.ident()
-accept	accept	InsertIntoStmt#1	INSERT ident TABLE ident
-accept	accept	IntoOpt#1	INSERT ident TABLE ident
-accept	accept	IntoOpt#2	INSERT INTO ident TABLE ident
+accept	accept	InsertIntoStmt#1	INSERT ident SELECT *
+accept	accept	IntoOpt#1	INSERT ident SELECT *
+accept	accept	IntoOpt#2	INSERT INTO ident SELECT *
 accept	accept	InsertValues#1	INSERT ident() VALUE()
-accept	accept	InsertValues#2	INSERT ident() TABLE ident UNION TABLE ident
-accept	accept	InsertValues#3	INSERT ident() TABLE ident
-accept	accept	InsertValues#4	INSERT ident() WITH ident AS(TABLE ident) TABLE ident
-accept	accept	InsertValues#5	INSERT ident()(TABLE ident)
+accept	accept	InsertValues#2	INSERT ident() SELECT * UNION SELECT *
+accept	accept	InsertValues#3	INSERT ident() SELECT *
+accept	accept	InsertValues#4	INSERT ident() WITH ident AS(SELECT *) SELECT *
+accept	accept	InsertValues#5	INSERT ident()(SELECT *)
 accept	accept	InsertValues#6	INSERT ident VALUE()
-accept	accept	InsertValues#7	INSERT ident TABLE ident UNION TABLE ident
-accept	accept	InsertValues#8	INSERT ident TABLE ident
-accept	accept	InsertValues#9	INSERT ident WITH ident AS(TABLE ident) TABLE ident
-accept	accept	InsertValues#10	INSERT ident(TABLE ident)
+accept	accept	InsertValues#7	INSERT ident SELECT * UNION SELECT *
+accept	accept	InsertValues#8	INSERT ident SELECT *
+accept	accept	InsertValues#9	INSERT ident WITH ident AS(SELECT *) SELECT *
+accept	accept	InsertValues#10	INSERT ident(SELECT *)
 accept	accept	InsertValues#11	INSERT ident SET ident = DEFAULT
 accept	accept	ValueSym#1	INSERT ident VALUE()
 accept	accept	ValueSym#2	INSERT ident VALUES()
@@ -1386,50 +1386,50 @@ accept	accept	ExprOrDefault#1	SET ident = ident
 accept	accept	ExprOrDefault#2	SET ident = DEFAULT
 accept	accept	ColumnSetValueList#1	INSERT ident SET ident = DEFAULT
 accept	accept	ColumnSetValueList#2	INSERT ident SET ident = DEFAULT, ident = DEFAULT
-accept	accept	OnDuplicateKeyUpdate#1	INSERT ident TABLE ident
-accept	accept	OnDuplicateKeyUpdate#2	INSERT ident TABLE ident ON DUPLICATE KEY UPDATE ident = DEFAULT
-accept	accept	ReplaceIntoStmt#1	REPLACE ident TABLE ident
+accept	accept	OnDuplicateKeyUpdate#1	INSERT ident SELECT *
+accept	accept	OnDuplicateKeyUpdate#2	INSERT ident SELECT * ON DUPLICATE KEY UPDATE ident = DEFAULT
+accept	accept	ReplaceIntoStmt#1	REPLACE ident SELECT *
 accept	accept	Literal#1	DO FALSE
 accept	accept	Literal#2	DO NULL
 accept	accept	Literal#3	DO TRUE
-accept	accept	Literal#4	DO 1.5
+accept	accept	Literal#4	DO 1e0
 accept	accept	Literal#5	DO 1.5
 accept	accept	Literal#6	DO 1
 accept	accept	Literal#7	DO 's'
-reject	reject	Literal#8	DO UNDERSCORE_CHARSET 's'
+accept	accept	Literal#8	DO _utf8 's'
 accept	accept	Literal#9	DO 0x1
 accept	accept	Literal#10	DO b'1'
-reject	reject	Literal#11	DO UNDERSCORE_CHARSET 0x1
-reject	reject	Literal#12	DO UNDERSCORE_CHARSET b'1'
+accept	accept	Literal#11	DO _utf8 0x1
+accept	accept	Literal#12	DO _utf8 b'1'
 accept	accept	StringLiteral#1	DO 's'
 accept	accept	StringLiteral#2	DO 's' 's'
 accept	accept	AlterOrderList#1	ALTER TABLE ident ORDER BY ident
 accept	accept	AlterOrderList#2	ALTER TABLE ident ORDER BY ident, ident
 accept	accept	AlterOrderItem#1	ALTER TABLE ident ORDER BY ident
-accept	accept	OrderBy#1	SELECT ident ORDER BY ident
-accept	accept	ByList#1	SELECT ident GROUP BY ident
-accept	accept	ByList#2	SELECT ident GROUP BY ident, ident
-accept	accept	ByItem#1	SELECT ident GROUP BY ident
-reject	accept	ByItem#2	SELECT ident GROUP BY ident ASC
-reject	accept	Order#1	SELECT ident GROUP BY ident ASC
-reject	accept	Order#2	SELECT ident GROUP BY ident DESC
+accept	accept	OrderBy#1	SELECT * ORDER BY ident
+accept	accept	ByList#1	SELECT * GROUP BY ident
+accept	accept	ByList#2	SELECT * GROUP BY ident, ident
+accept	accept	ByItem#1	SELECT * GROUP BY ident
+reject	accept	ByItem#2	SELECT * GROUP BY ident ASC
+reject	accept	Order#1	SELECT * GROUP BY ident ASC
+reject	accept	Order#2	SELECT * GROUP BY ident DESC
 accept	accept	OptOrder#1	ALTER TABLE ident ORDER BY ident
 accept	accept	OptOrder#2	ALTER TABLE ident ORDER BY ident ASC
 accept	accept	OptOrder#3	ALTER TABLE ident ORDER BY ident DESC
-accept	accept	OrderByOptional#1	SELECT ident
-accept	accept	OrderByOptional#2	SELECT ident ORDER BY ident
-reject	reject	BitExpr#1	DO ident | ident |
-reject	reject	BitExpr#2	DO ident & ident &
+accept	accept	OrderByOptional#1	SELECT *
+accept	accept	OrderByOptional#2	SELECT * ORDER BY ident
+accept	accept	BitExpr#1	DO ident | ident
+accept	accept	BitExpr#2	DO ident & ident
 accept	accept	BitExpr#3	DO ident << ident
 accept	accept	BitExpr#4	DO ident >> ident
-reject	reject	BitExpr#5	DO ident + ident +
-reject	reject	BitExpr#6	DO ident - ident -
-reject	reject	BitExpr#7	DO ident + INTERVAL ident SECOND_MICROSECOND +
-reject	reject	BitExpr#8	DO ident - INTERVAL ident SECOND_MICROSECOND +
-reject	reject	BitExpr#9	DO INTERVAL ident SECOND_MICROSECOND + ident +
-reject	reject	BitExpr#10	DO ident * ident *
-reject	reject	BitExpr#11	DO ident / ident /
-reject	reject	BitExpr#12	DO ident % ident %
+accept	accept	BitExpr#5	DO ident + ident
+accept	accept	BitExpr#6	DO ident - ident
+accept	accept	BitExpr#7	DO ident + INTERVAL ident SECOND_MICROSECOND
+accept	accept	BitExpr#8	DO ident - INTERVAL ident SECOND_MICROSECOND
+accept	accept	BitExpr#9	DO INTERVAL ident SECOND_MICROSECOND + ident
+accept	accept	BitExpr#10	DO ident * ident
+accept	accept	BitExpr#11	DO ident / ident
+accept	accept	BitExpr#12	DO ident % ident
 accept	accept	BitExpr#13	DO ident DIV ident
 accept	accept	BitExpr#14	DO ident MOD ident
 accept	accept	BitExpr#15	DO ident ^ ident
@@ -1451,13 +1451,12 @@ accept	accept	SimpleExpr#11	DO ! ident
 accept	accept	SimpleExpr#12	DO ~ ident
 accept	accept	SimpleExpr#13	DO - ident
 accept	accept	SimpleExpr#14	DO + ident
-accept	accept	SimpleExpr#15	DO ident || ident
 accept	accept	SimpleExpr#16	DO NOT ident
-accept	accept	SimpleExpr#17	DO(TABLE ident)
+accept	accept	SimpleExpr#17	DO(SELECT *)
 accept	accept	SimpleExpr#18	DO(ident)
 accept	accept	SimpleExpr#19	DO(ident, ident)
 accept	accept	SimpleExpr#20	DO ROW(ident, ident)
-accept	accept	SimpleExpr#21	DO EXISTS(TABLE ident)
+accept	accept	SimpleExpr#21	DO EXISTS(SELECT *)
 accept	accept	SimpleExpr#22	DO { ident ident }
 accept	accept	SimpleExpr#23	DO BINARY ident
 accept	accept	SimpleExpr#24	DO CAST(ident AS DATE)
@@ -1470,14 +1469,14 @@ accept	accept	SimpleExpr#30	DO ident -> 's'
 accept	accept	SimpleExpr#31	DO ident ->> 's'
 accept	accept	ArrayKwdOpt#1	DO CAST(ident AS DATE)
 accept	accept	ArrayKwdOpt#2	DO CAST(ident AS DATE ARRAY)
-accept	accept	DistinctKwd#1	SELECT DISTINCT ident
-accept	accept	DistinctKwd#2	SELECT DISTINCTROW ident
-accept	accept	DistinctOpt#1	SELECT ALL ident
-accept	accept	DistinctOpt#2	SELECT DISTINCT ident
+accept	accept	DistinctKwd#1	SELECT DISTINCT *
+accept	accept	DistinctKwd#2	SELECT DISTINCTROW *
+accept	accept	DistinctOpt#1	SELECT ALL *
+accept	accept	DistinctOpt#2	SELECT DISTINCT *
 accept	accept	DefaultFalseDistinctOpt#1	DO AVG(ident)
 accept	accept	DefaultFalseDistinctOpt#2	DO AVG(ALL ident)
-accept	accept	DefaultTrueDistinctOpt#1	TABLE ident UNION TABLE ident
-accept	accept	DefaultTrueDistinctOpt#2	TABLE ident UNION ALL TABLE ident
+accept	accept	DefaultTrueDistinctOpt#1	SELECT * UNION SELECT *
+accept	accept	DefaultTrueDistinctOpt#2	SELECT * UNION ALL SELECT *
 accept	accept	BuggyDefaultFalseDistinctOpt#1	DO AVG(ident)
 accept	accept	BuggyDefaultFalseDistinctOpt#2	DO AVG(DISTINCT ALL ident)
 accept	accept	FunctionNameConflict#1	DO ASCII()
@@ -1658,9 +1657,9 @@ accept	accept	CastType#11	DO CAST(ident AS DOUBLE)
 accept	accept	CastType#12	DO CAST(ident AS FLOAT)
 accept	accept	CastType#13	DO CAST(ident AS REAL)
 accept	accept	CastType#14	DO CAST(ident AS VECTOR)
-accept	accept	Priority#1	SELECT LOW_PRIORITY ident
-accept	accept	Priority#2	SELECT HIGH_PRIORITY ident
-accept	accept	Priority#3	SELECT DELAYED ident
+accept	accept	Priority#1	SELECT LOW_PRIORITY *
+accept	accept	Priority#2	SELECT HIGH_PRIORITY *
+accept	accept	Priority#3	SELECT DELAYED *
 accept	accept	PriorityOpt#1	DELETE FROM ident
 accept	accept	PriorityOpt#2	DELETE LOW_PRIORITY FROM ident
 accept	accept	TableName#1	TRUNCATE ident
@@ -1700,9 +1699,9 @@ accept	accept	CompletionTypeWithinTransaction#7	COMMIT NO RELEASE
 accept	accept	ShutdownStmt#1	SHUTDOWN
 accept	accept	RestartStmt#1	RESTART
 accept	accept	HelpStmt#1	HELP 's'
-accept	accept	SelectStmtBasic#1	SELECT ident
-accept	accept	SelectStmtFromDualTable#1	SELECT ident FROM DUAL
-accept	accept	SelectStmtFromTable#1	SELECT ident FROM ident
+accept	accept	SelectStmtBasic#1	SELECT *
+accept	accept	SelectStmtFromDualTable#1	SELECT * FROM DUAL
+accept	accept	SelectStmtFromTable#1	SELECT * FROM ident
 accept	accept	TableSampleOpt#1	DELETE ident FROM ident
 accept	accept	TableSampleOpt#2	DELETE ident FROM ident TABLESAMPLE(ident)
 accept	accept	TableSampleOpt#3	DELETE ident FROM ident TABLESAMPLE()
@@ -1715,24 +1714,24 @@ accept	accept	TableSampleUnitOpt#2	DELETE ident FROM ident TABLESAMPLE(ident ROW
 accept	accept	TableSampleUnitOpt#3	DELETE ident FROM ident TABLESAMPLE(ident PERCENT)
 accept	accept	RepeatableOpt#1	DELETE ident FROM ident TABLESAMPLE()
 accept	accept	RepeatableOpt#2	DELETE ident FROM ident TABLESAMPLE() REPEATABLE(ident)
-accept	accept	SelectStmt#1	SELECT ident
-accept	accept	SelectStmt#2	SELECT ident FROM DUAL
-accept	accept	SelectStmt#3	SELECT ident FROM ident
+accept	accept	SelectStmt#1	SELECT *
+accept	accept	SelectStmt#2	SELECT * FROM DUAL
+accept	accept	SelectStmt#3	SELECT * FROM ident
 accept	accept	SelectStmt#4	TABLE ident
 accept	accept	SelectStmt#5	VALUES ROW()
-accept	accept	SelectStmtWithClause#1	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	SelectStmtWithClause#2	WITH ident AS(TABLE ident)(TABLE ident)
-accept	accept	WithClause#1	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	WithClause#2	WITH RECURSIVE ident AS(TABLE ident) TABLE ident
-accept	accept	WithList#1	WITH ident AS(TABLE ident), ident AS(TABLE ident) TABLE ident
-accept	accept	WithList#2	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	CommonTableExpr#1	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	FromDual#1	SELECT ident FROM DUAL
-accept	accept	WindowClauseOptional#1	SELECT ident FROM ident
-accept	accept	WindowClauseOptional#2	SELECT ident FROM ident WINDOW ident AS()
-accept	accept	WindowDefinitionList#1	SELECT ident FROM ident WINDOW ident AS()
-accept	accept	WindowDefinitionList#2	SELECT ident FROM ident WINDOW ident AS(), ident AS()
-accept	accept	WindowDefinition#1	SELECT ident FROM ident WINDOW ident AS()
+accept	accept	SelectStmtWithClause#1	WITH ident AS(SELECT *) SELECT *
+accept	accept	SelectStmtWithClause#2	WITH ident AS(SELECT *)(SELECT *)
+accept	accept	WithClause#1	WITH ident AS(SELECT *) SELECT *
+accept	accept	WithClause#2	WITH RECURSIVE ident AS(SELECT *) SELECT *
+accept	accept	WithList#1	WITH ident AS(SELECT *), ident AS(SELECT *) SELECT *
+accept	accept	WithList#2	WITH ident AS(SELECT *) SELECT *
+accept	accept	CommonTableExpr#1	WITH ident AS(SELECT *) SELECT *
+accept	accept	FromDual#1	SELECT * FROM DUAL
+accept	accept	WindowClauseOptional#1	SELECT * FROM ident
+accept	accept	WindowClauseOptional#2	SELECT * FROM ident WINDOW ident AS()
+accept	accept	WindowDefinitionList#1	SELECT * FROM ident WINDOW ident AS()
+accept	accept	WindowDefinitionList#2	SELECT * FROM ident WINDOW ident AS(), ident AS()
+accept	accept	WindowDefinition#1	SELECT * FROM ident WINDOW ident AS()
 accept	accept	WindowName#1	DO ROW_NUMBER() OVER ident
 accept	accept	WindowSpec#1	DO ROW_NUMBER() OVER()
 accept	accept	WindowSpecDetails#1	DO ROW_NUMBER() OVER()
@@ -1787,7 +1786,7 @@ accept	accept	OptNullTreatment#3	DO LEAD(ident) IGNORE NULLS OVER ident
 accept	accept	OptFromFirstLast#1	DO NTH_VALUE(ident, ident) OVER ident
 accept	accept	OptFromFirstLast#2	DO NTH_VALUE(ident, ident) FROM FIRST OVER ident
 accept	accept	OptFromFirstLast#3	DO NTH_VALUE(ident, ident) FROM LAST OVER ident
-accept	accept	TableRefsClause#1	SELECT ident FROM ident
+accept	accept	TableRefsClause#1	SELECT * FROM ident
 accept	accept	TableRefs#1	DELETE ident FROM ident
 accept	accept	TableRefs#2	DELETE ident FROM ident, ident
 accept	accept	EscapedTableRef#1	DELETE ident FROM ident
@@ -1795,7 +1794,7 @@ accept	accept	EscapedTableRef#2	DELETE ident FROM { ident ident }
 accept	accept	TableRef#1	DELETE ident FROM ident
 accept	accept	TableRef#2	DELETE ident FROM ident JOIN ident
 accept	accept	TableFactor#1	DELETE ident FROM ident
-accept	accept	TableFactor#2	DELETE ident FROM(TABLE ident)
+accept	accept	TableFactor#2	DELETE ident FROM(SELECT *)
 accept	accept	TableFactor#3	DELETE ident FROM(ident)
 accept	accept	PartitionNameListOpt#1	DELETE FROM ident
 accept	accept	PartitionNameListOpt#2	DELETE FROM ident PARTITION(ident)
@@ -1839,78 +1838,78 @@ accept	accept	CrossOpt#2	DELETE ident FROM ident CROSS JOIN ident
 accept	accept	CrossOpt#3	DELETE ident FROM ident INNER JOIN ident
 accept	accept	LimitClause#1	DELETE FROM ident
 reject	accept	LimitClause#2	DELETE FROM ident LIMIT ?
-accept	accept	LimitOption#1	SELECT ident LIMIT 1
-reject	accept	LimitOption#2	SELECT ident LIMIT ?
-accept	accept	RowOrRows#1	SELECT ident FETCH FIRST ROW ONLY
-accept	accept	RowOrRows#2	SELECT ident FETCH FIRST ROWS ONLY
-accept	accept	FirstOrNext#1	SELECT ident FETCH FIRST ROW ONLY
-accept	accept	FirstOrNext#2	SELECT ident FETCH NEXT ROW ONLY
-accept	accept	FetchFirstOpt#1	SELECT ident FETCH FIRST ROW ONLY
-reject	accept	FetchFirstOpt#2	SELECT ident FETCH FIRST ? ROW ONLY
-reject	accept	SelectStmtLimit#1	SELECT ident LIMIT ?
-reject	accept	SelectStmtLimit#2	SELECT ident LIMIT ?, ?
-reject	accept	SelectStmtLimit#3	SELECT ident LIMIT ? OFFSET ?
-accept	accept	SelectStmtLimit#4	SELECT ident FETCH FIRST ROW ONLY
-accept	accept	SelectStmtLimitOpt#1	SELECT ident
-reject	accept	SelectStmtLimitOpt#2	SELECT ident LIMIT ?
-accept	accept	SelectStmtOpt#1	SELECT ident
-accept	accept	SelectStmtOpt#2	SELECT ALL ident
-accept	accept	SelectStmtOpt#3	SELECT LOW_PRIORITY ident
-accept	accept	SelectStmtOpt#4	SELECT SQL_SMALL_RESULT ident
-accept	accept	SelectStmtOpt#5	SELECT SQL_BIG_RESULT ident
-accept	accept	SelectStmtOpt#6	SELECT SQL_BUFFER_RESULT ident
-accept	accept	SelectStmtOpt#7	SELECT SQL_CACHE ident
-accept	accept	SelectStmtOpt#8	SELECT SQL_CALC_FOUND_ROWS ident
-accept	accept	SelectStmtOpt#9	SELECT STRAIGHT_JOIN ident
-accept	accept	SelectStmtOpts#1	SELECT ident
-accept	accept	SelectStmtOpts#2	SELECT ALL ident
-accept	accept	SelectStmtOptsList#1	SELECT ALL ALL ident
-accept	accept	SelectStmtOptsList#2	SELECT ALL ident
-accept	accept	TableOptimizerHints#1	SELECT ident
+accept	accept	LimitOption#1	SELECT * LIMIT 1
+reject	accept	LimitOption#2	SELECT * LIMIT ?
+accept	accept	RowOrRows#1	SELECT * FETCH FIRST ROW ONLY
+accept	accept	RowOrRows#2	SELECT * FETCH FIRST ROWS ONLY
+accept	accept	FirstOrNext#1	SELECT * FETCH FIRST ROW ONLY
+accept	accept	FirstOrNext#2	SELECT * FETCH NEXT ROW ONLY
+accept	accept	FetchFirstOpt#1	SELECT * FETCH FIRST ROW ONLY
+reject	accept	FetchFirstOpt#2	SELECT * FETCH FIRST ? ROW ONLY
+reject	accept	SelectStmtLimit#1	SELECT * LIMIT ?
+reject	accept	SelectStmtLimit#2	SELECT * LIMIT ?, ?
+reject	accept	SelectStmtLimit#3	SELECT * LIMIT ? OFFSET ?
+accept	accept	SelectStmtLimit#4	SELECT * FETCH FIRST ROW ONLY
+accept	accept	SelectStmtLimitOpt#1	SELECT *
+reject	accept	SelectStmtLimitOpt#2	SELECT * LIMIT ?
+accept	accept	SelectStmtOpt#1	SELECT *
+accept	accept	SelectStmtOpt#2	SELECT ALL *
+accept	accept	SelectStmtOpt#3	SELECT LOW_PRIORITY *
+accept	accept	SelectStmtOpt#4	SELECT SQL_SMALL_RESULT *
+accept	accept	SelectStmtOpt#5	SELECT SQL_BIG_RESULT *
+accept	accept	SelectStmtOpt#6	SELECT SQL_BUFFER_RESULT *
+accept	accept	SelectStmtOpt#7	SELECT SQL_CACHE *
+accept	accept	SelectStmtOpt#8	SELECT SQL_CALC_FOUND_ROWS *
+accept	accept	SelectStmtOpt#9	SELECT STRAIGHT_JOIN *
+accept	accept	SelectStmtOpts#1	SELECT *
+accept	accept	SelectStmtOpts#2	SELECT ALL *
+accept	accept	SelectStmtOptsList#1	SELECT ALL ALL *
+accept	accept	SelectStmtOptsList#2	SELECT ALL *
+accept	accept	TableOptimizerHints#1	SELECT *
 accept	accept	TableOptimizerHintsOpt#1	DELETE FROM ident
 accept	accept	TableOptimizerHintsOpt#2	DELETE FROM ident
-accept	accept	SelectStmtSQLCache#1	SELECT SQL_CACHE ident
-accept	accept	SelectStmtSQLCache#2	SELECT SQL_NO_CACHE ident
-accept	accept	SelectStmtFieldList#1	SELECT ident
-accept	accept	SelectStmtGroup#1	SELECT ident
-accept	accept	SelectStmtGroup#2	SELECT ident GROUP BY ident
-accept	accept	SelectStmtIntoOption#1	SELECT ident
-accept	accept	SelectStmtIntoOption#2	SELECT ident INTO OUTFILE 's'
-accept	accept	SubSelect#1	(TABLE ident)
-accept	accept	SubSelect#2	(TABLE ident UNION TABLE ident)
-accept	accept	SubSelect#3	(WITH ident AS(TABLE ident) TABLE ident)
-accept	accept	SubSelect#4	((TABLE ident))
-accept	accept	SelectLockOpt#1	SELECT ident
-accept	accept	SelectLockOpt#2	SELECT ident FOR UPDATE
-accept	accept	SelectLockOpt#3	SELECT ident FOR SHARE
-accept	accept	SelectLockOpt#4	SELECT ident FOR UPDATE NOWAIT
-accept	accept	SelectLockOpt#5	SELECT ident FOR UPDATE WAIT 1
-accept	accept	SelectLockOpt#6	SELECT ident FOR SHARE NOWAIT
-accept	accept	SelectLockOpt#7	SELECT ident FOR UPDATE SKIP LOCKED
-accept	accept	SelectLockOpt#8	SELECT ident FOR SHARE SKIP LOCKED
-accept	accept	SelectLockOpt#9	SELECT ident LOCK IN SHARE MODE
-accept	accept	OfTablesOpt#1	SELECT ident FOR UPDATE
-accept	accept	OfTablesOpt#2	SELECT ident FOR UPDATE OF ident
-accept	accept	SetOprStmt#1	TABLE ident UNION TABLE ident
-reject	accept	SetOprStmt#2	(TABLE ident) LIMIT ?
-reject	accept	SetOprStmt#3	WITH ident AS(TABLE ident)(TABLE ident) LIMIT ?
-accept	accept	SetOprStmt#4	WITH ident AS(TABLE ident) TABLE ident UNION TABLE ident
-accept	accept	SetOprStmtWoutLimitOrderBy#1	TABLE ident UNION TABLE ident
-accept	accept	SetOprStmtWoutLimitOrderBy#2	TABLE ident UNION(TABLE ident)
-accept	accept	SetOprStmtWithLimitOrderBy#1	TABLE ident UNION(TABLE ident) ORDER BY ident
-reject	accept	SetOprStmtWithLimitOrderBy#2	TABLE ident UNION(TABLE ident) LIMIT ?
-reject	accept	SetOprStmtWithLimitOrderBy#3	TABLE ident UNION(TABLE ident) ORDER BY ident LIMIT ?
-accept	accept	SetOprStmtWithLimitOrderBy#4	(TABLE ident) ORDER BY ident
-reject	accept	SetOprStmtWithLimitOrderBy#5	(TABLE ident) LIMIT ?
-reject	accept	SetOprStmtWithLimitOrderBy#6	(TABLE ident) ORDER BY ident LIMIT ?
-accept	accept	SetOprClauseList#1	TABLE ident UNION TABLE ident
-accept	accept	SetOprClauseList#2	TABLE ident UNION TABLE ident UNION TABLE ident
-accept	accept	SetOprClause#1	TABLE ident UNION TABLE ident
-accept	accept	SetOprClause#2	(TABLE ident) UNION TABLE ident
-accept	accept	SetOpr#1	TABLE ident UNION TABLE ident
-accept	accept	SetOpr#2	TABLE ident EXCEPT TABLE ident
-accept	accept	SetOpr#3	TABLE ident INTERSECT TABLE ident
-accept	accept	SetOprOpt#1	TABLE ident UNION TABLE ident
+accept	accept	SelectStmtSQLCache#1	SELECT SQL_CACHE *
+accept	accept	SelectStmtSQLCache#2	SELECT SQL_NO_CACHE *
+accept	accept	SelectStmtFieldList#1	SELECT *
+accept	accept	SelectStmtGroup#1	SELECT *
+accept	accept	SelectStmtGroup#2	SELECT * GROUP BY ident
+accept	accept	SelectStmtIntoOption#1	SELECT *
+accept	accept	SelectStmtIntoOption#2	SELECT * INTO OUTFILE 's'
+accept	accept	SubSelect#1	(SELECT *)
+accept	accept	SubSelect#2	(SELECT * UNION SELECT *)
+accept	accept	SubSelect#3	(WITH ident AS(SELECT *) SELECT *)
+accept	accept	SubSelect#4	((SELECT *))
+accept	accept	SelectLockOpt#1	SELECT *
+accept	accept	SelectLockOpt#2	SELECT * FOR UPDATE
+accept	accept	SelectLockOpt#3	SELECT * FOR SHARE
+accept	accept	SelectLockOpt#4	SELECT * FOR UPDATE NOWAIT
+accept	accept	SelectLockOpt#5	SELECT * FOR UPDATE WAIT 1
+accept	accept	SelectLockOpt#6	SELECT * FOR SHARE NOWAIT
+accept	accept	SelectLockOpt#7	SELECT * FOR UPDATE SKIP LOCKED
+accept	accept	SelectLockOpt#8	SELECT * FOR SHARE SKIP LOCKED
+accept	accept	SelectLockOpt#9	SELECT * LOCK IN SHARE MODE
+accept	accept	OfTablesOpt#1	SELECT * FOR UPDATE
+accept	accept	OfTablesOpt#2	SELECT * FOR UPDATE OF ident
+accept	accept	SetOprStmt#1	SELECT * UNION SELECT *
+reject	accept	SetOprStmt#2	(SELECT *) LIMIT ?
+reject	accept	SetOprStmt#3	WITH ident AS(SELECT *)(SELECT *) LIMIT ?
+accept	accept	SetOprStmt#4	WITH ident AS(SELECT *) SELECT * UNION SELECT *
+accept	accept	SetOprStmtWoutLimitOrderBy#1	SELECT * UNION SELECT *
+accept	accept	SetOprStmtWoutLimitOrderBy#2	SELECT * UNION(SELECT *)
+accept	accept	SetOprStmtWithLimitOrderBy#1	SELECT * UNION(SELECT *) ORDER BY ident
+reject	accept	SetOprStmtWithLimitOrderBy#2	SELECT * UNION(SELECT *) LIMIT ?
+reject	accept	SetOprStmtWithLimitOrderBy#3	SELECT * UNION(SELECT *) ORDER BY ident LIMIT ?
+accept	accept	SetOprStmtWithLimitOrderBy#4	(SELECT *) ORDER BY ident
+reject	accept	SetOprStmtWithLimitOrderBy#5	(SELECT *) LIMIT ?
+reject	accept	SetOprStmtWithLimitOrderBy#6	(SELECT *) ORDER BY ident LIMIT ?
+accept	accept	SetOprClauseList#1	SELECT * UNION SELECT *
+accept	accept	SetOprClauseList#2	SELECT * UNION SELECT * UNION SELECT *
+accept	accept	SetOprClause#1	SELECT * UNION SELECT *
+accept	accept	SetOprClause#2	(SELECT *) UNION SELECT *
+accept	accept	SetOpr#1	SELECT * UNION SELECT *
+accept	accept	SetOpr#2	SELECT * EXCEPT SELECT *
+accept	accept	SetOpr#3	SELECT * INTERSECT SELECT *
+accept	accept	SetOprOpt#1	SELECT * UNION SELECT *
 accept	accept	SetStmt#1	SET NAMES DEFAULT
 accept	accept	SetStmt#2	SET PASSWORD = 's'
 reject	accept	SetStmt#3	SET PASSWORD FOR CURRENT_USER = 's'
@@ -1973,7 +1972,7 @@ accept	accept	Variable#2	DO @v
 accept	accept	SystemVariable#1	DO @@v
 accept	accept	UserVariable#1	DO @v
 accept	accept	Username#1	DROP USER 's'
-reject	reject	Username#2	DROP USER 's' @ 's'
+accept	accept	Username#2	DROP USER 's'@'s'
 accept	accept	Username#3	DROP USER 's' @v
 reject	accept	Username#4	DROP USER CURRENT_USER
 reject	accept	UsernameList#1	DROP USER CURRENT_USER
@@ -1983,7 +1982,7 @@ accept	accept	PasswordOpt#2	SET PASSWORD = PASSWORD('s')
 reject	accept	AuthString#1	CREATE USER CURRENT_USER IDENTIFIED BY 's'
 accept	accept	RoleNameString#1	DROP ROLE 's'
 accept	accept	RoleNameString#2	DROP ROLE ident
-reject	reject	RolenameComposed#1	DROP ROLE 's' @ 's'
+accept	accept	RolenameComposed#1	DROP ROLE 's'@'s'
 accept	accept	RolenameComposed#2	DROP ROLE 's' @v
 reject	accept	RolenameWithoutIdent#1	GRANT 's' TO CURRENT_USER
 reject	accept	RolenameWithoutIdent#2	GRANT 's' @v TO CURRENT_USER
@@ -2199,10 +2198,10 @@ accept	accept	Statement#21	CANCEL DISTRIBUTION JOB 1
 accept	accept	Statement#22	CREATE DATABASE ident
 accept	accept	Statement#23	CREATE INDEX ident ON ident(ident)
 accept	accept	Statement#24	CREATE TABLE ident
-accept	accept	Statement#25	CREATE VIEW ident AS TABLE ident
+accept	accept	Statement#25	CREATE VIEW ident AS SELECT *
 reject	accept	Statement#26	CREATE USER CURRENT_USER
 accept	accept	Statement#27	CREATE ROLE 's'
-accept	accept	Statement#28	CREATE BINDING USING TABLE ident
+accept	accept	Statement#28	CREATE BINDING USING SELECT *
 accept	accept	Statement#29	CREATE PLACEMENT POLICY ident PRIMARY_REGION 's'
 accept	accept	Statement#30	CREATE PROCEDURE ident() COMMIT
 accept	accept	Statement#31	CREATE RESOURCE GROUP DEFAULT BURSTABLE
@@ -2224,7 +2223,7 @@ accept	accept	Statement#46	QUERY WATCH REMOVE 1
 accept	accept	Statement#47	DROP ROLE 's'
 accept	accept	Statement#48	DROP STATISTICS ident
 accept	accept	Statement#49	DROP STATS ident
-accept	accept	Statement#50	DROP BINDING FOR TABLE ident
+accept	accept	Statement#50	DROP BINDING FOR SELECT *
 accept	accept	Statement#51	FLUSH PRIVILEGES
 accept	accept	Statement#52	FLASHBACK TABLE ident
 accept	accept	Statement#53	FLASHBACK CLUSTER TO TIMESTAMP 's'
@@ -2234,7 +2233,7 @@ reject	accept	Statement#56	GRANT PROXY ON CURRENT_USER TO CURRENT_USER
 reject	accept	Statement#57	GRANT 's' TO CURRENT_USER
 accept	accept	Statement#58	CALL ident
 accept	accept	Statement#59	IMPORT INTO ident FROM 's'
-accept	accept	Statement#60	INSERT ident TABLE ident
+accept	accept	Statement#60	INSERT ident SELECT *
 accept	accept	Statement#61	KILL 1
 accept	accept	Statement#62	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	Statement#63	LOAD STATS 's'
@@ -2245,18 +2244,18 @@ accept	accept	Statement#67	PREPARE ident FROM 's'
 accept	accept	Statement#68	ROLLBACK
 accept	accept	Statement#69	RENAME TABLE ident TO ident
 reject	accept	Statement#70	RENAME USER CURRENT_USER TO CURRENT_USER
-accept	accept	Statement#71	REPLACE ident TABLE ident
+accept	accept	Statement#71	REPLACE ident SELECT *
 accept	accept	Statement#72	RECOVER TABLE ident
 accept	accept	Statement#73	RELEASE SAVEPOINT ident
 reject	reject	Statement#74	REVOKE 's' ON * FROM CURRENT_USER
 reject	accept	Statement#75	REVOKE 's' FROM CURRENT_USER
 accept	accept	Statement#76	SAVEPOINT ident
-accept	accept	Statement#77	TABLE ident UNION TABLE ident
-accept	accept	Statement#78	TABLE ident
-accept	accept	Statement#79	WITH ident AS(TABLE ident) TABLE ident
-accept	accept	Statement#80	(TABLE ident)
+accept	accept	Statement#77	SELECT * UNION SELECT *
+accept	accept	Statement#78	SELECT *
+accept	accept	Statement#79	WITH ident AS(SELECT *) SELECT *
+accept	accept	Statement#80	(SELECT *)
 accept	accept	Statement#81	SET SESSION_STATES 's'
-accept	accept	Statement#82	SET BINDING ENABLED FOR TABLE ident
+accept	accept	Statement#82	SET BINDING ENABLED FOR SELECT *
 accept	accept	Statement#83	SET ROLE NONE
 reject	accept	Statement#84	SET DEFAULT ROLE NONE TO CURRENT_USER
 accept	accept	Statement#85	SPLIT TABLE ident BY()
@@ -2276,12 +2275,12 @@ accept	accept	Statement#98	OPTIMIZE TABLE ident
 reject	accept	Statement#99	CANCEL IMPORT JOB 1
 accept	accept	TraceableStmt#1	TRACE DELETE FROM ident
 accept	accept	TraceableStmt#2	TRACE UPDATE ident SET ident = DEFAULT
-accept	accept	TraceableStmt#3	TRACE INSERT ident TABLE ident
-accept	accept	TraceableStmt#4	TRACE REPLACE ident TABLE ident
-accept	accept	TraceableStmt#5	TRACE TABLE ident UNION TABLE ident
-accept	accept	TraceableStmt#6	TRACE TABLE ident
-accept	accept	TraceableStmt#7	TRACE WITH ident AS(TABLE ident) TABLE ident
-accept	accept	TraceableStmt#8	TRACE(TABLE ident)
+accept	accept	TraceableStmt#3	TRACE INSERT ident SELECT *
+accept	accept	TraceableStmt#4	TRACE REPLACE ident SELECT *
+accept	accept	TraceableStmt#5	TRACE SELECT * UNION SELECT *
+accept	accept	TraceableStmt#6	TRACE SELECT *
+accept	accept	TraceableStmt#7	TRACE WITH ident AS(SELECT *) SELECT *
+accept	accept	TraceableStmt#8	TRACE(SELECT *)
 accept	accept	TraceableStmt#9	TRACE LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	TraceableStmt#10	TRACE BEGIN
 accept	accept	TraceableStmt#11	TRACE COMMIT
@@ -2292,12 +2291,12 @@ accept	accept	TraceableStmt#15	TRACE SET SESSION_STATES 's'
 accept	accept	TraceableStmt#16	TRACE ANALYZE TABLE ident
 accept	accept	ExplainableStmt#1	EXPLAIN DELETE FROM ident
 accept	accept	ExplainableStmt#2	EXPLAIN UPDATE ident SET ident = DEFAULT
-accept	accept	ExplainableStmt#3	EXPLAIN INSERT ident TABLE ident
-accept	accept	ExplainableStmt#4	EXPLAIN REPLACE ident TABLE ident
-accept	accept	ExplainableStmt#5	EXPLAIN TABLE ident UNION TABLE ident
-accept	accept	ExplainableStmt#6	EXPLAIN TABLE ident
-accept	accept	ExplainableStmt#7	EXPLAIN WITH ident AS(TABLE ident) TABLE ident
-accept	accept	ExplainableStmt#8	EXPLAIN(TABLE ident)
+accept	accept	ExplainableStmt#3	EXPLAIN INSERT ident SELECT *
+accept	accept	ExplainableStmt#4	EXPLAIN REPLACE ident SELECT *
+accept	accept	ExplainableStmt#5	EXPLAIN SELECT * UNION SELECT *
+accept	accept	ExplainableStmt#6	EXPLAIN SELECT *
+accept	accept	ExplainableStmt#7	EXPLAIN WITH ident AS(SELECT *) SELECT *
+accept	accept	ExplainableStmt#8	EXPLAIN(SELECT *)
 accept	accept	ExplainableStmt#9	EXPLAIN ALTER TABLE ident
 accept	accept	ExplainableStmt#10	EXPLAIN IMPORT INTO ident FROM 's'
 accept	accept	StatementList#1	
@@ -2507,13 +2506,13 @@ accept	accept	StringNameOrBRIEOptionKeyword#1	PAUSE BACKUP LOGS BACKEND 's'
 accept	accept	StringNameOrBRIEOptionKeyword#2	PAUSE BACKUP LOGS BACKEND IGNORE
 accept	accept	StringNameOrBRIEOptionKeyword#3	PAUSE BACKUP LOGS BACKEND REPLACE
 accept	accept	UpdateStmt#1	UPDATE ident SET ident = DEFAULT
-accept	accept	UpdateStmt#2	WITH ident AS(TABLE ident) UPDATE ident SET ident = DEFAULT
+accept	accept	UpdateStmt#2	WITH ident AS(SELECT *) UPDATE ident SET ident = DEFAULT
 accept	accept	UpdateStmtNoWith#1	UPDATE ident SET ident = DEFAULT
 accept	accept	UpdateStmtNoWith#2	UPDATE ident SET ident = DEFAULT
 accept	accept	UseStmt#1	USE ident
-accept	accept	WhereClause#1	SELECT ident WHERE ident
-accept	accept	WhereClauseOptional#1	SELECT ident
-accept	accept	WhereClauseOptional#2	SELECT ident WHERE ident
+accept	accept	WhereClause#1	SELECT * WHERE ident
+accept	accept	WhereClauseOptional#1	SELECT *
+accept	accept	WhereClauseOptional#2	SELECT * WHERE ident
 reject	accept	CreateUserStmt#1	CREATE USER CURRENT_USER
 accept	accept	CreateRoleStmt#1	CREATE ROLE 's'
 reject	accept	AlterUserStmt#1	ALTER USER CURRENT_USER
@@ -2582,26 +2581,26 @@ reject	accept	HashString#2	CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD 0x1
 accept	accept	RoleSpec#1	CREATE ROLE 's'
 accept	accept	RoleSpecList#1	CREATE ROLE 's'
 accept	accept	RoleSpecList#2	CREATE ROLE 's', 's'
-accept	accept	BindableStmt#1	CREATE BINDING USING TABLE ident UNION TABLE ident
-accept	accept	BindableStmt#2	CREATE BINDING USING TABLE ident
-reject	accept	BindableStmt#3	CREATE BINDING USING WITH ident AS(TABLE ident) TABLE ident
-accept	accept	BindableStmt#4	CREATE BINDING USING(TABLE ident)
+accept	accept	BindableStmt#1	CREATE BINDING USING SELECT * UNION SELECT *
+accept	accept	BindableStmt#2	CREATE BINDING USING SELECT *
+accept	accept	BindableStmt#3	CREATE BINDING USING WITH ident AS(SELECT *) SELECT *
+accept	accept	BindableStmt#4	CREATE BINDING USING(SELECT *)
 accept	accept	BindableStmt#5	CREATE BINDING USING UPDATE ident SET ident = DEFAULT
 accept	accept	BindableStmt#6	CREATE BINDING USING DELETE FROM ident
-accept	accept	BindableStmt#7	CREATE BINDING USING INSERT ident TABLE ident
-accept	accept	BindableStmt#8	CREATE BINDING USING REPLACE ident TABLE ident
-accept	accept	CreateBindingStmt#1	CREATE BINDING FOR TABLE ident USING TABLE ident
-accept	accept	CreateBindingStmt#2	CREATE BINDING USING TABLE ident
+accept	accept	BindableStmt#7	CREATE BINDING USING INSERT ident SELECT *
+accept	accept	BindableStmt#8	CREATE BINDING USING REPLACE ident SELECT *
+accept	accept	CreateBindingStmt#1	CREATE BINDING FOR SELECT * USING SELECT *
+accept	accept	CreateBindingStmt#2	CREATE BINDING USING SELECT *
 accept	accept	CreateBindingStmt#3	CREATE BINDING FROM HISTORY USING PLAN DIGEST 's'
 accept	accept	StringLitOrUserVariableList#1	DROP BINDING FOR SQL DIGEST 's'
 accept	accept	StringLitOrUserVariableList#2	DROP BINDING FOR SQL DIGEST 's', 's'
 accept	accept	StringLitOrUserVariable#1	DROP BINDING FOR SQL DIGEST 's'
 accept	accept	StringLitOrUserVariable#2	DROP BINDING FOR SQL DIGEST @v
-accept	accept	DropBindingStmt#1	DROP BINDING FOR TABLE ident
-accept	accept	DropBindingStmt#2	DROP BINDING FOR TABLE ident USING TABLE ident
+accept	accept	DropBindingStmt#1	DROP BINDING FOR SELECT *
+accept	accept	DropBindingStmt#2	DROP BINDING FOR SELECT * USING SELECT *
 accept	accept	DropBindingStmt#3	DROP BINDING FOR SQL DIGEST 's'
-accept	accept	SetBindingStmt#1	SET BINDING ENABLED FOR TABLE ident
-accept	accept	SetBindingStmt#2	SET BINDING ENABLED FOR TABLE ident USING TABLE ident
+accept	accept	SetBindingStmt#1	SET BINDING ENABLED FOR SELECT *
+accept	accept	SetBindingStmt#2	SET BINDING ENABLED FOR SELECT * USING SELECT *
 accept	accept	SetBindingStmt#3	SET BINDING ENABLED FOR SQL DIGEST 's'
 accept	accept	RecommendIndexStmt#1	RECOMMEND INDEX RUN FOR 's'
 accept	accept	RecommendIndexStmt#2	RECOMMEND INDEX RUN
@@ -2691,27 +2690,27 @@ accept	accept	CharsetOpt#1	LOAD DATA INFILE 's' INTO TABLE ident
 reject	accept	CharsetOpt#2	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY
 accept	accept	LocalOpt#1	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	LocalOpt#2	LOAD DATA LOCAL INFILE 's' INTO TABLE ident
-accept	accept	Fields#1	SELECT ident INTO OUTFILE 's'
-accept	accept	Fields#2	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
+accept	accept	Fields#1	SELECT * INTO OUTFILE 's'
+accept	accept	Fields#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldsOrColumns#1	SHOW FIELDS FROM ident
 accept	accept	FieldsOrColumns#2	SHOW COLUMNS FROM ident
-reject	accept	FieldItemList#1	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's'
-accept	accept	FieldItemList#2	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
-accept	accept	FieldItem#1	SELECT ident INTO OUTFILE 's' FIELDS TERMINATED BY 's'
-accept	accept	FieldItem#2	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
-accept	accept	FieldItem#3	SELECT ident INTO OUTFILE 's' FIELDS ENCLOSED BY 's'
-accept	accept	FieldItem#4	SELECT ident INTO OUTFILE 's' FIELDS ESCAPED BY 's'
-reject	accept	FieldItem#5	SELECT ident INTO OUTFILE 's' FIELDS DEFINED NULL BY 's'
-reject	accept	FieldItem#6	SELECT ident INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' OPTIONALLY ENCLOSED
-accept	accept	FieldTerminator#1	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
-accept	accept	FieldTerminator#2	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 0x1
-accept	accept	FieldTerminator#3	SELECT ident INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY b'1'
-accept	accept	Lines#1	SELECT ident INTO OUTFILE 's'
-accept	accept	Lines#2	SELECT ident INTO OUTFILE 's' LINES
-accept	accept	Starting#1	SELECT ident INTO OUTFILE 's' LINES
-accept	accept	Starting#2	SELECT ident INTO OUTFILE 's' LINES STARTING BY 's'
-accept	accept	LinesTerminated#1	SELECT ident INTO OUTFILE 's' LINES
-accept	accept	LinesTerminated#2	SELECT ident INTO OUTFILE 's' LINES TERMINATED BY 's'
+reject	accept	FieldItemList#1	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's'
+accept	accept	FieldItemList#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
+accept	accept	FieldItem#1	SELECT * INTO OUTFILE 's' FIELDS TERMINATED BY 's'
+accept	accept	FieldItem#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
+accept	accept	FieldItem#3	SELECT * INTO OUTFILE 's' FIELDS ENCLOSED BY 's'
+accept	accept	FieldItem#4	SELECT * INTO OUTFILE 's' FIELDS ESCAPED BY 's'
+reject	accept	FieldItem#5	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's'
+reject	accept	FieldItem#6	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' OPTIONALLY ENCLOSED
+accept	accept	FieldTerminator#1	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
+accept	accept	FieldTerminator#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 0x1
+accept	accept	FieldTerminator#3	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY b'1'
+accept	accept	Lines#1	SELECT * INTO OUTFILE 's'
+accept	accept	Lines#2	SELECT * INTO OUTFILE 's' LINES
+accept	accept	Starting#1	SELECT * INTO OUTFILE 's' LINES
+accept	accept	Starting#2	SELECT * INTO OUTFILE 's' LINES STARTING BY 's'
+accept	accept	LinesTerminated#1	SELECT * INTO OUTFILE 's' LINES
+accept	accept	LinesTerminated#2	SELECT * INTO OUTFILE 's' LINES TERMINATED BY 's'
 accept	accept	LoadDataSetSpecOpt#1	IMPORT INTO ident FROM 's'
 accept	accept	LoadDataSetSpecOpt#2	IMPORT INTO ident SET ident = DEFAULT FROM 's'
 accept	accept	LoadDataSetList#1	IMPORT INTO ident SET ident = DEFAULT, ident = DEFAULT FROM 's'
@@ -2724,11 +2723,11 @@ accept	accept	LoadDataOptionList#2	IMPORT INTO ident FROM 's' WITH ident, ident
 accept	accept	LoadDataOption#1	IMPORT INTO ident FROM 's' WITH ident
 accept	accept	LoadDataOption#2	IMPORT INTO ident FROM 's' WITH ident = FALSE
 accept	accept	ImportIntoStmt#1	IMPORT INTO ident FROM 's'
-accept	accept	ImportIntoStmt#2	IMPORT INTO ident FROM TABLE ident
-accept	accept	ImportFromSelectStmt#1	IMPORT INTO ident FROM TABLE ident
-accept	accept	ImportFromSelectStmt#2	IMPORT INTO ident FROM TABLE ident UNION TABLE ident
-accept	accept	ImportFromSelectStmt#3	IMPORT INTO ident FROM WITH ident AS(TABLE ident) TABLE ident
-accept	accept	ImportFromSelectStmt#4	IMPORT INTO ident FROM(TABLE ident)
+accept	accept	ImportIntoStmt#2	IMPORT INTO ident FROM SELECT *
+accept	accept	ImportFromSelectStmt#1	IMPORT INTO ident FROM SELECT *
+accept	accept	ImportFromSelectStmt#2	IMPORT INTO ident FROM SELECT * UNION SELECT *
+accept	accept	ImportFromSelectStmt#3	IMPORT INTO ident FROM WITH ident AS(SELECT *) SELECT *
+accept	accept	ImportFromSelectStmt#4	IMPORT INTO ident FROM(SELECT *)
 accept	accept	UnlockTablesStmt#1	UNLOCK TABLES
 accept	accept	LockTablesStmt#1	LOCK TABLES ident READ
 accept	accept	TablesTerminalSym#1	UNLOCK TABLES
@@ -2743,8 +2742,8 @@ accept	accept	TableLockList#2	LOCK TABLES ident READ, ident READ
 accept	accept	NonTransactionalDMLStmt#1	BATCH LIMIT 1 DELETE FROM ident
 accept	accept	ShardableStmt#1	BATCH LIMIT 1 DELETE FROM ident
 accept	accept	ShardableStmt#2	BATCH LIMIT 1 UPDATE ident SET ident = DEFAULT
-accept	accept	ShardableStmt#3	BATCH LIMIT 1 INSERT ident TABLE ident
-accept	accept	ShardableStmt#4	BATCH LIMIT 1 REPLACE ident TABLE ident
+accept	accept	ShardableStmt#3	BATCH LIMIT 1 INSERT ident SELECT *
+accept	accept	ShardableStmt#4	BATCH LIMIT 1 REPLACE ident SELECT *
 accept	accept	DryRunOptions#1	BATCH LIMIT 1 DELETE FROM ident
 accept	accept	DryRunOptions#2	BATCH LIMIT 1 DRY RUN DELETE FROM ident
 accept	accept	DryRunOptions#3	BATCH LIMIT 1 DRY RUN QUERY DELETE FROM ident
@@ -2806,8 +2805,8 @@ reject	reject	EncryptionOpt#1	ALTER DATABASE ENCRYPTION 's'
 accept	accept	ValuesStmtList#1	VALUES ROW()
 accept	accept	ValuesStmtList#2	VALUES ROW(), ROW()
 accept	accept	RowStmt#1	VALUES ROW()
-accept	accept	PlanReplayerStmt#1	PLAN REPLAYER DUMP EXPLAIN TABLE ident
-accept	accept	PlanReplayerStmt#2	PLAN REPLAYER DUMP EXPLAIN ANALYZE TABLE ident
+accept	accept	PlanReplayerStmt#1	PLAN REPLAYER DUMP EXPLAIN SELECT *
+accept	accept	PlanReplayerStmt#2	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT *
 accept	accept	PlanReplayerStmt#3	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY
 accept	accept	PlanReplayerStmt#4	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY
 accept	accept	PlanReplayerStmt#5	PLAN REPLAYER DUMP EXPLAIN 's'
@@ -2826,32 +2825,32 @@ accept	accept	SpOptInout#1	CREATE PROCEDURE ident(ident JSON) COMMIT
 accept	accept	SpOptInout#2	CREATE PROCEDURE ident(IN ident JSON) COMMIT
 accept	accept	SpOptInout#3	CREATE PROCEDURE ident(OUT ident JSON) COMMIT
 accept	accept	SpOptInout#4	CREATE PROCEDURE ident(INOUT ident JSON) COMMIT
-accept	accept	ProcedureStatementStmt#1	CREATE PROCEDURE ident() TABLE ident
-accept	accept	ProcedureStatementStmt#2	CREATE PROCEDURE ident() WITH ident AS(TABLE ident) TABLE ident
-accept	accept	ProcedureStatementStmt#3	CREATE PROCEDURE ident()(TABLE ident)
+accept	accept	ProcedureStatementStmt#1	CREATE PROCEDURE ident() SELECT *
+accept	accept	ProcedureStatementStmt#2	CREATE PROCEDURE ident() WITH ident AS(SELECT *) SELECT *
+accept	accept	ProcedureStatementStmt#3	CREATE PROCEDURE ident()(SELECT *)
 accept	accept	ProcedureStatementStmt#4	CREATE PROCEDURE ident() SET SESSION_STATES 's'
 accept	accept	ProcedureStatementStmt#5	CREATE PROCEDURE ident() UPDATE ident SET ident = DEFAULT
 accept	accept	ProcedureStatementStmt#6	CREATE PROCEDURE ident() USE ident
-accept	accept	ProcedureStatementStmt#7	CREATE PROCEDURE ident() INSERT ident TABLE ident
-accept	accept	ProcedureStatementStmt#8	CREATE PROCEDURE ident() REPLACE ident TABLE ident
+accept	accept	ProcedureStatementStmt#7	CREATE PROCEDURE ident() INSERT ident SELECT *
+accept	accept	ProcedureStatementStmt#8	CREATE PROCEDURE ident() REPLACE ident SELECT *
 accept	accept	ProcedureStatementStmt#9	CREATE PROCEDURE ident() COMMIT
 accept	accept	ProcedureStatementStmt#10	CREATE PROCEDURE ident() ROLLBACK
 accept	accept	ProcedureStatementStmt#11	CREATE PROCEDURE ident() EXPLAIN ident
-accept	accept	ProcedureStatementStmt#12	CREATE PROCEDURE ident() TABLE ident UNION TABLE ident
+accept	accept	ProcedureStatementStmt#12	CREATE PROCEDURE ident() SELECT * UNION SELECT *
 accept	accept	ProcedureStatementStmt#13	CREATE PROCEDURE ident() DELETE FROM ident
 accept	accept	ProcedureStatementStmt#14	CREATE PROCEDURE ident() ANALYZE TABLE ident
 accept	accept	ProcedureStatementStmt#15	CREATE PROCEDURE ident() TRUNCATE ident
-accept	accept	ProcedureCursorSelectStmt#1	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR TABLE ident; END
-accept	accept	ProcedureCursorSelectStmt#2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(TABLE ident) TABLE ident; END
-accept	accept	ProcedureCursorSelectStmt#3	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR(TABLE ident); END
-accept	accept	ProcedureCursorSelectStmt#4	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR TABLE ident UNION TABLE ident; END
+accept	accept	ProcedureCursorSelectStmt#1	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT *; END
+accept	accept	ProcedureCursorSelectStmt#2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) SELECT *; END
+accept	accept	ProcedureCursorSelectStmt#3	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR(SELECT *); END
+accept	accept	ProcedureCursorSelectStmt#4	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION SELECT *; END
 accept	accept	ProcedureUnlabeledBlock#1	CREATE PROCEDURE ident() BEGIN END
 accept	accept	ProcedureDeclIdents#1	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON; END
 accept	accept	ProcedureDeclIdents#2	CREATE PROCEDURE ident() BEGIN DECLARE ident, ident JSON; END
 accept	accept	ProcedureOptDefault#1	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON; END
 accept	accept	ProcedureOptDefault#2	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON DEFAULT ident; END
 accept	accept	ProcedureDecl#1	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON; END
-accept	accept	ProcedureDecl#2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR TABLE ident; END
+accept	accept	ProcedureDecl#2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT *; END
 accept	accept	ProcedureDecl#3	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING COMMIT; END
 accept	accept	ProcedureHandlerType#1	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING COMMIT; END
 accept	accept	ProcedureHandlerType#2	CREATE PROCEDURE ident() BEGIN DECLARE EXIT HANDLER FOR SQLWARNING COMMIT; END

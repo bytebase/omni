@@ -44,7 +44,7 @@ type Symbol struct {
 var specialTermText = map[string]string{
 	"identifier":         "ident",
 	"stringLit":          "'s'",
-	"floatLit":           "1.5",
+	"floatLit":           "1e0", // an exponent makes it a float; without one TiDB lexes a decimal
 	"decLit":             "1.5",
 	"intLit":             "1",
 	"hexLit":             "0x1",
@@ -176,8 +176,17 @@ func (g *Grammar) readTokenText(decls string) {
 		if !ok {
 			continue
 		}
-		if _, special := specialTermText[name]; !special {
+		sample := text
+		if s, special := specialTermText[name]; special {
+			sample = s
+		} else {
 			g.termText[name] = text
+		}
+		// A body may reference a token by its quoted alias ("UNDERSCORE_CHARSET")
+		// rather than its name; register the alias with the same sample so a
+		// special token's override (underscoreCS -> _utf8) is not lost.
+		if _, exists := g.termText[text]; !exists {
+			g.termText[text] = sample
 		}
 	}
 }
@@ -216,19 +225,25 @@ func lexGrammar(gram string) []gtok {
 		case c == '{':
 			i = skipAction(r, i)
 		case c == '%':
-			// %prec and any stray directive: drop the % word and, for %prec,
-			// the precedence token that follows is an ordinary ident which the
-			// alternative does not want. Skip the word; the following ident is
-			// handled by dropping it as a known precedence name is harmless to
-			// generation only if removed, so consume one following bareword.
+			// A directive. %prec names a precedence symbol the alternative does
+			// not want, so drop it: the symbol is either a bareword token name or
+			// a quoted operator literal ('+', "||"), so skip whichever follows.
 			word, next := readWord(r, i+1)
 			i = next
 			if word == "prec" {
-				// skip whitespace then one bareword (the precedence symbol)
 				for i < n && (r[i] == ' ' || r[i] == '\t') {
 					i++
 				}
-				_, i = readWord(r, i)
+				if i < n {
+					switch r[i] {
+					case '\'':
+						_, i = readCharLiteral(r, i)
+					case '"':
+						_, i = readDoubleLiteral(r, i)
+					default:
+						_, i = readWord(r, i)
+					}
+				}
 			}
 		case c == '"':
 			text, next := readDoubleLiteral(r, i)
