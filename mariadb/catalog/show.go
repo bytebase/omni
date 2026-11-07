@@ -523,11 +523,14 @@ func formatDefault(val string, col *Column) string {
 	case ColumnDefaultCurrentTimestamp:
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
-		// A parenthesized literal is still a literal: `BINARY(1) DEFAULT
-		// (X'FF')` comes back `DEFAULT x'ff'`, the same as without the
-		// parentheses. Measured on mariadb:11.8.8.
-		if out, ok := formatBinaryDefault(stripOuterParens(val), col); ok {
-			return out
+		// A parenthesized literal is still a literal, however many layers it
+		// carries, and is written in the column's own notation without them.
+		// Measured on mariadb:11.8.8: ('x') is 'x', ((7)) is 7, (-1) is -1,
+		// (1e2) is 100, ('a' 'b') is 'ab' and BINARY(1) DEFAULT (X'FF') is
+		// x'ff', while a real expression keeps its parentheses, (1 + 1)
+		// staying (1 + 1).
+		if inner := stripAllOuterParens(val); isOneLiteral(inner) {
+			return formatLiteralValue(inner, col)
 		}
 		// A default that is one function call is written bare; anything else
 		// keeps the parentheses, which the DEFAULT grammar needs for an
@@ -541,6 +544,20 @@ func formatDefault(val string, col *Column) string {
 	if _, ok := currentTimestampSQL(val); ok {
 		return formatCurrentTimestamp(val)
 	}
+	// Expression defaults — not quoted, and written without the parentheses
+	// they may carry where the grammar does not need them.
+	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
+		if inner := stripAllOuterParens(val); isOneLiteral(inner) {
+			return formatLiteralValue(inner, col)
+		}
+		return formatExpressionDefault(val)
+	}
+	return formatLiteralValue(val, col)
+}
+
+// formatLiteralValue writes a literal default in the notation the column
+// carries it in.
+func formatLiteralValue(val string, col *Column) string {
 	if out, ok := formatBinaryDefault(val, col); ok {
 		return out
 	}
@@ -548,11 +565,6 @@ func formatDefault(val string, col *Column) string {
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		return val
-	}
-	// Expression defaults — not quoted, and written without the parentheses
-	// they may carry where the grammar does not need them.
-	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
-		return formatExpressionDefault(val)
 	}
 	// A numeric column's default is unquoted, and loses the quotes it was
 	// written with.
@@ -1284,7 +1296,7 @@ func literalDefaultBytes(val string) (literalKind, []byte, bool) {
 // doubled quote stands for one. A literal holding a backslash escape is
 // refused, and its caller keeps it as written.
 func unquoteStringLiteral(val string) ([]byte, bool) {
-	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
+	if !isOneStringLiteral(val) {
 		return nil, false
 	}
 	inner := val[1 : len(val)-1]
@@ -1501,4 +1513,63 @@ func allDigits(text string) bool {
 		}
 	}
 	return true
+}
+
+// isOneStringLiteral reports whether val is a single quoted string and nothing
+// else: the quote opening it closes at its last byte, where a doubled quote
+// stands for one. `'1' + '2'` is two literals around an operator and so is not
+// one, which keeps its source text from being read as a value.
+func isOneStringLiteral(val string) bool {
+	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
+		return false
+	}
+	outside := false
+	balanced := scanOutsideQuotes(val, func(int, byte) { outside = true })
+	return balanced && !outside
+}
+
+// isOneLiteral reports whether text is a single literal: a quoted string, a
+// hex or bit literal, one with a character-set introducer, or a number.
+func isOneLiteral(text string) bool {
+	if text == "" {
+		return false
+	}
+	if kind, _, ok := literalDefaultBytes(text); ok {
+		if kind != literalString {
+			return true
+		}
+		return isOneStringLiteral(text)
+	}
+	return isNumberLiteral(text)
+}
+
+// isNumberLiteral reports whether text is a number and nothing else, in plain
+// or exponent notation, with an optional sign.
+func isNumberLiteral(text string) bool {
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		text = text[1:]
+	}
+	if mantissa, exponent, found := cutAnyFold(text, "e"); found {
+		if _, ok := parseSignedInt(exponent); !ok {
+			return false
+		}
+		text = mantissa
+	}
+	whole, fraction, _ := strings.Cut(text, ".")
+	if whole == "" && fraction == "" {
+		return false
+	}
+	return allDigits(whole) && allDigits(fraction)
+}
+
+// stripAllOuterParens takes off every layer of parentheses wrapping the whole
+// expression, so ((7)) reduces to 7.
+func stripAllOuterParens(expr string) string {
+	for {
+		inner := stripOuterParens(expr)
+		if inner == expr {
+			return expr
+		}
+		expr = strings.TrimSpace(inner)
+	}
 }

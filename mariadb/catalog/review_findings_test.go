@@ -1179,3 +1179,57 @@ func TestReview_AnalyzedChecksSkipTheImplicitOne(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ExpressionOfSeveralLiterals covers an expression default that
+// opens and closes with a string literal without being one. Reading its
+// source text as a value encoded the text itself on a binary column, and on a
+// text one dropped the parentheses the DEFAULT grammar needs.
+func TestReview_ExpressionOfSeveralLiterals(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"binary", "CREATE TABLE t (a BINARY(8) DEFAULT ('1' + '2'))"},
+		{"text", "CREATE TABLE t (a TEXT DEFAULT ('1' + '2'))"},
+		{"varchar", "CREATE TABLE t (a VARCHAR(8) DEFAULT ('1' + '2'))"},
+		{"blob", "CREATE TABLE t (a BLOB DEFAULT ('1' + '2'))"},
+		{"three_literals", "CREATE TABLE t (a VARCHAR(8) DEFAULT ('a' + 'b' + 'c'))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_ParenthesizedLiteralDefault covers a literal default written in
+// parentheses. It is still a literal, however many layers it carries, and is
+// written in the column's own notation without them, where a real expression
+// keeps its parentheses.
+func TestReview_ParenthesizedLiteralDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"string", "CREATE TABLE t (a VARCHAR(8) DEFAULT ('x'))"},
+		{"adjacent_strings", "CREATE TABLE t (a VARCHAR(8) DEFAULT ('a' 'b'))"},
+		{"integer", "CREATE TABLE t (a INT DEFAULT (7))"},
+		{"negative", "CREATE TABLE t (a INT DEFAULT (-1))"},
+		{"two_layers", "CREATE TABLE t (a INT DEFAULT ((7)))"},
+		{"fraction", "CREATE TABLE t (a DOUBLE DEFAULT (1.5))"},
+		{"exponent", "CREATE TABLE t (a DOUBLE DEFAULT (1e2))"},
+		{"hex", "CREATE TABLE t (a BINARY(1) DEFAULT (X'FF'))"},
+		{"null", "CREATE TABLE t (a INT DEFAULT (NULL))"},
+		{"operator_keeps_parens", "CREATE TABLE t (a INT DEFAULT (1 + 1))"},
+		{"call_is_bare", "CREATE TABLE t (a VARCHAR(36) DEFAULT (uuid()))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
