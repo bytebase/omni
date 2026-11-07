@@ -192,6 +192,13 @@ without a row is incomplete.
 **When the pin moves**, the new tag's `parser.y` regenerates the file. The
 diff is the list of forms the release added or removed.
 
+**Status (2026-11-07).** Landed: `harness/tidb-grammar` and the first
+measurement. parser.y at v8.5.5 has 690 rules and 2,946 alternatives; omni
+parses 2,654 of the 2,807 the server accepts (94.5%) with zero
+over-acceptances. The 153 gaps, grouped by rule, are
+`docs/plans/2026-11-07-tidb-parser-y-gap-inventory.md`, and are the grammar
+work list that replaces §3.2.
+
 ### 3.4 Samples of real SQL
 
 The `parser.y` corpus proves coverage of each form alone, not of forms
