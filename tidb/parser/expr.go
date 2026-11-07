@@ -1050,6 +1050,15 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	// The INTERVAL function is the one builtin reached here whose production
 	// carries no windowing clause, so a window after it is a syntax error:
 	// TiDB v8.5.5 answers 1064 for `interval(c1) over ()`.
+	// A window value function reads its null treatment, and NTH_VALUE its FROM
+	// FIRST/LAST, between the argument list and OVER (parser.y:9802-9813). Each
+	// belongs to that WindowFuncCall arm, so OVER must follow, which
+	// requireOverAfterWindowOpt enforces.
+	if builtin {
+		if err := p.parseWindowFuncOpts(fc); err != nil {
+			return nil, err
+		}
+	}
 	if builtin && fc.Name != "INTERVAL" && p.cur.Type == kwOVER {
 		p.advance()
 		wd, err := p.parseOverClause()
@@ -1093,6 +1102,51 @@ func (p *Parser) parseMemberOfExpr(value nodes.ExprNode, start int) (nodes.ExprN
 		Value: value,
 		Array: array,
 	}, nil
+}
+
+// nullTreatmentFuncs are the window functions that read OptNullTreatment
+// (RESPECT|IGNORE NULLS, parser.y:9845): the five value functions. FROM
+// FIRST/LAST is NTH_VALUE's alone.
+var nullTreatmentFuncs = map[string]bool{
+	"LEAD": true, "LAG": true, "FIRST_VALUE": true, "LAST_VALUE": true, "NTH_VALUE": true,
+}
+
+// parseWindowFuncOpts reads a window value function's FROM FIRST/LAST (NTH_VALUE
+// only) and null treatment, in that order, both before OVER. A function that takes
+// neither reads neither, so `COUNT(x) IGNORE NULLS` stays a 1064. Once either is
+// read OVER must follow, since these live only on the WindowFuncCall arms.
+func (p *Parser) parseWindowFuncOpts(fc *nodes.FuncCallExpr) error {
+	if !nullTreatmentFuncs[fc.Name] {
+		return nil
+	}
+	read := false
+	if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM {
+		switch p.peekNext().Type {
+		case kwFIRST:
+			p.advance()
+			p.advance()
+			read = true
+		case kwLAST:
+			p.advance()
+			p.advance()
+			fc.FromLast = true
+			read = true
+		}
+	}
+	switch p.cur.Type {
+	case kwRESPECT, kwIGNORE:
+		if p.peekNext().Type != kwNULLS {
+			return p.syntaxErrorAtTok(p.peekNext())
+		}
+		fc.IgnoreNull = p.cur.Type == kwIGNORE
+		p.advance()
+		p.advance()
+		read = true
+	}
+	if read && p.cur.Type != kwOVER {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseOverClause parses OVER (window_spec) or OVER window_name.

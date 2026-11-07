@@ -338,3 +338,27 @@ func TestViewRestoreFetchFirst(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestoreWindowNullTreatment: RESPECT NULLS and FROM FIRST are the
+// defaults and a view stores neither, as TiDB v8.5.5 stores it (SHOW CREATE VIEW,
+// 2026-11-07). TiDB parses IGNORE NULLS and FROM LAST but refuses them at view
+// creation (1235), so only the default forms are stored on both sides.
+func TestViewRestoreWindowNullTreatment(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{
+			"SELECT FIRST_VALUE(val) RESPECT NULLS OVER (PARTITION BY p) AS x FROM t",
+			"SELECT FIRST_VALUE(`val`) OVER (PARTITION BY `p`) AS `x` FROM `d`.`t`",
+		},
+		{
+			"SELECT NTH_VALUE(val, 2) FROM FIRST OVER (ORDER BY p) AS x FROM t",
+			"SELECT NTH_VALUE(`val`, 2) OVER (ORDER BY `p`) AS `x` FROM `d`.`t`",
+		},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE t (val INT, p INT); CREATE VIEW v AS "+tc.body+";")
+			if got := c.GetDatabase("d").Views["v"].Definition; got != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", got, tc.want)
+			}
+		})
+	}
+}
