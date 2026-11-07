@@ -85,7 +85,7 @@ func startDedicatedContainer(t *testing.T) (*mariadbContainer, func()) {
 	ctx := context.Background()
 
 	container, err := tcmariadb.Run(ctx, testcontainer.Image,
-		tcmariadb.WithDatabase("test"),
+		tcmariadb.WithDatabase(sharedCatalogDB),
 		tcmariadb.WithUsername("root"),
 		tcmariadb.WithPassword("test"),
 	)
@@ -120,16 +120,17 @@ func startDedicatedContainer(t *testing.T) (*mariadbContainer, func()) {
 	return &mariadbContainer{db: db, ctx: ctx}, cleanup
 }
 
-// getSharedContainer opens the pool on the `test` database of the package's
-// MariaDB server, starting that server on the first call.
+// sharedCatalogDB is the database this harness works in. AGENTS.md asks a
+// test on a shared server not to name its database `test`, and the server is
+// shared with mariadbDatabase, whose tests take a database of their own.
 //
-// AGENTS.md asks a test on a shared server not to name its database `test`.
-// This harness still does, because the omni side of its tests builds a
-// catalog in a database of the same name and compares error messages that
-// carry it, so the name is fixed in some 460 places across this file,
-// container_scenarios_test.go and deparse_container_test.go. Renaming it is a
-// sweep of its own. What the rule guards against is covered below: the reset
-// leaves the other harness's databases alone.
+// The omni side of these tests builds a catalog in a database of the same
+// name and compares error messages that carry it, so the name is spelled out
+// in container_scenarios_test.go and deparse_container_test.go as well.
+const sharedCatalogDB = "catalog_shared"
+
+// getSharedContainer opens the pool on this harness's database of the
+// package's MariaDB server, starting that server on the first call.
 func getSharedContainer() (*mariadbContainer, error) {
 	if sharedTestDB.db != nil {
 		return &mariadbContainer{db: sharedTestDB.db, ctx: sharedTestDB.ctx}, nil
@@ -140,10 +141,11 @@ func getSharedContainer() (*mariadbContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := sharedMariaDB.admin.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS test"); err != nil {
-		return nil, fmt.Errorf("create database test: %w", err)
+	if _, err := sharedMariaDB.admin.ExecContext(ctx,
+		"CREATE DATABASE IF NOT EXISTS "+sharedCatalogDB); err != nil {
+		return nil, fmt.Errorf("create database %s: %w", sharedCatalogDB, err)
 	}
-	config.DBName = "test"
+	config.DBName = sharedCatalogDB
 	config.ParseTime, config.MultiStatements = true, true
 
 	db, err := sql.Open("mysql", config.FormatDSN())
@@ -199,8 +201,8 @@ func resetSharedContainer(ctr *mariadbContainer) error {
 	}
 
 	return execResetStmts(ctr,
-		"CREATE DATABASE IF NOT EXISTS test",
-		"USE test",
+		"CREATE DATABASE IF NOT EXISTS "+sharedCatalogDB,
+		"USE "+sharedCatalogDB,
 		"SET SESSION sql_mode = DEFAULT",
 		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
 		"SET SESSION foreign_key_checks = 1",
@@ -533,7 +535,7 @@ func TestContainerSmoke(t *testing.T) {
 	t.Logf("SHOW CREATE TABLE t1:\n%s", createStmt)
 
 	// Verify queryColumns works.
-	cols, err := ctr.queryColumns("test", "t1")
+	cols, err := ctr.queryColumns(sharedCatalogDB, "t1")
 	if err != nil {
 		t.Fatalf("queryColumns failed: %v", err)
 	}
@@ -583,8 +585,8 @@ func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
 	if host2 != host1 {
 		t.Fatalf("expected startContainer to reuse container hostname %q, got %q", host1, host2)
 	}
-	if currentDB != "test" {
-		t.Fatalf("expected reset current database test, got %q", currentDB)
+	if currentDB != sharedCatalogDB {
+		t.Fatalf("expected reset current database %s, got %q", sharedCatalogDB, currentDB)
 	}
 	if fkChecks != 1 {
 		t.Fatalf("expected reset foreign_key_checks=1, got %d", fkChecks)

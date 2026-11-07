@@ -22,8 +22,8 @@ func TestDDLWorkflow_Container(t *testing.T) {
 	}
 
 	c := New()
-	c.Exec("CREATE DATABASE test", nil)
-	c.SetCurrentDatabase("test")
+	c.Exec("CREATE DATABASE catalog_shared", nil)
+	c.SetCurrentDatabase("catalog_shared")
 
 	for _, step := range steps {
 		t.Run(step.name, func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestDDLWorkflow_Container(t *testing.T) {
 			if err != nil {
 				t.Fatalf("container show create: %v", err)
 			}
-			omniDDL := c.ShowCreateTable("test", step.check)
+			omniDDL := c.ShowCreateTable("catalog_shared", step.check)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("SHOW CREATE TABLE mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -81,10 +81,10 @@ func TestShowCreateTable_ContainerComparison(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			c.Exec(tc.sql, nil)
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
