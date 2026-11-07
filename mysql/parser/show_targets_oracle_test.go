@@ -208,6 +208,8 @@ var showTargetCases = []showTargetCase{
 	// Character sets, collations, grants and the process list.
 	{"SHOW CHARACTER SET", true},
 	{"SHOW CHARSET", true},
+	{"SHOW CHAR SET", true}, // CHAR SET, the charset rule's third spelling
+	{"SHOW CHAR", false},
 	{"SHOW COLLATION", true},
 	{"SHOW GRANTS", true},
 	{"SHOW GRANTS FOR u", true},

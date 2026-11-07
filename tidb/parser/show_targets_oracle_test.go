@@ -205,9 +205,12 @@ var showTargetCases = []showTargetCase{
 	{"SHOW PROFILE CPU LIMIT 1,", false},
 	{"SHOW PROFILE CPU OFFSET 2", false},
 
-	// Character sets, collations, grants and the process list.
+	// Character sets, collations, grants and the process list. CHAR SET is
+	// CharsetKw's third spelling (parser.y:13556-13559).
 	{"SHOW CHARACTER SET", true},
 	{"SHOW CHARSET", true},
+	{"SHOW CHAR SET", true},
+	{"SHOW CHAR", false},
 	{"SHOW COLLATION", true},
 	{"SHOW GRANTS", true},
 	{"SHOW GRANTS FOR u", true},
@@ -292,6 +295,20 @@ var showTargetCases = []showTargetCase{
 	{"SHOW DISTRIBUTION JOB", false},
 	{"SHOW DISTRIBUTION JOB 1 WHERE id > 0", false},
 	{"SHOW DISTRIBUTION JOBS 1", false},
+
+	// SHOW IMPORT JOB{,S} (parser.y:11762, 12303), the same shape, and SHOW
+	// AFFINITY (parser.y:12039), filterable.
+	{"SHOW IMPORT JOBS", true},
+	{"SHOW IMPORT JOBS WHERE id > 0", true},
+	{"SHOW IMPORT JOB 1", true},
+	{"SHOW IMPORT JOB 'x'", false},
+	{"SHOW IMPORT JOB", false},
+	{"SHOW IMPORT JOB 1 WHERE id > 0", false},
+	{"SHOW IMPORT JOBS 1", false},
+	{"SHOW IMPORT", false},
+	{"SHOW AFFINITY", true},
+	{"SHOW AFFINITY WHERE id > 0", true},
+	{"SHOW AFFINITY LIKE 'x'", true},
 	{"SHOW DISTRIBUTION", false},
 
 	// TiDB's statistics, session-state, binding, backup and config
@@ -339,6 +356,7 @@ var showTargetCases = []showTargetCase{
 	{"SHOW TABLE t1 NEXT_ROW_ID TABLE t2", false},
 	{"SHOW BUILTINS TABLE t", false},
 	{"SHOW DISTRIBUTION JOB 1 TABLE t", false},
+	{"SHOW IMPORT JOB 1 TABLE t", false},
 	{"SHOW STATS_META TABLE t", false},
 }
 

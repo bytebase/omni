@@ -14,15 +14,15 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #724 | after #725 | after #730 | now |
-|---|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,766 | 2,782 | 2,790 | 2,799 |
-| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 | 23 |
-| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 |
-| both reject | 121 | 121 | 121 | 121 | 121 |
-| no verdict | 0 | 0 | 0 | 0 | 0 |
+| | first | after #724 | after #725 | after #730 | after #731 | now |
+|---|---:|---:|---:|---:|---:|---:|
+| both accept | 2,670 | 2,766 | 2,782 | 2,790 | 2,799 | 2,805 |
+| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 | 23 | 17 |
+| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 |
+| both reject | 121 | 121 | 121 | 121 | 121 | 121 |
+| no verdict | 0 | 0 | 0 | 0 | 0 | 0 |
 
-omni parses **2,799 of the 2,822 alternatives TiDB accepts — 99.2%**, with zero
+omni parses **2,805 of the 2,822 alternatives TiDB accepts — 99.4%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
@@ -38,7 +38,10 @@ items`): 16 rows flipped from gap to both-accept, zero new over-acceptances. The
 body`): 8 rows flipped from gap to both-accept, zero new over-acceptances. The
 **now** column is after the statistics / hypothetical-index / TiFlash cluster
 closed (`fix(tidb): accept extended statistics, HYPO index and TiFlash forms`):
-9 rows flipped from gap to both-accept, zero new over-acceptances.
+9 rows flipped from gap to both-accept, zero new over-acceptances. The **now**
+column is after the SHOW / import-job cluster closed (`fix(tidb,mysql,mariadb,
+oceanbase): accept SHOW IMPORT JOB(S), CANCEL IMPORT JOB, SHOW AFFINITY and SHOW
+CHAR SET`): 6 rows flipped from gap to both-accept, zero new over-acceptances.
 
 ## The gaps, by theme
 
@@ -99,16 +102,28 @@ STATISTICS already read). `DROP HYPO INDEX name ON tbl` became its own
 `ANALYZE TABLE t INDEX PRIMARY` and `INDEX, PRIMARY` parse. `mysql`, `mariadb`
 and `oceanbase` reject every one of these forms, measured; nothing ported.
 
-The 23 that remain are unrelated to usernames, LIMIT, procedures, or statistics:
+The SHOW / import-job cluster (6 rows: `ShowTargetFilterable` ×2, `ShowStmt`,
+`CancelImportStmt`, `Statement`, `CharsetKw`) **closed** in the parser. SHOW
+learned three targets: `IMPORT JOB n` / `IMPORT JOBS` (the same shape as
+`DISTRIBUTION JOB{,S}`, reusing `ShowStmt.JobID`), `AFFINITY` (an unreserved
+keyword omni lexes as an identifier, so matched as a bare word), and `CHAR SET`
+— `CharsetKw`'s third spelling, a synonym for `CHARACTER SET`. `CANCEL IMPORT
+JOB n` became a new `CancelImportJobStmt` beside `CancelDistributionJobStmt`.
+The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
+`oceanbase` reject them, measured), but `SHOW CHAR SET` is shared: all three
+engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
+zero new over-acceptances.
+
+The 17 that remain are unrelated to usernames, LIMIT, procedures, statistics, or
+SHOW:
 
 - **LOAD DATA field options (~4 rows).** `FieldItem(List)`, `CharsetOpt`.
 - **Window frames (~3 rows).** `WindowFrameStart`, `WindowFrameBound`,
   `OptLeadLagInfo`.
 - **Expressions (~6 rows).** `SimpleExpr`/`ColumnOption` `COLLATE` on an
   operand, `FunctionCallNonKeyword` (`WEIGHT_STRING ... AS`).
-- **SHOW / IMPORT / SEQUENCE (~10 rows).** `ShowTargetFilterable`, `ShowStmt`,
-  `CancelImportStmt`, `Statement` (`CANCEL IMPORT JOB`), `CharsetKw`,
-  `IgnoreOptional`, `TableOption`/`PartDefOption` on `CREATE SEQUENCE`.
+- **CREATE SEQUENCE options and ALTER IGNORE TABLE (~4 rows).**
+  `TableOption`/`PartDefOption` on `CREATE SEQUENCE`, `IgnoreOptional`.
 
 A fix lands as a small PR of the kind §3.2's work landed as: close the rule,
 rerun `TestTiDBParserYCorpusOmniVerdicts -update`, and the diff is the rows it
@@ -125,16 +140,11 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 | `FieldItem` | 2 | SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' |
 | `FunctionCallNonKeyword` | 2 | DO WEIGHT_STRING(ident AS BINARY(1)) |
 | `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
-| `ShowTargetFilterable` | 2 | SHOW AFFINITY |
-| `CancelImportStmt` | 1 | CANCEL IMPORT JOB 1 |
-| `CharsetKw` | 1 | SHOW CHAR SET |
 | `CharsetOpt` | 1 | LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY |
 | `ColumnOption` | 1 | ALTER TABLE ident ADD ident JSON COLLATE BINARY |
 | `FieldItemList` | 1 | SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's' |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
 | `OptLeadLagInfo` | 1 | DO LEAD(ident, ?) OVER ident |
-| `ShowStmt` | 1 | SHOW IMPORT JOB 1 |
-| `Statement` | 1 | CANCEL IMPORT JOB 1 |
 | `TableOption` | 1 | CREATE SEQUENCE ident AFFINITY 's' |
 | `WindowFrameBound` | 1 | DO ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING) |
 | `WindowFrameStart` | 1 | DO ROW_NUMBER() OVER(ROWS ? PRECEDING) |

@@ -114,6 +114,7 @@ var locSpanCases = []struct {
 	{"AlterRangeStmt", "ALTER RANGE global PLACEMENT POLICY p", "ALTER RANGE global PLACEMENT POLICY p", 0},
 	{"AlterRangeStmt", "ALTER RANGE global PLACEMENT POLICY SET DEFAULT", "ALTER RANGE global PLACEMENT POLICY SET DEFAULT", 0},
 	{"CancelDistributionJobStmt", "CANCEL DISTRIBUTION JOB 1", "CANCEL DISTRIBUTION JOB 1", 0},
+	{"CancelImportJobStmt", "CANCEL IMPORT JOB 1", "CANCEL IMPORT JOB 1", 0},
 	{"BRIEOption", "BACKUP TABLE a TO 'noop://' concurrency 4", "concurrency 4", 0},
 	{"BRIEOption", "BACKUP DATABASE * TO 'noop://' snapshot 5 minute ago", "snapshot 5 minute ago", 0},
 	{"BRIEOption", "BACKUP DATABASE * TO 'noop://' rate_limit 500 MB/second", "rate_limit 500 MB/second", 0},

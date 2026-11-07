@@ -672,7 +672,7 @@ accept	accept	Boolean#3	PAUSE BACKUP LOGS SEND_CREDENTIALS_TO_TIKV TRUE
 accept	accept	OptionLevel#1	PAUSE BACKUP LOGS CHECKSUM OFF
 accept	accept	OptionLevel#2	PAUSE BACKUP LOGS CHECKSUM OPTIONAL
 accept	accept	OptionLevel#3	PAUSE BACKUP LOGS CHECKSUM REQUIRED
-reject	accept	CancelImportStmt#1	CANCEL IMPORT JOB 1
+accept	accept	CancelImportStmt#1	CANCEL IMPORT JOB 1
 accept	accept	Expression#1	DO @v := ident
 accept	accept	Expression#2	DO ident || ident
 accept	accept	Expression#3	DO ident XOR ident
@@ -2060,7 +2060,7 @@ accept	accept	ShowStmt#19	SHOW PROFILE
 accept	accept	ShowStmt#20	SHOW PRIVILEGES
 accept	accept	ShowStmt#21	SHOW BUILTINS
 accept	accept	ShowStmt#22	SHOW PLACEMENT FOR TABLE ident
-reject	accept	ShowStmt#23	SHOW IMPORT JOB 1
+accept	accept	ShowStmt#23	SHOW IMPORT JOB 1
 accept	accept	ShowStmt#24	SHOW DISTRIBUTION JOB 1
 accept	accept	ShowStmt#25	SHOW CREATE PROCEDURE ident
 accept	accept	ShowStmt#26	SHOW TABLE ident DISTRIBUTIONS
@@ -2124,13 +2124,13 @@ accept	accept	ShowTargetFilterable#32	SHOW STATS_HEALTHY
 accept	accept	ShowTargetFilterable#33	SHOW STATS_LOCKED
 accept	accept	ShowTargetFilterable#34	SHOW HISTOGRAMS_IN_FLIGHT
 accept	accept	ShowTargetFilterable#35	SHOW COLUMN_STATS_USAGE
-reject	accept	ShowTargetFilterable#36	SHOW AFFINITY
+accept	accept	ShowTargetFilterable#36	SHOW AFFINITY
 accept	accept	ShowTargetFilterable#37	SHOW ANALYZE STATUS
 accept	accept	ShowTargetFilterable#38	SHOW BACKUPS
 accept	accept	ShowTargetFilterable#39	SHOW RESTORES
 accept	accept	ShowTargetFilterable#40	SHOW PLACEMENT
 accept	accept	ShowTargetFilterable#41	SHOW PLACEMENT LABELS
-reject	accept	ShowTargetFilterable#42	SHOW IMPORT JOBS
+accept	accept	ShowTargetFilterable#42	SHOW IMPORT JOBS
 accept	accept	ShowTargetFilterable#43	SHOW DISTRIBUTION JOBS
 accept	accept	ShowLikeOrWhereOpt#1	SHOW ENGINES
 accept	accept	ShowLikeOrWhereOpt#2	SHOW ENGINES LIKE ident
@@ -2270,7 +2270,7 @@ accept	accept	Statement#95	RECOMMEND INDEX SHOW
 accept	accept	Statement#96	HELP 's'
 accept	accept	Statement#97	BATCH LIMIT 1 DELETE FROM ident
 accept	accept	Statement#98	OPTIMIZE TABLE ident
-reject	accept	Statement#99	CANCEL IMPORT JOB 1
+accept	accept	Statement#99	CANCEL IMPORT JOB 1
 accept	accept	TraceableStmt#1	TRACE DELETE FROM ident
 accept	accept	TraceableStmt#2	TRACE UPDATE ident SET ident = DEFAULT
 accept	accept	TraceableStmt#3	TRACE INSERT ident SELECT *
@@ -2488,7 +2488,7 @@ accept	accept	OptCharset#1	ALTER TABLE ident ADD ident CHARACTER BINARY
 accept	accept	OptCharset#2	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
 accept	accept	CharsetKw#1	SHOW CHARACTER SET
 accept	accept	CharsetKw#2	SHOW CHARSET
-reject	accept	CharsetKw#3	SHOW CHAR SET
+accept	accept	CharsetKw#3	SHOW CHAR SET
 accept	accept	OptCollate#1	ALTER TABLE ident CONVERT TO CHARSET BINARY
 accept	accept	OptCollate#2	ALTER TABLE ident CONVERT TO CHARSET BINARY COLLATE BINARY
 accept	accept	StringList#1	ALTER DATABASE SET TIFLASH REPLICA 1 LOCATION LABELS 's'
