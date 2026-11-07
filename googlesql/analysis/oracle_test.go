@@ -38,9 +38,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
-
 	"github.com/bytebase/omni/googlesql/ast"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 	"github.com/bytebase/omni/googlesql/parser"
 )
 
@@ -151,8 +150,8 @@ type analysisHarness struct {
 
 func newAnalysisHarness(t *testing.T) *analysisHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")

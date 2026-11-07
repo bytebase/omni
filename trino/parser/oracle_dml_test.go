@@ -7,7 +7,7 @@ import (
 // This file is the parser-dml node's differential-oracle gate
 // (correctness-protocol.md): for every statement in the corpus below, omni's
 // Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (trinooracle.CheckSyntax, which classifies a SYNTAX_ERROR as
+// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
 // reject and every other outcome — success or a semantic error like
 // TABLE_NOT_FOUND / COLUMN_NOT_FOUND / NOT_SUPPORTED — as accept).
 //

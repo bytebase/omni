@@ -1,4 +1,4 @@
-// Package trinooracle is the differential-testing oracle for the omni Trino
+// Package testcontainer is the differential-testing oracle for the omni Trino
 // parser. It talks to a live Trino server over the REST statement protocol and
 // classifies a statement as syntactically ACCEPTED or REJECTED by Trino's own
 // parser.
@@ -12,7 +12,7 @@
 //
 // A grammar node wires the differential like so (in package parser, test only):
 //
-//	func assertOracleMatch(t *testing.T, o *trinooracle.Oracle, sql string) {
+//	func assertOracleMatch(t *testing.T, o *testcontainer.Oracle, sql string) {
 //	    _, omniErr := Parse(sql)
 //	    res, err := o.CheckSyntax(context.Background(), sql)
 //	    if err != nil { t.Skipf("oracle unreachable: %v", err) }
@@ -25,7 +25,7 @@
 // Because classification keys on SYNTAX_ERROR, the oracle may *execute* a DDL or
 // DML statement (e.g. against the memory catalog) as a side effect; that is
 // harmless for syntax classification and the oracle container is disposable.
-package trinooracle
+package testcontainer
 
 import (
 	"bytes"
@@ -36,12 +36,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/testcontainers/testcontainers-go"
 )
 
 // DefaultURL is the conventional local Trino oracle endpoint. Start one with:
 //
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
+//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
 const DefaultURL = "http://localhost:18080"
 
 // EnvURL is the environment variable that overrides the oracle endpoint.
@@ -289,4 +292,99 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// DefaultImage is the Trino image used by StartContainer. Pinned so
+// differential results are reproducible — a floating `latest` tag lets new
+// Trino releases silently shift the accept/reject oracle. Bump deliberately
+// and re-run the differentials when moving to a new Trino version.
+const DefaultImage = "trinodb/trino:482"
+
+// StartContainer starts a disposable Trino server via testcontainers and returns
+// an Oracle pointed at it plus a terminate func. Trino's JVM takes ~30-60s to
+// become ready, so for iterative local testing prefer a long-lived container and
+// Connect(URLFromEnv()); use StartContainer for self-contained CI runs.
+func StartContainer(ctx context.Context, opts ...Option) (oracle *Oracle, terminate func(), err error) {
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        DefaultImage,
+			ExposedPorts: []string{"8080/tcp"},
+		},
+		Started: true,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	terminate = func() { _ = testcontainers.TerminateContainer(c) }
+
+	host, err := c.Host(ctx)
+	if err != nil {
+		terminate()
+		return nil, nil, err
+	}
+	port, err := c.MappedPort(ctx, "8080/tcp")
+	if err != nil {
+		terminate()
+		return nil, nil, err
+	}
+	o := Connect(fmt.Sprintf("http://%s:%s", host, port.Port()), opts...)
+
+	// GenericContainer returns once the process is up; poll until Trino reports
+	// it has finished starting.
+	deadline := time.Now().Add(3 * time.Minute)
+	for {
+		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, perr := o.Ping(pingCtx)
+		cancel()
+		if perr == nil {
+			return o, terminate, nil
+		}
+		if time.Now().After(deadline) {
+			terminate()
+			return nil, nil, fmt.Errorf("trino did not become ready within timeout: %w", perr)
+		}
+		select {
+		case <-ctx.Done():
+			terminate()
+			return nil, nil, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
+var forTest struct {
+	once sync.Once
+	o    *Oracle
+	err  error
+}
+
+// ForTest returns the Oracle the differential tests run against: the server at
+// $TRINO_ORACLE_URL or the conventional localhost:18080 when one answers, else
+// a Trino testcontainer started once per test binary. Docker is assumed, so a
+// server that can be neither reached nor started fails the test.
+func ForTest(t interface {
+	Helper()
+	Fatalf(format string, args ...any)
+}) *Oracle {
+	t.Helper()
+	forTest.once.Do(func() {
+		o := Connect("")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := o.Ping(ctx)
+		cancel()
+		if err == nil {
+			forTest.o = o
+			return
+		}
+		if URLFromEnv() != "" {
+			forTest.err = fmt.Errorf("trino at %s unreachable: %w", o.baseURL, err)
+			return
+		}
+		o, _, err = StartContainer(context.Background())
+		forTest.o, forTest.err = o, err
+	})
+	if forTest.err != nil {
+		t.Fatalf("trino oracle: %v", forTest.err)
+	}
+	return forTest.o
 }

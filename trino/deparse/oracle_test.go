@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytebase/omni/trino/internal/trinooracle"
+	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // connectOracle dials the live Trino oracle for the round-trip gate, mirroring
 // the skip discipline the parser nodes use: skipped (not failed) locally when no
 // Trino server is reachable, and failed in CI, which always starts one (ci.yml). Start one with:
 //
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
-func connectOracle(t *testing.T) *trinooracle.Oracle {
+//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
+func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return trinooracle.ForTest(t)
+	return testcontainer.ForTest(t)
 }
 
 // TestGeneratedSDLParsesOnTrino is the deparse round-trip / structural gate

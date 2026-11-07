@@ -36,7 +36,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	"github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // spannerDDLFixture is a full DDL statement (no trailing ';') fed to BOTH the
@@ -224,8 +224,8 @@ type spannerDDLHarness struct {
 
 func newSpannerDDLHarness(t *testing.T) *spannerDDLHarness {
 	t.Helper()
-	spannertest.Host(t)
-	bin := spannertest.HarnessBinary(t)
+	testcontainer.Host(t)
+	bin := testcontainer.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")
