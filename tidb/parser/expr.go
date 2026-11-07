@@ -1507,7 +1507,7 @@ func (p *Parser) lookaheadParenContentIsSubquery() bool {
 		// `(((SELECT 1) + 0))` is an expression. FOR is excluded (TiDB rejects
 		// `IN ((SELECT 1) FOR UPDATE)`).
 		return p.parenBeginsSubquery()
-	case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT, kwFETCH:
 		return true // query-expression continuation
 	default:
 		// A value list, e.g. IN ((SELECT 1), (SELECT 2)); an ordinary

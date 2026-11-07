@@ -187,11 +187,10 @@ func (p *Parser) parsePlanReplayerSlowQueryTail(stmt *nodes.PlanReplayerStmt) er
 		}
 		stmt.OrderBy = orderBy
 	}
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return err
-		}
+	// SelectStmtLimitOpt (parser.y:15721, v8.5.5), FETCH FIRST included.
+	if limit, ok, err := p.parseSelectStmtLimitOpt(); err != nil {
+		return err
+	} else if ok {
 		stmt.Limit = limit
 	}
 	return nil
