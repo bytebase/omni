@@ -18,7 +18,7 @@ Sources analyzed:
   [`truth1/types-expr-functions.md`](truth1/types-expr-functions.md) (51),
   [`truth1/admin-utility.md`](truth1/admin-utility.md) (43).
 - **Oracle:** live Trino 481 via Docker, Tier 2. [`oracle.md`](oracle.md) +
-  harness at `trino/internal/trinooracle`.
+  harness at `trino/internal/testcontainer`.
 - **Bytebase consumption (contract):** `backend/plugin/parser/trino`,
   `backend/plugin/schema/trino`, `backend/plugin/db/trino`. Full surface in
   [`contract.md`](contract.md).
@@ -133,7 +133,7 @@ trino/
       official/        # from Trino 481 docs (truth1)
   analysis/            # query span: lineage (SourceColumns) + predicate columns
   completion/          # c3-style completion (preferred rules: identifier, qualifiedName)
-  internal/trinooracle/  # ✅ BUILT — differential oracle (Trino REST client + self-test)
+  internal/testcontainer/  # ✅ BUILT — differential oracle (Trino REST client + self-test)
 ```
 
 `GetDatabaseDefinition` (metadata→SDL) currently lives in bytebase
@@ -250,7 +250,7 @@ parse without error for `Diagnose`/`SplitSQL`/`validateQuery`). P1 = legacy-pari
 - **Corpus B — official 481 docs (truth1):** every `example_sql` captured in the
   four `truth1/*.md` files, cross-referenced to the grammar rule it exercises.
 - **Differential gate:** each grammar node runs its corpus through
-  `trino/internal/trinooracle` (`assertOracleMatch`: omni `Parse` accept/reject ==
+  `trino/internal/testcontainer` (`assertOracleMatch`: omni `Parse` accept/reject ==
   Trino 481 accept/reject). The oracle self-test (`TestOracleClassification`,
   15 cases) already passes against Trino 481; it is gated/skipped without a server.
 

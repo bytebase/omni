@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/trino/catalog"
-	"github.com/bytebase/omni/trino/internal/trinooracle"
+	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the completion node's slice of the differential-oracle gate

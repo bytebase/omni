@@ -33,7 +33,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // typeFixture pairs a bare type (fed to omni's parseType) with a full statement

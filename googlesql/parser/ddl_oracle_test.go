@@ -46,7 +46,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // ddlFixture is a full DDL statement (no trailing ';') fed to BOTH the oracle and

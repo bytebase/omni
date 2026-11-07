@@ -43,7 +43,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // qcFixture is a full query statement (no trailing ';') fed to BOTH the oracle

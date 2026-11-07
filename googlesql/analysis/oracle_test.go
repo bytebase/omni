@@ -38,9 +38,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
-
 	"github.com/bytebase/omni/googlesql/ast"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 	"github.com/bytebase/omni/googlesql/parser"
 )
 

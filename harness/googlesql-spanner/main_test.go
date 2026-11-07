@@ -12,7 +12,7 @@ import (
 )
 
 // emulatorImage is the emulator build the recorded verdicts came from; keep it
-// equal to googlesql/internal/spannertest.Image.
+// equal to googlesql/internal/testcontainer.Image.
 const emulatorImage = "gcr.io/cloud-spanner-emulator/emulator:1.5.54"
 
 // TestMain points the tests at $SPANNER_EMULATOR_HOST when set, and otherwise at

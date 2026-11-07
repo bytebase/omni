@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytebase/omni/trino/internal/trinooracle"
+	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // connectOracle dials the live Trino oracle for the round-trip gate, mirroring
 // the skip discipline the parser nodes use: skipped (not failed) locally when no
 // Trino server is reachable, and failed in CI, which always starts one (ci.yml). Start one with:
 //
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
+//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
 func connectOracle(t *testing.T) *trinooracle.Oracle {
 	t.Helper()
 	return trinooracle.ForTest(t)

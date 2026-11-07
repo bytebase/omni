@@ -1,4 +1,4 @@
-package trinooracle
+package testcontainer
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 // (not failed) locally when no oracle is reachable, and fails in CI, which
 // always starts one; see ci.yml. Start one locally with:
 //
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
+//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
 func testOracle(t *testing.T) *Oracle {
 	t.Helper()
 	return ForTest(t)

@@ -83,4 +83,4 @@ the P0 consumed-feature path, matching the doris precedent.
 
 Hand back to `omni-engine-v2-migration` to run EXECUTE waves. First fire's ready-set
 is `trino/ast-core`; draining proceeds layer-by-layer. Every grammar node validates
-against the live Trino 481 oracle via `trino/internal/trinooracle`.
+against the live Trino 481 oracle via `trino/internal/testcontainer`.

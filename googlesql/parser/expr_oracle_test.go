@@ -39,7 +39,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 // exprFixture pairs a bare expression (fed to omni's ParseExpression) with a

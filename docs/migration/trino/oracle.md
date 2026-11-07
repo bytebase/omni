@@ -6,7 +6,7 @@
 | **tier** | **2 — Docker** (live local Trino server). Far stronger than antlr-fallback; flips correctness from judgment to mechanical comparison. |
 | **version** | **Trino 481** (`trinodb/trino:latest`, image id `5b5e0a97f599`, pulled 2026-06-02). Matches the `trino.io/docs/current` corpus used for truth1. |
 | **access** | `docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest` |
-| **client** | Go REST client at `trino/internal/trinooracle` (`Oracle.CheckSyntax`). Connects to `$TRINO_ORACLE_URL` (default `http://localhost:18080`). `StartContainer` auto-starts a disposable server via testcontainers for CI. |
+| **client** | Go REST client at `trino/internal/testcontainer` (`Oracle.CheckSyntax`). Connects to `$TRINO_ORACLE_URL` (default `http://localhost:18080`). `StartContainer` auto-starts a disposable server via testcontainers for CI. |
 | **syntax_reject_signal** | REST statement error object with **`errorName == "SYNTAX_ERROR"`** (`errorCode` 1, `errorType` `USER_ERROR`). This — and only this — means Trino's parser rejected the input. |
 | **semantic_error_examples** | Grammar **accepted**, failed later: `TABLE_NOT_FOUND` (46), `CATALOG_NOT_FOUND` (44), `COLUMN_NOT_FOUND` (47), `NOT_SUPPORTED` (13, e.g. memory-connector `MERGE`), `TYPE_MISMATCH`. Any non-`SYNTAX_ERROR` outcome (including success) = accepted. |
 | **catalogs** | `memory` (supports CREATE/INSERT → DDL/DML probing), `tpch` + `tpcds` (real tables/columns → query-span & lineage probing), `system`, `jmx`. Harness defaults to `memory.default`. |

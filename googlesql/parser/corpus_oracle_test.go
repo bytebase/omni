@@ -39,7 +39,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 func TestCorpusSpannerDifferential(t *testing.T) {

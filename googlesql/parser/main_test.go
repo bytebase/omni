@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bytebase/omni/googlesql/internal/spannertest"
+	spannertest "github.com/bytebase/omni/googlesql/internal/testcontainer"
 )
 
 func TestMain(m *testing.M) {

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytebase/omni/trino/internal/trinooracle"
+	trinooracle "github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
 // This file is the lexer node's slice of the differential-oracle gate described
