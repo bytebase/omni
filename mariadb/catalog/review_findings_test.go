@@ -920,3 +920,65 @@ func TestReview_ImplicitJSONCheckIsNotDroppableByName(t *testing.T) {
 		t.Errorf("omni: accepted %q, which the server refuses with %v", drop, oracleErr)
 	}
 }
+
+// TestReview_LiteralDefaultByColumnFamily covers a hex, bit or string literal
+// default on every family of column type. A column that holds its default as
+// a value coerces the literal and writes it in its own notation; one that
+// holds it as an expression keeps the literal as written.
+//
+// All of it measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+func TestReview_LiteralDefaultByColumnFamily(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// char, varchar, enum and set hold a value, written as a string.
+		{"varchar_0x", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x41)"},
+		{"varchar_hex", "CREATE TABLE t (a VARCHAR(4) DEFAULT X'41')"},
+		{"varchar_bits", "CREATE TABLE t (a VARCHAR(8) DEFAULT b'1000001')"},
+		{"varchar_parenthesized", "CREATE TABLE t (a VARCHAR(4) DEFAULT (0x41))"},
+		{"char_0x", "CREATE TABLE t (a CHAR(4) DEFAULT 0x41)"},
+		{"char_two_bytes", "CREATE TABLE t (a CHAR(4) DEFAULT X'4142')"},
+		{"enum_0x", "CREATE TABLE t (a ENUM('A','B') DEFAULT 0x41)"},
+		{"set_0x", "CREATE TABLE t (a SET('A','B') DEFAULT 0x41)"},
+		{"varchar_plain_string", "CREATE TABLE t (a VARCHAR(8) DEFAULT 'plain')"},
+		// The five bytes MariaDB escapes, and some it does not.
+		{"escape_quote", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x2741)"},
+		{"escape_backslash", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x5C41)"},
+		{"escape_newline", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x0A)"},
+		{"escape_return", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x0D)"},
+		{"escape_nul", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x00)"},
+		{"raw_tab", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x09)"},
+		{"raw_double_quote", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x22)"},
+		{"raw_utf8", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0xC3A4)"},
+		// The text family holds an expression, so the literal survives.
+		{"text_0x", "CREATE TABLE t (a TEXT DEFAULT 0x41)"},
+		{"text_hex", "CREATE TABLE t (a TEXT DEFAULT X'41')"},
+		{"text_bits", "CREATE TABLE t (a TEXT DEFAULT b'1000001')"},
+		{"tinytext_0x", "CREATE TABLE t (a TINYTEXT DEFAULT 0x41)"},
+		{"longtext_hex", "CREATE TABLE t (a LONGTEXT DEFAULT X'41')"},
+		{"text_plain_string", "CREATE TABLE t (a TEXT DEFAULT 'plain')"},
+		// A number reads the bytes as one.
+		{"int_0x", "CREATE TABLE t (a INT DEFAULT 0xFF)"},
+		{"int_0x_two_bytes", "CREATE TABLE t (a INT DEFAULT 0xFFFF)"},
+		{"bigint_0x", "CREATE TABLE t (a BIGINT DEFAULT 0xFFFFFFFF)"},
+		{"tinyint_0x", "CREATE TABLE t (a TINYINT DEFAULT 0x7F)"},
+		{"decimal_keeps_scale", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 0x41)"},
+		{"double_0x", "CREATE TABLE t (a DOUBLE DEFAULT 0x41)"},
+		{"year_0x", "CREATE TABLE t (a YEAR DEFAULT 0x07D0)"},
+		{"int_bits", "CREATE TABLE t (a INT DEFAULT b'1111111111')"},
+		{"int_plain", "CREATE TABLE t (a INT DEFAULT 7)"},
+		{"int_quoted_number", "CREATE TABLE t (a INT DEFAULT '7')"},
+		// And the expression defaults stay expressions.
+		{"expression_operator", "CREATE TABLE t (a INT DEFAULT (1 + 1))"},
+		{"expression_call", "CREATE TABLE t (a VARCHAR(36) DEFAULT (uuid()))"},
+		{"expression_quoted_parens", "CREATE TABLE t (a INT DEFAULT (length('(') + length(')')))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}

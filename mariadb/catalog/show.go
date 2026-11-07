@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -1057,67 +1058,199 @@ func partitionEngine(engine string) string {
 //	BLOB DEFAULT X'FF' -> X'ff'   BLOB DEFAULT 0xFF -> 0xff
 //	BLOB DEFAULT b'1000001' -> 0x41   BLOB DEFAULT 'a' -> 'a'
 func formatBinaryDefault(val string, col *Column) (string, bool) {
-	fixed, variable, blob := isBinaryColumnType(col.DataType)
-	if !fixed && !variable && !blob {
+	family := columnDefaultFamily(col.DataType)
+	if family == familyOther {
 		return "", false
 	}
-	raw, ok := binaryLiteralBytes(val)
+	kind, raw, ok := literalDefaultBytes(val)
 	if !ok {
 		return "", false
 	}
-	if blob {
-		switch {
-		case hasPrefixFold(val, "x'"):
+	// A column whose default is held as an expression keeps the literal as it
+	// was written, only normalized. Everything else holds a value, so the
+	// literal is coerced and written in that type's own notation.
+	if family == familyExpression {
+		switch kind {
+		case literalHexX:
 			return val[:2] + strings.ToLower(val[2:]), true
-		case hasPrefixFold(val, "0x"):
+		case literalHex0x:
 			return "0x" + strings.ToLower(val[2:]), true
-		case hasPrefixFold(val, "b'"):
+		case literalBits:
 			return "0x" + hexOf(raw), true
 		default:
 			return val, true // a string default keeps its quotes
 		}
 	}
-	if width := declaredTypeLength(col.ColumnType); fixed && width > len(raw) {
-		raw = append(raw, make([]byte, width-len(raw))...)
+	if family == familyString || family == familyNumber {
+		// A string literal is already in the column's own notation; only a
+		// hex or bit literal has to be converted.
+		if kind == literalString {
+			return "", false
+		}
 	}
-	return "x'" + hexOf(raw) + "'", true
+	switch family {
+	case familyFixedBinary, familyVarBinary:
+		if width := declaredTypeLength(col.ColumnType); family == familyFixedBinary && width > len(raw) {
+			raw = append(raw, make([]byte, width-len(raw))...)
+		}
+		return "x'" + hexOf(raw) + "'", true
+	case familyString:
+		return quoteStringDefault(raw), true
+	case familyNumber:
+		return numberDefaultOf(raw, col)
+	}
+	return "", false
 }
 
-// isBinaryColumnType classifies a column type as fixed binary, variable
-// binary, or one of the blob types.
-func isBinaryColumnType(dt string) (fixed, variable, blob bool) {
+// columnDefaultFamily groups the column types by how a literal default is
+// written back, each group measured on mariadb:11.8.8 through SHOW CREATE
+// TABLE. See formatBinaryDefault.
+type defaultFamily int
+
+const (
+	familyOther defaultFamily = iota
+	// familyExpression holds its default as an expression, so the literal
+	// survives as written: TEXT DEFAULT 0x41 stays 0x41 and TEXT DEFAULT
+	// X'41' stays X'41', where a bit literal becomes 0x41.
+	familyExpression
+	// familyFixedBinary pads the value to the declared width:
+	// BINARY(4) DEFAULT X'FF' is x'ff000000'.
+	familyFixedBinary
+	// familyVarBinary writes the value as lowercase hex, unpadded.
+	familyVarBinary
+	// familyString writes the value as a quoted string:
+	// VARCHAR(4) DEFAULT 0x41 is 'A', and so is ENUM('A','B') DEFAULT 0x41.
+	familyString
+	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255,
+	// DECIMAL(5,2) DEFAULT 0x41 is 65.00, YEAR DEFAULT 0x07D0 is 2000.
+	familyNumber
+)
+
+func columnDefaultFamily(dt string) defaultFamily {
 	switch normalizedTypeName(dt) {
+	case "tinytext", "text", "mediumtext", "longtext",
+		"tinyblob", "blob", "mediumblob", "longblob":
+		return familyExpression
 	case "binary":
-		return true, false, false
+		return familyFixedBinary
 	case "varbinary":
-		return false, true, false
-	case "tinyblob", "blob", "mediumblob", "longblob":
-		return false, false, true
+		return familyVarBinary
+	case "char", "varchar", "enum", "set":
+		return familyString
+	case "tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "float", "double", "year":
+		return familyNumber
 	}
-	return false, false, false
+	return familyOther
 }
 
-// binaryLiteralBytes decodes a literal default to the bytes it stands for: a
-// hex literal in either spelling, a bit literal, or a single-quoted string.
-// It reports false for anything else, an expression included.
-func binaryLiteralBytes(val string) ([]byte, bool) {
+// quoteStringDefault writes bytes as a quoted string default. MariaDB escapes
+// five bytes and leaves the rest alone, control bytes and UTF-8 included:
+// 0x27 is ”, 0x5C is \\, 0x0A is \n, 0x0D is \r and 0x00 is \0, while
+// 0x08, 0x09, 0x0B, 0x0C, 0x1A, 0x22 and 0x7F come through raw. Measured on
+// mariadb:11.8.8 one byte at a time.
+func quoteStringDefault(raw []byte) string {
+	var b strings.Builder
+	b.Grow(len(raw) + 2)
+	b.WriteByte('\'')
+	for _, c := range raw {
+		switch c {
+		case '\'':
+			b.WriteString("''")
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('\'')
+	return b.String()
+}
+
+// numberDefaultOf reads the bytes as a big-endian unsigned number and writes
+// it in the column's notation, which for DECIMAL carries the declared scale.
+func numberDefaultOf(raw []byte, col *Column) (string, bool) {
+	if len(raw) > 8 {
+		return "", false // wider than a number the column could hold
+	}
+	var n uint64
+	for _, c := range raw {
+		n = n<<8 | uint64(c)
+	}
+	digits := strconv.FormatUint(n, 10)
+	if normalizedTypeName(col.DataType) != "decimal" {
+		return digits, true
+	}
+	if scale := declaredTypeScale(col.ColumnType); scale > 0 {
+		return digits + "." + strings.Repeat("0", scale), true
+	}
+	return digits, true
+}
+
+// literalKind is the notation a literal default was written in.
+type literalKind int
+
+const (
+	literalNone   literalKind = iota
+	literalHexX               // X'ff'
+	literalHex0x              // 0xff
+	literalBits               // b'101'
+	literalString             // 'a'
+)
+
+// literalDefaultBytes decodes a literal default to the bytes it stands for and
+// reports the notation it was written in. It reports false for anything else,
+// an expression included.
+func literalDefaultBytes(val string) (literalKind, []byte, bool) {
 	switch {
 	case hasPrefixFold(val, "x'") && strings.HasSuffix(val, "'"):
-		return decodeHex(val[2 : len(val)-1])
+		raw, ok := decodeHex(val[2 : len(val)-1])
+		return literalHexX, raw, ok
 	case hasPrefixFold(val, "0x"):
-		return decodeHex(val[2:])
+		raw, ok := decodeHex(val[2:])
+		return literalHex0x, raw, ok
 	case hasPrefixFold(val, "b'") && strings.HasSuffix(val, "'"):
-		return decodeBits(val[2 : len(val)-1])
+		raw, ok := decodeBits(val[2 : len(val)-1])
+		return literalBits, raw, ok
 	case len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'':
 		// The quotes come off and a doubled quote stands for one. A string
 		// holding an escape is left to the caller, which keeps it as written.
 		inner := val[1 : len(val)-1]
 		if strings.ContainsRune(inner, '\\') {
-			return nil, false
+			return literalNone, nil, false
 		}
-		return []byte(strings.ReplaceAll(inner, "''", "'")), true
+		return literalString, []byte(strings.ReplaceAll(inner, "''", "'")), true
 	}
-	return nil, false
+	return literalNone, nil, false
+}
+
+// declaredTypeScale reads the scale out of a column type, as the 2 of
+// decimal(5,2), or 0 where the type carries none.
+func declaredTypeScale(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0
+	}
+	rest := columnType[open+1:]
+	comma := strings.IndexByte(rest, ',')
+	closing := strings.IndexByte(rest, ')')
+	if comma < 0 || closing < 0 || comma > closing {
+		return 0
+	}
+	n := 0
+	for _, c := range rest[comma+1 : closing] {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
 }
 
 // decodeHex reads an even-length run of hex digits.
