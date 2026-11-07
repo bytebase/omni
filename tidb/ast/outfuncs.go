@@ -2767,6 +2767,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}
+	if n.FromLast {
+		sb.WriteString(" :from_last true")
+	}
+	if n.IgnoreNull {
+		sb.WriteString(" :ignore_null true")
+	}
 	if n.Over != nil {
 		sb.WriteString(" :over ")
 		writeNode(sb, n.Over)

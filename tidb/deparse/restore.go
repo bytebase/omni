@@ -1332,9 +1332,22 @@ func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {
 		restoreExpr(b, arg)
 	}
 	b.WriteByte(')')
+	restoreWindowFuncOpts(b, n)
 	if n.Over != nil {
 		b.kw(" OVER ")
 		restoreWindowSpec(b, n.Over)
+	}
+}
+
+// restoreWindowFuncOpts writes a window value function's FROM LAST and IGNORE
+// NULLS, as ast.WindowFuncExpr.Restore does: the defaults FROM FIRST and RESPECT
+// NULLS write nothing.
+func restoreWindowFuncOpts(b *restorer, n *ast.FuncCallExpr) {
+	if n.FromLast {
+		b.kw(" FROM LAST")
+	}
+	if n.IgnoreNull {
+		b.kw(" IGNORE NULLS")
 	}
 }
 

@@ -2147,7 +2147,13 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(")")
 	}
 
-	// Append OVER clause for window functions
+	// A window value function's FROM LAST and IGNORE NULLS, then the OVER clause.
+	if n.FromLast {
+		b.WriteString(" FROM LAST")
+	}
+	if n.IgnoreNull {
+		b.WriteString(" IGNORE NULLS")
+	}
 	if n.Over != nil {
 		b.WriteString(" ")
 		writeWindowDef(b, n.Over)

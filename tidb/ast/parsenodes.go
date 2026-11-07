@@ -890,6 +890,8 @@ type FuncCallExpr struct {
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
 	OrderBy    []*OrderByItem
 	Over       *WindowDef // OVER clause for window functions
+	IgnoreNull bool       // IGNORE NULLS (LEAD/LAG/FIRST_VALUE/LAST_VALUE/NTH_VALUE), vs the default RESPECT NULLS
+	FromLast   bool       // NTH_VALUE ... FROM LAST, vs the default FROM FIRST
 	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 }
