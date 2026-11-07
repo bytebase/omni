@@ -1264,8 +1264,9 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		return ref, nil
 	}
 
-	// User variable: @name (lexer emits as tokIDENT with "@" prefix)
-	if p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' {
+	// User variable: @name (lexer emits as tokIDENT with "@" prefix). The name
+	// may be empty: `SET @ = 1` and `SELECT @` are TiDB's unnamed user variable.
+	if p.cur.Type == tokIDENT && len(p.cur.Str) >= 1 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
 		ref := &nodes.VariableRef{

@@ -1146,6 +1146,10 @@ func writeRenameTableStmt(sb *strings.Builder, n *RenameTableStmt) {
 func writeSetStmt(sb *strings.Builder, n *SetStmt) {
 	sb.WriteString("{SET")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.HasSessionStates {
+		fmt.Fprintf(sb, " :session_states %q}", n.SessionStates)
+		return
+	}
 	if n.Scope != "" {
 		fmt.Fprintf(sb, " :scope %s", n.Scope)
 	}

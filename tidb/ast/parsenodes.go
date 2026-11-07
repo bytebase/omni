@@ -1473,6 +1473,10 @@ type SetStmt struct {
 	Loc         Loc
 	Scope       string // the first assignment's scope; each one holds its own, and none carries to the next
 	Assignments []*Assignment
+	// SessionStates holds the string of SET SESSION_STATES '...', a standalone
+	// form with no assignments; HasSessionStates tells it from SET with none.
+	SessionStates    string
+	HasSessionStates bool
 }
 
 func (s *SetStmt) nodeTag()  {}
