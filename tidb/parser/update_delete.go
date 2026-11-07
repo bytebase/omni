@@ -80,8 +80,18 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		stmt.Where = where
 	}
 
+	// ORDER BY and LIMIT are the single-table form's alone: UpdateStmtNoWith
+	// reads them after one TableRef (which may be a join), while the
+	// comma-separated TableRefs form has neither (parser.y:13626, :13654,
+	// v8.5.5). A comma list is len(Tables) > 1. TiDB v8.5.5 answers 1064 for
+	// `UPDATE t1, t2 SET ... LIMIT 1`.
+	multiTable := len(stmt.Tables) > 1
+
 	// ORDER BY clause (optional, single-table only)
 	if p.cur.Type == kwORDER {
+		if multiTable {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -94,7 +104,11 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	}
 
 	// LIMIT clause (optional, single-table only)
-	if _, ok := p.match(kwLIMIT); ok {
+	if p.cur.Type == kwLIMIT {
+		if multiTable {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		limit, err := p.parseLimitClause()
 		if err != nil {
 			return nil, err
@@ -160,6 +174,7 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 	p.advance() // consume DELETE
 
 	stmt := &nodes.DeleteStmt{Loc: nodes.Loc{Start: start}}
+	multiTable := false
 
 	// DeleteWithoutUsingStmt and DeleteWithUsingStmt (parser.y:5231 and :5281,
 	// v8.5.5) read PriorityOpt, then QUICK, then IGNORE.
@@ -174,7 +189,7 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 	if _, ok := p.match(kwFROM); ok {
 		// Could be single-table: DELETE FROM tbl WHERE ...
 		// or multi-table syntax 2: DELETE FROM t1, t2 USING ...
-		tables, err := p.parseDeleteTableListIn(place)
+		tables, sawWildcard, err := p.parseDeleteTableListIn(place)
 		if err != nil {
 			return nil, err
 		}
@@ -214,6 +229,16 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 					tblRef.Partitions = parts
 					tblRef.Loc.End = p.prev.End
 				}
+				// Optional index hints (IndexHintListOpt, parser.y:5232):
+				// `DELETE FROM t USE INDEX (i) WHERE ...`.
+				if p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+					hints, err := p.parseIndexHints()
+					if err != nil {
+						return nil, err
+					}
+					tblRef.IndexHints = hints
+					tblRef.Loc.End = p.prev.End
+				}
 			}
 		}
 
@@ -237,11 +262,20 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 					return nil, err
 				}
 				stmt.Using = using
+				multiTable = true
 			}
+		}
+		// Without USING this is the single-table form, DELETE FROM TableName
+		// (parser.y:5231): one plain table, no `.*`. `DELETE FROM t1, t2` and
+		// `DELETE FROM t1.*` are 1064s on v8.5.5; the `.*` and the comma list
+		// belong to the multi-table forms, which carry USING or name the
+		// targets before FROM.
+		if !multiTable && (len(stmt.Tables) != 1 || sawWildcard) {
+			return nil, p.syntaxErrorAtCur()
 		}
 	} else {
 		// Multi-table syntax 1: DELETE t1, t2 FROM table_references ...
-		tables, err := p.parseDeleteTableList()
+		tables, _, err := p.parseDeleteTableList()
 		if err != nil {
 			return nil, err
 		}
@@ -256,6 +290,7 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 			return nil, err
 		}
 		stmt.Using = using
+		multiTable = true
 	}
 
 	// WHERE clause (optional)
@@ -270,8 +305,13 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 		stmt.Where = where
 	}
 
-	// ORDER BY clause (optional, single-table only)
+	// ORDER BY and LIMIT are the single-table form's alone (parser.y:5231); the
+	// multi-table forms (targets before FROM, or FROM ... USING) have neither.
+	// TiDB v8.5.5 answers 1064 for `DELETE t1 FROM t1, t2 ORDER BY t1.a`.
 	if p.cur.Type == kwORDER {
+		if multiTable {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -283,8 +323,11 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 		stmt.OrderBy = orderBy
 	}
 
-	// LIMIT clause (optional, single-table only)
-	if _, ok := p.match(kwLIMIT); ok {
+	if p.cur.Type == kwLIMIT {
+		if multiTable {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		limit, err := p.parseLimitClause()
 		if err != nil {
 			return nil, err
@@ -388,14 +431,15 @@ func (p *Parser) expectEqual() error {
 
 // parseDeleteTableList parses a comma-separated list of table names
 // for DELETE statements (with optional .* suffix).
-func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
+func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, bool, error) {
 	return p.parseDeleteTableListIn(deleteAnywhere)
 }
 
 // parseDeleteTableListIn parses the list, stopping at the first name where
 // the place takes only one.
-func (p *Parser) parseDeleteTableListIn(place deletePlace) ([]nodes.TableExpr, error) {
+func (p *Parser) parseDeleteTableListIn(place deletePlace) ([]nodes.TableExpr, bool, error) {
 	var tables []nodes.TableExpr
+	sawWildcard := false
 
 	for {
 		// Completion: at the start of each table name, offer table_ref candidates.
@@ -403,13 +447,14 @@ func (p *Parser) parseDeleteTableListIn(place deletePlace) ([]nodes.TableExpr, e
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			p.addRuleCandidate("database_ref")
-			return nil, &ParseError{Message: "collecting"}
+			return nil, false, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseDeleteTableName()
+		ref, wild, err := p.parseDeleteTableName()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
+		sawWildcard = sawWildcard || wild
 
 		tables = append(tables, ref)
 		if p.cur.Type != ',' {
@@ -418,17 +463,17 @@ func (p *Parser) parseDeleteTableListIn(place deletePlace) ([]nodes.TableExpr, e
 		if place == deleteNoUsing {
 			// The FROM-first form of the DELETE a binding takes names one
 			// table, so the comma is where v8.5.5 fails.
-			return nil, p.syntaxErrorAtCur()
+			return nil, false, p.syntaxErrorAtCur()
 		}
 		p.advance()
 	}
 
-	return tables, nil
+	return tables, sawWildcard, nil
 }
 
 // parseDeleteTableName parses a single table name for DELETE,
 // handling the optional .* suffix and schema.table.* form.
-func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
+func (p *Parser) parseDeleteTableName() (*nodes.TableRef, bool, error) {
 	start := p.pos()
 
 	// `*.t1`, TiDB's wildcard database, which reaches DELETE's table list
@@ -437,18 +482,18 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 	if p.matchWildcardDatabase() {
 		name, _, err := p.parseIdent()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		return &nodes.TableRef{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Schema: wildcardDatabase,
 			Name:   name,
-		}, nil
+		}, false, nil
 	}
 
 	name, _, err := p.parseIdent()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	ref := &nodes.TableRef{
@@ -460,11 +505,11 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 	if p.cur.Type == '.' {
 		next := p.peekNext()
 		if next.Type == '*' {
-			// name.* -- skip the .* suffix
+			// name.* -- skip the .* suffix, report it
 			p.advance() // consume '.'
 			p.advance() // consume '*'
 			ref.Loc.End = p.prev.End
-			return ref, nil
+			return ref, true, nil
 		}
 		// schema.table or schema.table.*
 		p.advance() // consume '.'
@@ -472,14 +517,14 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 		p.checkCursor()
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
-			return nil, &ParseError{Message: "collecting"}
+			return nil, false, &ParseError{Message: "collecting"}
 		}
 		if err := refuseTableNameDatabase(name, start); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		name2, _, err := p.parseIdent()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		ref.Schema = name
 		ref.Name = name2
@@ -490,10 +535,12 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 			if next.Type == '*' {
 				p.advance() // consume '.'
 				p.advance() // consume '*'
+				ref.Loc.End = p.prev.End
+				return ref, true, nil
 			}
 		}
 	}
 
 	ref.Loc.End = p.prev.End
-	return ref, nil
+	return ref, false, nil
 }

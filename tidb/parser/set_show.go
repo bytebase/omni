@@ -77,6 +77,18 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetConfigStmt(start)
 	}
 
+	// SET SESSION_STATES stringLit (parser.y:10789, v8.5.5), a standalone form
+	// with no comma list. SESSION_STATES is unreserved, so `SET session_states =
+	// 1` assigns a variable; the string after it is what picks this form out.
+	if p.cur.Type == kwSESSION_STATES && p.peekNext().Type == tokSCONST {
+		p.advance() // consume SESSION_STATES
+		tok := p.advance()
+		stmt.SessionStates = tok.Str
+		stmt.HasSessionStates = true
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	scope, scopeStart, err := p.parseSetScope()
 	if err != nil {
 		return nil, err

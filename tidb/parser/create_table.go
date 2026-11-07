@@ -800,9 +800,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 // parseDefaultValue parses a DEFAULT value expression.
 // Handles parenthesized expressions, literals, CURRENT_TIMESTAMP, NULL, etc.
 func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
+	start := p.pos()
 	// Handle parenthesized expression: DEFAULT (expr)
 	if p.cur.Type == '(' {
-		start := p.pos()
 		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -814,7 +814,11 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}, nil
+		paren := &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}
+		if !validColumnDefault(paren) {
+			return nil, &ParseError{Message: "Invalid default value", Position: start}
+		}
+		return paren, nil
 	}
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -823,7 +827,48 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if !validColumnDefault(expr) {
+		return nil, &ParseError{Message: "Invalid default value", Position: start}
+	}
 	return expr, nil
+}
+
+// validColumnDefault reports whether expr is a column DEFAULT the way TiDB's
+// DefaultValueExpr spells it (parser.y:4052, v8.5.5): a SignedLiteral, a NowSym
+// form or NEXT VALUE FOR (both FuncCallExpr here), a BuiltinFunction, or a
+// function call wrapped in parentheses. A parenthesized literal, column or
+// arithmetic is not one: `DEFAULT (0)`, `(b)`, `(1+1)` and `DEFAULT 1+1` are
+// 1064s on v8.5.5, while `DEFAULT 0`, `-1`, `now()` and `(now())` parse.
+func validColumnDefault(expr nodes.ExprNode) bool {
+	switch n := expr.(type) {
+	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.HexLit,
+		*nodes.BitLit, *nodes.NullLit, *nodes.BoolLit, *nodes.TemporalLit,
+		*nodes.FuncCallExpr:
+		return true
+	case *nodes.UnaryExpr:
+		// SignedLiteral: a numeric literal with a leading + or -.
+		if n.Op != nodes.UnaryPlus && n.Op != nodes.UnaryMinus {
+			return false
+		}
+		switch n.Operand.(type) {
+		case *nodes.IntLit, *nodes.FloatLit:
+			return true
+		}
+		return false
+	case *nodes.ParenExpr:
+		// ( BuiltinFunction ), with any number of enclosing parens.
+		inner := n.Expr
+		for {
+			pe, ok := inner.(*nodes.ParenExpr)
+			if !ok {
+				break
+			}
+			inner = pe.Expr
+		}
+		_, ok := inner.(*nodes.FuncCallExpr)
+		return ok
+	}
+	return false
 }
 
 // parseReferenceDefinition parses a REFERENCES clause.
@@ -2325,6 +2370,11 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 							items = append(items, &nodes.String{Str: "MAXVALUE"})
 							p.advance()
 						} else {
+							// DEFAULT is a VALUES IN bound, not a LESS THAN one:
+							// `VALUES LESS THAN (DEFAULT)` is a 1064 on v8.5.5.
+							if p.cur.Type == kwDEFAULT {
+								return nil, 0, p.syntaxErrorAtCur()
+							}
 							expr, err := p.parseBitExpr()
 							if err != nil {
 								return nil, 0, err

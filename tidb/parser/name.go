@@ -1264,10 +1264,19 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		return ref, nil
 	}
 
-	// User variable: @name (lexer emits as tokIDENT with "@" prefix)
-	if p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' {
+	// User variable: @name (lexer emits as tokIDENT with "@" prefix). The name
+	// may be empty: `SET @ = 1` and `SELECT @` are TiDB's unnamed user variable.
+	if p.cur.Type == tokIDENT && len(p.cur.Str) >= 1 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
+		// A bare `@` directly followed by a quoted string is a quoted variable
+		// name (@'foo', @"foo"), which TiDB reads as the variable foo. omni does
+		// not support that name yet (the lexer must not swallow the `@'host'` of
+		// a username), so reject it rather than read `@` as the unnamed variable
+		// and the string as its alias.
+		if tok.Str == "@" && p.cur.Type == tokSCONST && p.cur.Loc == tok.End {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ref := &nodes.VariableRef{
 			Loc:  nodes.Loc{Start: tok.Loc},
 			Name: tok.Str[1:],

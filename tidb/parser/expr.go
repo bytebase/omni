@@ -192,6 +192,29 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 				Collation: collation,
 			}
 			continue
+
+		case p.cur.Type == tokJsonExtract || p.cur.Type == tokJsonUnquote:
+			// -> and ->> are not general operators: SimpleIdent jss|juss stringLit
+			// (parser.y:8052) takes a column reference on the left and a string
+			// literal on the right. `'{}'->'$.a'`, `a->3` and `a->b` are 1064s on
+			// v8.5.5.
+			op := binOp
+			if ref, ok := left.(*nodes.ColumnRef); !ok || ref.Star {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume -> or ->>
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			strTok := p.advance()
+			left = &nodes.BinaryExpr{
+				Loc:   nodes.Loc{Start: start, End: strTok.End},
+				Op:    op,
+				Left:  left,
+				Right: &nodes.StringLit{Loc: nodes.Loc{Start: strTok.Loc, End: strTok.End}, Value: strTok.Str},
+			}
+			level = precJsonAccess
+			continue
 		}
 
 		// Regular binary operator
@@ -602,7 +625,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// IF(cond, val, val) — reserved keyword also used as function
 		kwIF,
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
-		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
+		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE, kwSCHEMA,
 		kwMOD, kwREPEAT, kwREPLACE:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
@@ -653,6 +676,25 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 				Value:   strTok.Str,
 				Charset: charsetTok.Str,
 			}, nil
+		}
+
+		// Charset introducer before a hex or bit literal: _utf8 0x61, _utf8 X'61',
+		// _utf8 0b1, _utf8 B'1' ("UNDERSCORE_CHARSET" hexLit | bitLit,
+		// parser.y:7625 and :7642). The introducer must name a charset TiDB's lexer
+		// knows, which is how the lexer tells it from an identifier: _notacharset is
+		// a column, and `_notacharset 0x61` is a 1064 (a column then a bare literal),
+		// so isCharsetIntroducerWord gates it. The 1115 an action raises for a known
+		// but unsupported charset is a name looked up while parsing, which this
+		// parser does not reproduce.
+		if isCharsetIntroducerWord(strings.ToLower(p.cur.Str)) && !p.backtickQuotedAt(p.cur.Loc) &&
+			(p.peekNext().Type == tokXCONST || p.peekNext().Type == tokBCONST) {
+			csTok := p.advance()
+			litTok := p.advance()
+			loc := nodes.Loc{Start: csTok.Loc, End: litTok.End}
+			if litTok.Type == tokXCONST {
+				return &nodes.HexLit{Loc: loc, Value: litTok.Str, Charset: csTok.Str}, nil
+			}
+			return &nodes.BitLit{Loc: loc, Value: litTok.Str, Charset: csTok.Str}, nil
 		}
 
 		// Identifier — could be column ref or function call
@@ -894,6 +936,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
 			return p.parseGetFormatFunc(fc)
+		case "MOD":
+			// MOD '(' BitExpr ',' BitExpr ')' (parser.y:8221): exactly two
+			// bit_expr arguments, so `MOD(10, 1 AND 1)` and
+			// `MOD(10, 2 BETWEEN 0 AND 5)` are 1064s, where a general argument
+			// list would take them.
+			return p.parseModFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -1119,6 +1167,11 @@ func (p *Parser) parseWindowFuncOpts(fc *nodes.FuncCallExpr) error {
 	if !nullTreatmentFuncs[fc.Name] {
 		return nil
 	}
+	// NTH_VALUE takes exactly two arguments (parser.y:9810): `NTH_VALUE(v)` and
+	// `NTH_VALUE(v, 1, 2)` are 1064s on v8.5.5.
+	if fc.Name == "NTH_VALUE" && len(fc.Args) != 2 {
+		return p.syntaxErrorAtCur()
+	}
 	read := false
 	if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM {
 		switch p.peekNext().Type {
@@ -1147,6 +1200,32 @@ func (p *Parser) parseWindowFuncOpts(fc *nodes.FuncCallExpr) error {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// parseModFunc parses MOD '(' BitExpr ',' BitExpr ')'. p.cur is just past '('.
+func (p *Parser) parseModFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	a, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if a == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	b, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = []nodes.ExprNode{a, b}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return p.finishFuncCall(fc, true)
 }
 
 // parseOverClause parses OVER (window_spec) or OVER window_name.

@@ -375,7 +375,11 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 			p.match(kwWRITE)
 			lt.LockType = "LOW_PRIORITY WRITE"
 		} else if _, ok := p.match(kwWRITE); ok {
-			lt.LockType = "WRITE"
+			if _, ok := p.match(kwLOCAL); ok {
+				lt.LockType = "WRITE LOCAL"
+			} else {
+				lt.LockType = "WRITE"
+			}
 		}
 
 		lt.Loc.End = p.prev.End
