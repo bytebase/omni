@@ -2882,6 +2882,7 @@ func jsonValidConstraint(col *Column) *Constraint {
 		Name:      col.Name,
 		Type:      ConCheck,
 		CheckExpr: fmt.Sprintf("json_valid(`%s`)", col.Name),
+		Implicit:  true,
 	}
 }
 
@@ -3368,6 +3369,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			RefColumns:  append([]string{}, srcCon.RefColumns...),
 			OnDelete:    srcCon.OnDelete,
 			OnUpdate:    srcCon.OnUpdate,
+			// A copied json_valid check is still the catalog's own, so the
+			// copy belongs to its column the same way the original does.
+			Implicit: srcCon.Implicit,
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}

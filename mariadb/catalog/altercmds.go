@@ -1214,9 +1214,12 @@ func dropImplicitJSONCheck(tbl *Table, colName string) {
 // isImplicitJSONCheck reports whether the constraint is the json_valid check a
 // JSON column carries, which the catalog names after that column. It is not a
 // constraint a statement can name: it comes and goes with its column.
+//
+// The answer comes from the constraint's own record of how it was made, not
+// from its SQL, since a statement may declare a check with the same name and
+// expression and that one is ordinary. See Constraint.Implicit.
 func isImplicitJSONCheck(con *Constraint) bool {
-	return con != nil && con.Type == ConCheck &&
-		con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", con.Name)
+	return con != nil && con.Type == ConCheck && con.Implicit
 }
 
 // renameImplicitJSONCheck follows a renamed JSON column: the check keeps the
@@ -1226,8 +1229,7 @@ func isImplicitJSONCheck(con *Constraint) bool {
 func renameImplicitJSONCheck(tbl *Table, oldName, newName string) {
 	key := toLower(oldName)
 	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && toLower(con.Name) == key &&
-			con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", oldName) {
+		if toLower(con.Name) == key && isImplicitJSONCheck(con) {
 			con.Name = newName
 			con.CheckExpr = fmt.Sprintf("json_valid(`%s`)", newName)
 		}

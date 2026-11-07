@@ -1233,3 +1233,123 @@ func TestReview_ParenthesizedLiteralDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ExplicitJSONValidCheckIsOrdinary covers a CHECK a statement
+// declares that happens to look exactly like the one a JSON column carries.
+// It is an ordinary constraint: it can be dropped by name, and its analyzed
+// expression belongs to it.
+//
+// Measured on mariadb:11.8.8, which tells the two apart: the explicit one is
+// droppable and the JSON column's answers 1091. So the catalog records how a
+// constraint was made rather than reading it off the SQL.
+func TestReview_ExplicitJSONValidCheckIsOrdinary(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		drop    string
+		accepts bool
+	}{
+		{
+			name:  "explicit_named_after_its_column",
+			setup: "CREATE TABLE t (j LONGTEXT, CONSTRAINT j CHECK (json_valid(j)))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT j", accepts: true,
+		},
+		{
+			name:  "explicit_under_another_name",
+			setup: "CREATE TABLE t (j LONGTEXT, CONSTRAINT ck CHECK (json_valid(j)))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT ck", accepts: true,
+		},
+		{
+			name:  "explicit_beside_a_json_column",
+			setup: "CREATE TABLE t (j JSON, CONSTRAINT ck CHECK (json_valid(j)))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT ck", accepts: true,
+		},
+		{
+			name:  "the_json_column_s_own",
+			setup: "CREATE TABLE t (j JSON)",
+			drop:  "ALTER TABLE t DROP CONSTRAINT j", accepts: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.drop)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.drop, oracleErr, tc.accepts)
+			}
+
+			results, err := c.Exec(tc.drop+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Errorf("omni: %q gave %v, want accepted=%v", tc.drop, omniErr, tc.accepts)
+			}
+		})
+	}
+}
+
+// TestReview_ExplicitJSONValidCheckIsAnalyzed covers the other half of the
+// same classification: an explicitly declared json_valid check is one of the
+// statement's CHECK clauses, so it keeps its own analyzed expression and does
+// not shift the ones after it.
+func TestReview_ExplicitJSONValidCheckIsAnalyzed(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ddl      string
+		analyzed map[string]bool
+	}{
+		{
+			name:     "explicit_named_after_its_column",
+			ddl:      "CREATE TABLE t (j LONGTEXT, CONSTRAINT j CHECK (json_valid(j)))",
+			analyzed: map[string]bool{"j": true},
+		},
+		{
+			name: "explicit_then_another_check",
+			ddl: "CREATE TABLE t (j LONGTEXT, a INT, CONSTRAINT j CHECK (json_valid(j))," +
+				" CONSTRAINT positive CHECK (a > 0))",
+			analyzed: map[string]bool{"j": true, "positive": true},
+		},
+		{
+			name: "a_json_column_and_an_explicit_check",
+			ddl: "CREATE TABLE t (j JSON, a INT, CONSTRAINT ck CHECK (json_valid(j))," +
+				" CONSTRAINT positive CHECK (a > 0))",
+			analyzed: map[string]bool{"j": false, "ck": true, "positive": true},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			results, err := c.Exec("CREATE DATABASE d; USE d; "+tc.ddl+";", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatal(r.Error)
+				}
+			}
+			seen := map[string]bool{}
+			for _, con := range c.GetDatabase("d").GetTable("t").Constraints {
+				if con.Type == ConCheck {
+					seen[con.Name] = con.CheckAnalyzed != nil
+				}
+			}
+			for name, want := range tc.analyzed {
+				if got, ok := seen[name]; !ok || got != want {
+					t.Errorf("constraint %q analyzed=%v (present=%v), want %v", name, got, ok, want)
+				}
+			}
+			if len(seen) != len(tc.analyzed) {
+				t.Errorf("CHECK constraints: got %v, want %v", seen, tc.analyzed)
+			}
+		})
+	}
+}
