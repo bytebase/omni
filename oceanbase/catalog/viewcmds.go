@@ -321,8 +321,8 @@ func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]vi
 			return err
 		}
 	}
-	for _, expr := range sel.GroupBy {
-		if _, err := inferViewExprCollation(expr, relations); err != nil {
+	for _, item := range sel.GroupBy {
+		if _, err := inferViewExprCollation(item.Expr, relations); err != nil {
 			return err
 		}
 	}

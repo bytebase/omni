@@ -1912,6 +1912,10 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 		}
 		return &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}, nil
 	}
+	if p.cur.Type == '?' {
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+	}
 	return nil, p.syntaxErrorAtCur()
 }
 
@@ -1957,6 +1961,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		limit.Offset = offset
+		limit.OffsetKeyword = true
 	}
 
 	limit.Loc.End = p.prev.End

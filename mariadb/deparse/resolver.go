@@ -235,8 +235,8 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	}
 
 	// Resolve GROUP BY
-	for i, expr := range stmt.GroupBy {
-		stmt.GroupBy[i] = r.resolveExpr(expr, sc)
+	for _, item := range stmt.GroupBy {
+		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
 
 	// Resolve HAVING

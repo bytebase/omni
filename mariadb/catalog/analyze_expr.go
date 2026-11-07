@@ -27,6 +27,13 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.ParamMarkerExpr:
+		// A `?` parameter marker is only ever reached here from a view body (the
+		// only thing this analyzer processes), where it is a LIMIT/OFFSET
+		// operand. Represent it as a keyword-like constant; the engine itself
+		// rejects a `?` in a non-prepared statement, so this never round-trips
+		// to executable SQL.
+		return &ConstExprQ{Value: "?", Keyword: true}, nil
 	case *nodes.FuncCallExpr:
 		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:
