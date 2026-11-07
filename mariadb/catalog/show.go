@@ -397,37 +397,89 @@ func formatExpressionDefault(val string) string {
 	return "(" + inner + ")"
 }
 
-// isBareFunctionCall reports whether expr is one function call and nothing
-// else: a name, then a balanced argument list that ends the text.
-func isBareFunctionCall(expr string) bool {
-	open := strings.IndexByte(expr, '(')
-	if open <= 0 || !strings.HasSuffix(expr, ")") {
-		return false
-	}
-	for i := 0; i < open; i++ {
+// scanOutsideQuotes calls f for each byte of expr that is not inside a quoted
+// string or identifier, and reports whether every quote was closed. MariaDB
+// quotes strings with '\” or '"' and identifiers with '`'; a quote inside one
+// is written doubled, or, in a string, escaped with a backslash.
+func scanOutsideQuotes(expr string, f func(i int, c byte)) bool {
+	var quote byte
+	for i := 0; i < len(expr); i++ {
 		c := expr[i]
-		if c == '_' || c == '$' || c == '.' ||
-			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') {
+		if quote == 0 {
+			switch c {
+			case '\'', '"', '`':
+				quote = c
+			default:
+				f(i, c)
+			}
 			continue
 		}
-		return false
-	}
-	// The argument list must close exactly at the end, so `f(1) + 1` is not
-	// one call.
-	depth := 0
-	for i := open; i < len(expr); i++ {
-		switch expr[i] {
-		case '(':
-			depth++
-		case ')':
-			depth--
-			if depth == 0 && i != len(expr)-1 {
-				return false
-			}
+		switch {
+		case c == '\\' && quote != '`' && i+1 < len(expr):
+			i++ // an escaped byte, whatever it is
+		case c == quote && i+1 < len(expr) && expr[i+1] == quote:
+			i++ // a doubled quote stands for one
+		case c == quote:
+			quote = 0
 		}
 	}
-	return depth == 0
+	return quote == 0
+}
+
+// isNameByte reports whether c can appear in an unquoted function name.
+func isNameByte(c byte) bool {
+	return c == '_' || c == '$' || c == '.' ||
+		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9')
+}
+
+// isBareFunctionCall reports whether expr is one function call and nothing
+// else: a name, then a balanced argument list that ends the text.
+//
+// A parenthesis inside a string or a quoted identifier is text rather than
+// structure, so it is not counted: `length('(') + length(')')` is two calls
+// either side of an operator and keeps its parentheses, while `length('()')`
+// is the one call and loses them. Measured on mariadb:11.8.8.
+func isBareFunctionCall(expr string) bool {
+	nameEnd := -1
+	nameOK := true
+	type paren struct {
+		at   int
+		open bool
+	}
+	var parens []paren
+	balanced := scanOutsideQuotes(expr, func(i int, c byte) {
+		switch c {
+		case '(':
+			if nameEnd < 0 {
+				nameEnd = i
+			}
+			parens = append(parens, paren{i, true})
+		case ')':
+			parens = append(parens, paren{i, false})
+		default:
+			if nameEnd < 0 && !isNameByte(c) {
+				nameOK = false
+			}
+		}
+	})
+	if !balanced || !nameOK || nameEnd <= 0 || len(parens) == 0 {
+		return false
+	}
+	// The name's own argument list has to be the one that closes the text, so
+	// `f(1) + 1` and `f(1) + g(2)` are not one call.
+	depth := 0
+	for _, p := range parens {
+		if p.open {
+			depth++
+			continue
+		}
+		depth--
+		if depth == 0 && p.at != len(expr)-1 {
+			return false
+		}
+	}
+	return depth == 0 && parens[len(parens)-1].at == len(expr)-1
 }
 
 // stripOuterParens removes one balanced outer pair of parentheses, and leaves
@@ -436,19 +488,20 @@ func stripOuterParens(expr string) string {
 	if len(expr) < 2 || expr[0] != '(' || expr[len(expr)-1] != ')' {
 		return expr
 	}
-	depth := 0
-	for i, ch := range expr {
-		switch ch {
+	// Quoted parentheses are text, so `('(')` is wrapped while `'('` is not.
+	depth, wraps := 0, true
+	balanced := scanOutsideQuotes(expr, func(i int, c byte) {
+		switch c {
 		case '(':
 			depth++
 		case ')':
 			depth--
 			if depth == 0 && i != len(expr)-1 {
-				return expr
+				wraps = false
 			}
 		}
-	}
-	if depth != 0 {
+	})
+	if !balanced || !wraps || depth != 0 {
 		return expr
 	}
 	return expr[1 : len(expr)-1]
@@ -469,6 +522,12 @@ func formatDefault(val string, col *Column) string {
 	case ColumnDefaultCurrentTimestamp:
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
+		// A parenthesized literal is still a literal: `BINARY(1) DEFAULT
+		// (X'FF')` comes back `DEFAULT x'ff'`, the same as without the
+		// parentheses. Measured on mariadb:11.8.8.
+		if out, ok := formatBinaryDefault(stripOuterParens(val), col); ok {
+			return out
+		}
 		// A default that is one function call is written bare; anything else
 		// keeps the parentheses, which the DEFAULT grammar needs for an
 		// operator expression. Measured on mariadb:11.8.8:
@@ -480,6 +539,9 @@ func formatDefault(val string, col *Column) string {
 	}
 	if _, ok := currentTimestampSQL(val); ok {
 		return formatCurrentTimestamp(val)
+	}
+	if out, ok := formatBinaryDefault(val, col); ok {
+		return out
 	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
@@ -973,4 +1035,182 @@ func partitionEngine(engine string) string {
 		return "InnoDB"
 	}
 	return engine
+}
+
+// formatBinaryDefault renders a literal default on a binary column, and
+// reports whether it applied. The two halves of the family answer differently,
+// both measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+//
+// BINARY and VARBINARY store the coerced value, so the literal is evaluated
+// and written back as lowercase hex, padded with zero bytes to the declared
+// width where the type is fixed:
+//
+//	BINARY(1) DEFAULT X'FF'  -> x'ff'        BINARY(4) DEFAULT X'FF' -> x'ff000000'
+//	BINARY(4) DEFAULT 'a'    -> x'61000000'  BINARY(3) DEFAULT 0x4142 -> x'414200'
+//	BINARY(1) DEFAULT X''    -> x'00'        VARBINARY(4) DEFAULT 'a' -> x'61'
+//	VARBINARY(4) DEFAULT b'1000001' -> x'41'
+//
+// The BLOB family stores the expression instead, so the literal is kept as it
+// was written and only normalized: hex keeps its own spelling with the digits
+// lowercased, a bit literal becomes 0x, and a string stays a string:
+//
+//	BLOB DEFAULT X'FF' -> X'ff'   BLOB DEFAULT 0xFF -> 0xff
+//	BLOB DEFAULT b'1000001' -> 0x41   BLOB DEFAULT 'a' -> 'a'
+func formatBinaryDefault(val string, col *Column) (string, bool) {
+	fixed, variable, blob := isBinaryColumnType(col.DataType)
+	if !fixed && !variable && !blob {
+		return "", false
+	}
+	raw, ok := binaryLiteralBytes(val)
+	if !ok {
+		return "", false
+	}
+	if blob {
+		switch {
+		case hasPrefixFold(val, "x'"):
+			return val[:2] + strings.ToLower(val[2:]), true
+		case hasPrefixFold(val, "0x"):
+			return "0x" + strings.ToLower(val[2:]), true
+		case hasPrefixFold(val, "b'"):
+			return "0x" + hexOf(raw), true
+		default:
+			return val, true // a string default keeps its quotes
+		}
+	}
+	if width := declaredTypeLength(col.ColumnType); fixed && width > len(raw) {
+		raw = append(raw, make([]byte, width-len(raw))...)
+	}
+	return "x'" + hexOf(raw) + "'", true
+}
+
+// isBinaryColumnType classifies a column type as fixed binary, variable
+// binary, or one of the blob types.
+func isBinaryColumnType(dt string) (fixed, variable, blob bool) {
+	switch normalizedTypeName(dt) {
+	case "binary":
+		return true, false, false
+	case "varbinary":
+		return false, true, false
+	case "tinyblob", "blob", "mediumblob", "longblob":
+		return false, false, true
+	}
+	return false, false, false
+}
+
+// binaryLiteralBytes decodes a literal default to the bytes it stands for: a
+// hex literal in either spelling, a bit literal, or a single-quoted string.
+// It reports false for anything else, an expression included.
+func binaryLiteralBytes(val string) ([]byte, bool) {
+	switch {
+	case hasPrefixFold(val, "x'") && strings.HasSuffix(val, "'"):
+		return decodeHex(val[2 : len(val)-1])
+	case hasPrefixFold(val, "0x"):
+		return decodeHex(val[2:])
+	case hasPrefixFold(val, "b'") && strings.HasSuffix(val, "'"):
+		return decodeBits(val[2 : len(val)-1])
+	case len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'':
+		// The quotes come off and a doubled quote stands for one. A string
+		// holding an escape is left to the caller, which keeps it as written.
+		inner := val[1 : len(val)-1]
+		if strings.ContainsRune(inner, '\\') {
+			return nil, false
+		}
+		return []byte(strings.ReplaceAll(inner, "''", "'")), true
+	}
+	return nil, false
+}
+
+// decodeHex reads an even-length run of hex digits.
+func decodeHex(digits string) ([]byte, bool) {
+	if len(digits)%2 != 0 {
+		digits = "0" + digits
+	}
+	out := make([]byte, 0, len(digits)/2)
+	for i := 0; i < len(digits); i += 2 {
+		hi, ok := hexNibble(digits[i])
+		if !ok {
+			return nil, false
+		}
+		lo, ok2 := hexNibble(digits[i+1])
+		if !ok2 {
+			return nil, false
+		}
+		out = append(out, hi<<4|lo)
+	}
+	return out, true
+}
+
+func hexNibble(c byte) (byte, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0', true
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10, true
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
+}
+
+// decodeBits reads a bit literal as a big-endian number in as few bytes as
+// hold it, which is how b'1000001' becomes one byte, 0x41.
+func decodeBits(bits string) ([]byte, bool) {
+	if bits == "" {
+		return nil, true
+	}
+	for i := 0; i < len(bits); i++ {
+		if bits[i] != '0' && bits[i] != '1' {
+			return nil, false
+		}
+	}
+	n := (len(bits) + 7) / 8
+	out := make([]byte, n)
+	for i := 0; i < len(bits); i++ {
+		if bits[len(bits)-1-i] == '1' {
+			out[n-1-i/8] |= 1 << (i % 8)
+		}
+	}
+	return out, true
+}
+
+// hexOf renders bytes as lowercase hex digits.
+func hexOf(raw []byte) string {
+	const digits = "0123456789abcdef"
+	var b strings.Builder
+	b.Grow(len(raw) * 2)
+	for _, c := range raw {
+		b.WriteByte(digits[c>>4])
+		b.WriteByte(digits[c&0xf])
+	}
+	return b.String()
+}
+
+// hasPrefixFold reports whether s starts with prefix, ignoring case.
+func hasPrefixFold(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
+}
+
+// declaredTypeLength reads the width out of a column type, as the 4 of
+// binary(4), or 0 where the type carries none.
+func declaredTypeLength(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0
+	}
+	close := strings.IndexByte(columnType[open:], ')')
+	if close < 0 {
+		return 0
+	}
+	n := 0
+	digits := columnType[open+1 : open+close]
+	if digits == "" {
+		return 0
+	}
+	for i := 0; i < len(digits); i++ {
+		if digits[i] < '0' || digits[i] > '9' {
+			return 0
+		}
+		n = n*10 + int(digits[i]-'0')
+	}
+	return n
 }

@@ -844,6 +844,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		Loc:       nodes.Loc{Start: start},
 		Schema:    schema,
 		Name:      strings.ToUpper(name),
+		RawName:   name,
 		HasParens: true,
 	}
 

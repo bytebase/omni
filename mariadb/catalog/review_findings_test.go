@@ -656,3 +656,190 @@ func serverErrorMessage(err error) string {
 	}
 	return s
 }
+
+// The fourth round of review findings.
+
+// TestReview_ExpressionDefaultQuotedParens covers an expression default whose
+// string literals hold parentheses. Those are text, not structure, so they do
+// not decide whether the default is a single call: `length('(') + length(')')`
+// is two calls around an operator and keeps its parentheses, while
+// `length('()')` is one call and loses them.
+func TestReview_ExpressionDefaultQuotedParens(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"quoted_parens_around_operator", "CREATE TABLE t (a INT DEFAULT (length('(') + length(')')))"},
+		{"quoted_parens_in_one_call", "CREATE TABLE t (a INT DEFAULT (length('()')))"},
+		{"quoted_close_paren_arg", "CREATE TABLE t (a VARCHAR(9) DEFAULT (concat('a', ')')))"},
+		{"quoted_open_paren_arg", "CREATE TABLE t (a VARCHAR(9) DEFAULT (concat('a', '(')))"},
+		{"operator_keeps_parens", "CREATE TABLE t (a INT DEFAULT (1 + 1))"},
+		{"single_call_is_bare", "CREATE TABLE t (a VARCHAR(36) DEFAULT (uuid()))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_BinaryLiteralDefault covers a literal default on a binary
+// column. The two halves of the family answer differently: BINARY and
+// VARBINARY store the coerced value and write it back as lowercase hex, zero
+// padded to the width where the type is fixed, while the BLOB family stores
+// the expression and keeps the literal as written, only normalized.
+func TestReview_BinaryLiteralDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"binary_hex", "CREATE TABLE t (a BINARY(1) DEFAULT X'FF')"},
+		{"binary_hex_padded", "CREATE TABLE t (a BINARY(4) DEFAULT X'FF')"},
+		{"binary_0x", "CREATE TABLE t (a BINARY(1) DEFAULT 0xFF)"},
+		{"binary_0x_padded", "CREATE TABLE t (a BINARY(3) DEFAULT 0x4142)"},
+		{"binary_bits_padded", "CREATE TABLE t (a BINARY(2) DEFAULT b'101')"},
+		{"binary_string_padded", "CREATE TABLE t (a BINARY(4) DEFAULT 'a')"},
+		{"binary_empty_hex", "CREATE TABLE t (a BINARY(1) DEFAULT X'')"},
+		{"binary_parenthesized", "CREATE TABLE t (a BINARY(1) DEFAULT (X'FF'))"},
+		{"varbinary_hex", "CREATE TABLE t (a VARBINARY(4) DEFAULT X'FF')"},
+		{"varbinary_string", "CREATE TABLE t (a VARBINARY(4) DEFAULT 'a')"},
+		{"varbinary_bits", "CREATE TABLE t (a VARBINARY(4) DEFAULT b'1000001')"},
+		{"varbinary_expression", "CREATE TABLE t (a VARBINARY(4) DEFAULT (concat(X'FF', X'00')))"},
+		{"blob_hex_keeps_spelling", "CREATE TABLE t (a BLOB DEFAULT X'FF')"},
+		{"blob_hex_two_bytes", "CREATE TABLE t (a BLOB DEFAULT X'4142')"},
+		{"blob_0x_keeps_spelling", "CREATE TABLE t (a BLOB DEFAULT 0xFF)"},
+		{"blob_bits_become_0x", "CREATE TABLE t (a BLOB DEFAULT b'1000001')"},
+		{"blob_string_stays_string", "CREATE TABLE t (a BLOB DEFAULT 'a')"},
+		{"blob_parenthesized", "CREATE TABLE t (a BLOB DEFAULT (X'FF'))"},
+		{"tinyblob_hex", "CREATE TABLE t (a TINYBLOB DEFAULT X'FF')"},
+		{"longblob_hex", "CREATE TABLE t (a LONGBLOB DEFAULT X'FF')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_QualifiedFunctionCall covers a schema-qualified call, which names
+// a stored routine rather than a built-in. It keeps the name it was declared
+// with and is written quoted, where an unqualified call is folded onto the
+// built-in's canonical name even if a routine of that name exists.
+func TestReview_QualifiedFunctionCall(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT);")
+	for _, ddl := range []string{
+		"CREATE FUNCTION `upper`(x INT) RETURNS INT DETERMINISTIC RETURN x+1;",
+		"CREATE FUNCTION plainfn(x INT) RETURNS INT DETERMINISTIC RETURN x+2;",
+		"CREATE FUNCTION `odd name`(x INT) RETURNS INT DETERMINISTIC RETURN x+3;",
+		"CREATE FUNCTION MixedFn(x INT) RETURNS INT DETERMINISTIC RETURN x+4;",
+	} {
+		runOnBoth(t, mc, c, ddl)
+	}
+
+	for _, tc := range []struct{ name, view, query string }{
+		{"qualified_shadows_builtin", "qv_upper", "SELECT testdb.`upper`(1) AS x"},
+		{"qualified_plain", "qv_plain", "SELECT testdb.plainfn(1) AS x"},
+		{"qualified_needs_quoting", "qv_odd", "SELECT testdb.`odd name`(1) AS x"},
+		{"qualified_keeps_case", "qv_mixed", "SELECT testdb.MixedFn(1) AS x"},
+		{"unqualified_folds_to_builtin", "qv_bare", "SELECT `upper`(1) AS x"},
+		{"builtin_folds", "qv_builtin", "SELECT UPPER('a') AS x"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+tc.view+" AS "+tc.query+";")
+			want := oracleViewDefinition(t, mc, tc.view)
+			if got := extractSelectBody(c.ShowCreateView("testdb", tc.view)); got != want {
+				t.Errorf("view body mismatch\n  oracle: %s\n  omni:   %s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_ByteLengthAndMidNames covers two names a stored expression is
+// written back under, in a view body and a DEFAULT alike: LENGTH counts bytes
+// and is stored as octet_length, and MID is SUBSTRING's third spelling.
+func TestReview_ByteLengthAndMidNames(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	for i, tc := range []struct{ name, expr string }{
+		{"length", "length('ab')"},
+		{"mid", "mid('abc',1,1)"},
+		{"octet_length", "octet_length('ab')"},
+		{"char_length", "char_length('ab')"},
+		{"substring", "substring('abc',1)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			view := fmt.Sprintf("nv%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS SELECT "+tc.expr+" AS x;")
+			want := oracleViewDefinition(t, mc, view)
+			if got := extractSelectBody(c.ShowCreateView("testdb", view)); got != want {
+				t.Errorf("view body mismatch\n  oracle: %s\n  omni:   %s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_ValuesViewDropsColumnNames is the finding that was not a bug.
+// MariaDB discards the column list a VALUES view declares: the columns of
+// `CREATE VIEW v(x, y) AS VALUES (1, 2)` are named 1 and 2 on the server
+// itself, and naming x fails, so there is no interface for omni to preserve.
+func TestReview_ValuesViewDropsColumnNames(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE VIEW v_values(x, y) AS VALUES (1, 2);")
+	assertViewBodyMatches(t, mc, c, "v_values")
+
+	var names []string
+	for _, row := range oracleRows(t, mc,
+		"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()"+
+			" AND TABLE_NAME = 'v_values' ORDER BY ORDINAL_POSITION") {
+		if s, ok := row[0].(string); ok {
+			names = append(names, s)
+		}
+	}
+	if len(names) != 2 || names[0] != "1" || names[1] != "2" {
+		t.Errorf("oracle: expected the declared names to be dropped for 1 and 2, got %v", names)
+	}
+	if _, err := mc.db.ExecContext(mc.ctx, "SELECT x FROM v_values"); err == nil {
+		t.Errorf("oracle: expected the declared column name to be unusable")
+	}
+
+	// A SELECT body keeps its list, which is why that one is dropped from the
+	// stored DDL rather than kept.
+	runOnBoth(t, mc, c, "CREATE VIEW v_select(x, y) AS SELECT 1, 2;")
+	assertViewBodyMatches(t, mc, c, "v_select")
+}
+
+// assertDefaultMatches compares the DEFAULT clause the server stored for table
+// t with the one the catalog wrote.
+func assertDefaultMatches(t *testing.T, mc *mariadbContainer, c *Catalog) {
+	t.Helper()
+	want := defaultClauseOf(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+	if got := defaultClauseOf(c.ShowCreateTable("testdb", "t")); got != want {
+		t.Errorf("DEFAULT clause mismatch\n  oracle: %s\n  omni:   %s", want, got)
+	}
+}
+
+// defaultClauseOf pulls the DEFAULT clause out of a SHOW CREATE TABLE.
+func defaultClauseOf(create string) string {
+	for _, line := range strings.Split(create, "\n") {
+		if i := strings.Index(line, "DEFAULT "); i >= 0 {
+			return strings.TrimRight(strings.TrimSpace(line[i:]), ",")
+		}
+	}
+	return "(no DEFAULT)"
+}

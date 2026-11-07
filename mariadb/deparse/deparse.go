@@ -2228,6 +2228,12 @@ var funcNameRewrites = map[string]string{
 	"CHAR_LENGTH":       "char_length",
 	"STDDEV":            "std",
 	"STDDEV_POP":        "std",
+	// LENGTH counts bytes, and the name it is stored under says so; MID is
+	// SUBSTRING's third spelling. Both measured on mariadb:11.8.8, in a view
+	// body and in a DEFAULT expression alike: length('ab') comes back
+	// octet_length('ab') and mid('abc',1,1) comes back substr('abc',1,1).
+	"LENGTH": "octet_length",
+	"MID":    "substr",
 }
 
 // writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -2285,18 +2291,29 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	// Determine the canonical function name
-	canonical, ok := funcNameRewrites[name]
-	if !ok {
-		canonical = strings.ToLower(n.Name)
-	}
-
-	// Schema-qualified name
+	// A built-in's canonical name belongs to an unqualified call only. A
+	// qualified one names a stored routine, which keeps the name it was
+	// declared with and is written quoted, like any other identifier.
+	//
+	// Measured on mariadb:11.8.8: with a stored function `upper` in testdb,
+	// `SELECT testdb.`upper`(1)` comes back `` `testdb`.`upper`(1) `` while an
+	// unqualified `upper(1)` is `ucase(1)` even though that function exists,
+	// and `testdb.MixedFn(1)` keeps its spelling as `` `testdb`.`MixedFn` ``.
 	if n.Schema != "" {
-		canonical = strings.ToLower(n.Schema) + "." + canonical
+		routine := n.RawName
+		if routine == "" {
+			routine = n.Name
+		}
+		b.WriteString(quoteIdent(n.Schema))
+		b.WriteString(".")
+		b.WriteString(quoteIdent(routine))
+	} else {
+		canonical, ok := funcNameRewrites[name]
+		if !ok {
+			canonical = strings.ToLower(n.Name)
+		}
+		b.WriteString(canonical)
 	}
-
-	b.WriteString(canonical)
 	switch {
 	case len(n.Args) == 0 && !n.Star:
 		// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens

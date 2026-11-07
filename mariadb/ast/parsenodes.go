@@ -784,8 +784,12 @@ func (e *UnaryExpr) exprNode() {}
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Loc        Loc
-	Name       string
+	Loc  Loc
+	Name string
+	// RawName is the name as it was written, where Name is upper-cased for
+	// comparison against the built-ins. A stored routine keeps the spelling it
+	// was declared with, which a qualified call is written back with.
+	RawName    string
 	Schema     string // schema-qualified name
 	Args       []ExprNode
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
