@@ -602,7 +602,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// IF(cond, val, val) — reserved keyword also used as function
 		kwIF,
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
-		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
+		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE, kwSCHEMA,
 		kwMOD, kwREPEAT, kwREPLACE:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()

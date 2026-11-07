@@ -522,7 +522,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance() // consume GLOBAL
 		p.advance() // consume TEMPORARY
 		global = true
-		if p.cur.Type != kwTABLE {
+		if p.cur.Type != kwTABLE && p.cur.Type != kwTABLES {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else if p.cur.Type == kwTEMPORARY {
@@ -846,7 +846,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		p.advance() // consume GLOBAL
 		p.advance() // consume TEMPORARY
 		global = true
-		if p.cur.Type != kwTABLE {
+		if p.cur.Type != kwTABLE && p.cur.Type != kwTABLES {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else if p.cur.Type == kwTEMPORARY {
@@ -855,7 +855,8 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwTABLE:
+	case kwTABLE, kwTABLES:
+		// TableOrTables (parser.y:5446): DROP accepts the plural TABLES too.
 		return p.parseDropTableStmt(start, temporary, global)
 
 	case kwINDEX:

@@ -229,6 +229,16 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 					tblRef.Partitions = parts
 					tblRef.Loc.End = p.prev.End
 				}
+				// Optional index hints (IndexHintListOpt, parser.y:5232):
+				// `DELETE FROM t USE INDEX (i) WHERE ...`.
+				if p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+					hints, err := p.parseIndexHints()
+					if err != nil {
+						return nil, err
+					}
+					tblRef.IndexHints = hints
+					tblRef.Loc.End = p.prev.End
+				}
 			}
 		}
 

@@ -8,10 +8,10 @@ import (
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-table.html
 //
-//	DROP [TEMPORARY] TABLE [IF EXISTS] tbl_name [, tbl_name] ...
+//	DROP [TEMPORARY] {TABLE | TABLES} [IF EXISTS] tbl_name [, tbl_name] ...
 //	    [RESTRICT | CASCADE]
 func (p *Parser) parseDropTableStmt(start int, temporary, global bool) (*nodes.DropTableStmt, error) {
-	p.advance() // consume TABLE
+	p.advance() // consume TABLE or TABLES
 
 	stmt := &nodes.DropTableStmt{
 		Loc:       nodes.Loc{Start: start},

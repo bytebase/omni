@@ -292,7 +292,8 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		if _, ok := p.match(kwALL); ok {
 			all = true
 		} else {
-			p.match(kwDISTINCT)
+			// DISTINCTROW is DISTINCT's synonym here too (SetOprOpt, parser.y).
+			p.match(kwDISTINCT, kwDISTINCTROW)
 		}
 
 		// Completion: after ALL/DISTINCT, offer the query primaries.
@@ -2294,11 +2295,20 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 	}
 
 	if p.cur.Type != ')' {
-		// Parse comma-separated index names
+		// Parse comma-separated index names. PRIMARY names the primary key
+		// here, though it is reserved (IndexNameList includes "PRIMARY",
+		// parser.y): `USE INDEX (PRIMARY)` is accepted on v8.5.5.
 		for {
-			name, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
+			var name string
+			if p.cur.Type == kwPRIMARY {
+				name = "PRIMARY"
+				p.advance()
+			} else {
+				var err error
+				name, _, err = p.parseIdent()
+				if err != nil {
+					return nil, err
+				}
 			}
 			hint.Indexes = append(hint.Indexes, name)
 			if p.cur.Type != ',' {
