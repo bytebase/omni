@@ -279,7 +279,6 @@ accept	accept	CommitStmt#2	COMMIT RELEASE
 accept	accept	PrimaryOpt#1	ALTER TABLE ident ADD ident JSON KEY
 accept	accept	PrimaryOpt#2	ALTER TABLE ident ADD ident JSON PRIMARY KEY
 accept	accept	NotSym#1	DO ident IS NOT TRUE
-accept	accept	NotSym#2	DO ident IS NOT TRUE
 accept	accept	EnforcedOrNot#1	ALTER TABLE ident ALTER CHECK ident ENFORCED
 accept	accept	EnforcedOrNot#2	ALTER TABLE ident ALTER CHECK ident NOT ENFORCED
 accept	accept	EnforcedOrNotOpt#1	ALTER TABLE ident ADD CHECK(ident)
@@ -1451,7 +1450,6 @@ accept	accept	SimpleExpr#11	DO ! ident
 accept	accept	SimpleExpr#12	DO ~ ident
 accept	accept	SimpleExpr#13	DO - ident
 accept	accept	SimpleExpr#14	DO + ident
-accept	accept	SimpleExpr#16	DO NOT ident
 accept	accept	SimpleExpr#17	DO(SELECT *)
 accept	accept	SimpleExpr#18	DO(ident)
 accept	accept	SimpleExpr#19	DO(ident, ident)

@@ -79,5 +79,7 @@ refuses many on a semantic check its grammar actions make (about 121 of them):
 those are honest `reject`/`reject` rows, not noise to remove. An alternative
 that no derivation from the start symbol reaches, that never terminates, or that
 the lexer only produces under a non-default SQL mode, is reported as needing a
-hand-written sentence; at v8.5.5 that is one, `SimpleExpr`'s `||` concat, which
-needs `PIPES_AS_CONCAT` (in the default mode `||` lexes as OR).
+hand-written sentence. At v8.5.5 those are the two mode-gated forms: `||` concat
+(needs `PIPES_AS_CONCAT`; in the default mode `||` lexes as OR) and
+high-precedence `NOT` (needs `HIGH_NOT_PRECEDENCE`; otherwise `NOT` lexes the
+same as the ordinary production).

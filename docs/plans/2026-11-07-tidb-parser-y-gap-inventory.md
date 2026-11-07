@@ -7,21 +7,22 @@ grammar work list it calls for: it replaces the pingcap-corpus inventory
 
 ## The measurement
 
-parser.y at v8.5.5 has 690 rules and 2,946 alternatives. One (`SimpleExpr#15`,
-the `||` concat, which needs `PIPES_AS_CONCAT`) is reported uncovered because it
-cannot be exercised in the default SQL mode the oracle measures, leaving 2,945.
-The shortest statement exercising each was measured against omni and against
-TiDB v8.5.5 via `PREPARE`:
+parser.y at v8.5.5 has 690 rules and 2,946 alternatives. Three are reported
+uncovered because they cannot be exercised in the default SQL mode the oracle
+measures — the `||` concat (`SimpleExpr#15`, needs `PIPES_AS_CONCAT`) and the
+high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
+— leaving 2,943. The shortest statement exercising each was measured against
+omni and against TiDB v8.5.5 via `PREPARE`:
 
 | | count |
 |---|---:|
-| both accept | 2,672 |
+| both accept | 2,670 |
 | gap: TiDB accepts, omni rejects | 152 |
 | over-acceptance: TiDB rejects, omni accepts | 0 |
 | both reject | 121 |
 | no verdict | 0 |
 
-omni parses **2,672 of the 2,824 alternatives TiDB accepts — 94.6%**, with zero
+omni parses **2,670 of the 2,822 alternatives TiDB accepts — 94.6%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.

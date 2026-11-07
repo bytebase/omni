@@ -33,11 +33,14 @@ type ctxt struct {
 
 // modeGatedTerminals are tokens the lexer produces only under a non-default SQL
 // mode, so a sentence using one is parsed as a different production in the mode
-// the oracle measures. pipes ("||") needs PIPES_AS_CONCAT; in the default mode
-// it lexes as OR (pipesAsOr), so SimpleExpr's concat alternative would be
-// recorded against a sentence that exercises OR. An alternative needing one is
-// reported uncovered rather than measured against the wrong production.
-var modeGatedTerminals = map[string]bool{"pipes": true}
+// the oracle measures, and the row would exercise that other production. An
+// alternative needing one is reported uncovered rather than measured against
+// the wrong production.
+//   - pipes ("||") needs PIPES_AS_CONCAT; in the default mode it lexes as OR
+//     (pipesAsOr), so SimpleExpr's concat alternative would exercise OR.
+//   - not2 ("NOT") needs HIGH_NOT_PRECEDENCE; in the default mode NOT lexes as
+//     the ordinary `not`, so the high-precedence NOT alternatives duplicate it.
+var modeGatedTerminals = map[string]bool{"pipes": true, "not2": true}
 
 // altModeGated reports whether an alternative uses a mode-gated terminal.
 func altModeGated(alt []Symbol) bool {
