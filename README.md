@@ -95,7 +95,7 @@ omni/
 │   │                       googlesql/spanner-oracle (own go.mod, not built by ./...)
 │   └── ...                 catalog, completion, analysis, ... per engine
 ├── metadata/               Database schema snapshot types, generated from proto/
-├── proto/                  Protobuf sources (`make proto` regenerates)
+├── proto/                  Protobuf sources; CI's proto step regenerates metadata/
 ├── scripts/                Build, test, and agent-pipeline tooling
 │   └── prompts/            Prompt templates used by the pipeline scripts
 └── docs/
@@ -112,21 +112,15 @@ Some engines also keep working documents next to the code they describe (for exa
 ## Development
 
 ```bash
-# Every engine (several engines start database containers)
-make test
-
-# The googlesql/spanner-oracle module; needs a running emulator (SPANNER_EMULATOR_HOST).
-# CI runs this too, so a green `make test` alone is not the full CI result.
-make test-spanner
-
-# One engine
-make test-pg
-make test-mysql
-make test-redshift
-
-# Build everything
-make build
+go build ./...        # everything
+go test ./...         # every engine; several start database containers
+go test ./pg/...      # one engine
 ```
+
+Two things `./...` does not cover:
+
+- `googlesql/spanner-oracle` has its own `go.mod` and needs a running emulator (`SPANNER_EMULATOR_HOST`): `(cd googlesql/spanner-oracle && go test ./...)`. CI runs it, so a green `go test ./...` is not the full CI result.
+- Changing `proto/` means regenerating `metadata/`: run the buf commands from the proto step of [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## License
 

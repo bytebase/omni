@@ -451,6 +451,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
 		}
+		for _, item := range n.ColumnActions {
+			walkAlterViewColumnAction(v, item)
+		}
+		if n.AddPolicyName != nil {
+			Walk(v, n.AddPolicyName)
+		}
 	case *AlterWarehouseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -612,6 +618,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkCloneSource(v, n.Clone)
+		if n.FromShare != nil {
+			Walk(v, n.FromShare)
+		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -996,6 +1005,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, item := range n.ArgTypes {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ExecuteTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1056,6 +1070,9 @@ func walkChildren(v Visitor, node Node) {
 	case *Grantee:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Class != nil {
+			Walk(v, n.Class)
 		}
 	case *GroupOption:
 		if n.Lit != nil {
@@ -1423,6 +1440,26 @@ func walkAlterTableAction(v Visitor, n *AlterTableAction) {
 	}
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
+	}
+}
+
+// walkAlterViewColumnAction walks the node-bearing fields of the non-Node helper struct
+// AlterViewColumnAction. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
+	if n == nil {
+		return
+	}
+	if n.MaskingPolicy != nil {
+		Walk(v, n.MaskingPolicy)
+	}
+	for _, item := range n.Tags {
+		walkTagAssignment(v, item)
+	}
+	for _, item := range n.UnsetTags {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 
