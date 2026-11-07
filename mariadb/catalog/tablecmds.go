@@ -163,7 +163,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt)); err != nil {
 				return err
 			}
 		}
@@ -222,9 +222,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tbl.AppPeriodStartCol = stmt.AppPeriodStartCol
 	tbl.AppPeriodEndCol = stmt.AppPeriodEndCol
 
-	// Process columns.
+	// Process columns. The table-level keys are read first, so a generated
+	// column can be checked against the indexes that will cover it.
+	indexedCols := tableLevelIndexedColumns(stmt)
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef); err != nil {
+		if err := validateColumnDefSemantics(colDef, indexedCols); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -2876,6 +2878,18 @@ func jsonValidConstraint(col *Column) *Constraint {
 		Type:      ConCheck,
 		CheckExpr: fmt.Sprintf("json_valid(`%s`)", col.Name),
 	}
+}
+
+// tableLevelIndexedColumns returns the lowercased names of the columns the
+// statement's table-level keys cover.
+func tableLevelIndexedColumns(stmt *nodes.CreateTableStmt) map[string]bool {
+	out := make(map[string]bool)
+	for _, con := range stmt.Constraints {
+		for _, name := range extractColumnNames(con) {
+			out[toLower(name)] = true
+		}
+	}
+	return out
 }
 
 func normalizedColumnDataType(dt *nodes.DataType) string {

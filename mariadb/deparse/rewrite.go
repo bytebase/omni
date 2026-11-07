@@ -332,20 +332,34 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 	for _, wd := range stmt.WindowClause {
 		byName[strings.ToLower(wd.Name)] = wd
 	}
-	for _, target := range stmt.TargetList {
-		expr, ok := target.(*ast.ResTarget)
-		if !ok {
-			continue
-		}
-		call, ok := expr.Val.(*ast.FuncCallExpr)
+	// The call can sit anywhere in an expression — `1 + ROW_NUMBER() OVER w`
+	// — and in ORDER BY as well as the target list, so every window reference
+	// is found by walking rather than by looking only at the top of each
+	// target. Dropping the clause while leaving a reference behind would make
+	// the stored body name a window it does not define.
+	inline := func(n ast.Node) bool {
+		call, ok := n.(*ast.FuncCallExpr)
 		if !ok || call.Over == nil || call.Over.RefName == "" {
-			continue
+			return true
 		}
 		if def, ok := byName[strings.ToLower(call.Over.RefName)]; ok {
 			inlined := *def
 			inlined.Name = ""
 			call.Over = &inlined
 		}
+		return true
+	}
+	for _, target := range stmt.TargetList {
+		ast.Inspect(target, inline)
+	}
+	if stmt.Where != nil {
+		ast.Inspect(stmt.Where, inline)
+	}
+	if stmt.Having != nil {
+		ast.Inspect(stmt.Having, inline)
+	}
+	for _, item := range stmt.OrderBy {
+		ast.Inspect(item.Expr, inline)
 	}
 	stmt.WindowClause = nil
 }

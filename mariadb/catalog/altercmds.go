@@ -90,6 +90,8 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
+	dropsPK := alterDropsPrimaryKey(stmt.Commands)
+
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
 		if skip[cmd] {
@@ -104,13 +106,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -140,7 +142,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK); err != nil {
 			rollback()
 			return err
 		}
@@ -201,12 +203,15 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+// execAlterCmd runs one ALTER command. dropsPK says whether another command of
+// the same statement drops the primary key, which decides whether dropping one
+// of its columns leaves a half-built key behind.
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd)
+		return c.alterDropColumn(tbl, cmd, dropsPK)
 	case nodes.ATModifyColumn:
 		return c.alterModifyColumn(tbl, cmd)
 	case nodes.ATChangeColumn:
@@ -462,7 +467,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
 	colKey := toLower(colDef.Name)
@@ -476,6 +481,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	if col.IsJSON {
+		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 	}
 
 	// Process column-level constraints that produce indexes/constraints.
@@ -532,7 +540,19 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 }
 
 // alterDropColumn removes a column from the table.
-func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+// alterDropsPrimaryKey reports whether any command of the statement drops the
+// primary key. The parser builds `DROP PRIMARY KEY` as a DROP CONSTRAINT named
+// PRIMARY.
+func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd.Type == nodes.ATDropConstraint && strings.EqualFold(cmd.Name, "PRIMARY") {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool) error {
 	colKey := toLower(cmd.Name)
 	if _, exists := tbl.colByName[colKey]; !exists {
 		if cmd.IfExists {
@@ -570,24 +590,34 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
-	// A column a composite PRIMARY KEY is built on cannot be dropped: MariaDB
-	// answers 1072, "Key column '<col>' doesn't exist in table", rather than
-	// rebuilding the key over the columns that are left. A single-column
-	// primary key goes with its column. Measured on mariadb:11.8.8.
-	for _, idx := range tbl.Indexes {
-		if !idx.Primary || len(idx.Columns) < 2 {
-			continue
-		}
-		for _, ic := range idx.Columns {
-			if toLower(ic.Name) == colKey {
-				return &Error{
-					Code:     1072,
-					SQLState: "42000",
-					Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", cmd.Name),
+	// A column a composite PRIMARY KEY is built on cannot be dropped while
+	// that key survives the statement: MariaDB answers 1072, "Key column
+	// '<col>' doesn't exist in table", rather than rebuilding the key over the
+	// columns that are left. The same ALTER may drop the key itself, and then
+	// the column goes with it — `DROP COLUMN a, DROP PRIMARY KEY` is accepted
+	// whichever order the clauses come in. A single-column primary key goes
+	// with its column. Measured on mariadb:11.8.8.
+	if !droppingPrimaryKey {
+		for _, idx := range tbl.Indexes {
+			if !idx.Primary || len(idx.Columns) < 2 {
+				continue
+			}
+			for _, ic := range idx.Columns {
+				if toLower(ic.Name) == colKey {
+					return &Error{
+						Code:     1072,
+						SQLState: "42000",
+						Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", cmd.Name),
+					}
 				}
 			}
 		}
 	}
+
+	// A JSON column's implicit json_valid check goes with it; leaving it behind
+	// would name a column the table no longer has. Measured on mariadb:11.8.8:
+	// after `ALTER TABLE t DROP COLUMN j` the table reports no check.
+	dropImplicitJSONCheck(tbl, cmd.Name)
 
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
@@ -682,7 +712,7 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)
@@ -712,7 +742,18 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		return errIncorrectAutoIncrementDefinition()
 	}
 	col.Position = idx + 1
+	wasJSON := tbl.Columns[idx].IsJSON
 	tbl.Columns[idx] = col
+
+	// The implicit json_valid check follows the type: a column retyped away
+	// from JSON loses it, one retyped to JSON gains it, and one that stays
+	// JSON keeps the single check it already has.
+	if wasJSON && !col.IsJSON {
+		dropImplicitJSONCheck(tbl, oldName)
+	}
+	if col.IsJSON && !wasJSON {
+		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
+	}
 
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
@@ -992,7 +1033,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("CONSTRAINT_%d", nextCheckNumber(tbl))
 		}
-		if checkConstraintNameExists(tbl.Database, nil, conName) {
+		if checkConstraintNameExists(tbl.Database, tbl, conName) {
 			return errCheckConstraintDupName(conName)
 		}
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
@@ -1154,6 +1195,51 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 
 	return nil
+}
+
+// dropImplicitJSONCheck removes the json_valid check a JSON column carries,
+// which the catalog names after the column.
+func dropImplicitJSONCheck(tbl *Table, colName string) {
+	key := toLower(colName)
+	kept := tbl.Constraints[:0]
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && toLower(con.Name) == key &&
+			con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", colName) {
+			continue
+		}
+		kept = append(kept, con)
+	}
+	tbl.Constraints = kept
+}
+
+// renameImplicitJSONCheck follows a renamed JSON column: the check keeps the
+// column's name and references it, so both move. Measured on mariadb:11.8.8:
+// after `ALTER TABLE t CHANGE COLUMN j k JSON` the check reads
+// CHECK (json_valid(`k`)).
+func renameImplicitJSONCheck(tbl *Table, oldName, newName string) {
+	key := toLower(oldName)
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && toLower(con.Name) == key &&
+			con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", oldName) {
+			con.Name = newName
+			con.CheckExpr = fmt.Sprintf("json_valid(`%s`)", newName)
+		}
+	}
+}
+
+// indexedColumnsOf returns the lowercased names of the columns the table's
+// indexes cover.
+func indexedColumnsOf(tbl *Table) map[string]bool {
+	out := make(map[string]bool)
+	if tbl == nil {
+		return out
+	}
+	for _, idx := range tbl.Indexes {
+		for _, ic := range idx.Columns {
+			out[toLower(ic.Name)] = true
+		}
+	}
+	return out
 }
 
 // alterDropConstraint removes a constraint by name.
@@ -1441,6 +1527,15 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// A column added or retyped JSON takes the same shape it would in a
+		// CREATE TABLE: longtext with the binary collation, and the
+		// json_valid check its caller attaches. Measured on mariadb:11.8.8:
+		// `ALTER TABLE t ADD COLUMN j JSON` reports
+		// `j` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+		// CHECK (json_valid(`j`)).
+		if col.DataType == "json" {
+			applyJSONColumn(col)
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			col.Charset = "utf8mb3"
 		}
@@ -1583,6 +1678,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		}
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
+	renameImplicitJSONCheck(tbl, oldName, newName)
 }
 
 // alterCheckEnforced refuses `ALTER TABLE ... ALTER CHECK <name> [NOT]

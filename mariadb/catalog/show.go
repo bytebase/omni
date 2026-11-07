@@ -357,6 +357,12 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 // columnCheckOf returns the CHECK constraint that belongs to the named column,
 // which is the one carrying the column's name, or nil.
+//
+// A generated column does not carry one: MariaDB writes
+// `CREATE TABLE c8 (a INT, b INT AS (a+1), CONSTRAINT b CHECK (a>0))` back with
+// the check as a table-level CONSTRAINT `b`, not on `b`. Measured on
+// mariadb:11.8.8. Treating it as the column's would drop it from the output
+// altogether, since the generated-column branch writes no check.
 func columnCheckOf(tbl *Table, name string) *Constraint {
 	if tbl == nil || name == "" {
 		return nil
@@ -368,7 +374,7 @@ func columnCheckOf(tbl *Table, name string) *Constraint {
 			break
 		}
 	}
-	if owner == nil {
+	if owner == nil || owner.Generated != nil {
 		return nil
 	}
 	for _, con := range tbl.Constraints {
@@ -377,6 +383,51 @@ func columnCheckOf(tbl *Table, name string) *Constraint {
 		}
 	}
 	return nil
+}
+
+// formatExpressionDefault writes an expression default the way MariaDB stores
+// it: bare when it is a single function call, and otherwise inside the
+// parentheses the DEFAULT grammar requires for an operator expression.
+// Measured on mariadb:11.8.8 — see formatDefault.
+func formatExpressionDefault(val string) string {
+	inner := stripOuterParens(val)
+	if isBareFunctionCall(inner) {
+		return inner
+	}
+	return "(" + inner + ")"
+}
+
+// isBareFunctionCall reports whether expr is one function call and nothing
+// else: a name, then a balanced argument list that ends the text.
+func isBareFunctionCall(expr string) bool {
+	open := strings.IndexByte(expr, '(')
+	if open <= 0 || !strings.HasSuffix(expr, ")") {
+		return false
+	}
+	for i := 0; i < open; i++ {
+		c := expr[i]
+		if c == '_' || c == '$' || c == '.' ||
+			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') {
+			continue
+		}
+		return false
+	}
+	// The argument list must close exactly at the end, so `f(1) + 1` is not
+	// one call.
+	depth := 0
+	for i := open; i < len(expr); i++ {
+		switch expr[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(expr)-1 {
+				return false
+			}
+		}
+	}
+	return depth == 0
 }
 
 // stripOuterParens removes one balanced outer pair of parentheses, and leaves
@@ -418,10 +469,14 @@ func formatDefault(val string, col *Column) string {
 	case ColumnDefaultCurrentTimestamp:
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
-		// MariaDB writes an expression default bare: `DEFAULT uuid()` and
-		// `DEFAULT floor(rand() * 100)`, where MySQL 8.0 wraps it in
-		// parentheses. Measured on mariadb:11.8.8.
-		return val
+		// A default that is one function call is written bare; anything else
+		// keeps the parentheses, which the DEFAULT grammar needs for an
+		// operator expression. Measured on mariadb:11.8.8:
+		// `DEFAULT (uuid())` → DEFAULT uuid(),
+		// `DEFAULT (floor(rand() * 100))` → DEFAULT floor(rand() * 100),
+		// `DEFAULT (1+1)` → DEFAULT (1 + 1). MySQL 8.0 parenthesizes all of
+		// them.
+		return formatExpressionDefault(val)
 	}
 	if _, ok := currentTimestampSQL(val); ok {
 		return formatCurrentTimestamp(val)
@@ -432,9 +487,9 @@ func formatDefault(val string, col *Column) string {
 		return val
 	}
 	// Expression defaults — not quoted, and written without the parentheses
-	// they may carry.
+	// they may carry where the grammar does not need them.
 	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
-		return strings.TrimSuffix(strings.TrimPrefix(val, "("), ")")
+		return formatExpressionDefault(val)
 	}
 	// A numeric column's default is unquoted, and loses the quotes it was
 	// written with.

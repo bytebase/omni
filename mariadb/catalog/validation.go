@@ -34,7 +34,11 @@ func validateExpressionSemantics(node nodes.Node) error {
 	return err
 }
 
-func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
+// validateColumnDefSemantics checks one column definition. indexed holds the
+// lowercased names of the columns a key outside the definition covers, which
+// decides whether a VIRTUAL generated column's value is materialized; it may
+// be nil.
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
@@ -73,7 +77,11 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 		return errInvalidDefault(colDef.Name)
 	}
 	if colDef.Generated != nil {
-		if err := validateGeneratedExpr(colDef.Name, colDef.Generated.Expr); err != nil {
+		// A key over the column makes a VIRTUAL value materialized, and the
+		// server then refuses a non-deterministic expression for it.
+		stored := colDef.Generated.Stored || columnDefHasKey(colDef) ||
+			indexed[strings.ToLower(colDef.Name)]
+		if err := validateGeneratedExpr(colDef.Name, colDef.Generated.Expr, stored); err != nil {
 			return err
 		}
 		if !colDef.Generated.Stored && columnDefHasPrimaryKey(colDef) {
@@ -147,24 +155,61 @@ func columnDefNullable(colDef *nodes.ColumnDef) bool {
 	return nullable
 }
 
-func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
+// validateGeneratedExpr checks a generated column's expression. stored says
+// whether the value is materialized — a STORED column, or a VIRTUAL one an
+// index covers — which is what decides whether a non-deterministic function is
+// allowed.
+func validateGeneratedExpr(colName string, expr nodes.ExprNode, stored bool) error {
 	var invalid bool
+	var badFunc string
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		if invalid {
 			return false
 		}
-		switch n.(type) {
+		switch x := n.(type) {
 		case *nodes.SubqueryExpr:
 			invalid = true
 		case *nodes.VariableRef:
 			invalid = true
+		case *nodes.FuncCallExpr:
+			// A non-deterministic function is allowed only in a VIRTUAL column
+			// no index covers: MariaDB answers 1901, "Function or expression
+			// 'rand()' cannot be used in the GENERATED ALWAYS AS clause of
+			// `a`", for a STORED column and for a VIRTUAL one with a key over
+			// it. Measured on mariadb:11.8.8. MySQL 8.0 refuses it everywhere.
+			if stored && isNondeterministicFunc(x.Name) && badFunc == "" {
+				badFunc = strings.ToLower(x.Name)
+			}
 		}
 		return !invalid
 	})
 	if invalid {
 		return &Error{Code: 3763, SQLState: "HY000", Message: "Expression of generated column '" + colName + "' contains a disallowed function"}
 	}
+	if badFunc != "" {
+		return errNondeterministicGeneratedColumn(badFunc, colName)
+	}
 	return nil
+}
+
+// columnDefHasKey reports whether the column definition carries an index of
+// its own: a PRIMARY KEY or UNIQUE written on the column. A table-level key
+// over a generated column is checked where the index is added.
+func columnDefHasKey(colDef *nodes.ColumnDef) bool {
+	for _, cc := range colDef.Constraints {
+		switch cc.Type {
+		case nodes.ColConstrPrimaryKey, nodes.ColConstrUnique:
+			return true
+		}
+	}
+	return false
+}
+
+// errNondeterministicGeneratedColumn reports 1901, which MariaDB answers for a
+// non-deterministic expression in a materialized generated column.
+func errNondeterministicGeneratedColumn(fn, colName string) error {
+	return &Error{Code: 1901, SQLState: "HY000",
+		Message: fmt.Sprintf("Function or expression '%s()' cannot be used in the GENERATED ALWAYS AS clause of `%s`", fn, colName)}
 }
 
 func errPrimaryKeyOnGeneratedColumn(colName string) error {

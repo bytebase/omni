@@ -1602,7 +1602,11 @@ func exprPrec(node ast.ExprNode) int {
 		}
 		switch n.Op {
 		case ast.BinOpRegexp:
-			return precComparison
+			// REGEXP sits with IN and LIKE, above comparison, so a comparison
+			// operand keeps its parentheses: `(2 = 1) REGEXP '0'` is 1 and
+			// `2 = 1 REGEXP '0'` is 0, and the server stores the first as
+			// `(`a` = 1) regexp '0'`. Measured on mariadb:11.8.8.
+			return precIn
 		case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
 			return precAtom
 		}
@@ -1739,9 +1743,9 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 	// for NOT REGEXP — where MySQL 8.0 rewrites it to regexp_like(). Measured
 	// on mariadb:11.8.8.
 	if n.Op == ast.BinOpRegexp {
-		writeOperand(b, n.Left, precComparison)
+		writeOperand(b, n.Left, precIn)
 		b.WriteString(" regexp ")
-		writeOperand(b, n.Right, precComparison+1)
+		writeOperand(b, n.Right, precIn+1)
 		return
 	}
 
@@ -2455,20 +2459,45 @@ func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 
 // writeExistsExpr formats an EXISTS expression.
 // MySQL 8.0 format: exists(select ...) — column aliases are omitted inside EXISTS.
-// writeExistsExpr writes `exists(...)`. MariaDB stores the subquery with
-// `limit 1`, which it adds whatever the subquery asked for — `EXISTS(SELECT 1
-// FROM t LIMIT 2)` comes back as `exists(select 1 from t limit 1)`, since one
-// row settles the predicate. Measured on mariadb:11.8.8.
+// writeExistsExpr writes `exists(...)`. MariaDB caps the subquery at one row,
+// since one settles the predicate, but only where that cannot change the
+// answer: it reduces a count that is absent or above one, and leaves a
+// `LIMIT 0` and any offset alone. Measured on mariadb:11.8.8:
+//
+//	EXISTS(SELECT 1 FROM t)                 → exists(select 1 from `t` limit 1)
+//	EXISTS(SELECT 1 FROM t LIMIT 5)         → exists(select 1 from `t` limit 1)
+//	EXISTS(SELECT 1 FROM t LIMIT 0)         → exists(select 1 from `t` limit 0)
+//	EXISTS(SELECT 1 FROM t LIMIT 1 OFFSET 1) → exists(select 1 from `t` limit 1,1)
 func writeExistsExpr(b *strings.Builder, n *ast.ExistsExpr) {
 	if n.Select != nil {
 		b.WriteString("exists(")
 		inner := *n.Select
-		inner.Limit = &ast.Limit{Count: &ast.IntLit{Value: 1}}
+		inner.Limit = existsLimit(n.Select.Limit)
 		writeSelectStmt(b, &inner, true)
 		b.WriteString(")")
 		return
 	}
 	b.WriteString("exists(/* subquery */)")
+}
+
+// existsLimit returns the LIMIT an EXISTS subquery is stored with.
+func existsLimit(limit *ast.Limit) *ast.Limit {
+	one := &ast.Limit{Count: &ast.IntLit{Value: 1}}
+	if limit == nil {
+		return one
+	}
+	// A count the writer cannot read — a parameter marker, an expression — is
+	// left as written rather than guessed at.
+	lit, ok := limit.Count.(*ast.IntLit)
+	if !ok {
+		return limit
+	}
+	if lit.Value <= 1 {
+		return limit
+	}
+	capped := *limit
+	capped.Count = &ast.IntLit{Value: 1}
+	return &capped
 }
 
 // writeSubqueryExpr formats a subquery expression.
