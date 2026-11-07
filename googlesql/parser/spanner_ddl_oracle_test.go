@@ -7,7 +7,7 @@
 //
 // It is the PROVE gate for googlesql/parser-ddl-spanner (correctness-protocol.md):
 // for every fixture it feeds the full DDL statement to the emulator via the
-// harness/googlesql-spanner CLI (UpdateDatabaseDdl) and reads the accept/reject
+// googlesql/spanner-oracle CLI (UpdateDatabaseDdl) and reads the accept/reject
 // verdict, then parses the same statement with omni's Parse and asserts the two
 // agree — BOTH polarities (the corpus has accept AND reject cases). A harness
 // `error` verdict (oracle could not decide) fails the fixture loudly.

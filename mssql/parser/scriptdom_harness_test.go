@@ -2,7 +2,7 @@
 // and runs inside the dotnet/sdk image (scriptdomImage), so only Docker is needed.
 //
 // This test compares omni's AST shape against SqlScriptDOM by shelling out
-// to the .NET harness at harness/mssql-scriptdom. The harness parses with
+// to the .NET harness at mssql/scriptdom. The harness parses with
 // Microsoft.SqlServer.TransactSql.ScriptDom and emits a compact JSON shape.
 // We normalize omni's AST into the same shape and diff with go-cmp.
 
@@ -49,9 +49,8 @@ func getHarness(t *testing.T) *scriptdomHarness {
 	t.Helper()
 	harnessOnce.Do(func() {
 		_, thisFile, _, _ := runtime.Caller(0)
-		// mssql/parser/scriptdom_harness_test.go → repo root is ../..
-		repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
-		projDir := filepath.Join(repoRoot, "harness", "mssql-scriptdom")
+		// mssql/parser/scriptdom_harness_test.go → the project is mssql/scriptdom
+		projDir := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "scriptdom"))
 		if _, err := os.Stat(projDir); err != nil {
 			harnessInitErr = fmt.Errorf("harness project not found at %s", projDir)
 			return

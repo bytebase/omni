@@ -6,7 +6,7 @@
 //
 // It is the PROVE gate for googlesql/parser-query-clauses (correctness-
 // protocol.md): for every fixture it (1) feeds the full query to the emulator
-// via the harness/googlesql-spanner CLI and reads the accept/reject verdict,
+// via the googlesql/spanner-oracle CLI and reads the accept/reject verdict,
 // then (2) parses the same query with omni's Parse, and asserts the two agree —
 // BOTH polarities (the corpus has accept AND reject cases). A harness `error`
 // verdict (oracle could not decide) fails the fixture loudly; it is never folded

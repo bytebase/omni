@@ -78,7 +78,7 @@ var harness struct {
 	err     error
 }
 
-// HarnessBinary returns the path of a harness/googlesql-spanner CLI built once
+// HarnessBinary returns the path of a googlesql/spanner-oracle CLI built once
 // per test binary into a private temp dir, so parallel `go test -p=N` packages
 // never write (or exec) the same file — building into the module dir raced and
 // surfaced as "fork/exec ...: text file busy". The dir lives until
@@ -88,9 +88,8 @@ func HarnessBinary(t testing.TB) string {
 	t.Helper()
 	harness.once.Do(func() {
 		_, thisFile, _, _ := runtime.Caller(0)
-		// googlesql/internal/testcontainer/container.go → repo root is ../../..
-		repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", ".."))
-		projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")
+		// googlesql/internal/testcontainer/container.go → the project is googlesql/spanner-oracle
+		projDir := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", "spanner-oracle"))
 		if _, err := os.Stat(projDir); err != nil {
 			harness.missing = projDir
 			return

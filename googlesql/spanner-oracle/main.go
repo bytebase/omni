@@ -4,7 +4,7 @@
 // that grammar-node tests can diff omni's parser accept/reject against a real
 // GoogleSQL implementation.
 //
-// It is the GoogleSQL analogue of harness/mssql-scriptdom: an external
+// It is the GoogleSQL analogue of mssql/scriptdom: an external
 // reference parser/engine that omni diffs against. Unlike ScriptDOM (which
 // exposes an AST), the Spanner emulator only answers "did it parse?" — so this
 // harness emits a verdict + error classification, NOT an AST shape.

@@ -1,4 +1,4 @@
-module github.com/bytebase/omni/harness/googlesql-spanner
+module github.com/bytebase/omni/googlesql/spanner-oracle
 
 go 1.26.0
 

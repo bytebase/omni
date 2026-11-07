@@ -7,15 +7,14 @@ BUF := go run github.com/bufbuild/buf/cmd/buf@v1.72.0
 build:
 	go build ./...
 
-# Full suite. Several engines start real database containers. harness/ holds
-# nested Go modules that ./... does not reach; conformance runs here, the
-# spanner harness needs a live emulator (SPANNER_EMULATOR_HOST), see test-spanner.
+# Full suite. Several engines start real database containers. googlesql/spanner-oracle
+# has its own go.mod, so ./... does not reach it, and it needs a live emulator
+# (SPANNER_EMULATOR_HOST): see test-spanner.
 test:
 	go test ./...
-	cd harness/conformance && go test ./...
 
 test-spanner:
-	cd harness/googlesql-spanner && go test ./...
+	cd googlesql/spanner-oracle && go test ./...
 
 # Per-engine targets: make test-pg, make test-mysql, ...
 $(addprefix test-,$(ENGINES)): test-%:
