@@ -596,15 +596,16 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 		}
 	}
 
-	// Nested directives are read once: 5000 levels complete at once.
+	// Nested directives are read once: 5000 levels complete at once. The
+	// budget is CPU time, not clock time.
 	deep := "BEGIN " + strings.Repeat("$IF TRUE $THEN ", 5000) + "SELECT * INTO x FROM t WHERE t." + strings.Repeat(" $END", 5000) + " END;"
-	start := time.Now()
+	start := cpuTime(t)
 	flat := "BEGIN SELECT * INTO x FROM t WHERE t. END;"
 	if got, want := refs(deep, strings.Index(deep, "t.")+2), refs(flat, strings.Index(flat, "t.")+2); !reflect.DeepEqual(got, want) {
 		t.Errorf("deep scope = %q, want %q", got, want)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("completion through 5000 nested directives took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("completion through 5000 nested directives took %v of CPU time", elapsed)
 	}
 
 	// A caret in a condition or an $ERROR message completes it.
@@ -627,6 +628,7 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 // when any selection of them does, and fails when every selection does,
 // as Oracle 23ai compiles it under whichever selection its database
 // version, PLSQL_CCFLAGS, and package constants settle.
+// The budgets below are CPU time, not clock time.
 func TestConditionalCompilationSelections(t *testing.T) {
 	// A linear-time case below nests a condition in 16,000 parentheses.
 	raiseNestingLimit(t)
@@ -736,10 +738,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	for i := range 20 {
 		fmt.Fprintf(&many, "$IF $$x%d $THEN NULL; $END ", i)
 	}
-	start := time.Now()
+	start := cpuTime(t)
 	ParseShouldFail(t, "BEGIN "+many.String()+"garbage garbage; END;")
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Parse through 20 undecided directives took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 20 undecided directives took %v of CPU time", elapsed)
 	}
 
 	// Ten undecided two-way directives are searched exhaustively: here only
@@ -756,10 +758,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	for i := range 200 {
 		fmt.Fprintf(&groups, "$IF $$x%d $THEN garbage garbage; $ELSE NULL; $END ", i)
 	}
-	start = time.Now()
+	start = cpuTime(t)
 	ParseAndCheck(t, "BEGIN "+groups.String()+"END;")
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Parse through 200 failing first branches took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 200 failing first branches took %v of CPU time", elapsed)
 	}
 
 	// The search's cost stays linear in the statement: facts are looked up
@@ -770,10 +772,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	for i := range 20000 {
 		fmt.Fprintf(&distinct, "$IF $$x%d $THEN NULL; $END ", i)
 	}
-	start = time.Now()
+	start = cpuTime(t)
 	ParseAndCheck(t, "BEGIN "+distinct.String()+"NULL; END;")
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Parse through 20,000 distinct conditions took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 20,000 distinct conditions took %v of CPU time", elapsed)
 	}
 	var failing strings.Builder
 	for i := range 1000 {
@@ -798,10 +800,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 			fmt.Fprintf(&groups, "$IF $$x%d $THEN %s $ELSE $END ", i, branch)
 		}
 		sql := "BEGIN " + groups.String() + "NULL; END;"
-		start = time.Now()
+		start = cpuTime(t)
 		_, err := Parse(sql)
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("Parse through 800 groups with %.20q took %v", branch, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("Parse through 800 groups with %.20q took %v of CPU time", branch, elapsed)
 		}
 		if strings.HasPrefix(branch, "/*") && err != nil {
 			t.Errorf("Parse through 800 groups opening with $ERROR = %v", err)
@@ -824,23 +826,23 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 200<<20 {
 		t.Errorf("Parse through 4,000 conditions and 4,000 EXTRACT calls allocated %d MB", allocated>>20)
 	}
-	start = time.Now()
+	start = cpuTime(t)
 	ParseAndCheck(t, "BEGIN "+strings.Repeat("$IF $$PLSQL_LINE = 1 $THEN NULL; $END ", 20000)+"NULL; END;")
-	if elapsed := time.Since(start); elapsed > 4*time.Second {
-		t.Errorf("Parse through 20,000 $$PLSQL_LINE conditions on one line took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 4*time.Second {
+		t.Errorf("Parse through 20,000 $$PLSQL_LINE conditions on one line took %v of CPU time", elapsed)
 	}
 
 	// Outer parentheses come off a condition's key in one pass: 16,000
 	// pairs around $$x took 1.7 s. Each segment indexes the lines of its own
 	// range alone: indexing the whole script per segment made 8,000 of them
 	// take 7.1 s.
-	start = time.Now()
+	start = cpuTime(t)
 	ParseAndCheck(t, "BEGIN $IF "+strings.Repeat("(", 16000)+"$$x"+strings.Repeat(")", 16000)+" $THEN NULL; $END END;")
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Parse through a condition in 16,000 parentheses took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("Parse through a condition in 16,000 parentheses took %v of CPU time", elapsed)
 	}
 	script := strings.Repeat("BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $END END;\n/\n", 8000)
-	start = time.Now()
+	start = cpuTime(t)
 	for _, seg := range Split(script) {
 		if seg.Empty() {
 			continue
@@ -849,8 +851,8 @@ func TestConditionalCompilationSelections(t *testing.T) {
 			t.Fatalf("ParseRange(%q) = %v", script[seg.ByteStart:seg.ByteEnd], err)
 		}
 	}
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
-		t.Errorf("ParseRange through 8,000 segments took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 3*time.Second {
+		t.Errorf("ParseRange through 8,000 segments took %v of CPU time", elapsed)
 	}
 
 	// A static condition evaluates each node once: 401 summed literals took
@@ -862,10 +864,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		"LENGTH(" + strings.TrimSuffix(strings.Repeat("'a'||", 10000), "||") + ") = 10000",
 		"LENGTH(" + strings.Repeat("UPPER(LOWER(", 1000) + "RPAD('a', 32767)" + strings.Repeat("))", 1000) + ") = 32767",
 	} {
-		start = time.Now()
+		start = cpuTime(t)
 		ParseAndCheck(t, "BEGIN $IF "+cond+" $THEN NULL; $END END;")
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("Parse through the condition %.30q... took %v", cond, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("Parse through the condition %.30q... took %v of CPU time", cond, elapsed)
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 // reparsed every nested body once per level, so 2,000 nested subqueries took
 // seconds. Each shape below takes milliseconds when linear and minutes
 // otherwise.
+// The budget below is CPU time, not clock time.
 func TestNestedParensStayLinear(t *testing.T) {
 	raiseNestingLimit(t)
 	const depth = 20000
@@ -39,12 +40,12 @@ func TestNestedParensStayLinear(t *testing.T) {
 		{"IN subquery", "SELECT 1 FROM t WHERE a IN " + nest("(SELECT a FROM t WHERE a IN ", "(1)", ")"), false},
 		{"FROM subquery", "SELECT * FROM " + nest("(SELECT * FROM ", "t", ") x"), false},
 	} {
-		start := time.Now()
+		start := cpuTime(t)
 		if _, err := Parse(tc.sql); (err != nil) != tc.wantErr {
 			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("%s: Parse through %d nested parens took %v", tc.name, depth, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d nested parens took %v of CPU time", tc.name, depth, elapsed)
 		}
 	}
 }

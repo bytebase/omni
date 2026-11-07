@@ -181,17 +181,18 @@ var parenSubqueryNesting = []struct {
 // TestParenSubqueryGroupStaysLinear: deciding what a '(' opens scans the
 // block after it, and the verdicts and the scan are recorded, so asking again
 // at every level as the parser descends costs nothing.
+// The budget below is CPU time, not clock time.
 func TestParenSubqueryGroupStaysLinear(t *testing.T) {
 	raiseNestingLimit(t)
 	const depth = 20000
 	for _, tc := range parenSubqueryNesting {
-		start := time.Now()
+		start := cpuTime(t)
 		_, err := Parse(tc.sql(depth))
 		if unclosed := strings.HasPrefix(tc.name, "unclosed"); (err != nil) != unclosed {
 			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, briefErr(err), unclosed)
 		}
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("%s: Parse through %d levels took %v", tc.name, depth, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d levels took %v of CPU time", tc.name, depth, elapsed)
 		}
 	}
 }
