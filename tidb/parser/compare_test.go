@@ -9617,32 +9617,6 @@ func TestParseColumnSecondaryEngineAttribute(t *testing.T) {
 	}
 }
 
-func TestParseCreateIndexEngineAttribute(t *testing.T) {
-	tests := []string{
-		"CREATE INDEX idx ON t (col) ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-		"CREATE INDEX idx ON t (col) ENGINE_ATTRIBUTE '{\"key\": \"val\"}'",
-		"CREATE INDEX idx ON t (col) engine_attribute = '{}'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseCreateIndexSecondaryEngineAttribute(t *testing.T) {
-	tests := []string{
-		"CREATE INDEX idx ON t (col) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-		"CREATE INDEX idx ON t (col) SECONDARY_ENGINE_ATTRIBUTE '{\"key\": \"val\"}'",
-		"CREATE INDEX idx ON t (col) secondary_engine_attribute = '{}'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseAlterTableSecondaryLoad(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t SECONDARY_LOAD",
@@ -9769,8 +9743,6 @@ func TestBatch102_CreateIndexFull(t *testing.T) {
 		"CREATE INDEX idx1 ON t (col1) KEY_BLOCK_SIZE = 1024 COMMENT 'test' VISIBLE",
 		"CREATE INDEX idx1 ON t (col1) ALGORITHM = INPLACE LOCK = NONE",
 		"CREATE INDEX idx1 ON t ((col1 + col2))",
-		"CREATE INDEX idx1 ON t (col1) ENGINE_ATTRIBUTE = '{}'",
-		"CREATE INDEX idx1 ON t (col1) SECONDARY_ENGINE_ATTRIBUTE = '{}'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

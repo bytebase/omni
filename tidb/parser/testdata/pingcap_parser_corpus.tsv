@@ -304,10 +304,10 @@ accept	accept	select a,b,a+b from t into outfile '/tmp/result.txt' fields termin
 accept	accept	SELECT * from t1, t2, t3
 accept	accept	select * from t1 join t2 left join t3 on t2.id = t3.id
 accept	accept	select * from t1 right join t2 on t1.id = t2.id left join t3 on t3.id = t2.id
-accept	reject	select * from t1 right join t2 on t1.id = t2.id left join t3
+reject	reject	select * from t1 right join t2 on t1.id = t2.id left join t3
 accept	accept	select * from t1 join t2 left join t3 using (id)
 accept	accept	select * from t1 right join t2 using (id) left join t3 using (id)
-accept	reject	select * from t1 right join t2 using (id) left join t3
+reject	reject	select * from t1 right join t2 using (id) left join t3
 accept	accept	select * from t1 natural join t2
 accept	accept	select * from t1 natural right join t2
 accept	accept	select * from t1 natural left outer join t2
@@ -320,7 +320,7 @@ accept	accept	select straight_join * from t1 left join t2 on t1.id = t2.id
 accept	accept	select straight_join * from t1 right join t2 on t1.id = t2.id
 accept	accept	select straight_join * from t1 straight_join t2 on t1.id = t2.id
 accept	accept	DELETE from t1
-accept	reject	DELETE from t1.*
+reject	reject	DELETE from t1.*
 accept	accept	DELETE LOW_priORITY from t1
 accept	accept	DELETE quick from t1
 accept	accept	DELETE ignore from t1
@@ -363,11 +363,11 @@ accept	accept	DELETE FROM t1, t2 USING t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.i
 accept	accept	DELETE /*+ TiDB_INLJ(t1, t2) */ t1, t2 from t1, t2 where t1.id=t2.id;
 accept	accept	DELETE /*+ TiDB_HJ(t1, t2) */ t1, t2 from t1, t2 where t1.id=t2.id
 accept	accept	DELETE /*+ TiDB_SMJ(t1, t2) */ t1, t2 from t1, t2 where t1.id=t2.id
-reject	accept	DELETE FROM t1 USE INDEX(idx_a) WHERE t1.id=1;
+accept	accept	DELETE FROM t1 USE INDEX(idx_a) WHERE t1.id=1;
 accept	accept	DELETE t1, t2 FROM t1 USE INDEX(idx_a) JOIN t2 WHERE t1.id=t2.id;
 accept	accept	DELETE t1, t2 FROM t1 USE INDEX(idx_a) JOIN t2 USE INDEX(idx_a) WHERE t1.id=t2.id;
-accept	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id limit 10;
-accept	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id order by t1.id;
+reject	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id limit 10;
+reject	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id order by t1.id;
 accept	accept	INSERT INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
 accept	accept	INSERT INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c:=VALUES(a)+VALUES(b);
 accept	accept	INSERT IGNORE INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
@@ -384,8 +384,8 @@ accept	accept	UPDATE t1, t2 set t1.profile_id = 1, t2.profile_id = 1 where ta.a=
 accept	accept	UPDATE /*+ TiDB_INLJ(t1, t2) */ t1, t2 set t1.profile_id = 1, t2.profile_id = 1 where ta.a=t.ba
 accept	accept	UPDATE /*+ TiDB_SMJ(t1, t2) */ t1, t2 set t1.profile_id = 1, t2.profile_id = 1 where ta.a=t.ba
 accept	accept	UPDATE /*+ TiDB_HJ(t1, t2) */ t1, t2 set t1.profile_id = 1, t2.profile_id = 1 where ta.a=t.ba
-accept	reject	UPDATE items,month SET items.price=month.price WHERE items.id=month.id LIMIT 10;
-accept	reject	UPDATE items,month SET items.price=month.price WHERE items.id=month.id order by month.id;
+reject	reject	UPDATE items,month SET items.price=month.price WHERE items.id=month.id LIMIT 10;
+reject	reject	UPDATE items,month SET items.price=month.price WHERE items.id=month.id order by month.id;
 accept	accept	UPDATE t1 USE INDEX(idx_a) SET t1.price=3.25 WHERE t1.id=1;
 accept	accept	UPDATE t1 USE INDEX(idx_a) JOIN t2 SET t1.price=t2.price WHERE t1.id=t2.id;
 accept	accept	UPDATE t1 USE INDEX(idx_a) JOIN t2 USE INDEX(idx_a) SET t1.price=t2.price WHERE t1.id=t2.id;
@@ -535,7 +535,7 @@ accept	accept	SHOW PLACEMENT LABELS
 accept	accept	SHOW PLACEMENT LABELS LIKE '%zone%'
 accept	accept	SHOW PLACEMENT LABELS WHERE label='l123'
 accept	accept	SHOW SESSION_STATES
-reject	accept	SET SESSION_STATES 'x'
+accept	accept	SET SESSION_STATES 'x'
 reject	reject	SET SESSION_STATES
 reject	reject	SET SESSION_STATES 1
 reject	reject	SET SESSION_STATES now()
@@ -684,7 +684,7 @@ accept	accept	lock stats t partition (p0, p1)
 accept	accept	unlock stats test.t
 accept	accept	unlock stats t, t2
 accept	accept	unlock stats t partition (p0, p1)
-reject	accept	SET @ = 1
+accept	accept	SET @ = 1
 reject	accept	SET @' ' = 1
 reject	reject	SET @! = 1
 accept	accept	SET @1 = 1
@@ -902,7 +902,7 @@ accept	accept	SELECT (INTERVAL(1, 0, 1, 2)+5)*7+INTERVAL(1, 0, 1, 2)/2
 accept	accept	SELECT INTERVAL(0, (1*5)/2)+INTERVAL(5, 4, 3)
 accept	accept	SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY);
 accept	accept	SELECT DATABASE();
-reject	accept	SELECT SCHEMA();
+accept	accept	SELECT SCHEMA();
 accept	accept	SELECT USER();
 accept	accept	SELECT USER(1);
 accept	accept	SELECT CURRENT_USER();
@@ -1414,10 +1414,10 @@ accept	accept	SELECT JSON_TYPE('[123]');
 accept	accept	SELECT JSON_TYPE();
 accept	accept	SELECT a->'$.a' FROM t
 accept	accept	SELECT a->>'$.a' FROM t
-accept	reject	SELECT '{}'->'$.a' FROM t
-accept	reject	SELECT '{}'->>'$.a' FROM t
-accept	reject	SELECT a->3 FROM t
-accept	reject	SELECT a->>3 FROM t
+reject	reject	SELECT '{}'->'$.a' FROM t
+reject	reject	SELECT '{}'->>'$.a' FROM t
+reject	reject	SELECT a->3 FROM t
+reject	reject	SELECT a->>3 FROM t
 accept	accept	SELECT 1 member of (a)
 reject	reject	SELECT 1 member of a
 reject	reject	SELECT 1 member a
@@ -1750,8 +1750,8 @@ reject	reject	drop table if exists t`
 reject	reject	drop table if exists t"
 accept	accept	drop table xxx
 accept	accept	drop table xxx, yyy
-reject	accept	drop tables xxx
-reject	accept	drop tables xxx, yyy
+accept	accept	drop tables xxx
+accept	accept	drop tables xxx, yyy
 accept	accept	drop table if exists xxx
 accept	accept	drop table if exists xxx, yyy
 reject	reject	drop table if not exists xxx
@@ -1843,11 +1843,11 @@ accept	accept	create table t (j json default (json_array(1,2,3)))
 accept	accept	create table t (j json default (json_quote('foobar')))
 accept	accept	create table t (c char(33) default (nonexistingfunc('foobar')))
 accept	accept	create table t (c char(33) default 'foobar')
-accept	reject	create table t (c char(33) default ('foobar'))
-accept	reject	create table t (i int default (0))
-accept	reject	create table t (i int default (-1))
-accept	reject	create table t (i int default (+1))
-accept	reject	create table t (a int, b int, c char(33) default (b))
+reject	reject	create table t (c char(33) default ('foobar'))
+reject	reject	create table t (i int default (0))
+reject	reject	create table t (i int default (-1))
+reject	reject	create table t (i int default (+1))
+reject	reject	create table t (a int, b int, c char(33) default (b))
 reject	reject	create table t (a int, b int, c char(33) default `b`)
 accept	accept	create table t (a int) encryption = 'n';
 accept	accept	create table t (a int) encryption 'n';
@@ -2805,8 +2805,8 @@ reject	reject	ALTER TABLE t STATS_OPTIONS
 accept	accept	CREATE TABLE t (a int) INSERT_METHOD=FIRST
 accept	accept	select x'0a', X'11', 0x11
 accept	accept	select x'13181C76734725455A'
-accept	reject	select x'0xaa'
-accept	reject	select 0X11
+reject	reject	select x'0xaa'
+reject	reject	select 0X11
 accept	accept	select 0x4920616D2061206C6F6E672068657820737472696E67
 accept	accept	select 0b01, 0b0, b'11', B'11'
 accept	accept	create table t (c1 enum('a', 'b'), c2 set('a', 'b'))
@@ -3013,7 +3013,7 @@ accept	accept	select c1 from t1 union (select c2 from t2) limit 1
 accept	accept	select c1 from t1 union (select c2 from t2) limit 1, 1
 accept	accept	select c1 from t1 union (select c2 from t2) order by c1 limit 1
 accept	accept	(select c1 from t1) union distinct select c2 from t2
-reject	accept	(select c1 from t1) union distinctrow select c2 from t2
+accept	accept	(select c1 from t1) union distinctrow select c2 from t2
 accept	accept	(select c1 from t1) union all select c2 from t2
 reject	reject	(select c1 from t1) union distinct all select c2 from t2
 reject	reject	(select c1 from t1) union distinctrow all select c2 from t2
@@ -3119,14 +3119,14 @@ accept	accept	LOCK TABLES t1 READ;
 accept	accept	LOCK TABLES t1 READ LOCAL;
 accept	accept	show table status like 't'
 accept	accept	LOCK TABLES t2 WRITE
-reject	accept	LOCK TABLES t2 WRITE LOCAL;
+accept	accept	LOCK TABLES t2 WRITE LOCAL;
 accept	accept	LOCK TABLES t1 WRITE, t2 READ;
-reject	accept	LOCK TABLES t1 WRITE LOCAL, t2 READ LOCAL;
+accept	accept	LOCK TABLES t1 WRITE LOCAL, t2 READ LOCAL;
 accept	accept	UNLOCK TABLE;
 accept	accept	LOCK TABLE t1 READ;
 accept	accept	LOCK TABLE t1 READ LOCAL;
 accept	accept	LOCK TABLE t2 WRITE
-reject	accept	LOCK TABLE t2 WRITE LOCAL;
+accept	accept	LOCK TABLE t2 WRITE LOCAL;
 accept	accept	LOCK TABLE t1 WRITE, t2 READ;
 reject	reject	ADMIN CLEANUP TABLE LOCK
 accept	accept	ADMIN CLEANUP TABLE LOCK t
@@ -3137,7 +3137,7 @@ reject	reject	select * from t group by a, b rollup
 accept	accept	select * from t group by a, b with rollup
 accept	accept	select * from t group by (a, b) with rollup
 accept	accept	select * from t group by (a+b) with rollup
-reject	accept	select * from t use index (primary)
+accept	accept	select * from t use index (primary)
 accept	accept	select * from t use index (`primary`)
 accept	accept	select * from t use index ();
 accept	accept	select * from t use index (idx);
@@ -3536,7 +3536,7 @@ reject	reject	create table t1 (a int) partition by system_time (partition x, par
 reject	reject	create table t1 (a int) partition by hash (a) (partition x values less than (10))
 reject	reject	create table t1 (a int) partition by key (a) (partition x values less than (10))
 accept	accept	create table t1 (a int) partition by range (a) (partition x values less than (maxvalue))
-accept	reject	create table t1 (a int) partition by range (a) (partition x values less than (default))
+reject	reject	create table t1 (a int) partition by range (a) (partition x values less than (default))
 accept	accept	create table t (a varchar(100), b int) partition by list columns (a) (partition p1 values in ('a','b','DEFAULT'), partition pDef values in (default))
 accept	accept	create table t1 (a int) partition by range (a) (partition x values less than (10))
 reject	reject	create table t1 (a int) partition by list (a) (partition x values less than (10))
@@ -3612,7 +3612,7 @@ accept	accept	SELECT NTH_VALUE(val, 233) OVER w FROM t;
 accept	accept	SELECT NTH_VALUE(val, 233) FROM FIRST OVER w FROM t;
 accept	accept	SELECT NTH_VALUE(val, 233) FROM LAST OVER w FROM t;
 accept	accept	SELECT NTH_VALUE(val, 233) FROM LAST IGNORE NULLS OVER w FROM t;
-accept	reject	SELECT NTH_VALUE(val) OVER w FROM t;
+reject	reject	SELECT NTH_VALUE(val) OVER w FROM t;
 accept	accept	SELECT NTILE(233) OVER (w) FROM t;
 accept	accept	SELECT PERCENT_RANK() OVER (w) FROM t;
 accept	accept	SELECT RANK() OVER (w) FROM t;
@@ -3745,7 +3745,7 @@ reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY A
 reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 3 (c1,c2) PARTITIONS 4
 accept	accept	HELP 'select'
 accept	accept	select mod(a+b, 4)+1
-accept	reject	SELECT MOD(10, 2 BETWEEN 0 and 5)
+reject	reject	SELECT MOD(10, 2 BETWEEN 0 and 5)
 accept	accept	select mod( year(a) - abs(weekday(a) + dayofweek(a)), 4) + 1
 accept	accept	WITH `cte` AS (SELECT * from t) SELECT `col1`,`col2` FROM `cte`
 accept	accept	WITH `cte` (col1, col2) AS (SELECT * from t UNION ALL SELECT 3,4) SELECT col1, col2 FROM cte;
@@ -3901,7 +3901,7 @@ reject	reject	explain explore select 1 from t where t1.a > (select max(a) from t
 reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
 reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}')
 reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
-accept	reject	CREATE TABLE t (id INT,INDEX idx (id) INVISIBLE SECONDARY_ENGINE_ATTRIBUTE='{"key1":"value1"}')
+reject	reject	CREATE TABLE t (id INT,INDEX idx (id) INVISIBLE SECONDARY_ENGINE_ATTRIBUTE='{"key1":"value1"}')
 reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE=
 reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE=)
 reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE=
@@ -3910,8 +3910,8 @@ reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE)
 reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	CREATE TABLE t (id INT, INDEX idx (id) SECONDARY_ENGINE_ATTRIBUTE)
-accept	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE = '{}'
-accept	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE '{}'
+reject	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE = '{}'
+reject	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE '{}'
 reject	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	create table `t` (`id` int primary key,`col` int,index(`col`) where `col`>100)
 reject	reject	create index `idx` on `t` (`col`) where `col`>100

@@ -2370,6 +2370,11 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 							items = append(items, &nodes.String{Str: "MAXVALUE"})
 							p.advance()
 						} else {
+							// DEFAULT is a VALUES IN bound, not a LESS THAN one:
+							// `VALUES LESS THAN (DEFAULT)` is a 1064 on v8.5.5.
+							if p.cur.Type == kwDEFAULT {
+								return nil, 0, p.syntaxErrorAtCur()
+							}
 							expr, err := p.parseBitExpr()
 							if err != nil {
 								return nil, 0, err

@@ -936,6 +936,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
 			return p.parseGetFormatFunc(fc)
+		case "MOD":
+			// MOD '(' BitExpr ',' BitExpr ')' (parser.y:8221): exactly two
+			// bit_expr arguments, so `MOD(10, 1 AND 1)` and
+			// `MOD(10, 2 BETWEEN 0 AND 5)` are 1064s, where a general argument
+			// list would take them.
+			return p.parseModFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -1161,6 +1167,11 @@ func (p *Parser) parseWindowFuncOpts(fc *nodes.FuncCallExpr) error {
 	if !nullTreatmentFuncs[fc.Name] {
 		return nil
 	}
+	// NTH_VALUE takes exactly two arguments (parser.y:9810): `NTH_VALUE(v)` and
+	// `NTH_VALUE(v, 1, 2)` are 1064s on v8.5.5.
+	if fc.Name == "NTH_VALUE" && len(fc.Args) != 2 {
+		return p.syntaxErrorAtCur()
+	}
 	read := false
 	if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM {
 		switch p.peekNext().Type {
@@ -1189,6 +1200,32 @@ func (p *Parser) parseWindowFuncOpts(fc *nodes.FuncCallExpr) error {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// parseModFunc parses MOD '(' BitExpr ',' BitExpr ')'. p.cur is just past '('.
+func (p *Parser) parseModFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	a, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if a == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	b, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = []nodes.ExprNode{a, b}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return p.finishFuncCall(fc, true)
 }
 
 // parseOverClause parses OVER (window_spec) or OVER window_name.

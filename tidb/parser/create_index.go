@@ -358,33 +358,10 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Name: "INVISIBLE",
 		}, true, nil
 
-	case p.cur.Type == kwENGINE_ATTRIBUTE:
-		p.advance()
-		p.match('=')
-		if p.cur.Type == tokSCONST {
-			val := p.cur.Str
-			p.advance()
-			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Name:  "ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
-			}, true, nil
-		}
-		return nil, false, &ParseError{Message: "expected string after ENGINE_ATTRIBUTE", Position: p.cur.Loc}
-
-	case p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE:
-		p.advance()
-		p.match('=')
-		if p.cur.Type == tokSCONST {
-			val := p.cur.Str
-			p.advance()
-			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Name:  "SECONDARY_ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
-			}, true, nil
-		}
-		return nil, false, &ParseError{Message: "expected string after SECONDARY_ENGINE_ATTRIBUTE", Position: p.cur.Loc}
+		// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are not index options in
+		// TiDB: IndexOption (parser.y) has no arm for either, so
+		// `CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE '{}'` and the table-level
+		// `INDEX i (a) ENGINE_ATTRIBUTE='{}'` are 1064s on v8.5.5.
 	}
 
 	return nil, false, nil
