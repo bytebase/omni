@@ -37,12 +37,25 @@ jobs:
           go-version: '1.25'
           cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
 
-      - name: Generated code and proto are in sync
+      # Both steps regenerate committed code and fail if the result differs from
+      # what the PR holds. `git add -A` so a generated file that is new counts too.
+      - name: Walkers are in sync
         run: |
-          go generate ./pg/ast/... ./mysql/ast/... ./mssql/ast/...
-          make proto proto-breaking
-          git status --porcelain
-          test -z "$(git status --porcelain)"
+          go generate ./pg/ast/... ./redshift/ast/... ./mysql/ast/... ./mariadb/ast/... \
+            ./tidb/ast/... ./oceanbase/ast/... ./mssql/ast/... ./oracle/ast/... \
+            ./snowflake/ast/... ./googlesql/ast/...
+          git add -A && git diff --cached --exit-code
+
+      - name: Proto is formatted, lint-clean, generated and non-breaking
+        working-directory: proto
+        env:
+          BUF: go run github.com/bufbuild/buf/cmd/buf@v1.72.0 # the only pin
+        run: |
+          $BUF format -w
+          $BUF lint
+          $BUF generate
+          $BUF breaking --against 'https://github.com/bytebase/omni.git#branch=main,subdir=proto'
+          git add -A && git diff --cached --exit-code
 
       - name: Build
         run: go build ./...
