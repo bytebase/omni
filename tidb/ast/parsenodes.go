@@ -21,7 +21,7 @@ type SelectStmt struct {
 	TargetList        []ExprNode         // select expressions (ResTarget)
 	From              []TableExpr        // FROM clause (TableRef / JoinClause)
 	Where             ExprNode           // WHERE condition
-	GroupBy           []ExprNode         // GROUP BY expressions
+	GroupBy           []*OrderByItem     // GROUP BY items (TiDB's ByItem: expr with optional ASC/DESC)
 	WithRollup        bool               // GROUP BY ... WITH ROLLUP
 	Having            ExprNode           // HAVING condition
 	OrderBy           []*OrderByItem     // ORDER BY clause
@@ -1306,6 +1306,12 @@ type Limit struct {
 	Loc    Loc
 	Count  ExprNode // LIMIT value
 	Offset ExprNode // OFFSET value
+	// OffsetKeyword is true when the offset was written as
+	// "LIMIT count OFFSET offset" rather than the comma form
+	// "LIMIT offset, count". The two forms place a `?` parameter marker in
+	// opposite positions, so deparse must reproduce the original form to keep
+	// the positional binding order. False when there is no offset.
+	OffsetKeyword bool
 }
 
 func (l *Limit) nodeTag() {}
@@ -2820,6 +2826,16 @@ type StarExpr struct {
 
 func (e *StarExpr) nodeTag()  {}
 func (e *StarExpr) exprNode() {}
+
+// ParamMarkerExpr represents a `?` parameter marker (paramMarker in parser.y),
+// the placeholder a prepared statement binds a value to. It is a leaf with no
+// value of its own.
+type ParamMarkerExpr struct {
+	Loc Loc
+}
+
+func (e *ParamMarkerExpr) nodeTag()  {}
+func (e *ParamMarkerExpr) exprNode() {}
 
 // IntervalExpr represents an INTERVAL expression.
 type IntervalExpr struct {

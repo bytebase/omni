@@ -54,6 +54,18 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// not aggregate. Also before deparseViewSelect, which expands stars and
 	// qualifies tables in place.
 	if checkBody {
+		// A `?` parameter marker is not allowed in a view body; TiDB rejects
+		// CREATE VIEW with one (ER_VIEW_SELECT_VARIABLE). The grammar permits
+		// it (it is a LIMIT operand), so the rejection lives here, not in the
+		// parser, and must fail Exec rather than be swallowed as the analyzer
+		// error is.
+		if stmt.Select != nil && containsParamMarker(stmt.Select) {
+			return &Error{
+				Code:     1351,
+				SQLState: "HY000",
+				Message:  "View's SELECT contains a '?' (parameter marker)",
+			}
+		}
 		if err := c.checkViewSelectCollations(stmt.Select, c.viewBodyDatabase(db), nil); err != nil {
 			return err
 		}
@@ -87,6 +99,20 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ColumnMetadata:  viewColumnMetadata(viewCols, collations),
 	}
 	return nil
+}
+
+// containsParamMarker reports whether the subtree holds a `?` parameter
+// marker, at any depth including nested subqueries.
+func containsParamMarker(n nodes.Node) bool {
+	found := false
+	nodes.Inspect(n, func(x nodes.Node) bool {
+		if _, ok := x.(*nodes.ParamMarkerExpr); ok {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {

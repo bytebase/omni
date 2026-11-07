@@ -280,6 +280,7 @@ var locSpanCases = []struct {
 	{"OpenCursorStmt", "CREATE PROCEDURE p_open_undecl() BEGIN OPEN nope; END", "OPEN nope", 0},
 	{"OptimizeTableStmt", "OPTIMIZE TABLE t1", "OPTIMIZE TABLE t1", 0},
 	{"OrderByItem", "TABLE t1 ORDER BY id", "id", 0},
+	{"ParamMarkerExpr", "SELECT * LIMIT ?", "?", 0},
 	{"ParenExpr", "SELECT ((1))", "((1))", 0},
 	{"PartitionClause", "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4", "PARTITION BY HASH(id) PARTITIONS 4", 0},
 	{"PartitionInterval", "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (1) LAST PARTITION LESS THAN (3)", "INTERVAL (1) FIRST PARTITION LESS THAN (1) LAST PARTITION LESS THAN (3)", 0},

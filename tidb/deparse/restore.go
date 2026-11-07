@@ -339,12 +339,7 @@ func restoreSelectBody(b *restorer, stmt *ast.SelectStmt) {
 	}
 	if len(stmt.GroupBy) > 0 {
 		b.kw(" GROUP BY ")
-		for i, g := range stmt.GroupBy {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			restoreExpr(b, g)
-		}
+		restoreByItems(b, stmt.GroupBy, ",")
 		if stmt.WithRollup {
 			b.kw(" WITH ROLLUP")
 		}
@@ -390,6 +385,15 @@ func restoreOrderLimit(b *restorer, orderBy []*ast.OrderByItem, limit *ast.Limit
 	if limit != nil && limit.Count != nil {
 		b.kw(" LIMIT ")
 		if limit.Offset != nil {
+			// The comma form LIMIT offset,count swaps the operands, which is
+			// harmless for literals but reorders the positional bindings of `?`
+			// markers; reproduce the original OFFSET form in that case.
+			if limit.OffsetKeyword && limitHasParamMarker(limit) {
+				restoreExpr(b, limit.Count)
+				b.kw(" OFFSET ")
+				restoreExpr(b, limit.Offset)
+				return
+			}
 			restoreExpr(b, limit.Offset)
 			b.WriteByte(',')
 		}
@@ -699,6 +703,8 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 		restoreColumnRef(b, n)
 	case *ast.StarExpr:
 		b.WriteByte('*')
+	case *ast.ParamMarkerExpr:
+		b.WriteByte('?')
 	case *ast.ParenExpr:
 		b.WriteByte('(')
 		restoreExpr(b, n.Expr)

@@ -88,14 +88,7 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
-	}
+	writeLimitQ(b, q)
 }
 
 func deparseCTEsQ(b *strings.Builder, q *deparseScope) {
@@ -326,13 +319,21 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
-	if q.LimitCount != nil {
-		b.WriteString(" limit ")
-		writeAnalyzedExpr(b, q.LimitCount, q)
-		if q.LimitOffset != nil {
-			b.WriteString(" offset ")
-			writeAnalyzedExpr(b, q.LimitOffset, q)
-		}
+	writeLimitQ(b, q)
+}
+
+// writeLimitQ emits the LIMIT/OFFSET clause. The analyzer rejects `?`
+// parameter markers (they cannot appear in a view body), so the operands are
+// always constants or column references and the count-first form is safe.
+func writeLimitQ(b *strings.Builder, q *deparseScope) {
+	if q.LimitCount == nil {
+		return
+	}
+	b.WriteString(" limit ")
+	writeAnalyzedExpr(b, q.LimitCount, q)
+	if q.LimitOffset != nil {
+		b.WriteString(" offset ")
+		writeAnalyzedExpr(b, q.LimitOffset, q)
 	}
 }
 

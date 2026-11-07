@@ -566,8 +566,9 @@ func viewAlgorithmFromString(s string) ViewAlgorithm {
 }
 
 // analyzeGroupBy processes the GROUP BY clause, populating q.GroupClause.
-func (c *Catalog) analyzeGroupBy(groupBy []nodes.ExprNode, q *Query, scope *analyzerScope) error {
-	for _, expr := range groupBy {
+func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *analyzerScope) error {
+	for _, item := range groupBy {
+		expr := item.Expr
 		switch n := expr.(type) {
 		case *nodes.IntLit:
 			// Ordinal reference: GROUP BY 1 means first SELECT column.

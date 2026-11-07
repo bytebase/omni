@@ -1409,9 +1409,9 @@ accept	accept	OrderBy#1	SELECT * ORDER BY ident
 accept	accept	ByList#1	SELECT * GROUP BY ident
 accept	accept	ByList#2	SELECT * GROUP BY ident, ident
 accept	accept	ByItem#1	SELECT * GROUP BY ident
-reject	accept	ByItem#2	SELECT * GROUP BY ident ASC
-reject	accept	Order#1	SELECT * GROUP BY ident ASC
-reject	accept	Order#2	SELECT * GROUP BY ident DESC
+accept	accept	ByItem#2	SELECT * GROUP BY ident ASC
+accept	accept	Order#1	SELECT * GROUP BY ident ASC
+accept	accept	Order#2	SELECT * GROUP BY ident DESC
 accept	accept	OptOrder#1	ALTER TABLE ident ORDER BY ident
 accept	accept	OptOrder#2	ALTER TABLE ident ORDER BY ident ASC
 accept	accept	OptOrder#3	ALTER TABLE ident ORDER BY ident DESC
@@ -1835,21 +1835,21 @@ accept	accept	CrossOpt#1	DELETE ident FROM ident JOIN ident
 accept	accept	CrossOpt#2	DELETE ident FROM ident CROSS JOIN ident
 accept	accept	CrossOpt#3	DELETE ident FROM ident INNER JOIN ident
 accept	accept	LimitClause#1	DELETE FROM ident
-reject	accept	LimitClause#2	DELETE FROM ident LIMIT ?
+accept	accept	LimitClause#2	DELETE FROM ident LIMIT ?
 accept	accept	LimitOption#1	SELECT * LIMIT 1
-reject	accept	LimitOption#2	SELECT * LIMIT ?
+accept	accept	LimitOption#2	SELECT * LIMIT ?
 accept	accept	RowOrRows#1	SELECT * FETCH FIRST ROW ONLY
 accept	accept	RowOrRows#2	SELECT * FETCH FIRST ROWS ONLY
 accept	accept	FirstOrNext#1	SELECT * FETCH FIRST ROW ONLY
 accept	accept	FirstOrNext#2	SELECT * FETCH NEXT ROW ONLY
 accept	accept	FetchFirstOpt#1	SELECT * FETCH FIRST ROW ONLY
-reject	accept	FetchFirstOpt#2	SELECT * FETCH FIRST ? ROW ONLY
-reject	accept	SelectStmtLimit#1	SELECT * LIMIT ?
-reject	accept	SelectStmtLimit#2	SELECT * LIMIT ?, ?
-reject	accept	SelectStmtLimit#3	SELECT * LIMIT ? OFFSET ?
+accept	accept	FetchFirstOpt#2	SELECT * FETCH FIRST ? ROW ONLY
+accept	accept	SelectStmtLimit#1	SELECT * LIMIT ?
+accept	accept	SelectStmtLimit#2	SELECT * LIMIT ?, ?
+accept	accept	SelectStmtLimit#3	SELECT * LIMIT ? OFFSET ?
 accept	accept	SelectStmtLimit#4	SELECT * FETCH FIRST ROW ONLY
 accept	accept	SelectStmtLimitOpt#1	SELECT *
-reject	accept	SelectStmtLimitOpt#2	SELECT * LIMIT ?
+accept	accept	SelectStmtLimitOpt#2	SELECT * LIMIT ?
 accept	accept	SelectStmtOpt#1	SELECT *
 accept	accept	SelectStmtOpt#2	SELECT ALL *
 accept	accept	SelectStmtOpt#3	SELECT LOW_PRIORITY *
@@ -1889,17 +1889,17 @@ accept	accept	SelectLockOpt#9	SELECT * LOCK IN SHARE MODE
 accept	accept	OfTablesOpt#1	SELECT * FOR UPDATE
 accept	accept	OfTablesOpt#2	SELECT * FOR UPDATE OF ident
 accept	accept	SetOprStmt#1	SELECT * UNION SELECT *
-reject	accept	SetOprStmt#2	(SELECT *) LIMIT ?
-reject	accept	SetOprStmt#3	WITH ident AS(SELECT *)(SELECT *) LIMIT ?
+accept	accept	SetOprStmt#2	(SELECT *) LIMIT ?
+accept	accept	SetOprStmt#3	WITH ident AS(SELECT *)(SELECT *) LIMIT ?
 accept	accept	SetOprStmt#4	WITH ident AS(SELECT *) SELECT * UNION SELECT *
 accept	accept	SetOprStmtWoutLimitOrderBy#1	SELECT * UNION SELECT *
 accept	accept	SetOprStmtWoutLimitOrderBy#2	SELECT * UNION(SELECT *)
 accept	accept	SetOprStmtWithLimitOrderBy#1	SELECT * UNION(SELECT *) ORDER BY ident
-reject	accept	SetOprStmtWithLimitOrderBy#2	SELECT * UNION(SELECT *) LIMIT ?
-reject	accept	SetOprStmtWithLimitOrderBy#3	SELECT * UNION(SELECT *) ORDER BY ident LIMIT ?
+accept	accept	SetOprStmtWithLimitOrderBy#2	SELECT * UNION(SELECT *) LIMIT ?
+accept	accept	SetOprStmtWithLimitOrderBy#3	SELECT * UNION(SELECT *) ORDER BY ident LIMIT ?
 accept	accept	SetOprStmtWithLimitOrderBy#4	(SELECT *) ORDER BY ident
-reject	accept	SetOprStmtWithLimitOrderBy#5	(SELECT *) LIMIT ?
-reject	accept	SetOprStmtWithLimitOrderBy#6	(SELECT *) ORDER BY ident LIMIT ?
+accept	accept	SetOprStmtWithLimitOrderBy#5	(SELECT *) LIMIT ?
+accept	accept	SetOprStmtWithLimitOrderBy#6	(SELECT *) ORDER BY ident LIMIT ?
 accept	accept	SetOprClauseList#1	SELECT * UNION SELECT *
 accept	accept	SetOprClauseList#2	SELECT * UNION SELECT * UNION SELECT *
 accept	accept	SetOprClause#1	SELECT * UNION SELECT *
