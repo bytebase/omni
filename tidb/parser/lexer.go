@@ -2493,22 +2493,21 @@ func (l *Lexer) scanVariable() Token {
 		return Token{Type: tokAt2, Str: "@@", Loc: start}
 	}
 
-	// User variable: @name — scan the variable name as one token. The name may
-	// be backtick-, single- or double-quoted (@`x`, @'x', @"x"), or empty (@),
-	// as TiDB's lexer scans it.
+	// User variable: @name — scan the variable name as one token. A backtick-
+	// quoted name (@`x`) is scanned whole; an empty name (@) is valid too. The
+	// single- and double-quoted forms (@'x', @"x") are left for a later change:
+	// the lexer there must not swallow the `@'host'` of a username.
 	var name string
-	if q := byte(0); l.pos < len(l.input) && (l.input[l.pos] == '`' || l.input[l.pos] == '\'' || l.input[l.pos] == '"') {
-		q = l.input[l.pos]
-		l.pos++ // skip opening quote
+	if l.pos < len(l.input) && l.input[l.pos] == '`' {
+		l.pos++ // skip opening backtick
 		nameStart := l.pos
-		for l.pos < len(l.input) && l.input[l.pos] != q {
+		for l.pos < len(l.input) && l.input[l.pos] != '`' {
 			l.pos++
 		}
 		name = l.input[nameStart:l.pos]
 		if l.pos < len(l.input) {
-			l.pos++ // skip closing quote
+			l.pos++ // skip closing backtick
 		} else {
-			// EOF before the closing quote: unterminated quoted variable name.
 			l.setError("unterminated quoted identifier", start)
 		}
 	} else {

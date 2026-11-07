@@ -180,7 +180,7 @@ var chainShapes = []struct {
 	{"AND", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a AND ", n) + "a" }},
 	{"XOR", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a XOR ", n) + "a" }},
 	{"comparisons", func(n int) string { return "SELECT 1" + strings.Repeat(" = 1", n) }},
-	{"JSON access", func(n int) string { return "SELECT a" + strings.Repeat("->'$'", n) + " FROM t" }},
+	{"bitwise or", func(n int) string { return "SELECT 1" + strings.Repeat("|1", n) }},
 	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE utf8mb4_bin", n) }},
 	{"IS NULL", func(n int) string { return "SELECT a" + strings.Repeat(" IS NULL", n) + " FROM t" }},
 	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" = a BETWEEN 1 AND 2", n) + " FROM t" }},
