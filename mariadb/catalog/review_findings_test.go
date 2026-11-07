@@ -982,3 +982,61 @@ func TestReview_LiteralDefaultByColumnFamily(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_WindowClauseEntryChain covers a WINDOW clause entry that
+// references an earlier entry. Each entry is resolved against the ones before
+// it, so a window reached through a chain carries everything it inherits.
+func TestReview_WindowClauseEntryChain(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+	for _, tc := range []struct{ name, ddl string }{
+		{"entry_extends_entry", "CREATE VIEW wc1 AS SELECT SUM(b) OVER w2 AS x FROM t" +
+			" WINDOW w1 AS (PARTITION BY a), w2 AS (w1 ORDER BY b)"},
+		{"chain_of_three", "CREATE VIEW wc2 AS SELECT SUM(b) OVER w3 AS x FROM t" +
+			" WINDOW w1 AS (PARTITION BY a), w2 AS (w1), w3 AS (w2 ORDER BY b)"},
+		{"spec_over_a_chain", "CREATE VIEW wc3 AS SELECT SUM(b) OVER (w2) AS x FROM t" +
+			" WINDOW w1 AS (PARTITION BY a), w2 AS (w1 ORDER BY b)"},
+		{"frame_over_a_chain", "CREATE VIEW wc4 AS SELECT SUM(b) OVER (w2 ROWS UNBOUNDED PRECEDING) AS x FROM t" +
+			" WINDOW w1 AS (PARTITION BY a), w2 AS (w1 ORDER BY b)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertViewBodyMatches(t, mc, c, strings.Fields(tc.ddl)[2])
+		})
+	}
+}
+
+// TestReview_PositionIsStoredAsLocate covers POSITION, which MariaDB stores as
+// the locate() call with its arguments separated by a comma. That is also what
+// keeps the output parseable: POSITION's first argument is a bit_expr, so a
+// lower-precedence operand there would need parentheses the engine does not
+// write, while locate's arguments carry no such constraint.
+func TestReview_PositionIsStoredAsLocate(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT);")
+	for _, tc := range []struct{ name, view, query string }{
+		{"plain_strings", "pv1", "SELECT POSITION('1' IN '1') AS x FROM t"},
+		{"comparison_operand", "pv2", "SELECT POSITION((1 = 1) IN '1') AS x FROM t"},
+		{"arithmetic_operand", "pv3", "SELECT POSITION((a + 1) IN '1') AS x FROM t"},
+		{"locate_itself", "pv4", "SELECT LOCATE((1 = 1), '1') AS x FROM t"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+tc.view+" AS "+tc.query+";")
+			assertViewBodyMatches(t, mc, c, tc.view)
+
+			// The stored body has to be something the server can read back.
+			body := extractSelectBody(c.ShowCreateView("testdb", tc.view))
+			if _, err := mc.db.ExecContext(mc.ctx, "CREATE VIEW re_"+tc.view+" AS "+body); err != nil {
+				t.Errorf("the stored body does not reparse: %v\n  %s", err, body)
+			}
+		})
+	}
+}

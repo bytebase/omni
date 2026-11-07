@@ -2105,10 +2105,19 @@ func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
 // 11.8.8 store the call as locate(substr, str), the same function under its
 // other name, and TiDB v8.5.5 stores POSITION. Keeping POSITION makes the
 // text parse back to this node on every engine.
+// writePositionExpr writes POSITION as the locate() call MariaDB stores it
+// as. Measured on mariadb:11.8.8 through SHOW CREATE VIEW:
+// `POSITION('1' IN '1')` comes back `locate('1','1')`, whatever the arguments.
+//
+// That is also what keeps the output parseable. POSITION's first argument is
+// a bit_expr, so an operand of lower precedence needs parentheses there —
+// `POSITION((1 = 1) IN '1')` means nothing written as
+// `position(1 = 1 in '1')` — while locate's arguments are separated by a
+// comma and carry no such constraint.
 func writePositionExpr(b *strings.Builder, n *ast.PositionExpr) {
-	b.WriteString("position(")
+	b.WriteString("locate(")
 	writeExpr(b, n.Substr)
-	b.WriteString(" in ")
+	b.WriteString(",")
 	writeExpr(b, n.Str)
 	b.WriteString(")")
 }

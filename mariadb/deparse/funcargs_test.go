@@ -40,7 +40,7 @@ func TestFunctionArgumentDeparse(t *testing.T) {
 		{"SELECT EXTRACT(DAY_HOUR FROM a) FROM t", "select extract(day_hour from `a`) AS `EXTRACT(DAY_HOUR FROM a)` from `t`"},
 		{"SELECT EXTRACT(SQL_TSI_DAY FROM a) FROM t", "select extract(day from `a`) AS `EXTRACT(DAY FROM a)` from `t`"},
 		{"SELECT CAST(b AS SIGNED) FROM t", "select cast(`b` as signed) AS `CAST(b AS SIGNED)` from `t`"},
-		{"SELECT POSITION('bar' IN c1) FROM t", "select position('bar' in `c1`) AS `POSITION('bar' IN c1)` from `t`"},
+		{"SELECT POSITION('bar' IN c1) FROM t", "select locate('bar',`c1`) AS `POSITION('bar' IN c1)` from `t`"},
 		{"SELECT INTERVAL(c1, 1, 2) FROM t", "select interval(`c1`,1,2) AS `INTERVAL(c1, 1, 2)` from `t`"},
 	} {
 		list, err := parser.Parse(tc.sql)
@@ -69,9 +69,9 @@ func TestFunctionArgumentResolve(t *testing.T) {
 		return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "s", Position: 1}}}
 	}
 	for _, tc := range []struct{ sql, want string }{
-		{"SELECT POSITION('x' IN s) FROM t", "select position('x' in `t`.`s`) AS `POSITION('x' IN s)` from `t`"},
-		{"SELECT POSITION((SELECT s FROM t) IN s) FROM t", "select position((select `t`.`s` from `t`) in `t`.`s`) AS `POSITION((SELECT s FROM t) IN s)` from `t`"},
-		{"SELECT POSITION('x' IN (SELECT * FROM t))", "select position('x' in (select `t`.`s` from `t`)) AS `Name_exp_1`"},
+		{"SELECT POSITION('x' IN s) FROM t", "select locate('x',`t`.`s`) AS `POSITION('x' IN s)` from `t`"},
+		{"SELECT POSITION((SELECT s FROM t) IN s) FROM t", "select locate((select `t`.`s` from `t`),`t`.`s`) AS `POSITION((SELECT s FROM t) IN s)` from `t`"},
+		{"SELECT POSITION('x' IN (SELECT * FROM t))", "select locate('x',(select `t`.`s` from `t`)) AS `Name_exp_1`"},
 		{"SELECT EXTRACT(DAY FROM (SELECT * FROM t))", "select extract(day from (select `t`.`s` from `t`)) AS `Name_exp_1`"},
 	} {
 		list, err := parser.Parse(tc.sql)

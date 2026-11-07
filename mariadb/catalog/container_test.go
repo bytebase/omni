@@ -122,6 +122,14 @@ func startDedicatedContainer(t *testing.T) (*mariadbContainer, func()) {
 
 // getSharedContainer opens the pool on the `test` database of the package's
 // MariaDB server, starting that server on the first call.
+//
+// AGENTS.md asks a test on a shared server not to name its database `test`.
+// This harness still does, because the omni side of its tests builds a
+// catalog in a database of the same name and compares error messages that
+// carry it, so the name is fixed in some 460 places across this file,
+// container_scenarios_test.go and deparse_container_test.go. Renaming it is a
+// sweep of its own. What the rule guards against is covered below: the reset
+// leaves the other harness's databases alone.
 func getSharedContainer() (*mariadbContainer, error) {
 	if sharedTestDB.db != nil {
 		return &mariadbContainer{db: sharedTestDB.db, ctx: sharedTestDB.ctx}, nil
@@ -163,10 +171,15 @@ func resetSharedContainer(ctr *mariadbContainer) error {
 		return err
 	}
 
+	// The tests of this harness name databases of their own as they go, so the
+	// reset drops what is left over. It leaves alone the system databases and
+	// the mdb_N databases mariadbDatabase allocates on the same server, which
+	// belong to the test that asked for them and are dropped when it ends.
 	dbNames, err := queryStrings(ctr, `
 		SELECT SCHEMA_NAME
 		FROM information_schema.SCHEMATA
-		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')`)
+		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+		  AND SCHEMA_NAME NOT LIKE 'mdb\\_%'`)
 	if err != nil {
 		return err
 	}

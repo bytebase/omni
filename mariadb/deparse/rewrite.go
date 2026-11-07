@@ -330,9 +330,25 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 	if stmt == nil {
 		return
 	}
+	// A clause entry may itself reference an earlier one, so each is resolved
+	// as the map is built and the map holds the resolved window. A reference
+	// reaches only backwards, which is what makes one pass enough.
+	//
+	// Measured on mariadb:11.8.8:
+	// `WINDOW w1 AS (PARTITION BY a), w2 AS (w1 ORDER BY b)` referenced as w2
+	// comes back `over ( partition by `t`.`a` order by `t`.`b`)`, and a chain
+	// through a third entry resolves the same way. Taking the entry alone
+	// would drop the partitioning it inherits.
 	byName := make(map[string]*ast.WindowDef, len(stmt.WindowClause))
 	for _, wd := range stmt.WindowClause {
-		byName[strings.ToLower(wd.Name)] = wd
+		resolved := wd
+		if wd.RefName != "" {
+			if def, ok := byName[strings.ToLower(wd.RefName)]; ok {
+				resolved = extendWindowDef(def, wd)
+				resolved.Name = wd.Name
+			}
+		}
+		byName[strings.ToLower(wd.Name)] = resolved
 	}
 	// The call can sit anywhere in an expression — `1 + ROW_NUMBER() OVER w`
 	// — and in ORDER BY as well as the target list, so every window reference

@@ -92,12 +92,13 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 // the statement, as written, without the FOLLOWS or PRECEDES clause.
 //
 // Measured on mariadb:11.8.8. The shown statement is the original one with
-// only the definer replaced, so `create   trigger   tr1   before  insert on
-// tg` keeps its spacing and its lower case, `` CREATE TRIGGER `tr2` ... ON
-// `tg` `` keeps both backticks and `CREATE TRIGGER tr0 ... ON tg` keeps
-// neither. What sits before the TRIGGER keyword is dropped, OR REPLACE and a
-// comment with it, while IF NOT EXISTS, which sits after it, is kept. The
-// ordering clause is dropped wherever it stood.
+// only the definer replaced, so a statement written
+// "create   trigger   tr1   before  insert on   tg" keeps its spacing and its
+// lower case, one written with backticks around the trigger and the table
+// keeps both, and one written without them gains neither. What sits before
+// the TRIGGER keyword is dropped, OR REPLACE and a comment with it, while
+// IF NOT EXISTS, which sits after it, is kept. The ordering clause is dropped
+// wherever it stood.
 func triggerSourceDDL(stmt *nodes.CreateTriggerStmt, source string) string {
 	start, end := stmt.Loc.Start, stmt.Loc.End
 	if source == "" || start < 0 || start >= end || end > len(source) {

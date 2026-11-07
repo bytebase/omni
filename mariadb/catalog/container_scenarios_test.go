@@ -6360,7 +6360,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION,
 			       REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
 			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-			WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION`)
 		if err != nil {
 			t.Fatalf("container KEY_COLUMN_USAGE query: %v", err)
@@ -6428,7 +6428,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			       MATCH_OPTION, UPDATE_RULE, DELETE_RULE,
 			       REFERENCED_TABLE_NAME
 			FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
-			WHERE CONSTRAINT_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
+			WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
 			t.Fatalf("container REFERENTIAL_CONSTRAINTS query: %v", err)
@@ -6481,7 +6481,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		rows, err := ctr.db.QueryContext(ctr.ctx, `
 			SELECT CONSTRAINT_NAME, CHECK_CLAUSE
 			FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
-			WHERE CONSTRAINT_SCHEMA = 'test'
+			WHERE CONSTRAINT_SCHEMA = DATABASE()
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
 			t.Fatalf("container CHECK_CONSTRAINTS query: %v", err)
