@@ -200,6 +200,14 @@ func Split(sql string) []Segment {
 	// IF-as-function-call / DDL-modifier — mirrors MySQL's yacc grammar-
 	// position disambiguation at the text-scan level.
 	atStmtStart := true
+	// routineHeaderParen tracks the parameter list of a CREATE PROCEDURE so its
+	// body position is known: -1 outside a header, 0 after "PROCEDURE" before
+	// the '(' opens, then the open-paren depth. When it returns to 0 the body
+	// begins at a statement-start position, so a bare IF body (IF ... END IF)
+	// reads as a compound opener rather than the IF() function or IF EXISTS.
+	// WHILE/CASE/LOOP/REPEAT bodies already open unconditionally; only IF needs
+	// this.
+	routineHeaderParen := -1
 
 	for i < len(sql) {
 		// Check for DELIMITER directive (only at statement-start position).
@@ -277,6 +285,17 @@ func Split(sql string) []Segment {
 			} else {
 				atStmtStart = false
 			}
+			i = endOfWord
+
+		// PROCEDURE after CREATE — enter the routine header so the body position
+		// after the parameter list is known. ALTER/DROP/SHOW PROCEDURE have no
+		// body and are excluded by requiring CREATE immediately before.
+		case (b == 'p' || b == 'P') && matchWord(sql, i, "PROCEDURE"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) == "CREATE" {
+				routineHeaderParen = 0
+			}
+			atStmtStart = false
 			i = endOfWord
 
 		// IF — compound flow-control iff at stmt-start and not preceded by END.
@@ -384,6 +403,25 @@ func Split(sql string) []Segment {
 				stmtStart = i
 				atStmtStart = true
 				continue
+			}
+			// Track the CREATE PROCEDURE parameter list. Nested type parens
+			// (DECIMAL(10,2)) balance out; when the header's own '(' closes, the
+			// body follows at a statement-start position.
+			if routineHeaderParen >= 0 {
+				switch b {
+				case '(':
+					routineHeaderParen++
+				case ')':
+					if routineHeaderParen > 0 {
+						routineHeaderParen--
+						if routineHeaderParen == 0 {
+							routineHeaderParen = -1
+							atStmtStart = true
+							i++
+							continue
+						}
+					}
+				}
 			}
 			// Single character classification.
 			switch b {

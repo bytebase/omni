@@ -2876,14 +2876,14 @@ accept	accept	ProcedureDecls#1	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON
 accept	accept	ProcedureDecls#2	CREATE PROCEDURE ident() BEGIN DECLARE ident JSON; DECLARE ident JSON; END
 accept	accept	ProcedureProcStmts#1	CREATE PROCEDURE ident() BEGIN END
 accept	accept	ProcedureProcStmts#2	CREATE PROCEDURE ident() BEGIN COMMIT; END
-reject	accept	ProcedureProcStmt1s#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
-reject	accept	ProcedureProcStmt1s#2	CREATE PROCEDURE ident() IF ident THEN COMMIT; COMMIT; END IF
+accept	accept	ProcedureProcStmt1s#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
+accept	accept	ProcedureProcStmt1s#2	CREATE PROCEDURE ident() IF ident THEN COMMIT; COMMIT; END IF
 accept	accept	ProcedureBlockContent#1	CREATE PROCEDURE ident() BEGIN END
-reject	accept	ProcedureIfstmt#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
-reject	accept	ProcedureIf#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
-reject	accept	procedurceElseIfs#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
-reject	accept	procedurceElseIfs#2	CREATE PROCEDURE ident() IF ident THEN COMMIT; ELSEIF ident THEN COMMIT; END IF
-reject	accept	procedurceElseIfs#3	CREATE PROCEDURE ident() IF ident THEN COMMIT; ELSE COMMIT; END IF
+accept	accept	ProcedureIfstmt#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
+accept	accept	ProcedureIf#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
+accept	accept	procedurceElseIfs#1	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
+accept	accept	procedurceElseIfs#2	CREATE PROCEDURE ident() IF ident THEN COMMIT; ELSEIF ident THEN COMMIT; END IF
+accept	accept	procedurceElseIfs#3	CREATE PROCEDURE ident() IF ident THEN COMMIT; ELSE COMMIT; END IF
 accept	accept	ProcedureCaseStmt#1	CREATE PROCEDURE ident() CASE ident WHEN ident THEN COMMIT; END CASE
 accept	accept	ProcedureCaseStmt#2	CREATE PROCEDURE ident() CASE WHEN ident THEN COMMIT; END CASE
 accept	accept	SimpleWhenThenList#1	CREATE PROCEDURE ident() CASE ident WHEN ident THEN COMMIT; END CASE
@@ -2907,7 +2907,7 @@ accept	accept	ProcedureIterate#1	CREATE PROCEDURE ident() ITERATE ident
 accept	accept	ProcedureLeave#1	CREATE PROCEDURE ident() LEAVE ident
 accept	accept	ProcedureProcStmt#1	CREATE PROCEDURE ident() COMMIT
 accept	accept	ProcedureProcStmt#2	CREATE PROCEDURE ident() BEGIN END
-reject	accept	ProcedureProcStmt#3	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
+accept	accept	ProcedureProcStmt#3	CREATE PROCEDURE ident() IF ident THEN COMMIT; END IF
 accept	accept	ProcedureProcStmt#4	CREATE PROCEDURE ident() CASE WHEN ident THEN COMMIT; END CASE
 accept	accept	ProcedureProcStmt#5	CREATE PROCEDURE ident() WHILE ident DO COMMIT; END WHILE
 accept	accept	ProcedureProcStmt#6	CREATE PROCEDURE ident() OPEN ident
