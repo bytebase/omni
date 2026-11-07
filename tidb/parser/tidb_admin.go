@@ -297,11 +297,13 @@ func (p *Parser) parseAlterRangeStmt(start int) (nodes.Node, error) {
 //
 //	CANCEL BR JOB id
 //	CANCEL DISTRIBUTION JOB id
+//	CANCEL IMPORT JOB id
 //
 // p.cur is the word CANCEL. The id is Int64Num: an integer literal that fits an
 // int64, so -1, 0x10 and 9223372036854775808 are all 1064s.
 //
-// Ref: TiDB v8.5.5 parser.y:5694-5700 (BR), 3198-3204 (DISTRIBUTION).
+// Ref: TiDB v8.5.5 parser.y:5694-5700 (BR), 3198-3204 (DISTRIBUTION),
+// 6089-6096 (CancelImportStmt).
 func (p *Parser) parseCancelStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume CANCEL
@@ -325,6 +327,16 @@ func (p *Parser) parseCancelStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		return &nodes.CancelDistributionJobStmt{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			JobID: id,
+		}, nil
+	case p.cur.Type == kwIMPORT:
+		p.advance()
+		id, err := p.parseJobID()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.CancelImportJobStmt{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			JobID: id,
 		}, nil

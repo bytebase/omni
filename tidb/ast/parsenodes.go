@@ -4636,3 +4636,15 @@ type CancelDistributionJobStmt struct {
 
 func (s *CancelDistributionJobStmt) nodeTag()  {}
 func (s *CancelDistributionJobStmt) stmtNode() {}
+
+// CancelImportJobStmt represents CANCEL IMPORT JOB job_id, which cancels an
+// IMPORT INTO job.
+//
+// Ref: TiDB v8.5.5 parser.y:6089-6096 (CancelImportStmt).
+type CancelImportJobStmt struct {
+	Loc   Loc
+	JobID int64
+}
+
+func (s *CancelImportJobStmt) nodeTag()  {}
+func (s *CancelImportJobStmt) stmtNode() {}

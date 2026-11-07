@@ -1059,6 +1059,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
+	case kwCHAR:
+		// SHOW CHAR SET: CharsetKw's third spelling (parser.y:13556-13559),
+		// a synonym for SHOW CHARACTER SET. CHAR is reserved, so nothing else
+		// reaches this arm.
+		p.advance() // consume CHAR
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
+		stmt.Type = "CHARACTER SET"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
 	case kwCHARSET:
 		// SHOW CHARSET (synonym for SHOW CHARACTER SET)
 		stmt.Type = "CHARACTER SET"
@@ -1140,6 +1153,30 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.Type = "DISTRIBUTION JOB"
+			stmt.JobID = id
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+
+	case kwIMPORT:
+		// "IMPORT" "JOBS" is filterable (parser.y:12303); "SHOW" "IMPORT"
+		// "JOB" Int64Num is its own arm (parser.y:11762) and takes an integer
+		// literal and no filter.
+		p.advance() // consume IMPORT
+		switch p.cur.Type {
+		case kwJOBS:
+			p.advance()
+			stmt.Type = "IMPORT JOBS"
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		case kwJOB:
+			p.advance()
+			id, err := p.parseShowJobID()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Type = "IMPORT JOB"
 			stmt.JobID = id
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -1230,6 +1267,15 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwSCHEMAS {
 			// SHOW SCHEMAS (synonym for SHOW DATABASES)
 			stmt.Type = "DATABASES"
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.isBareWord("AFFINITY") {
+			// SHOW AFFINITY, filterable (parser.y:12039). AFFINITY is an
+			// unreserved keyword upstream but omni lexes it as an identifier,
+			// so it is matched as a bare word rather than a token.
+			stmt.Type = "AFFINITY"
 			p.advance()
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err

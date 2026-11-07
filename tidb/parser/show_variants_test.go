@@ -71,6 +71,22 @@ func TestShowTiDBVariantShapes(t *testing.T) {
 		{"show distribution job 1", showShape{typ: "DISTRIBUTION JOB", jobID: 1}},
 		{"show distribution job 42", showShape{typ: "DISTRIBUTION JOB", jobID: 42}},
 
+		// SHOW IMPORT JOB{,S}, the same shape as DISTRIBUTION: the plural is
+		// filterable, the singular takes an integer literal and no filter.
+		{"show import jobs", showShape{typ: "IMPORT JOBS"}},
+		{"show import jobs where id > 0", showShape{typ: "IMPORT JOBS", where: "(`id` > 0)"}},
+		{"show import job 1", showShape{typ: "IMPORT JOB", jobID: 1}},
+		{"SHOW IMPORT JOB 42", showShape{typ: "IMPORT JOB", jobID: 42}},
+
+		// SHOW AFFINITY, filterable.
+		{"show affinity", showShape{typ: "AFFINITY"}},
+		{"show affinity where id > 0", showShape{typ: "AFFINITY", where: "(`id` > 0)"}},
+
+		// SHOW CHAR SET, CharsetKw's third spelling: a synonym for SHOW
+		// CHARACTER SET, so it reports the same type.
+		{"show char set", showShape{typ: "CHARACTER SET"}},
+		{"show char set like 'utf8%'", showShape{typ: "CHARACTER SET", like: "utf8%"}},
+
 		// SHOW PLACEMENT and its FOR targets. The database name lands on the
 		// table reference's Name, as SHOW CREATE DATABASE's does; the single
 		// partition of the FOR TABLE form lands on Partition, not on the
@@ -359,6 +375,7 @@ func TestShowEndsWhereItsTargetEnds(t *testing.T) {
 		"SHOW TABLE t1 NEXT_ROW_ID TABLE t2",
 		"SHOW BUILTINS TABLE t",
 		"SHOW DISTRIBUTION JOB 1 TABLE t",
+		"SHOW IMPORT JOB 1 TABLE t",
 		"SHOW STATS_META TABLE t",
 		"SHOW VARIABLES LIKE 'x%' TABLE t",
 	} {

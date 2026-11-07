@@ -209,6 +209,13 @@ func TestCancelDistributionJobInTree(t *testing.T) {
 	}
 }
 
+func TestCancelImportJobInTree(t *testing.T) {
+	stmt, ok := parseOneTiDBAdmin(t, "CANCEL IMPORT JOB 42").(*ast.CancelImportJobStmt)
+	if !ok || stmt.JobID != 42 {
+		t.Fatalf("got %+v", stmt)
+	}
+}
+
 func TestKillInTree(t *testing.T) {
 	for _, tc := range []struct {
 		sql         string

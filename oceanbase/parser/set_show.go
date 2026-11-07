@@ -1400,6 +1400,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
+	case kwCHAR:
+		// SHOW CHAR SET, a synonym for SHOW CHARACTER SET (the charset rule,
+		// CHAR SET | CHARSET | CHARACTER SET). CHAR is reserved, so nothing
+		// else reaches this arm.
+		p.advance() // consume CHAR
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
+		stmt.Type = "CHARACTER SET"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
 	case kwCHARSET:
 		// SHOW CHARSET (synonym for SHOW CHARACTER SET)
 		stmt.Type = "CHARACTER SET"

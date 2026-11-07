@@ -551,6 +551,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterRangeStmt(sb, n)
 	case *CancelDistributionJobStmt:
 		writeCancelDistributionJobStmt(sb, n)
+	case *CancelImportJobStmt:
+		writeCancelImportJobStmt(sb, n)
 	case *RecoverTableStmt:
 		writeRecoverTableStmt(sb, n)
 	case *FlashbackTableStmt:
@@ -5852,4 +5854,8 @@ func writeAlterRangeStmt(sb *strings.Builder, n *AlterRangeStmt) {
 
 func writeCancelDistributionJobStmt(sb *strings.Builder, n *CancelDistributionJobStmt) {
 	fmt.Fprintf(sb, "{CANCEL_DISTRIBUTION_JOB :loc %d :job_id %d}", n.Loc.Start, n.JobID)
+}
+
+func writeCancelImportJobStmt(sb *strings.Builder, n *CancelImportJobStmt) {
+	fmt.Fprintf(sb, "{CANCEL_IMPORT_JOB :loc %d :job_id %d}", n.Loc.Start, n.JobID)
 }

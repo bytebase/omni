@@ -213,9 +213,12 @@ var showTargetCases = []showTargetCase{
 	{sql: "SHOW PROFILE CPU LIMIT 1,", engine: false},
 	{sql: "SHOW PROFILE CPU OFFSET 2", engine: false},
 
-	// Character sets, collations, grants and the process list.
+	// Character sets, collations, grants and the process list. CHAR SET is
+	// the charset rule's third spelling.
 	{sql: "SHOW CHARACTER SET", engine: true},
 	{sql: "SHOW CHARSET", engine: true},
+	{sql: "SHOW CHAR SET", engine: true},
+	{sql: "SHOW CHAR", engine: false},
 	{sql: "SHOW COLLATION", engine: true},
 	{sql: "SHOW GRANTS", engine: true},
 	{sql: "SHOW GRANTS FOR u", engine: true},
