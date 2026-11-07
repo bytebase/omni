@@ -126,6 +126,17 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return errUnknownTable(db.Name, stmt.Name.Name)
 	}
 
+	// A `?` parameter marker is not allowed in a view body; the engine rejects
+	// ALTER VIEW with one just as it rejects CREATE VIEW. ALTER VIEW comes only
+	// from Exec, so its body is always checked.
+	if stmt.Select != nil && containsParamMarker(stmt.Select) {
+		return &Error{
+			Code:     1351,
+			SQLState: "HY000",
+			Message:  "View's SELECT contains a '?' (parameter marker)",
+		}
+	}
+
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
 	definer := stmt.Definer
 	if definer == "" {

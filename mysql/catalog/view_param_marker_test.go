@@ -62,3 +62,26 @@ func TestCreateViewWithParamMarkerRejected(t *testing.T) {
 		}
 	}
 }
+
+// TestAlterViewWithParamMarkerRejected checks that ALTER VIEW with a `?` in its
+// body fails Exec and leaves the existing view's definition unchanged; the
+// ALTER VIEW path does not route through createView.
+func TestAlterViewWithParamMarkerRejected(t *testing.T) {
+	c := New()
+	mustExec(t, c, "CREATE DATABASE test")
+	c.SetCurrentDatabase("test")
+	mustExec(t, c, "CREATE TABLE t (a INT)")
+	mustExec(t, c, "CREATE VIEW v AS SELECT a FROM t")
+	before := c.GetDatabase("test").Views["v"].Definition
+
+	results, _ := c.Exec("ALTER VIEW v AS SELECT a FROM t LIMIT ?", &ExecOptions{ContinueOnError: true})
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("Exec(ALTER VIEW ... LIMIT ?) = %+v, want a rejection", results)
+	}
+	if msg := results[0].Error.Error(); !strings.Contains(msg, "?") {
+		t.Errorf("error = %q, want it to mention the ? marker", msg)
+	}
+	if after := c.GetDatabase("test").Views["v"].Definition; after != before {
+		t.Errorf("ALTER VIEW mutated the view despite the rejection: %q -> %q", before, after)
+	}
+}
