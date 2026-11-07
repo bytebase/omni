@@ -339,12 +339,7 @@ func restoreSelectBody(b *restorer, stmt *ast.SelectStmt) {
 	}
 	if len(stmt.GroupBy) > 0 {
 		b.kw(" GROUP BY ")
-		for i, g := range stmt.GroupBy {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			restoreExpr(b, g)
-		}
+		restoreByItems(b, stmt.GroupBy, ",")
 		if stmt.WithRollup {
 			b.kw(" WITH ROLLUP")
 		}
@@ -699,6 +694,8 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 		restoreColumnRef(b, n)
 	case *ast.StarExpr:
 		b.WriteByte('*')
+	case *ast.ParamMarkerExpr:
+		b.WriteByte('?')
 	case *ast.ParenExpr:
 		b.WriteByte('(')
 		restoreExpr(b, n.Expr)

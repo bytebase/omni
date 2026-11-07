@@ -237,6 +237,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRowExpr(sb, n)
 	case *StarExpr:
 		fmt.Fprintf(sb, "{STAR :loc %d}", n.Loc.Start)
+	case *ParamMarkerExpr:
+		fmt.Fprintf(sb, "{PARAM_MARKER :loc %d}", n.Loc.Start)
 
 	// References and literals
 	case *ColumnRef:
@@ -633,7 +635,7 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	}
 	if len(n.GroupBy) > 0 {
 		sb.WriteString(" :group_by ")
-		writeExprNodeList(sb, n.GroupBy)
+		writeOrderByList(sb, n.GroupBy)
 		if n.WithRollup {
 			sb.WriteString(" :with_rollup true")
 		}

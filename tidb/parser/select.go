@@ -564,7 +564,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		groupBy, err := p.parseExprList()
+		groupBy, err := p.parseGroupByList()
 		if err != nil {
 			return nil, err
 		}
@@ -1488,13 +1488,58 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 	return items, nil
 }
 
+// parseGroupByList parses GROUP BY items. TiDB shares one ByItem rule between
+// ORDER BY and GROUP BY (parser.y), so a GROUP BY item is an expression with an
+// optional ASC/DESC direction, e.g. "GROUP BY a DESC". ASC is the default and
+// is dropped, matching ORDER BY. GROUP BY has no NULLS FIRST/LAST.
+func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
+	var items []*nodes.OrderByItem
+
+	for {
+		start := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+
+		item := &nodes.OrderByItem{
+			Loc:  nodes.Loc{Start: start},
+			Expr: expr,
+		}
+
+		if _, ok := p.match(kwDESC); ok {
+			item.Desc = true
+		} else {
+			p.match(kwASC)
+		}
+
+		item.Loc.End = p.prev.End
+		items = append(items, item)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return items, nil
+}
+
 // parseLimitValue reads one LIMIT or OFFSET value. It is no expression but an
-// integer literal (`LimitOption: LengthNum | paramMarker`, parser.y), so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR
+// integer literal or a `?` parameter marker (`LimitOption: LengthNum |
+// paramMarker`, parser.y), so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR
 // 2`, `LIMIT 1 || 2`, `LIMIT @a`, `LIMIT a`, `LIMIT 0x10` and `LIMIT 1.5` are all
 // 1064.
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		return p.parsePrimaryExpr()
+	}
+	if p.cur.Type == '?' {
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }

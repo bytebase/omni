@@ -104,7 +104,7 @@ func TestParenthesizedRowOperands(t *testing.T) {
 	if len(sel.GroupBy) != 1 {
 		t.Fatalf("GroupBy = %+v", sel.GroupBy)
 	}
-	if _, ok := sel.GroupBy[0].(*ast.RowExpr); !ok {
-		t.Errorf("GroupBy[0] = %T", sel.GroupBy[0])
+	if _, ok := sel.GroupBy[0].Expr.(*ast.RowExpr); !ok {
+		t.Errorf("GroupBy[0] = %T", sel.GroupBy[0].Expr)
 	}
 }

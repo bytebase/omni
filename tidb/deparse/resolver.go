@@ -403,14 +403,14 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// Resolve GROUP BY. TiDB's planner replaces a position with the field
 	// it points at, which the view then stores (GROUP BY 2 over b+1 is
 	// GROUP BY `b`+1; verified on v8.5.5).
-	for i, expr := range stmt.GroupBy {
+	for _, item := range stmt.GroupBy {
 		if r.Restore {
-			if field := groupByPosition(expr, stmt.TargetList); field != nil {
-				stmt.GroupBy[i] = field
+			if field := groupByPosition(item.Expr, stmt.TargetList); field != nil {
+				item.Expr = field
 				continue
 			}
 		}
-		stmt.GroupBy[i] = r.resolveExpr(expr, sc)
+		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
 
 	// Resolve HAVING

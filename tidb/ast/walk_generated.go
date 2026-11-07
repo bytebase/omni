@@ -971,7 +971,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Where)
 		for _, item := range n.GroupBy {
-			Walk(v, item)
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 		Walk(v, n.Having)
 		for _, item := range n.OrderBy {

@@ -136,11 +136,14 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	// GROUP BY clause
 	if len(stmt.GroupBy) > 0 {
 		b.WriteString(" group by ")
-		for i, expr := range stmt.GroupBy {
+		for i, item := range stmt.GroupBy {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			writeExpr(b, expr)
+			writeExpr(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" desc")
+			}
 		}
 		if stmt.WithRollup {
 			b.WriteString(" with rollup")
@@ -1014,11 +1017,14 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 
 	if len(stmt.GroupBy) > 0 {
 		b.WriteString(" GROUP BY ")
-		for i, expr := range stmt.GroupBy {
+		for i, item := range stmt.GroupBy {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			writeExprAlias(b, expr)
+			writeExprAlias(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" DESC")
+			}
 		}
 		if stmt.WithRollup {
 			b.WriteString(" WITH ROLLUP")
@@ -1355,6 +1361,8 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(deparseStringLit(n))
 	case *ast.NullLit:
 		b.WriteString("NULL")
+	case *ast.ParamMarkerExpr:
+		b.WriteByte('?')
 	case *ast.HexLit:
 		b.WriteString(deparseHexLit(n))
 	case *ast.BitLit:
