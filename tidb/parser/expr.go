@@ -655,6 +655,25 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// Charset introducer before a hex or bit literal: _utf8 0x61, _utf8 X'61',
+		// _utf8 0b1, _utf8 B'1' ("UNDERSCORE_CHARSET" hexLit | bitLit,
+		// parser.y:7625 and :7642). The introducer must name a charset TiDB's lexer
+		// knows, which is how the lexer tells it from an identifier: _notacharset is
+		// a column, and `_notacharset 0x61` is a 1064 (a column then a bare literal),
+		// so isCharsetIntroducerWord gates it. The 1115 an action raises for a known
+		// but unsupported charset is a name looked up while parsing, which this
+		// parser does not reproduce.
+		if isCharsetIntroducerWord(strings.ToLower(p.cur.Str)) && !p.backtickQuotedAt(p.cur.Loc) &&
+			(p.peekNext().Type == tokXCONST || p.peekNext().Type == tokBCONST) {
+			csTok := p.advance()
+			litTok := p.advance()
+			loc := nodes.Loc{Start: csTok.Loc, End: litTok.End}
+			if litTok.Type == tokXCONST {
+				return &nodes.HexLit{Loc: loc, Value: litTok.Str, Charset: csTok.Str}, nil
+			}
+			return &nodes.BitLit{Loc: loc, Value: litTok.Str, Charset: csTok.Str}, nil
+		}
+
 		// Identifier — could be column ref or function call
 		if p.isIdentToken() {
 			return p.parseIdentExpr()

@@ -804,10 +804,10 @@ accept	accept	select _utf8"string";
 accept	accept	select _binary"string";
 accept	accept	select N'string'
 accept	accept	select n'string'
-reject	accept	select _utf8 0xD0B1;
-reject	accept	select _utf8 X'D0B1';
-reject	accept	select _utf8 0b1101000010110001;
-reject	accept	select _utf8 B'1101000010110001';
+accept	accept	select _utf8 0xD0B1;
+accept	accept	select _utf8 X'D0B1';
+accept	accept	select _utf8 0b1101000010110001;
+accept	accept	select _utf8 B'1101000010110001';
 accept	accept	select 1 <=> 0, 1 <=> null, 1 = null
 accept	accept	select date'1989-09-10'
 reject	reject	select date 19890910

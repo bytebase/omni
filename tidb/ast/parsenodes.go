@@ -1244,8 +1244,9 @@ func (l *NullLit) exprNode() {}
 
 // HexLit represents a hexadecimal literal (0xFF or X'FF').
 type HexLit struct {
-	Loc   Loc
-	Value string
+	Loc     Loc
+	Value   string
+	Charset string // optional charset introducer, as in _utf8 0x61 ("" = none)
 }
 
 func (l *HexLit) nodeTag()  {}
@@ -1253,8 +1254,9 @@ func (l *HexLit) exprNode() {}
 
 // BitLit represents a bit literal (0b101 or b'101').
 type BitLit struct {
-	Loc   Loc
-	Value string
+	Loc     Loc
+	Value   string
+	Charset string // optional charset introducer, as in _utf8 0b1 ("" = none)
 }
 
 func (l *BitLit) nodeTag()  {}

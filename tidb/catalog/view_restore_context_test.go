@@ -362,3 +362,20 @@ func TestViewRestoreWindowNullTreatment(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestoreIntroducerLiteral: a view stores a charset-introduced hex or bit
+// literal as the plain literal, dropping the introducer, as TiDB v8.5.5 stores it
+// (SHOW CREATE VIEW, 2026-11-07).
+func TestViewRestoreIntroducerLiteral(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{"SELECT _utf8 0x61 AS x", "SELECT x'61' AS `x`"},
+		{"SELECT _latin1 B'101' AS y", "SELECT b'101' AS `y`"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE VIEW v AS "+tc.body+";")
+			if got := c.GetDatabase("d").Views["v"].Definition; got != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", got, tc.want)
+			}
+		})
+	}
+}
