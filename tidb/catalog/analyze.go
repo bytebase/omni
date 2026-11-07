@@ -818,7 +818,6 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 			return err
 		}
 		q.LimitOffset = analyzed
-		q.LimitOffsetKeyword = limit.OffsetKeyword
 	}
 	return nil
 }

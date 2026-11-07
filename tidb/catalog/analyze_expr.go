@@ -28,9 +28,16 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
-		// A `?` placeholder carries no value or lineage. It keeps its own IR
-		// type so deparse can tell two markers apart and preserve their order.
-		return &ParamMarkerExprQ{}, nil
+		// A `?` parameter marker cannot appear in a view definition — the only
+		// thing this analyzer processes — and the engine rejects such a view.
+		// Reject it here rather than carry a marker through the normalizing
+		// deparse, which cannot round-trip its positional binding (LIMIT
+		// operand order, ordinal-to-target expansion).
+		return nil, &Error{
+			Code:     0,
+			SQLState: "HY000",
+			Message:  "parameter marker (?) is not allowed in a view definition",
+		}
 	case *nodes.FuncCallExpr:
 		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:

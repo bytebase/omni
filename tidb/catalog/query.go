@@ -119,11 +119,6 @@ type Query struct {
 	// Both forms are normalized into these two fields.
 	LimitCount  AnalyzedExpr
 	LimitOffset AnalyzedExpr
-	// LimitOffsetKeyword records whether the offset was written with the
-	// OFFSET keyword rather than the comma form. The two forms place a `?`
-	// marker in opposite positions, so deparse reproduces the original form
-	// when a marker is present to keep the positional binding order.
-	LimitOffsetKeyword bool
 
 	// Distinct is true for SELECT DISTINCT.
 	// Note: PG has a DistinctOn slice for `SELECT DISTINCT ON (...)`;
@@ -734,15 +729,6 @@ type ConstExprQ struct {
 func (*ConstExprQ) analyzedExprTag()          {}
 func (c *ConstExprQ) exprType() *ResolvedType { return c.Type }
 func (c *ConstExprQ) exprCollation() string   { return c.Collation }
-
-// ParamMarkerExprQ is a `?` parameter marker. It carries no value or lineage,
-// and it stays distinct from ConstExprQ so deparse can tell two markers apart
-// and keep their positional binding order (see Query.LimitOffsetKeyword).
-type ParamMarkerExprQ struct{}
-
-func (*ParamMarkerExprQ) analyzedExprTag()        {}
-func (*ParamMarkerExprQ) exprType() *ResolvedType { return nil }
-func (*ParamMarkerExprQ) exprCollation() string   { return "" }
 
 // ----------------------------------------------------------------------------
 // FuncCallExprQ — scalar / aggregate / window function call.
