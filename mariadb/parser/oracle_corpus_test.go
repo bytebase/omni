@@ -12,6 +12,8 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	mariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // ============================================================================
@@ -36,7 +38,7 @@ import (
 func startMariaDB(t *testing.T) *parserOracle {
 	t.Helper()
 	return sharedMariaDB118.acquire(t, func(ctx context.Context) (testcontainers.Container, *sql.DB, error) {
-		c, err := mariadb.Run(ctx, "mariadb:11.8.8",
+		c, err := mariadb.Run(ctx, testcontainer.Image,
 			mariadb.WithDatabase("test"),
 			mariadb.WithPassword("test"),
 			// no WithUsername("root"): root is the module default; setting it errors.

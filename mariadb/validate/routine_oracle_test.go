@@ -9,8 +9,9 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	"github.com/bytebase/omni/mariadb/parser"
 )
 
@@ -23,13 +24,14 @@ func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
 
 	ctx := context.Background()
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
+	container, err := tcmariadb.Run(ctx, testcontainer.Image,
+		tcmariadb.WithDatabase("test"),
+		tcmariadb.WithUsername("root"),
+		tcmariadb.WithPassword("test"),
 	)
 	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		t.Fatalf("failed to start MariaDB container: %v", err)
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
 
@@ -200,10 +202,10 @@ END my_block`,
 			_, _ = o.db.ExecContext(o.ctx, p.dropSQL)
 
 			omniAccept, omniDetail := parseAndValidateAccepts(p.sql)
-			mysqlAccept, mysqlDetail := mysqlExecAccepts(t, o, p.sql)
-			if omniAccept != mysqlAccept {
-				t.Fatalf("acceptance mismatch\nomni accept: %v (%s)\nmysql accept: %v (%s)\nsql: %s",
-					omniAccept, omniDetail, mysqlAccept, mysqlDetail, p.sql)
+			serverAccept, serverDetail := mariadbExecAccepts(t, o, p.sql)
+			if omniAccept != serverAccept {
+				t.Fatalf("acceptance mismatch\nomni accept: %v (%s)\nmariadb accept: %v (%s)\nsql: %s",
+					omniAccept, omniDetail, serverAccept, serverDetail, p.sql)
 			}
 		})
 	}
@@ -225,13 +227,13 @@ func parseAndValidateAccepts(sql string) (bool, string) {
 	return false, strings.Join(codes, ",")
 }
 
-// mysqlExecAccepts reports whether MySQL runs sql without an error, and the error
-// it answered otherwise.
+// mariadbExecAccepts reports whether MariaDB runs sql without an error, and the
+// error it answered otherwise.
 //
 // Anything that is not a server error — a dropped connection, a timeout — is no
 // verdict at all and fails the test. Reporting it as a rejection would pass every
-// probe that expects MySQL to refuse, against a server that never answered.
-func mysqlExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (bool, string) {
+// probe that expects MariaDB to refuse, against a server that never answered.
+func mariadbExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (bool, string) {
 	t.Helper()
 	_, err := o.db.ExecContext(o.ctx, sql)
 	if err == nil {
@@ -239,9 +241,9 @@ func mysqlExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (boo
 	}
 	var myErr *gomysql.MySQLError
 	if errors.As(err, &myErr) {
-		return false, "ERR " + mysqlOracleItoa(int(myErr.Number)) + ": " + trimFirstLine(myErr.Message)
+		return false, "ERR " + routineOracleItoa(int(myErr.Number)) + ": " + trimFirstLine(myErr.Message)
 	}
-	t.Fatalf("MySQL gave no verdict for %q: %v", sql, err)
+	t.Fatalf("MariaDB gave no verdict for %q: %v", sql, err)
 	return false, ""
 }
 
@@ -259,7 +261,7 @@ func trimFirstLine(s string) string {
 	return s
 }
 
-func mysqlOracleItoa(n int) string {
+func routineOracleItoa(n int) string {
 	if n == 0 {
 		return "0"
 	}

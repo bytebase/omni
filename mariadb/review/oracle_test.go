@@ -15,6 +15,7 @@ import (
 	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 )
@@ -36,7 +37,7 @@ CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
 // mariadbImage is the MariaDB the oracle tests run on.
-const mariadbImage = "mariadb:11.8.8"
+const mariadbImage = testcontainer.Image
 
 var mariadbOracle struct {
 	once      sync.Once
