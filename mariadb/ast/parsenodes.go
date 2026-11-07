@@ -1257,6 +1257,12 @@ type WindowDef struct {
 	PartitionBy []ExprNode
 	OrderBy     []*OrderByItem
 	Frame       *WindowFrame
+	// BareRef marks `OVER name`: a reference with no specification of its
+	// own, as against `OVER (name)`, which is an empty specification that
+	// references one. MariaDB tells the two apart — a specification
+	// referencing a window that has a frame is 4013, while a bare reference
+	// inherits that frame — so the form has to survive parsing.
+	BareRef bool
 }
 
 func (w *WindowDef) nodeTag() {}

@@ -54,31 +54,37 @@ const (
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
-	ErrFKDupName                         = 1826
-	ErrCheckConstraintNotAllowed         = 3815
-	ErrCheckConstraintDupName            = 3822
-	ErrWrongSystemVersioning             = 4123
-	ErrRowColumnWrongType                = 4110
-	ErrNotSystemVersioned                = 4124
-	ErrAlterOnSystemVersioned            = 4119
-	ErrDuplicateRowColumn                = 4134
-	ErrAlreadySystemVersioned            = 4135
-	ErrTruncateSystemVersioned           = 4137
-	ErrMissingSystemVersioning           = 4125
-	ErrPeriodWrongColumns                = 4126
-	ErrWrongPartitionType                = 4113
-	ErrWrongSystemTimePartitions         = 4128
-	ErrValuesOnlyForRange                = 1480
-	ErrMultipleAppPeriods                = 4154
-	ErrColumnSpecifiedTwice              = 1110
-	ErrIncorrectColumnSpecifier          = 1063
-	ErrPeriodNotFound                    = 4156
-	ErrKeyPartZeroLength                 = 1391
-	ErrKeyColumnDoesNotExist             = 1072
-	ErrKeyIncludesPeriodColumn           = 4170
-	ErrPeriodFieldsDifferentTypes        = 4153
-	ErrKeyDoesNotExist                   = 1176
-	ErrPKIndexCantBeIgnored              = 4174
+	// The window-reference errors, measured on mariadb:11.8.8.
+	ErrWindowNoSuchWindow         = 4009
+	ErrWindowDuplicateName        = 4010
+	ErrWindowRefWithPartition     = 4011
+	ErrWindowRefHasOrder          = 4012
+	ErrWindowRefHasFrame          = 4013
+	ErrFKDupName                  = 1826
+	ErrCheckConstraintNotAllowed  = 3815
+	ErrCheckConstraintDupName     = 3822
+	ErrWrongSystemVersioning      = 4123
+	ErrRowColumnWrongType         = 4110
+	ErrNotSystemVersioned         = 4124
+	ErrAlterOnSystemVersioned     = 4119
+	ErrDuplicateRowColumn         = 4134
+	ErrAlreadySystemVersioned     = 4135
+	ErrTruncateSystemVersioned    = 4137
+	ErrMissingSystemVersioning    = 4125
+	ErrPeriodWrongColumns         = 4126
+	ErrWrongPartitionType         = 4113
+	ErrWrongSystemTimePartitions  = 4128
+	ErrValuesOnlyForRange         = 1480
+	ErrMultipleAppPeriods         = 4154
+	ErrColumnSpecifiedTwice       = 1110
+	ErrIncorrectColumnSpecifier   = 1063
+	ErrPeriodNotFound             = 4156
+	ErrKeyPartZeroLength          = 1391
+	ErrKeyColumnDoesNotExist      = 1072
+	ErrKeyIncludesPeriodColumn    = 4170
+	ErrPeriodFieldsDifferentTypes = 4153
+	ErrKeyDoesNotExist            = 1176
+	ErrPKIndexCantBeIgnored       = 4174
 )
 
 var sqlStateMap = map[int]string{
@@ -230,6 +236,33 @@ func errInvalidOnUpdate(name string) error {
 func errTooBigPrecision(precision int, typ string) error {
 	return &Error{Code: ErrTooBigPrecision, SQLState: sqlState(ErrTooBigPrecision),
 		Message: fmt.Sprintf("Too big precision %d specified for '%s'. Maximum is 6.", precision, typ)}
+}
+
+// The window-reference errors. Every message is the server's own, read off
+// mariadb:11.8.8.
+func errWindowNoSuchWindow(name string) error {
+	return &Error{Code: ErrWindowNoSuchWindow, SQLState: sqlState(ErrWindowNoSuchWindow),
+		Message: fmt.Sprintf("Window specification with name '%s' is not defined", name)}
+}
+
+func errWindowDuplicateName(name string) error {
+	return &Error{Code: ErrWindowDuplicateName, SQLState: sqlState(ErrWindowDuplicateName),
+		Message: fmt.Sprintf("Multiple window specifications with the same name '%s'", name)}
+}
+
+func errWindowRefWithPartition(name string) error {
+	return &Error{Code: ErrWindowRefWithPartition, SQLState: sqlState(ErrWindowRefWithPartition),
+		Message: fmt.Sprintf("Window specification referencing another one '%s' cannot contain partition list", name)}
+}
+
+func errWindowRefHasOrder(name string) error {
+	return &Error{Code: ErrWindowRefHasOrder, SQLState: sqlState(ErrWindowRefHasOrder),
+		Message: fmt.Sprintf("Referenced window specification '%s' already contains order list", name)}
+}
+
+func errWindowRefHasFrame(name string) error {
+	return &Error{Code: ErrWindowRefHasFrame, SQLState: sqlState(ErrWindowRefHasFrame),
+		Message: fmt.Sprintf("Referenced window specification '%s' cannot contain window frame", name)}
 }
 
 func errNoSuchColumn(name, context string) error {

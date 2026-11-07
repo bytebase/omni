@@ -1145,6 +1145,7 @@ func (p *Parser) parseOverClause() (*nodes.WindowDef, error) {
 		return &nodes.WindowDef{
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 			RefName: name,
+			BareRef: true,
 		}, nil
 	}
 

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -569,5 +570,89 @@ func oracleColumn(t *testing.T, mc *mariadbContainer, stmt string, col int) stri
 		return ""
 	}
 	s, _ := rows[0][col].(string)
+	return s
+}
+
+// TestReview_WindowReferenceRules covers what a window reference may do. A
+// reference extends the window it names, but only with what that window
+// leaves out, and the names have to resolve — so every case here is compared
+// with the server by error code and message, the accepted ones included.
+//
+// The one that reads oddly is real: `OVER (w)` is refused where w has a frame
+// while the bare `OVER w` inherits it, because the first is a specification
+// referencing a window and the second is only a reference.
+func TestReview_WindowReferenceRules(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	if _, err := mc.db.ExecContext(mc.ctx, "CREATE TABLE t (a INT, b INT)"); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, tc := range []struct{ name, query string }{
+		{"adds_partition", "SELECT ROW_NUMBER() OVER (w PARTITION BY b) FROM t WINDOW w AS (ORDER BY a)"},
+		{"adds_partition_to_empty", "SELECT ROW_NUMBER() OVER (w PARTITION BY b) FROM t WINDOW w AS ()"},
+		{"adds_order_to_ordered", "SELECT ROW_NUMBER() OVER (w ORDER BY b) FROM t WINDOW w AS (ORDER BY a)"},
+		{"adds_order_to_partitioned", "SELECT ROW_NUMBER() OVER (w ORDER BY b) FROM t WINDOW w AS (PARTITION BY a)"},
+		{"spec_refs_framed", "SELECT SUM(b) OVER (w ROWS UNBOUNDED PRECEDING) FROM t WINDOW w AS (ORDER BY a ROWS 2 PRECEDING)"},
+		{"empty_spec_refs_framed", "SELECT SUM(b) OVER (w) FROM t WINDOW w AS (ORDER BY a ROWS 2 PRECEDING)"},
+		{"bare_ref_inherits_frame", "SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY a ROWS 2 PRECEDING)"},
+		{"adds_order_to_framed", "SELECT SUM(b) OVER (w ORDER BY b) FROM t WINDOW w AS (ROWS 2 PRECEDING)"},
+		{"adds_frame", "SELECT SUM(b) OVER (w ROWS UNBOUNDED PRECEDING) FROM t WINDOW w AS (ORDER BY a)"},
+		{"clause_entry_refs", "SELECT ROW_NUMBER() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1)"},
+		{"clause_entry_adds_partition", "SELECT ROW_NUMBER() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1 PARTITION BY b)"},
+		{"clause_entry_adds_order", "SELECT ROW_NUMBER() OVER w2 FROM t WINDOW w1 AS (PARTITION BY a), w2 AS (w1 ORDER BY b)"},
+		{"clause_entry_refs_framed", "SELECT ROW_NUMBER() OVER w2 FROM t WINDOW w1 AS (ORDER BY a ROWS 2 PRECEDING), w2 AS (w1)"},
+		{"clause_entry_order_on_framed", "SELECT ROW_NUMBER() OVER w2 FROM t WINDOW w1 AS (ORDER BY a ROWS 2 PRECEDING), w2 AS (w1 ORDER BY b)"},
+		{"forward_reference", "SELECT ROW_NUMBER() OVER w1 FROM t WINDOW w1 AS (w2), w2 AS (ORDER BY a)"},
+		{"duplicate_name", "SELECT ROW_NUMBER() OVER w FROM t WINDOW w AS (ORDER BY a), w AS (ORDER BY b)"},
+		{"unknown_in_spec", "SELECT ROW_NUMBER() OVER (nope ORDER BY b) FROM t"},
+		{"unknown_bare", "SELECT ROW_NUMBER() OVER nope FROM t"},
+		{"nested_scope_is_its_own", "SELECT (SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1) FROM t WINDOW w AS (ORDER BY a)"},
+		{"nested_unknown_is_caught", "SELECT (SELECT SUM(b) OVER nope FROM t LIMIT 1) FROM t WINDOW w AS (ORDER BY a)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var oracleMsg string
+			view := fmt.Sprintf("wv%d", i)
+			if _, err := mc.db.ExecContext(mc.ctx, "CREATE VIEW "+view+" AS "+tc.query); err != nil {
+				oracleMsg = serverErrorMessage(err)
+			}
+
+			c := New()
+			results, err := c.Exec(
+				"CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT); CREATE VIEW v AS "+tc.query+";", nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
+			var omniMsg string
+			for _, r := range results {
+				if r.Error == nil {
+					continue
+				}
+				e, ok := r.Error.(*Error)
+				if !ok {
+					t.Fatalf("omni returned %T, want *Error: %v", r.Error, r.Error)
+				}
+				omniMsg = fmt.Sprintf("%d %s", e.Code, e.Message)
+			}
+
+			if omniMsg != oracleMsg {
+				t.Errorf("answers differ\n  oracle: %q\n  omni:   %q", oracleMsg, omniMsg)
+			}
+		})
+	}
+}
+
+// serverErrorMessage renders a driver error as the code and message, dropping
+// the SQLSTATE so it can be compared with a catalog Error.
+func serverErrorMessage(err error) string {
+	s := err.Error()
+	var code int
+	if n, _ := fmt.Sscanf(s, "Error %d", &code); n != 1 {
+		return s
+	}
+	if i := strings.Index(s, "): "); i >= 0 {
+		return fmt.Sprintf("%d %s", code, s[i+len("): "):])
+	}
 	return s
 }

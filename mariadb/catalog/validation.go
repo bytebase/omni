@@ -13,6 +13,15 @@ func validateExpressionSemantics(node nodes.Node) error {
 		if err != nil {
 			return false
 		}
+		// A window name resolves in the query that declares it, and Inspect
+		// reaches every query, so each is checked against its own clause.
+		if sel, ok := n.(*nodes.SelectStmt); ok {
+			if e := validateWindowReferences(sel); e != nil {
+				err = e
+				return false
+			}
+			return true
+		}
 		fn, ok := n.(*nodes.FuncCallExpr)
 		if !ok {
 			return true
@@ -410,4 +419,103 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 	default:
 		return nil, false
 	}
+}
+
+// validateWindowReferences holds one query's window names and references to
+// what MariaDB accepts. A reference may extend the window it names, but only
+// with what that window leaves out, and the names themselves have to resolve.
+//
+// Measured on mariadb:11.8.8, where each refusal names the window referenced,
+// not the specification doing the referencing:
+//
+//	4009 a name no WINDOW clause entry before it declares, which makes a
+//	     forward reference an undefined one: WINDOW w1 AS (w2), w2 AS (...)
+//	4010 the same name declared twice in one WINDOW clause
+//	4011 a specification that references another and adds a partition list,
+//	     whatever the referenced one holds
+//	4012 one that adds an order list to a name that already has one
+//	4013 one that references a name that has a frame, even adding nothing:
+//	     `OVER (w)` is refused where `OVER w`, a bare reference with no
+//	     specification of its own, inherits the frame instead
+func validateWindowReferences(stmt *nodes.SelectStmt) error {
+	// The clause is read in order, so a reference sees only the entries
+	// before it and a name declared twice is caught on its second entry.
+	declared := make(map[string]*nodes.WindowDef, len(stmt.WindowClause))
+	for _, wd := range stmt.WindowClause {
+		if wd == nil {
+			continue
+		}
+		if err := checkWindowRef(wd, declared); err != nil {
+			return err
+		}
+		key := toLower(wd.Name)
+		if _, dup := declared[key]; dup {
+			return errWindowDuplicateName(wd.Name)
+		}
+		declared[key] = wd
+	}
+
+	// Every OVER clause of this query, wherever it sits in an expression. The
+	// walk stops at a nested query, which has its own clause and is reached
+	// by the caller's own walk.
+	var err error
+	check := func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		if nested, ok := n.(*nodes.SelectStmt); ok && nested != stmt {
+			return false
+		}
+		call, ok := n.(*nodes.FuncCallExpr)
+		if !ok || call.Over == nil {
+			return true
+		}
+		err = checkWindowRef(call.Over, declared)
+		return err == nil
+	}
+	for _, target := range stmt.TargetList {
+		nodes.Inspect(target, check)
+	}
+	for _, src := range stmt.From {
+		nodes.Inspect(src, check)
+	}
+	if stmt.Where != nil {
+		nodes.Inspect(stmt.Where, check)
+	}
+	for _, item := range stmt.GroupBy {
+		nodes.Inspect(item.Expr, check)
+	}
+	if stmt.Having != nil {
+		nodes.Inspect(stmt.Having, check)
+	}
+	for _, item := range stmt.OrderBy {
+		nodes.Inspect(item.Expr, check)
+	}
+	return err
+}
+
+// checkWindowRef holds one window specification to the rules above. declared
+// holds the names in scope for it.
+func checkWindowRef(wd *nodes.WindowDef, declared map[string]*nodes.WindowDef) error {
+	if wd.RefName == "" {
+		return nil
+	}
+	ref, ok := declared[toLower(wd.RefName)]
+	if !ok {
+		return errWindowNoSuchWindow(wd.RefName)
+	}
+	if wd.BareRef {
+		// `OVER name` adds nothing, so it collides with nothing.
+		return nil
+	}
+	if len(wd.PartitionBy) > 0 {
+		return errWindowRefWithPartition(wd.RefName)
+	}
+	if len(wd.OrderBy) > 0 && len(ref.OrderBy) > 0 {
+		return errWindowRefHasOrder(wd.RefName)
+	}
+	if ref.Frame != nil {
+		return errWindowRefHasFrame(wd.RefName)
+	}
+	return nil
 }
