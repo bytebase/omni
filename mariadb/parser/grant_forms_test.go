@@ -289,6 +289,13 @@ var grantFormCases = []grantFormCase{
 	{"CREATE USER u1@localhost DEFAULT ROLE current_user", false},
 	{"ALTER USER u1@localhost DEFAULT ROLE current_user", false},
 	{"SHOW GRANTS FOR u1@localhost USING current_user", false},
+	// MariaDB's SET DEFAULT ROLE role [FOR user]: the role is a Rolename and
+	// refuses the keyword, while the FOR user is a Username and reads it. A
+	// quoted 'CURRENT_USER' stays an ordinary role name.
+	{"SET DEFAULT ROLE CURRENT_USER", false},
+	{"SET DEFAULT ROLE CURRENT_USER() FOR 'u'@'localhost'", false},
+	{"SET DEFAULT ROLE 'CURRENT_USER'", true},
+	{"SET DEFAULT ROLE role1 FOR CURRENT_USER", true},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no

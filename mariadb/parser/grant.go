@@ -1879,6 +1879,16 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 		stmt.None = true
 		p.advance()
 	} else {
+		// The role operand is a Rolename, not a Username: CURRENT_USER is a user
+		// and not a role, so mariadb:11.8 answers 1064 for SET DEFAULT ROLE
+		// current_user (the quoted 'CURRENT_USER' stays an ordinary role name).
+		// The FOR user below is a Username and does read CURRENT_USER.
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
 		role, err := p.parseUserName()
 		if err != nil {
 			return nil, err
