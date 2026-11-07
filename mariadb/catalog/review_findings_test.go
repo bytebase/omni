@@ -843,3 +843,80 @@ func defaultClauseOf(create string) string {
 	}
 	return "(no DEFAULT)"
 }
+
+// TestReview_JSONColumnCopiedByLike covers CREATE TABLE ... LIKE over a JSON
+// column. The copy is a JSON column too, so the marker travels with it and a
+// later ALTER reads the column for what it is rather than as newly typed.
+func TestReview_JSONColumnCopiedByLike(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		{"plain_copy", []string{
+			"CREATE TABLE t (j JSON)",
+			"CREATE TABLE t2 LIKE t",
+		}},
+		{"copy_then_retype_to_json", []string{
+			"CREATE TABLE t (j JSON)",
+			"CREATE TABLE t2 LIKE t",
+			"ALTER TABLE t2 MODIFY COLUMN j JSON",
+		}},
+		{"copy_then_retype_away", []string{
+			"CREATE TABLE t (j JSON)",
+			"CREATE TABLE t2 LIKE t",
+			"ALTER TABLE t2 MODIFY COLUMN j INT",
+		}},
+		{"copy_then_drop_column", []string{
+			"CREATE TABLE t (a INT, j JSON)",
+			"CREATE TABLE t2 LIKE t",
+			"ALTER TABLE t2 DROP COLUMN j",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t2")
+			if got := c.ShowCreateTable("testdb", "t2"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_ImplicitJSONCheckIsNotDroppableByName covers the implicit check's
+// name, which is the column's: the server does not accept it as a constraint
+// to drop, answering 1091.
+func TestReview_ImplicitJSONCheckIsNotDroppableByName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (j JSON);")
+
+	const drop = "ALTER TABLE t DROP CONSTRAINT j"
+	_, oracleErr := mc.db.ExecContext(mc.ctx, drop)
+	if oracleErr == nil {
+		t.Fatalf("oracle: expected the implicit check to be undroppable by name")
+	}
+
+	results, err := c.Exec(drop+";", nil)
+	if err != nil {
+		t.Fatalf("omni: %v", err)
+	}
+	var omniErr error
+	for _, r := range results {
+		if r.Error != nil {
+			omniErr = r.Error
+		}
+	}
+	if omniErr == nil {
+		t.Errorf("omni: accepted %q, which the server refuses with %v", drop, oracleErr)
+	}
+}

@@ -3292,6 +3292,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Invisible:        srcCol.Invisible,
 			Hidden:           srcCol.Hidden,
 			SystemVersioning: srcCol.SystemVersioning,
+			// The copy is a JSON column too, and its implicit json_valid
+			// check comes with it, so the marker has to come as well: without
+			// it a later ALTER reads the column as newly typed and leaves the
+			// check behind when the type moves away from JSON.
+			IsJSON: srcCol.IsJSON,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

@@ -1203,13 +1203,20 @@ func dropImplicitJSONCheck(tbl *Table, colName string) {
 	key := toLower(colName)
 	kept := tbl.Constraints[:0]
 	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && toLower(con.Name) == key &&
-			con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", colName) {
+		if toLower(con.Name) == key && isImplicitJSONCheck(con) {
 			continue
 		}
 		kept = append(kept, con)
 	}
 	tbl.Constraints = kept
+}
+
+// isImplicitJSONCheck reports whether the constraint is the json_valid check a
+// JSON column carries, which the catalog names after that column. It is not a
+// constraint a statement can name: it comes and goes with its column.
+func isImplicitJSONCheck(con *Constraint) bool {
+	return con != nil && con.Type == ConCheck &&
+		con.CheckExpr == fmt.Sprintf("json_valid(`%s`)", con.Name)
 }
 
 // renameImplicitJSONCheck follows a renamed JSON column: the check keeps the
@@ -1250,12 +1257,20 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		// A JSON column's implicit json_valid check carries the column's name
+		// but is not a constraint the statement can name: the server answers
+		// 1091 for `ALTER TABLE t DROP CONSTRAINT j` on a JSON column `j`.
+		// Measured on mariadb:11.8.8. It goes only with its column.
+		if isImplicitJSONCheck(con) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
