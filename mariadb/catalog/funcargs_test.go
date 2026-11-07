@@ -34,7 +34,7 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 		t.Fatal("table tg is not in the catalog")
 	}
 	want := map[string]string{
-		"p": "locate(_utf8mb4'x',`s`)",
+		"p": "locate('x',`s`)",
 		"e": "extract(day_hour from `a`)",
 		"i": "interval(`c1`,1,2)",
 	}

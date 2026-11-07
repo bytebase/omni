@@ -61,7 +61,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db, stmt.Columns)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -154,7 +154,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db, stmt.Columns)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -425,11 +425,34 @@ func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRel
 			out = agg
 		}
 		return out, nil
-	case "repeat", "lpad", "rpad":
+	case "repeat":
+		// One string argument, whose charset the result keeps.
 		if len(fn.Args) == 0 {
 			return viewCollationInfo{}, nil
 		}
 		return inferViewExprCollation(fn.Args[0], relations)
+	case "lpad", "rpad":
+		// Two string arguments. MariaDB coerces the result to the wider of
+		// them, as it does for CONCAT, where MySQL 8.0 pins it to the first.
+		// Measured on mariadb:11.8.8: `LPAD(a, 20, b)` over a latin1 `a` and a
+		// utf8mb4 `b` reports utf8mb4, either way round.
+		var out viewCollationInfo
+		for i, arg := range fn.Args {
+			// The middle argument is the length, not a string.
+			if i == 1 {
+				continue
+			}
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
 	default:
 		var out viewCollationInfo
 		for _, arg := range fn.Args {
@@ -681,7 +704,7 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // offsets index into. An unaliased select item is named after its text in
 // source, as the engine names it; with no source ("" from DefineView), the
 // name is rebuilt from the AST.
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database, explicitCols []string) (string, []string) {
 	if sel == nil {
 		return rawText, nil
 	}
@@ -709,8 +732,35 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
 
+	// A view that names its columns carries those names into the body it
+	// stores: `CREATE VIEW v (x, y) AS SELECT a, b FROM t` comes back as
+	// `select ... AS \`x\`, ... AS \`y\``. Measured on mariadb:11.8.8.
+	applyExplicitViewColumns(sel, explicitCols)
+
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
+}
+
+// applyExplicitViewColumns renames the output aliases of the SELECT that
+// produces the view's rows to the names the view declares. A name past the end
+// of the target list is left to the column-count check, which rejects the
+// statement.
+func applyExplicitViewColumns(sel *nodes.SelectStmt, cols []string) {
+	if sel == nil || len(cols) == 0 {
+		return
+	}
+	leaf := nodes.LeftmostQueryLeaf(sel)
+	if leaf == nil {
+		return
+	}
+	for i, target := range leaf.TargetList {
+		if i >= len(cols) {
+			break
+		}
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			rt.Name = cols[i]
+		}
+	}
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
@@ -847,14 +897,10 @@ func showCreateView(v *View) string {
 	// VIEW name
 	b.WriteString(" VIEW " + backtickIDQ(v.Name))
 
-	// Column list (only if explicitly specified by user in CREATE VIEW).
-	if v.ExplicitColumns && len(v.Columns) > 0 {
-		cols := make([]string, len(v.Columns))
-		for i, c := range v.Columns {
-			cols[i] = backtickIDQ(c)
-		}
-		b.WriteString(fmt.Sprintf(" (%s)", strings.Join(cols, ",")))
-	}
+	// No column list: MariaDB carries the names a view declares into its
+	// stored body's aliases and writes no list of its own, where MySQL 8.0
+	// writes the list back. Measured on mariadb:11.8.8 through SHOW CREATE
+	// VIEW; applyExplicitViewColumns puts the names where they belong.
 
 	// AS select_statement
 	b.WriteString(" AS ")

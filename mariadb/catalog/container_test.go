@@ -11,20 +11,25 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
-// mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
-type mysqlContainer struct {
+// mariadbContainer is a connection to a real MariaDB server, in the `test`
+// database, for container testing.
+type mariadbContainer struct {
 	db  *sql.DB
 	ctx context.Context
 }
 
-var sharedMySQL = struct {
+// sharedTestDB holds the pool on the `test` database of the package's shared
+// MariaDB server and serializes the tests that take it, which reset the whole
+// server between uses.
+var sharedTestDB = struct {
 	sync.Mutex
-	container *tcmysql.MySQLContainer
-	db        *sql.DB
-	ctx       context.Context
+	db  *sql.DB
+	ctx context.Context
 }{
 	ctx: context.Background(),
 }
@@ -51,38 +56,42 @@ type constraintInfo struct {
 
 // startContainer starts a MySQL 8.0 container and returns an container handle plus
 // a cleanup function. The caller must defer the cleanup function.
-func startContainer(t *testing.T) (*mysqlContainer, func()) {
+// startContainer returns a handle on the `test` database of the package's
+// MariaDB server plus a cleanup function. The caller must defer the cleanup
+// function.
+func startContainer(t *testing.T) (*mariadbContainer, func()) {
 	t.Helper()
 	if os.Getenv("MYSQL_TESTCONTAINERS_SHARED") == "0" {
 		return startDedicatedContainer(t)
 	}
 
-	sharedMySQL.Lock()
+	sharedTestDB.Lock()
 	ctr, err := getSharedContainer()
 	if err != nil {
-		sharedMySQL.Unlock()
-		t.Fatalf("failed to start shared MySQL container: %v", err)
+		sharedTestDB.Unlock()
+		t.Fatalf("failed to start shared MariaDB container: %v", err)
 	}
 	if err := resetSharedContainer(ctr); err != nil {
-		sharedMySQL.Unlock()
-		t.Fatalf("failed to reset shared MySQL container: %v", err)
+		sharedTestDB.Unlock()
+		t.Fatalf("failed to reset shared MariaDB container: %v", err)
 	}
 	return ctr, func() {
-		sharedMySQL.Unlock()
+		sharedTestDB.Unlock()
 	}
 }
 
-func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
+func startDedicatedContainer(t *testing.T) (*mariadbContainer, func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
+	container, err := tcmariadb.Run(ctx, testcontainer.Image,
+		tcmariadb.WithDatabase("test"),
+		tcmariadb.WithUsername("root"),
+		tcmariadb.WithPassword("test"),
 	)
 	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		t.Fatalf("failed to start MariaDB container: %v", err)
 	}
 
 	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
@@ -108,49 +117,44 @@ func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
 		_ = testcontainers.TerminateContainer(container)
 	}
 
-	return &mysqlContainer{db: db, ctx: ctx}, cleanup
+	return &mariadbContainer{db: db, ctx: ctx}, cleanup
 }
 
-func getSharedContainer() (*mysqlContainer, error) {
-	if sharedMySQL.container != nil {
-		return &mysqlContainer{db: sharedMySQL.db, ctx: sharedMySQL.ctx}, nil
+// getSharedContainer opens the pool on the `test` database of the package's
+// MariaDB server, starting that server on the first call.
+func getSharedContainer() (*mariadbContainer, error) {
+	if sharedTestDB.db != nil {
+		return &mariadbContainer{db: sharedTestDB.db, ctx: sharedTestDB.ctx}, nil
 	}
+	ctx := sharedTestDB.ctx
 
-	container, err := tcmysql.Run(sharedMySQL.ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	config, err := mariadbServerConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	connStr, err := container.ConnectionString(sharedMySQL.ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, err
+	if _, err := sharedMariaDB.admin.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS test"); err != nil {
+		return nil, fmt.Errorf("create database test: %w", err)
 	}
+	config.DBName = "test"
+	config.ParseTime, config.MultiStatements = true, true
 
-	db, err := sql.Open("mysql", connStr)
+	db, err := sql.Open("mysql", config.FormatDSN())
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	if err := db.PingContext(sharedMySQL.ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
 
-	sharedMySQL.container = container
-	sharedMySQL.db = db
-	return &mysqlContainer{db: db, ctx: sharedMySQL.ctx}, nil
+	sharedTestDB.db = db
+	return &mariadbContainer{db: db, ctx: ctx}, nil
 }
 
-func resetSharedContainer(ctr *mysqlContainer) error {
+func resetSharedContainer(ctr *mariadbContainer) error {
 	if err := execResetStmts(ctr,
 		"SET SESSION foreign_key_checks = 0",
 		"SET SESSION sql_mode = DEFAULT",
@@ -188,12 +192,10 @@ func resetSharedContainer(ctr *mysqlContainer) error {
 		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
 		"SET SESSION foreign_key_checks = 1",
 		"SET SESSION time_zone = DEFAULT",
-		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
-		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
 	)
 }
 
-func execResetStmts(ctr *mysqlContainer, stmts ...string) error {
+func execResetStmts(ctr *mariadbContainer, stmts ...string) error {
 	for _, stmt := range stmts {
 		if _, err := ctr.db.ExecContext(ctr.ctx, stmt); err != nil {
 			return fmt.Errorf("reset executing %q: %w", stmt, err)
@@ -202,7 +204,7 @@ func execResetStmts(ctr *mysqlContainer, stmts ...string) error {
 	return nil
 }
 
-func queryStrings(ctr *mysqlContainer, query string) ([]string, error) {
+func queryStrings(ctr *mariadbContainer, query string) ([]string, error) {
 	rows, err := ctr.db.QueryContext(ctr.ctx, query)
 	if err != nil {
 		return nil, err
@@ -220,24 +222,27 @@ func queryStrings(ctr *mysqlContainer, query string) ([]string, error) {
 	return result, rows.Err()
 }
 
-type mysqlAccount struct {
+type mariadbAccount struct {
 	user string
 	host string
 }
 
-func queryAccountNames(ctr *mysqlContainer) ([]mysqlAccount, error) {
+// queryAccountNames returns every account the tests may have created. The
+// server's own accounts are left alone: dropping mariadb.sys or the image's
+// healthcheck account would change the server under the tests that follow.
+func queryAccountNames(ctr *mariadbContainer) ([]mariadbAccount, error) {
 	rows, err := ctr.db.QueryContext(ctr.ctx, `
 		SELECT User, Host
 		FROM mysql.user
-		WHERE User NOT IN ('root', 'mysql.infoschema', 'mysql.session', 'mysql.sys')`)
+		WHERE User NOT IN ('root', 'mariadb.sys', 'healthcheck')`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var result []mysqlAccount
+	var result []mariadbAccount
 	for rows.Next() {
-		var account mysqlAccount
+		var account mariadbAccount
 		if err := rows.Scan(&account.user, &account.host); err != nil {
 			return nil, err
 		}
@@ -256,23 +261,19 @@ func quoteAccount(user, host string) string {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	sharedMySQL.Lock()
-	if sharedMySQL.db != nil {
-		_ = sharedMySQL.db.Close()
-		sharedMySQL.db = nil
+	sharedTestDB.Lock()
+	if sharedTestDB.db != nil {
+		_ = sharedTestDB.db.Close()
+		sharedTestDB.db = nil
 	}
-	if sharedMySQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMySQL.container)
-		sharedMySQL.container = nil
-	}
-	sharedMySQL.Unlock()
+	sharedTestDB.Unlock()
 	terminateSharedMariaDB()
 	os.Exit(code)
 }
 
 // execSQL executes one or more SQL statements separated by semicolons.
 // It respects quoted strings when splitting.
-func (o *mysqlContainer) execSQL(sqlStr string) error {
+func (o *mariadbContainer) execSQL(sqlStr string) error {
 	stmts := splitStatements(sqlStr)
 	for _, stmt := range stmts {
 		stmt = strings.TrimSpace(stmt)
@@ -288,13 +289,13 @@ func (o *mysqlContainer) execSQL(sqlStr string) error {
 
 // execSQLDirect executes a single SQL statement directly without splitting on semicolons.
 // This is needed for CREATE PROCEDURE/FUNCTION with BEGIN...END blocks.
-func (o *mysqlContainer) execSQLDirect(sqlStr string) error {
+func (o *mariadbContainer) execSQLDirect(sqlStr string) error {
 	_, err := o.db.ExecContext(o.ctx, sqlStr)
 	return err
 }
 
 // showCreateDatabase runs SHOW CREATE DATABASE and returns the CREATE DATABASE statement.
-func (o *mysqlContainer) showCreateDatabase(database string) (string, error) {
+func (o *mariadbContainer) showCreateDatabase(database string) (string, error) {
 	var dbName, createStmt string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE DATABASE "+database).Scan(&dbName, &createStmt)
 	if err != nil {
@@ -304,7 +305,7 @@ func (o *mysqlContainer) showCreateDatabase(database string) (string, error) {
 }
 
 // showCreateTable runs SHOW CREATE TABLE and returns the CREATE TABLE statement.
-func (o *mysqlContainer) showCreateTable(table string) (string, error) {
+func (o *mariadbContainer) showCreateTable(table string) (string, error) {
 	var tableName, createStmt string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE TABLE "+table).Scan(&tableName, &createStmt)
 	if err != nil {
@@ -314,7 +315,7 @@ func (o *mysqlContainer) showCreateTable(table string) (string, error) {
 }
 
 // showCreateFunction runs SHOW CREATE FUNCTION and returns the CREATE FUNCTION statement.
-func (o *mysqlContainer) showCreateFunction(name string) (string, error) {
+func (o *mariadbContainer) showCreateFunction(name string) (string, error) {
 	var funcName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE FUNCTION "+name).Scan(
 		&funcName, &sqlMode, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -325,7 +326,7 @@ func (o *mysqlContainer) showCreateFunction(name string) (string, error) {
 }
 
 // showCreateProcedure runs SHOW CREATE PROCEDURE and returns the CREATE PROCEDURE statement.
-func (o *mysqlContainer) showCreateProcedure(name string) (string, error) {
+func (o *mariadbContainer) showCreateProcedure(name string) (string, error) {
 	var procName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE PROCEDURE "+name).Scan(
 		&procName, &sqlMode, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -336,7 +337,7 @@ func (o *mysqlContainer) showCreateProcedure(name string) (string, error) {
 }
 
 // showCreateTrigger runs SHOW CREATE TRIGGER and returns the SQL Original Statement field.
-func (o *mysqlContainer) showCreateTrigger(name string) (string, error) {
+func (o *mariadbContainer) showCreateTrigger(name string) (string, error) {
 	var trigName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	var created sql.NullString
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE TRIGGER "+name).Scan(
@@ -348,7 +349,7 @@ func (o *mysqlContainer) showCreateTrigger(name string) (string, error) {
 }
 
 // showCreateView runs SHOW CREATE VIEW and returns the CREATE VIEW statement.
-func (o *mysqlContainer) showCreateView(name string) (string, error) {
+func (o *mariadbContainer) showCreateView(name string) (string, error) {
 	var viewName, createStmt, charSetClient, collConn string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE VIEW "+name).Scan(
 		&viewName, &createStmt, &charSetClient, &collConn)
@@ -359,7 +360,7 @@ func (o *mysqlContainer) showCreateView(name string) (string, error) {
 }
 
 // showCreateEvent runs SHOW CREATE EVENT and returns the CREATE EVENT statement.
-func (o *mysqlContainer) showCreateEvent(name string) (string, error) {
+func (o *mariadbContainer) showCreateEvent(name string) (string, error) {
 	var eventName, sqlMode, tz, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE EVENT "+name).Scan(
 		&eventName, &sqlMode, &tz, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -370,7 +371,7 @@ func (o *mysqlContainer) showCreateEvent(name string) (string, error) {
 }
 
 // queryColumns queries INFORMATION_SCHEMA.COLUMNS for the given table.
-func (o *mysqlContainer) queryColumns(database, table string) ([]columnInfo, error) {
+func (o *mariadbContainer) queryColumns(database, table string) ([]columnInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE, COLUMN_TYPE,
 		       IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY, EXTRA,
@@ -402,7 +403,7 @@ func (o *mysqlContainer) queryColumns(database, table string) ([]columnInfo, err
 }
 
 // queryIndexes queries INFORMATION_SCHEMA.STATISTICS for the given table.
-func (o *mysqlContainer) queryIndexes(database, table string) ([]indexInfo, error) {
+func (o *mariadbContainer) queryIndexes(database, table string) ([]indexInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, COLLATION,
 		       NON_UNIQUE, INDEX_TYPE, NULLABLE
@@ -430,7 +431,7 @@ func (o *mysqlContainer) queryIndexes(database, table string) ([]indexInfo, erro
 }
 
 // queryConstraints queries INFORMATION_SCHEMA.TABLE_CONSTRAINTS for the given table.
-func (o *mysqlContainer) queryConstraints(database, table string) ([]constraintInfo, error) {
+func (o *mariadbContainer) queryConstraints(database, table string) ([]constraintInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS

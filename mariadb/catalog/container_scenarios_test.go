@@ -128,7 +128,7 @@ func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
 		{"tinyint", "CREATE TABLE t_tinyint (a TINYINT)", "t_tinyint"},
 		{"smallint", "CREATE TABLE t_smallint (a SMALLINT)", "t_smallint"},
 		{"mediumint", "CREATE TABLE t_mediumint (a MEDIUMINT)", "t_mediumint"},
-		{"bigint", "CREATE TABLE t_bigint (a BIGINT)", "t_bigint"},
+		{"bigint(20)", "CREATE TABLE t_bigint (a BIGINT)", "t_bigint"},
 		{"bigint_unsigned", "CREATE TABLE t_bigint_u (a BIGINT UNSIGNED)", "t_bigint_u"},
 		{"float_basic", "CREATE TABLE t_float (a FLOAT)", "t_float"},
 		{"float_precision", "CREATE TABLE t_float_p (a FLOAT(7,3))", "t_float_p"},
@@ -586,7 +586,9 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 	}{
 		{"check_basic", "CREATE TABLE t_chk1 (a INT, CHECK (a > 0))", "t_chk1"},
 		{"check_named", "CREATE TABLE t_chk2 (a INT, CONSTRAINT `chk_name` CHECK (a > 0))", "t_chk2"},
-		{"check_not_enforced", "CREATE TABLE t_chk3 (a INT, CHECK (a > 0) NOT ENFORCED)", "t_chk3"},
+		// `CHECK (...) NOT ENFORCED` is MySQL 8.0's; MariaDB has no grammar for
+		// it and answers 1064, so the case that was here cannot run against
+		// it. TestScenario_C14 records the refusal.
 		{"check_auto_naming", "CREATE TABLE t_chk4 (a INT, b INT, CHECK (a > 0), CHECK (b > 0))", "t_chk4"},
 		{"check_expr_parens", "CREATE TABLE t_chk5 (a INT, CHECK (a > 0 AND a < 100))", "t_chk5"},
 		{"check_multi_col", "CREATE TABLE t_chk6 (a INT, b INT, CHECK (a > b))", "t_chk6"},
@@ -988,9 +990,9 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 		{"multilinestring", "CREATE TABLE t_multilinestring (a MULTILINESTRING)", "t_multilinestring"},
 		{"multipolygon", "CREATE TABLE t_multipolygon (a MULTIPOLYGON)", "t_multipolygon"},
 		{"geometrycollection", "CREATE TABLE t_geomcoll (a GEOMETRYCOLLECTION)", "t_geomcoll"},
-		{"point_srid", "CREATE TABLE t_point_srid (a POINT NOT NULL SRID 4326)", "t_point_srid"},
-		{"linestring_srid", "CREATE TABLE t_ls_srid (a LINESTRING SRID 4326)", "t_ls_srid"},
-		{"polygon_srid", "CREATE TABLE t_poly_srid (a POLYGON NOT NULL SRID 4326)", "t_poly_srid"},
+		// A per-column `SRID <n>` is MySQL 8.0's; MariaDB has no grammar for it
+		// and answers 1064, so the three cases that were here cannot run
+		// against it. TestScenario_C7/7_9 records the refusal.
 	}
 
 	for _, tc := range cases {
@@ -1392,12 +1394,11 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"ALTER TABLE t_invis MODIFY val INT INVISIBLE",
 			"t_invis",
 		},
-		{
-			"drop_column_part_of_pk",
-			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
-			"ALTER TABLE t_drop_pk DROP COLUMN a",
-			"t_drop_pk",
-		},
+		// Dropping a column a composite PRIMARY KEY is built on: MariaDB
+		// refuses it with 1072, "Key column 'a' doesn't exist in table",
+		// rather than rebuilding the key, so this table of
+		// accepted-and-compared ALTERs is the wrong place for it.
+		// TestWalkThrough_2_2 covers the refusal.
 	}
 
 	for _, tc := range ddlCases {
@@ -1686,18 +1687,10 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 			"ALTER TABLE t_drop_con DROP CONSTRAINT chk_val",
 			"t_drop_con",
 		},
-		{
-			"alter_check_not_enforced",
-			"CREATE TABLE t_chk_ne (id INT PRIMARY KEY, score INT, CONSTRAINT chk_score CHECK (score >= 0))",
-			"ALTER TABLE t_chk_ne ALTER CHECK chk_score NOT ENFORCED",
-			"t_chk_ne",
-		},
-		{
-			"alter_check_enforced",
-			"CREATE TABLE t_chk_enf (id INT PRIMARY KEY, score INT, CONSTRAINT chk_score2 CHECK (score >= 0) /*!80016 NOT ENFORCED */)",
-			"ALTER TABLE t_chk_enf ALTER CHECK chk_score2 ENFORCED",
-			"t_chk_enf",
-		},
+		// `ALTER TABLE ... ALTER CHECK <name> [NOT] ENFORCED` is MySQL 8.0's;
+		// MariaDB has no grammar for it and answers 1064, so the two cases
+		// that were here cannot run against it. TestScenario_C14 records the
+		// refusal on both sides instead.
 	}
 
 	for _, tc := range ddlCases {
@@ -1708,8 +1701,6 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 				"t_parent_dfk", "t_child_dfk",
 				"t_add_chk",
 				"t_drop_con",
-				"t_chk_ne",
-				"t_chk_enf",
 			} {
 				ctr.execSQL("DROP TABLE IF EXISTS " + tName)
 			}
@@ -2219,23 +2210,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
 		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
 		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
-		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if ctrErr == nil {
-			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		// MariaDB takes IF NOT EXISTS on CREATE INDEX; MySQL 8.0 has no such
+		// clause and answers a syntax error. Measured on mariadb:11.8.8.
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Fatalf("container: expected CREATE INDEX IF NOT EXISTS to be accepted, got %v", err)
 		}
-		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
-
-		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)", nil)
-		c.Exec("CREATE INDEX idx_val ON t_ci5 (val)", nil)
-		results, _ := c.Exec("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)", nil)
-		if results[0].Error != nil {
-			t.Errorf("omni: unexpected error for IF NOT EXISTS: %v", results[0].Error)
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Fatalf("container: expected a second CREATE INDEX IF NOT EXISTS to be a no-op, got %v", err)
 		}
-		// This is a known divergence from MySQL 8.0 behavior.
 	})
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061
@@ -2770,8 +2752,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("omni collation mismatch: got %q, want utf8mb4_uca1400_ai_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
@@ -2918,8 +2900,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_uca1400_ai_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})
@@ -3578,8 +3560,8 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
 		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if ctrCode != 1824 {
-			t.Fatalf("container: expected error code 1824, got %d", ctrCode)
+		if ctrCode != 1005 {
+			t.Fatalf("container: expected error code 1005, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3623,8 +3605,8 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
 		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if ctrCode != 1822 {
-			t.Fatalf("container: expected error code 1822, got %d", ctrCode)
+		if ctrCode != 1005 {
+			t.Fatalf("container: expected error code 1005, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -4241,7 +4223,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_addp ADD PARTITION (PARTITION p2 VALUES LESS THAN (30))"
+		alterSQL := "ALTER TABLE t_alter_addp ADD PARTITION (PARTITION `p2` VALUES LESS THAN (30))"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
@@ -4276,7 +4258,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_dropp DROP PARTITION p1"
+		alterSQL := "ALTER TABLE t_alter_dropp DROP PARTITION `p1`"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
@@ -4347,7 +4329,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_truncp TRUNCATE PARTITION p0"
+		alterSQL := "ALTER TABLE t_alter_truncp TRUNCATE PARTITION `p0`"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
@@ -4419,7 +4401,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(swapSQL); err != nil {
 			t.Fatalf("container swap table setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap"
+		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION `p0` WITH TABLE t_alter_exchp_swap"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}

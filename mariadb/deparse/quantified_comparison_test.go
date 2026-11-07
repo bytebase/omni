@@ -19,7 +19,7 @@ func TestQuantifiedComparison(t *testing.T) {
 		{"a > SOME (SELECT 1)", "`a` > any (select 1)"},
 		{"a > ALL (SELECT 1)", "`a` > all (select 1)"},
 		{"a <= ALL (SELECT 1)", "`a` <= all (select 1)"},
-		{"NOT a = ANY (SELECT 1)", "(not(`a` in (select 1)))"},
+		{"NOT a = ANY (SELECT 1)", "!(`a` in (select 1))"},
 		{"NOT a > ALL (SELECT 1)", "`a` <= any (select 1)"},
 		{"NOT a > ANY (SELECT 1)", "`a` <= all (select 1)"},
 		{"NOT a = ALL (SELECT 1)", "`a` <> any (select 1)"},
@@ -58,12 +58,12 @@ func TestNestedQuantifiedComparison(t *testing.T) {
 // the grammar needs them, so `(a > ALL (q)) = 1` stays bare as the server stores it.
 func TestNestedQuantifiedComparisonParentheses(t *testing.T) {
 	for _, c := range []struct{ input, want string }{
-		{"(a > ALL (SELECT 1)) + 1", "((`a` > all (select 1)) + 1)"},
-		{"1 + (a > ALL (SELECT 1))", "(1 + (`a` > all (select 1)))"},
-		{"1 = (a > ALL (SELECT 1))", "(1 = (`a` > all (select 1)))"},
-		{"(a > ALL (SELECT 1)) = 1", "(`a` > all (select 1) = 1)"},
-		{"(a = ANY (SELECT 1)) + 1", "((`a` in (select 1)) + 1)"},
-		{"1 = (a = ANY (SELECT 1))", "(1 = `a` in (select 1))"},
+		{"(a > ALL (SELECT 1)) + 1", "(`a` > all (select 1)) + 1"},
+		{"1 + (a > ALL (SELECT 1))", "1 + (`a` > all (select 1))"},
+		{"1 = (a > ALL (SELECT 1))", "1 = (`a` > all (select 1))"},
+		{"(a > ALL (SELECT 1)) = 1", "`a` > all (select 1) = 1"},
+		{"(a = ANY (SELECT 1)) + 1", "(`a` in (select 1)) + 1"},
+		{"1 = (a = ANY (SELECT 1))", "1 = `a` in (select 1)"},
 		{"(a = ANY (SELECT 1)) IN (SELECT 1)", "(`a` in (select 1)) in (select 1)"},
 	} {
 		t.Run(c.input, func(t *testing.T) {

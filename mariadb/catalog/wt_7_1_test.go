@@ -41,9 +41,9 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t1")
-		// Verify version comment /*!50100
-		if !strings.Contains(ddl, "/*!50100") {
-			t.Errorf("expected /*!50100 version comment in DDL:\n%s", ddl)
+		// MariaDB writes the clause plainly, with no version comment.
+		if strings.Contains(ddl, "/*!") {
+			t.Errorf("unexpected version comment in DDL:\n%s", ddl)
 		}
 		// Verify MAXVALUE without parens for plain RANGE
 		if !strings.Contains(ddl, "VALUES LESS THAN MAXVALUE") {
@@ -83,9 +83,9 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t2")
-		// RANGE COLUMNS uses /*!50500
-		if !strings.Contains(ddl, "/*!50500") {
-			t.Errorf("expected /*!50500 version comment in DDL:\n%s", ddl)
+		// MariaDB writes the COLUMNS form plainly too.
+		if strings.Contains(ddl, "/*!") {
+			t.Errorf("unexpected version comment in DDL:\n%s", ddl)
 		}
 		// RANGE COLUMNS MAXVALUE is parenthesized
 		if !strings.Contains(ddl, "VALUES LESS THAN (MAXVALUE)") {
@@ -129,8 +129,8 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t3")
-		if !strings.Contains(ddl, "RANGE  COLUMNS(a,b)") {
-			t.Errorf("expected 'RANGE  COLUMNS(a,b)' in DDL:\n%s", ddl)
+		if !strings.Contains(ddl, "RANGE  COLUMNS(`a`,`b`)") {
+			t.Errorf("expected 'RANGE  COLUMNS(`a`,`b`)' in DDL:\n%s", ddl)
 		}
 		if !strings.Contains(ddl, "VALUES LESS THAN (10,20)") {
 			t.Errorf("expected 'VALUES LESS THAN (10,20)' in DDL:\n%s", ddl)
@@ -165,7 +165,7 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t4")
-		if !strings.Contains(ddl, "PARTITION p2 VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p2` VALUES LESS THAN (30)") {
 			t.Errorf("expected p2 partition in DDL:\n%s", ddl)
 		}
 	})
@@ -242,10 +242,10 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t6")
-		if !strings.Contains(ddl, "PARTITION p1a VALUES LESS THAN (20)") {
+		if !strings.Contains(ddl, "PARTITION `p1a` VALUES LESS THAN (20)") {
 			t.Errorf("expected p1a partition in DDL:\n%s", ddl)
 		}
-		if !strings.Contains(ddl, "PARTITION p1b VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p1b` VALUES LESS THAN (30)") {
 			t.Errorf("expected p1b partition in DDL:\n%s", ddl)
 		}
 	})
@@ -284,10 +284,10 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t7")
-		if !strings.Contains(ddl, "PARTITION p_merged VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p_merged` VALUES LESS THAN (30)") {
 			t.Errorf("expected p_merged partition in DDL:\n%s", ddl)
 		}
-		if strings.Contains(ddl, "PARTITION p1 ") || strings.Contains(ddl, "PARTITION p2 ") {
+		if strings.Contains(ddl, "PARTITION `p1` ") || strings.Contains(ddl, "PARTITION `p2` ") {
 			t.Errorf("old partitions p1/p2 should not appear in DDL:\n%s", ddl)
 		}
 	})

@@ -34,8 +34,8 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id));`
             FROM information_schema.REFERENTIAL_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule, &matchOpt)
-		assertStringEq(t, "oracle DELETE_RULE", delRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle DELETE_RULE", delRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 		assertStringEq(t, "oracle MATCH_OPTION", matchOpt, "NONE")
 
 		// SHOW CREATE TABLE should not contain ON DELETE / ON UPDATE / MATCH.
@@ -155,7 +155,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule)
 		assertStringEq(t, "oracle DELETE_RULE", delRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 
 		// SHOW CREATE renders ON DELETE CASCADE only.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE c")
@@ -275,9 +275,12 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
             FOREIGN KEY (b) REFERENCES p(id)
         )`
+		// MariaDB takes a foreign key over a generated column, virtual or
+		// stored; MySQL 8.0 answers ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104).
+		// Measured on mariadb:11.8.8.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104), got nil")
+		if mysqlErr != nil {
+			t.Errorf("oracle: expected an FK over a virtual generated column to be accepted, got %v", mysqlErr)
 		}
 
 		results, err := c.Exec(bad+";", nil)
@@ -290,7 +293,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol", omniErrored, true)
+		assertBoolEq(t, "omni accepts FK on VIRTUAL gcol", omniErrored, false)
 	})
 
 	// --- 5.8 CHECK defaults to ENFORCED ------------------------------------
@@ -303,12 +306,9 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             CONSTRAINT chk_pos CHECK (a > 0)
         );`)
 
-		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='chk_pos'`,
-			&enforced)
-		assertStringEq(t, "oracle CHECK ENFORCED", enforced, "YES")
-
+		// MariaDB has no ENFORCED attribute on a CHECK, and no ENFORCED column
+		// in information_schema.TABLE_CONSTRAINTS; see TestScenario_C14.
+		// Measured on mariadb:11.8.8.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		if strings.Contains(strings.ToUpper(create), "NOT ENFORCED") {
 			t.Errorf("oracle: SHOW CREATE should not contain NOT ENFORCED: %s", create)
@@ -346,13 +346,15 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT CHECK (a > 0));
 CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 
-		// Each table should have a single CHECK constraint with auto name.
+		// Each table has one CHECK. MariaDB names a column's CHECK after the
+		// column and a table-level one CONSTRAINT_<n>, where MySQL 8.0 names
+		// both <table>_chk_<n>. Measured on mariadb:11.8.8.
 		rows1 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't1_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t1'`)
 		rows2 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't2_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='t2'`)
 		if len(rows1) != 1 {
 			t.Errorf("oracle: expected 1 CHECK on t1, got %d", len(rows1))
 		}
@@ -397,18 +399,19 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 		}
 	})
 
-	// --- 5.10 column-level CHECK with cross-column ref rejected ------------
-	t.Run("5_10_column_check_cross_ref_rejected", func(t *testing.T) {
+	// --- 5.10 column-level CHECK with cross-column ref accepted ------------
+	// MariaDB lets a CHECK written on a column name the table's other columns,
+	// and keeps it on the column: `a` int(11) DEFAULT NULL CHECK (`a` > `b`).
+	// MySQL 8.0 answers ER_CHECK_CONSTRAINT_REFERS (3823). Measured on
+	// mariadb:11.8.8.
+	t.Run("5_10_column_check_cross_ref_accepted", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		bad := `CREATE TABLE t (a INT CHECK (a > b), b INT)`
 		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_REFERS (3823), got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3823") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "check constraint") {
-			t.Errorf("oracle: expected 3823, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Errorf("oracle: expected a cross-column column CHECK to be accepted, got %v", mysqlErr)
 		}
 
 		results, err := c.Exec(bad+";", nil)
@@ -421,7 +424,7 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects column-level CHECK referencing other column", omniErrored, true)
+		assertBoolEq(t, "omni accepts column-level CHECK referencing other column", omniErrored, false)
 
 		// Sanity: same expression as TABLE-level CHECK should succeed in MySQL.
 		scenarioReset(t, mc)

@@ -454,7 +454,7 @@ func TestScenario_C6(t *testing.T) {
 		// either outcome as assertion failures, not panics.
 		addDDL := `ALTER TABLE t ADD PARTITION PARTITIONS 2`
 		if _, err := mc.db.ExecContext(mc.ctx, addDDL); err != nil {
-			t.Errorf("oracle: ALTER ADD PARTITION failed: %v", err)
+			t.Errorf("oracle: ALTER ADD PARTITION `failed`: %v", err)
 		}
 		names := oraclePartitionNames(t, mc, "t")
 		want := []string{"p0", "p1", "p2", "p3", "p4"}
@@ -464,12 +464,12 @@ func TestScenario_C6(t *testing.T) {
 		// omni side: tolerant — report but do not panic.
 		results, err := c.Exec(addDDL, nil)
 		if err != nil {
-			t.Errorf("omni: ALTER ADD PARTITION parse error: %v", err)
+			t.Errorf("omni: ALTER ADD PARTITION `parse` error: %v", err)
 			return
 		}
 		for _, r := range results {
 			if r.Error != nil {
-				t.Errorf("omni: ALTER ADD PARTITION exec error: %v", r.Error)
+				t.Errorf("omni: ALTER ADD PARTITION `exec` error: %v", r.Error)
 			}
 		}
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -492,7 +492,7 @@ func TestScenario_C6(t *testing.T) {
 
 		coalesce := `ALTER TABLE t COALESCE PARTITION 2`
 		if _, err := mc.db.ExecContext(mc.ctx, coalesce); err != nil {
-			t.Errorf("oracle: ALTER COALESCE PARTITION failed: %v", err)
+			t.Errorf("oracle: ALTER COALESCE PARTITION `failed`: %v", err)
 		}
 		names := oraclePartitionNames(t, mc, "t")
 		want := []string{"p0", "p1", "p2", "p3"}

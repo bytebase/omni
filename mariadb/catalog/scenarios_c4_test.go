@@ -377,7 +377,7 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle col charset",
 			c4OracleColCharset(t, "t", "c"), "utf8mb3")
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb3_general_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8mb3_uca1400_ai_ci")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -417,7 +417,7 @@ func TestScenario_C4(t *testing.T) {
 			assertStringEq(t, "oracle "+name+" charset",
 				c4OracleColCharset(t, "t", name), "utf8mb3")
 			assertStringEq(t, "oracle "+name+" collation",
-				c4OracleColCollation(t, "t", name), "utf8mb3_general_ci")
+				c4OracleColCollation(t, "t", name), "utf8mb3_uca1400_ai_ci")
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")

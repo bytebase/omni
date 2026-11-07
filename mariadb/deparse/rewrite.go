@@ -1,12 +1,15 @@
 // Package deparse — rewrite.go implements AST rewrites applied before deparsing.
-// These rewrites match MySQL 8.0's resolver behavior (SHOW CREATE VIEW output).
+// These rewrites match MariaDB's resolver behavior, which is what
+// information_schema.VIEWS holds for a view the server accepted.
 package deparse
 
 import (
+	"strings"
+
 	ast "github.com/bytebase/omni/mariadb/ast"
 )
 
-// RewriteExpr applies MySQL 8.0 resolver rewrites to an expression AST.
+// RewriteExpr applies MariaDB resolver rewrites to an expression AST.
 // Currently implements NOT folding: NOT(comparison) → inverted comparison.
 // The rewrite is recursive — children are processed first (bottom-up).
 func RewriteExpr(node ast.ExprNode) ast.ExprNode {
@@ -29,7 +32,7 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 	case *ast.BinaryExpr:
 		n.Left = rewriteExpr(n.Left)
 		n.Right = rewriteExpr(n.Right)
-		// MySQL 8.0 rewrites SOUNDS LIKE to soundex(left) = soundex(right)
+		// SOUNDS LIKE is stored as soundex(left) = soundex(right).
 		if n.Op == ast.BinOpSoundsLike {
 			return &ast.ParenExpr{
 				Expr: &ast.BinaryExpr{
@@ -47,13 +50,17 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 				},
 			}
 		}
-		// Boolean context wrapping: AND/OR/XOR operands that are not boolean
-		// expressions get wrapped in (0 <> expr).
-		if n.Op == ast.BinOpAnd || n.Op == ast.BinOpOr || n.Op == ast.BinOpXor {
-			if !isBooleanExpr(n.Left) {
+		// Boolean context wrapping: an AND or OR operand that is a bare column
+		// is stored as `col <> 0`. Measured on mariadb:11.8.8: `a AND b` over
+		// integer columns is `a <> 0 and b <> 0`, while `a AND (b + 1)` keeps
+		// `b + 1`, `ifnull(a,0) AND b` keeps the call, `1 AND a` keeps the
+		// literal, and XOR wraps neither side. MySQL 8.0 instead wraps every
+		// operand that is not itself a boolean expression.
+		if n.Op == ast.BinOpAnd || n.Op == ast.BinOpOr {
+			if needsBooleanContext(n.Left) {
 				n.Left = wrapBooleanContext(n.Left)
 			}
-			if !isBooleanExpr(n.Right) {
+			if needsBooleanContext(n.Right) {
 				n.Right = wrapBooleanContext(n.Right)
 			}
 		}
@@ -86,10 +93,9 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 
 	case *ast.IsExpr:
 		n.Expr = rewriteExpr(n.Expr)
-		// IS TRUE / IS FALSE on non-boolean: wrap operand in (0 <> expr)
-		if (n.Test == ast.IsTrue || n.Test == ast.IsFalse) && !n.Not && !isBooleanExpr(n.Expr) {
-			n.Expr = wrapBooleanContext(n.Expr)
-		}
+		// MariaDB leaves an IS TRUE / IS FALSE operand as written: `a IS TRUE`
+		// over an integer column is stored as `a is true`, where MySQL 8.0
+		// wraps the operand. Measured on mariadb:11.8.8.
 		return n
 
 	case *ast.CaseExpr:
@@ -189,6 +195,33 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 
 	inner := unwrapParen(operand)
 
+	// Case 0: De Morgan. MariaDB pushes a NOT through AND and OR rather than
+	// writing one over the whole conjunction: `NOT (a > 0 AND b > 0)` is stored
+	// as `a <= 0 or b <= 0`, and the push recurses. MySQL 8.0 writes
+	// `(not((...)))`. Measured on mariadb:11.8.8.
+	if binExpr, ok := inner.(*ast.BinaryExpr); ok {
+		switch binExpr.Op {
+		case ast.BinOpAnd, ast.BinOpOr:
+			dual := ast.BinOpOr
+			if binExpr.Op == ast.BinOpOr {
+				dual = ast.BinOpAnd
+			}
+			left, right := binExpr.Left, binExpr.Right
+			if needsBooleanContext(left) {
+				left = wrapBooleanContext(left)
+			}
+			if needsBooleanContext(right) {
+				right = wrapBooleanContext(right)
+			}
+			return &ast.BinaryExpr{
+				Loc:   binExpr.Loc,
+				Op:    dual,
+				Left:  rewriteNot(left),
+				Right: rewriteNot(right),
+			}
+		}
+	}
+
 	// Case 1: NOT(comparison) → invert the comparison operator
 	if binExpr, ok := inner.(*ast.BinaryExpr); ok {
 		if inverted, canInvert := invertOp[binExpr.Op]; canInvert {
@@ -201,14 +234,36 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 		}
 	}
 
-	// Case 2a: NOT(LIKE) — keep as not() wrapping (don't fold into the LIKE)
-	// The deparsing of UnaryNot already produces (not(...)), which is the correct
-	// MySQL 8.0 output. So we return the UnaryNot as-is.
-	if _, ok := inner.(*ast.LikeExpr); ok {
-		return &ast.UnaryExpr{
-			Op:      ast.UnaryNot,
-			Operand: operand,
+	// Case 1b: a predicate that carries a NOT of its own takes it, rather than
+	// a `!` over the whole: `NOT a IS TRUE` → `a is not true`,
+	// `NOT a BETWEEN 1 AND 2` → `a not between 1 and 2`, and
+	// `NOT a IN (1,2)` → `a not in (1,2)`. Measured on mariadb:11.8.8. An IN
+	// over a subquery is the exception below, which the server stores as
+	// `!(a in (q))`.
+	switch pred := inner.(type) {
+	case *ast.IsExpr:
+		flipped := *pred
+		flipped.Not = !pred.Not
+		return &flipped
+	case *ast.BetweenExpr:
+		flipped := *pred
+		flipped.Not = !pred.Not
+		return &flipped
+	case *ast.InExpr:
+		if pred.Select == nil {
+			flipped := *pred
+			flipped.Not = !pred.Not
+			return &flipped
 		}
+	}
+
+	// Case 2a: NOT(LIKE) folds into the LIKE, which carries a NOT of its own:
+	// `a NOT LIKE 'x'`. Measured on mariadb:11.8.8; MySQL 8.0 wraps it in
+	// `not(...)` instead.
+	if like, ok := inner.(*ast.LikeExpr); ok {
+		flipped := *like
+		flipped.Not = !like.Not
+		return &flipped
 	}
 
 	// Case 2b: NOT(REGEXP) — keep as not() wrapping.
@@ -230,62 +285,93 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 		}
 	}
 
-	// Case 3: NOT(non-boolean) → (0 = expr)
-	// This handles: NOT(column), NOT(a+1), NOT(func()), etc.
-	// MySQL rewrites these as (0 = expr).
-	return &ast.BinaryExpr{
-		Op:    ast.BinOpEq,
-		Left:  &ast.IntLit{Value: 0},
-		Right: operand,
+	// Case 3: NOT over a bare column is stored as `col = 0`, the operand first,
+	// where MySQL 8.0 writes the literal first. Anything else keeps the NOT,
+	// which prints as `!`: `NOT (a + 1)` → `!(a + 1)` and
+	// `NOT ifnull(a,0)` → `!ifnull(a,0)`. Measured on mariadb:11.8.8.
+	if needsBooleanContext(operand) {
+		return &ast.BinaryExpr{
+			Op:    ast.BinOpEq,
+			Left:  operand,
+			Right: &ast.IntLit{Value: 0},
+		}
 	}
+	return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
 }
 
-// isBooleanExpr returns true if the expression is inherently boolean-valued.
-// MySQL's is_bool_func() returns true for: comparisons (=,<>,<,>,<=,>=,<=>),
-// IN, BETWEEN, LIKE, IS NULL/IS NOT NULL, AND, OR, NOT, XOR, EXISTS,
-// TRUE/FALSE literals. Everything else (column refs, arithmetic, functions,
-// CASE, IF, subqueries, literals) is NOT boolean and gets wrapped in (0 <> expr)
-// when used as an operand of AND/OR/XOR.
-func isBooleanExpr(node ast.ExprNode) bool {
-	inner := unwrapParen(node)
-	switch n := inner.(type) {
-	case *ast.BinaryExpr:
-		switch n.Op {
-		case ast.BinOpEq, ast.BinOpNe, ast.BinOpLt, ast.BinOpGt,
-			ast.BinOpLe, ast.BinOpGe, ast.BinOpNullSafeEq,
-			ast.BinOpAnd, ast.BinOpOr, ast.BinOpXor, ast.BinOpSoundsLike:
-			return true
-		}
-		return false
-	case *ast.InExpr:
-		return true
-	case *ast.BetweenExpr:
-		return true
-	case *ast.LikeExpr:
-		return true
-	case *ast.IsExpr:
-		return true
-	case *ast.UnaryExpr:
-		if n.Op == ast.UnaryNot {
-			return true
-		}
-		return false
-	case *ast.ExistsExpr:
-		return true
-	case *ast.BoolLit:
-		return true
-	default:
-		return false
-	}
+// needsBooleanContext reports whether node is an operand MariaDB stores with an
+// explicit `<> 0`: a bare column reference, and nothing else. Measured on
+// mariadb:11.8.8 — see the AND/OR rewrite above.
+func needsBooleanContext(node ast.ExprNode) bool {
+	_, ok := unwrapParen(node).(*ast.ColumnRef)
+	return ok
 }
 
-// wrapBooleanContext wraps a non-boolean expression in (0 <> expr) for
-// boolean context (AND/OR/XOR operands, IS TRUE/IS FALSE operands).
+// wrapBooleanContext wraps a non-boolean expression in `expr <> 0` for boolean
+// context (AND/OR/XOR operands, IS TRUE/IS FALSE operands). Measured on
+// mariadb:11.8.8: `a AND b` over integer columns is stored as
+// `a <> 0 and b <> 0`, the operand first, where MySQL 8.0 writes the literal
+// first.
 func wrapBooleanContext(node ast.ExprNode) ast.ExprNode {
 	return &ast.BinaryExpr{
 		Op:    ast.BinOpNe,
-		Left:  &ast.IntLit{Value: 0},
-		Right: node,
+		Left:  node,
+		Right: &ast.IntLit{Value: 0},
+	}
+}
+
+// inlineNamedWindows replaces each OVER reference to a window the statement's
+// WINDOW clause defines with that definition and drops the clause. MariaDB
+// stores no WINDOW clause: `rank() OVER w ... WINDOW w AS (ORDER BY a)` comes
+// back as `rank() over ( order by a)`. Measured on mariadb:11.8.8.
+func inlineNamedWindows(stmt *ast.SelectStmt) {
+	if len(stmt.WindowClause) == 0 {
+		return
+	}
+	byName := make(map[string]*ast.WindowDef, len(stmt.WindowClause))
+	for _, wd := range stmt.WindowClause {
+		byName[strings.ToLower(wd.Name)] = wd
+	}
+	for _, target := range stmt.TargetList {
+		expr, ok := target.(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		call, ok := expr.Val.(*ast.FuncCallExpr)
+		if !ok || call.Over == nil || call.Over.RefName == "" {
+			continue
+		}
+		if def, ok := byName[strings.ToLower(call.Over.RefName)]; ok {
+			inlined := *def
+			inlined.Name = ""
+			call.Over = &inlined
+		}
+	}
+	stmt.WindowClause = nil
+}
+
+// applyCTEColumnNames renames the output aliases of each CTE's query to the
+// names the CTE declares, which is where MariaDB keeps them:
+// `WITH cte(x, y) AS (SELECT a, b FROM t)` comes back as
+// `with cte(`x`,`y`) as (select `t`.`a` AS `x`,`t`.`b` AS `y` from `t`)`.
+// Measured on mariadb:11.8.8.
+func applyCTEColumnNames(ctes []*ast.CommonTableExpr) {
+	for _, cte := range ctes {
+		if cte == nil || len(cte.Columns) == 0 || cte.Select == nil {
+			continue
+		}
+		leaf := ast.LeftmostQueryLeaf(cte.Select)
+		if leaf == nil {
+			continue
+		}
+		for i, target := range leaf.TargetList {
+			if i >= len(cte.Columns) {
+				break
+			}
+			if rt, ok := target.(*ast.ResTarget); ok {
+				rt.Name = cte.Columns[i]
+			}
+		}
 	}
 }
 
@@ -295,6 +381,8 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt == nil {
 		return
 	}
+	inlineNamedWindows(stmt)
+	applyCTEColumnNames(stmt.CTEs)
 	if stmt.SetOp != ast.SetOpNone {
 		RewriteSelectStmt(stmt.Left)
 		RewriteSelectStmt(stmt.Right)

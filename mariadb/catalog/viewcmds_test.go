@@ -146,7 +146,7 @@ func TestSection_7_1_ViewCreationPipeline(t *testing.T) {
 		v := db.Views[toLower("v1")]
 
 		// * should be expanded to named columns
-		expected := "select `t`.`a` AS `a` from `t` where (`t`.`a` > 0)"
+		expected := "select `t`.`a` AS `a` from `t` where `t`.`a` > 0"
 		if v.Definition != expected {
 			t.Errorf("Definition mismatch:\n  got:  %q\n  want: %q", v.Definition, expected)
 		}

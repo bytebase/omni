@@ -11,10 +11,10 @@ import (
 // the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,
@@ -75,10 +75,11 @@ func TestScenario_C20(t *testing.T) {
 		if !strings.Contains(idLine, "DEFAULT NULL") {
 			t.Errorf("oracle: c20_2 SHOW CREATE expected `DEFAULT NULL` on id; got %q", idLine)
 		}
-		// information_schema.COLUMN_DEFAULT is NULL (no string default stored).
+		// MariaDB writes the text "NULL" into information_schema for a nullable
+		// column's implicit default, where MySQL 8.0 leaves the field SQL NULL.
 		colDef := c20oracleColumnDefault(t, mc, "c20_2", "id")
-		if colDef.Valid {
-			t.Errorf("oracle: c20_2.id COLUMN_DEFAULT expected NULL, got %q", colDef.String)
+		if !colDef.Valid || colDef.String != "NULL" {
+			t.Errorf("oracle: c20_2.id COLUMN_DEFAULT expected the text \"NULL\", got %v", colDef)
 		}
 
 		// omni catalog: Default nil, Nullable true.
@@ -147,11 +148,15 @@ func TestScenario_C20(t *testing.T) {
 
 		// Oracle: status COLUMN_DEFAULT is NULL (catalog property — even
 		// though runtime fills in 'active'). kind COLUMN_DEFAULT is NULL too.
-		for _, cname := range []string{"status", "kind"} {
-			colDef := c20oracleColumnDefault(t, mc, "c20_4", cname)
-			if colDef.Valid {
-				t.Errorf("oracle: c20_4.%s COLUMN_DEFAULT expected NULL, got %q", cname, colDef.String)
-			}
+		// MariaDB writes the text "NULL" into information_schema for a nullable
+		// column's implicit default, and leaves the field SQL NULL for a
+		// NOT NULL column with no default. MySQL 8.0 leaves it SQL NULL for
+		// both. Measured on mariadb:11.8.8.
+		if colDef := c20oracleColumnDefault(t, mc, "c20_4", "status"); colDef.Valid {
+			t.Errorf("oracle: c20_4.status is NOT NULL, so COLUMN_DEFAULT should be SQL NULL; got %q", colDef.String)
+		}
+		if colDef := c20oracleColumnDefault(t, mc, "c20_4", "kind"); !colDef.Valid || colDef.String != "NULL" {
+			t.Errorf("oracle: c20_4.kind COLUMN_DEFAULT expected the text \"NULL\", got %v", colDef)
 		}
 
 		// omni catalog state
@@ -239,38 +244,49 @@ func TestScenario_C20(t *testing.T) {
 		}
 	})
 
-	// --- 20.6 BLOB/TEXT/JSON/GEOMETRY literal DEFAULT → ER 1101 -----------
-	t.Run("20_6_blob_text_literal_default_rejected", func(t *testing.T) {
-		type caze struct {
-			name string
-			ddl  string
-		}
-		cases := []caze{
-			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')"},
-			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')"},
-			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')"},
-			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')"},
-		}
-		for _, tc := range cases {
+	// --- 20.6 BLOB/TEXT/JSON literal DEFAULT is accepted ------------------
+	// MariaDB takes a literal default on a blob, text or JSON column and
+	// stores it; MySQL 8.0 answers ER_BLOB_CANT_HAVE_DEFAULT (1101). A
+	// GEOMETRY default is refused, but for the value rather than the type:
+	// 1416, "Cannot get geometry object from data you send to the GEOMETRY
+	// field". Measured on mariadb:11.8.8.
+	t.Run("20_6_blob_text_literal_default_accepted", func(t *testing.T) {
+		for _, tc := range []struct{ name, ddl, want string }{
+			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')", "`b` blob DEFAULT 'abc'"},
+			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')", "`t` text DEFAULT 'hello'"},
+			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')", "DEFAULT '[]'"},
+		} {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
 
-			_, mysqlErr := mc.db.ExecContext(mc.ctx, tc.ddl)
-			if mysqlErr == nil {
-				t.Errorf("oracle: expected ER_BLOB_CANT_HAVE_DEFAULT (1101) for %s, got nil", tc.name)
-			} else if !strings.Contains(mysqlErr.Error(), "1101") &&
-				!strings.Contains(strings.ToLower(mysqlErr.Error()), "can't have a default value") {
-				t.Errorf("oracle: expected 1101 for %s, got %v", tc.name, mysqlErr)
+			if _, err := mc.db.ExecContext(mc.ctx, tc.ddl); err != nil {
+				t.Errorf("oracle: expected %s to be accepted, got %v", tc.name, err)
+				continue
+			}
+			create := oracleShow(t, mc, "SHOW CREATE TABLE "+tc.name)
+			if !strings.Contains(create, tc.want) {
+				t.Errorf("oracle %s: expected %q in %s", tc.name, tc.want, create)
 			}
 
-			omniErrored := c20execExpectError(t, c, tc.ddl+";")
-			if !omniErrored {
-				t.Errorf("omni: expected rejection of %s DDL; got success", tc.name)
+			results, err := c.Exec(tc.ddl+";", nil)
+			if err != nil {
+				t.Errorf("omni: expected %s to be accepted, got %v", tc.name, err)
+				continue
 			}
-			// No table row should exist.
-			if c20getTable(c, tc.name) != nil {
-				t.Errorf("omni: %s should not be in catalog after rejected DDL", tc.name)
+			for _, r := range results {
+				if r.Error != nil {
+					t.Errorf("omni: expected %s to be accepted, got %v", tc.name, r.Error)
+				}
 			}
+		}
+
+		// A GEOMETRY default is refused for the value, not the type.
+		scenarioReset(t, mc)
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')"); err == nil {
+			t.Errorf("oracle: expected a GEOMETRY default of 'x' to be refused")
+		} else if !strings.Contains(err.Error(), "1416") {
+			t.Errorf("oracle: expected 1416 for a GEOMETRY default, got %v", err)
 		}
 	})
 
@@ -315,7 +331,7 @@ func TestScenario_C20(t *testing.T) {
 // c20oracleColumnDefault reads information_schema.COLUMNS.COLUMN_DEFAULT for a
 // column on the testdb database. Returns a sql.NullString so the caller can
 // distinguish "no default stored" (Valid=false) from "default is empty string".
-func c20oracleColumnDefault(t *testing.T, mc *mysqlContainer, table, column string) sql.NullString {
+func c20oracleColumnDefault(t *testing.T, mc *mariadbContainer, table, column string) sql.NullString {
 	t.Helper()
 	var colDef sql.NullString
 	row := mc.db.QueryRowContext(mc.ctx,

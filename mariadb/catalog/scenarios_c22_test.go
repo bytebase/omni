@@ -298,15 +298,15 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.6c: MODIFY with a genuine type change + LOCK=NONE → MySQL
-		// rejects. Column `a` is currently bigint (from 22.6a); changing it
-		// to INT UNSIGNED is a real type change, which forces COPY, which is
-		// incompatible with LOCK=NONE. (A no-op MODIFY to the same type is
-		// silently optimized away and would not error.)
+		// 22.6c: MODIFY with a genuine type change + LOCK=NONE. MariaDB takes
+		// it: the clause caps the locking it may use rather than requiring
+		// that much concurrency, so an operation that must copy the table
+		// still runs. MySQL 8.0 refuses the combination. Measured on
+		// mariadb:11.8.8.
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("oracle: expected MODIFY <typechange> ... LOCK=NONE to be accepted, got %v", oracleErr2)
 		}
 		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
 		if err2 != nil {
@@ -363,13 +363,13 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// 22.8a: COPY-only operation + LOCK=NONE → hard error. CHANGE COLUMN
-		// with a real type change forces COPY, and COPY cannot honor
-		// LOCK=NONE.
+		// 22.8a: a COPY-only operation + LOCK=NONE. MariaDB takes it; MySQL
+		// 8.0 refuses, since COPY cannot honor LOCK=NONE. Measured on
+		// mariadb:11.8.8.
 		_, oracleErr := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
-		if oracleErr == nil {
-			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
+		if oracleErr != nil {
+			t.Errorf("oracle 22.8a: expected COPY op + LOCK=NONE to be accepted, got %v", oracleErr)
 		}
 		results, _ := c.Exec(
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
@@ -379,12 +379,13 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
-		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
+		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE. MariaDB takes it;
+		// MySQL 8.0 answers "Only LOCK=DEFAULT is permitted for operations
+		// using ALGORITHM=INSTANT". Measured on mariadb:11.8.8.
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle 22.8b: expected error for INSTANT + LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("oracle 22.8b: expected INSTANT + LOCK=NONE to be accepted, got %v", oracleErr2)
 		}
 		results2, err2 := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)

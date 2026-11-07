@@ -100,10 +100,9 @@ func TestWalkThrough_12_2(t *testing.T) {
 		)`)
 
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY `idx_name` (`name`)")
-		if strings.Contains(got, "KEY_BLOCK_SIZE") {
-			t.Errorf("expected SHOW CREATE TABLE to omit index-level KEY_BLOCK_SIZE (MySQL 8.0 behavior), got:\n%s", got)
-		}
+		// MariaDB writes an index's KEY_BLOCK_SIZE, which MySQL 8.0 parses and
+		// leaves out. Measured on mariadb:11.8.8.
+		assertContains(t, got, "KEY `idx_name` (`name`) KEY_BLOCK_SIZE=4")
 	})
 
 	t.Run("index_with_using_btree", func(t *testing.T) {

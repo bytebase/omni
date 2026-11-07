@@ -13,7 +13,7 @@ import (
 
 // spotCheckQuery runs DDL (possibly multi-statement) then returns the
 // rows of the given query. Fatals on any error.
-func spotCheckQuery(t *testing.T, mc *mysqlContainer, ddl, query string) [][]any {
+func spotCheckQuery(t *testing.T, mc *mariadbContainer, ddl, query string) [][]any {
 	t.Helper()
 	for _, stmt := range splitStatements(ddl) {
 		stmt = strings.TrimSpace(stmt)
@@ -325,11 +325,13 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		del := asString(rows[0][0])
 		upd := asString(rows[0][1])
-		// Real MySQL 8.0 reports "NO ACTION" in info_schema for unspecified.
-		if del != "NO ACTION" || upd != "NO ACTION" {
-			t.Errorf("CATALOG OBS C5.1: REFERENTIAL_CONSTRAINTS reports DELETE=%q UPDATE=%q (catalog says parser default is FK_OPTION_RESTRICT; confirm whether the catalog means semantic behavior vs reporting)", del, upd)
+		// MariaDB reports RESTRICT for an action that was not written, which is
+		// what it means; MySQL 8.0 reports NO ACTION. Measured on
+		// mariadb:11.8.8.
+		if del != "RESTRICT" || upd != "RESTRICT" {
+			t.Errorf("C5.1: REFERENTIAL_CONSTRAINTS reports DELETE=%q UPDATE=%q, want RESTRICT", del, upd)
 		} else {
-			t.Logf("OK C5.1 observed: info_schema reports DELETE=%q UPDATE=%q (semantically equivalent to RESTRICT)", del, upd)
+			t.Logf("OK C5.1 observed: info_schema reports DELETE=%q UPDATE=%q", del, upd)
 		}
 		// Also verify SHOW CREATE TABLE elides ON DELETE clause (standard behavior).
 		stmt, err := mc.showCreateTable("c5")
@@ -460,7 +462,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		t.Logf("PS1 CREATE observed: %v", names)
 		has1, has5 := false, false
 		for _, n := range names {
-			if n == "tchk_chk_1" {
+			if n == "CONSTRAINT_1" {
 				has1 = true
 			}
 			if n == "tchk_chk_5" {
@@ -468,7 +470,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			}
 		}
 		if !has1 || !has5 || len(names) != 2 {
-			t.Errorf("CATALOG MISMATCH PS1 CREATE: expected [tchk_chk_1, tchk_chk_5], got %v", names)
+			t.Errorf("CATALOG MISMATCH PS1 CREATE: expected [CONSTRAINT_1, tchk_chk_5], got %v", names)
 		} else {
 			t.Logf("OK PS1 CREATE verified (fresh counter from 0): %v", names)
 		}
@@ -522,21 +524,20 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// ---------------------------------------------------------------
 	t.Run("PS5_DatetimeFspMismatch", func(t *testing.T) {
 		reset(t)
+		// MariaDB takes DATETIME(6) DEFAULT NOW() and stores the default at the
+		// column's precision, current_timestamp(6); MySQL 8.0 answers
+		// ER_INVALID_DEFAULT (1067). Measured on mariadb:11.8.8.
 		_, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE tps5 (ts DATETIME(6) DEFAULT NOW())`)
-		if err == nil {
-			// Accepted — catalog MISMATCH. Read back what was stored.
-			rows := spotCheckQuery(t, mc, ``, `
-				SELECT COLUMN_NAME, COLUMN_DEFAULT, DATETIME_PRECISION
-				FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps5'
-			`)
-			t.Errorf("CATALOG MISMATCH PS5: MySQL accepted DATETIME(6) DEFAULT NOW() (catalog says ER_INVALID_DEFAULT). COLUMNS=%v", rows)
+		if err != nil {
+			t.Errorf("PS5: expected DATETIME(6) DEFAULT NOW() to be accepted, got %v", err)
 			return
 		}
-		msg := err.Error()
-		t.Logf("PS5 error observed: %v", msg)
-		if !strings.Contains(strings.ToLower(msg), "invalid default") && !strings.Contains(msg, "1067") {
-			t.Errorf("PS5 UNEXPECTED ERROR TEXT: expected ER_INVALID_DEFAULT (1067), got: %v", msg)
+		rows := spotCheckQuery(t, mc, ``, `
+			SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps5' AND COLUMN_NAME='ts'
+		`)
+		if len(rows) != 1 || asString(rows[0][0]) != "current_timestamp(6)" {
+			t.Errorf("PS5: expected COLUMN_DEFAULT current_timestamp(6), got %v", rows)
 		} else {
 			t.Logf("OK PS5 verified: MySQL rejects DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT")
 		}
@@ -574,9 +575,12 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		msg := err.Error()
 		t.Logf("PS7 error observed: %v", msg)
-		// ER_FK_DUP_NAME = 1826
-		if !strings.Contains(msg, "1826") && !strings.Contains(strings.ToLower(msg), "duplicate") {
-			t.Errorf("PS7 UNEXPECTED ERROR: expected ER_FK_DUP_NAME (1826), got: %v", msg)
+		// MariaDB answers the one error it gives for a foreign key it cannot
+		// form, 1005 "Can't create table ... (errno: 150 ...)", where MySQL 8.0
+		// names the collision with ER_FK_DUP_NAME (1826). Measured on
+		// mariadb:11.8.8.
+		if !strings.Contains(msg, "1005") && !strings.Contains(strings.ToLower(msg), "duplicate") {
+			t.Errorf("PS7 UNEXPECTED ERROR: expected 1005, got: %v", msg)
 		} else {
 			t.Logf("OK PS7 verified: collision rejected")
 		}
@@ -599,7 +603,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rows {
 			names = append(names, asString(row[0]))
 		}
-		want := []string{"cc_chk_1", "cc_chk_2"}
+		want := []string{"CONSTRAINT_1", "CONSTRAINT_2"}
 		if len(names) != 2 || names[0] != want[0] || names[1] != want[1] {
 			t.Errorf("CATALOG MISMATCH C1.3: expected %v, got %v", want, names)
 		} else {
@@ -1002,23 +1006,25 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	})
 
 	// ---------------------------------------------------------------
-	// C14.1: CHECK CONSTRAINT ENFORCED by default.
+	// C14.1: a CHECK constraint carries no ENFORCED attribute.
+	// MariaDB has no ENFORCED column in information_schema.TABLE_CONSTRAINTS
+	// and no `ALTER TABLE ... ALTER CHECK <name> [NOT] ENFORCED` grammar;
+	// MySQL 8.0 has both. Measured on mariadb:11.8.8. TestScenario_C14 holds
+	// the rest of that behavior.
 	// ---------------------------------------------------------------
-	t.Run("C14_1_Check_enforced_default", func(t *testing.T) {
+	t.Run("C14_1_no_enforced_attribute", func(t *testing.T) {
 		reset(t)
 		rows := spotCheckQuery(t, mc, `
 			CREATE TABLE tchk14 (a INT, CONSTRAINT chk14 CHECK (a > 0));
 		`, `
-			SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'
+			SELECT COLUMN_NAME FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA='information_schema' AND TABLE_NAME='TABLE_CONSTRAINTS'
+			  AND COLUMN_NAME='ENFORCED'
 		`)
-		if len(rows) != 1 {
-			t.Fatalf("expected 1 row, got %d", len(rows))
-		}
-		if asString(rows[0][0]) != "YES" {
-			t.Errorf("CATALOG MISMATCH C14.1: expected ENFORCED=YES, got %q", asString(rows[0][0]))
+		if len(rows) != 0 {
+			t.Errorf("C14.1: TABLE_CONSTRAINTS unexpectedly has an ENFORCED column")
 		} else {
-			t.Logf("OK C14.1 verified: ENFORCED=YES")
+			t.Logf("OK C14.1 verified: no ENFORCED column")
 		}
 	})
 

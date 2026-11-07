@@ -35,12 +35,10 @@ const (
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
 	ErrDupIndex                          = 1831
-	ErrFKNoRefTable                      = 1824
+	ErrCantCreateTable                   = 1005
 	ErrCantDropKey                       = 1091
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
-	ErrFKMissingIndex                    = 1822
-	ErrFKIncompatibleColumns             = 3780
 	ErrNoSuchFunction                    = 1305
 	ErrNoSuchProcedure                   = 1305
 	ErrDupFunction                       = 1304
@@ -50,14 +48,12 @@ const (
 	ErrNoSuchEvent                       = 1539
 	ErrTriggerInWrongSchema              = 1435
 	ErrDupEvent                          = 1537
-	ErrFKCannotUseVirtualColumn          = 3104
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
-	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
@@ -108,18 +104,15 @@ var sqlStateMap = map[int]string{
 	ErrNoDatabaseSelected:                "3D000",
 	ErrCantRemoveAllFields:               "42000",
 	ErrDupIndex:                          "42000",
-	ErrFKNoRefTable:                      "HY000",
+	ErrCantCreateTable:                   "HY000",
 	ErrCantDropKey:                       "42000",
 	ErrCheckConstraintViolated:           "HY000",
 	ErrFKCannotDropParent:                "HY000",
-	ErrFKMissingIndex:                    "HY000",
-	ErrFKIncompatibleColumns:             "HY000",
 	ErrNoSuchFunction:                    "42000",
 	ErrDupFunction:                       "HY000",
 	ErrNoSuchEvent:                       "HY000",
 	ErrTriggerInWrongSchema:              "HY000",
 	ErrDupEvent:                          "HY000",
-	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongSystemVersioning:             "HY000",
@@ -146,7 +139,6 @@ var sqlStateMap = map[int]string{
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
-	ErrInvalidYearColumnLength:           "HY000",
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
@@ -240,11 +232,6 @@ func errTooBigPrecision(precision int, typ string) error {
 		Message: fmt.Sprintf("Too big precision %d specified for '%s'. Maximum is 6.", precision, typ)}
 }
 
-func errInvalidYearColumnLength() error {
-	return &Error{Code: ErrInvalidYearColumnLength, SQLState: sqlState(ErrInvalidYearColumnLength),
-		Message: "Invalid YEAR column length"}
-}
-
 func errNoSuchColumn(name, context string) error {
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
 		Message: fmt.Sprintf("Unknown column '%s' in '%s'", name, context)}
@@ -301,9 +288,14 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 		Message: fmt.Sprintf("Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'", table, fkName, refTable)}
 }
 
-func errCantDropKey(name string) error {
+// errCantDropKey reports 1091 for a DROP of something that is not there.
+// MariaDB names what was being dropped and backticks it:
+// "Can't DROP COLUMN `x`; check that it exists", and the same for INDEX,
+// FOREIGN KEY and CONSTRAINT. MySQL 8.0 writes one message for all of them,
+// "Can't DROP 'x'; check that column/key exists". Measured on mariadb:11.8.8.
+func errCantDropKey(kind, name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
-		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
+		Message: fmt.Sprintf("Can't DROP %s `%s`; check that it exists", kind, name)}
 }
 
 func errCantRemoveAllFields() error {
@@ -311,19 +303,19 @@ func errCantRemoveAllFields() error {
 		Message: "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"}
 }
 
-func errFKNoRefTable(table string) error {
-	return &Error{Code: ErrFKNoRefTable, SQLState: sqlState(ErrFKNoRefTable),
-		Message: fmt.Sprintf("Failed to open the referenced table '%s'", table)}
-}
-
-func errFKMissingIndex(constraint, refTable string) error {
-	return &Error{Code: ErrFKMissingIndex, SQLState: sqlState(ErrFKMissingIndex),
-		Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing index for constraint '%s' in the referenced table '%s'", constraint, refTable)}
-}
-
-func errFKIncompatibleColumns(col, refCol, constraint string) error {
-	return &Error{Code: ErrFKIncompatibleColumns, SQLState: sqlState(ErrFKIncompatibleColumns),
-		Message: fmt.Sprintf("Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible.", col, refCol, constraint)}
+// errFKIncorrectlyFormed reports the one error MariaDB gives for a foreign key
+// it cannot form, whatever the reason: a missing referenced table, a referenced
+// table with no index over the referenced columns, or column types that do not
+// match. MySQL 8.0 distinguishes them as 1824, 1822 and 3780 with a message
+// naming the cause. Measured on mariadb:11.8.8: all three, and the
+// ALTER TABLE ADD FOREIGN KEY form too, answer
+//
+//	ERROR 1005 (HY000): Can't create table `<db>`.`<table>` (errno: 150
+//	"Foreign key constraint is incorrectly formed")
+func errFKIncorrectlyFormed(db, table string) error {
+	return &Error{Code: ErrCantCreateTable, SQLState: sqlState(ErrCantCreateTable),
+		Message: fmt.Sprintf("Can't create table `%s`.`%s` (errno: 150 "+
+			"\"Foreign key constraint is incorrectly formed\")", db, table)}
 }
 
 func errFKDupName(name string) error {
@@ -523,11 +515,6 @@ func errDependentByGeneratedColumn(column, genColumn, table string) error {
 func errCannotDropColumnFunctionalIndex(column string) error {
 	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
 		Message: fmt.Sprintf("Cannot drop column '%s' because it is used by a functional index.", column)}
-}
-
-func errFKCannotUseVirtualColumn(col string) error {
-	return &Error{Code: ErrFKCannotUseVirtualColumn, SQLState: sqlState(ErrFKCannotUseVirtualColumn),
-		Message: fmt.Sprintf("Cannot define foreign key with clause on a generated column '%s'", col)}
 }
 
 func errWrongArguments(fn string) error {

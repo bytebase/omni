@@ -159,7 +159,10 @@ func showCreateTrigger(tr *Trigger) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", tr.Definer))
 	}
 
-	b.WriteString(fmt.Sprintf(" TRIGGER `%s` %s %s ON `%s` FOR EACH ROW",
+	// MariaDB writes the trigger's name and its table bare, where MySQL 8.0
+	// backticks both: `TRIGGER tr1 BEFORE INSERT ON tg FOR EACH ROW`. Measured
+	// on mariadb:11.8.8 through SHOW CREATE TRIGGER.
+	b.WriteString(fmt.Sprintf(" TRIGGER %s %s %s ON %s FOR EACH ROW",
 		tr.Name, tr.Timing, tr.Event, tr.Table))
 
 	// Note: MySQL 8.0 SHOW CREATE TRIGGER does NOT include FOLLOWS/PRECEDES.

@@ -183,3 +183,23 @@ func TestWalkThrough_2_2_DropTableMultiPartialFailure(t *testing.T) {
 		t.Error("t1 should have been dropped before error on t2")
 	}
 }
+
+// TestWalkThrough_2_2_DropColumnOfCompositePK records that a column a composite
+// PRIMARY KEY is built on cannot be dropped: MariaDB answers 1072, "Key column
+// 'a' doesn't exist in table", rather than rebuilding the key over what is
+// left. Measured on mariadb:11.8.8.
+func TestWalkThrough_2_2_DropColumnOfCompositePK(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT, PRIMARY KEY (a, b))")
+
+	results, err := c.Exec("ALTER TABLE t DROP COLUMN a;", nil)
+	refused := err != nil
+	for _, r := range results {
+		if r.Error != nil {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Error("expected DROP COLUMN of a composite primary key's column to be refused")
+	}
+}

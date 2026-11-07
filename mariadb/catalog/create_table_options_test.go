@@ -8,15 +8,11 @@ import "testing"
 // `0x61`, a TABLE_CHECKSUM that is dropped on the floor — and a parser test
 // cannot see any of it.
 //
-// The shape of each want is MariaDB 11.8.8's own: `year` for every spelling and
-// modifier of YEAR, `enum('a','b')` for a member written 0x61, NOT NULL
-// AUTO_INCREMENT with a unique key for SERIAL DEFAULT VALUE, and CHECKSUM=1 for
+// Every want below is a live mariadb:11.8.8's own SHOW CREATE TABLE, read back
+// from the server: `year(4)` for every spelling and modifier of YEAR but
+// YEAR(2), `enum('a','b')` for a member written 0x61, NOT NULL AUTO_INCREMENT
+// with a unique key for SERIAL DEFAULT VALUE, and CHECKSUM=1 for
 // TABLE_CHECKSUM, which reports under CHECKSUM's name.
-//
-// MariaDB writes `int(11)` and its own default collation, and this
-// catalog renders MySQL 8.0's; that divergence predates this change and is its
-// own to fix. What the new forms contribute — the type names, the unique key,
-// the CHECKSUM — was read from a live mariadb:11.8.8.
 func TestCreateTableOptionsCatalog(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -31,11 +27,11 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE y (a SQL_TSI_YEAR, b SQL_TSI_YEAR(4), c YEAR ZEROFILL, d SQL_TSI_YEAR(4) UNSIGNED ZEROFILL)",
 			table: "y",
 			want: "CREATE TABLE `y` (\n" +
-				"  `a` year DEFAULT NULL,\n" +
-				"  `b` year DEFAULT NULL,\n" +
-				"  `c` year DEFAULT NULL,\n" +
-				"  `d` year DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				"  `a` year(4) DEFAULT NULL,\n" +
+				"  `b` year(4) DEFAULT NULL,\n" +
+				"  `c` year(4) DEFAULT NULL,\n" +
+				"  `d` year(4) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
 		{
 			// A hex or bit member is the bytes it holds, so 0x61 is the member
@@ -48,7 +44,7 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				"  `c2` set('a','b') DEFAULT NULL,\n" +
 				"  `c3` enum('a') DEFAULT NULL,\n" +
 				"  `c4` enum('ab') DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
 		{
 			// SERIAL DEFAULT VALUE is NOT NULL AUTO_INCREMENT UNIQUE, so the
@@ -58,9 +54,9 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE s (a INT SERIAL DEFAULT VALUE)",
 			table: "s",
 			want: "CREATE TABLE `s` (\n" +
-				"  `a` int NOT NULL AUTO_INCREMENT,\n" +
+				"  `a` int(11) NOT NULL AUTO_INCREMENT,\n" +
 				"  UNIQUE KEY `a` (`a`)\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
 		{
 			// A name that begins with a digit is the name, backquoted on the
@@ -69,10 +65,10 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE `123` (123a1 INT, 1_2 INT, 12e INT)",
 			table: "123",
 			want: "CREATE TABLE `123` (\n" +
-				"  `123a1` int DEFAULT NULL,\n" +
-				"  `1_2` int DEFAULT NULL,\n" +
-				"  `12e` int DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				"  `123a1` int(11) DEFAULT NULL,\n" +
+				"  `1_2` int(11) DEFAULT NULL,\n" +
+				"  `12e` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
 		{
 			// TABLE_CHECKSUM reports under CHECKSUM, the other name for the
@@ -82,24 +78,24 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE ck (a INT) TABLE_CHECKSUM=1",
 			table: "ck",
 			want: "CREATE TABLE `ck` (\n" +
-				"  `a` int DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1",
+				"  `a` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci CHECKSUM=1",
 		},
 		{
 			name:  "TABLE_CHECKSUM is a flag, not a number",
 			ddl:   "CREATE TABLE ck (a INT) TABLE_CHECKSUM=1.5",
 			table: "ck",
 			want: "CREATE TABLE `ck` (\n" +
-				"  `a` int DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1",
+				"  `a` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci CHECKSUM=1",
 		},
 		{
 			name:  "a zero checksum is no option",
 			ddl:   "CREATE TABLE ck (a INT) TABLE_CHECKSUM=0",
 			table: "ck",
 			want: "CREATE TABLE `ck` (\n" +
-				"  `a` int DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+				"  `a` int(11) DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

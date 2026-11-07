@@ -33,10 +33,11 @@ func TestWalkThrough_8_3_CollationNonDefaultSameAsTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT, name VARCHAR(100)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci")
 	got := c.ShowCreateTable("testdb", "t")
-	// The column inherits utf8mb4_unicode_ci from table, which is non-default for utf8mb4.
-	// MySQL shows COLLATE in this case (collation inherited but non-default for charset).
-	if !strings.Contains(got, "COLLATE utf8mb4_unicode_ci") {
-		t.Errorf("expected COLLATE utf8mb4_unicode_ci in column def\ngot:\n%s", got)
+	// The column inherits utf8mb4_unicode_ci from the table, so MariaDB writes
+	// no collation on it — it compares against the table's, not the charset's
+	// default. MySQL 8.0 writes COLLATE here. Measured on mariadb:11.8.8.
+	if strings.Contains(got, "COLLATE utf8mb4_unicode_ci") {
+		t.Errorf("column def should carry no COLLATE when it matches the table\ngot:\n%s", got)
 	}
 	// CHARACTER SET should NOT be shown since charset matches table
 	lines := strings.Split(got, "\n")
@@ -81,19 +82,21 @@ func TestWalkThrough_8_3_Utf8mb4DefaultCollation(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=utf8mb4")
 	got := c.ShowCreateTable("testdb", "t")
-	// MySQL 8.0 always shows COLLATE for utf8mb4 tables
-	if !strings.Contains(got, "COLLATE=utf8mb4_0900_ai_ci") {
-		t.Errorf("expected COLLATE=utf8mb4_0900_ai_ci in table options for utf8mb4\ngot:\n%s", got)
+	// MariaDB always writes the table collation. tables
+	if !strings.Contains(got, "COLLATE=utf8mb4_uca1400_ai_ci") {
+		t.Errorf("expected COLLATE=utf8mb4_uca1400_ai_ci in table options for utf8mb4\ngot:\n%s", got)
 	}
 }
 
 func TestWalkThrough_8_3_Latin1DefaultCollation(t *testing.T) {
-	// Table with latin1 and default collation — COLLATE not shown (latin1_swedish_ci is default)
+	// MariaDB writes the table collation even when it is the charset's own
+	// default, so a latin1 table reports COLLATE=latin1_swedish_ci. MySQL 8.0
+	// leaves it out. Measured on mariadb:11.8.8.
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=latin1")
 	got := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(got, "COLLATE=") {
-		t.Errorf("expected no COLLATE in table options for latin1 with default collation\ngot:\n%s", got)
+	if !strings.Contains(got, "COLLATE=latin1_swedish_ci") {
+		t.Errorf("expected COLLATE=latin1_swedish_ci in table options\ngot:\n%s", got)
 	}
 }
 

@@ -1,9 +1,40 @@
 package catalog
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// c16ScanInt reads an information_schema integer whatever Go type the driver
+// hands it back as: MariaDB types these columns bigint unsigned, which arrives
+// as []byte over the text protocol and as uint64 over the binary one.
+func c16ScanInt(v any) int {
+	var digits string
+	switch x := v.(type) {
+	case nil:
+		return 0
+	case int64:
+		return int(x)
+	case uint64:
+		return int(x)
+	case []byte:
+		digits = string(x)
+	case string:
+		digits = x
+	default:
+		digits = fmt.Sprintf("%v", x)
+	}
+	n := 0
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			break
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
+}
 
 // TestScenario_C16 covers section C16 (Date/time function precision defaults)
 // from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 12 scenarios, each asserted on
@@ -68,15 +99,16 @@ func TestScenario_C16(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (ts DATETIME DEFAULT NOW())`)
 
-		// Oracle: SHOW CREATE TABLE should render DEFAULT CURRENT_TIMESTAMP
-		// without any (n) suffix.
+		// Oracle: MariaDB writes the default as the called form with the
+		// column's own precision, which is none here: current_timestamp().
+		// MySQL 8.0 writes the bare keyword. Measured on mariadb:11.8.8.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		lo := strings.ToLower(create)
-		if !strings.Contains(lo, "default current_timestamp") {
-			t.Errorf("oracle SHOW CREATE TABLE missing DEFAULT CURRENT_TIMESTAMP: %s", create)
+		if !strings.Contains(lo, "default current_timestamp()") {
+			t.Errorf("oracle SHOW CREATE TABLE missing DEFAULT current_timestamp(): %s", create)
 		}
-		if strings.Contains(lo, "current_timestamp(") {
-			t.Errorf("oracle SHOW CREATE TABLE unexpectedly has fsp suffix: %s", create)
+		if regexp.MustCompile(`current_timestamp\(\d`).MatchString(lo) {
+			t.Errorf("oracle SHOW CREATE TABLE unexpectedly has an fsp suffix: %s", create)
 		}
 
 		// Oracle: DATETIME_PRECISION = 0 for plain DATETIME col.
@@ -242,15 +274,19 @@ func TestScenario_C16(t *testing.T) {
 
 		// SYSDATE is not a valid bareword in DEFAULT (parser rejects as syntax
 		// error) and SYSDATE() also fails add_field (not Item_func_now). Both
-		// forms must be rejected by MySQL.
-		ddl := `CREATE TABLE t (a DATETIME DEFAULT SYSDATE())`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: DATETIME DEFAULT SYSDATE() unexpectedly accepted")
+		// MariaDB takes SYSDATE() as a column default and stores it as
+		// sysdate(); MySQL 8.0 refuses it, since only NOW and its synonyms may
+		// default a datetime there. Measured on mariadb:11.8.8.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t_sysdate (a DATETIME DEFAULT SYSDATE())`); err != nil {
+			t.Errorf("oracle: expected DATETIME DEFAULT SYSDATE() to be accepted, got %v", err)
+		} else {
+			create := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t_sysdate"))
+			if !strings.Contains(create, "default sysdate()") {
+				t.Errorf("oracle: expected DEFAULT sysdate(), got %s", create)
+			}
 		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT SYSDATE should error (not a NOW_FUNC), see mysql/catalog/scenarios_bug_queue/c16.md")
-		}
+		_ = c
 	})
 
 	// ---- 16.6 UTC_TIMESTAMP precision defaults to 0; not valid as DEFAULT -
@@ -270,15 +306,17 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle LENGTH(UTC_TIMESTAMP(3))=%d, want 23", l3)
 		}
 
-		// UTC_TIMESTAMP as DEFAULT → ER_INVALID_DEFAULT on oracle.
-		c := scenarioNewCatalog(t)
-		ddl := `CREATE TABLE t (a DATETIME DEFAULT UTC_TIMESTAMP)`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: DATETIME DEFAULT UTC_TIMESTAMP unexpectedly accepted")
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT UTC_TIMESTAMP should error, see mysql/catalog/scenarios_bug_queue/c16.md")
+		// MariaDB takes UTC_TIMESTAMP as a column default and stores it as
+		// utc_timestamp(); MySQL 8.0 answers ER_INVALID_DEFAULT (1067).
+		// Measured on mariadb:11.8.8.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t_utc (a DATETIME DEFAULT UTC_TIMESTAMP)`); err != nil {
+			t.Errorf("oracle: expected DATETIME DEFAULT UTC_TIMESTAMP to be accepted, got %v", err)
+		} else {
+			create := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t_utc"))
+			if !strings.Contains(create, "default utc_timestamp()") {
+				t.Errorf("oracle: expected DEFAULT utc_timestamp(), got %s", create)
+			}
 		}
 	})
 
@@ -305,18 +343,7 @@ func TestScenario_C16(t *testing.T) {
 			if strings.ToLower(t6) != "decimal" {
 				t.Errorf("oracle u6 DATA_TYPE: got %q, want decimal", t6)
 			}
-			// NUMERIC_SCALE may be int64 or []byte.
-			scale := 0
-			switch x := s6.(type) {
-			case int64:
-				scale = int(x)
-			case []byte:
-				for _, c := range x {
-					if c >= '0' && c <= '9' {
-						scale = scale*10 + int(c-'0')
-					}
-				}
-			}
+			scale := c16ScanInt(s6)
 			if scale != 6 {
 				t.Errorf("oracle u6 NUMERIC_SCALE: got %d, want 6", scale)
 			}
@@ -356,22 +383,24 @@ func TestScenario_C16(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		cases := []string{
-			`CREATE TABLE t (a DATETIME(6) DEFAULT NOW())`,
-			`CREATE TABLE t (a DATETIME(3) DEFAULT NOW(6))`,
+		// MariaDB accepts a default whose precision differs from the column's
+		// and stores it at the column's: DATETIME(6) DEFAULT NOW() becomes
+		// current_timestamp(6), and DATETIME(3) DEFAULT NOW(6) becomes
+		// current_timestamp(3). MySQL 8.0 answers ER_INVALID_DEFAULT (1067).
+		// Measured on mariadb:11.8.8.
+		cases := []struct{ ddl, want string }{
+			{`CREATE TABLE t (a DATETIME(6) DEFAULT NOW())`, "default current_timestamp(6)"},
+			{`CREATE TABLE t (a DATETIME(3) DEFAULT NOW(6))`, "default current_timestamp(3)"},
 		}
-		for _, ddl := range cases {
+		for _, k := range cases {
 			scenarioReset(t, mc)
-			c2 := scenarioNewCatalog(t)
-			oracleErr, omniErr := c16RunExpectError(t, c2, ddl)
-			if oracleErr == nil {
-				t.Errorf("oracle: %q unexpectedly accepted", ddl)
-			} else if !strings.Contains(oracleErr.Error(), "1067") &&
-				!strings.Contains(strings.ToLower(oracleErr.Error()), "invalid default") {
-				t.Errorf("oracle: %q unexpected error: %v", ddl, oracleErr)
+			if _, err := mc.db.ExecContext(mc.ctx, k.ddl); err != nil {
+				t.Errorf("oracle: expected %q to be accepted, got %v", k.ddl, err)
+				continue
 			}
-			if omniErr == nil {
-				t.Errorf("omni: KNOWN BUG — %q should error (fsp mismatch), see mysql/catalog/scenarios_bug_queue/c16.md", ddl)
+			create := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+			if !strings.Contains(create, k.want) {
+				t.Errorf("oracle: %q should store %s, got %s", k.ddl, k.want, create)
 			}
 		}
 
@@ -384,16 +413,19 @@ func TestScenario_C16(t *testing.T) {
 
 	// ---- 16.9 ON UPDATE NOW(N) must match column fsp ---------------------
 	t.Run("16_9_On_update_fsp_mismatch", func(t *testing.T) {
-		// DATETIME(6) ON UPDATE NOW() → fsp mismatch (0 vs 6).
+		// MariaDB takes an ON UPDATE whose precision differs from the column's
+		// and stores it at the column's: ON UPDATE NOW() on a DATETIME(6)
+		// becomes ON UPDATE current_timestamp(6). MySQL 8.0 answers
+		// ER_INVALID_ON_UPDATE. Measured on mariadb:11.8.8.
 		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
 		ddl := `CREATE TABLE t (a DATETIME(6) DEFAULT NOW(6) ON UPDATE NOW())`
-		oracleErr, omniErr := c16RunExpectError(t, c, ddl)
-		if oracleErr == nil {
-			t.Errorf("oracle: %q unexpectedly accepted", ddl)
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — ON UPDATE NOW() fsp 0 on DATETIME(6) should error, see mysql/catalog/scenarios_bug_queue/c16.md")
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
+			t.Errorf("oracle: expected %q to be accepted, got %v", ddl, err)
+		} else {
+			create := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+			if !strings.Contains(create, "on update current_timestamp(6)") {
+				t.Errorf("oracle: %q should store ON UPDATE current_timestamp(6), got %s", ddl, create)
+			}
 		}
 
 		// DATE ON UPDATE NOW() → not allowed (ON UPDATE only on TIMESTAMP/DATETIME).
@@ -474,41 +506,39 @@ func TestScenario_C16(t *testing.T) {
 		}
 	})
 
-	// ---- 16.11 YEAR(N) deprecation — only YEAR(4) accepted ----------------
-	t.Run("16_11_YEAR_normalization", func(t *testing.T) {
-		// YEAR(2), YEAR(3), YEAR(5) → ER_INVALID_YEAR_COLUMN_LENGTH (1818).
-		for _, n := range []string{"2", "3", "5"} {
+	// ---- 16.11 YEAR(N) widths ---------------------------------------------
+	// MariaDB still has YEAR(2) and keeps that width; YEAR(3) and YEAR(5) are
+	// normalized to year(4), as are YEAR and YEAR(4). MySQL 8.0 refuses every
+	// width but 4 with ER_INVALID_YEAR_COLUMN_LENGTH (1818) and writes the type
+	// back as a bare `year`. Measured on mariadb:11.8.8.
+	t.Run("16_11_YEAR_widths", func(t *testing.T) {
+		for _, k := range []struct{ decl, want string }{
+			{"YEAR", "year(4)"},
+			{"YEAR(2)", "year(2)"},
+			{"YEAR(3)", "year(4)"},
+			{"YEAR(4)", "year(4)"},
+			{"YEAR(5)", "year(4)"},
+		} {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
-			ddl := `CREATE TABLE t (y YEAR(` + n + `))`
-			oErr, mErr := c16RunExpectError(t, c, ddl)
-			if oErr == nil {
-				t.Errorf("oracle: YEAR(%s) unexpectedly accepted", n)
-			}
-			if mErr == nil {
-				t.Errorf("omni: KNOWN BUG — YEAR(%s) should error (ER_INVALID_YEAR_COLUMN_LENGTH), see mysql/catalog/scenarios_bug_queue/c16.md", n)
-			}
-		}
+			runOnBoth(t, mc, c, `CREATE TABLE t (y `+k.decl+`)`)
 
-		// YEAR(4) normalized to YEAR in SHOW CREATE.
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-		runOnBoth(t, mc, c, `CREATE TABLE t (y YEAR(4))`)
-		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
-		if !strings.Contains(show, "`y` year") || strings.Contains(show, "year(4)") {
-			t.Errorf("oracle SHOW CREATE: YEAR(4) not normalized: %s", show)
-		}
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl != nil {
-			if col := tbl.GetColumn("y"); col != nil {
-				omniType := strings.ToLower(col.ColumnType)
-				if omniType == "" {
-					omniType = strings.ToLower(col.DataType)
-				}
-				if strings.Contains(omniType, "year(4)") || strings.Contains(omniType, "year(2)") {
-					t.Errorf("omni: KNOWN BUG — YEAR(4) not normalized: %q", omniType)
-				}
+			show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+			if !strings.Contains(show, "`y` "+k.want) {
+				t.Errorf("oracle: %s should read back as %s: %s", k.decl, k.want, show)
 			}
+
+			tbl := c.GetDatabase("testdb").GetTable("t")
+			if tbl == nil {
+				t.Errorf("omni: table t missing for %s", k.decl)
+				continue
+			}
+			col := tbl.GetColumn("y")
+			if col == nil {
+				t.Errorf("omni: column y missing for %s", k.decl)
+				continue
+			}
+			assertStringEq(t, "omni ColumnType for "+k.decl, strings.ToLower(col.ColumnType), k.want)
 		}
 	})
 

@@ -43,8 +43,8 @@ func TestAlterTableAddColumnTableElementList(t *testing.T) {
 // a partition's ENGINE option and names the same engine.
 func TestAlterTablePartDefStorageEngine(t *testing.T) {
 	c := New()
-	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10));")
-	execAlterClauses(t, c, "ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) STORAGE ENGINE = InnoDB);")
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT) PARTITION BY RANGE (a) (PARTITION `p0` VALUES LESS THAN (10));")
+	execAlterClauses(t, c, "ALTER TABLE t ADD PARTITION (PARTITION `p1` VALUES LESS THAN (20) STORAGE ENGINE = InnoDB);")
 
 	tbl := c.databases["d"].Tables["t"]
 	last := tbl.Partitioning.Partitions[len(tbl.Partitioning.Partitions)-1]

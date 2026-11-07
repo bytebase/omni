@@ -3,19 +3,19 @@ package catalog
 import "testing"
 
 // TestWalkThrough_2_4_CreateTableFKUnknownTable tests that CREATE TABLE with a FK
-// referencing an unknown table returns ErrFKNoRefTable (1824) when fk_checks=1.
+// referencing an unknown table returns ErrCantCreateTable (1005) when fk_checks=1.
 func TestWalkThrough_2_4_CreateTableFKUnknownTable(t *testing.T) {
 	c := wtSetup(t)
 	results, err := c.Exec("CREATE TABLE child (id INT, pid INT, FOREIGN KEY (pid) REFERENCES parent(id))", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // TestWalkThrough_2_4_CreateTableFKUnknownColumn tests that CREATE TABLE with a FK
 // referencing an unknown column returns an error when fk_checks=1.
-// MySQL returns ErrFKMissingIndex (1822) when the referenced column has no matching
+// MariaDB returns ErrCantCreateTable (1005) when the referenced column has no matching
 // index (which is the case when the column doesn't exist).
 func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 	c := wtSetup(t)
@@ -25,7 +25,7 @@ func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	// The referenced column "nonexistent" doesn't exist, so there's no matching index.
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // TestWalkThrough_2_4_DropTableReferencedByFK tests that DROP TABLE on a table
@@ -58,7 +58,7 @@ func TestWalkThrough_2_4_DropTableReferencedByFKWithChecksOff(t *testing.T) {
 }
 
 // TestWalkThrough_2_4_AlterTableAddFKUnknownTable tests that ALTER TABLE ADD FK
-// referencing an unknown table returns ErrFKNoRefTable (1824).
+// referencing an unknown table returns ErrCantCreateTable (1005).
 func TestWalkThrough_2_4_AlterTableAddFKUnknownTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE child (id INT, pid INT)")
@@ -67,7 +67,7 @@ func TestWalkThrough_2_4_AlterTableAddFKUnknownTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // TestWalkThrough_2_4_AlterTableDropColumnUsedInFK tests that ALTER TABLE DROP COLUMN
@@ -95,7 +95,7 @@ func TestWalkThrough_2_4_AlterTableDropColumnUsedInFK(t *testing.T) {
 }
 
 // TestWalkThrough_2_4_AlterTableAddFKMissingIndex tests that ALTER TABLE ADD FK
-// where the referenced table lacks a matching index returns ErrFKMissingIndex (1822).
+// where the referenced table lacks a matching index returns ErrCantCreateTable (1005).
 func TestWalkThrough_2_4_AlterTableAddFKMissingIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT, val INT)")
@@ -106,11 +106,11 @@ func TestWalkThrough_2_4_AlterTableAddFKMissingIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // TestWalkThrough_2_4_AlterTableAddFKIncompatibleColumns tests that ALTER TABLE ADD FK
-// where column types are incompatible returns ErrFKIncompatibleColumns (3780).
+// where column types are incompatible returns ErrCantCreateTable (1005).
 func TestWalkThrough_2_4_AlterTableAddFKIncompatibleColumns(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -120,7 +120,7 @@ func TestWalkThrough_2_4_AlterTableAddFKIncompatibleColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKIncompatibleColumns)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // TestWalkThrough_2_4_SetForeignKeyChecksOff tests that SET foreign_key_checks=0
@@ -151,5 +151,5 @@ func TestWalkThrough_2_4_SetForeignKeyChecksOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKNoRefTable)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }

@@ -10,11 +10,14 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
-// sharedMariaDB is the one mariadb:11.8.8 server the tests of this package ask.
-// startContainer's server is MySQL 8.0, so it is no substitute for a MariaDB
-// verdict.
+// sharedMariaDB is the one server the tests of this package ask, at the version
+// mariadb/internal/testcontainer pins. Both entries draw on it: mariadbDatabase
+// gives a test a database of its own, and startContainer takes the `test`
+// database and resets the server around each use.
 var sharedMariaDB struct {
 	once      sync.Once
 	container *tcmariadb.MariaDBContainer
@@ -26,7 +29,7 @@ var sharedMariaDB struct {
 
 func startSharedMariaDB(ctx context.Context) error {
 	s := &sharedMariaDB
-	container, err := tcmariadb.Run(ctx, "mariadb:11.8.8",
+	container, err := tcmariadb.Run(ctx, testcontainer.Image,
 		tcmariadb.WithUsername("root"),
 		tcmariadb.WithPassword("test"),
 	)
@@ -52,6 +55,17 @@ func startSharedMariaDB(ctx context.Context) error {
 	return nil
 }
 
+// mariadbServerConfig starts the shared server on the first call and returns a
+// DSN config for it, which the caller completes with the database it wants.
+func mariadbServerConfig(ctx context.Context) (*gomysql.Config, error) {
+	s := &sharedMariaDB
+	s.once.Do(func() { s.err = startSharedMariaDB(ctx) })
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.config.Clone(), nil
+}
+
 // mariadbDatabase creates a database for this test on the shared MariaDB and
 // returns a pool whose connections start in it. No connection is kept idle, so
 // every case that takes one starts a session with no temporary tables and
@@ -63,9 +77,9 @@ func mariadbDatabase(t *testing.T) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
 	s := &sharedMariaDB
-	s.once.Do(func() { s.err = startSharedMariaDB(ctx) })
-	if s.err != nil {
-		t.Fatalf("shared MariaDB: %v", s.err)
+	config, err := mariadbServerConfig(ctx)
+	if err != nil {
+		t.Fatalf("shared MariaDB: %v", err)
 	}
 	s.databases++
 	name := fmt.Sprintf("mdb_%d", s.databases)
@@ -77,7 +91,6 @@ func mariadbDatabase(t *testing.T) *sql.DB {
 			t.Errorf("drop database %s: %v", name, err)
 		}
 	})
-	config := s.config.Clone()
 	config.DBName = name
 	db, err := sql.Open("mysql", config.FormatDSN())
 	if err != nil {

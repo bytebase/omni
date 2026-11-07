@@ -105,7 +105,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		var got string
 		oracleScan(t, mc, `SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb'`, &got)
-		assertStringEq(t, "oracle CHECK name", got, "t_chk_1")
+		assertStringEq(t, "oracle CHECK name", got, "CONSTRAINT_1")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -113,7 +113,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			return
 		}
 		omniChecks := omniCheckNames(tbl)
-		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "t_chk_1")
+		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "CONSTRAINT_1")
 	})
 
 	// --- 1.5 UNIQUE KEY auto-name uses field name ------------------------
@@ -318,17 +318,16 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		// First table with named check: both should accept.
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, CONSTRAINT mychk CHECK (a > 0));`)
 
-		// Second table with duplicate named check: MySQL errors with 3822.
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "duplicate check constraint") {
-			t.Errorf("oracle: expected 3822 Duplicate check constraint name, got %v", mysqlErr)
+		// MariaDB scopes a CHECK constraint's name to its table, so a second
+		// table may hold the same name; MySQL 8.0 scopes it to the schema and
+		// answers ER_CHECK_CONSTRAINT_DUP_NAME (3822). Measured on
+		// mariadb:11.8.8.
+		if _, mysqlErr := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100))`); mysqlErr != nil {
+			t.Errorf("oracle: expected the same CHECK name in another table to be accepted, got %v", mysqlErr)
 		}
 
-		// omni: should also error.
+		// omni follows.
 		results, err := c.Exec(
 			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100));`, nil)
 		omniErrored := err != nil
@@ -340,7 +339,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects cross-table duplicate CHECK name", omniErrored, true)
+		assertBoolEq(t, "omni accepts the same CHECK name in another table", omniErrored, false)
 	})
 }
 
@@ -348,7 +347,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 
 // oracleFKNames returns the FK constraint names on the given table, ordered
 // alphabetically by CONSTRAINT_NAME.
-func oracleFKNames(t *testing.T, mc *mysqlContainer, tableName string) []string {
+func oracleFKNames(t *testing.T, mc *mariadbContainer, tableName string) []string {
 	t.Helper()
 	rows := oracleRows(t, mc, `SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
         WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='`+tableName+`'
@@ -362,7 +361,7 @@ func oracleFKNames(t *testing.T, mc *mysqlContainer, tableName string) []string 
 }
 
 // oraclePartitionNames returns partition names ordered by ordinal position.
-func oraclePartitionNames(t *testing.T, mc *mysqlContainer, tableName string) []string {
+func oraclePartitionNames(t *testing.T, mc *mariadbContainer, tableName string) []string {
 	t.Helper()
 	rows := oracleRows(t, mc, `SELECT PARTITION_NAME FROM information_schema.PARTITIONS
         WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='`+tableName+`'

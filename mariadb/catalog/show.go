@@ -12,10 +12,12 @@ func charsetForCollation(collation string) string {
 	collation = toLower(collation)
 	// Try known charsets from longest to shortest to handle prefixes like utf8mb4 vs utf8.
 	knownCharsets := []string{
-		"utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
-		"eucjpms", "cp1252", "gb2312", "euckr", "utf16", "utf32",
-		"latin1", "ascii", "binary", "cp932", "tis620", "hebrew",
-		"greek", "sjis", "big5", "ucs2", "utf8", "gbk",
+		"utf8mb4", "utf8mb3", "utf16le", "geostd8", "armscii8", "macroman",
+		"eucjpms", "keybcs2", "gb2312", "euckr", "utf16", "utf32", "macce",
+		"latin1", "latin2", "latin5", "latin7", "cp1250", "cp1251", "cp1256",
+		"cp1257", "cp850", "cp852", "cp866", "cp932", "koi8r", "koi8u",
+		"ascii", "binary", "tis620", "hebrew", "greek", "sjis", "swe7",
+		"big5", "ucs2", "ujis", "dec8", "hp8", "utf8", "gbk",
 	}
 	for _, cs := range knownCharsets {
 		if strings.HasPrefix(collation, cs+"_") || collation == cs {
@@ -29,12 +31,24 @@ func charsetForCollation(collation string) string {
 	return ""
 }
 
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset returns the default collation for each charset
+// MariaDB has. Measured on mariadb:11.8.8 through
+// information_schema.CHARACTER_SETS: the Unicode charsets default to the
+// UCA 14.0.0 collations, where MySQL 8.0 defaults utf8mb4 to
+// utf8mb4_0900_ai_ci and the rest to <charset>_general_ci. MariaDB has no
+// gb18030.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
-	"utf8mb3":  "utf8mb3_general_ci",
-	"utf8":     "utf8mb3_general_ci",
+	"utf8mb4":  "utf8mb4_uca1400_ai_ci",
+	"utf8mb3":  "utf8mb3_uca1400_ai_ci",
+	"utf8":     "utf8mb3_uca1400_ai_ci",
+	"ucs2":     "ucs2_uca1400_ai_ci",
+	"utf16":    "utf16_uca1400_ai_ci",
+	"utf32":    "utf32_uca1400_ai_ci",
+	"utf16le":  "utf16le_general_ci",
 	"latin1":   "latin1_swedish_ci",
+	"latin2":   "latin2_general_ci",
+	"latin5":   "latin5_turkish_ci",
+	"latin7":   "latin7_general_ci",
 	"ascii":    "ascii_general_ci",
 	"binary":   "binary",
 	"gbk":      "gbk_chinese_ci",
@@ -42,14 +56,24 @@ var defaultCollationForCharset = map[string]string{
 	"euckr":    "euckr_korean_ci",
 	"gb2312":   "gb2312_chinese_ci",
 	"sjis":     "sjis_japanese_ci",
-	"cp1252":   "cp1252_general_ci",
-	"ucs2":     "ucs2_general_ci",
-	"utf16":    "utf16_general_ci",
-	"utf16le":  "utf16le_general_ci",
-	"utf32":    "utf32_general_ci",
+	"ujis":     "ujis_japanese_ci",
 	"cp932":    "cp932_japanese_ci",
 	"eucjpms":  "eucjpms_japanese_ci",
-	"gb18030":  "gb18030_chinese_ci",
+	"cp1250":   "cp1250_general_ci",
+	"cp1251":   "cp1251_general_ci",
+	"cp1256":   "cp1256_general_ci",
+	"cp1257":   "cp1257_general_ci",
+	"cp850":    "cp850_general_ci",
+	"cp852":    "cp852_general_ci",
+	"cp866":    "cp866_general_ci",
+	"dec8":     "dec8_swedish_ci",
+	"hp8":      "hp8_english_ci",
+	"keybcs2":  "keybcs2_general_ci",
+	"koi8r":    "koi8r_general_ci",
+	"koi8u":    "koi8u_general_ci",
+	"macce":    "macce_general_ci",
+	"macroman": "macroman_general_ci",
+	"swe7":     "swe7_swedish_ci",
 	"geostd8":  "geostd8_general_ci",
 	"tis620":   "tis620_thai_ci",
 	"hebrew":   "hebrew_general_ci",
@@ -57,7 +81,7 @@ var defaultCollationForCharset = map[string]string{
 	"armscii8": "armscii8_general_ci",
 }
 
-// ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
+// ShowCreateTable produces MariaDB-compatible SHOW CREATE TABLE output.
 // Returns "" if the database or table does not exist.
 func (c *Catalog) ShowCreateTable(database, table string) string {
 	db := c.GetDatabase(database)
@@ -82,9 +106,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		if col.Hidden == ColumnHiddenSystem {
 			continue
 		}
-		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
-			continue
-		}
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
@@ -107,9 +128,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// 5. FULLTEXT KEYs (creation order)
 	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector []*Index
 	for _, idx := range tbl.Indexes {
-		if isGeneratedInvisiblePrimaryKeyIndex(idx) && !c.showGIPK {
-			continue
-		}
 		switch {
 		case idx.Primary:
 			idxPrimary = append(idxPrimary, idx)
@@ -133,22 +151,25 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
-	// MySQL 8.0 sorts FKs alphabetically by name, then CHECKs alphabetically by name.
+	// A CHECK named after a column of the table is that column's own, and was
+	// written on the column.
 	var fkConstraints, chkConstraints []*Constraint
 	for _, con := range tbl.Constraints {
 		switch con.Type {
 		case ConForeignKey:
 			fkConstraints = append(fkConstraints, con)
 		case ConCheck:
-			chkConstraints = append(chkConstraints, con)
+			if columnCheckOf(tbl, con.Name) == nil {
+				chkConstraints = append(chkConstraints, con)
+			}
 		}
 	}
 	sort.Slice(fkConstraints, func(i, j int) bool {
 		return fkConstraints[i].Name < fkConstraints[j].Name
 	})
-	sort.Slice(chkConstraints, func(i, j int) bool {
-		return chkConstraints[i].Name < chkConstraints[j].Name
-	})
+	// The table-level checks keep the order they were declared in, which is
+	// what the server writes: ck1 above reports CONSTRAINT_1, named,
+	// CONSTRAINT_2. Measured on mariadb:11.8.8.
 	for _, con := range fkConstraints {
 		parts = append(parts, showConstraint(con))
 	}
@@ -181,13 +202,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	return b.String()
 }
 
-func isGeneratedInvisiblePrimaryKeyIndex(idx *Index) bool {
-	return idx != nil &&
-		idx.Primary &&
-		len(idx.Columns) == 1 &&
-		strings.EqualFold(idx.Columns[0].Name, generatedInvisiblePrimaryKeyColumnName)
-}
-
 func showColumn(col *Column) string {
 	return showColumnWithTable(col, nil)
 }
@@ -196,9 +210,11 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
 
-	// CHARACTER SET and COLLATE — MySQL 8.0 display rules:
-	// - CHARACTER SET shown when column charset differs from table charset
-	// - COLLATE shown when column collation differs from the charset's default collation
+	// CHARACTER SET and COLLATE. MariaDB writes them together, and only where
+	// the column's collation differs from the table's: a column that inherits
+	// the table's collation reports neither, whatever the charset's own default
+	// is, and one that does not reports both. MySQL 8.0 instead compares
+	// against the charset's default collation. Measured on mariadb:11.8.8.
 	if isStringType(col.DataType) || isEnumSetType(col.DataType) {
 		tableCharset := ""
 		if tbl != nil {
@@ -212,38 +228,29 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			}
 		}
 		charsetDiffers := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
-		// Show COLLATE when the column's collation differs from its charset's default.
-		collationNonDefault := col.Collation != "" && !eqFoldStr(col.Collation, colCharsetDefault)
 
-		// Determine the table's effective collation for comparison.
+		// The table's effective collation, which the column inherits when it
+		// names none of its own.
 		tableCollation := ""
 		if tbl != nil {
 			tableCollation = tbl.Collation
+			if tableCollation == "" {
+				tableCollation = defaultCollationForCharset[toLower(tbl.Charset)]
+			}
 		}
-		// Column collation differs from table collation (= explicitly set on column).
-		collationDiffersFromTable := col.Collation != "" && !eqFoldStr(col.Collation, tableCollation)
+		collation := col.Collation
+		if collation == "" {
+			collation = colCharsetDefault
+		}
+		collationDiffers := collation != "" && !eqFoldStr(collation, tableCollation)
 
-		if charsetDiffers {
-			// When charset differs from table, show CHARACTER SET and always COLLATE.
-			b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			collation := col.Collation
-			if collation == "" {
-				collation = colCharsetDefault
+		if charsetDiffers || collationDiffers {
+			if col.Charset != "" {
+				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
 			}
 			if collation != "" {
 				b.WriteString(fmt.Sprintf(" COLLATE %s", collation))
 			}
-		} else if collationNonDefault && collationDiffersFromTable {
-			// Collation explicitly set on column (differs from both charset default and table).
-			// MySQL shows both CHARACTER SET and COLLATE.
-			if col.Charset != "" {
-				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			}
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
-		} else if collationNonDefault {
-			// Collation inherited from table but non-default for charset.
-			// MySQL shows only COLLATE (no CHARACTER SET).
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
 		}
 	}
 
@@ -257,7 +264,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 			}
 			if col.Invisible {
-				b.WriteString(" /*!80023 INVISIBLE */")
+				b.WriteString(" INVISIBLE")
 			}
 			return b.String()
 		}
@@ -265,7 +272,12 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		if col.Generated.Stored {
 			mode = "STORED"
 		}
-		b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS (%s) %s", col.Generated.Expr, mode))
+		// MariaDB writes the expression inside one pair of parentheses:
+		// `(`a` + `b`)` for a + b, and `((`a` + `b`) * `c`)` for (a+b)*c, where
+		// the inner pair is the one the precedence needs. The stored form
+		// carries a pair of its own around a top-level operator, so one level
+		// comes off here. Measured on mariadb:11.8.8.
+		b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS (%s) %s", stripOuterParens(col.Generated.Expr), mode))
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
@@ -273,7 +285,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 		}
 		if col.Invisible {
-			b.WriteString(" /*!80023 INVISIBLE */")
+			b.WriteString(" INVISIBLE")
 		}
 		return b.String()
 	}
@@ -295,7 +307,12 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	if col.Default != nil {
 		b.WriteString(" DEFAULT ")
 		b.WriteString(formatDefault(*col.Default, col))
-	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
+	} else if col.Nullable && !col.AutoIncrement {
+		// MariaDB writes DEFAULT NULL for every nullable column — the text,
+		// blob, JSON and spatial types included, and one whose default was
+		// dropped — where MySQL 8.0 leaves it off the types that cannot carry
+		// a literal default and off a column after DROP DEFAULT. Measured on
+		// mariadb:11.8.8 through SHOW CREATE TABLE.
 		b.WriteString(" DEFAULT NULL")
 	}
 
@@ -314,9 +331,10 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 	}
 
-	// INVISIBLE.
+	// INVISIBLE. MariaDB writes the keyword bare; MySQL 8.0 hides it in a
+	// version comment. Measured on mariadb:11.8.8.
 	if col.Invisible {
-		b.WriteString(" /*!80023 INVISIBLE */")
+		b.WriteString(" INVISIBLE")
 	}
 
 	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
@@ -324,11 +342,74 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		b.WriteString(" WITHOUT SYSTEM VERSIONING")
 	}
 
+	// The column's own CHECK, which MariaDB writes on the column and names
+	// after it, last in the definition and after any COMMENT:
+	// `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK (`a` > 0). MySQL 8.0 writes
+	// every check as a table-level constraint. Measured on mariadb:11.8.8.
+	if tbl != nil {
+		if con := columnCheckOf(tbl, col.Name); con != nil {
+			b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
+		}
+	}
+
 	return b.String()
 }
 
+// columnCheckOf returns the CHECK constraint that belongs to the named column,
+// which is the one carrying the column's name, or nil.
+func columnCheckOf(tbl *Table, name string) *Constraint {
+	if tbl == nil || name == "" {
+		return nil
+	}
+	var owner *Column
+	for _, col := range tbl.Columns {
+		if eqFoldStr(col.Name, name) {
+			owner = col
+			break
+		}
+	}
+	if owner == nil {
+		return nil
+	}
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && eqFoldStr(con.Name, name) {
+			return con
+		}
+	}
+	return nil
+}
+
+// stripOuterParens removes one balanced outer pair of parentheses, and leaves
+// the text alone when the pair does not wrap the whole expression.
+func stripOuterParens(expr string) string {
+	if len(expr) < 2 || expr[0] != '(' || expr[len(expr)-1] != ')' {
+		return expr
+	}
+	depth := 0
+	for i, ch := range expr {
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(expr)-1 {
+				return expr
+			}
+		}
+	}
+	if depth != 0 {
+		return expr
+	}
+	return expr[1 : len(expr)-1]
+}
+
 // formatDefault formats a default value for SHOW CREATE TABLE output.
-// MySQL 8.0 quotes numeric defaults as strings (e.g. DEFAULT '0').
+//
+// MariaDB writes a numeric column's default unquoted whatever it was written
+// as: `INT DEFAULT 0` and `INT DEFAULT '7'` come back as `DEFAULT 0` and
+// `DEFAULT 7`, and `FLOAT DEFAULT 3.14` as `DEFAULT 3.14`. A string, date or
+// enum default keeps its quotes. MySQL 8.0 quotes every literal, numerics
+// included. Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
 func formatDefault(val string, col *Column) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
@@ -337,45 +418,70 @@ func formatDefault(val string, col *Column) string {
 	case ColumnDefaultCurrentTimestamp:
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
-		return "(" + val + ")"
+		// MariaDB writes an expression default bare: `DEFAULT uuid()` and
+		// `DEFAULT floor(rand() * 100)`, where MySQL 8.0 wraps it in
+		// parentheses. Measured on mariadb:11.8.8.
+		return val
 	}
-	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	if _, ok := currentTimestampSQL(val); ok {
+		return formatCurrentTimestamp(val)
 	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		return val
 	}
-	// Expression defaults: (expr) — not quoted, shown as-is.
+	// Expression defaults — not quoted, and written without the parentheses
+	// they may carry.
 	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
-		return val
+		return strings.TrimSuffix(strings.TrimPrefix(val, "("), ")")
+	}
+	// A numeric column's default is unquoted, and loses the quotes it was
+	// written with.
+	if isNumericColumnType(col.DataType) {
+		return strings.Trim(val, "'")
 	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
 	}
-	// MySQL 8.0 quotes all literal defaults (including numerics).
 	return "'" + val + "'"
 }
 
-// formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
+// isNumericColumnType reports whether the type's default is written unquoted.
+func isNumericColumnType(dt string) bool {
+	switch normalizedTypeName(dt) {
+	case "tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "float", "double", "boolean", "year":
+		return true
+	}
+	return false
+}
+
+// formatOnUpdate normalizes ON UPDATE values to the form MariaDB writes.
 func formatOnUpdate(val string, kind ColumnDefaultKind) string {
 	if kind == ColumnDefaultCurrentTimestamp {
 		return formatCurrentTimestamp(val)
 	}
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	if _, ok := currentTimestampSQL(val); ok {
+		return formatCurrentTimestamp(val)
 	}
 	return val
 }
 
+// formatCurrentTimestamp renders a CURRENT_TIMESTAMP default or ON UPDATE the
+// way MariaDB writes it: lowercase and called, `current_timestamp()`, and
+// `current_timestamp(3)` where the column carries a precision. MySQL 8.0 writes
+// the bare keyword. Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
 func formatCurrentTimestamp(val string) string {
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	ts, ok := currentTimestampSQL(val)
+	if !ok {
+		return "current_timestamp()"
 	}
-	return "CURRENT_TIMESTAMP"
+	if args, found := strings.CutPrefix(ts, "CURRENT_TIMESTAMP("); found {
+		return "current_timestamp(" + args
+	}
+	return "current_timestamp()"
 }
 
 func currentTimestampSQL(val string) (string, bool) {
@@ -400,7 +506,8 @@ func isTimestampType(dt string) bool {
 	return false
 }
 
-// isTextBlobType returns true for types where MySQL doesn't show DEFAULT NULL.
+// isTextBlobType returns true for the types an index must give a prefix length
+// for.
 func isTextBlobType(dt string) bool {
 	switch strings.ToLower(dt) {
 	case "text", "tinytext", "mediumtext", "longtext",
@@ -439,11 +546,13 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
-	// KEY_BLOCK_SIZE is intentionally NOT rendered here: MySQL 8.0 parses
-	// the index-level KEY_BLOCK_SIZE option but does not include it in
-	// SHOW CREATE TABLE output (only the table-level KEY_BLOCK_SIZE is
-	// shown). The catalog still preserves the value for programmatic
-	// access.
+	// KEY_BLOCK_SIZE, which MariaDB writes on the index and before its
+	// comment, whichever order they were given in:
+	// KEY `idx1` (`a`) KEY_BLOCK_SIZE=4 COMMENT 'c'. MySQL 8.0 parses the
+	// option but writes only the table-level one. Measured on mariadb:11.8.8.
+	if idx.KeyBlockSize > 0 {
+		b.WriteString(fmt.Sprintf(" KEY_BLOCK_SIZE=%d", idx.KeyBlockSize))
+	}
 
 	// Comment.
 	if idx.Comment != "" {
@@ -545,22 +654,17 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("DEFAULT CHARSET=%s", tbl.Charset))
 	}
 
-	// MySQL 8.0 shows COLLATE when:
-	// - The collation differs from the charset's default, OR
-	// - The collation was explicitly specified, OR
-	// - The charset is utf8mb4 (MySQL 8.0 always shows collation for utf8mb4)
+	// MariaDB always writes the table's collation, the charset's own default
+	// included: a latin1 table reports COLLATE=latin1_swedish_ci. MySQL 8.0
+	// writes it only for utf8mb4 or a non-default collation. Measured on
+	// mariadb:11.8.8.
 	if tbl.Charset != "" {
 		effectiveCollation := tbl.Collation
 		if effectiveCollation == "" {
 			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
 		}
-		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
-		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
-		isUtf8mb4 := eqFoldStr(tbl.Charset, "utf8mb4")
-		if isNonDefaultCollation || isUtf8mb4 {
-			if effectiveCollation != "" {
-				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
-			}
+		if effectiveCollation != "" {
+			parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
 		}
 	}
 
@@ -624,9 +728,12 @@ func unquoteTableOption(s string) string {
 
 // isFKDefault returns true if the action is a MySQL FK default that should not be shown.
 // MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
+// isFKDefault reports whether MariaDB leaves a referential action out of SHOW
+// CREATE TABLE. It leaves out RESTRICT, which is what an unwritten action and a
+// written one both mean, and writes NO ACTION; MySQL 8.0 leaves out NO ACTION
+// and RESTRICT. Measured on mariadb:11.8.8.
 func isFKDefault(action string) bool {
-	upper := strings.ToUpper(action)
-	return upper == "NO ACTION"
+	return strings.EqualFold(action, "RESTRICT")
 }
 
 func isEnumSetType(dt string) bool {
@@ -658,16 +765,19 @@ func escapeComment(s string) string {
 }
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
-// MySQL 8.0 outputs partitioning after table options with specific formatting.
+//
+// MariaDB writes the clause plainly, with one leading space and no version
+// comment, and backticks every partition name and every COLUMNS column:
+//
+//	 PARTITION BY RANGE (`val`)
+//	(PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB)
+//
+// MySQL 8.0 wraps the whole clause in /*!50100 ... */ (/*!50500 for the COLUMNS
+// forms) and leaves those names bare. Measured on mariadb:11.8.8.
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
 
-	// MySQL uses /*!50500 for RANGE COLUMNS and LIST COLUMNS, /*!50100 for others.
-	versionComment := "50100"
-	if pi.Type == "RANGE COLUMNS" || pi.Type == "LIST COLUMNS" {
-		versionComment = "50500"
-	}
-	b.WriteString(fmt.Sprintf("/*!%s PARTITION BY ", versionComment))
+	b.WriteString(" PARTITION BY ")
 	if pi.Linear {
 		b.WriteString("LINEAR ")
 	}
@@ -675,20 +785,19 @@ func showPartitioning(pi *PartitionInfo) string {
 	case "RANGE":
 		b.WriteString(fmt.Sprintf("RANGE (%s)", pi.Expr))
 	case "RANGE COLUMNS":
-		// MySQL uses double space before COLUMNS and no backticks on column names.
-		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		// Double space before COLUMNS, as the server writes it.
+		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "LIST":
 		b.WriteString(fmt.Sprintf("LIST (%s)", pi.Expr))
 	case "LIST COLUMNS":
-		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "HASH":
 		b.WriteString(fmt.Sprintf("HASH (%s)", pi.Expr))
 	case "KEY":
-		// MySQL does not backtick-quote KEY column names.
 		if pi.Algorithm > 0 {
-			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumns(pi.Columns)))
 		} else {
-			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.Columns)))
 		}
 	case "SYSTEM_TIME":
 		b.WriteString("SYSTEM_TIME")
@@ -741,7 +850,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(",\n ")
 			}
 			b.WriteString("PARTITION ")
-			b.WriteString(pd.Name)
+			b.WriteString(backtickIDQ(pd.Name))
 			if pd.SystemTime != "" {
 				b.WriteString(" " + pd.SystemTime)
 			}
@@ -763,10 +872,13 @@ func showPartitioning(pi *PartitionInfo) string {
 				}
 			}
 			if pi.SubType == "" || pi.UseDefaultSubpartitions {
-				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
+				// MariaDB writes a partition's comment before its engine:
+				// PARTITION `p0` VALUES LESS THAN (10) COMMENT = 'pc0'
+				// ENGINE = InnoDB. Measured on mariadb:11.8.8.
 				if pd.Comment != "" {
 					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
 				}
+				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
 			}
 			// Explicit subpartition definitions are rendered instead of parent options.
 			if len(pd.SubPartitions) > 0 && !pi.UseDefaultSubpartitions {
@@ -776,11 +888,11 @@ func showPartitioning(pi *PartitionInfo) string {
 						b.WriteString(",\n  ")
 					}
 					b.WriteString("SUBPARTITION ")
-					b.WriteString(spd.Name)
-					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
+					b.WriteString(backtickIDQ(spd.Name))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
 					}
+					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 				}
 				b.WriteString(")")
 			}
@@ -788,7 +900,6 @@ func showPartitioning(pi *PartitionInfo) string {
 		b.WriteString(")")
 	}
 
-	b.WriteString(" */")
 	return b.String()
 }
 
@@ -799,11 +910,6 @@ func formatPartitionColumns(cols []string) string {
 		parts[i] = "`" + c + "`"
 	}
 	return strings.Join(parts, ",")
-}
-
-// formatPartitionColumnsPlain formats column names without backticks (MySQL style for RANGE COLUMNS, LIST COLUMNS, KEY).
-func formatPartitionColumnsPlain(cols []string) string {
-	return strings.Join(cols, ",")
 }
 
 // partitionEngine returns the engine for a partition, defaulting to InnoDB.

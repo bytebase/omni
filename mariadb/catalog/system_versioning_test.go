@@ -558,7 +558,7 @@ func TestSystemVersioningExplicitWithExcludesOthers(t *testing.T) {
 	t.Run("explicit with excludes unmarked column", func(t *testing.T) {
 		c := versionedCatalog(t, "CREATE TABLE w (x INT WITH SYSTEM VERSIONING, y INT)")
 		ddl := c.ShowCreateTable("test", "w")
-		if !strings.Contains(ddl, "`y` int DEFAULT NULL WITHOUT SYSTEM VERSIONING") {
+		if !strings.Contains(ddl, "`y` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING") {
 			t.Errorf("unmarked column y should render WITHOUT:\n%s", ddl)
 		}
 		// Only y (not the explicit-WITH x) should be marked WITHOUT.
@@ -619,7 +619,7 @@ func TestSystemVersioningWithoutNormalizesAway(t *testing.T) {
 			t.Errorf("normalized table should not contain %q:\n%s", unwanted, ddl)
 		}
 	}
-	if !strings.Contains(ddl, "`rs` int NOT NULL") {
+	if !strings.Contains(ddl, "`rs` int(11) NOT NULL") {
 		t.Errorf("row column should normalize to ordinary NOT NULL:\n%s", ddl)
 	}
 }

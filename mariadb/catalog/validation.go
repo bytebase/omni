@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -44,15 +45,21 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			return errTooBigPrecision(colDef.TypeName.Length, typeName)
 		}
 	case "year":
-		if colDef.TypeName.Length != 0 && colDef.TypeName.Length != 4 {
-			return errInvalidYearColumnLength()
-		}
+		// MariaDB takes any YEAR width: it keeps 2, which it still has, and
+		// normalizes every other to 4. MySQL 8.0 answers
+		// ER_INVALID_YEAR_COLUMN_LENGTH (1818) for anything but 4. Measured on
+		// mariadb:11.8.8: YEAR(2) → year(2), YEAR(3) and YEAR(5) → year(4).
 	case "decimal", "numeric", "dec", "fixed":
 		if colDef.TypeName.Length > 65 {
 			return errTooBigPrecision(colDef.TypeName.Length, typeName)
 		}
-		if colDef.TypeName.Scale > 30 {
-			return &Error{Code: 1425, SQLState: "42000", Message: "Too big scale specified for column"}
+		// MariaDB's scale maximum is 38, where MySQL 8.0's is 30, and its
+		// message names the limit rather than the value asked for. Measured on
+		// mariadb:11.8.8: DECIMAL(40,31) is accepted and DECIMAL(40,39)
+		// answers "Too big scale specified for 'd'. Maximum is 38".
+		if colDef.TypeName.Scale > 38 {
+			return &Error{Code: 1425, SQLState: "42000",
+				Message: fmt.Sprintf("Too big scale specified for '%s'. Maximum is 38", colDef.Name)}
 		}
 		if colDef.TypeName.Scale > colDef.TypeName.Length && colDef.TypeName.Length > 0 {
 			return &Error{Code: 1427, SQLState: "42000", Message: "For float(M,D), double(M,D) or decimal(M,D), M must be >= D"}
@@ -146,15 +153,11 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
 		if invalid {
 			return false
 		}
-		switch x := n.(type) {
+		switch n.(type) {
 		case *nodes.SubqueryExpr:
 			invalid = true
 		case *nodes.VariableRef:
 			invalid = true
-		case *nodes.FuncCallExpr:
-			if isNondeterministicFunc(x.Name) {
-				invalid = true
-			}
 		}
 		return !invalid
 	})
@@ -178,21 +181,12 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 	return nil
 }
 
+// validateColumnCheckReferences checks a CHECK written on a column. MariaDB
+// lets it name the table's other columns: `CREATE TABLE xr (a INT CHECK (a > b),
+// b INT)` is accepted and reads back as `a` int(11) DEFAULT NULL
+// CHECK (`a` > `b`). MySQL 8.0 answers ER_CHECK_CONSTRAINT_REFERS (3823).
+// Measured on mariadb:11.8.8.
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
-	bad := false
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if bad {
-			return false
-		}
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && !strings.EqualFold(cr.Column, colName) {
-			bad = true
-			return false
-		}
-		return true
-	})
-	if bad {
-		return &Error{Code: 3823, SQLState: "HY000", Message: "Column check constraint cannot reference other columns"}
-	}
 	return validateCheckExpr(conName, expr)
 }
 
@@ -248,11 +242,14 @@ func isNullDefault(expr nodes.ExprNode) bool {
 	}
 }
 
+// isLiteralDefaultForbiddenType reports whether a literal DEFAULT is refused
+// for the type. MariaDB allows one on a blob, text or JSON column and stores
+// it; only the spatial types refuse, and the refusal is about the value, not
+// the type. MySQL 8.0 refuses every one of them with
+// ER_BLOB_CANT_HAVE_DEFAULT (1101). Measured on mariadb:11.8.8.
 func isLiteralDefaultForbiddenType(typeName string) bool {
 	switch strings.ToLower(typeName) {
-	case "blob", "tinyblob", "mediumblob", "longblob",
-		"text", "tinytext", "mediumtext", "longtext",
-		"json", "geometry", "point", "linestring", "polygon",
+	case "geometry", "point", "linestring", "polygon",
 		"multipoint", "multilinestring", "multipolygon", "geometrycollection", "geomcollection":
 		return true
 	default:

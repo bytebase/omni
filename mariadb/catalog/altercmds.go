@@ -292,7 +292,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		if !tbl.SystemVersioned {
 			return errNotSystemVersioned(tbl.Name)
 		}
-		return errCantDropKey("PERIOD `SYSTEM_TIME`")
+		return errCantDropKey("PERIOD", "SYSTEM_TIME")
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -538,9 +538,7 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if cmd.IfExists {
 			return nil
 		}
-		// MySQL 8.0 returns error 1091 for DROP COLUMN on nonexistent column,
-		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
-		return errCantDropKey(cmd.Name)
+		return errCantDropKey("COLUMN", cmd.Name)
 	}
 	idx := tbl.colByName[colKey]
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
@@ -567,6 +565,25 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 						SQLState: "HY000",
 						Message:  fmt.Sprintf("Cannot drop column '%s': needed in a foreign key constraint '%s'", cmd.Name, con.Name),
 					}
+				}
+			}
+		}
+	}
+
+	// A column a composite PRIMARY KEY is built on cannot be dropped: MariaDB
+	// answers 1072, "Key column '<col>' doesn't exist in table", rather than
+	// rebuilding the key over the columns that are left. A single-column
+	// primary key goes with its column. Measured on mariadb:11.8.8.
+	for _, idx := range tbl.Indexes {
+		if !idx.Primary || len(idx.Columns) < 2 {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if toLower(ic.Name) == colKey {
+				return &Error{
+					Code:     1072,
+					SQLState: "42000",
+					Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", cmd.Name),
 				}
 			}
 		}
@@ -973,7 +990,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			conName = fmt.Sprintf("CONSTRAINT_%d", nextCheckNumber(tbl))
 		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
@@ -1125,7 +1142,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return errCantDropKey("INDEX", name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -1159,7 +1176,11 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if cmd.IfExists {
 			return nil
 		}
-		return errCantDropKey(name)
+		// The server names the spelling it was given, so a missing name under
+		// DROP FOREIGN KEY reports FOREIGN KEY where DROP CONSTRAINT reports
+		// CONSTRAINT. The AST folds both to ATDropConstraint and keeps no
+		// record of which was written, so this reports CONSTRAINT for both.
+		return errCantDropKey("CONSTRAINT", name)
 	}
 
 	// For FK constraints, MySQL keeps the backing index when dropping the FK.
@@ -1564,13 +1585,23 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
-// alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
+// alterCheckEnforced refuses `ALTER TABLE ... ALTER CHECK <name> [NOT]
+// ENFORCED`, which MariaDB has no grammar for: a CHECK constraint carries no
+// enforcement attribute there, and information_schema.TABLE_CONSTRAINTS has no
+// ENFORCED column. MySQL 8.0 has both. The parser still accepts the clause —
+// one of the MySQL-isms mariadb/parser's divergence inventory pins — so the
+// refusal lands here. Measured on mariadb:11.8.8: the server answers 1064.
 func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	key := toLower(cmd.Name)
 	for _, con := range tbl.Constraints {
 		if toLower(con.Name) == key && con.Type == ConCheck {
-			con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
-			return nil
+			return &Error{
+				Code:     1064,
+				SQLState: "42000",
+				Message: fmt.Sprintf("You have an error in your SQL syntax; check the manual that "+
+					"corresponds to your MariaDB server version for the right syntax to use near "+
+					"'CHECK %s %s' at line 1", cmd.Name, cmd.NewName),
+			}
 		}
 	}
 	return &Error{

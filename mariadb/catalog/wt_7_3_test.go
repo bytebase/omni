@@ -22,8 +22,8 @@ func TestWalkThrough_7_3_HashByExpr(t *testing.T) {
 	}
 
 	// Verify partition type marker
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY HASH") {
-		t.Errorf("expected /*!50100 PARTITION BY HASH, got:\n%s", ddl)
+	if !strings.Contains(ddl, " PARTITION BY HASH") {
+		t.Errorf("expected PARTITION BY HASH, got:\n%s", ddl)
 	}
 	// MySQL 8.0 backtick-quotes identifiers in HASH expression
 	if !strings.Contains(ddl, "HASH (`id`)") {
@@ -102,12 +102,12 @@ func TestWalkThrough_7_3_KeyPartition(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY KEY") {
-		t.Errorf("expected /*!50100 PARTITION BY KEY, got:\n%s", ddl)
+	if !strings.Contains(ddl, " PARTITION BY KEY") {
+		t.Errorf("expected PARTITION BY KEY, got:\n%s", ddl)
 	}
-	// KEY columns are rendered without backticks (plain)
-	if !strings.Contains(ddl, "KEY (id)") {
-		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
+	// MariaDB backticks a KEY partition's columns. Measured on mariadb:11.8.8.
+	if !strings.Contains(ddl, "KEY (`id`)") {
+		t.Errorf("expected KEY (`id`) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -153,9 +153,9 @@ func TestWalkThrough_7_3_KeyEmptyColumns(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	// KEY() uses PK columns; MySQL renders the resolved partition key.
-	if !strings.Contains(ddl, "KEY (id)") {
-		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
+	// KEY() uses the primary key's columns, which the clause names backticked.
+	if !strings.Contains(ddl, "KEY (`id`)") {
+		t.Errorf("expected KEY (`id`) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -192,8 +192,8 @@ func TestWalkThrough_7_3_KeyAlgorithm(t *testing.T) {
 	}
 
 	// ALGORITHM=2 should be rendered as ALGORITHM = 2
-	if !strings.Contains(ddl, "KEY ALGORITHM = 2 (id)") {
-		t.Errorf("expected KEY ALGORITHM = 2 (id) in DDL:\n%s", ddl)
+	if !strings.Contains(ddl, "KEY ALGORITHM = 2 (`id`)") {
+		t.Errorf("expected KEY ALGORITHM = 2 (`id`) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -277,19 +277,19 @@ func TestWalkThrough_7_3_AddPartitionHashError(t *testing.T) {
 	results, err := c.Exec(`ALTER TABLE t8 ADD PARTITION (PARTITION p_extra ENGINE=InnoDB)`, nil)
 	if err != nil {
 		// Parse error — document and skip
-		t.Logf("note: ADD PARTITION on HASH table caused parse error (MySQL would reject this too): %v", err)
+		t.Logf("note: ADD PARTITION `on` HASH table caused parse error (MySQL would reject this too): %v", err)
 		return
 	}
 	for _, r := range results {
 		if r.Error != nil {
 			// Catalog error — this is actually correct behavior (MySQL rejects it)
-			t.Logf("note: ADD PARTITION on HASH table correctly errored: %v", r.Error)
+			t.Logf("note: ADD PARTITION `on` HASH table correctly errored: %v", r.Error)
 			return
 		}
 	}
 
 	// If we reach here, omni allowed ADD PARTITION on HASH (differs from MySQL)
-	t.Log("note: omni allows ADD PARTITION on HASH table — MySQL would reject this. Documenting behavior difference.")
+	t.Log("note: omni allows ADD PARTITION `on` HASH table — MySQL would reject this. Documenting behavior difference.")
 
 	// Verify the partition was added (since omni allowed it)
 	tbl := c.GetDatabase("testdb").GetTable("t8")
@@ -325,6 +325,6 @@ func TestWalkThrough_7_3_RemovePartitioning(t *testing.T) {
 
 	ddl := c.ShowCreateTable("testdb", "t9")
 	if strings.Contains(ddl, "PARTITION") {
-		t.Errorf("SHOW CREATE TABLE should not contain PARTITION after REMOVE:\n%s", ddl)
+		t.Errorf("SHOW CREATE TABLE should not contain PARTITION `after` REMOVE:\n%s", ddl)
 	}
 }

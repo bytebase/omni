@@ -218,7 +218,7 @@ func columnFromResolvedType(rt *ResolvedType) *Column {
 		col.DataType = "bigint"
 		col.ColumnType = "bigint"
 		if rt.Unsigned {
-			col.ColumnType = "bigint unsigned"
+			col.ColumnType = "bigint(20) unsigned"
 		}
 	case BaseTypeInt:
 		col.DataType = "int"

@@ -202,12 +202,24 @@ func formatParamType(dt *nodes.DataType) string {
 	return strings.ToUpper(raw)
 }
 
-// formatReturnType formats a DataType for display in the RETURNS clause.
-// MySQL 8.0 shows return types in lowercase but adds CHARSET for string types.
+// formatReturnType formats a DataType for display in the RETURNS clause, which
+// MariaDB normalizes where it leaves the parameter list as written:
+//
+//	FUNCTION `fa`(a INT, b INT) RETURNS int(11)
+//	FUNCTION `fb`(x INT) RETURNS varchar(100) CHARSET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
+//
+// so an integer type carries its display width and a string type its charset
+// and collation. MySQL 8.0 writes neither the width nor the collation.
+// Measured on mariadb:11.8.8 through SHOW CREATE FUNCTION.
 func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 	raw := formatDataType(dt)
-	// MySQL 8.0 appends CHARSET for string return types.
 	name := strings.ToLower(dt.Name)
+	if normalized := normalizedTypeName(name); isIntegerType(normalized) && dt.Length == 0 {
+		raw = fmt.Sprintf("%s(%d)", normalized, defaultIntDisplayWidth(normalized, dt.Unsigned))
+		if dt.Unsigned {
+			raw += " unsigned"
+		}
+	}
 	if isStringRoutineType(name) {
 		charset := dt.Charset
 		if charset == "" {
@@ -217,11 +229,19 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+		collation := dt.Collate
+		if collation == "" {
+			collation = defaultCollationForCharset[toLower(charset)]
+		}
+		if collation != "" {
+			raw += " COLLATE " + collation
+		}
 	}
 	return raw
 }
 
-// isStringRoutineType returns true for types where MySQL shows CHARSET in routine RETURNS.
+// isStringRoutineType returns true for the types a RETURNS clause carries a
+// charset and collation for.
 func isStringRoutineType(dt string) bool {
 	switch dt {
 	case "varchar", "char", "text", "tinytext", "mediumtext", "longtext",
@@ -231,7 +251,7 @@ func isStringRoutineType(dt string) bool {
 	return false
 }
 
-// ShowCreateFunction produces MySQL 8.0-compatible SHOW CREATE FUNCTION output.
+// ShowCreateFunction produces MariaDB-compatible SHOW CREATE FUNCTION output.
 func (c *Catalog) ShowCreateFunction(database, name string) string {
 	db := c.GetDatabase(database)
 	if db == nil {

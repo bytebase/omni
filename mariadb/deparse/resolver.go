@@ -46,37 +46,29 @@ func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
 // available in scope. cteTables maps CTE names to virtual ResolverTables
 // built from their SELECT target lists.
-// resolveOrderByOrdinals rewrites positional ORDER BY items (ORDER BY 1) to the
-// matching column alias from the leftmost SELECT's target list, matching MySQL
-// 8.0 behavior.
-func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt) {
-	if leftmost == nil {
-		return
+// orderByTargetAlias returns the target-list expression an ORDER BY item names
+// by alias. MariaDB stores the expression rather than the alias:
+// `SELECT a AS z FROM t ORDER BY z` comes back as `order by \`t\`.\`a\“, and
+// `SELECT a + 1 AS z ... ORDER BY z` as `order by \`t\`.\`a\` + 1`. A
+// positional item is left alone, since the server keeps `order by 1` as
+// written. Measured on mariadb:11.8.8.
+//
+// Only an unqualified name can be an alias: `ORDER BY t.z` names a column of t.
+func orderByTargetAlias(stmt *ast.SelectStmt, expr ast.ExprNode) (ast.ExprNode, bool) {
+	cr, ok := expr.(*ast.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" {
+		return nil, false
 	}
-	for _, item := range orderBy {
-		lit, ok := item.Expr.(*ast.IntLit)
-		if !ok {
+	for _, target := range stmt.TargetList {
+		rt, ok := target.(*ast.ResTarget)
+		if !ok || rt.Name == "" {
 			continue
 		}
-		idx := int(lit.Value) - 1 // 1-based to 0-based
-		if idx < 0 || idx >= len(leftmost.TargetList) {
-			continue
-		}
-		rt, ok := leftmost.TargetList[idx].(*ast.ResTarget)
-		if !ok {
-			continue
-		}
-		alias := rt.Name
-		if alias == "" {
-			// Derive alias from a bare column ref.
-			if cr, ok := rt.Val.(*ast.ColumnRef); ok {
-				alias = cr.Column
-			}
-		}
-		if alias != "" {
-			item.Expr = &ast.ColumnRef{Column: alias}
+		if strings.EqualFold(rt.Name, cr.Column) {
+			return rt.Val, true
 		}
 	}
+	return nil, false
 }
 
 // resolveParenSource resolves a parenthesized query expression: the inner query
@@ -108,7 +100,6 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		return
 	}
 	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
-	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
@@ -149,9 +140,6 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
-		if len(stmt.OrderBy) > 0 {
-			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
-		}
 		return stmt
 	}
 
@@ -254,8 +242,13 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 	}
 
-	// Resolve ORDER BY
+	// Resolve ORDER BY. An item that names a target-list alias takes that
+	// target's expression, which is already resolved.
 	for _, item := range stmt.OrderBy {
+		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok {
+			item.Expr = expr
+			continue
+		}
 		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
 

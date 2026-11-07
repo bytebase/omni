@@ -148,14 +148,17 @@ func TestScenario_C3(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Oracle: MySQL must reject.
+		// MariaDB takes an explicit NULL on a primary key column and makes the
+		// column NOT NULL, as a primary key must be; MySQL 8.0 answers
+		// ER_PRIMARY_CANT_HAVE_NULL (1171). Measured on mariadb:11.8.8:
+		// `CREATE TABLE t (a INT NULL PRIMARY KEY)` reads back as
+		// `a` int(11) NOT NULL with PRIMARY KEY (`a`).
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
 			"CREATE TABLE t (a INT NULL PRIMARY KEY)")
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_PRIMARY_CANT_HAVE_NULL (1171), got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1171") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "primary") {
-			t.Errorf("oracle: expected 1171 ER_PRIMARY_CANT_HAVE_NULL, got %v", mysqlErr)
+		if mysqlErr != nil {
+			t.Errorf("oracle: expected NULL on a PK column to be accepted, got %v", mysqlErr)
+		} else if create := oracleShow(t, mc, "SHOW CREATE TABLE t"); !strings.Contains(create, "`a` int(11) NOT NULL") {
+			t.Errorf("oracle: expected the PK column to be NOT NULL, got %s", create)
 		}
 
 		// omni: should also reject.
@@ -362,7 +365,7 @@ func derefStr(p *string) string {
 // drops the strict-zero-date sql_mode flags so '0000-00-00 00:00:00'
 // defaults are accepted. This is required for C3.1 and C3.8 which exercise
 // the legacy TIMESTAMP promotion path inside `promote_first_timestamp_column`.
-func setLegacyTimestampMode(t *testing.T, mc *mysqlContainer) {
+func setLegacyTimestampMode(t *testing.T, mc *mariadbContainer) {
 	t.Helper()
 	stmts := []string{
 		"SET SESSION explicit_defaults_for_timestamp=0",
@@ -377,7 +380,7 @@ func setLegacyTimestampMode(t *testing.T, mc *mysqlContainer) {
 
 // restoreTimestampMode reverts the session vars touched by
 // setLegacyTimestampMode back to MySQL 8.0 defaults.
-func restoreTimestampMode(t *testing.T, mc *mysqlContainer) {
+func restoreTimestampMode(t *testing.T, mc *mariadbContainer) {
 	t.Helper()
 	stmts := []string{
 		"SET SESSION explicit_defaults_for_timestamp=1",

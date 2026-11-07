@@ -75,15 +75,15 @@ func TestAutoAliasWithoutSource(t *testing.T) {
 	for _, tc := range []struct{ sql, want string }{
 		{
 			"SELECT (WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)",
-			"select (with `c` as (select 1 AS `x`) select `x` from `c` union select 2) AS `(WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)`",
+			"select (with c as (select 1 AS `x`)select `x` from `c` union select 2) AS `(WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)`",
 		},
 		{
 			"SELECT (SELECT a FROM t GROUP BY a HAVING a > 0 LIMIT 1), (SELECT a FROM t ORDER BY a DESC LIMIT 2, 1)",
-			"select (select `a` from `t` group by `a` having (`a` > 0) limit 1) AS `(SELECT a FROM t GROUP BY a HAVING a > 0 LIMIT 1)`,(select `a` from `t` order by `a` desc limit 2,1) AS `(SELECT a FROM t ORDER BY a DESC LIMIT 2, 1)`",
+			"select (select `a` from `t` group by `a` having `a` > 0 limit 1) AS `(SELECT a FROM t GROUP BY a HAVING a > 0 LIMIT 1)`,(select `a` from `t` order by `a` desc limit 2,1) AS `(SELECT a FROM t ORDER BY a DESC LIMIT 2, 1)`",
 		},
 		{
 			"SELECT EXISTS (SELECT DISTINCT a FROM t UNION ALL SELECT 1)",
-			"select exists(select distinct `a` from `t` union all select 1) AS `EXISTS(SELECT DISTINCT a FROM t UNION ALL SELECT 1)`",
+			"select exists(select distinct `a` from `t` union all select 1 limit 1) AS `EXISTS(SELECT DISTINCT a FROM t UNION ALL SELECT 1)`",
 		},
 		{
 			"SELECT (VALUES (1) ORDER BY 1 LIMIT 1)",

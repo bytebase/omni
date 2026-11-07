@@ -448,7 +448,7 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	if chk.Name == "" {
 		t.Error("unnamed CHECK constraint should get auto-generated name")
 	}
-	expectedChk := "t_chk_1"
+	expectedChk := "CONSTRAINT_1"
 	if chk.Name != expectedChk {
 		t.Errorf("expected auto-generated CHECK name %q, got %q", expectedChk, chk.Name)
 	}
@@ -602,7 +602,7 @@ func TestBugFix_CheckCounterCreateTable(t *testing.T) {
 	// Real MySQL 8.0 produces t_chk_1 here — the user-named _5 is NOT seeded
 	// into the counter during CREATE (verified by source code analysis;
 	// sql/sql_table.cc:19073 starts cc_max_generated_number at 0).
-	if autoGenName != "t_chk_1" {
-		t.Errorf("expected t_chk_1 (first unnamed CHECK, ignoring user-named _5), got %s", autoGenName)
+	if autoGenName != "CONSTRAINT_1" {
+		t.Errorf("expected CONSTRAINT_1 (first unnamed CHECK, ignoring user-named _5), got %s", autoGenName)
 	}
 }

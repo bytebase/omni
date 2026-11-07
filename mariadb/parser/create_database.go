@@ -253,12 +253,24 @@ func (p *Parser) parseCharsetName() (string, error) {
 //
 // Ref: collation_name in MySQL 8.0.46 sql/sql_yacc.yy; read against MariaDB
 // 11.8.8.
+// parseCollationName parses a collation name, where DEFAULT names the
+// collation the column would have had anyway and so settles nothing: MariaDB
+// accepts `VARCHAR(50) COLLATE DEFAULT` and reads the column back with no
+// collation of its own, while it refuses `CHARACTER SET DEFAULT` on a column
+// with a 1064. Measured on mariadb:11.8.8.
+//
+// Ref: collation_name and charset_name in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseCollationName() (string, error) {
+	if _, ok := p.match(kwDEFAULT); ok {
+		return "", nil
+	}
 	return p.parseCharsetName()
 }
 
 // parseCharsetNameOrDefault is parseCharsetName where the DEFAULT keyword names the server's
-// own: a database or table option takes it, and a column does not.
+// own: a database or table option takes it, and a column's CHARACTER SET does
+// not (1064 on mariadb:11.8.8). A column's COLLATE does — see
+// parseCollationName.
 //
 // Ref: charset_name_or_default and collation_name_or_default in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseCharsetNameOrDefault() (string, error) {
