@@ -297,6 +297,72 @@ func TestReview_DropCompositePKColumn(t *testing.T) {
 	}
 }
 
+// The two review findings that were not bugs. Both asked omni to improve on
+// what MariaDB itself writes, and both are pinned here so the next reader can
+// see that the odd-looking output is the engine's.
+
+// TestReview_CTENameIsWrittenUnquoted covers a CTE name MariaDB cannot write
+// back: 11.8.8 stores `WITH `select` AS (...)` with the name unquoted, so its
+// own SHOW CREATE VIEW fails to parse the result. Quoting it in omni would be
+// an improvement on the engine, which is not what this catalog is for.
+func TestReview_CTENameIsWrittenUnquoted(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT);")
+	runOnBoth(t, mc, c, "CREATE VIEW v_cte AS WITH `select` AS (SELECT a FROM t) SELECT a FROM `select`;")
+
+	stored := oracleViewDefinition(t, mc, "v_cte")
+	if !strings.Contains(stored, "with select as (") {
+		t.Errorf("oracle: expected the CTE name stored unquoted, got %s", stored)
+	}
+	// The server cannot read its own definition back, which is the whole
+	// reason the quoting is not omni's to add.
+	if _, err := mc.db.ExecContext(mc.ctx, "SELECT 1 FROM v_cte"); err == nil {
+		t.Errorf("oracle: expected the stored definition to fail to parse")
+	}
+
+	omni := c.ShowCreateView("testdb", "v_cte")
+	if !strings.Contains(omni, "with select as (") {
+		t.Errorf("omni: expected the CTE name written unquoted, got %s", omni)
+	}
+}
+
+// TestReview_UnionOrderByKeepsWrittenAlias covers ORDER BY over a UNION: the
+// alias is echoed as the statement wrote it, and the first branch's target
+// keeps that alias, so the reference resolves without rewriting.
+func TestReview_UnionOrderByKeepsWrittenAlias(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+	runOnBoth(t, mc, c, "CREATE VIEW v_un AS SELECT a AS x FROM t UNION SELECT b FROM t ORDER BY x;")
+
+	for _, k := range []struct{ label, body string }{
+		{"oracle", oracleViewDefinition(t, mc, "v_un")},
+		{"omni", c.ShowCreateView("testdb", "v_un")},
+	} {
+		if !strings.Contains(k.body, "AS `x`") || !strings.Contains(k.body, "order by `x`") {
+			t.Errorf("%s: expected the written alias on both the target and the ORDER BY, got %s", k.label, k.body)
+		}
+	}
+}
+
+// oracleViewDefinition reads a view's stored body from information_schema,
+// which works even where SHOW CREATE VIEW cannot parse what it stored.
+func oracleViewDefinition(t *testing.T, mc *mariadbContainer, view string) string {
+	t.Helper()
+	var def string
+	oracleScan(t, mc,
+		"SELECT VIEW_DEFINITION FROM information_schema.VIEWS "+
+			"WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '"+view+"'", &def)
+	return def
+}
+
 // assertViewBodyMatches compares the SELECT body the server stored for the
 // view with the one the catalog deparsed.
 func assertViewBodyMatches(t *testing.T, mc *mariadbContainer, c *Catalog, view string) {
