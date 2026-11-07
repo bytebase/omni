@@ -112,7 +112,7 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.SetResourceGroupStmt, *ast.CalibrateResourceStmt,
 		*ast.AddQueryWatchStmt, *ast.DropQueryWatchStmt,
 		*ast.RecommendIndexStmt, *ast.SetConfigStmt, *ast.AlterRangeStmt, *ast.CancelDistributionJobStmt,
-		*ast.KillStmt:
+		*ast.CancelImportJobStmt, *ast.KillStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// SPLIT ... TABLE and DISTRIBUTE TABLE are here for the same
