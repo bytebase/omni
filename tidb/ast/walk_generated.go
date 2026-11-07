@@ -135,6 +135,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.StatsColumns {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

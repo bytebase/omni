@@ -80,6 +80,12 @@ var statisticsFormCases = []statisticsFormCase{
 	// doubled one does not.
 	{"analyze table t index ,a", true},
 	{"analyze table t index ,a,b", true},
+	// PRIMARY is a name in the list, in the first slot and after a comma,
+	// though it is a reserved word and no identifier elsewhere.
+	{"analyze table t index primary", true},
+	{"analyze table t index ,primary", true},
+	{"analyze table t index a, primary", true},
+	{"analyze table t index primary, a", true},
 	{"analyze table t index a,", false},
 	{"analyze table t index ,,a", false},
 	{"analyze table t index a,,b", false},

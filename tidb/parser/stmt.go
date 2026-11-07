@@ -830,6 +830,17 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropStatisticsStmt(start)
 	}
 
+	// DROP HYPO INDEX name ON tbl, TiDB's drop of a hypothetical index. HYPO
+	// is read bare, so `DROP TABLE hypo` and a table named hypo are untouched;
+	// INDEX must follow, so a bare `DROP hypo` falls through to the switch and
+	// is a 1064. Unlike plain DROP INDEX this arm takes no lock or algorithm.
+	//
+	// Ref: `"DROP" "HYPO" "INDEX" IfExists Identifier "ON" TableName`
+	// (DropIndexStmt) in TiDB v8.5.5 pkg/parser/parser.y.
+	if p.isBareWord("HYPO") && p.peekNext().Type == kwINDEX {
+		return p.parseDropHypoIndexStmt(start)
+	}
+
 	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE
 	// GLOBAL TEMPORARY TABLE made: a plain DROP TABLE drops it too, and DROP
 	// TEMPORARY TABLE does not (1051, verified), so Temporary stays false here.

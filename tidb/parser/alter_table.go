@@ -211,10 +211,8 @@ func (p *Parser) parseAlterAnalyzePartition(stmt *nodes.AlterTableStmt) error {
 		// clause; PRIMARY is a name here as well as an identifier.
 		if p.isIdentToken() || p.cur.Type == kwPRIMARY {
 			for {
-				var name string
-				if p.cur.Type == kwPRIMARY {
-					name = p.advance().Str
-				} else if name, _, err = p.parseIdent(); err != nil {
+				name, err := p.parseIndexNameOrPrimary()
+				if err != nil {
 					return err
 				}
 				cmd.AnalyzeIndexes = append(cmd.AnalyzeIndexes, name)
@@ -825,11 +823,18 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	case kwSET:
-		// TiDB: SET TIFLASH REPLICA n [LOCATION LABELS 'label1', 'label2', ...]
+		// TiDB: SET [HYPO] TIFLASH REPLICA n [LOCATION LABELS 'label1', ...].
 		// Note: no MySQL ALTER TABLE form starts with bare SET at this dispatch level.
 		// ALTER COLUMN col SET DEFAULT routes through the kwALTER branch, not here.
-		// Ref: parser.y:2193 (AlterTableSpec) + parser.y:2176-2183 (LocationLabelList).
+		// HYPO is read bare and pins a hypothetical replica for the optimizer;
+		// TIFLASH REPLICA must follow, so `SET HYPO` alone is a 1064.
+		// Ref: parser.y:2193,2204 (AlterTableSpec) + parser.y:2176-2183 (LocationLabelList).
 		p.advance()
+		hypo := false
+		if p.isBareWord("HYPO") {
+			p.advance()
+			hypo = true
+		}
 		if p.cur.Type == kwTIFLASH {
 			p.advance()
 			if _, ok := p.match(kwREPLICA); !ok {
@@ -847,6 +852,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			cmd.Type = nodes.ATSetTiFlashReplica
 			cmd.TiFlashReplica = count
 			cmd.TiFlashLocationLabels = labels
+			cmd.Hypo = hypo
 			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
@@ -921,6 +927,39 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// ADD STATS_EXTENDED [IF NOT EXISTS] name type (col, ...), TiDB's own:
+	// one extended statistic over a table's columns. STATS_EXTENDED is a
+	// keyword, so it never reads as a column name here.
+	//
+	// Ref: `"ADD" "STATS_EXTENDED" IfNotExists Identifier StatsType
+	// '(' ColumnNameList ')'` in TiDB v8.5.5 pkg/parser/parser.y.
+	if p.cur.Type == kwSTATS_EXTENDED {
+		p.advance()
+		cmd.Type = nodes.ATAddStatistics
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfNotExists = ine
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cmd.StatsName = name
+		statsType, err := p.parseStatsType()
+		if err != nil {
+			return nil, err
+		}
+		cmd.StatsType = statsType
+		cols, err := p.parseStatsColumnList()
+		if err != nil {
+			return nil, err
+		}
+		cmd.StatsColumns = cols
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
 	}
 
 	// ADD PARTITION [IF NOT EXISTS] [NO_WRITE_TO_BINLOG | LOCAL]
@@ -1085,6 +1124,27 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	}
 
 	switch p.cur.Type {
+	case kwSTATS_EXTENDED:
+		// DROP STATS_EXTENDED [IF EXISTS] name, TiDB's own. STATS_EXTENDED is
+		// a keyword, so it never reads as a column name here.
+		//
+		// Ref: `"DROP" "STATS_EXTENDED" IfExists Identifier` in TiDB v8.5.5
+		// pkg/parser/parser.y.
+		p.advance()
+		cmd.Type = nodes.ATDropStatistics
+		ie, err := p.parseIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ie
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cmd.StatsName = name
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+
 	case kwPARTITION:
 		// DROP PARTITION [IF EXISTS] partition_names
 		p.advance()

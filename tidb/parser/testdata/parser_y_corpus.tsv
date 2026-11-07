@@ -87,7 +87,7 @@ accept	accept	LocationLabelList#1	ALTER DATABASE SET TIFLASH REPLICA 1
 accept	accept	LocationLabelList#2	ALTER DATABASE SET TIFLASH REPLICA 1 LOCATION LABELS 's'
 accept	accept	AlterTableSpec#1	ALTER TABLE ident COLLATE BINARY
 accept	accept	AlterTableSpec#2	ALTER TABLE ident SET TIFLASH REPLICA 1
-reject	accept	AlterTableSpec#3	ALTER TABLE ident SET HYPO TIFLASH REPLICA 1
+accept	accept	AlterTableSpec#3	ALTER TABLE ident SET HYPO TIFLASH REPLICA 1
 accept	accept	AlterTableSpec#4	ALTER TABLE ident CONVERT TO CHARSET BINARY
 accept	accept	AlterTableSpec#5	ALTER TABLE ident CONVERT TO CHARSET DEFAULT
 accept	accept	AlterTableSpec#6	ALTER TABLE ident ADD ident JSON
@@ -97,7 +97,7 @@ reject	reject	AlterTableSpec#9	ALTER TABLE ident ADD VECTOR INDEX(ident)
 accept	accept	AlterTableSpec#10	ALTER TABLE ident ADD PARTITION
 accept	accept	AlterTableSpec#11	ALTER TABLE ident ADD PARTITION PARTITIONS 1
 accept	accept	AlterTableSpec#12	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
-reject	accept	AlterTableSpec#13	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+accept	accept	AlterTableSpec#13	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
 accept	accept	AlterTableSpec#14	ALTER TABLE ident ATTRIBUTES DEFAULT
 accept	accept	AlterTableSpec#15	ALTER TABLE ident STATS_OPTIONS DEFAULT
 accept	accept	AlterTableSpec#16	ALTER TABLE ident CHECK PARTITION ALL
@@ -106,7 +106,7 @@ accept	accept	AlterTableSpec#18	ALTER TABLE ident DROP ident
 accept	accept	AlterTableSpec#19	ALTER TABLE ident DROP PRIMARY KEY
 accept	accept	AlterTableSpec#20	ALTER TABLE ident DROP PARTITION ident
 accept	accept	AlterTableSpec#21	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
-reject	accept	AlterTableSpec#22	ALTER TABLE ident DROP STATS_EXTENDED ident
+accept	accept	AlterTableSpec#22	ALTER TABLE ident DROP STATS_EXTENDED ident
 accept	accept	AlterTableSpec#23	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 accept	accept	AlterTableSpec#24	ALTER TABLE ident TRUNCATE PARTITION ALL
 accept	accept	AlterTableSpec#25	ALTER TABLE ident OPTIMIZE PARTITION ALL
@@ -381,9 +381,9 @@ accept	accept	SignedLiteral#3	ADMIN ALTER DDL JOBS 1 ident = - 1
 accept	accept	NumLiteral#1	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1
 accept	accept	NumLiteral#2	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1e0
 accept	accept	NumLiteral#3	CREATE SEQUENCE ident STATS_SAMPLE_RATE 1.5
-reject	accept	StatsType#1	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
-reject	accept	StatsType#2	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
-reject	accept	StatsType#3	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
+accept	accept	StatsType#1	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+accept	accept	StatsType#2	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
+accept	accept	StatsType#3	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
 accept	accept	BindingStatusType#1	SET BINDING ENABLED FOR SELECT *
 accept	accept	BindingStatusType#2	SET BINDING DISABLED FOR SELECT *
 accept	accept	CreateStatisticsStmt#1	CREATE STATISTICS ident(CARDINALITY) ON ident(ident)
@@ -545,7 +545,7 @@ accept	accept	DeleteFromStmt#4	WITH ident AS(SELECT *) DELETE FROM ident USING i
 accept	accept	DatabaseSym#1	FLASHBACK DATABASE ident
 accept	accept	DropDatabaseStmt#1	DROP DATABASE ident
 accept	accept	DropIndexStmt#1	DROP INDEX ident ON ident
-reject	accept	DropIndexStmt#2	DROP HYPO INDEX ident ON ident
+accept	accept	DropIndexStmt#2	DROP HYPO INDEX ident ON ident
 accept	accept	DropTableStmt#1	DROP TABLE ident
 accept	accept	OptTemporary#1	CREATE TABLE ident
 accept	accept	OptTemporary#2	CREATE TEMPORARY TABLE ident
@@ -1811,8 +1811,8 @@ accept	accept	IndexHint#1	DELETE FROM ident USE KEY()
 accept	accept	IndexNameList#1	ANALYZE TABLE ident INDEX
 accept	accept	IndexNameList#2	ANALYZE TABLE ident INDEX ident
 accept	accept	IndexNameList#3	ANALYZE TABLE ident INDEX, ident
-reject	accept	IndexNameList#4	ANALYZE TABLE ident INDEX PRIMARY
-reject	accept	IndexNameList#5	ANALYZE TABLE ident INDEX, PRIMARY
+accept	accept	IndexNameList#4	ANALYZE TABLE ident INDEX PRIMARY
+accept	accept	IndexNameList#5	ANALYZE TABLE ident INDEX, PRIMARY
 accept	accept	IndexHintList#1	DELETE FROM ident USE KEY()
 accept	accept	IndexHintList#2	DELETE FROM ident USE KEY() USE KEY()
 accept	accept	IndexHintListOpt#1	DELETE FROM ident
