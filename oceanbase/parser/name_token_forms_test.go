@@ -203,13 +203,14 @@ func TestDotSeparatorTokens(t *testing.T) {
 // TestNamesAfterExecCommentsStayLinear guards curIsVariableOrIntroducer, which reads the
 // first byte of every name: through inputText it expanded the executable comments before
 // the token, so 32,000 names in comments took 1.6 s to parse and 16,000 a quarter of that.
+// The budget below is CPU time, not clock time.
 func TestNamesAfterExecCommentsStayLinear(t *testing.T) {
 	sql := "SELECT " + strings.Repeat("/*! a, */", 64000) + "a FROM t"
-	start := time.Now()
+	start := cpuTime(t)
 	if _, err := Parse(sql); err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Parse over 64,000 names in executable comments took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("Parse over 64,000 names in executable comments took %v of CPU time", elapsed)
 	}
 }

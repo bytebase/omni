@@ -657,14 +657,15 @@ func TestPriorBackup(t *testing.T) {
 // TestInFeatureGateStaysLinear: openers of gates that never close, ahead of a
 // WITH, are answered by one scan. Asking parser.FeatureGate again for each one
 // took seconds for 8,000 of them.
+// The budget below is CPU time, not clock time.
 func TestInFeatureGateStaysLinear(t *testing.T) {
 	sql := strings.Repeat("/*T![clustered_index] ", 20000) + "WITH x AS (SELECT 1 AS id) SELECT id FROM x"
-	start := time.Now()
+	start := cpuTime(t)
 	if inFeatureGate(sql, review.Range{Start: 0, End: len(sql)}, strings.Index(sql, "WITH")) {
 		t.Errorf("a WITH after gates that never close reads as gated")
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("inFeatureGate over 20,000 unclosed gates took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("inFeatureGate over 20,000 unclosed gates took %v of CPU time", elapsed)
 	}
 }
 

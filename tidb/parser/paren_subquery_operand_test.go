@@ -128,6 +128,7 @@ func TestParenSubqueryOperandOracle(t *testing.T) {
 // TestParenSubqueryOperandStaysLinear: the verdict of every block the
 // lookahead passes is recorded, so asking at every level of a scalar paren
 // layer around a subquery operand costs nothing.
+// The budget below is CPU time, not clock time.
 func TestParenSubqueryOperandStaysLinear(t *testing.T) {
 	raiseNestingLimit(t)
 	const depth = 20000
@@ -140,12 +141,12 @@ func TestParenSubqueryOperandStaysLinear(t *testing.T) {
 		{"subquery operand in an IN list", "SELECT 1 IN " + nest(depth, "(", "(SELECT 1) = 0", ")"), false},
 		{"unclosed subquery operand in parentheses", "SELECT " + strings.Repeat("(", depth) + "(SELECT 1) = 0", true},
 	} {
-		start := time.Now()
+		start := cpuTime(t)
 		if _, err := Parse(tc.sql); (err != nil) != tc.wantErr {
 			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, briefErr(err), tc.wantErr)
 		}
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("%s: Parse through %d levels took %v", tc.name, depth, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d levels took %v of CPU time", tc.name, depth, elapsed)
 		}
 	}
 }

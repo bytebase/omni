@@ -476,15 +476,16 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	ParseAndCheck(t, "SELECT a MULTISET EXCEPT b FROM t")
 
 	// Any number of wrappers come off in one pass: 32,000 took 6.8 s when
-	// each was peeled with a scan of its own.
+	// each was peeled with a scan of its own. The budget is CPU time, not
+	// clock time.
 	deep := "SELECT x. FROM " + strings.Repeat("(", 32000) + "SELECT c FROM t" + strings.Repeat(")", 32000) + " x"
-	start := time.Now()
+	start := cpuTime(t)
 	if scope := CollectCompletion(deep, len("SELECT x.")).Scope; scope == nil || len(scope.LocalReferences) != 1 ||
 		len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "C" {
 		t.Errorf("CollectCompletion through 32,000 wrappers: scope = %+v, want X with C", scope)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("CollectCompletion through 32,000 wrappers took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+		t.Errorf("CollectCompletion through 32,000 wrappers took %v of CPU time", elapsed)
 	}
 	if scope := CollectCompletion("SELECT x. FROM (SELECT multiset EXCEPT SELECT c FROM t) x", len("SELECT x.")).Scope; scope == nil ||
 		len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "MULTISET" {

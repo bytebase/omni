@@ -526,6 +526,7 @@ func TestParseCaseExpressionErrorPosition(t *testing.T) {
 // CASE selectors exponential and long sums of CASE columns quadratic. Each
 // shape below takes tens of milliseconds when linear, and seconds to minutes
 // otherwise.
+// The budgets below are CPU time, not clock time.
 func TestParseCaseDecisionStaysLinear(t *testing.T) {
 	const depth = 4000
 	selector := "1"
@@ -539,12 +540,12 @@ func TestParseCaseDecisionStaysLinear(t *testing.T) {
 		"nested CASE columns":            "SELECT a FROM t WHERE " + column,
 		"sum of 20000 CASE column terms": "SELECT " + strings.Repeat("case + ", 20000) + "1 FROM t",
 	} {
-		start := time.Now()
+		start := cpuTime(t)
 		if _, err := Parse(sql); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if elapsed := time.Since(start); elapsed > 5*time.Second {
-			t.Fatalf("%s took %s", name, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 5*time.Second {
+			t.Fatalf("%s took %s of CPU time", name, elapsed)
 		}
 	}
 }

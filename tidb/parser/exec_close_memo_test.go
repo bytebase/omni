@@ -37,16 +37,17 @@ var execCloseShapes = []struct {
 // the linked execStack: without them, 20,000 executable comments that never
 // close took hundreds of milliseconds to lex and twice as many four times as
 // long, and 20,000 nested ones took seconds.
+// The budget below is CPU time, not clock time.
 func TestExecCommentCloseStaysLinear(t *testing.T) {
 	const n = 20000
 	for _, tc := range execCloseShapes {
 		sql := tc.sql(n)
-		start := time.Now()
+		start := cpuTime(t)
 		_, _ = Parse(sql)
 		_ = Tokenize(sql)
 		_ = Split(sql)
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("%s: Parse, Tokenize and Split over %d comments took %v", tc.name, n, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse, Tokenize and Split over %d comments took %v of CPU time", tc.name, n, elapsed)
 		}
 	}
 }

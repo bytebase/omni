@@ -246,26 +246,27 @@ func TestExecFallbackStaysLinear(t *testing.T) {
 }
 
 // assertLinearGrowth parses sql(n) and sql(8n), each the fastest of three
-// runs, and fails when the larger took more than 24 times as long as the
-// smaller: linear work grows eightfold and quadratic work sixty-fourfold, so
-// the bound holds on a slow machine and still catches quadratic work.
+// runs measured in CPU time, and fails when the larger took more than 24
+// times as long as the smaller: linear work grows eightfold and quadratic
+// work sixty-fourfold, so the bound holds on a slow machine and still catches
+// quadratic work.
 func assertLinearGrowth(t *testing.T, name string, sql func(n int) string, n int) {
 	t.Helper()
 	fastest := func(text string) time.Duration {
 		best := time.Duration(math.MaxInt64)
 		for range 3 {
 			runtime.GC()
-			start := time.Now()
+			start := cpuTime(t)
 			if _, err := Parse(text); err != nil {
 				t.Fatalf("%s: Parse: %v", name, err)
 			}
-			best = min(best, time.Since(start))
+			best = min(best, cpuSince(t, start))
 		}
 		return best
 	}
 	small, large := fastest(sql(n)), fastest(sql(8*n))
 	if large > 24*small {
-		t.Errorf("%q: %d took %v and %d took %v, %.0f times as long where linear work takes 8",
+		t.Errorf("%q: %d took %v and %d took %v, %.0f times as long in CPU time where linear work takes 8",
 			name, n, small, 8*n, large, float64(large)/float64(small))
 	}
 }

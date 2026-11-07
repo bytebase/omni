@@ -356,11 +356,12 @@ func TestANSIDatatypes(t *testing.T) {
 	}
 	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY("+nines(101)+") OF NUMBER; BEGIN NULL; END;")
 	// Only the digits a NUMBER keeps are converted: a limit of a million
-	// digits, which its exponent brings back to 1.1, checks at once.
-	start := time.Now()
+	// digits, which its exponent brings back to 1.1, checks at once. The budget
+	// is CPU time, not clock time.
+	start := cpuTime(t)
 	ParseAndCheck(t, "CREATE TYPE t AS VARRAY("+strings.Repeat("1", 1000001)+"e-1000000) OF NUMBER")
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("a VARRAY limit of a million digits took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > time.Second {
+		t.Errorf("a VARRAY limit of a million digits took %v of CPU time", elapsed)
 	}
 	// An explicit SELF is the first parameter (PLS-00410, as a duplicate of
 	// the implicit one) and is not OUT (PLS-00594), in CREATE and ALTER TYPE

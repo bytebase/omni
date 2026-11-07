@@ -10,6 +10,7 @@ import (
 // parser asks what a run of '(' opens at every nesting level as it descends,
 // and answering by rescanning made 10,000 nested parens take seconds. Each
 // shape below takes milliseconds when linear and tens of seconds otherwise.
+// The budget below is CPU time, not clock time.
 func TestNestedParensStayLinear(t *testing.T) {
 	raiseNestingLimit(t)
 	const depth = 20000
@@ -32,12 +33,12 @@ func TestNestedParensStayLinear(t *testing.T) {
 		{"join group", "SELECT * FROM " + nest("(", "t", ")"), false},
 		{"right-deep join group", "SELECT * FROM " + nest("((t JOIN ", "t", " ON 1))"), false},
 	} {
-		start := time.Now()
+		start := cpuTime(t)
 		if _, err := Parse(tc.sql); (err != nil) != tc.wantErr {
 			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
 		}
-		if elapsed := time.Since(start); elapsed > 2*time.Second {
-			t.Errorf("%s: Parse through %d nested parens took %v", tc.name, depth, elapsed)
+		if elapsed := cpuSince(t, start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d nested parens took %v of CPU time", tc.name, depth, elapsed)
 		}
 	}
 }

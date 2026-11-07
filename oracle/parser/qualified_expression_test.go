@@ -285,12 +285,13 @@ func TestQualifiedExpressionTree(t *testing.T) {
 // TestNestedTrimCost checks that telling TRIM's own syntax from a call
 // takes one pass for nested calls: 4,000 nested TRIM calls took 1.5 s when
 // each call scanned its group anew.
+// The budget below is CPU time, not clock time.
 func TestNestedTrimCost(t *testing.T) {
 	sql := "SELECT " + strings.Repeat("TRIM(", 4000) + "'x'" + strings.Repeat(")", 4000) + " FROM dual"
-	start := time.Now()
+	start := cpuTime(t)
 	ParseAndCheck(t, sql)
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("Parse through 4,000 nested TRIM calls took %v", elapsed)
+	if elapsed := cpuSince(t, start); elapsed > time.Second {
+		t.Errorf("Parse through 4,000 nested TRIM calls took %v of CPU time", elapsed)
 	}
 	ParseAndCheck(t, "SELECT TRIM(TRIM(LEADING 'x' FROM TRIM('x' FROM 'xa')) FROM 'b') FROM dual")
 	ParseAndCheck(t, "BEGIN v := trim(1 => 2); END;")
