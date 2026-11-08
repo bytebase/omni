@@ -1311,20 +1311,51 @@ func numberStringForm(val string) (string, bool) {
 		// thirty-digit whole number keeps all thirty.
 		return digits, true
 	}
-	whole, fraction, _ := strings.Cut(strings.TrimPrefix(digits, "-"), ".")
-	if len(whole) <= 15 && len(fraction) <= 15 {
-		return digits, true
-	}
-	// Past what a plain decimal holds, the value is written as the double's
-	// own shortest form, which is a mantissa and an exponent with nothing
-	// spare: measured, (0001e15), (1E15), (1e+15), (1e015), (1.0e15), (10e14)
-	// and (0.1e16) all come back '1e15', (1.50e15) comes back '1.5e15', and
-	// (1e308) and (1e-100) as they stand.
+	// An approximate literal is a double, so the value is the double's and not
+	// the digits the literal was written with: measured,
+	// (123456789012345.123456789e0) comes back '123456789012345.12' and
+	// (1.23456789012345678e5) '123456.78901234567', where the same digits
+	// without the exponent keep every one of them.
 	f, err := strconv.ParseFloat(digits, 64)
 	if err != nil {
 		return "", false
 	}
-	return strings.Replace(strconv.FormatFloat(f, 'g', -1, 64), "e+", "e", 1), true
+	return doubleText(f), true
+}
+
+// doubleText writes a double the way the server writes one: the shortest
+// digits that read back as it, plainly where the point sits inside the
+// positions a plain decimal gets and in exponent form where it does not.
+//
+// Measured on mariadb:11.8.8 through a string column's default, which is
+// where the conversion shows. Reading the point's position as the digit it
+// sits after — 15 for 1e14, 16 for 1e15 — the plain form is written while
+// that position is at most 15, and past it only when the value has digits of
+// its own beyond the point: (1e14) is '100000000000000' and
+// (123456789012345.6e0) is '123456789012345.6', while (1e15), (1.5e15),
+// (1.23e15) and (1234567890123456e0) are '1e15', '1.5e15', '1.23e15' and
+// '1.234567890123456e15' — and (1234567890123456.7e0), at the same position
+// but with a seventeenth digit, is '1234567890123456.8'. Below the point the
+// plain form runs out at fifteen places: (1e-15) is '0.000000000000001' and
+// (1.5e-15) is '0.0000000000000015', where (1e-16) is '1e-16'.
+func doubleText(f float64) string {
+	// FormatFloat's 'e' gives the shortest mantissa and the exponent, which
+	// is where both the digit count and the point's position come from.
+	sci := strconv.FormatFloat(f, 'e', -1, 64)
+	mantissa, exp, _ := strings.Cut(sci, "e")
+	decExp, err := strconv.Atoi(exp)
+	if err != nil {
+		return sci
+	}
+	digits := len(strings.TrimPrefix(strings.Replace(mantissa, ".", "", 1), "-"))
+	point := decExp + 1
+	if point >= -14 && (point <= 15 || digits > point) {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	// The exponent form is written without a plus or a padded exponent, which
+	// is what the server writes: 'g' would hand back a plain form here for a
+	// value whose digits fill the point's position.
+	return mantissa + "e" + strconv.Itoa(decExp)
 }
 
 // wholeNumberOf reads a default written as a number and reports the whole,

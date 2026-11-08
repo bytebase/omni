@@ -582,8 +582,18 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 // PRIMARY.
 func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
 	for _, cmd := range cmds {
-		if cmd.Type == nodes.ATDropConstraint && strings.EqualFold(cmd.Name, "PRIMARY") {
-			return true
+		// The primary key has more than one spelling, and the parser files
+		// them under two commands: DROP PRIMARY KEY and the two DROP
+		// CONSTRAINT forms are a dropped constraint named PRIMARY, while
+		// DROP INDEX `PRIMARY` and DROP KEY `PRIMARY` are a dropped index of
+		// that name. Measured on mariadb:11.8.8, every one of them lets the
+		// same statement drop the key's columns, whichever order the clauses
+		// come in.
+		switch cmd.Type {
+		case nodes.ATDropConstraint, nodes.ATDropIndex:
+			if strings.EqualFold(cmd.Name, "PRIMARY") {
+				return true
+			}
 		}
 	}
 	return false

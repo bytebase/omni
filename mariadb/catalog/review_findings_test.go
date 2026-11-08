@@ -4037,3 +4037,142 @@ func TestReview_LongExactNumericDefault(t *testing.T) {
 		}
 	}
 }
+
+// TestReview_ApproximateStringDefaultIsTheDouble covers a default written with
+// an exponent on a column that stores a value. The literal is a double, so the
+// value is the double's and not the digits it was written with — and where the
+// point sits in that value decides whether it is written plainly or with an
+// exponent. Taking the expanded digits whenever they fit a plain decimal kept
+// digits no double holds: (123456789012345.123456789e0) came out with all
+// twenty-four.
+//
+// Measured on mariadb:11.8.8, with the stored characters read back on both
+// sides.
+func TestReview_ApproximateStringDefaultIsTheDouble(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, literal string }{
+		// Digits past what a double holds are the double's, not the
+		// literal's.
+		{"more_digits_than_a_double_holds", "123456789012345.123456789e0"},
+		{"mantissa_past_the_point", "1.23456789012345678e5"},
+		{"seventeen_significant", "1234567890123456.7e0"},
+		{"sixteen_significant", "123456789012345.6e0"},
+		{"rounds_to_a_whole", "9.9999999999999999e0"},
+		{"the_classic_tie", "2.675e0"},
+		{"a_double_that_is_not_the_decimal", "0.30000000000000004e0"},
+		{"just_past_one", "1.0000000000000002e0"},
+		{"pi", "3.14159265358979e0"},
+		// Where the point sits decides the notation.
+		{"plain_at_fifteen", "1e14"},
+		{"plain_at_fifteen_with_a_mantissa", "1.23e14"},
+		{"exponent_at_sixteen", "1e15"},
+		{"exponent_at_sixteen_with_a_mantissa", "1.23e15"},
+		{"sixteen_digits_no_fraction", "1234567890123456e0"},
+		{"seventeen_digits_no_fraction", "12345678901234567e0"},
+		{"small_plain", "1e-15"},
+		{"small_plain_with_a_mantissa", "1.5e-15"},
+		{"small_exponent", "1e-16"},
+		{"small_digits", "0.00012345678901234567e0"},
+		{"whole", "1e0"},
+		{"scaled_whole", "1.5e1"},
+		// The exact twins keep every digit.
+		{"exact_twin", "123456789012345.123456789"},
+		{"exact_tie", "2.675"},
+	} {
+		for _, typ := range []string{"VARCHAR(60)", "VARBINARY(60)"} {
+			name := tc.name
+			if strings.HasPrefix(typ, "VARBINARY") {
+				name += "_as_bytes"
+			}
+			t.Run(name, func(t *testing.T) {
+				scenarioReset(t, mc)
+				c := scenarioNewCatalog(t)
+				ddl := "CREATE TABLE t (a " + typ + " DEFAULT (" + tc.literal + "))"
+				runOnBoth(t, mc, c, ddl+";")
+				assertDefaultMatches(t, mc, c)
+
+				if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+					t.Fatalf("oracle insert: %v", err)
+				}
+				var want string
+				oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+				if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+					t.Fatalf("oracle drop: %v", err)
+				}
+				replay := c.ShowCreateTable("testdb", "t")
+				if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+					t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+				}
+				if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+					t.Fatalf("oracle insert after replay: %v", err)
+				}
+				var got string
+				oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+				if got != want {
+					t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+						want, got, replay)
+				}
+			})
+		}
+	}
+}
+
+// TestReview_EveryPrimaryKeyDropSpelling covers the spellings that take the
+// primary key away, which the statement-wide check has to count all of: the
+// parser files DROP PRIMARY KEY and the DROP CONSTRAINT forms as a dropped
+// constraint and DROP INDEX `PRIMARY` and DROP KEY `PRIMARY` as a dropped
+// index, and only the first was counted — so dropping a key's column beside
+// one of the index spellings was refused.
+//
+// Measured on mariadb:11.8.8: each of these is accepted whichever order the
+// clauses come in, where the column drop alone answers 1072.
+func TestReview_EveryPrimaryKeyDropSpelling(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		alter   string
+		accepts bool
+	}{
+		{"drop_index_primary", "ALTER TABLE t DROP COLUMN a, DROP INDEX `PRIMARY`", true},
+		{"drop_index_primary_first", "ALTER TABLE t DROP INDEX `PRIMARY`, DROP COLUMN a", true},
+		{"drop_key_primary", "ALTER TABLE t DROP COLUMN a, DROP KEY `PRIMARY`", true},
+		{"drop_primary_key", "ALTER TABLE t DROP COLUMN a, DROP PRIMARY KEY", true},
+		{"drop_constraint_primary", "ALTER TABLE t DROP COLUMN a, DROP CONSTRAINT `PRIMARY`", true},
+		{"the_column_alone", "ALTER TABLE t DROP COLUMN a", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT, c INT, PRIMARY KEY (a,b));")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.alter)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.alter, oracleErr, tc.accepts)
+			}
+			results, err := c.Exec(tc.alter+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: %q gave %v, want accepted=%v", tc.alter, omniErr, tc.accepts)
+			}
+			if !tc.accepts {
+				if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+					t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+				}
+				return
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
