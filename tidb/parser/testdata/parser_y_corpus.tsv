@@ -482,14 +482,14 @@ accept	accept	PartDefOptionList#1	ALTER TABLE ident PARTITION ident
 accept	accept	PartDefOptionList#2	ALTER TABLE ident PARTITION ident COMMENT 's'
 accept	accept	PartDefOption#1	CREATE SEQUENCE ident COMMENT 's'
 accept	accept	PartDefOption#2	CREATE SEQUENCE ident ENGINE 's'
-reject	accept	PartDefOption#3	CREATE SEQUENCE ident STORAGE ENGINE 's'
+accept	accept	PartDefOption#3	CREATE SEQUENCE ident STORAGE ENGINE 's'
 accept	accept	PartDefOption#4	CREATE SEQUENCE ident INSERT_METHOD 's'
 accept	accept	PartDefOption#5	CREATE SEQUENCE ident DATA DIRECTORY 's'
 accept	accept	PartDefOption#6	CREATE SEQUENCE ident INDEX DIRECTORY 's'
 accept	accept	PartDefOption#7	CREATE SEQUENCE ident MAX_ROWS 1
 accept	accept	PartDefOption#8	CREATE SEQUENCE ident MIN_ROWS 1
 accept	accept	PartDefOption#9	CREATE SEQUENCE ident TABLESPACE ident
-reject	accept	PartDefOption#10	CREATE SEQUENCE ident NODEGROUP 1
+accept	accept	PartDefOption#10	CREATE SEQUENCE ident NODEGROUP 1
 accept	accept	PartDefOption#11	CREATE SEQUENCE ident PLACEMENT POLICY 's'
 accept	accept	PartDefValuesOpt#1	ALTER TABLE ident ADD PARTITION(PARTITION ident)
 accept	accept	PartDefValuesOpt#2	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
@@ -2348,7 +2348,7 @@ reject	reject	TableOption#34	CREATE SEQUENCE ident ENCRYPTION 's'
 accept	accept	TableOption#35	CREATE SEQUENCE ident TTL ident + INTERVAL FALSE SECOND_MICROSECOND
 reject	reject	TableOption#36	CREATE SEQUENCE ident TTL_ENABLE 's'
 reject	reject	TableOption#37	CREATE SEQUENCE ident TTL_JOB_INTERVAL 's'
-reject	accept	TableOption#38	CREATE SEQUENCE ident AFFINITY 's'
+accept	accept	TableOption#38	CREATE SEQUENCE ident AFFINITY 's'
 accept	accept	ForceOpt#1	CREATE SEQUENCE ident AUTO_INCREMENT 1
 accept	accept	ForceOpt#2	CREATE SEQUENCE ident FORCE AUTO_INCREMENT 1
 accept	accept	StatsPersistentVal#1	CREATE SEQUENCE ident STATS_PERSISTENT DEFAULT

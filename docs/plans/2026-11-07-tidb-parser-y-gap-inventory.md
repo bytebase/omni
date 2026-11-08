@@ -14,15 +14,15 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #725 | after #731 | after #733 | after #736 | after #737 | now |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,782 | 2,799 | 2,805 | 2,810 | 2,814 | 2,818 |
-| gap: TiDB accepts, omni rejects | 152 | 40 | 23 | 17 | 12 | 8 | 4 |
-| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
-| no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| | first | after #725 | after #731 | after #733 | after #736 | after #737 | after #738 | now |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| both accept | 2,670 | 2,782 | 2,799 | 2,805 | 2,810 | 2,814 | 2,818 | 2,821 |
+| gap: TiDB accepts, omni rejects | 152 | 40 | 23 | 17 | 12 | 8 | 4 | 1 |
+| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
+| no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
-omni parses **2,814 of the 2,822 alternatives TiDB accepts — 99.7%**, with zero
+omni parses **2,821 of the 2,822 alternatives TiDB accepts — 100.0%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
@@ -70,7 +70,7 @@ forks, each measured to take `CHARACTER SET BINARY` on LOAD DATA; OceanBase
 diverges on the short `CHARSET` spelling, which it answers 1064 to where MySQL
 and MariaDB take it, so that arm stays a plain identifier there.
 
-The **now** column is after the `?`-parameter-marker-in-expression cluster
+The **after #738** column is after the `?`-parameter-marker-in-expression cluster
 closed (`fix(tidb,mysql,mariadb,oceanbase): accept ? parameter marker as
 operand, LEAD/LAG offset and window-frame bound`): 4 rows flipped from gap to
 both-accept, zero new over-acceptances. The existing leaf `ParamMarkerExpr`
@@ -85,6 +85,20 @@ accept `?` in all three positions; MariaDB accepts it as an operand and LEAD/LAG
 offset but answers 1064 to a `?` frame bound (its bound is a numeric literal or
 INTERVAL), so `mariadb`'s `parseFrameBound` keeps the marker out of that one
 position alone.
+
+The **now** column is after the CREATE SEQUENCE table-option cluster closed
+(`fix(tidb): accept STORAGE ENGINE / NODEGROUP / AFFINITY table options on
+CREATE SEQUENCE`): 3 rows flipped from gap to both-accept, zero new
+over-acceptances. `CreateSequenceStmt`'s option list is the general
+`CreateTableOptionListOpt` (parser.y:12804), so every `TableOption` TiDB admits
+on CREATE TABLE it admits on a sequence; omni's `parseTableOption` was missing
+three of them. `STORAGE ENGINE [=] name` (the `PartDefOption` arm that names the
+same engine ENGINE does), `NODEGROUP [=] n` and `AFFINITY [=] name` (an
+unreserved keyword omni lexes as an identifier, so matched as a bare word) each
+gained a case, with STORAGE ENGINE and AFFINITY taking a `StringName` and
+NODEGROUP a `LengthNum`, each refusal held to the engine. All three are
+TiDB-only: `mysql` and `oceanbase` have no CREATE SEQUENCE, and `mariadb`'s takes
+no trailing table options, so nothing ported.
 
 ## The gaps, by theme
 
@@ -116,7 +130,7 @@ learned the optional ASC/DESC direction (`ByItem: Expression Order`), which move
 The general `?`-in-expression rows (`SimpleExpr`, `WindowFrameStart/Bound`,
 `OptLeadLagInfo`) were a separate param-marker-as-expression cluster, since
 **closed** when `parsePrimaryExpr` made the same `ParamMarkerExpr` leaf a
-`SimpleExpr` alternative (see the **now** column above).
+`SimpleExpr` alternative (see the **after #738** column above).
 
 The stored-procedure cluster (8 rows: `procedurceElseIfs`,
 `ProcedureProcStmt1s`, `ProcedureIf`, `ProcedureIfstmt`, `ProcedureProcStmt`)
@@ -158,12 +172,11 @@ The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
 engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
 zero new over-acceptances.
 
-The 4 that remain are unrelated to usernames, LIMIT, procedures, statistics,
-SHOW, collation/convert/weight_string, LOAD DATA / OUTFILE field options, or the
-`?` parameter marker:
+The 1 that remains is unrelated to usernames, LIMIT, procedures, statistics,
+SHOW, collation/convert/weight_string, LOAD DATA / OUTFILE field options, the
+`?` parameter marker, or CREATE SEQUENCE options:
 
-- **CREATE SEQUENCE options and ALTER IGNORE TABLE (~4 rows).**
-  `TableOption`/`PartDefOption` on `CREATE SEQUENCE`, `IgnoreOptional`.
+- **ALTER IGNORE TABLE (1 row).** `IgnoreOptional`.
 
 A fix lands as a small PR of the kind §3.2's work landed as: close the rule,
 rerun `TestTiDBParserYCorpusOmniVerdicts -update`, and the diff is the rows it
@@ -176,6 +189,4 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 
 | Rule | n | Example (shortest form) |
 |---|---:|---|
-| `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
-| `TableOption` | 1 | CREATE SEQUENCE ident AFFINITY 's' |

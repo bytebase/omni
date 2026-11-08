@@ -139,6 +139,38 @@ var createTableOptionsAccepted = []string{
 	// The ordinary temporary table is untouched by any of it.
 	`create temporary table t (a int, b varchar(255))`,
 	`drop temporary table t`,
+
+	// STORAGE ENGINE, NODEGROUP and AFFINITY are table options TiDB admits on
+	// CREATE TABLE and CREATE SEQUENCE alike (CreateSequenceStmt's option list
+	// is the general CreateTableOptionListOpt). STORAGE ENGINE names the same
+	// engine ENGINE does; its value is a StringName, with or without the `=`.
+	// NODEGROUP takes an integer. AFFINITY takes a StringName. Ref: PartDefOption
+	// (`"STORAGE" "ENGINE"`, `"NODEGROUP"`) and TableOption (`"AFFINITY"`) in
+	// TiDB v8.5.5 pkg/parser/parser.y.
+	`CREATE TABLE t (a int) STORAGE ENGINE 'innodb'`,
+	`CREATE TABLE t (a int) STORAGE ENGINE = innodb`,
+	`CREATE TABLE t (a int) STORAGE ENGINE innodb`,
+	`CREATE TABLE t (a int) NODEGROUP 1`,
+	`CREATE TABLE t (a int) NODEGROUP = 2`,
+	`CREATE TABLE t (a int) AFFINITY 's'`,
+	`CREATE TABLE t (a int) AFFINITY = 's'`,
+	`CREATE TABLE t (a int) AFFINITY foo`,
+	`CREATE SEQUENCE s STORAGE ENGINE 's'`,
+	`CREATE SEQUENCE s STORAGE ENGINE = innodb`,
+	`CREATE SEQUENCE s NODEGROUP 1`,
+	`CREATE SEQUENCE s NODEGROUP = 2`,
+	`CREATE SEQUENCE s AFFINITY 's'`,
+	`CREATE SEQUENCE s AFFINITY foo`,
+	// The general table-option list means STORAGE {MEMORY|DISK} still parses on
+	// a sequence, and all three new options sit beside the others and repeat.
+	`CREATE SEQUENCE s STORAGE MEMORY`,
+	`CREATE SEQUENCE s ENGINE 'innodb' NODEGROUP 1 AFFINITY 's'`,
+	`CREATE SEQUENCE s START 1 STORAGE ENGINE 'innodb', AFFINITY 's'`,
+	// StringName's Identifier takes a backquoted name, a backquoted reserved
+	// word among them, so these parse where the bare reserved word below does
+	// not.
+	"CREATE SEQUENCE s AFFINITY `select`",
+	"CREATE TABLE t (a int) STORAGE ENGINE `select`",
 }
 
 var createTableOptionsRejected = []string{
@@ -269,6 +301,25 @@ var createTableOptionsRejected = []string{
 	`ALTER TABLE t SECONDARY_ENGINE_ATTRIBUTE='{"a":1}'`,
 	`alter table t ENGINE_ATTRIBUTE='{"a":1}'`,
 	`alter table t add column c int SECONDARY_ENGINE_ATTRIBUTE='{"a":1}'`,
+
+	// STORAGE ENGINE and AFFINITY take a StringName, so a bare number is a
+	// 1064; NODEGROUP takes a LengthNum, so a string is a 1064; and each needs
+	// its value. STORAGE on its own, without ENGINE or a media keyword, is also
+	// a 1064. These hold the StringName/LengthNum choice to the engine.
+	`CREATE SEQUENCE s STORAGE ENGINE 1`,
+	`CREATE TABLE t (a int) STORAGE ENGINE 1`,
+	`CREATE SEQUENCE s AFFINITY 1`,
+	`CREATE TABLE t (a int) AFFINITY 1`,
+	`CREATE SEQUENCE s NODEGROUP 's'`,
+	`CREATE TABLE t (a int) NODEGROUP 's'`,
+	`CREATE SEQUENCE s STORAGE ENGINE`,
+	`CREATE SEQUENCE s AFFINITY`,
+	`CREATE SEQUENCE s NODEGROUP`,
+	// StringName's Identifier excludes reserved words, so a bare SELECT is a
+	// 1064 (a backquoted one, in the accepted list, is a name).
+	`CREATE SEQUENCE s AFFINITY SELECT`,
+	`CREATE TABLE t (a int) STORAGE ENGINE SELECT`,
+	`CREATE SEQUENCE s AFFINITY = SELECT`,
 }
 
 func TestCreateTableOptionsAccepted(t *testing.T) {

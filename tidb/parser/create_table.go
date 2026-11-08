@@ -1484,6 +1484,24 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 	}
 
+	// AFFINITY [=] name is a TiDB table option. omni lexes AFFINITY as an
+	// identifier, not a keyword token (it is an unreserved keyword upstream),
+	// so it is matched as a bare word rather than in the type switch below.
+	// Its value is a StringName — a quoted string or an identifier, not a
+	// number.
+	//
+	// Ref: `"AFFINITY" EqOpt StringName` (TableOption) and StringName in TiDB
+	// v8.5.5 pkg/parser/parser.y.
+	if p.isBareWord("AFFINITY") {
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStringNameOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "AFFINITY", Value: val}, true, nil
+	}
+
 	switch p.cur.Type {
 	case kwENGINE:
 		p.advance()
@@ -1594,6 +1612,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
+		// STORAGE ENGINE [=] name is a table option of its own — the same one
+		// ENGINE names, taking a StringName. STORAGE {MEMORY|DISK|...} on its
+		// own is the storage media and takes a keyword.
+		//
+		// Ref: `"STORAGE" "ENGINE" EqOpt StringName` (PartDefOption) and
+		// `"STORAGE" "MEMORY"` / `"STORAGE" "DISK"` (TableOption) in TiDB
+		// v8.5.5 pkg/parser/parser.y.
+		if p.peekNext().Type == kwENGINE {
+			p.advance() // consume STORAGE
+			p.advance() // consume ENGINE
+			p.match('=')
+			val, err := p.consumeStringNameOptionValue()
+			if err != nil {
+				return nil, false, err
+			}
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE ENGINE", Value: val}, true, nil
+		}
 		p.advance()
 		p.match('=')
 		val, err := p.consumeOptionValue()
@@ -1885,6 +1920,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 
+	case kwNODEGROUP:
+		// NODEGROUP [=] number, a table/partition option TiDB accepts on
+		// CREATE TABLE and CREATE SEQUENCE alike. The value is a LengthNum —
+		// an integer, not a string.
+		//
+		// Ref: `"NODEGROUP" EqOpt LengthNum` (PartDefOption) in TiDB v8.5.5
+		// pkg/parser/parser.y.
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NODEGROUP", Value: val}, true, nil
+
 	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
@@ -1929,6 +1979,25 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		// when it is missing (`ENGINE =`, `PLACEMENT POLICY` at end of input).
 		return "", p.syntaxErrorAtCur()
 	}
+}
+
+// consumeStringNameOptionValue reads a StringName option value, the way STORAGE
+// ENGINE and AFFINITY take it: a quoted string or an Identifier. Identifier is a
+// plain or backquoted name or an unreserved keyword, so a bare number and a
+// reserved word (`SELECT`) are each a 1064.
+//
+// Ref: `StringName: stringLit | Identifier` in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) consumeStringNameOptionValue() (string, error) {
+	if p.cur.Type == tokSCONST {
+		val := p.cur.Str
+		p.advance()
+		return val, nil
+	}
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 // consumeIntegerOptionValue reads an option value that must be an integer.
