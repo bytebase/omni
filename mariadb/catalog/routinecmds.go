@@ -222,6 +222,17 @@ func formatReturnType(dt *nodes.DataType, dbCharset, dbCollation string) string 
 	}
 	if isStringRoutineType(name) {
 		charset := dt.Charset
+		if charset == "" && dt.Collate != "" {
+			// A RETURNS clause that names a collation and no charset takes
+			// that collation's charset, not the database's: measured on
+			// mariadb:11.8.8 in a utf8mb4 database,
+			// `RETURNS VARCHAR(20) COLLATE latin1_bin` comes back
+			// CHARSET latin1 COLLATE latin1_bin, and utf8mb3_bin comes back
+			// CHARSET utf8mb3. Pairing the collation with the database's
+			// charset instead wrote a combination the server refuses with
+			// 1253.
+			charset = normalizeCharsetName(charsetForCollation(dt.Collate))
+		}
 		if charset == "" {
 			charset = dbCharset
 		}

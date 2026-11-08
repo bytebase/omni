@@ -2463,3 +2463,131 @@ func TestReview_RenamedColumnKeepsItsCheckName(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ReturnTypeCollationCharset covers a RETURNS clause that names a
+// collation and no charset. The charset comes from that collation, not from
+// the database: pairing the named collation with the database's charset wrote
+// `CHARSET utf8mb4 COLLATE latin1_bin`, a combination the server refuses with
+// 1253, so the function could not be replayed.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE FUNCTION, in a utf8mb4
+// database.
+func TestReview_ReturnTypeCollationCharset(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for i, tc := range []struct{ name, returns string }{
+		{"collation_of_another_charset", "RETURNS VARCHAR(20) COLLATE latin1_bin"},
+		{"collation_of_the_database_charset", "RETURNS VARCHAR(20) COLLATE utf8mb4_bin"},
+		{"collation_of_utf8mb3", "RETURNS VARCHAR(20) COLLATE utf8mb3_bin"},
+		{"the_charsets_default_collation", "RETURNS VARCHAR(20) COLLATE latin1_swedish_ci"},
+		{"charset_only", "RETURNS VARCHAR(20) CHARACTER SET latin1"},
+		{"charset_and_its_collation", "RETURNS VARCHAR(20) CHARACTER SET latin1 COLLATE latin1_bin"},
+		{"neither", "RETURNS VARCHAR(20)"},
+		{"text", "RETURNS TEXT COLLATE latin1_bin"},
+		{"char", "RETURNS CHAR(5) COLLATE latin1_bin"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			fn := fmt.Sprintf("rf%d", i)
+			ddl := fmt.Sprintf("CREATE FUNCTION %s() %s DETERMINISTIC RETURN 'a'", fn, tc.returns)
+			runOnBoth(t, mc, c, ddl+";")
+
+			want, err := mc.showCreateFunction(fn)
+			if err != nil {
+				t.Fatalf("oracle: %v", err)
+			}
+			got := c.ShowCreateFunction("testdb", fn)
+			if got != want {
+				t.Errorf("function DDL mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+
+			// What omni wrote has to go back in: the charset and collation it
+			// pairs have to be a pair the server accepts.
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP FUNCTION "+fn); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, got); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, got)
+			}
+		})
+	}
+}
+
+// TestReview_UnionOrderByKeepsTheOldAlias is the finding that was not a bug.
+// A view that renames a UNION's output through its own column list keeps the
+// global ORDER BY as it was written, naming an alias the body no longer has.
+// The server's own stored text is what does that, and the view it just created
+// is unusable: measured on mariadb:11.8.8, after
+// `CREATE VIEW v (x) AS SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY z`
+// the stored body reads `select ... AS x ... union ... order by z`, selecting
+// from the view answers 1356 and replaying that body answers 1054, Unknown
+// column 'z' in 'ORDER BY'.
+//
+// Rewriting the reference would make omni's body differ from the one the
+// server holds and would make omni's view work where the server's is dead.
+// The engine's output is reproduced instead. Writing the ORDER BY against the
+// new name is not an option either: the server refuses `ORDER BY x` outright
+// at creation, also with 1054.
+func TestReview_UnionOrderByKeepsTheOldAlias(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+
+	for i, tc := range []struct {
+		name     string
+		cols     string
+		body     string
+		readable bool
+	}{
+		{"union_order_by_alias", "(x)",
+			"SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY z", false},
+		{"union_all", "(x)",
+			"SELECT a AS z FROM t UNION ALL SELECT b FROM t ORDER BY z", false},
+		{"order_desc", "(x)",
+			"SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY z DESC", false},
+		{"order_expression", "(x)",
+			"SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY z + 1", false},
+		{"two_columns", "(x, y)",
+			"SELECT a AS z, b AS w FROM t UNION SELECT b, a FROM t ORDER BY w, z", false},
+		// An ordinal survives the rename, and so does a view with no column
+		// list of its own.
+		{"order_by_ordinal", "(x)",
+			"SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY 1", true},
+		{"no_column_list", "",
+			"SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY z", true},
+		// Only a set operation keeps the alias: a plain SELECT has its ORDER
+		// BY rewritten to the column underneath.
+		{"plain_select", "(x)", "SELECT a AS z FROM t ORDER BY z", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			view := fmt.Sprintf("uv%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" "+tc.cols+" AS "+tc.body+";")
+
+			// SHOW CREATE VIEW still prints these: the stored text parses,
+			// it just names a column the body no longer has.
+			assertViewBodyMatches(t, mc, c, view)
+
+			_, selectErr := mc.db.ExecContext(mc.ctx, "SELECT * FROM "+view)
+			if tc.readable {
+				if selectErr != nil {
+					t.Errorf("oracle: expected the view to be usable, got %v", selectErr)
+				}
+				return
+			}
+			if selectErr == nil {
+				t.Errorf("oracle: expected SELECT * FROM %s to fail on the stored body", view)
+			}
+		})
+	}
+
+	// The ORDER BY cannot be written against the new name instead: the server
+	// refuses that at creation.
+	const refused = "CREATE VIEW uv_new (x) AS SELECT a AS z FROM t UNION SELECT b FROM t ORDER BY x"
+	if _, err := mc.db.ExecContext(mc.ctx, refused); err == nil {
+		t.Errorf("oracle: expected ORDER BY on the declared name to be refused")
+	}
+}
