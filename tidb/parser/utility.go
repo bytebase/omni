@@ -25,7 +25,11 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// TableOrTables is required and is TABLE or TABLES (parser.y): TiDB v8.5.5
+	// runs `OPTIMIZE TABLES t` and answers 1064 to `OPTIMIZE t` with neither.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after OPTIMIZE TABLE, offer table_ref.
 	p.checkCursor()

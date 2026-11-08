@@ -400,7 +400,7 @@ accept	accept	OPTIMIZE LOCAL TABLE t
 accept	accept	OPTIMIZE NO_WRITE_TO_BINLOG TABLE t
 accept	accept	OPTIMIZE TABLE t1, t2
 accept	accept	optimize table t1,t2
-reject	accept	optimize tables t1, t2
+accept	accept	optimize tables t1, t2
 accept	accept	create sequence seq increment 1 minvalue 0 maxvalue 1000
 accept	accept	create sequence seq minvalue 0 maxvalue 1000 increment 1
 accept	accept	create sequence seq cache = 1 minvalue 0 maxvalue -1000

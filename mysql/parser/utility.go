@@ -154,7 +154,11 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// table_or_tables is required and is TABLE or TABLES (sql_yacc.yy): MySQL 8.0
+	// runs `OPTIMIZE TABLES t` and answers 1064 to `OPTIMIZE t` with neither.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after OPTIMIZE TABLE, offer table_ref.
 	p.checkCursor()
