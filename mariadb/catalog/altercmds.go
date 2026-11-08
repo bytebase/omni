@@ -1283,19 +1283,33 @@ func isImplicitJSONCheck(con *Constraint) bool {
 	return con != nil && con.Type == ConCheck && con.Implicit
 }
 
-// renameImplicitJSONCheck follows a renamed JSON column: the check belongs to
-// the column and references it, so both move with it. Measured on
-// mariadb:11.8.8: after `ALTER TABLE t CHANGE COLUMN j k JSON` the check reads
-// CHECK (json_valid(`k`)).
+// moveColumnChecks follows a renamed column: the check it carries belongs to
+// it, so the ownership moves to the new name. Every check the column carries
+// moves, not only the json_valid one the catalog wrote — ownership left behind
+// would make the check the next column of that name's, and go with that one
+// when it is dropped.
 //
-// The check is found by the column it belongs to, since another constraint may
-// have taken its name in the meantime.
-func renameImplicitJSONCheck(tbl *Table, oldName, newName string) {
+// The name stays as it was: measured on mariadb:11.8.8, after
+// `CREATE TABLE t (a INT CHECK (a > 0)); ALTER TABLE t RENAME COLUMN a TO z`
+// the check is written on z and reads CHECK (`z` > 0), while
+// information_schema.CHECK_CONSTRAINTS still calls it a — and still a after
+// a second rename to w. A JSON column's check behaves the same way.
+//
+// The expression is rewritten only for the json_valid check, which the catalog
+// wrote itself. Rewriting the column references inside a check a statement
+// declared is the general stored-expression rewrite the catalog does not do:
+// measured, the server turns CHECK (`a` > 0) into CHECK (`z` > 0) there too.
+//
+// Checks are found by the column they belong to, since another constraint may
+// carry the old name.
+func moveColumnChecks(tbl *Table, oldName, newName string) {
 	key := toLower(oldName)
 	for _, con := range tbl.Constraints {
-		if isImplicitJSONCheck(con) && toLower(con.Column) == key {
-			con.Name = newName
-			con.Column = newName
+		if !isColumnCheck(con) || toLower(con.Column) != key {
+			continue
+		}
+		con.Column = newName
+		if con.Implicit {
 			con.CheckExpr = fmt.Sprintf("json_valid(`%s`)", newName)
 		}
 	}
@@ -1764,7 +1778,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		}
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
-	renameImplicitJSONCheck(tbl, oldName, newName)
+	moveColumnChecks(tbl, oldName, newName)
 }
 
 // alterCheckEnforced refuses `ALTER TABLE ... ALTER CHECK <name> [NOT]

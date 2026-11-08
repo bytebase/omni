@@ -2344,3 +2344,122 @@ func TestReview_CTENameIsWrittenBare(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_RenamedColumnKeepsItsCheck covers what a renamed column does to
+// the check it carries. The check belongs to the column, so the ownership
+// moves with it — and ownership left on the old name would make the check the
+// next column of that name's, then go with that one when it is dropped, while
+// the column it really belongs to still stands.
+//
+// Measured on mariadb:11.8.8.
+//
+// Renaming the column a check *references* is left out: the server rewrites
+// the references inside every stored expression, turning CHECK (`b` > 0) into
+// CHECK (`y` > 0), which is the general rewrite the catalog does not do. The
+// ownership is right there either way, since the check belongs to neither
+// renamed column.
+func TestReview_RenamedColumnKeepsItsCheck(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		// The whole sequence: rename the column, let another take its old
+		// name, then drop that one. The check stays where it belongs.
+		{"the_old_name_is_taken_then_dropped", []string{
+			"CREATE TABLE t (a INT CHECK (b > 0), b INT)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t ADD COLUMN a INT",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		{"the_old_name_is_taken", []string{
+			"CREATE TABLE t (a INT CHECK (b > 0), b INT)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t ADD COLUMN a INT",
+		}},
+		{"a_check_naming_another_column", []string{
+			"CREATE TABLE t (a INT CHECK (b > 0), b INT)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+		}},
+		{"dropping_the_renamed_column_takes_it", []string{
+			"CREATE TABLE t (a INT CHECK (b > 0), b INT)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t DROP COLUMN z",
+		}},
+
+		// The same for the check a JSON column carries.
+		{"a_json_columns_old_name_is_taken_then_dropped", []string{
+			"CREATE TABLE t (j JSON)",
+			"ALTER TABLE t RENAME COLUMN j TO z",
+			"ALTER TABLE t ADD COLUMN j INT",
+			"ALTER TABLE t DROP COLUMN j",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_RenamedColumnKeepsItsCheckName covers the name of a check whose
+// column is renamed, which SHOW CREATE TABLE does not show: the check is
+// written on its column, without one. The server leaves the name as it was,
+// measured on mariadb:11.8.8 through information_schema.CHECK_CONSTRAINTS,
+// where a check declared on `a` is still called a after the column becomes z
+// and again after it becomes w.
+func TestReview_RenamedColumnKeepsItsCheckName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		{"declared_on_its_column", []string{
+			"CREATE TABLE t (a INT CHECK (a > 0))",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+		}},
+		{"renamed_twice", []string{
+			"CREATE TABLE t (a INT CHECK (a > 0))",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t RENAME COLUMN z TO w",
+		}},
+		{"a_json_columns_own", []string{
+			"CREATE TABLE t (j JSON)",
+			"ALTER TABLE t RENAME COLUMN j TO z",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+
+			var want string
+			oracleScan(t, mc,
+				"SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS"+
+					" WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 't'", &want)
+
+			var got []string
+			for _, con := range c.GetDatabase("testdb").GetTable("t").Constraints {
+				if con.Type == ConCheck {
+					got = append(got, con.Name)
+				}
+			}
+			if len(got) != 1 || got[0] != want {
+				t.Errorf("check names: omni %v, oracle [%s]", got, want)
+			}
+		})
+	}
+}
