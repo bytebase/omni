@@ -154,11 +154,7 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 	}
 
-	// table_or_tables is required and is TABLE or TABLES: OceanBase (MySQL mode)
-	// runs `OPTIMIZE TABLES t` and answers 1064 to `OPTIMIZE t` with neither.
-	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
-		return nil, p.syntaxErrorAtCur()
-	}
+	p.match(kwTABLE)
 
 	// Completion: after OPTIMIZE TABLE, offer table_ref.
 	p.checkCursor()

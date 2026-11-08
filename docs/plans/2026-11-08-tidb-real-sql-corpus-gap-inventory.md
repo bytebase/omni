@@ -68,8 +68,8 @@ select @@local."aBc"
 
 ### C. `OPTIMIZE TABLES` plural — 1 row — ✅ CLOSED
 
-**Closed** by `fix(tidb,mysql,mariadb,oceanbase): accept OPTIMIZE TABLES and
-require TABLE or TABLES`.
+**Closed** by `fix(tidb,mysql,mariadb): accept OPTIMIZE TABLES and require TABLE
+or TABLES`.
 
 ```
 optimize tables t1, t2
@@ -77,10 +77,18 @@ optimize tables t1, t2
 
 `OPTIMIZE`'s `TableOrTables` is `TABLE | TABLES` and is required; omni matched
 only the singular and made it optional, so it missed `OPTIMIZE TABLES` and
-over-accepted `OPTIMIZE t` with neither. Measured against TiDB v8.5.5, MySQL 8.0,
-MariaDB 11.8 and OceanBase: all four accept `OPTIMIZE TABLES t` and answer 1064 to
-`OPTIMIZE t`, so the fix is the same across the family (fixing the latent
+over-accepted `OPTIMIZE t` with neither. Measured against TiDB v8.5.5, MySQL 8.0
+and MariaDB 11.8: all three accept `OPTIMIZE TABLE/TABLES t` and answer 1064 to
+`OPTIMIZE t`, so the fix is the same across those three (closing the latent
 `OPTIMIZE t` over-acceptance in each).
+
+**OceanBase is not in this fix.** Measured against a live OceanBase (through
+`oceanBaseOracle`, not `startParserOracle`, which connects to MySQL 8.0), its
+`OPTIMIZE` is far stricter: it takes only `OPTIMIZE TABLE tbl` and answers 1064 to
+`OPTIMIZE TABLES`, `OPTIMIZE NO_WRITE_TO_BINLOG TABLE`, `OPTIMIZE LOCAL TABLE` and
+bare `OPTIMIZE t`. omni-oceanbase already over-accepts the `NO_WRITE_TO_BINLOG`,
+`LOCAL` and bare-table forms (pre-existing, not from this change); tightening
+OceanBase's `OPTIMIZE` to its own grammar is a separate follow-up.
 
 ## Next
 

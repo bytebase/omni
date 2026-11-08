@@ -242,7 +242,7 @@ both-reject — omni parses 98.8% of what TiDB accepts. **All three gap clusters
 are since closed** — the foreign-key reference-list (5, `fix(tidb): read
 index-part lists in a REFERENCES column list`), quoted user/system-variable names
 (5, `fix(tidb): read quoted user- and system-variable names`), and `OPTIMIZE
-TABLES` (1, `fix(tidb,mysql,mariadb,oceanbase): accept OPTIMIZE TABLES …`) — so
+TABLES` (1, `fix(tidb,mysql,mariadb): accept OPTIMIZE TABLES …`) — so
 sample 1 is **fully closed at 880 both-accept, 0 gaps, 0 over-acceptances**
 (`docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`). Samples 2 (TiDB
 integrationtest) and 3 (Bytebase's own TiDB test files) are still to land.
