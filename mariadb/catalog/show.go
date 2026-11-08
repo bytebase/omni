@@ -1141,7 +1141,8 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			return val, true // a string default keeps its quotes
 		}
 	}
-	if (family == familyString || family == familyNumber) && kind == literalString {
+	if (family == familyString || family == familyNumber || family == familyTemporal) &&
+		kind == literalString {
 		// A plain string literal is already in the column's own notation. A
 		// hex, bit or introduced one has to be converted: measured on
 		// mariadb:11.8.8, `INT DEFAULT _utf8mb4'7'` comes back DEFAULT 7,
@@ -1156,7 +1157,7 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			raw = append(raw, make([]byte, width-len(raw))...)
 		}
 		return "x'" + hexOf(raw) + "'", true
-	case familyString:
+	case familyString, familyTemporal:
 		return quoteStringDefault(raw), true
 	case familyNumber:
 		return numberDefaultOf(kind, raw, col)
@@ -1305,6 +1306,18 @@ const (
 	// familyString writes the value as a quoted string:
 	// VARCHAR(4) DEFAULT 0x41 is 'A', and so is ENUM('A','B') DEFAULT 0x41.
 	familyString
+	// familyTemporal reads the value as a quoted string too, since a date is
+	// held as the text of one: DATE DEFAULT X'323032302d30312d3031' and
+	// 0x323032302d30312d3031 both come back '2020-01-01'.
+	//
+	// The server coerces further than this, and those normalizations are not
+	// done here: measured, a date is written in its canonical spelling
+	// ('2020-1-1' comes back '2020-01-01'), a DATETIME given a date is padded
+	// with a time ('2020-01-01 00:00:00'), a fraction is scaled to the
+	// column's precision (DATETIME(3) DEFAULT '2020-01-01 00:00:00.5' is
+	// '...00.500') and a number is read as a date (DATE DEFAULT 20200101 is
+	// '2020-01-01', DEFAULT 0 is '0000-00-00').
+	familyTemporal
 	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255 and
 	// DECIMAL(5,2) DEFAULT 0x41 is 65.00.
 	familyNumber
@@ -1329,6 +1342,8 @@ func columnDefaultFamily(dt string) defaultFamily {
 		return familyVarBinary
 	case "char", "varchar", "enum", "set":
 		return familyString
+	case "date", "datetime", "time", "timestamp":
+		return familyTemporal
 	case "tinyint", "smallint", "mediumint", "int", "bigint",
 		"decimal", "float", "double", "boolean":
 		return familyNumber

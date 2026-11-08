@@ -372,9 +372,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				if conName == "" {
 					conName = colDef.Name
 				}
-				if checkConstraintNameExists(db, tbl, conName) {
-					return errCheckConstraintDupName(conName)
-				}
+				// No duplicate-name test here: a check declared on a column
+				// takes no name of its own, so it collides with none.
+				// Measured on mariadb:11.8.8,
+				// `CREATE TABLE t (a INT, b INT CHECK (b > 0),
+				// CONSTRAINT b CHECK (a > 0))` is accepted in either order and
+				// the table holds both. See checkConstraintNameExists.
 				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
 					return err
 				}

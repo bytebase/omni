@@ -482,13 +482,32 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
-	if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
-		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
-	}
-
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
 		switch cc.Type {
+		case nodes.ColConstrCheck:
+			// A check declared on the added column belongs to it and takes
+			// the column's name, as one declared with the table does.
+			// Measured on mariadb:11.8.8: `ALTER TABLE t ADD COLUMN b INT
+			// CHECK (b > 0)` reports `b` int(11) DEFAULT NULL CHECK (`b` > 0)
+			// and holds the check under the name b, even where the table
+			// already has a check of that name — it takes no name of its own,
+			// so it collides with none. See checkConstraintNameExists.
+			conName := cc.Name
+			if conName == "" {
+				conName = colDef.Name
+			}
+			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+				return err
+			}
+			tbl.Constraints = append(tbl.Constraints, &Constraint{
+				Name:        conName,
+				Type:        ConCheck,
+				Table:       tbl,
+				Column:      colDef.Name,
+				CheckExpr:   nodeToSQL(cc.Expr),
+				NotEnforced: cc.NotEnforced,
+			})
 		case nodes.ColConstrPrimaryKey:
 			// Check for duplicate PK.
 			for _, idx := range tbl.Indexes {
@@ -534,6 +553,15 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				IndexName: idxName,
 			})
 		}
+	}
+
+	// A JSON column carries json_valid only where it declares no check of its
+	// own, so this is decided after the column's constraints are in: measured
+	// on mariadb:11.8.8, `ALTER TABLE t ADD COLUMN j JSON CHECK (j IS NOT
+	// NULL)` reports that check alone, where `ADD COLUMN j JSON` reports
+	// json_valid(`j`).
+	if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
+		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 	}
 
 	return nil

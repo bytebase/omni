@@ -1523,6 +1523,19 @@ func TestReview_CheckBelongsToItsColumn(t *testing.T) {
 			"ALTER TABLE t RENAME COLUMN k TO z",
 		}},
 
+		// A check declared on a column takes no name of its own, so it
+		// collides with none: the two live side by side in either order,
+		// where two checks the statement named answer 1826.
+		{"column_check_then_a_table_check_of_that_name", []string{
+			"CREATE TABLE t (a INT, b INT CHECK (b > 0), CONSTRAINT b CHECK (a > 0))",
+		}},
+		{"table_check_then_a_column_check_of_that_name", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT b CHECK (a > 0), b INT CHECK (b > 0))",
+		}},
+		{"table_check_named_after_another_columns_check", []string{
+			"CREATE TABLE t (b INT CHECK (b > 0), c INT, CONSTRAINT b CHECK (c > 0))",
+		}},
+
 		// A JSON column's own check beside a table-level check of the same
 		// name: the server carries both and writes both.
 		{"change_a_json_column_onto_a_check_name", []string{
@@ -2119,6 +2132,135 @@ func TestReview_ReplacedGeneratedColumnKeepsItsIndex(t *testing.T) {
 			}
 			if want := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), want) {
 				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", want, omniErr)
+			}
+		})
+	}
+}
+
+// TestReview_TemporalLiteralDefault covers a hex or introduced literal default
+// on a date or time column. A temporal value is held as the text of a quoted
+// string, so the literal's bytes are read as that text: the types were in no
+// family, so a hex default came back wrapped in string quotes with its own
+// quotes still inside, which does not parse.
+//
+// Measured on mariadb:11.8.8. The server coerces further than the catalog
+// does, and those normalizations are left out here: a date is written in its
+// canonical spelling, a DATETIME given a date is padded with a time, a
+// fraction is scaled to the column's precision, and a number is read as a
+// date. See familyTemporal.
+func TestReview_TemporalLiteralDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"date_hex", "CREATE TABLE t (a DATE DEFAULT X'323032302d30312d3031')"},
+		{"date_hex_0x", "CREATE TABLE t (a DATE DEFAULT 0x323032302d30312d3031)"},
+		{"date_string", "CREATE TABLE t (a DATE DEFAULT '2020-01-01')"},
+		{"date_introduced", "CREATE TABLE t (a DATE DEFAULT _utf8mb4'2020-01-01')"},
+		{"date_parenthesized", "CREATE TABLE t (a DATE DEFAULT ('2020-01-01'))"},
+		{"datetime_hex", "CREATE TABLE t (a DATETIME DEFAULT X'323032302d30312d30312030303a30303a3030')"},
+		{"datetime_string", "CREATE TABLE t (a DATETIME DEFAULT '2020-01-01 00:00:00')"},
+		{"time_hex", "CREATE TABLE t (a TIME DEFAULT X'31323a33343a3536')"},
+		{"time_string", "CREATE TABLE t (a TIME DEFAULT '12:34:56')"},
+		{"timestamp_hex", "CREATE TABLE t (a TIMESTAMP DEFAULT X'323032302d30312d30312030303a30303a3030')"},
+		{"timestamp_string", "CREATE TABLE t (a TIMESTAMP DEFAULT '2020-01-01 00:00:00')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			// What omni wrote has to go back in, which is what the quoted hex
+			// literal did not.
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+		})
+	}
+}
+
+// TestReview_AddColumnCheck covers a CHECK declared on a column an ALTER adds.
+// It belongs to that column and takes its name, as one declared with the table
+// does — and a JSON column that declares one carries it in place of
+// json_valid. The ADD COLUMN path handled no column-level CHECK at all, so the
+// check was dropped and a JSON column got json_valid instead of it.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_AddColumnCheck(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		{"json_column_with_its_own_check", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN j JSON CHECK (j IS NOT NULL)",
+		}},
+		{"json_column_without_one", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN j JSON",
+		}},
+		{"plain_column", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (b > 0)",
+		}},
+		{"check_naming_another_column", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (a > 0)",
+		}},
+		{"the_name_is_already_a_table_checks", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT b CHECK (a > 0))",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (b > 0)",
+		}},
+		{"two_columns_at_once", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (b > 0), ADD COLUMN c INT CHECK (c > 0)",
+		}},
+		{"dropping_the_column_takes_its_check", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (b > 0)",
+			"ALTER TABLE t DROP COLUMN b",
+		}},
+		{"the_check_is_not_droppable_by_name", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD COLUMN b INT CHECK (b > 0)",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+			if tc.name != "the_check_is_not_droppable_by_name" {
+				return
+			}
+			// The added check belongs to its column, so it is no more
+			// droppable by name than one declared with the table.
+			const drop = "ALTER TABLE t DROP CONSTRAINT b"
+			if _, err := mc.db.ExecContext(mc.ctx, drop); err == nil {
+				t.Fatalf("oracle: expected %q to be refused", drop)
+			}
+			results, err := c.Exec(drop+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if omniErr == nil {
+				t.Errorf("omni: accepted %q, which the server refuses", drop)
 			}
 		})
 	}
