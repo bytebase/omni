@@ -1302,27 +1302,23 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 		}
 	} else {
 		// expr PRECEDING | expr FOLLOWING.
-		//
-		// MariaDB's frame bound is a numeric literal or INTERVAL; its grammar
-		// has no `paramMarker` alternative here, unlike MySQL. parseExpr would
-		// accept the SimpleExpr `?`, so reject a leading marker to match the
-		// engine — it stays valid as a general operand elsewhere. The check is
-		// a single token, not a walk of the parsed offset: a left-deep operand
-		// chain is built iteratively and its height is bounded only by the
-		// post-parse treeTooHigh pass, so a recursive walk here could overflow
-		// the stack (AGENTS.md).
-		if p.cur.Type == '?' {
-			return nil, &ParseError{
-				Message:  "parameter marker (?) is not allowed as a window frame bound",
-				Position: p.cur.Loc,
-			}
-		}
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
+		}
+		// MariaDB's frame bound is a numeric literal or INTERVAL; its grammar
+		// has no `paramMarker` alternative here, unlike MySQL. parseExpr accepts
+		// the SimpleExpr `?` (valid elsewhere), so reject a `?` anywhere in the
+		// offset — bare, parenthesized, or in an arithmetic operand — to match
+		// the engine.
+		if loc, ok := frameBoundParamMarker(expr); ok {
+			return nil, &ParseError{
+				Message:  "parameter marker (?) is not allowed as a window frame bound",
+				Position: loc,
+			}
 		}
 		bound.Offset = expr
 		if _, ok := p.match(kwPRECEDING); ok {
@@ -1339,6 +1335,45 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 
 	bound.Loc.End = p.prev.End
 	return bound, nil
+}
+
+// frameBoundParamMarker returns the start offset of the first `?` parameter
+// marker anywhere in a parsed window-frame bound offset, if any. It walks with
+// an explicit stack, never recursion: a frame-bound offset is a left-deep
+// operand chain built iteratively, whose height is bounded only by the
+// post-parse treeTooHigh pass, so a recursive walk here could overflow the
+// stack on a long enough chain (AGENTS.md).
+func frameBoundParamMarker(root nodes.Node) (int, bool) {
+	stack := []nodes.Node{root}
+	var kids childLister
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if pm, ok := top.(*nodes.ParamMarkerExpr); ok {
+			return pm.Loc.Start, true
+		}
+		kids.entered, kids.children = false, kids.children[:0]
+		nodes.Walk(&kids, top)
+		// Walk skips the rows of INSERT ... VALUES and of a VALUES statement
+		// (see treeHeightExceeds); a scalar subquery in the offset can hold
+		// one, so add them back.
+		var rows [][]nodes.ExprNode
+		switch n := top.(type) {
+		case *nodes.InsertStmt:
+			rows = n.Values
+		case *nodes.ValuesStmt:
+			rows = n.Rows
+		}
+		for _, row := range rows {
+			for _, e := range row {
+				if e != nil {
+					kids.children = append(kids.children, e)
+				}
+			}
+		}
+		stack = append(stack, kids.children...)
+	}
+	return 0, false
 }
 
 // parseTrimFunc parses TRIM's argument list, after the '('. A direction is

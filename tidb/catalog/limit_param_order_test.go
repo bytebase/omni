@@ -70,3 +70,33 @@ func TestCreateViewWithParamMarkerRejected(t *testing.T) {
 		}
 	}
 }
+
+// TestDDLParamMarkerRejected checks that a `?` parameter marker in a table-DDL
+// expression — a column default, generated column or CHECK — is refused by
+// Exec and never stored. The parser accepts `?` as a general operand
+// (parser.y:7886); the catalog boundary rejects any DDL that carries one.
+func TestDDLParamMarkerRejected(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a INT)")
+
+	for _, sql := range []string{
+		// tidb rejects an expression DEFAULT at parse (it has no DEFAULT (expr)
+		// form), so a marker there never reaches the catalog; AS and CHECK do.
+		"CREATE TABLE u (a INT, b INT AS (a + ?))",
+		"CREATE TABLE u (a INT, CHECK (a > ?))",
+	} {
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			// The parser refused it outright; that is also a rejection and
+			// stores nothing.
+			continue
+		}
+		if len(results) != 1 || results[0].Error == nil {
+			t.Errorf("Exec(%q) = %+v, want a rejection of the ? marker", sql, results)
+			continue
+		}
+		if msg := results[0].Error.Error(); !strings.Contains(msg, "?") {
+			t.Errorf("Exec(%q) error = %q, want it to mention the ? marker", sql, msg)
+		}
+	}
+}

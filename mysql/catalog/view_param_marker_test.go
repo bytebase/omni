@@ -93,3 +93,36 @@ func TestAlterViewWithParamMarkerRejected(t *testing.T) {
 		t.Errorf("ALTER VIEW mutated the view despite the rejection: %q -> %q", before, after)
 	}
 }
+
+// TestDDLParamMarkerRejected checks that a `?` parameter marker in a table-DDL
+// expression — a column default, generated column or CHECK — is refused by
+// Exec and never stored. The parser accepts `?` as a general operand; the
+// catalog boundary rejects any DDL that carries one.
+func TestDDLParamMarkerRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE u (a INT DEFAULT (?))",
+		"CREATE TABLE u (a INT, b INT AS (a + ?))",
+		"CREATE TABLE u (a INT, CHECK (a > ?))",
+		"ALTER TABLE t ADD COLUMN c INT DEFAULT (?)",
+	} {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE test")
+		c.SetCurrentDatabase("test")
+		mustExec(t, c, "CREATE TABLE t (a INT)")
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Errorf("Exec(%q) parse error: %v", sql, err)
+			continue
+		}
+		if len(results) != 1 || results[0].Error == nil {
+			t.Errorf("Exec(%q) = %+v, want a rejection of the ? marker", sql, results)
+			continue
+		}
+		if msg := results[0].Error.Error(); !strings.Contains(msg, "?") {
+			t.Errorf("Exec(%q) error = %q, want it to mention the ? marker", sql, msg)
+		}
+		if _, ok := c.GetDatabase("test").Tables["u"]; ok {
+			t.Errorf("Exec(%q) created table u despite the rejection", sql)
+		}
+	}
+}

@@ -38,12 +38,15 @@ func TestParamMarkerExprPositions(t *testing.T) {
 		}
 	}
 
-	// A bare `?` is not a valid MariaDB window-frame bound (its grammar has no
-	// paramMarker alternative there), in either bound of a BETWEEN.
+	// A `?` is not a valid MariaDB window-frame bound (its grammar has no
+	// paramMarker alternative there) — bare, parenthesized, or inside an
+	// arithmetic operand, and in either bound of a BETWEEN.
 	reject := []string{
 		"SELECT ROW_NUMBER() OVER (ROWS ? PRECEDING) FROM t",
 		"SELECT ROW_NUMBER() OVER (ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING) FROM t",
 		"SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ? FOLLOWING) FROM t",
+		"SELECT SUM(a) OVER (ORDER BY a ROWS (?) PRECEDING) FROM t",
+		"SELECT SUM(a) OVER (ORDER BY a ROWS 1 + ? PRECEDING) FROM t",
 	}
 	for _, sql := range reject {
 		if _, err := Parse(sql); err == nil {
