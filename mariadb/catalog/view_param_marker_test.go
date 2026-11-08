@@ -126,3 +126,32 @@ func TestDDLParamMarkerRejected(t *testing.T) {
 		}
 	}
 }
+
+// TestRoutineBodyParamMarkerRejected checks that a `?` marker inside the rows of
+// an INSERT ... VALUES or a VALUES statement — which nodes.Inspect's walker
+// skips — is still refused when it rides in a stored routine, trigger, or view
+// body, so no unbound definition enters the catalog.
+func TestRoutineBodyParamMarkerRejected(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() INSERT INTO t VALUES (?)",
+		"CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW INSERT INTO t VALUES (?)",
+		"CREATE VIEW v AS SELECT * FROM (VALUES ROW(?)) AS x",
+	} {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE test")
+		c.SetCurrentDatabase("test")
+		mustExec(t, c, "CREATE TABLE t (a INT)")
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			// A parser refusal is also a rejection and stores nothing.
+			continue
+		}
+		if len(results) != 1 || results[0].Error == nil {
+			t.Errorf("Exec(%q) = %+v, want a rejection of the ? marker", sql, results)
+			continue
+		}
+		if msg := results[0].Error.Error(); !strings.Contains(msg, "?") {
+			t.Errorf("Exec(%q) error = %q, want it to mention the ? marker", sql, msg)
+		}
+	}
+}
