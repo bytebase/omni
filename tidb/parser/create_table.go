@@ -334,33 +334,28 @@ func (p *Parser) isTableConstraintStart() bool {
 	return false
 }
 
-// parseReferencedColumns reads the column list of REFERENCES, whose parts are ColumnNames. The
-// names it keeps are the columns', as the qualifier names nothing the foreign key uses.
+// parseReferencedColumns reads the column list of REFERENCES. Its parts are an
+// IndexPartSpecificationList, not plain ColumnNames: each is a ColumnName with
+// an optional prefix length and order, or a parenthesised expression, the same
+// key parts an index takes. TiDB v8.5.5 runs
+// `... REFERENCES parent(id(8), hello(12))` and `... REFERENCES parent((id+1))`;
+// MySQL, MariaDB and OceanBase take only plain column names here (their FK
+// parsing even refuses a functional key part), so their parsers keep their own
+// stricter reading -- this is a measured dialect delta, not a shared gap.
+//
+// The names it keeps are the columns', as the qualifier names nothing the
+// foreign key uses; a prefix length and an expression key part are read only far
+// enough to parse, since a foreign key that reaches DDL still references columns.
+// indexColumnsToNames drops the expression parts, as it does for the local list.
+//
+// Ref: `ReferDef: "REFERENCES" TableName IndexPartSpecificationListOpt MatchOpt
+// OnDeleteUpdateOpt` in TiDB v8.5.5 pkg/parser/parser.y.
 func (p *Parser) parseReferencedColumns() ([]string, error) {
-	if _, err := p.expect('('); err != nil {
+	cols, err := p.parseParenIndexKeyParts()
+	if err != nil {
 		return nil, err
 	}
-	var names []string
-	for {
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		_, _, name, err := p.parseColumnName()
-		if err != nil {
-			return nil, err
-		}
-		names = append(names, name)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-	return names, nil
+	return indexColumnsToNames(cols), nil
 }
 
 // parseColumnName reads ColumnName, parser.y:3511: an Identifier, with up to two more before
