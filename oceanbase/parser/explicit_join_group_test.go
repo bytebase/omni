@@ -42,4 +42,33 @@ func TestExplicitJoinGroupPreserved(t *testing.T) {
 	if _, ok := top2.Left.(*ast.JoinClause); !ok {
 		t.Errorf("top2.Left = %T, want the (a JOIN b) join", top2.Left)
 	}
+	// A conditionless join before a conditioned chain reassociates through the
+	// chain's own left spine but still stops at the group: `a JOIN b RIGHT JOIN
+	// c ON ... JOIN d ON ...` is `((a JOIN b) RIGHT JOIN c) JOIN d`, while the
+	// same with (b RIGHT JOIN c) parenthesized keeps the group under `a JOIN`.
+	st3, err := Parse("SELECT 1 FROM a JOIN b RIGHT JOIN c ON b.id = c.id JOIN d ON c.id = d.id")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	outer := st3.Items[0].(*ast.SelectStmt).From[0].(*ast.JoinClause)
+	rj, ok := outer.Left.(*ast.JoinClause)
+	if !ok || rj.Type != ast.JoinRight {
+		t.Fatalf("outer.Left = %T, want the RIGHT join", outer.Left)
+	}
+	if _, ok := rj.Left.(*ast.JoinClause); !ok {
+		t.Errorf("RIGHT join's left = %T, want the (a JOIN b) join", rj.Left)
+	}
+
+	st4, err := Parse("SELECT 1 FROM a JOIN (b RIGHT JOIN c ON b.id = c.id) JOIN d ON c.id = d.id")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	outer4 := st4.Items[0].(*ast.SelectStmt).From[0].(*ast.JoinClause)
+	inner4 := outer4.Left.(*ast.JoinClause)
+	if g, ok := inner4.Right.(*ast.JoinClause); !ok || g.Type != ast.JoinRight {
+		t.Errorf("explicit group not preserved: inner.Right = %T", inner4.Right)
+	}
+	if l, ok := inner4.Left.(*ast.TableRef); !ok || l.Name != "a" {
+		t.Errorf("inner.Left = %T, want table a", inner4.Left)
+	}
 }

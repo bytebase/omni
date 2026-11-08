@@ -1219,12 +1219,13 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 
 	operands := []nodes.TableExpr{left}
 	var joinTypes []nodes.JoinType
-	// chained[i] marks an operand the chain itself built — a closed absorbing
-	// join or a bound NATURAL/STRAIGHT join — which a conditionless join to its
-	// left re-associates into. An operand parseTableFactor returned (a table or
-	// an explicitly parenthesized group) is left whole, so `a JOIN (b RIGHT JOIN
-	// c)` keeps its grouping while `a JOIN b RIGHT JOIN c` does not.
-	chained := []bool{false}
+	// built holds the join nodes this chain created — a closed absorbing join or
+	// a bound NATURAL/STRAIGHT join — which a conditionless join to the left
+	// re-associates into, descending their left spine. A table or an explicitly
+	// parenthesized group (parseTableFactor's result) is not in built and is left
+	// whole, so `a JOIN (b RIGHT JOIN c)` keeps its grouping while `a JOIN b RIGHT
+	// JOIN c` binds left-deep.
+	built := map[*nodes.JoinClause]bool{}
 
 	// reduceTop closes the rightmost open join with the condition just read.
 	reduceTop := func(cond nodes.Node) {
@@ -1233,15 +1234,15 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		jt := joinTypes[len(joinTypes)-1]
 		joinTypes = joinTypes[:len(joinTypes)-1]
 		operands = operands[:n-1]
-		chained = chained[:n-1]
-		operands[n-2] = &nodes.JoinClause{
+		reduced := &nodes.JoinClause{
 			Loc:       nodes.Loc{Start: tableExprLoc(leftOp).Start, End: p.prev.End},
 			Type:      jt,
 			Left:      leftOp,
 			Right:     right,
 			Condition: cond,
 		}
-		chained[n-2] = true
+		built[reduced] = true
+		operands[n-2] = reduced
 	}
 
 	for {
@@ -1270,7 +1271,6 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 			// Shift: the join stays open so a trailing stacked ON can bind to it.
 			operands = append(operands, rf)
 			joinTypes = append(joinTypes, jt)
-			chained = append(chained, false)
 		} else {
 			// A NATURAL join binds to the top operand only; the open absorbing
 			// joins to the left resolve around the result.
@@ -1285,8 +1285,8 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 				return nil, err
 			}
 			join.Loc.End = p.prev.End
+			built[join] = true
 			operands[len(operands)-1] = join
-			chained[len(chained)-1] = true
 		}
 
 		// A run of conditions closes the open absorbing joins, inner first.
@@ -1302,33 +1302,42 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		}
 	}
 
-	return p.collapseLeftDeep(operands, joinTypes, chained)
+	return p.collapseLeftDeep(operands, joinTypes, built)
 }
 
 // collapseLeftDeep folds the operands still open after the chain — conditionless
-// joins — into a left-deep tree. When the right operand is one the chain built
-// (chained), the join is pushed into that subtree's own left so it binds
-// left-deep: `a JOIN b JOIN c ON x` is `(a JOIN b) JOIN c ON x`, and `a JOIN b
-// NATURAL LEFT JOIN c` is `(a JOIN b) NATURAL LEFT JOIN c`. A parseTableFactor
-// operand (a table or an explicit group) is joined whole. An outer (LEFT/RIGHT)
-// join still open here never found its required ON/USING, so it is a syntax
-// error.
-func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.JoinType, chained []bool) (nodes.TableExpr, error) {
+// joins — into a left-deep tree. When the right operand is a join this chain
+// built, the join is pushed down that subtree's chain-built left spine so it
+// binds left-deep: `a JOIN b JOIN c ON x` is `(a JOIN b) JOIN c ON x`, and `a
+// JOIN b NATURAL LEFT JOIN c` is `(a JOIN b) NATURAL LEFT JOIN c`. The descent
+// stops at a table or an explicitly parenthesized group, which is joined whole
+// so its grouping survives. An outer (LEFT/RIGHT) join still open here never
+// found its required ON/USING, so it is a syntax error.
+func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.JoinType, built map[*nodes.JoinClause]bool) (nodes.TableExpr, error) {
 	left := operands[0]
 	for i, jt := range joinTypes {
 		if jt == nodes.JoinLeft || jt == nodes.JoinRight {
 			return nil, p.syntaxErrorAtCur()
 		}
 		right := operands[i+1]
-		if r, ok := right.(*nodes.JoinClause); ok && chained[i+1] {
-			// Push `left jt` to r's own left, inside the condition r carries, so
-			// the chain binds left-deep. r's left is a single operand (the one
-			// below it when the chain closed), so this is one level, never a
-			// descent into an explicit group.
-			leaf := r.Left
+		if r, ok := right.(*nodes.JoinClause); ok && built[r] {
+			// Descend the chain-built left spine to its leftmost leaf and insert
+			// `left jt leaf` there, pulling each spine node's start back to left.
+			// A node not in built — a table or an explicit group — ends the
+			// descent, so an explicit group is never reassociated into.
 			start := tableExprLoc(left).Start
-			r.Loc.Start = start
-			r.Left = &nodes.JoinClause{
+			cur := r
+			cur.Loc.Start = start
+			for {
+				l, ok := cur.Left.(*nodes.JoinClause)
+				if !ok || !built[l] {
+					break
+				}
+				l.Loc.Start = start
+				cur = l
+			}
+			leaf := cur.Left
+			cur.Left = &nodes.JoinClause{
 				Loc:   nodes.Loc{Start: start, End: tableExprLoc(leaf).End},
 				Type:  jt,
 				Left:  left,
