@@ -1162,6 +1162,13 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 
 	operands := []nodes.TableExpr{left}
 	var joinTypes []nodes.JoinType
+	// built holds the join nodes this chain created — a closed absorbing join or
+	// a bound NATURAL/STRAIGHT join — which a conditionless join to the left
+	// re-associates into, descending their left spine. A table or an explicitly
+	// parenthesized group (parseTableFactor's result) is not in built and is left
+	// whole, so `a JOIN (b RIGHT JOIN c)` keeps its grouping while `a JOIN b RIGHT
+	// JOIN c` binds left-deep.
+	built := map[*nodes.JoinClause]bool{}
 
 	// reduceTop closes the rightmost open join with the condition just read.
 	reduceTop := func(cond nodes.Node) {
@@ -1170,13 +1177,15 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		jt := joinTypes[len(joinTypes)-1]
 		joinTypes = joinTypes[:len(joinTypes)-1]
 		operands = operands[:n-1]
-		operands[n-2] = &nodes.JoinClause{
+		reduced := &nodes.JoinClause{
 			Loc:       nodes.Loc{Start: tableExprLoc(leftOp).Start, End: p.prev.End},
 			Type:      jt,
 			Left:      leftOp,
 			Right:     right,
 			Condition: cond,
 		}
+		built[reduced] = true
+		operands[n-2] = reduced
 	}
 
 	for {
@@ -1219,6 +1228,7 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 				return nil, err
 			}
 			join.Loc.End = p.prev.End
+			built[join] = true
 			operands[len(operands)-1] = join
 		}
 
@@ -1235,70 +1245,58 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		}
 	}
 
-	return p.collapseLeftDeep(operands, joinTypes)
+	return p.collapseLeftDeep(operands, joinTypes, built)
 }
 
-// collapseLeftDeep folds the operands still open after the chain — joins that
-// never met a condition — into a left-deep tree. A conditionless join binds
-// left-deep (foldConditionlessJoin re-associates one whose right absorbed a
-// nested join), and an outer (LEFT/RIGHT) join still open here never found its
-// required ON/USING, so it is a syntax error.
-func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.JoinType) (nodes.TableExpr, error) {
+// collapseLeftDeep folds the operands still open after the chain — conditionless
+// joins — into a left-deep tree. When the right operand is a join this chain
+// built, the join is pushed down that subtree's chain-built left spine so it
+// binds left-deep: `a JOIN b JOIN c ON x` is `(a JOIN b) JOIN c ON x`, and `a
+// JOIN b NATURAL LEFT JOIN c` is `(a JOIN b) NATURAL LEFT JOIN c`. The descent
+// stops at a table or an explicitly parenthesized group, which is joined whole
+// so its grouping survives. An outer (LEFT/RIGHT) join still open here never
+// found its required ON/USING, so it is a syntax error.
+func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.JoinType, built map[*nodes.JoinClause]bool) (nodes.TableExpr, error) {
 	left := operands[0]
 	for i, jt := range joinTypes {
 		if jt == nodes.JoinLeft || jt == nodes.JoinRight {
 			return nil, p.syntaxErrorAtCur()
 		}
 		right := operands[i+1]
-		join := &nodes.JoinClause{
+		if r, ok := right.(*nodes.JoinClause); ok && built[r] {
+			// Descend the chain-built left spine to its leftmost leaf and insert
+			// `left jt leaf` there, pulling each spine node's start back to left.
+			// A node not in built — a table or an explicit group — ends the
+			// descent, so an explicit group is never reassociated into.
+			start := tableExprLoc(left).Start
+			cur := r
+			cur.Loc.Start = start
+			for {
+				l, ok := cur.Left.(*nodes.JoinClause)
+				if !ok || !built[l] {
+					break
+				}
+				l.Loc.Start = start
+				cur = l
+			}
+			leaf := cur.Left
+			cur.Left = &nodes.JoinClause{
+				Loc:   nodes.Loc{Start: start, End: tableExprLoc(leaf).End},
+				Type:  jt,
+				Left:  left,
+				Right: leaf,
+			}
+			left = r
+			continue
+		}
+		left = &nodes.JoinClause{
 			Loc:   nodes.Loc{Start: tableExprLoc(left).Start, End: tableExprLoc(right).End},
 			Type:  jt,
 			Left:  left,
 			Right: right,
 		}
-		left = foldConditionlessJoin(join)
 	}
 	return left, nil
-}
-
-// foldConditionlessJoin re-associates an absorbing join that ended up with no
-// condition. Absorbing the right operand is how a trailing condition is found
-// for the join (`a JOIN b JOIN c ON x` binds the ON to (a JOIN b), c), but when
-// the join has none, MySQL binds it left-deep: `a JOIN b NATURAL LEFT JOIN c` is
-// `(a JOIN b) NATURAL LEFT JOIN c`, not `a JOIN (b NATURAL LEFT JOIN c)`, which
-// would change NATURAL's shared columns and the outer-join side. So the join is
-// pushed to the leftmost leaf of its right subtree. A join that has a condition,
-// or whose right is a single table, is already where it belongs.
-// Container-verified against mysql:8.0.
-func foldConditionlessJoin(join *nodes.JoinClause) nodes.TableExpr {
-	if join.Condition != nil {
-		return join
-	}
-	r, ok := join.Right.(*nodes.JoinClause)
-	if !ok {
-		return join
-	}
-	// The whole right subtree now begins at join.Left, so pull every spine node's
-	// start back to it as we descend to the leftmost leaf.
-	start := tableExprLoc(join.Left).Start
-	cur := r
-	cur.Loc.Start = start
-	for {
-		l, ok := cur.Left.(*nodes.JoinClause)
-		if !ok {
-			break
-		}
-		l.Loc.Start = start
-		cur = l
-	}
-	leaf := cur.Left
-	cur.Left = &nodes.JoinClause{
-		Loc:   nodes.Loc{Start: start, End: tableExprLoc(leaf).End},
-		Type:  join.Type,
-		Left:  join.Left,
-		Right: leaf,
-	}
-	return r
 }
 
 // joinAbsorbsRight reports whether a join's right operand may absorb the joins
