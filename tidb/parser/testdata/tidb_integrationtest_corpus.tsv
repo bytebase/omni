@@ -15659,19 +15659,19 @@ accept	accept	SELECT DATE_ADD('2003-11-18 07:25:13',INTERVAL b MINUTE_SECOND) FR
 accept	accept	SELECT DATE_ADD('2003-11-18 07:25:13',INTERVAL c MINUTE_SECOND) FROM t
 accept	accept	CREATE TABLE t (a decimal(11,7),b double(11,7),c float(11,7))
 accept	accept	INSERT INTO t VALUES (123.9999999,123.9999999,123.9999999),(-123.9999999,-123.9999999,-123.9999999)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_MICROSECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 SECOND_MICROSECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MICROSECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MICROSECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 SECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_SECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_SECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_SECOND)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MINUTE)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MINUTE)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_HOUR)
-reject	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR_MONTH)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_MICROSECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 SECOND_MICROSECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MICROSECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MICROSECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 SECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_SECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_SECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_SECOND)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MINUTE)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MINUTE)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_HOUR)
+accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR_MONTH)
 accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 MINUTE_MICROSECOND)
 accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 SECOND_MICROSECOND)
 accept	accept	SELECT DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 HOUR_MICROSECOND)
@@ -17218,10 +17218,10 @@ accept	accept	select timestampadd(second, 1, '2021-08-20 00:00:01.0001')
 accept	accept	select timestampadd(minute, 1.5, '2021-08-20 00:00:00')
 accept	accept	select timestampadd(minute, 1.5, '2021-08-20 00:00:00.0001')
 accept	accept	SELECT timestampadd(year,1.212208e+308,'1995-01-05 06:32:20.859724') as result
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 SECOND_MICROSECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 MINUTE_MICROSECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 HOUR_MICROSECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 DAY_MICROSECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 SECOND_MICROSECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 MINUTE_MICROSECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 HOUR_MICROSECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2 DAY_MICROSECOND)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 HOUR_MINUTE)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 MINUTE_SECOND)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 YEAR_MONTH)
@@ -17238,21 +17238,21 @@ accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 DAY)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 HOUR)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 MINUTE)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 MICROSECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MINUTE)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_SECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR_MONTH)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_HOUR)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MINUTE)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_SECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_SECOND)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 QUARTER)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MONTH)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 WEEK)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE)
-reject	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MICROSECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_MINUTE)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE_SECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR_MONTH)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_HOUR)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_MINUTE)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY_SECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR_SECOND)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 YEAR)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 QUARTER)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MONTH)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 WEEK)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 DAY)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 HOUR)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MINUTE)
+accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL -2.2 MICROSECOND)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL "-2.2" HOUR_MINUTE)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL "-2.2" MINUTE_SECOND)
 accept	accept	select DATE_ADD('2007-03-28 22:08:28',INTERVAL "-2.2" YEAR_MONTH)
@@ -17339,7 +17339,7 @@ accept	accept	insert into t2 values('99999',  "1000-01-01 00:00:00" + INTERVAL  
 accept	accept	insert into t2 values('116777216',  "1000-01-01 00:00:00" + INTERVAL  116777216 YEAR)
 accept	accept	insert into t2 values('9223372036854775809',  "1000-01-01 00:00:00" + INTERVAL  9223372036854775808 YEAR)
 accept	accept	insert into t2 values('18446744073709551616',  "1000-01-01 00:00:00" + INTERVAL  18446744073709551616 YEAR)
-reject	accept	insert into t2 values('-9223372036854775809', "1000-01-01 00:00:00" + INTERVAL -9223372036854775809 YEAR)
+accept	accept	insert into t2 values('-9223372036854775809', "1000-01-01 00:00:00" + INTERVAL -9223372036854775809 YEAR)
 accept	accept	select a, d from t2 order by a ASC
 accept	accept	set @@sql_mode=@old_sql_mode
 accept	accept	create table t(col0 date, col1 time, col2 varchar(30))
@@ -26986,9 +26986,9 @@ accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts > '2025-03-30 02:00:0
 accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts >= '2025-03-30 02:00:00'
 accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts <=> '2025-03-30 02:00:00'
 accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval 20 minute) = '2025-03-30 02:19:59'
-reject	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
+accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
 accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:40:00', interval 20 minute)
-reject	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:19:59', interval -20 minute)
+accept	accept	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:19:59', interval -20 minute)
 accept	accept	ALTER TABLE t ADD INDEX idx_ts (ts)
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = '2025-03-30 02:00:00'
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts < '2025-03-30 02:00:00'
@@ -26997,9 +26997,9 @@ accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WH
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts >= '2025-03-30 02:00:00'
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts <=> '2025-03-30 02:00:00'
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval 20 minute) = '2025-03-30 02:19:59'
-reject	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
+accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
 accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:40:00', interval 20 minute)
-reject	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:19:59', interval -20 minute)
+accept	accept	SELECT /*+ USE_INDEX(t, idx_ts) */ *, UNIX_TIMESTAMP(ts) FROM t WHERE ts = date_add('2025-03-30 02:19:59', interval -20 minute)
 accept	accept	SELECT DATE_ADD(ts, INTERVAL 1 HOUR) FROM t
 accept	accept	SELECT DATE_SUB(ts, INTERVAL 1 HOUR) FROM t
 accept	accept	SELECT TIMESTAMPADD(HOUR, 1, ts) FROM t
