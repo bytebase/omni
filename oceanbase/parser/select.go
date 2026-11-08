@@ -1197,26 +1197,53 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 //
 // MySQL's join grammar is ambiguous and yacc resolves it by precedence: a
 // conditionless plain/cross/inner JOIN and an outer (LEFT/RIGHT) JOIN let their
-// right operand absorb the joins that follow, so `a JOIN b JOIN c ON x ON y`
-// nests as `a JOIN (b JOIN c ON x) ON y`; a NATURAL join reduces at the
-// join-keyword level and binds left-deep. allowChain is false in the right
-// operand of a non-absorbing join, where no further join may attach.
-// Container-verified against OceanBase v4.3.5 — which, unlike MySQL/TiDB, also
+// right operand absorb the joins that follow, so a trailing ON can bind to a
+// nested join (`a JOIN b JOIN c ON x ON y` is `a JOIN (b JOIN c ON x) ON y`),
+// while a NATURAL join binds left-deep. Unlike MySQL and TiDB, OceanBase also
 // lets STRAIGHT_JOIN absorb its right operand (see joinAbsorbsRight).
 //
-// An absorbing join recurses once per level, so enterNesting bounds the right
-// operand against a stack overflow the way every other recursive production is
-// bounded. A conditioned chain (`a JOIN b ON x JOIN c ON y`) does not recurse —
-// the right operand stops at the ON — so it is built by this loop and bounded
-// by maxTreeHeight, as before.
+// It is parsed with an explicit stack rather than by recursion, so a long chain
+// — including a conditionless one like `t0 JOIN t1 JOIN ... JOIN tN` — builds a
+// left-deep tree in a loop and is bounded by maxTreeHeight, never deepening the
+// Go stack. operands and joinTypes are parallel: joinTypes[i] is an absorbing
+// join between operands[i] and operands[i+1] that is still open because it has
+// not met its ON/USING. A condition closes the rightmost open joins, inner
+// first, which is what nests a stacked ON; what is still open at the end has no
+// condition and collapses left-deep. allowChain is false in the right operand of
+// a non-absorbing join, where no further join may attach. Container-verified
+// against OceanBase v4.3.5.
 func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.TableExpr, error) {
 	if !allowChain {
 		return left, nil
 	}
-	if err := p.enterNesting(); err != nil {
-		return nil, err
+
+	operands := []nodes.TableExpr{left}
+	var joinTypes []nodes.JoinType
+	// chained[i] marks an operand the chain itself built — a closed absorbing
+	// join or a bound NATURAL/STRAIGHT join — which a conditionless join to its
+	// left re-associates into. An operand parseTableFactor returned (a table or
+	// an explicitly parenthesized group) is left whole, so `a JOIN (b RIGHT JOIN
+	// c)` keeps its grouping while `a JOIN b RIGHT JOIN c` does not.
+	chained := []bool{false}
+
+	// reduceTop closes the rightmost open join with the condition just read.
+	reduceTop := func(cond nodes.Node) {
+		n := len(operands)
+		right, leftOp := operands[n-1], operands[n-2]
+		jt := joinTypes[len(joinTypes)-1]
+		joinTypes = joinTypes[:len(joinTypes)-1]
+		operands = operands[:n-1]
+		chained = chained[:n-1]
+		operands[n-2] = &nodes.JoinClause{
+			Loc:       nodes.Loc{Start: tableExprLoc(leftOp).Start, End: p.prev.End},
+			Type:      jt,
+			Left:      leftOp,
+			Right:     right,
+			Condition: cond,
+		}
+		chained[n-2] = true
 	}
-	defer p.leaveNesting()
+
 	for {
 		jt, ok, err := p.matchJoinType()
 		if err != nil {
@@ -1234,29 +1261,89 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		rightFactor, err := p.parseTableFactor()
-		if err != nil {
-			return nil, err
-		}
-		right, err := p.parseJoinChain(rightFactor, joinAbsorbsRight(jt))
+		rf, err := p.parseTableFactor()
 		if err != nil {
 			return nil, err
 		}
 
-		join := &nodes.JoinClause{
-			Loc:   nodes.Loc{Start: tableExprLoc(left).Start},
+		if joinAbsorbsRight(jt) {
+			// Shift: the join stays open so a trailing stacked ON can bind to it.
+			operands = append(operands, rf)
+			joinTypes = append(joinTypes, jt)
+			chained = append(chained, false)
+		} else {
+			// A NATURAL join binds to the top operand only; the open absorbing
+			// joins to the left resolve around the result.
+			top := operands[len(operands)-1]
+			join := &nodes.JoinClause{
+				Loc:   nodes.Loc{Start: tableExprLoc(top).Start},
+				Type:  jt,
+				Left:  top,
+				Right: rf,
+			}
+			if err := p.parseJoinCondition(join); err != nil {
+				return nil, err
+			}
+			join.Loc.End = p.prev.End
+			operands[len(operands)-1] = join
+			chained[len(chained)-1] = true
+		}
+
+		// A run of conditions closes the open absorbing joins, inner first.
+		for len(joinTypes) > 0 {
+			cond, present, err := p.parseJoinConditionNode()
+			if err != nil {
+				return nil, err
+			}
+			if !present {
+				break
+			}
+			reduceTop(cond)
+		}
+	}
+
+	return p.collapseLeftDeep(operands, joinTypes, chained)
+}
+
+// collapseLeftDeep folds the operands still open after the chain — conditionless
+// joins — into a left-deep tree. When the right operand is one the chain built
+// (chained), the join is pushed into that subtree's own left so it binds
+// left-deep: `a JOIN b JOIN c ON x` is `(a JOIN b) JOIN c ON x`, and `a JOIN b
+// NATURAL LEFT JOIN c` is `(a JOIN b) NATURAL LEFT JOIN c`. A parseTableFactor
+// operand (a table or an explicit group) is joined whole. An outer (LEFT/RIGHT)
+// join still open here never found its required ON/USING, so it is a syntax
+// error.
+func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.JoinType, chained []bool) (nodes.TableExpr, error) {
+	left := operands[0]
+	for i, jt := range joinTypes {
+		if jt == nodes.JoinLeft || jt == nodes.JoinRight {
+			return nil, p.syntaxErrorAtCur()
+		}
+		right := operands[i+1]
+		if r, ok := right.(*nodes.JoinClause); ok && chained[i+1] {
+			// Push `left jt` to r's own left, inside the condition r carries, so
+			// the chain binds left-deep. r's left is a single operand (the one
+			// below it when the chain closed), so this is one level, never a
+			// descent into an explicit group.
+			leaf := r.Left
+			start := tableExprLoc(left).Start
+			r.Loc.Start = start
+			r.Left = &nodes.JoinClause{
+				Loc:   nodes.Loc{Start: start, End: tableExprLoc(leaf).End},
+				Type:  jt,
+				Left:  left,
+				Right: leaf,
+			}
+			left = r
+			continue
+		}
+		left = &nodes.JoinClause{
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start, End: tableExprLoc(right).End},
 			Type:  jt,
 			Left:  left,
 			Right: right,
 		}
-		if err := p.parseJoinCondition(join); err != nil {
-			return nil, err
-		}
-
-		join.Loc.End = p.prev.End
-		left = join
 	}
-
 	return left, nil
 }
 
@@ -1274,9 +1361,11 @@ func joinAbsorbsRight(jt nodes.JoinType) bool {
 	}
 }
 
-// parseJoinCondition reads the ON or USING clause for a join and records it on
-// the node. An outer (LEFT/RIGHT) join requires one, a NATURAL join forbids one,
-// and the others take either or none. Container-verified against OceanBase v4.3.5.
+// parseJoinCondition reads the ON or USING clause for a non-absorbing NATURAL
+// join and records it. A NATURAL join forbids one. The absorbing joins (plain,
+// cross, inner, outer and, on OceanBase, STRAIGHT_JOIN) read their condition
+// through parseJoinConditionNode, which parseJoinChain attaches as it closes
+// them. Container-verified against OceanBase v4.3.5.
 func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
 	switch join.Type {
 	case nodes.JoinNatural, nodes.JoinNaturalLeft, nodes.JoinNaturalRight:
@@ -1284,45 +1373,53 @@ func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
 		// syntax error, left where it sits for the caller to report.
 		return nil
 	}
+	cond, present, err := p.parseJoinConditionNode()
+	if err != nil {
+		return err
+	}
+	if present {
+		join.Condition = cond
+	}
+	return nil
+}
 
+// parseJoinConditionNode reads an ON or USING clause if one is present and
+// returns it; present is false when the next token is neither.
+func (p *Parser) parseJoinConditionNode() (nodes.Node, bool, error) {
 	condStart := p.pos()
 	if _, ok := p.match(kwON); ok {
 		// Completion: after ON keyword, offer columnref candidates for join condition.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addRuleCandidate("columnref")
-			return &ParseError{Message: "collecting"}
+			return nil, false, &ParseError{Message: "collecting"}
 		}
 		condStart = p.pos()
 		cond, err := p.parseExpr()
 		if err != nil {
-			return err
+			return nil, false, err
 		}
 		if cond == nil {
-			return p.syntaxErrorAtCur()
+			return nil, false, p.syntaxErrorAtCur()
 		}
-		join.Condition = &nodes.OnCondition{
-			Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
-			Expr: cond,
-		}
-		return nil
+		return &nodes.OnCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Expr: cond}, true, nil
 	}
 	if _, ok := p.match(kwUSING); ok {
 		// For USING, we manually consume '(' so we can add a completion checkpoint inside.
 		if _, err := p.expect('('); err != nil {
-			return err
+			return nil, false, err
 		}
 		// Completion: after USING (, offer columnref candidates for shared columns.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addRuleCandidate("columnref")
-			return &ParseError{Message: "collecting"}
+			return nil, false, &ParseError{Message: "collecting"}
 		}
 		var cols []string
 		for {
 			name, _, err := p.parseIdent()
 			if err != nil {
-				return err
+				return nil, false, err
 			}
 			cols = append(cols, name)
 			if p.cur.Type != ',' {
@@ -1331,19 +1428,11 @@ func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
-			return err
+			return nil, false, err
 		}
-		join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
-		return nil
+		return &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}, true, nil
 	}
-
-	// No ON/USING. An outer join requires one; OceanBase has no bare LEFT/RIGHT
-	// JOIN production. Completion stays lenient so a half-typed join still
-	// offers candidates.
-	if (join.Type == nodes.JoinLeft || join.Type == nodes.JoinRight) && !p.collectMode() {
-		return p.syntaxErrorAtCur()
-	}
-	return nil
+	return nil, false, nil
 }
 
 // matchJoinType checks for a join keyword combination and returns the join type.
