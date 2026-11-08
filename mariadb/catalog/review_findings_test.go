@@ -4955,8 +4955,13 @@ func TestReview_AliasReferenceInOrderingClauses(t *testing.T) {
 // The characters of a number are the other reading, and both are pinned here:
 // '1', X'31' and 0x31 all name the member '1'.
 //
+// Zero is the one number the two types read differently, and both readings are
+// pinned: a SET takes it as the bitmask that chooses nothing, so
+// SET('0','1','2') DEFAULT (0) is ” and so are (-0) and (0e0), while an ENUM
+// has no member at that position and refuses it even where '0' is one of them.
+//
 // The cases the server refuses are left out, since it answers 1067 and omni
-// does not check such a default yet: a position of zero or past the last
+// does not check such a default yet: an ENUM position of zero or past the last
 // member, a SET bitmask past them, a negative number, and any fraction,
 // approximate or not. Its acceptance is stranger than the value it stores —
 // the default is taken only where the number's digits are themselves a member,
@@ -4981,6 +4986,16 @@ func TestReview_EnumNumberDefault(t *testing.T) {
 		{"set_three_members", "SET('7','b','c')", "7"},
 		{"set_from_an_exponent", "SET('2','1')", "1e0"},
 		{"set_digits_that_are_a_member", "SET('a','1')", "1"},
+		// Zero chooses no member, which a SET holds as the empty set.
+		{"set_zero_is_the_empty_set", "SET('0','1','2')", "0"},
+		{"set_zero_of_two", "SET('0','1')", "0"},
+		{"set_zero_where_zero_is_second", "SET('a','0')", "0"},
+		{"set_negative_zero", "SET('0','1','2')", "-0"},
+		{"set_zero_from_an_exponent", "SET('0','1','2')", "0e0"},
+		{"set_first_of_a_set_holding_zero", "SET('0','1','2')", "1"},
+		{"set_second_of_a_set_holding_zero", "SET('0','1','2')", "2"},
+		{"enum_first_of_an_enum_holding_zero", "ENUM('0','1','2')", "1"},
+		{"set_quoted_zero", "SET('0','1','2')", "'0'"},
 		// The characters of a number name the member of that value.
 		{"enum_quoted_digits", "ENUM('2','1')", "'1'"},
 		{"enum_x_quoted_digits", "ENUM('2','1')", "X'31'"},

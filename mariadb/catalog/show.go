@@ -2556,11 +2556,16 @@ func enumNumberDefault(text string, col *Column) (string, bool) {
 		return "", false
 	}
 	whole, fraction, _ := strings.Cut(digits, ".")
-	if strings.Trim(fraction, "0") != "" || strings.HasPrefix(whole, "-") {
+	if strings.Trim(fraction, "0") != "" {
+		return "", false
+	}
+	// A negative zero is still zero, which a SET reads as the empty set.
+	whole = dropNegativeZero(whole)
+	if strings.HasPrefix(whole, "-") {
 		return "", false
 	}
 	n, err := strconv.ParseUint(whole, 10, 64)
-	if err != nil || n == 0 {
+	if err != nil {
 		return "", false
 	}
 	members := enumMembersOf(col.ColumnType)
@@ -2571,6 +2576,11 @@ func enumNumberDefault(text string, col *Column) (string, bool) {
 		if len(members) > 63 || n >= 1<<uint(len(members)) {
 			return "", false
 		}
+		// Zero is a bitmask like any other and chooses no member, which the
+		// column holds as the empty set and shows as an empty string:
+		// measured, SET('0','1','2') DEFAULT (0) comes back '', and so do
+		// (-0) and (0e0). An ENUM has no member at that position and refuses
+		// it, even where '0' is one of them.
 		chosen := make([]string, 0, len(members))
 		for i, member := range members {
 			if n&(1<<uint(i)) != 0 {
@@ -2579,7 +2589,7 @@ func enumNumberDefault(text string, col *Column) (string, bool) {
 		}
 		return quoteStringDefault([]byte(strings.Join(chosen, ","))), true
 	}
-	if n > uint64(len(members)) {
+	if n == 0 || n > uint64(len(members)) {
 		return "", false
 	}
 	return quoteStringDefault([]byte(members[n-1])), true
