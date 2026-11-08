@@ -194,3 +194,57 @@ func TestGeneratedColumnChecksStayLinear(t *testing.T) {
 		t.Fatalf("checking a chain of %d generated columns took over 5s", n)
 	}
 }
+
+// TestShowCreateTableStaysLinear guards the lookups behind writing a table.
+// The CHECK a column carries was found by scanning the table's columns and
+// then its constraints, once per column written and once per constraint
+// sorted, which made writing a wide table quadratic in its columns — a table
+// of 4,000 spent most of its time there, with no CHECK in sight. Each shape
+// takes milliseconds when linear and seconds otherwise.
+func TestShowCreateTableStaysLinear(t *testing.T) {
+	const n = 40000
+	for _, tc := range []struct {
+		name  string
+		check bool
+	}{
+		{"plain columns", false},
+		{"a check on every column", true},
+	} {
+		c := New()
+		if _, err := c.Exec("CREATE DATABASE d; USE d;", nil); err != nil {
+			t.Fatalf("%s: setup: %v", tc.name, err)
+		}
+		db := c.GetDatabase("d")
+		tbl := &Table{Name: "t", Database: db, colByName: make(map[string]int, n)}
+		for i := 0; i < n; i++ {
+			col := &Column{
+				Name:       fmt.Sprintf("c%d", i),
+				DataType:   "int",
+				ColumnType: "int(11)",
+				Nullable:   true,
+			}
+			tbl.colByName[toLower(col.Name)] = len(tbl.Columns)
+			tbl.Columns = append(tbl.Columns, col)
+			if tc.check {
+				tbl.Constraints = append(tbl.Constraints, &Constraint{
+					Name:      col.Name,
+					Type:      ConCheck,
+					Table:     tbl,
+					Column:    col.Name,
+					CheckExpr: backtickIDQ(col.Name) + " > 0",
+				})
+			}
+		}
+		db.Tables["t"] = tbl
+		done := make(chan string, 1)
+		go func() { done <- c.ShowCreateTable("d", "t") }()
+		select {
+		case out := <-done:
+			if got := strings.Count(out, "int(11)"); got != n {
+				t.Errorf("%s: wrote %d columns, want %d", tc.name, got, n)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s: writing a table of %d columns took over 5s", tc.name, n)
+		}
+	}
+}

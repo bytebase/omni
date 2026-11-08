@@ -103,13 +103,15 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		b.WriteString("CREATE TABLE " + backtickIDQ(tbl.Name) + " (\n")
 	}
 
-	// Columns.
+	// Columns. The CHECK each one carries is indexed once for the whole
+	// rendering, not looked up per column.
+	checks := columnChecks(tbl)
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
 		if col.Hidden == ColumnHiddenSystem {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl))
+		parts = append(parts, showColumnWithTable(col, tbl, checks))
 	}
 
 	// Application-time period — rendered before SYSTEM_TIME; the name is
@@ -166,7 +168,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		case ConForeignKey:
 			fkConstraints = append(fkConstraints, con)
 		case ConCheck:
-			if !writtenOnColumn(tbl, con) {
+			if !writtenOnColumn(checks, con) {
 				chkConstraints = append(chkConstraints, con)
 			}
 		}
@@ -210,10 +212,12 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 }
 
 func showColumn(col *Column) string {
-	return showColumnWithTable(col, nil)
+	return showColumnWithTable(col, nil, nil)
 }
 
-func showColumnWithTable(col *Column, tbl *Table) string {
+// showColumnWithTable writes a column definition. checks holds the CHECK each
+// column of the table carries, indexed by columnChecks.
+func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint) string {
 	var b strings.Builder
 	b.WriteString(backtickIDQ(col.Name) + " " + col.ColumnType)
 
@@ -353,10 +357,8 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	// after it, last in the definition and after any COMMENT:
 	// `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK (`a` > 0). MySQL 8.0 writes
 	// every check as a table-level constraint. Measured on mariadb:11.8.8.
-	if tbl != nil {
-		if con := columnCheckOf(tbl, col.Name); con != nil {
-			b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
-		}
+	if con := checks[toLower(col.Name)]; con != nil {
+		b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
 	}
 
 	return b.String()
@@ -377,33 +379,38 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 // the check as a table-level CONSTRAINT `b`, not on `b`. Measured on
 // mariadb:11.8.8. Treating it as the column's would drop it from the output
 // altogether, since the generated-column branch writes no check.
-func columnCheckOf(tbl *Table, name string) *Constraint {
-	if tbl == nil || name == "" {
+// columnChecks indexes the CHECK each column carries, which SHOW CREATE TABLE
+// writes on the column rather than among the table's constraints. It is built
+// once for a rendering: finding each one by scanning the table's columns and
+// its constraints made writing a wide table quadratic in its columns, and a
+// table of 4,000 of them spent most of its time there.
+func columnChecks(tbl *Table) map[string]*Constraint {
+	if tbl == nil {
 		return nil
 	}
-	var owner *Column
-	for _, col := range tbl.Columns {
-		if eqFoldStr(col.Name, name) {
-			owner = col
-			break
-		}
-	}
-	if owner == nil || owner.Generated != nil {
-		return nil
-	}
+	out := make(map[string]*Constraint, len(tbl.Constraints))
 	for _, con := range tbl.Constraints {
-		if isColumnCheck(con) && eqFoldStr(con.Column, name) {
-			return con
+		if !isColumnCheck(con) {
+			continue
 		}
+		key := toLower(con.Column)
+		if _, seen := out[key]; seen {
+			continue // the first one the table holds is the one written
+		}
+		// A generated column's CHECK is not written on it.
+		if owner := tbl.GetColumn(con.Column); owner == nil || owner.Generated != nil {
+			continue
+		}
+		out[key] = con
 	}
-	return nil
+	return out
 }
 
 // writtenOnColumn reports whether this check is the one SHOW CREATE TABLE
 // writes on a column of the table, which is where it then appears instead of
 // among the table's constraints.
-func writtenOnColumn(tbl *Table, con *Constraint) bool {
-	return isColumnCheck(con) && columnCheckOf(tbl, con.Column) == con
+func writtenOnColumn(checks map[string]*Constraint, con *Constraint) bool {
+	return isColumnCheck(con) && checks[toLower(con.Column)] == con
 }
 
 // formatExpressionDefault writes an expression default the way MariaDB stores
@@ -1733,10 +1740,26 @@ func scaleNumberDefault(text string, approximate bool, col *Column) (string, boo
 			}
 			return dropNegativeZero(trimFractionZeros(digits)), true
 		}
-		// A float that declares a scale is shown to it, but rounded as the
-		// binary double it holds rather than as decimal digits: measured,
+		// A float that declares a scale is shown to it, rounded as the double
+		// it holds rather than as decimal digits: measured on mariadb:11.8.8,
 		// DOUBLE(10,2) DEFAULT 0.125 comes back 0.12 where DECIMAL(10,2)
-		// DEFAULT 0.125 comes back 0.13. That is what FormatFloat does.
+		// DEFAULT 0.125 comes back 0.13, and (2.675) comes back 2.67 where
+		// the decimal rounds to 2.68. That is what FormatFloat does, which
+		// rounds the double's own value.
+		//
+		// It is not quite what the server does. The conversion there is
+		// my_fcvt, which asks dtoa for the digits by its fast path —
+		// floating-point arithmetic carrying an error bound rather than an
+		// exact decimal conversion — so for a value whose double sits a hair
+		// off a tie at the places asked for, the answer turns on that error
+		// and no closed rule gives it. Over 120 measured literals this is
+		// wrong on six, all of them small ties: (0.005) comes back 0.00 here
+		// where the server stores 0.00... and (0.015) 0.01 where the server
+		// stores 0.02, with (0.025), (0.065), (0.075) and (0.085) the others.
+		// Rounding the scaled product to even instead — which gives those six
+		// — is wrong on twenty-three, (1.055), (12.005) and (123.025) among
+		// them, so this stays as it is. Matching it everywhere would mean
+		// following dtoa's fast path itself.
 		if f, err := strconv.ParseFloat(digits, 64); err == nil {
 			return dropNegativeZero(strconv.FormatFloat(f, 'f', scale, 64)), true
 		}

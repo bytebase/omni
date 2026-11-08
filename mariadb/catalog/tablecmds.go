@@ -201,10 +201,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// max(existing) — see altercmds.go.
 	var unnamedFKCount int
 
-	// unnamedCheckCount counts the table-level CHECK constraints that received
-	// a generated name in this CREATE TABLE statement. MariaDB names them
-	// CONSTRAINT_1, CONSTRAINT_2, ... counting only the unnamed ones, and names
-	// a column's CHECK after the column. Measured on mariadb:11.8.8 through
+	// The names this statement's table-level CHECK constraints give
+	// explicitly, which allocCheckName reserves while it fills in the rest.
+	// MariaDB names an unnamed one CONSTRAINT_<n> and a column's CHECK after
+	// the column. Measured on mariadb:11.8.8 through
 	// information_schema.CHECK_CONSTRAINTS:
 	//
 	//	CREATE TABLE ck1 (a INT CHECK (a > 0), b INT CHECK (b > 0),
@@ -212,7 +212,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	//
 	// holds checks `a`, `b`, CONSTRAINT_1, named and CONSTRAINT_2. MySQL 8.0
 	// names every one <table>_chk_<n>.
-	var unnamedCheckCount int
+	declaredChecks := declaredCheckNames(stmt.Constraints)
 
 	// PERIOD FOR SYSTEM_TIME columns. Whether this makes a valid system-versioned
 	// table is validated after columns are processed (it requires an explicit
@@ -707,17 +707,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				// The counter steps past a CONSTRAINT_<n> the statement itself
-				// named: `CREATE TABLE dp2 (a INT, CONSTRAINT CONSTRAINT_1
-				// CHECK (a > 0), CHECK (a < 9))` holds CONSTRAINT_1 and
-				// CONSTRAINT_2. Measured on mariadb:11.8.8.
-				for {
-					unnamedCheckCount++
-					conName = fmt.Sprintf("CONSTRAINT_%d", unnamedCheckCount)
-					if !checkConstraintNameExists(db, tbl, conName) {
-						break
-					}
-				}
+				conName = allocCheckName(db, tbl, declaredChecks)
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
@@ -2405,37 +2395,50 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 	return max + 1
 }
 
-// nextCheckNumber returns max(existing generated CONSTRAINT_N) + 1.
-// ALTER TABLE seeds the generated CHECK counter from existing names.
-func nextCheckNumber(tbl *Table) int {
-	prefix := "constraint_"
-	max := 0
-	for _, con := range tbl.Constraints {
-		if con.Type != ConCheck {
+// allocCheckName names a table-level CHECK the statement left unnamed. The
+// server takes the lowest CONSTRAINT_<n> that is free, counting both the names
+// the table already holds and the ones the same statement gives explicitly —
+// so a name declared further along is reserved before the unnamed ones are
+// filled in. declared holds those, lowered; nil where there are none.
+//
+// Measured on mariadb:11.8.8:
+//
+//	CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_1 CHECK (a < 9))
+//
+// holds CONSTRAINT_2 and CONSTRAINT_1, and with a third unnamed check after
+// them that one is CONSTRAINT_3; over an explicit CONSTRAINT_2 two unnamed
+// checks are CONSTRAINT_1 and CONSTRAINT_3. It is the lowest free number
+// rather than one past the highest: a table holding CONSTRAINT_5 takes
+// CONSTRAINT_1 for the next unnamed check, on CREATE and on ALTER alike.
+// Only an explicit table-level CHECK reserves a name — a column's check,
+// named after the column, and a foreign key of that name do not, and the
+// server will write two constraints of one name rather than skip it.
+func allocCheckName(db *Database, tbl *Table, declared map[string]bool) string {
+	for n := 1; ; n++ {
+		name := fmt.Sprintf("CONSTRAINT_%d", n)
+		if declared[toLower(name)] {
 			continue
 		}
-		name := toLower(con.Name)
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		rest := name[len(prefix):]
-		if rest == "" || rest[0] == '0' {
-			continue
-		}
-		n := 0
-		ok := true
-		for _, ch := range rest {
-			if ch < '0' || ch > '9' {
-				ok = false
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		if ok && n > max {
-			max = n
+		if !checkConstraintNameExists(db, tbl, name) {
+			return name
 		}
 	}
-	return max + 1
+}
+
+// declaredCheckNames collects the names a statement's table-level CHECK
+// constraints give explicitly, lowered, which allocCheckName reserves.
+func declaredCheckNames(cons []*nodes.Constraint) map[string]bool {
+	var declared map[string]bool
+	for _, con := range cons {
+		if con == nil || con.Type != nodes.ConstrCheck || con.Name == "" {
+			continue
+		}
+		if declared == nil {
+			declared = map[string]bool{}
+		}
+		declared[toLower(con.Name)] = true
+	}
+	return declared
 }
 
 func isStringType(dt string) bool {

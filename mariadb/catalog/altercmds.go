@@ -92,6 +92,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
 	droppedColumns := alterDroppedColumns(stmt.Commands)
+	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -107,13 +108,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -143,7 +144,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			rollback()
 			return err
 		}
@@ -207,8 +208,10 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // execAlterCmd runs one ALTER command. dropsPK says whether another command of
 // the same statement drops the primary key and droppedColumns holds every
 // column the statement drops, which together decide whether dropping one of a
-// composite key's columns would leave a half-built key behind.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool) error {
+// composite key's columns would leave a half-built key behind; declaredChecks
+// holds the CHECK names the statement gives explicitly, which the unnamed ones
+// are named around.
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -219,7 +222,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -448,11 +451,14 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 				return err
 			}
 		}
+		// The names these constraints give explicitly are reserved for each
+		// other, as a CREATE TABLE's are.
+		declared := declaredCheckNames(cmd.Constraints)
 		for _, con := range cmd.Constraints {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}); err != nil {
+			}, declared); err != nil {
 				return err
 			}
 		}
@@ -601,6 +607,30 @@ func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
 
 // alterDroppedColumns returns the columns the statement drops, which is what
 // decides whether a composite primary key survives it.
+// alterDeclaredCheckNames collects the names this statement's added CHECK
+// constraints give explicitly, lowered, which allocCheckName reserves while it
+// names the unnamed ones: measured on mariadb:11.8.8,
+// `ALTER TABLE t ADD CHECK (a > 0), ADD CONSTRAINT CONSTRAINT_1 CHECK (a < 9)`
+// holds CONSTRAINT_2 and CONSTRAINT_1, where naming them in the order the
+// commands come takes CONSTRAINT_1 twice.
+func alterDeclaredCheckNames(cmds []*nodes.AlterTableCmd) map[string]bool {
+	var declared map[string]bool
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Type != nodes.ATAddConstraint || cmd.Constraint == nil {
+			continue
+		}
+		con := cmd.Constraint
+		if con.Type != nodes.ConstrCheck || con.Name == "" {
+			continue
+		}
+		if declared == nil {
+			declared = map[string]bool{}
+		}
+		declared[toLower(con.Name)] = true
+	}
+	return declared
+}
+
 func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	out := make(map[string]bool)
 	for _, cmd := range cmds {
@@ -1031,7 +1061,7 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1172,7 +1202,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("CONSTRAINT_%d", nextCheckNumber(tbl))
+			conName = allocCheckName(tbl.Database, tbl, declaredChecks)
 		}
 		if checkConstraintNameExists(tbl.Database, tbl, conName) {
 			return errCheckConstraintDupName(conName)

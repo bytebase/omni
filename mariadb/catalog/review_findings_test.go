@@ -5675,3 +5675,71 @@ func TestReview_NegativeZeroStringDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_CheckNameReservation covers the name an unnamed table-level CHECK
+// is given, which is the lowest CONSTRAINT_<n> free of both the names the
+// table holds and the ones the same statement gives explicitly. Naming them in
+// the order the clauses come took a name a later clause declares, so
+// `CHECK (a > 0), CONSTRAINT CONSTRAINT_1 CHECK (a < 9)` was refused as a
+// duplicate where the server names the first one CONSTRAINT_2.
+//
+// Measured on mariadb:11.8.8. It is the lowest free number and not one past
+// the highest, on CREATE and on ALTER alike: a table already holding
+// CONSTRAINT_5 names its next unnamed check CONSTRAINT_1. Only an explicit
+// table-level CHECK reserves a name — a column's check, named after the
+// column, and a foreign key of that name do not.
+func TestReview_CheckNameReservation(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name string
+		ddl  []string
+	}{
+		{"an_explicit_name_declared_later", []string{
+			"CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_1 CHECK (a < 9))"}},
+		{"an_explicit_name_declared_first", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT CONSTRAINT_1 CHECK (a < 9), CHECK (a > 0))"}},
+		{"two_unnamed", []string{"CREATE TABLE t (a INT, CHECK (a > 0), CHECK (a < 9))"}},
+		{"an_explicit_second_name", []string{
+			"CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_2 CHECK (a < 9))"}},
+		{"unnamed_either_side_of_an_explicit_name", []string{
+			"CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_1 CHECK (a < 9), CHECK (a <> 5))"}},
+		{"an_explicit_third_name", []string{
+			"CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_3 CHECK (a < 9))"}},
+		{"two_unnamed_over_an_explicit_second", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT CONSTRAINT_2 CHECK (a > 0), CHECK (a < 9), CHECK (a <> 5))"}},
+		{"an_explicit_name_in_another_case", []string{
+			"CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT constraint_1 CHECK (a < 9))"}},
+		{"a_column_check_does_not_reserve", []string{
+			"CREATE TABLE t (a INT CHECK (a > 0), CHECK (1))"}},
+		{"added_with_an_explicit_name_later", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD CHECK (a > 0), ADD CONSTRAINT CONSTRAINT_1 CHECK (a < 9)"}},
+		{"added_with_an_explicit_name_first", []string{
+			"CREATE TABLE t (a INT)",
+			"ALTER TABLE t ADD CONSTRAINT CONSTRAINT_1 CHECK (a < 9), ADD CHECK (a > 0)"}},
+		{"added_over_a_higher_number", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT CONSTRAINT_5 CHECK (a > 1))",
+			"ALTER TABLE t ADD CHECK (a > 0)"}},
+		{"two_added_over_a_higher_number", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT CONSTRAINT_5 CHECK (a > 1))",
+			"ALTER TABLE t ADD CHECK (a > 0), ADD CHECK (a < 9)"}},
+		{"added_beside_the_next_number", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT CONSTRAINT_5 CHECK (a > 1))",
+			"ALTER TABLE t ADD CHECK (a > 0), ADD CONSTRAINT CONSTRAINT_6 CHECK (a < 9)"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.ddl {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
