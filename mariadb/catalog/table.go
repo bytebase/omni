@@ -156,6 +156,11 @@ type GeneratedColumnInfo struct {
 	// `a DOUBLE AS (RAND()) VIRTUAL` answers 1901 just as declaring the key
 	// with the table does.
 	Nondeterministic string
+	// Refs holds the columns the expression reads, recorded at the same time
+	// and for the same reason: MariaDB carries nondeterminism through them, so
+	// a materialized column that takes its value from a non-deterministic
+	// generated column is refused too. See nondeterministicDependency.
+	Refs []string
 	// RowBound is "ROW START" / "ROW END" for a system-versioning period
 	// column (GENERATED ALWAYS AS ROW START/END), else "".
 	RowBound string

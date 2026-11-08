@@ -1158,6 +1158,19 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		}
 		return "x'" + hexOf(raw) + "'", true
 	case familyString, familyTemporal:
+		// Only a column with a charset of its own converts the literal. A
+		// date has none: it reads the characters as a date, and the digits of
+		// one are the same bytes in every charset the introducer can name.
+		if kind == literalIntroduced && family == familyString {
+			converted, ok := convertIntroducedBytes(raw, introducedCharsetOf(val), normalizeCharsetName(col.Charset))
+			if !ok {
+				// Not a conversion this can do exactly, so the literal keeps
+				// its introducer and the server reads the same value from it
+				// as it did from the statement.
+				return val, true
+			}
+			raw = converted
+		}
 		return quoteStringDefault(raw), true
 	case familyNumber:
 		return numberDefaultOf(kind, raw, col)
@@ -1600,6 +1613,81 @@ func literalDefaultBytes(val string) (literalKind, []byte, bool) {
 		return literalIntroduced, raw, ok
 	}
 	return literalNone, nil, false
+}
+
+// introducedCharsetOf returns the charset an introduced literal names, or ""
+// where val is not one.
+func introducedCharsetOf(val string) string {
+	if val == "" || val[0] != '_' {
+		return ""
+	}
+	quote := strings.IndexByte(val, '\'')
+	if quote < 2 {
+		return ""
+	}
+	return normalizeCharsetName(val[1:quote])
+}
+
+// convertIntroducedBytes re-encodes an introduced literal's bytes from the
+// charset it names into the column's own, which is the value the server holds:
+// a column that stores a value converts the literal and writes it back without
+// the introducer. Measured on mariadb:11.8.8 in a utf8mb4 database,
+// `VARCHAR(20) DEFAULT (_latin1'<C3 A4>')` comes back as the four bytes
+// C3 83 C2 A4 — those two bytes read as two latin1 characters and written in
+// the column's own encoding — where writing them as they stand would have been
+// the one character C3 A4.
+//
+// It reports false where the conversion is not one it can do exactly, and the
+// caller then keeps the literal as written. MariaDB's latin1 is cp1252, whose
+// bytes 0x80 through 0x9F are not the code points of the same number: measured
+// one band at a time, 0x80 converts to the euro sign and 0x9F to U+0178, while
+// 0x00-0x7F and 0xA0-0xFF are the code points they look like. Only the bands
+// that agree are converted here.
+func convertIntroducedBytes(raw []byte, from, to string) ([]byte, bool) {
+	switch {
+	case from == "" || to == "":
+		return nil, false
+	case from == to:
+		return raw, true
+	case from == "binary":
+		// The bytes are the value, whatever the column reads them as:
+		// measured, `VARCHAR(20) DEFAULT (_binary'<C3 A4>')` keeps both bytes
+		// and the column reads them as its own one character.
+		return raw, true
+	case from == "ascii" && isASCIIBytes(raw):
+		return raw, true
+	case from == "utf8mb3" && to == "utf8mb4":
+		// utf8mb3 is utf8mb4 without the four-byte characters, so the bytes
+		// are already in the column's own encoding: measured,
+		// `VARCHAR(20) DEFAULT (_utf8mb3'ä')` comes back DEFAULT 'ä' with the
+		// introducer gone and the bytes unchanged.
+		return raw, true
+	case from == "latin1" && (to == "utf8mb4" || to == "utf8mb3"):
+		out := make([]byte, 0, len(raw)*2)
+		for _, c := range raw {
+			switch {
+			case c < 0x80:
+				out = append(out, c)
+			case c < 0xa0:
+				return nil, false // the cp1252 band, which does not agree
+			default:
+				out = append(out, 0xc0|c>>6, 0x80|c&0x3f)
+			}
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// isASCIIBytes reports whether every byte is one the ASCII-compatible charsets
+// all read the same way.
+func isASCIIBytes(raw []byte) bool {
+	for _, c := range raw {
+		if c >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // unquoteStringLiteral takes the quotes off a single-quoted literal, where a

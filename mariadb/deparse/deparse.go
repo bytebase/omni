@@ -1646,11 +1646,6 @@ func writeOperand(b *strings.Builder, node ast.ExprNode, min int) {
 	writeExpr(b, node)
 }
 
-// writeBitOperand writes an operand the grammar reads as a bit_expr.
-func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
-	writeBitOperandAt(b, node, precLowest)
-}
-
 // writeBitOperandAt writes a bit_expr operand of an operator reaching min.
 func writeBitOperandAt(b *strings.Builder, node ast.ExprNode, min int) {
 	if bareLevel(node) == printsDelimited && exprPrec(node) >= min {
@@ -1660,12 +1655,6 @@ func writeBitOperandAt(b *strings.Builder, node ast.ExprNode, min int) {
 	b.WriteString("(")
 	writeExpr(b, node)
 	b.WriteString(")")
-}
-
-// writeComparisonRight writes the right side of a comparison, which the grammar reads
-// as a predicate.
-func writeComparisonRight(b *strings.Builder, node ast.ExprNode) {
-	writeComparisonRightAt(b, node, precLowest)
 }
 
 // writeComparisonRightAt writes a predicate operand of an operator reaching min.
@@ -1711,17 +1700,23 @@ func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.S
 	}
 	switch {
 	case n.Op == ast.BinOpEq && !all:
-		writeBitOperand(b, n.Left)
+		writeBitOperandAt(b, n.Left, precIn)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString(")")
 	case n.Op == ast.BinOpNe && all:
 		b.WriteString("!(")
-		writeBitOperand(b, n.Left)
+		writeBitOperandAt(b, n.Left, precIn)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString("))")
 	default:
+		// The quantified forms the server leaves as written lose the
+		// grouping on the left: measured on mariadb:11.8.8,
+		// `(1 OR 0) > ALL (SELECT 1)` is stored as
+		// `1 or 0 > all (select 1)`, and the view then answers 1 where the
+		// expression it was created from answers 0. That is the server's own
+		// output, so it is what this writes.
 		writeExpr(b, n.Left)
 		b.WriteString(" ")
 		b.WriteString(binaryOpToString(n.Op))

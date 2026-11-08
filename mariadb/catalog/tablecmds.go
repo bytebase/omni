@@ -322,6 +322,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Stored:           colDef.Generated.Stored,
 				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 				Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
+				Refs:             generatedColumnRefs(colDef.Generated.Expr),
 			}
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -860,6 +861,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		return err
 	}
 	if err := validateIgnoredPrimaryKey(tbl, true); err != nil {
+		return err
+	}
+	// Once every column is in, a materialized generated column can be asked
+	// about the ones it reads: measured on mariadb:11.8.8,
+	// `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) STORED)`
+	// answers 1901, where the same table without the STORED column is
+	// accepted.
+	if err := validateMaterializedGeneratedColumns(tbl, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
 
@@ -2066,6 +2075,11 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		// second, and 1901 before the key-length 1170 where both apply.
 		if col.Generated != nil && col.Generated.Nondeterministic != "" {
 			return errNondeterministicGeneratedColumn(col.Generated.Nondeterministic, col.Name)
+		}
+		// The value may also come from another generated column, which
+		// carries its nondeterminism here. See nondeterministicDependency.
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 		if spatial {
 			if col.Nullable {
@@ -3345,6 +3359,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 				Stored:           srcCol.Generated.Stored,
 				RowBound:         srcCol.Generated.RowBound,
 				Nondeterministic: srcCol.Generated.Nondeterministic,
+				Refs:             append([]string{}, srcCol.Generated.Refs...),
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)

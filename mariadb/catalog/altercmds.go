@@ -479,6 +479,13 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
+	// A materialized generated column cannot read a non-deterministic one,
+	// whichever statement adds it. See nondeterministicDependency.
+	if col.Generated != nil && (col.Generated.Stored || columnDefHasKey(colDef)) {
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
+		}
+	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
@@ -785,6 +792,13 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	col := buildColumnFromDef(tbl, colDef)
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
+	}
+	// The replacement is held to the same rule as a column added outright: a
+	// materialized generated column cannot read a non-deterministic one.
+	if col.Generated != nil && (col.Generated.Stored || indexed[toLower(col.Name)]) {
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
+		}
 	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
@@ -1688,6 +1702,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			Stored:           colDef.Generated.Stored,
 			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
+			Refs:             generatedColumnRefs(colDef.Generated.Expr),
 		}
 	}
 	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)

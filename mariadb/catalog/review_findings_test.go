@@ -2591,3 +2591,216 @@ func TestReview_UnionOrderByKeepsTheOldAlias(t *testing.T) {
 		t.Errorf("oracle: expected ORDER BY on the declared name to be refused")
 	}
 }
+
+// TestReview_QuantifiedComparisonOperandParens covers the grouping on the left
+// of a quantified comparison, which the two forms the server rewrites keep and
+// the rest lose. Writing the left operand with no precedence constraint at all
+// dropped it everywhere, and `(1 OR 0) = ANY (SELECT 0)` then read as
+// `1 or 0 in (select 0)`, which is 1 where the expression it came from is 0.
+//
+// Measured on mariadb:11.8.8, with the value of each expression read from the
+// server beside the view's own, so a difference in grouping shows up as a
+// difference in the answer and not only in the text.
+func TestReview_QuantifiedComparisonOperandParens(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	for i, expr := range []string{
+		// The `in` form keeps the parentheses an operator looser than IN
+		// needs.
+		"(1 OR 0) = ANY (SELECT 0)",
+		"(1 AND 1) = ANY (SELECT 1)",
+		"(1 XOR 0) = ANY (SELECT 1)",
+		"(1 = 1) = ANY (SELECT 1)",
+		"(1 BETWEEN 0 AND 2) = ANY (SELECT 1)",
+		"(1 OR 0) = SOME (SELECT 0)",
+		"(1 OR 0) <> ALL (SELECT 1)",
+		// An operand that binds at least as tightly as IN needs none.
+		"1 + 1 = ANY (SELECT 2)",
+		"(NOT 1) = ANY (SELECT 0)",
+		"(1 LIKE '1') = ANY (SELECT 1)",
+		"1 = ANY (SELECT 1)",
+		// The forms the server leaves as written lose the grouping, and the
+		// answer with it. That is the server's own output, so it is what the
+		// catalog writes.
+		"(1 OR 0) > ALL (SELECT 1)",
+		"(1 OR 0) < ANY (SELECT 1)",
+	} {
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
+			view := fmt.Sprintf("qc%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS SELECT "+expr+" AS x;")
+			assertViewBodyMatches(t, mc, c, view)
+
+			// The view's own answer, which is what the stored grouping decides.
+			var want string
+			oracleScan(t, mc, "SELECT x FROM "+view, &want)
+			var replay string
+			body := extractSelectBody(c.ShowCreateView("testdb", view))
+			oracleScan(t, mc, "SELECT * FROM ("+body+") AS q", &replay)
+			if replay != want {
+				t.Errorf("replaying what omni wrote changed the answer: %s became %s\n  %s",
+					want, replay, body)
+			}
+		})
+	}
+}
+
+// TestReview_IntroducedLiteralDefaultIsConverted covers an introduced literal
+// as the default of a column that stores a value. The literal's bytes are read
+// in the charset it names and written in the column's own, which is what the
+// server holds: quoting the bytes as they stood had changed the value, two
+// latin1 characters becoming one.
+//
+// Measured on mariadb:11.8.8 in a utf8mb4 database, with the stored value read
+// back from a row so that a changed encoding shows up as a changed value.
+//
+// A column whose own charset is not the one the statement is written in is
+// left out, and is a difference of its own: SHOW CREATE TABLE writes the DDL
+// in the client's charset, so the server re-encodes such a default for the
+// output, where the catalog — which has no client charset — writes the bytes
+// the column holds. Measured: a latin1 column defaulting to the two bytes
+// C3 A4 is written back as the four bytes of those two characters in UTF-8.
+func TestReview_IntroducedLiteralDefaultIsConverted(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"latin1_high_byte", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_latin1'ä'))"},
+		{"latin1_unparenthesized", "CREATE TABLE t (a VARCHAR(20) DEFAULT _latin1'ä')"},
+		{"latin1_mixed", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_latin1'aäb'))"},
+		{"latin1_ascii_only", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_latin1'abc'))"},
+		{"latin1_empty", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_latin1''))"},
+		{"char_column", "CREATE TABLE t (a CHAR(5) DEFAULT (_latin1'ä'))"},
+		{"same_charset", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_utf8mb4'ä'))"},
+		{"utf8mb3", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_utf8mb3'ä'))"},
+		{"ascii_introducer", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_ascii'abc'))"},
+		{"binary_introducer", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_binary'ä'))"},
+		{"no_introducer", "CREATE TABLE t (a VARCHAR(20) DEFAULT 'ä')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			// The value the server stores for its own DDL, against the value
+			// it stores for omni's.
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_GeneratedColumnDependencyNondeterminism covers a materialized
+// generated column that reads another generated column. MariaDB carries
+// nondeterminism through the columns an expression reads, so a STORED column —
+// or a VIRTUAL one a key covers — is refused for reading a column that calls
+// RAND(), however many steps away the call is. Only the column's own function
+// calls were checked, so the catalog accepted a schema the server refuses.
+//
+// Measured on mariadb:11.8.8, message included: the server names the column
+// the value came through, where a direct call it names with its parentheses.
+func TestReview_GeneratedColumnDependencyNondeterminism(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		stmts   []string
+		accepts bool
+	}{
+		{"stored_reads_a_rand_column", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) STORED)",
+		}, false},
+		{"stored_reads_it_in_an_expression", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a + 1) STORED)",
+		}, false},
+		{"stored_reads_it_beside_a_plain_column", []string{
+			"CREATE TABLE t (x INT, a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (x + a) STORED)",
+		}, false},
+		{"two_hops", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL," +
+				" c DOUBLE AS (b) STORED)",
+		}, false},
+		{"keyed_virtual_reads_it", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL, KEY (b))",
+		}, false},
+		{"now_through_a_dependency", []string{
+			"CREATE TABLE t (a DATETIME AS (NOW()) VIRTUAL, b DATETIME AS (a) STORED)",
+		}, false},
+		{"the_stored_column_is_added_later", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			"ALTER TABLE t ADD COLUMN b DOUBLE AS (a) STORED",
+		}, false},
+		{"the_key_arrives_later", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL)",
+			"CREATE INDEX i ON t(b)",
+		}, false},
+		// An unmaterialized VIRTUAL column may read it, and a deterministic
+		// chain is fine however long.
+		{"virtual_reads_it", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL)",
+		}, true},
+		{"deterministic_chain", []string{
+			"CREATE TABLE t (x INT, a DOUBLE AS (x) VIRTUAL, b DOUBLE AS (a) STORED)",
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+
+			var oracleErr, omniErr error
+			for _, stmt := range tc.stmts {
+				if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil {
+					oracleErr = err
+				}
+				results, err := c.Exec(stmt+";", nil)
+				if err != nil {
+					omniErr = err
+				}
+				for _, r := range results {
+					if r.Error != nil {
+						omniErr = r.Error
+					}
+				}
+			}
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: gave %v, want accepted=%v", oracleErr, tc.accepts)
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: gave %v, want accepted=%v", omniErr, tc.accepts)
+			}
+			if tc.accepts {
+				want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+				if got := c.ShowCreateTable("testdb", "t"); got != want {
+					t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+				}
+				return
+			}
+			if want := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), want) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", want, omniErr)
+			}
+		})
+	}
+}

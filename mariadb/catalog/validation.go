@@ -217,8 +217,17 @@ func columnDefHasKey(colDef *nodes.ColumnDef) bool {
 // errNondeterministicGeneratedColumn reports 1901, which MariaDB answers for a
 // non-deterministic expression in a materialized generated column.
 func errNondeterministicGeneratedColumn(fn, colName string) error {
+	return errUnusableInGeneratedColumn(fn+"()", colName)
+}
+
+// errUnusableInGeneratedColumn is 1901 as the server words it: what cannot be
+// used, then the column whose expression used it. A function is named with its
+// parentheses and a column the value came through by name alone, which is how
+// the server names each: measured on mariadb:11.8.8, 'rand()' for the call and
+// 'a' for the column. Measured on mariadb:11.8.8.
+func errUnusableInGeneratedColumn(what, colName string) error {
 	return &Error{Code: 1901, SQLState: "HY000",
-		Message: fmt.Sprintf("Function or expression '%s()' cannot be used in the GENERATED ALWAYS AS clause of `%s`", fn, colName)}
+		Message: fmt.Sprintf("Function or expression '%s' cannot be used in the GENERATED ALWAYS AS clause of `%s`", what, colName)}
 }
 
 func errPrimaryKeyOnGeneratedColumn(colName string) error {
@@ -397,6 +406,71 @@ func nondeterministicFuncName(name string) string {
 		return lower
 	}
 	return ""
+}
+
+// generatedColumnRefs returns the columns a generated expression reads, in the
+// order it reads them.
+func generatedColumnRefs(expr nodes.ExprNode) []string {
+	var out []string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+			out = append(out, cr.Column)
+		}
+		return true
+	})
+	return out
+}
+
+// nondeterministicDependency returns the generated column col takes a
+// non-deterministic value from, or "". MariaDB carries nondeterminism through
+// the columns an expression reads, so a column that only names another is as
+// non-deterministic as the one it names, however many steps away the function
+// call is. The column reported is the one named directly, which is what the
+// server reports: measured on mariadb:11.8.8,
+// `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL,
+// c DOUBLE AS (b) STORED)` answers 1901 naming b, not a.
+func nondeterministicDependency(tbl *Table, col *Column, seen map[string]bool) string {
+	if tbl == nil || col == nil || col.Generated == nil {
+		return ""
+	}
+	if seen == nil {
+		seen = map[string]bool{}
+	}
+	if seen[toLower(col.Name)] {
+		return ""
+	}
+	seen[toLower(col.Name)] = true
+	for _, ref := range col.Generated.Refs {
+		dep := tbl.GetColumn(ref)
+		if dep == nil || dep.Generated == nil {
+			continue
+		}
+		if dep.Generated.Nondeterministic != "" ||
+			nondeterministicDependency(tbl, dep, seen) != "" {
+			return ref
+		}
+	}
+	return ""
+}
+
+// validateMaterializedGeneratedColumns refuses a generated column whose value
+// the table materializes — a STORED one, or a VIRTUAL one a key covers — and
+// which takes that value from a non-deterministic generated column. An
+// unmaterialized VIRTUAL column may take it, which is why this asks about the
+// table and not about the expression alone.
+func validateMaterializedGeneratedColumns(tbl *Table, indexed map[string]bool) error {
+	for _, col := range tbl.Columns {
+		if col.Generated == nil || col.Generated.RowBound != "" {
+			continue
+		}
+		if !col.Generated.Stored && !indexed[toLower(col.Name)] {
+			continue
+		}
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
+		}
+	}
+	return nil
 }
 
 // nondeterministicFuncIn returns the name of the first non-deterministic
