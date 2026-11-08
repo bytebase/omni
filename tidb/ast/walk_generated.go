@@ -306,6 +306,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.RefTable != nil {
 			Walk(v, n.RefTable)
 		}
+		for _, item := range n.RefKeyParts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ColumnDef:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
@@ -338,6 +343,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 		if n.RefTable != nil {
 			Walk(v, n.RefTable)
+		}
+		for _, item := range n.RefKeyParts {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *ConvertExpr:
 		Walk(v, n.Expr)

@@ -476,6 +476,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 
 		case nodes.ConstrForeignKey:
+			// A referenced key part that is an expression names no column to
+			// reference. TiDB's parser accepts `REFERENCES t ((a+1))`, but its
+			// DDL fails on it (v8.5.5 raises 1105), so omni refuses to add the
+			// key rather than record one with an empty referenced-column list.
+			for _, kp := range con.RefKeyParts {
+				if kp.Functional {
+					return errCannotAddForeign()
+				}
+			}
 			foreignKeyID++
 			conName := fkName(con)
 			if conName == "" {

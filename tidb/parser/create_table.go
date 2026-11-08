@@ -334,33 +334,24 @@ func (p *Parser) isTableConstraintStart() bool {
 	return false
 }
 
-// parseReferencedColumns reads the column list of REFERENCES, whose parts are ColumnNames. The
-// names it keeps are the columns', as the qualifier names nothing the foreign key uses.
-func (p *Parser) parseReferencedColumns() ([]string, error) {
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
-	var names []string
-	for {
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		_, _, name, err := p.parseColumnName()
-		if err != nil {
-			return nil, err
-		}
-		names = append(names, name)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-	return names, nil
+// parseReferencedColumns reads the column list of REFERENCES. Its parts are an
+// IndexPartSpecificationList, not plain ColumnNames: each is a ColumnName with
+// an optional prefix length and order, or a parenthesised expression, the same
+// key parts an index takes. TiDB v8.5.5 runs
+// `... REFERENCES parent(id(8), hello(12))` and `... REFERENCES parent((id+1))`;
+// MySQL, MariaDB and OceanBase take only plain column names here (their FK
+// parsing even refuses a functional key part), so their parsers keep their own
+// stricter reading -- this is a measured dialect delta, not a shared gap.
+//
+// The caller keeps both the key parts and their column names: a prefix length
+// is valid in a REFERENCES list (TiDB v8.5.5 runs the DDL for `id(8)`), so the
+// name is enough there; an expression key part is not (TiDB's DDL rejects it),
+// so the catalog reads the key parts to reject a foreign key that references one.
+//
+// Ref: `ReferDef: "REFERENCES" TableName IndexPartSpecificationListOpt MatchOpt
+// OnDeleteUpdateOpt` in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseReferencedColumns() ([]*nodes.IndexColumn, error) {
+	return p.parseParenIndexKeyParts()
 }
 
 // parseColumnName reads ColumnName, parser.y:3511: an Identifier, with up to two more before
@@ -908,7 +899,8 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 		if err != nil {
 			return nil, err
 		}
-		constr.RefColumns = cols
+		constr.RefKeyParts = cols
+		constr.RefColumns = indexColumnsToNames(cols)
 	}
 
 	// MATCH
@@ -1187,7 +1179,8 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 				if err != nil {
 					return nil, err
 				}
-				constr.RefColumns = refCols
+				constr.RefKeyParts = refCols
+				constr.RefColumns = indexColumnsToNames(refCols)
 			}
 			// MATCH
 			if _, ok := p.match(kwMATCH); ok {
