@@ -3559,3 +3559,226 @@ func oracleShowTrigger(t *testing.T, mc *mariadbContainer, name string) string {
 	}
 	return ddl
 }
+
+// TestReview_OrderByAliasOfAConstant covers an ORDER BY or GROUP BY item that
+// names an alias whose target is a whole-number constant. Substituting the
+// expression turned the item into an output position: `SELECT 2 AS z FROM t
+// ORDER BY z` came out `order by 2`, which names a second output column the
+// view does not have. MariaDB writes an empty string there instead.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE VIEW, with the view read to
+// confirm the body it stored is one it can use.
+func TestReview_OrderByAliasOfAConstant(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+
+	for i, query := range []string{
+		// A whole-number constant is written as '' — anything else would be
+		// read as a position.
+		"SELECT 2 AS z FROM t ORDER BY z",
+		"SELECT 0 AS z FROM t ORDER BY z",
+		"SELECT -2 AS z FROM t ORDER BY z",
+		"SELECT +2 AS z FROM t ORDER BY z",
+		"SELECT (2) AS z FROM t ORDER BY z",
+		"SELECT TRUE AS z FROM t ORDER BY z",
+		"SELECT 2 AS z, a FROM t ORDER BY z",
+		"SELECT a, 2 AS z FROM t ORDER BY z",
+		"SELECT 2 AS z FROM t ORDER BY z DESC",
+		"SELECT 2 AS z FROM t GROUP BY z",
+		"SELECT 2 AS z FROM t GROUP BY z ORDER BY z",
+		// A constant that cannot be read as a position keeps its own text.
+		"SELECT 2.5 AS z FROM t ORDER BY z",
+		"SELECT 1e2 AS z FROM t ORDER BY z",
+		"SELECT 'x' AS z FROM t ORDER BY z",
+		"SELECT NULL AS z FROM t ORDER BY z",
+		// And an alias of a column, or an item that is not the bare alias, is
+		// unaffected.
+		"SELECT a AS z FROM t ORDER BY z",
+		"SELECT a AS z FROM t GROUP BY z",
+		"SELECT 1 + 1 AS z FROM t ORDER BY z",
+		"SELECT 2 AS z FROM t ORDER BY z + 0",
+		"SELECT 2 AS z FROM t ORDER BY 1",
+		"SELECT a AS z, b FROM t ORDER BY z, b",
+	} {
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
+			view := fmt.Sprintf("oa%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+query+";")
+
+			assertViewBodyMatches(t, mc, c, view)
+			if _, err := mc.db.ExecContext(mc.ctx, "SELECT * FROM "+view); err != nil {
+				t.Errorf("oracle: the stored body is unusable: %v", err)
+			}
+		})
+	}
+}
+
+// TestReview_DroppingEveryPrimaryKeyColumn covers an ALTER that drops every
+// column a composite primary key is built on. The key goes with them, so the
+// statement is accepted; 1072 is for a drop that would leave part of the key
+// standing. Asking the question one command at a time refused the first drop
+// of a pair that together take the whole key.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_DroppingEveryPrimaryKeyColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		alter   string
+		accepts bool
+	}{
+		{
+			name:    "both_parts_in_one_alter",
+			setup:   "CREATE TABLE t (a INT, b INT, c INT, PRIMARY KEY (a,b))",
+			alter:   "ALTER TABLE t DROP COLUMN a, DROP COLUMN b",
+			accepts: true,
+		},
+		{
+			name:    "both_parts_in_reverse_order",
+			setup:   "CREATE TABLE t (a INT, b INT, c INT, PRIMARY KEY (a,b))",
+			alter:   "ALTER TABLE t DROP COLUMN b, DROP COLUMN a",
+			accepts: true,
+		},
+		{
+			name:    "three_parts_all_dropped",
+			setup:   "CREATE TABLE t (a INT, b INT, c INT, d INT, PRIMARY KEY (a,b,c))",
+			alter:   "ALTER TABLE t DROP COLUMN a, DROP COLUMN b, DROP COLUMN c",
+			accepts: true,
+		},
+		{
+			name:    "with_an_explicit_drop_primary_key",
+			setup:   "CREATE TABLE t (a INT, b INT, c INT, PRIMARY KEY (a,b))",
+			alter:   "ALTER TABLE t DROP PRIMARY KEY, DROP COLUMN a",
+			accepts: true,
+		},
+		{
+			name:    "a_single_column_key_goes_with_its_column",
+			setup:   "CREATE TABLE t (a INT, b INT, PRIMARY KEY (a))",
+			alter:   "ALTER TABLE t DROP COLUMN a",
+			accepts: true,
+		},
+		{
+			name:    "a_plain_key_is_rebuilt_over_what_is_left",
+			setup:   "CREATE TABLE t (a INT, b INT, c INT, KEY k (a,b))",
+			alter:   "ALTER TABLE t DROP COLUMN a",
+			accepts: true,
+		},
+		// One part dropped while another stands is the case 1072 is for.
+		{
+			name:  "one_part_of_two",
+			setup: "CREATE TABLE t (a INT, b INT, c INT, PRIMARY KEY (a,b))",
+			alter: "ALTER TABLE t DROP COLUMN a",
+		},
+		{
+			name:  "two_parts_of_three",
+			setup: "CREATE TABLE t (a INT, b INT, c INT, d INT, PRIMARY KEY (a,b,c))",
+			alter: "ALTER TABLE t DROP COLUMN a, DROP COLUMN b",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.alter)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.alter, oracleErr, tc.accepts)
+			}
+			results, err := c.Exec(tc.alter+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: %q gave %v, want accepted=%v", tc.alter, omniErr, tc.accepts)
+			}
+			if !tc.accepts {
+				if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+					t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+				}
+				return
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_NumericDefaultOnAStringColumn covers a numeric literal default on
+// a column that stores a value as text or bytes. The column takes the number's
+// own text, so the literal is converted rather than quoted as written:
+// `VARCHAR(20) DEFAULT (1e2)` is '100', where quoting the spelling made it the
+// three characters 1e2.
+//
+// Measured on mariadb:11.8.8, with the stored value read back on each side.
+//
+// An integer literal too wide for an int64 is left out, and is a difference
+// before the formatter sees it: the parser holds such a literal clamped, so
+// `DEFAULT (12345678901234567890)` reaches here as 9223372036854775807 where
+// the server stores the digits as written.
+func TestReview_NumericDefaultOnAStringColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"exponent", "CREATE TABLE t (a VARCHAR(20) DEFAULT (1e2))"},
+		{"exponent_unparenthesized", "CREATE TABLE t (a VARCHAR(20) DEFAULT 1e2)"},
+		{"negative_exponent", "CREATE TABLE t (a VARCHAR(20) DEFAULT (1e-3))"},
+		{"exponent_with_a_mantissa", "CREATE TABLE t (a VARCHAR(40) DEFAULT (1.5e3))"},
+		{"integer", "CREATE TABLE t (a VARCHAR(20) DEFAULT (100))"},
+		{"fraction", "CREATE TABLE t (a VARCHAR(20) DEFAULT (1.5))"},
+		{"trailing_zero_is_kept", "CREATE TABLE t (a VARCHAR(20) DEFAULT (0.10))"},
+		{"leading_zeros_go", "CREATE TABLE t (a VARCHAR(20) DEFAULT (007))"},
+		{"negative", "CREATE TABLE t (a VARCHAR(20) DEFAULT (-1))"},
+		{"char_column", "CREATE TABLE t (a CHAR(8) DEFAULT (1e2))"},
+		{"varbinary_column", "CREATE TABLE t (a VARBINARY(20) DEFAULT (1e2))"},
+		{"varbinary_fraction", "CREATE TABLE t (a VARBINARY(20) DEFAULT (1.5))"},
+		{"binary_column_pads", "CREATE TABLE t (a BINARY(4) DEFAULT (1e2))"},
+		{"text_keeps_the_literal", "CREATE TABLE t (a TEXT DEFAULT (1e2))"},
+		{"string_literal_is_untouched", "CREATE TABLE t (a VARCHAR(20) DEFAULT ('1e2'))"},
+		// Past the significant positions a double prints, the server keeps the
+		// literal's own spelling and so does the catalog.
+		{"large_exponent", "CREATE TABLE t (a VARCHAR(20) DEFAULT (1e20))"},
+		{"the_largest_expanded", "CREATE TABLE t (a VARCHAR(40) DEFAULT (1e14))"},
+		{"the_smallest_expanded", "CREATE TABLE t (a VARCHAR(40) DEFAULT (1e-15))"},
+		{"too_small_to_expand", "CREATE TABLE t (a VARCHAR(40) DEFAULT (1e-16))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}

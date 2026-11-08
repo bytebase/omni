@@ -71,6 +71,39 @@ func orderByTargetAlias(stmt *ast.SelectStmt, expr ast.ExprNode) (ast.ExprNode, 
 	return nil, false
 }
 
+// orderedConstant guards the one substitution that would change what an
+// ORDER BY or GROUP BY means. An integer is read as an output position there,
+// so MariaDB writes an empty string in place of a whole-number constant the
+// item took from an alias: measured on mariadb:11.8.8,
+// `SELECT 2 AS z FROM t ORDER BY z` comes back ordered by an empty string, and
+// so do 0, -2, +2, (2) and TRUE, while 2.5, 1e2, NULL and X'31' are written as
+// they stand, none of them being readable as a position. An item that is not
+// the bare alias keeps the alias instead, ORDER BY z + 0 coming back as the
+// alias plus zero.
+func orderedConstant(expr ast.ExprNode) ast.ExprNode {
+	if isWholeNumberConstant(expr) {
+		return &ast.StringLit{Value: ""}
+	}
+	return expr
+}
+
+// isWholeNumberConstant reports whether the expression is a constant that
+// prints as a bare whole number, which is what an ORDER BY item reads as a
+// position.
+func isWholeNumberConstant(expr ast.ExprNode) bool {
+	switch n := expr.(type) {
+	case *ast.ParenExpr:
+		return isWholeNumberConstant(n.Expr)
+	case *ast.IntLit, *ast.BoolLit:
+		return true
+	case *ast.UnaryExpr:
+		if n.Op == ast.UnaryMinus || n.Op == ast.UnaryPlus {
+			return isWholeNumberConstant(n.Operand)
+		}
+	}
+	return false
+}
+
 // resolveParenSource resolves a parenthesized query expression: the inner query
 // (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
 // the inner's leftmost SELECT target list.
@@ -222,8 +255,15 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Where = r.resolveExpr(stmt.Where, sc)
 	}
 
-	// Resolve GROUP BY
+	// Resolve GROUP BY, which takes a target-list alias the same way ORDER BY
+	// does: measured on mariadb:11.8.8, `SELECT a AS z FROM t GROUP BY z`
+	// comes back `group by `t`.`a`` and `SELECT 2 AS z FROM t GROUP BY z`
+	// comes back `group by ''`.
 	for _, item := range stmt.GroupBy {
+		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok {
+			item.Expr = orderedConstant(expr)
+			continue
+		}
 		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
 
@@ -246,7 +286,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// target's expression, which is already resolved.
 	for _, item := range stmt.OrderBy {
 		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok {
-			item.Expr = expr
+			item.Expr = orderedConstant(expr)
 			continue
 		}
 		item.Expr = r.resolveExpr(item.Expr, sc)

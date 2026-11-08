@@ -1115,6 +1115,12 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		// A BIT or YEAR column's default may be written as a plain number as
 		// well, which is the value itself.
 		switch family {
+		case familyExpression:
+			// A column that holds its default as an expression keeps the
+			// literal as written, a number included: measured on
+			// mariadb:11.8.8, `TEXT DEFAULT (1e2)` comes back DEFAULT 1e2
+			// where a VARCHAR column converts it.
+			return val, true
 		case familyBit:
 			if n, ok := bitNumberOf(val); ok {
 				return bitLiteralOf(n), true
@@ -1122,6 +1128,24 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		case familyYear:
 			if n, ok := wholeNumberOf(val); ok {
 				return yearLiteralOf(n, true), true
+			}
+		case familyString, familyFixedBinary, familyVarBinary:
+			// A column that stores a value takes a number's own text:
+			// measured on mariadb:11.8.8, `VARCHAR(20) DEFAULT (1e2)` is
+			// '100', (1e-3) is '0.001', (1.5) is '1.5', (0.10) keeps its
+			// trailing zero, (007) is '7' and (-1) is '-1', while
+			// `VARBINARY(20) DEFAULT (1e2)` is x'313030', the bytes of 100,
+			// and BINARY(4) pads them. A TEXT column keeps the literal as
+			// written, which familyExpression already does.
+			if digits, ok := numberStringForm(val); ok {
+				raw := []byte(digits)
+				if family == familyString {
+					return quoteStringDefault(raw), true
+				}
+				if width := declaredTypeLength(col.ColumnType); family == familyFixedBinary && width > len(raw) {
+					raw = append(raw, make([]byte, width-len(raw))...)
+				}
+				return "x'" + hexOf(raw) + "'", true
 			}
 		}
 		return "", false
@@ -1252,6 +1276,32 @@ func yearLiteralOf(n uint64, numberZero bool) string {
 		n += 1900
 	}
 	return fmt.Sprintf("%04d", n)
+}
+
+// numberStringForm reads a default written as a number and reports the text a
+// column that stores a value takes from it. The number's own spelling is kept
+// where it has one — (1.5) is '1.5' and (0.10) keeps its trailing zero — while
+// a leading plus and leading zeros go and an exponent is worked out.
+//
+// An exponent is only worked out as far as the server does, which is the 15
+// significant positions a double prints: measured on mariadb:11.8.8,
+// `VARCHAR(40) DEFAULT (1e14)` is '100000000000000' and (1e-15) is
+// '0.000000000000001', where (1e15) and (1e-16) keep their own spelling,
+// '1e15' and '1e-16'. Past that the literal is reported as no number here and
+// written as it stands, which is the same text.
+func numberStringForm(val string) (string, bool) {
+	if !isNumberLiteral(val) {
+		return "", false
+	}
+	digits, ok := normalizeNumberText(val)
+	if !ok {
+		return "", false
+	}
+	whole, fraction, _ := strings.Cut(strings.TrimPrefix(digits, "-"), ".")
+	if len(whole) > 15 || len(fraction) > 15 {
+		return "", false
+	}
+	return digits, true
 }
 
 // wholeNumberOf reads a default written as a number and reports the whole,

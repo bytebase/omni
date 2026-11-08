@@ -91,6 +91,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
+	droppedColumns := alterDroppedColumns(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -106,13 +107,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -142,7 +143,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns); err != nil {
 			rollback()
 			return err
 		}
@@ -204,14 +205,15 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 }
 
 // execAlterCmd runs one ALTER command. dropsPK says whether another command of
-// the same statement drops the primary key, which decides whether dropping one
-// of its columns leaves a half-built key behind.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool) error {
+// the same statement drops the primary key and droppedColumns holds every
+// column the statement drops, which together decide whether dropping one of a
+// composite key's columns would leave a half-built key behind.
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd, dropsPK)
+		return c.alterDropColumn(tbl, cmd, dropsPK, droppedColumns)
 	case nodes.ATModifyColumn:
 		return c.alterModifyColumn(tbl, cmd)
 	case nodes.ATChangeColumn:
@@ -587,7 +589,19 @@ func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
 	return false
 }
 
-func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool) error {
+// alterDroppedColumns returns the columns the statement drops, which is what
+// decides whether a composite primary key survives it.
+func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
+	out := make(map[string]bool)
+	for _, cmd := range cmds {
+		if cmd.Type == nodes.ATDropColumn {
+			out[toLower(cmd.Name)] = true
+		}
+	}
+	return out
+}
+
+func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
 	colKey := toLower(cmd.Name)
 	if _, exists := tbl.colByName[colKey]; !exists {
 		if cmd.IfExists {
@@ -626,24 +640,44 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, dropping
 	}
 
 	// A column a composite PRIMARY KEY is built on cannot be dropped while
-	// that key survives the statement: MariaDB answers 1072, "Key column
-	// '<col>' doesn't exist in table", rather than rebuilding the key over the
-	// columns that are left. The same ALTER may drop the key itself, and then
-	// the column goes with it — `DROP COLUMN a, DROP PRIMARY KEY` is accepted
-	// whichever order the clauses come in. A single-column primary key goes
-	// with its column. Measured on mariadb:11.8.8.
+	// part of that key survives the statement: MariaDB answers 1072, "Key
+	// column '<col>' doesn't exist in table", rather than rebuilding the key
+	// over the columns that are left. Where the statement drops every part the
+	// key goes with them and the drop is accepted — measured on
+	// mariadb:11.8.8, `PRIMARY KEY (a,b)` with `DROP COLUMN a, DROP COLUMN b`
+	// in either order, and `PRIMARY KEY (a,b,c)` with all three, while
+	// dropping two of those three answers 1072 for the first of them. The
+	// statement may also drop the key itself, and then the column goes with
+	// it: `DROP COLUMN a, DROP PRIMARY KEY` is accepted whichever order the
+	// clauses come in. A single-column primary key goes with its column, and a
+	// key that is not the primary one is rebuilt over what is left.
 	if !droppingPrimaryKey {
 		for _, idx := range tbl.Indexes {
 			if !idx.Primary || len(idx.Columns) < 2 {
 				continue
 			}
+			covers, survives, last := false, false, ""
 			for _, ic := range idx.Columns {
-				if toLower(ic.Name) == colKey {
-					return &Error{
-						Code:     1072,
-						SQLState: "42000",
-						Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", cmd.Name),
-					}
+				key := toLower(ic.Name)
+				if key == colKey {
+					covers = true
+				}
+				if droppedColumns[key] {
+					// The column named is the last part of the key the
+					// statement drops, in the key's own order and not the
+					// statement's: measured, `PRIMARY KEY (a,b,c,d)` reports
+					// 'b' for `DROP COLUMN a, DROP COLUMN b` and 'c' for
+					// `DROP COLUMN c, DROP COLUMN a`.
+					last = ic.Name
+					continue
+				}
+				survives = true
+			}
+			if covers && survives {
+				return &Error{
+					Code:     1072,
+					SQLState: "42000",
+					Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", last),
 				}
 			}
 		}
