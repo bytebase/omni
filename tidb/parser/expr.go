@@ -575,6 +575,16 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
 
+	// paramMarker is a SimpleExpr alternative (parser.y:7886), so a `?`
+	// placeholder is a valid operand anywhere an expression is: a bare `DO ?`,
+	// the offset of LEAD/LAG (OptLeadLagInfo, parser.y:9827, read as an ordinary
+	// argument), and a window-frame bound (WindowFrameStart/Bound, parser.y:9700
+	// and 9729, read through parseFrameBound's expr). The catalog analyzer
+	// boundary rejects any statement carrying an unbound marker.
+	case '?':
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+
 	case '(':
 		return p.parseParenExpr()
 

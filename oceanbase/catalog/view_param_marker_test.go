@@ -23,6 +23,11 @@ func TestParamMarkerRejectedByAnalyzer(t *testing.T) {
 		"SELECT a FROM t LIMIT ?, ?",
 		"SELECT a FROM t LIMIT ? OFFSET ?",
 		"SELECT (SELECT 1 FROM t LIMIT ?) FROM t",
+		// `?` in a general SimpleExpr position is accepted by the parser but
+		// must still be refused here.
+		"SELECT ? FROM t",
+		"SELECT a + ? FROM t",
+		"SELECT a FROM t WHERE a = ?",
 	} {
 		list, err := parser.Parse(sql)
 		if err != nil {
@@ -43,6 +48,9 @@ func TestCreateViewWithParamMarkerRejected(t *testing.T) {
 		"CREATE VIEW v AS SELECT a FROM t LIMIT ?",
 		"CREATE VIEW v AS SELECT a FROM t LIMIT ? OFFSET ?",
 		"CREATE VIEW v AS SELECT (SELECT 1 FROM t LIMIT ?) AS c FROM t",
+		// `?` as a general SimpleExpr operand.
+		"CREATE VIEW v AS SELECT ? AS c FROM t",
+		"CREATE VIEW v AS SELECT a + ? AS c FROM t",
 	} {
 		c := New()
 		mustExec(t, c, "CREATE DATABASE test")

@@ -1443,7 +1443,7 @@ accept	accept	SimpleExpr#4	DO ident()
 accept	accept	SimpleExpr#5	DO ident COLLATE BINARY
 accept	accept	SimpleExpr#6	DO ROW_NUMBER() OVER ident
 accept	accept	SimpleExpr#7	DO FALSE
-reject	accept	SimpleExpr#8	DO ?
+accept	accept	SimpleExpr#8	DO ?
 accept	accept	SimpleExpr#9	DO @@v
 accept	accept	SimpleExpr#10	DO COUNT(*)
 accept	accept	SimpleExpr#11	DO ! ident
@@ -1748,14 +1748,14 @@ accept	accept	WindowFrameExtent#1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING)
 accept	accept	WindowFrameExtent#2	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 accept	accept	WindowFrameStart#1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING)
 accept	accept	WindowFrameStart#2	DO ROW_NUMBER() OVER(ROWS 1 PRECEDING)
-reject	accept	WindowFrameStart#3	DO ROW_NUMBER() OVER(ROWS ? PRECEDING)
+accept	accept	WindowFrameStart#3	DO ROW_NUMBER() OVER(ROWS ? PRECEDING)
 accept	accept	WindowFrameStart#4	DO ROW_NUMBER() OVER(ROWS INTERVAL ident SECOND_MICROSECOND PRECEDING)
 accept	accept	WindowFrameStart#5	DO ROW_NUMBER() OVER(ROWS CURRENT ROW)
 accept	accept	WindowFrameBetween#1	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 accept	accept	WindowFrameBound#1	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 accept	accept	WindowFrameBound#2	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
 accept	accept	WindowFrameBound#3	DO ROW_NUMBER() OVER(ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED PRECEDING)
-reject	accept	WindowFrameBound#4	DO ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING)
+accept	accept	WindowFrameBound#4	DO ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING)
 accept	accept	WindowFrameBound#5	DO ROW_NUMBER() OVER(ROWS BETWEEN INTERVAL ident SECOND_MICROSECOND FOLLOWING AND UNBOUNDED PRECEDING)
 accept	accept	OptWindowingClause#1	DO AVG(ident)
 accept	accept	OptWindowingClause#2	DO AVG(ident) OVER ident
@@ -1775,7 +1775,7 @@ accept	accept	WindowFuncCall#10	DO LAST_VALUE(ident) OVER ident
 accept	accept	WindowFuncCall#11	DO NTH_VALUE(ident, ident) OVER ident
 accept	accept	OptLeadLagInfo#1	DO LEAD(ident) OVER ident
 accept	accept	OptLeadLagInfo#2	DO LEAD(ident, 1) OVER ident
-reject	accept	OptLeadLagInfo#3	DO LEAD(ident, ?) OVER ident
+accept	accept	OptLeadLagInfo#3	DO LEAD(ident, ?) OVER ident
 accept	accept	OptLLDefault#1	DO LEAD(ident, 1) OVER ident
 accept	accept	OptLLDefault#2	DO LEAD(ident, 1, ident) OVER ident
 accept	accept	OptNullTreatment#1	DO LEAD(ident) OVER ident
