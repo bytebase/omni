@@ -217,6 +217,17 @@ var chainShapes = []struct {
 		}
 		return b.String()
 	}},
+	// A conditionless join chain collapses left-deep in a loop, so it is bounded
+	// by the tree height like any other chain, not by the nesting depth. Distinct
+	// aliases keep the parser's duplicate-alias check out of the way.
+	{"conditionless joins", func(n int) string {
+		var b strings.Builder
+		b.WriteString("SELECT * FROM t0")
+		for i := 1; i <= n; i++ {
+			fmt.Fprintf(&b, " JOIN t%d", i)
+		}
+		return b.String()
+	}},
 	{"parenthesized table list", func(n int) string {
 		var b strings.Builder
 		b.WriteString("SELECT * FROM (")
