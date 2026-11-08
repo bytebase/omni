@@ -587,6 +587,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
+		// A referenced key part that is an expression names no column, and
+		// TiDB's DDL fails on it (v8.5.5 raises 1105), so refuse the key rather
+		// than record one with an empty referenced-column list. This mirrors the
+		// CREATE TABLE path.
+		for _, kp := range con.RefKeyParts {
+			if kp.Functional {
+				return errCannotAddForeign()
+			}
+		}
 		// The key takes the next number only once it is added: TiDB keeps
 		// MaxForeignKeyID in the table's meta, which a refused statement
 		// leaves alone.

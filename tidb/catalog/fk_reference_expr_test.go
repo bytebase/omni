@@ -37,18 +37,38 @@ func TestForeignKeyReferenceExpressionRejected(t *testing.T) {
 		if tbl == nil {
 			t.Fatal("child2 not created")
 		}
-		var fk *Constraint
-		for _, con := range tbl.Constraints {
-			if con.Type == ConForeignKey {
-				fk = con
-				break
-			}
-		}
-		if fk == nil {
-			t.Fatal("FK constraint not found on child2")
-		}
+		fk := fkConstraint(t, tbl)
 		if len(fk.RefColumns) != 1 || fk.RefColumns[0] != "id" {
 			t.Errorf("RefColumns = %v, want [id]", fk.RefColumns)
 		}
 	})
+
+	t.Run("expression reference is rejected by ALTER TABLE too", func(t *testing.T) {
+		mustExec(t, c, "CREATE TABLE child3 (id INT)")
+		results, err := c.Exec("ALTER TABLE child3 ADD FOREIGN KEY (id) REFERENCES parent((id+1))", nil)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if len(results) != 1 || results[0].Error == nil {
+			t.Fatalf("expected an exec error, got %+v", results)
+		}
+		tbl := c.GetDatabase("testdb").GetTable("child3")
+		for _, con := range tbl.Constraints {
+			if con.Type == ConForeignKey {
+				t.Errorf("an invalid foreign key was added to child3 by ALTER")
+			}
+		}
+	})
+}
+
+// fkConstraint returns the table's one FOREIGN KEY constraint.
+func fkConstraint(t *testing.T, tbl *Table) *Constraint {
+	t.Helper()
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			return con
+		}
+	}
+	t.Fatalf("no FOREIGN KEY constraint on %s", tbl.Name)
+	return nil
 }
