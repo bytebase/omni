@@ -2656,12 +2656,10 @@ func TestReview_QuantifiedComparisonOperandParens(t *testing.T) {
 // Measured on mariadb:11.8.8 in a utf8mb4 database, with the stored value read
 // back from a row so that a changed encoding shows up as a changed value.
 //
-// A column whose own charset is not the one the statement is written in is
-// left out, and is a difference of its own: SHOW CREATE TABLE writes the DDL
-// in the client's charset, so the server re-encodes such a default for the
-// output, where the catalog — which has no client charset — writes the bytes
-// the column holds. Measured: a latin1 column defaulting to the two bytes
-// C3 A4 is written back as the four bytes of those two characters in UTF-8.
+// A column whose own charset is not the one the DDL is read in is covered by
+// TestReview_DefaultIsWrittenInTheOutputCharset, which is the other half of
+// the same conversion: this one reads the literal into the column's charset,
+// that one writes the column's bytes into the output's.
 func TestReview_IntroducedLiteralDefaultIsConverted(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -2938,5 +2936,175 @@ func TestReview_ChangingAGeneratedDependencyName(t *testing.T) {
 	}
 	if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
 		t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+	}
+}
+
+// TestReview_DefaultIsWrittenInTheOutputCharset covers a default the writer
+// reconstructs from bytes on a column whose charset is not the one the DDL is
+// read in. The value is the column's bytes, and the text has to carry them in
+// the output's charset, which is where the server writes them too: writing the
+// column's bytes into the text changed the value on replay, a latin1 column's
+// two bytes coming back as one character.
+//
+// Measured on mariadb:11.8.8 with a utf8mb4 client, the stored bytes read back
+// from a row on each side so a changed encoding fails as a changed value.
+func TestReview_DefaultIsWrittenInTheOutputCharset(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"latin1_column_introduced", "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT (_latin1'ä'))"},
+		{"latin1_column_hex", "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT (X'E4'))"},
+		{"latin1_column_hex_0x", "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT (0xE4))"},
+		{"latin1_column_ascii_hex", "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT (X'41'))"},
+		{"latin1_column_plain_literal", "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT 'ä')"},
+		{"latin1_char_column", "CREATE TABLE t (a CHAR(5) CHARACTER SET latin1 DEFAULT (_latin1'ä'))"},
+		{"utf8mb4_column_hex", "CREATE TABLE t (a VARCHAR(20) DEFAULT (X'41'))"},
+		{"utf8mb4_column_introduced", "CREATE TABLE t (a VARCHAR(20) DEFAULT (_latin1'ä'))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_DefaultOutsideTheConvertibleBand covers the one band the writer
+// will not convert: MariaDB's latin1 is cp1252, so its bytes 0x80 to 0x9F are
+// not the code points of the same number. A default reaching into it keeps the
+// literal as written — the server writes the character instead — and the
+// value, which is what the replay here checks.
+//
+// Measured on mariadb:11.8.8: a latin1 column defaulting to X'80' is written
+// back as '€', and the byte stored is 0x80.
+func TestReview_DefaultOutsideTheConvertibleBand(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	const ddl = "CREATE TABLE t (a VARCHAR(20) CHARACTER SET latin1 DEFAULT (X'80'))"
+	runOnBoth(t, mc, c, ddl+";")
+
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	var want string
+	oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+	if want != "80" {
+		t.Fatalf("oracle stored %s, want the byte 80", want)
+	}
+	if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+		t.Fatalf("oracle drop: %v", err)
+	}
+	replay := c.ShowCreateTable("testdb", "t")
+	if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+		t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+	}
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+		t.Fatalf("oracle insert after replay: %v", err)
+	}
+	var got string
+	oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+	if got != want {
+		t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+			want, got, replay)
+	}
+}
+
+// TestReview_RenamedColumnKeepsItsDependents covers what a renamed column does
+// to the record of what reads it. The names a generated expression reads are
+// recorded when the column is defined, and a rename has to carry them, or the
+// dependency goes unseen and a later statement is accepted that the server
+// refuses.
+//
+// Measured on mariadb:11.8.8, message included: the server names the column as
+// it now stands, since it rewrites the expressions that read it.
+func TestReview_RenamedColumnKeepsItsDependents(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		stmts   []string
+		accepts bool
+	}{
+		{"rename_then_modify_to_nondeterministic", []string{
+			"CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t MODIFY z DOUBLE AS (RAND()) VIRTUAL",
+		}, false},
+		{"rename_then_index_the_dependent", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"CREATE INDEX i ON t(b)",
+		}, false},
+		{"rename_then_add_a_stored_dependent", []string{
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t ADD COLUMN b DOUBLE AS (z) STORED",
+		}, false},
+		{"rename_then_modify_to_deterministic", []string{
+			"CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			"ALTER TABLE t RENAME COLUMN a TO z",
+			"ALTER TABLE t MODIFY z DOUBLE AS (2) VIRTUAL",
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+
+			var oracleErr, omniErr error
+			for _, stmt := range tc.stmts {
+				if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil && oracleErr == nil {
+					oracleErr = err
+				}
+				results, err := c.Exec(stmt+";", nil)
+				if err != nil && omniErr == nil {
+					omniErr = err
+				}
+				for _, r := range results {
+					if r.Error != nil && omniErr == nil {
+						omniErr = r.Error
+					}
+				}
+			}
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: gave %v, want accepted=%v", oracleErr, tc.accepts)
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: gave %v, want accepted=%v", omniErr, tc.accepts)
+			}
+			if tc.accepts {
+				return
+			}
+			if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+			}
+		})
 	}
 }

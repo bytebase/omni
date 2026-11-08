@@ -1161,15 +1161,29 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		// Only a column with a charset of its own converts the literal. A
 		// date has none: it reads the characters as a date, and the digits of
 		// one are the same bytes in every charset the introducer can name.
-		if kind == literalIntroduced && family == familyString {
-			converted, ok := convertIntroducedBytes(raw, introducedCharsetOf(val), normalizeCharsetName(col.Charset))
+		if family == familyString {
+			column := normalizeCharsetName(col.Charset)
+			// The bytes are read in the charset the introducer names, or in
+			// the column's own where it names none, as a hex or bit literal's
+			// are.
+			from := column
+			if kind == literalIntroduced {
+				from = introducedCharsetOf(val)
+			}
+			value, ok := convertIntroducedBytes(raw, from, column)
 			if !ok {
-				// Not a conversion this can do exactly, so the literal keeps
-				// its introducer and the server reads the same value from it
-				// as it did from the statement.
+				// Not a conversion this can do exactly, so the literal is
+				// written as it stands and the server reads the same value
+				// from it as it did from the statement.
 				return val, true
 			}
-			raw = converted
+			// The value then has to be written in the charset the output is
+			// read in, which is where the server writes it too.
+			text, ok := convertIntroducedBytes(value, column, outputCharset)
+			if !ok {
+				return val, true
+			}
+			raw = text
 		}
 		return quoteStringDefault(raw), true
 	case familyNumber:
@@ -1614,6 +1628,17 @@ func literalDefaultBytes(val string) (literalKind, []byte, bool) {
 	}
 	return literalNone, nil, false
 }
+
+// outputCharset is the charset the DDL this package writes is read in: the
+// text is UTF-8, which is what a utf8mb4 client sends and is handed back.
+//
+// The server writes a default's bytes re-encoded into the client's charset,
+// not as the column holds them: measured on mariadb:11.8.8 with a utf8mb4
+// client, a latin1 column holding the byte E4 is written back as the two UTF-8
+// bytes of ä, and one holding C3 A4 as the four bytes of Ã¤. Writing the
+// column's bytes into the text instead would change the value on replay, the
+// first being read back as one character and stored as E4.
+const outputCharset = "utf8mb4"
 
 // introducedCharsetOf returns the charset an introduced literal names, or ""
 // where val is not one.

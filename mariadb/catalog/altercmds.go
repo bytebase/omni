@@ -1813,6 +1813,23 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
 	moveColumnChecks(tbl, oldName, newName)
+	// What a generated expression reads follows the column too. The server
+	// rewrites the expression's own text, which this does not do yet, but the
+	// recorded names have to keep pointing at the column or the dependency
+	// goes unseen: measured on mariadb:11.8.8, after
+	// `CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED);
+	// ALTER TABLE t RENAME COLUMN a TO z`, `ALTER TABLE t MODIFY z DOUBLE AS
+	// (RAND()) VIRTUAL` answers 1901 naming z.
+	for _, col := range tbl.Columns {
+		if col.Generated == nil {
+			continue
+		}
+		for i, ref := range col.Generated.Refs {
+			if toLower(ref) == oldKey {
+				col.Generated.Refs[i] = newName
+			}
+		}
+	}
 }
 
 // alterCheckEnforced refuses `ALTER TABLE ... ALTER CHECK <name> [NOT]
