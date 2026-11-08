@@ -244,8 +244,18 @@ index-part lists in a REFERENCES column list`), quoted user/system-variable name
 (5, `fix(tidb): read quoted user- and system-variable names`), and `OPTIMIZE
 TABLES` (1, `fix(tidb,mysql,mariadb): accept OPTIMIZE TABLES …`) — so
 sample 1 is **fully closed at 880 both-accept, 0 gaps, 0 over-acceptances**
-(`docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`). Samples 2 (TiDB
-integrationtest) and 3 (Bytebase's own TiDB test files) are still to land.
+(`docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`).
+
+Sample 3 landed: `tidb/parser/testdata/bytebase_tidb_corpus.tsv` (527
+statements) and `bytebase_corpus_oracle_test.go`, the input-side SQL of
+Bytebase's own 64 TiDB test files (bytebase commit `5a6096dfd5`), reusing the
+same harness and `TIDB_CORPUS_N` sampler. First measurement: 526 both-accept, **0
+gaps, 0 over-acceptances**, 1 both-reject — omni parses 100.0% of what TiDB
+accepts, and none of these forms Bytebase ships against over-accepts. The one
+both-reject is `SELECT FROM`, which the server also refuses; there is no work
+list beyond the inventory in
+`docs/plans/2026-11-08-tidb-bytebase-corpus-gap-inventory.md`. Sample 2 (TiDB
+integrationtest) is still to land.
 
 ### 3.5 Tree shape
 

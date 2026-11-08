@@ -211,3 +211,49 @@ rewrites both columns from a live server. `TIDB_CORPUS_N` caps how many rows a
 plain (non-`-update`) run measures live, so CI stays bounded as the later §3.4
 samples land; the omni-verdict pass always reads every row. Re-extracting after a
 pingcap bump means rerunning the extraction above at the new tag and re-recording.
+
+## `bytebase_tidb_corpus.tsv` — Bytebase's own TiDB test files
+
+The third sample of the design's §3.4 real-SQL corpora: the SQL Bytebase already
+promises to handle. Where the pingcap corpora are pingcap's grammar cases, these
+are the forms Bytebase's users and tests drive through the TiDB path — column
+rules, naming checks, DML dry-runs, schema syncs and walk-throughs — so an
+over-acceptance here is a form Bytebase ships against.
+
+`bytebase_corpus_oracle_test.go` is its only reader. The columns, the
+`accept`/`reject` verdicts, the `#` header, the `PREPARE` engine harness and the
+`TIDB_CORPUS_N` sampler are the rest corpus's.
+
+### Provenance
+
+Extracted from the 64 TiDB test files in `github.com/bytebase/bytebase` at commit
+`5a6096dfd5`, under `backend/plugin/parser/tidb/test-data` (7 files),
+`backend/plugin/advisor/tidb/test` (53 files) and
+`backend/plugin/schema/tidb/testdata` (3 of 4 files). A throwaway Go extractor
+read the input-side SQL — the values at the top-level case keys `statement`,
+`input`, `oldSchema`, `newSchema`, `schema` — split each script with
+`tidb/parser.Split`, trimmed, and kept the non-empty single-line segments.
+Top-level keys only, so a query-span source column's nested `schema` and a backup
+case's generated `result` statements are not picked up; generated-output SQL
+(backup/restore rollback, `generate_migration` `expected`,
+`get_database_definition`) is Bytebase-synthesized, not promised input, and is
+excluded. 527 rows after dropping 194 multi-line statements, 209 internal
+duplicates, and 15 already carried by the two pingcap corpora. The method is
+recorded in the file's own header and in
+`docs/plans/2026-11-08-tidb-bytebase-corpus-gap-inventory.md`.
+
+`github.com/bytebase/bytebase` is this project's own repository; these rows are
+test fixtures read at test time, not compiled into omni, and add no module
+dependency.
+
+### Regenerating
+
+The engine column is sampled on a normal run and measured whole under `-update`.
+From `<repo root>`:
+
+```bash
+go test ./tidb/parser/ -run '^TestTiDBBytebaseCorpusEngineVerdicts$' -count=1 -update
+```
+
+rewrites both columns from a live server. Re-extracting after a bytebase bump
+means rerunning the extraction at the new commit and re-recording.
