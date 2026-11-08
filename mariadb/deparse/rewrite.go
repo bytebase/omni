@@ -128,7 +128,43 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
+		// An aggregate's own ORDER BY is rewritten too: measured on
+		// mariadb:11.8.8, GROUP_CONCAT(a ORDER BY NOT (a > 0)) is stored as
+		// order by a <= 0. The separator is left alone because it can only be
+		// a string literal, which no rewrite touches.
+		rewriteOrderBy(n.OrderBy)
 		rewriteWindowDef(n.Over)
+		return n
+
+	case *ast.RowExpr:
+		// A row's items are rewritten each as its own expression: measured,
+		// ROW((2=1) SOUNDS LIKE '0',1) is stored as
+		// (soundex(2 = 1) = soundex('0'),1). Leaving them kept SOUNDS LIKE at
+		// comparison precedence, where the row's commas are the only
+		// separators left and the item reads back as the equality alone.
+		for i, item := range n.Items {
+			n.Items[i] = rewriteExpr(item)
+		}
+		return n
+
+	case *ast.IntervalExpr:
+		// Measured: INTERVAL (NOT (a > 0)) DAY is stored as
+		// interval a <= 0 day.
+		n.Value = rewriteExpr(n.Value)
+		return n
+
+	case *ast.ExtractExpr:
+		// Measured: EXTRACT(DAY FROM ((2=1) SOUNDS LIKE '0')) is stored as
+		// extract(day from soundex(2 = 1) = soundex('0')).
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
+	case *ast.MatchExpr:
+		// Measured: MATCH(c) AGAINST (((2=1) SOUNDS LIKE '0')) is stored as
+		// against (soundex(2 = 1) = soundex('0')). No test pins this one:
+		// the deparser writes no MATCH yet, and that stored body is one the
+		// server itself answers 1064 on, since AGAINST takes only a literal.
+		n.Against = rewriteExpr(n.Against)
 		return n
 
 	case *ast.PositionExpr:
@@ -175,7 +211,13 @@ func rewriteWindowDef(def *ast.WindowDef) {
 	for i, expr := range def.PartitionBy {
 		def.PartitionBy[i] = RewriteExpr(expr)
 	}
-	for _, item := range def.OrderBy {
+	rewriteOrderBy(def.OrderBy)
+}
+
+// rewriteOrderBy applies the rewrites to the expressions of an ORDER BY list,
+// wherever one hangs: a window's, or an aggregate's own.
+func rewriteOrderBy(items []*ast.OrderByItem) {
+	for _, item := range items {
 		if item != nil {
 			item.Expr = RewriteExpr(item.Expr)
 		}

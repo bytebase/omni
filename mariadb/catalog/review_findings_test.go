@@ -4411,3 +4411,251 @@ func TestReview_RewritesReachWindowsAndSubqueries(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_RewritesReachEveryChildExpression covers the expression nodes the
+// rewrite walked past, each of which holds a child the server rewrites. A row
+// was the costly one: its items are separated by commas alone, so an item left
+// at comparison precedence reads back as the comparison and nothing else —
+// ROW((2=1) SOUNDS LIKE '0',1) = ROW(1,1) came out as (2 = 1 sounds like
+// '0',1) = (1,1), which is 0 where the original is 1.
+//
+// Measured on mariadb:11.8.8: a row's items, an INTERVAL's value, EXTRACT's
+// operand, MATCH's AGAINST argument and an aggregate's own ORDER BY are each
+// rewritten as an expression of its own. A separator is left alone because it
+// can only be a string literal, which no rewrite touches.
+//
+// MATCH is rewritten the same way — `AGAINST (((2=1) SOUNDS LIKE '0'))` is
+// stored as against (soundex(2 = 1) = soundex('0')) — but no case here can
+// pin it: the deparser writes no MATCH at all yet, and the server's own
+// stored body for that view is one SHOW CREATE VIEW answers 1064 on, since
+// AGAINST takes only a literal. Both are their own gaps, reported.
+func TestReview_RewritesReachEveryChildExpression(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		{"row_item_sounds_like", "SELECT ROW((2=1) SOUNDS LIKE '0',1) = ROW(1,1) AS x"},
+		{"row_item_not", "SELECT ROW(NOT (a > 0),1) = ROW(1,1) AS x FROM t"},
+		{"row_on_the_right", "SELECT (a,b) = ((a = 1) SOUNDS LIKE '0', 1) AS x FROM t"},
+		{"interval_value_sounds_like", "SELECT '2020-01-01' + INTERVAL ((2=1) SOUNDS LIKE '0') DAY AS x"},
+		{"interval_value_not", "SELECT '2020-01-01' + INTERVAL (NOT (a > 0)) DAY AS x FROM t"},
+		{"extract_operand", "SELECT EXTRACT(DAY FROM ((2=1) SOUNDS LIKE '0')) AS x"},
+		{"aggregate_order_by_sounds_like", "SELECT GROUP_CONCAT(a ORDER BY (a = 1) SOUNDS LIKE '0') AS x FROM t"},
+		{"aggregate_order_by_not", "SELECT GROUP_CONCAT(a ORDER BY NOT (a > 0)) AS x FROM t"},
+	} {
+		view := fmt.Sprintf("v_ch%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1"))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1")); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_NumericTemporalDefault covers a default written as a number on a
+// temporal column. The column holds the value the number converts to, and
+// SHOW CREATE writes that value's own literal; omni quoted the digits as they
+// had been written, so `TIME DEFAULT (1e2)` came out DEFAULT '1e2', which the
+// server refuses outright on replay because '1e2' is no TIME.
+//
+// Measured on mariadb:11.8.8. A number is read from the right for a TIME and
+// through the server's own two-digit-year ranges for a date, which is why a
+// number of an unexpected length lands where it does — (20200) is
+// '2002-02-00', the two-digit-year 020200, and (2020010112345) is
+// '0202-00-10 11:23:45', the thirteen digits as they stand. A fraction is
+// truncated to the precision the column declares, not rounded.
+//
+// Each case compares the DEFAULT clause and replays it, reading the stored
+// value back from a row, so a changed value fails as a changed row.
+func TestReview_NumericTemporalDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		// TIME reads the number from the right.
+		{"time_from_an_exponent", "TIME", "1e2"},
+		{"time_seconds", "TIME", "7"},
+		{"time_one_minute", "TIME", "100"},
+		{"time_one_hour", "TIME", "10000"},
+		{"time_widest", "TIME", "8385959"},
+		{"time_day_boundary", "TIME", "240000"},
+		{"time_zero", "TIME", "0"},
+		{"time_negative_zero", "TIME", "-0"},
+		{"time_negative", "TIME", "-100"},
+		{"time_negative_widest", "TIME", "-8385959"},
+		{"time_fraction_dropped", "TIME", "100.999"},
+		{"time_mantissa", "TIME", "1.5e2"},
+		{"time_from_a_date_and_time", "TIME", "20200101123456"},
+		{"time_from_the_widest_date", "TIME", "99991231235959"},
+		{"time_from_a_date_with_a_fraction", "TIME", "20200101123456.5"},
+		// A declared precision keeps the fraction, truncated to it.
+		{"time_fsp3", "TIME(3)", "100.5"},
+		{"time_fsp6", "TIME(6)", "100.5"},
+		{"time_fsp3_truncates", "TIME(3)", "100.4567"},
+		{"time_fsp6_pads", "TIME(6)", "100.45"},
+		{"time_fsp3_negative", "TIME(3)", "-100.5"},
+		{"time_fsp3_from_a_date", "TIME(3)", "20200101123456.5"},
+		// DATE takes the date alone.
+		{"date_from_an_exponent", "DATE", "2.0200101e7"},
+		{"date_eight_digits", "DATE", "20200101"},
+		{"date_two_digit_year", "DATE", "200101"},
+		{"date_short", "DATE", "101"},
+		{"date_year_window_2069", "DATE", "691231"},
+		{"date_year_window_1970", "DATE", "700101"},
+		{"date_year_window_1999", "DATE", "991231"},
+		{"date_widest", "DATE", "99991231"},
+		{"date_zero", "DATE", "0"},
+		{"date_leap_day", "DATE", "20200229"},
+		{"date_zero_day", "DATE", "20200100"},
+		{"date_zero_month", "DATE", "20200001"},
+		{"date_drops_the_time", "DATE", "20200101123456"},
+		{"date_drops_the_fraction", "DATE", "20200101.5"},
+		{"date_five_digits", "DATE", "20200"},
+		{"date_four_digits", "DATE", "1231"},
+		{"date_nine_digits", "DATE", "202001011"},
+		{"date_eleven_digits", "DATE", "20200101123"},
+		// DATETIME and TIMESTAMP take both.
+		{"datetime_fourteen_digits", "DATETIME", "20200101123456"},
+		{"datetime_eight_digits", "DATETIME", "20200101"},
+		{"datetime_six_digits", "DATETIME", "200101"},
+		{"datetime_twelve_digits", "DATETIME", "200101123456"},
+		{"datetime_thirteen_digits", "DATETIME", "2020010112345"},
+		{"datetime_nine_digits", "DATETIME", "202001011"},
+		{"datetime_zero", "DATETIME", "0"},
+		{"datetime_widest", "DATETIME", "99991231235959"},
+		{"datetime_from_an_exponent", "DATETIME", "2.0200101e13"},
+		{"datetime_fraction_dropped", "DATETIME", "20200101123456.456789"},
+		{"datetime_fsp3_zero", "DATETIME(3)", "0"},
+		{"datetime_fsp3", "DATETIME(3)", "20200101123456.5"},
+		{"datetime_fsp3_truncates", "DATETIME(3)", "20200101123456.456789"},
+		{"datetime_fsp6", "DATETIME(6)", "20200101123456.5"},
+		{"timestamp_fourteen_digits", "TIMESTAMP", "20200101123456"},
+		{"timestamp_fraction_dropped", "TIMESTAMP", "20200101123456.5"},
+		{"timestamp_fsp3", "TIMESTAMP(3)", "20200101123456.5"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_InlineReferenceBackingIndexName covers the index a column-level
+// REFERENCES brings with it. MariaDB honours such a reference, and the index
+// is named after the constraint only where the statement named one: an unnamed
+// reference's index takes the column's name while the constraint takes the
+// generated symbol. omni gave the index that symbol, so a statement with a key
+// of its own by that name ended up with two indexes called `t_ibfk_1` and a
+// SHOW CREATE TABLE the server could not replay.
+//
+// The place the index takes is the statement's own order, which these pin too:
+// measured, `FOREIGN KEY (a) REFERENCES p(id), KEY z(b)` shows KEY `a` then
+// KEY `z` and `KEY z(b), FOREIGN KEY (a)` the other way round, where omni had
+// put every backing index last.
+//
+// Measured on mariadb:11.8.8.
+//
+// Two neighbours are left out. A name an inline reference's index would
+// duplicate is 1061 on the server — `a INT REFERENCES p(id), b INT, KEY a(b)`
+// is refused where the table-level `KEY a(b), FOREIGN KEY (a)` allocates
+// `a_2` — and omni, which gives every backing index its place only once the
+// statement is read, accepts both. And `a INT CONSTRAINT fk1 REFERENCES
+// p(id)`, which the server takes and names the index fk1 for, omni's parser
+// answers 1064 on; the name is carried here for when it learns the spelling.
+// Both are their own gaps, reported.
+func TestReview_InlineReferenceBackingIndexName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"unnamed_beside_a_key_of_that_symbol",
+			"CREATE TABLE t (a INT REFERENCES p(id), b INT, KEY t_ibfk_1(b))"},
+		{"unnamed_alone", "CREATE TABLE t (a INT REFERENCES p(id))"},
+		{"two_unnamed", "CREATE TABLE t (a INT REFERENCES p(id), b INT REFERENCES p(id))"},
+		{"with_an_action", "CREATE TABLE t (a INT REFERENCES p(id) ON DELETE CASCADE)"},
+		{"covered_by_a_key_of_its_own", "CREATE TABLE t (a INT REFERENCES p(id), KEY a(a))"},
+		{"table_level_unnamed", "CREATE TABLE t (a INT, FOREIGN KEY (a) REFERENCES p(id))"},
+		{"key_after_an_inline_reference",
+			"CREATE TABLE t (a INT REFERENCES p(id), b INT, KEY z(b))"},
+		{"key_after_a_table_level_key",
+			"CREATE TABLE t (a INT, b INT, FOREIGN KEY (a) REFERENCES p(id), KEY z(b))"},
+		{"key_before_a_table_level_key",
+			"CREATE TABLE t (a INT, b INT, KEY z(b), FOREIGN KEY (a) REFERENCES p(id))"},
+		{"named_table_level_after_a_key",
+			"CREATE TABLE t (a INT, b INT, KEY z(b), CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES p(id))"},
+		{"table_level_beside_that_symbol",
+			"CREATE TABLE t (a INT, b INT, KEY t_ibfk_1(b), FOREIGN KEY (a) REFERENCES p(id))"},
+		{"table_level_named", "CREATE TABLE t (a INT, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES p(id))"},
+		{"table_level_column_name_taken",
+			"CREATE TABLE t (a INT, b INT, KEY a(b), FOREIGN KEY (a) REFERENCES p(id))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, "CREATE TABLE p (id INT PRIMARY KEY);")
+			runOnBoth(t, mc, c, tc.ddl+";")
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+
+			// And what omni wrote goes back in, which two indexes of one name
+			// did not.
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := oracleShow(t, mc, "SHOW CREATE TABLE t"); got != want {
+				t.Errorf("replaying what omni wrote changed the table\n--- was ---\n%s\n--- now ---\n%s",
+					want, got)
+			}
+		})
+	}
+}

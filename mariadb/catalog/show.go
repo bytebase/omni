@@ -1137,6 +1137,16 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			if n, ok := wholeNumberOf(val); ok {
 				return yearLiteralOf(n, true), true
 			}
+		case familyTemporal:
+			// A temporal column converts a number to the value it holds and
+			// writes that value's own literal: measured on mariadb:11.8.8,
+			// `TIME DEFAULT (1e2)` comes back '00:01:00' and
+			// `DATE DEFAULT (2.0200101e7)` '2020-01-01'. Quoting the digits
+			// as written left a literal the server refuses outright, since
+			// '1e2' is no TIME.
+			if lit, ok := temporalNumberDefault(val, col); ok {
+				return lit, true
+			}
 		case familyString, familyFixedBinary, familyVarBinary:
 			// A column that stores a value takes a number's own text:
 			// measured on mariadb:11.8.8, `VARCHAR(20) DEFAULT (1e2)` is
@@ -2223,4 +2233,198 @@ func stripAllOuterParens(expr string) string {
 		}
 		expr = strings.TrimSpace(inner)
 	}
+}
+
+// maxTimeNumber is the widest TIME a number spells, 838:59:59, and
+// maxDateTimeNumber the widest date and time one does.
+const (
+	maxTimeNumber     = 8385959
+	maxDateTimeNumber = 99991231235959
+	minDateTimeDigits = 10000000000
+)
+
+// temporalNumberDefault writes a default written as a number on a temporal
+// column as the literal of the value the column converts it to. Measured on
+// mariadb:11.8.8: TIME DEFAULT (1e2) comes back '00:01:00',
+// DATE DEFAULT (2.0200101e7) '2020-01-01' and DATETIME(3) DEFAULT
+// (20200101123456.456789) '2020-01-01 12:34:56.456'. Quoting the digits as
+// they were written gave a literal the server refuses outright, since '1e2'
+// is no TIME.
+//
+// It reports false for a number the server refuses, where there is no value
+// to write. The server answers 1067 on such a default and omni does not check
+// that yet, so the text is left as it stands.
+func temporalNumberDefault(text string, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	negative := strings.HasPrefix(whole, "-")
+	n, err := strconv.ParseUint(strings.TrimPrefix(whole, "-"), 10, 64)
+	if err != nil {
+		return "", false // wider than any temporal value
+	}
+	fsp := declaredTypeLength(col.ColumnType)
+	typeName := normalizedTypeName(col.DataType)
+	if negative && n != 0 && typeName != "time" {
+		// Only TIME holds a negative value: measured, TIME DEFAULT (-100) is
+		// '-00:01:00' where DATE DEFAULT (-20200101) and DATETIME DEFAULT
+		// (-20200101123456) are both refused with 1067.
+		return "", false
+	}
+	switch typeName {
+	case "time":
+		return timeNumberLiteral(n, negative, fraction, fsp)
+	case "date":
+		v, ok := dateTimeNumber(n)
+		if !ok {
+			return "", false
+		}
+		year, month, day, _, _, _ := dateTimeFieldsOf(v)
+		if !storableDate(year, month, day) {
+			return "", false
+		}
+		// A DATE keeps only the date the number spells, and the fraction and
+		// the time of day go: measured, DATE DEFAULT (20200101123456) and
+		// (20200101.5) are both '2020-01-01'.
+		return fmt.Sprintf("'%04d-%02d-%02d'", year, month, day), true
+	case "datetime", "timestamp":
+		v, ok := dateTimeNumber(n)
+		if !ok {
+			return "", false
+		}
+		year, month, day, hour, minute, second := dateTimeFieldsOf(v)
+		if !storableDate(year, month, day) || hour > 23 || minute > 59 || second > 59 {
+			return "", false
+		}
+		return fmt.Sprintf("'%04d-%02d-%02d %02d:%02d:%02d%s'",
+			year, month, day, hour, minute, second, fractionText(fraction, fsp)), true
+	}
+	return "", false
+}
+
+// timeNumberLiteral writes the TIME a number spells, which is read from the
+// right as seconds, minutes and hours: measured on mariadb:11.8.8, TIME
+// DEFAULT (7) is '00:00:07', (100) '00:01:00', (10000) '01:00:00' and
+// (8385959) '838:59:59', where (60), (960) and (8395959) are refused with
+// 1067 — a minute or second of its own past 59, or an hour past the widest
+// TIME.
+func timeNumberLiteral(n uint64, negative bool, fraction string, fsp int) (string, bool) {
+	if n > maxTimeNumber {
+		// Past the widest TIME the number is read as a date and time, and
+		// only its time of day is kept: measured, TIME DEFAULT
+		// (20200101123456) is '12:34:56' and (99991231235959) '23:59:59',
+		// where (9999999999), a digit short of a date and time, is refused
+		// and so is a negative one.
+		if negative || n < minDateTimeDigits || n > maxDateTimeNumber {
+			return "", false
+		}
+		n %= 1000000
+	}
+	second, minute, hour := n%100, (n/100)%100, n/10000
+	if second > 59 || minute > 59 {
+		return "", false
+	}
+	sign := ""
+	if negative && (n != 0 || strings.Trim(fraction, "0") != "") {
+		// A negative zero is just zero: measured, TIME DEFAULT (-0) is
+		// '00:00:00'.
+		sign = "-"
+	}
+	return fmt.Sprintf("'%s%02d:%02d:%02d%s'",
+		sign, hour, minute, second, fractionText(fraction, fsp)), true
+}
+
+// dateTimeNumber reads a number the way a date or datetime column does,
+// returning the YYYYMMDDhhmmss value it carries. The ranges are the server's
+// own, which is what makes a number of an unexpected length land where it
+// does: measured on mariadb:11.8.8, DATE DEFAULT (20200) is '2002-02-00',
+// since 20200 is below 691231 and so is read as the two-digit-year 020200,
+// and (2020010), below the eight digits a date needs, is refused with 1067.
+//
+// A two-digit year is read as 2000 to 2069 up to 691231 and as 1970 to 1999
+// from 700101: measured, (691231) is '2069-12-31' and (700101) '1970-01-01'.
+func dateTimeNumber(n uint64) (uint64, bool) {
+	switch {
+	case n == 0 || n >= 10000101000000:
+		return n, true
+	case n < 101:
+		return 0, false
+	case n <= 691231:
+		return (n + 20000000) * 1000000, true // YYMMDD, 2000 to 2069
+	case n < 700101:
+		return 0, false
+	case n <= 991231:
+		return (n + 19000000) * 1000000, true // YYMMDD, 1970 to 1999
+	case n < 10000101:
+		return 0, false
+	case n <= 99991231:
+		return n * 1000000, true // YYYYMMDD
+	case n < 101000000:
+		return 0, false
+	case n <= 691231235959:
+		return n + 20000000000000, true // YYMMDDhhmmss, 2000 to 2069
+	case n < 700101000000:
+		return 0, false
+	case n <= 991231235959:
+		return n + 19000000000000, true // YYMMDDhhmmss, 1970 to 1999
+	default:
+		// Between the widest two-digit year and the first full fourteen
+		// digits the number is read as it stands, which is how DATETIME
+		// DEFAULT (2020010112345) comes back '0202-00-10 11:23:45'.
+		return n, true
+	}
+}
+
+// dateTimeFieldsOf splits a YYYYMMDDhhmmss value into its fields.
+func dateTimeFieldsOf(v uint64) (year, month, day, hour, minute, second uint64) {
+	date, clock := v/1000000, v%1000000
+	return date / 10000, (date / 100) % 100, date % 100,
+		clock / 10000, (clock / 100) % 100, clock % 100
+}
+
+// storableDate reports whether a date is one a default holds. A zero year,
+// month or day is allowed — measured on mariadb:11.8.8, DATE DEFAULT
+// (20200100) is '2020-01-00' and (20200001) '2020-00-01' — but a day past the
+// month's own length is not: (20200230) and (20210229) are refused with 1067
+// where (20200229) is '2020-02-29'.
+func storableDate(year, month, day uint64) bool {
+	if year > 9999 || month > 12 || day > 31 {
+		return false
+	}
+	if month == 0 || day == 0 {
+		return true
+	}
+	return day <= daysInMonth(year, month)
+}
+
+func daysInMonth(year, month uint64) uint64 {
+	switch month {
+	case 2:
+		if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+			return 29
+		}
+		return 28
+	case 4, 6, 9, 11:
+		return 30
+	}
+	return 31
+}
+
+// fractionText writes a value's fraction to the precision the column declares,
+// which truncates rather than rounds: measured on mariadb:11.8.8, TIME(3)
+// DEFAULT (100.4567) is '00:01:00.456' and TIME DEFAULT (100.999), declaring
+// none, is '00:01:00'.
+func fractionText(fraction string, fsp int) string {
+	if fsp <= 0 {
+		return ""
+	}
+	if fsp > 6 {
+		fsp = 6
+	}
+	if len(fraction) > fsp {
+		fraction = fraction[:fsp]
+	}
+	return "." + fraction + strings.Repeat("0", fsp-len(fraction))
 }

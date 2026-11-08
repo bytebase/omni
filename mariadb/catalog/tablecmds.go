@@ -181,9 +181,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Defer FK backing index creation until after all explicit indexes are added,
 	// so that explicit indexes can satisfy FK requirements without creating duplicates.
 	type pendingFK struct {
-		conName string
-		cols    []string
-		idxCols []*IndexColumn
+		conName  string
+		cols     []string
+		idxCols  []*IndexColumn
+		position int // the place among the table's indexes its clause had
 	}
 	var pendingFKs []pendingFK
 
@@ -422,10 +423,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					OnDelete:    refActionToString(cc.OnDelete),
 					OnUpdate:    refActionToString(cc.OnUpdate),
 				})
+				// The backing index is named after the constraint only where
+				// the statement named one; the symbol generated for an
+				// unnamed reference is not a name the index takes. Measured
+				// on mariadb:11.8.8: `a INT REFERENCES p(id)` makes
+				// KEY `a` (`a`) beside CONSTRAINT `t_ibfk_1`, where
+				// `a INT CONSTRAINT fk1 REFERENCES p(id)` makes KEY `fk1`.
+				// Passing the generated symbol made a second index of that
+				// name where the statement had one of its own, which
+				// SHOW CREATE TABLE then could not replay.
 				pendingFKs = append(pendingFKs, pendingFK{
-					conName: conName,
-					cols:    fkCols,
-					idxCols: []*IndexColumn{{Name: colDef.Name}},
+					conName:  cc.Name,
+					cols:     fkCols,
+					idxCols:  []*IndexColumn{{Name: colDef.Name}},
+					position: len(tbl.Indexes),
 				})
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
@@ -686,7 +697,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: fkName(con), cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{
+				conName:  fkName(con),
+				cols:     cols,
+				idxCols:  buildIndexColumns(con),
+				position: len(tbl.Indexes),
+			})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -838,11 +854,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// generated column as any other key does, so the column is held to the
 	// same rule: measured on mariadb:11.8.8, a table declaring both
 	// `a DOUBLE AS (RAND()) VIRTUAL` and a foreign key over a answers 1901.
+	// Each index still takes the place its own clause had, which is where the
+	// server builds it; every one made shifts the places recorded after it.
+	made := 0
 	for _, fk := range pendingFKs {
 		if err := validateIndexColumns(tbl, fk.idxCols, false, false); err != nil {
 			return err
 		}
-		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
+		if insertFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols, fk.position+made) {
+			made++
+		}
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -2008,19 +2029,39 @@ func fkName(con *nodes.Constraint) string {
 // MySQL uses the constraint name as the index name when provided;
 // otherwise falls back to the first column name via allocIndexName.
 func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
+	insertFKBackingIndex(tbl, conName, cols, idxCols, len(tbl.Indexes))
+}
+
+// insertFKBackingIndex is ensureFKBackingIndex with the place the index takes
+// among the table's own. The server builds a backing index where its clause
+// stands, so one stays before a key the statement declares later: measured on
+// mariadb:11.8.8, `FOREIGN KEY (a) REFERENCES p(id), KEY z(b)` shows
+// KEY `a` then KEY `z`, and `KEY z(b), FOREIGN KEY (a)` the other way round.
+// A column-level REFERENCES counts from its column: `a INT REFERENCES p(id),
+// b INT, KEY z(b)` shows KEY `a` first.
+//
+// It reports whether an index was made.
+func insertFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn, at int) bool {
 	if hasIndexCoveringColumns(tbl, cols) {
-		return
+		return false
 	}
 	idxName := conName
 	if idxName == "" {
 		idxName = allocIndexName(tbl, cols[0])
 	}
-	tbl.Indexes = append(tbl.Indexes, &Index{
+	idx := &Index{
 		Name:    idxName,
 		Table:   tbl,
 		Columns: idxCols,
 		Visible: true,
-	})
+	}
+	if at < 0 || at > len(tbl.Indexes) {
+		at = len(tbl.Indexes)
+	}
+	tbl.Indexes = append(tbl.Indexes, nil)
+	copy(tbl.Indexes[at+1:], tbl.Indexes[at:])
+	tbl.Indexes[at] = idx
+	return true
 }
 
 func indexNameExists(tbl *Table, name string) bool {
