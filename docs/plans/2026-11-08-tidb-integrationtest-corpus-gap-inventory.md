@@ -14,36 +14,43 @@ run on the rest, single-line only, deduplicated within this corpus and against
 the two existing corpora. Each row was measured against omni and against TiDB
 v8.5.5 via `PREPARE`.
 
-| | count |
-|---|---:|
-| both accept | 26,941 |
-| gap: TiDB accepts, omni rejects | 268 |
-| **over-acceptance: TiDB rejects, omni accepts** | **6** |
-| both reject | 31 |
-| no verdict | 0 |
+| | first | after OA fix |
+|---|---:|---:|
+| both accept | 26,941 | 26,941 |
+| gap: TiDB accepts, omni rejects | 268 | 268 |
+| **over-acceptance: TiDB rejects, omni accepts** | **6** | **0** |
+| both reject | 31 | 37 |
+| no verdict | 0 | 0 |
 
-omni parses **26,941 of the 27,209 statements TiDB accepts — 99.0%**, and
-**over-accepts 6 of the 26,947 it parses — 0.02%**. The 31 both-reject rows are
-statements the server itself refuses (`load stats` with no path, `foreign key …
-reference` misspelled, `require ssl ssl`, a `clustered` column attribute in the
-wrong place, a `case` expression missing a space); they are not work.
+omni parses **26,941 of the 27,209 statements TiDB accepts — 99.0%**, now with
+**zero over-acceptances** (was 6, 0.02%). The both-reject rows are statements the
+server itself refuses (`load stats` with no path, `foreign key … reference`
+misspelled, `require ssl ssl`, a `clustered` column attribute in the wrong place,
+a `case` expression missing a space); they are not work.
 
-## Over-acceptances — 6 rows — bugs, fix first
+## Over-acceptances — 6 rows — ✅ CLOSED
 
-These are the half §1 of the design calls most at risk: omni accepts what the
-server rejects. Each closes like a gap, checked against mysql, mariadb and
-oceanbase in the same PR.
+These were the half §1 of the design calls most at risk: omni accepting what the
+server rejects. All six are closed by `fix(tidb): reject the integrationtest
+over-acceptances`, each measured against live TiDB v8.5.5
+(`over_acceptance_fixes_oracle_test.go`). The fix is tidb-only: the corpus is
+TiDB's, so these are TiDB verdicts; the forks' analogues were not measured here
+and are a possible follow-up.
 
-### OA-1. `IDENTIFIED BY PASSWORD '<hash>'` — 1 row
+### OA-1. `IDENTIFIED BY PASSWORD '<hash>'` — 1 row — ✅ CLOSED
 
 ```
 ALTER USER USER() IDENTIFIED BY PASSWORD '*B50FBDB37F1256824274912F2A1CE648082C3F1F'
 ```
 
-TiDB v8.5.5 dropped the MySQL-5 `IDENTIFIED BY PASSWORD '<hash>'` auth-option
-form (it answers 1064). omni still reads it.
+Only the `ALTER USER USER()` self-form is affected: its grammar is `ALTER USER
+USER() IDENTIFIED BY AuthString` (a plain string, `parser.y:13745`), so `BY
+PASSWORD '<hash>'` there is 1064. `CREATE USER` and named `ALTER USER` still take
+`IDENTIFIED BY PASSWORD` — omni was calling the general auth-option parser for
+the `USER()` form, which accepted it; the fix parses only `IDENTIFIED BY <string>`
+there.
 
-### OA-2. Function-name keyword as a bare table name — 3 rows
+### OA-2. Function-name keyword as a bare table name — 3 rows — ✅ CLOSED
 
 ```
 CREATE TABLE COUNT(a bigint)
@@ -51,13 +58,15 @@ CREATE TABLE BIT_AND(a bigint)
 CREATE TABLE NOW(a bigint)
 ```
 
-`COUNT`, `BIT_AND`, `NOW` and the other built-in function names TiDB treats as
-reserved cannot be a table name unquoted; the server answers 1064. omni takes
-them as an ordinary identifier. (The fix is a table-name position that refuses
-the function-keyword set, not a blanket reservation — these words are still
-legal column names.)
+A function-name keyword immediately followed by `(` is a function call, so it
+cannot be a table name there: `CREATE TABLE COUNT(a int)` is 1064 while `CREATE
+TABLE COUNT (a int)` (a space before the paren) and a backquoted name are fine.
+omni took `COUNT(` as an ordinary identifier. The fix refuses the 26 aggregate
+and temporal-scalar function names (measured against v8.5.5) in the CREATE TABLE
+table-name position when `(` is adjacent — not a blanket reservation, so they
+stay legal column names and spaced/quoted table names.
 
-### OA-3. Out-of-range numeric literal at parse time — 2 rows
+### OA-3. Out-of-range numeric literal at parse time — 2 rows — ✅ CLOSED
 
 ```
 select * from select_limit limit 18446744073709551616 offset 3
@@ -66,8 +75,10 @@ insert into tt1 values(4556414e723532)
 
 `18446744073709551616` is 2^64, one past the `LIMIT` clause's unsigned range,
 and `4556414e723532` is a float whose exponent overflows; TiDB rejects both
-while lexing (1064 / out of range). omni accepts the token. This is a lexer
-range check, narrow to the contexts where TiDB applies it.
+(1064 / out of range). Two narrow checks, where TiDB applies them: `parseLimitValue`
+rejects a `LIMIT`/`OFFSET` integer past `uint64` (a bare integer literal that
+large stays a decimal elsewhere, as TiDB keeps it), and `scanNumber` rejects a
+float literal that overflows the double to infinity (underflow to zero is kept).
 
 ## The gaps, grouped — 268 rows
 
@@ -140,7 +151,7 @@ needs its own look before it is counted a single family.
 
 ## Next
 
-Close the 6 over-acceptances first (OA-1..3), then the gaps by size: A
+The 6 over-acceptances (OA-1..3) are closed. Next, the gaps by size: A
 (`DESC`/`DESCRIBE` EXPLAIN synonym, 211) buys the most for the least grammar, B
 (interval expression, 51) is the one to port across the forks. Each closes as
 §3.2's rows did — a small PR with §3.5's tree checks and zero new
