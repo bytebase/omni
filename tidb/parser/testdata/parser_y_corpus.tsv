@@ -772,7 +772,7 @@ accept	accept	IfExists#2	ALTER USER IF EXISTS CURRENT_USER
 accept	accept	IfNotExists#1	CREATE USER CURRENT_USER
 accept	accept	IfNotExists#2	CREATE USER IF NOT EXISTS CURRENT_USER
 accept	accept	IgnoreOptional#1	ALTER TABLE ident
-reject	accept	IgnoreOptional#2	ALTER IGNORE TABLE ident
+accept	accept	IgnoreOptional#2	ALTER IGNORE TABLE ident
 accept	accept	IndexName#1	ALTER TABLE ident ADD FULLTEXT(ident)
 accept	accept	IndexName#2	ALTER TABLE ident ADD FULLTEXT ident(ident)
 accept	accept	IndexOptionList#1	CREATE INDEX ident ON ident(ident)

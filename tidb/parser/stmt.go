@@ -737,6 +737,16 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// Optional IGNORE keyword between ALTER and TABLE: legacy MySQL
+	// copy-ALTER syntax that TiDB still accepts. IgnoreOptional appears only
+	// in the AlterTableStmt production, so IGNORE is valid solely when TABLE
+	// follows; its value is not modeled on the AST (TiDB discards it too).
+	// Ref: TiDB v8.5.5 pkg/parser/parser.y IgnoreOptional and
+	// AlterTableStmt: "ALTER" IgnoreOptional "TABLE" ...
+	if p.cur.Type == kwIGNORE && p.peekNext().Type == kwTABLE {
+		p.advance() // consume IGNORE; fall through to the TABLE arm
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt(start)
