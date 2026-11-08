@@ -70,9 +70,6 @@ var nestingShapes = []struct {
 		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")
 	}},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON 1)") }},
-	// A conditionless join absorbs its right operand, so a long chain of them
-	// right-nests through parseJoinChain and must be bounded, not overflow.
-	{"conditionless join chain", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }},
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
@@ -195,6 +192,9 @@ var chainShapes = []struct {
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1", n) }},
+	// A conditionless join chain collapses left-deep in a loop, so it is bounded
+	// by the tree height like any other chain, not by the nesting depth.
+	{"conditionless joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }},
 	{"parenthesized table list", func(n int) string { return "SELECT * FROM (" + strings.Repeat("t, ", n) + "t)" }},
 	{"INSERT VALUES", func(n int) string { return "INSERT INTO t VALUES (" + strings.Repeat("1+", n) + "1)" }},
 	{"VALUES", func(n int) string { return "VALUES ROW(" + strings.Repeat("1+", n) + "1)" }},
