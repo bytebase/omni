@@ -110,3 +110,35 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestRewriteNestedQueriesStaysLinear guards the walk that inlines a named
+// window. Every query nested in a body has a rewrite pass of its own, so
+// recursing from the inliner as well walked each subtree once per level above
+// it: each shape here takes 2ms walked once and over 2s walked that way.
+//
+// The windows themselves are covered by the catalog's own container-backed
+// cases, which hold a named window in each nested position against the
+// server; this one holds the cost down.
+func TestRewriteNestedQueriesStaysLinear(t *testing.T) {
+	// A level of query nesting costs two of the parser's own, so this goes as
+	// deep as it takes them. Only nesting is quadratic this way: a chain of
+	// CTEs beside one another is walked once however long it is.
+	const n = 4900
+	for _, tc := range []struct{ name, sql string }{
+		{"scalar subqueries", "SELECT " + strings.Repeat("(SELECT ", n) + "1" + strings.Repeat(")", n)},
+		{"derived tables", "SELECT 1 FROM " + strings.Repeat("(SELECT 1 FROM ", n) + "t" +
+			numberedTerms(n, ") d0", ") d%d")},
+	} {
+		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
+		done := make(chan struct{})
+		go func() {
+			RewriteSelectStmt(stmt)
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: RewriteSelectStmt over %d nested queries took over 2s", tc.name, n)
+		}
+	}
+}

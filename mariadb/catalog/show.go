@@ -2279,6 +2279,9 @@ func stripAllOuterParens(expr string) string {
 
 // maxTimeNumber is the widest TIME a number spells, 838:59:59, and
 // maxDateTimeNumber the widest date and time one does.
+// maxSetMembers is the widest SET the server takes, a bit of a mask each.
+const maxSetMembers = 64
+
 const (
 	maxTimeNumber        = 8385959
 	maxDateTimeNumber    = 99991231235959
@@ -2573,7 +2576,12 @@ func enumNumberDefault(text string, col *Column) (string, bool) {
 		return "", false
 	}
 	if normalizedTypeName(col.DataType) == "set" {
-		if len(members) > 63 || n >= 1<<uint(len(members)) {
+		// A SET holds up to 64 members, one bit each, so a 64-member column
+		// has a bit for every mask a uint64 can hold and needs no range check
+		// at all: measured on mariadb:11.8.8, a 65th member is 1097 and a
+		// 64-member SET takes DEFAULT (1) as its first member.
+		if len(members) > maxSetMembers ||
+			(len(members) < maxSetMembers && n >= 1<<uint(len(members))) {
 			return "", false
 		}
 		// Zero is a bitmask like any other and chooses no member, which the

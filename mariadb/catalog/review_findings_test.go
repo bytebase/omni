@@ -5334,3 +5334,117 @@ func TestReview_ValuesRowsTakeTheRewrites(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_NamedWindowInEveryNestedQuery covers a WINDOW clause declared
+// inside a query nested in the body. The server stores no such clause
+// anywhere, so each one has to be inlined where it was declared, and these
+// cases are what lets the inliner stop at a nested query instead of walking
+// into it: every query nested in a body now has its own rewrite pass, and
+// recursing from the inliner as well walked each subtree once per level above
+// it — seconds of work on a deeply nested body.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_NamedWindowInEveryNestedQuery(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		{"a_derived_table", "SELECT d.x FROM (SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (ORDER BY a)) d"},
+		{"a_cte", "WITH c AS (SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (ORDER BY a)) SELECT c.x FROM c"},
+		{"a_scalar_subquery", "SELECT (SELECT SUM(a) OVER w FROM t WINDOW w AS (ORDER BY a) LIMIT 1) AS x"},
+		{"an_exists_subquery", "SELECT a FROM t WHERE EXISTS (SELECT SUM(a) OVER w FROM t t2 WINDOW w AS (ORDER BY a))"},
+		{"an_in_subquery", "SELECT a FROM t WHERE a IN (SELECT SUM(a) OVER w FROM t t2 WINDOW w AS (ORDER BY a))"},
+		{"a_union_operand", "SELECT 1 AS x UNION SELECT SUM(a) OVER w FROM t WINDOW w AS (ORDER BY a)"},
+		{"a_derived_table_in_a_join",
+			"SELECT t1.a FROM t t1 JOIN (SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (ORDER BY a)) d ON d.x = t1.a"},
+		{"a_subquery_in_a_window",
+			"SELECT SUM(a) OVER (PARTITION BY (SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1)) AS x FROM t"},
+	} {
+		view := fmt.Sprintf("v_nw%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			if body := c.ShowCreateView("testdb", view); strings.Contains(strings.ToLower(body), "window ") {
+				t.Errorf("the WINDOW clause should be gone from the stored body: %s", body)
+			}
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_WidestSetDefault covers a SET declaring the 64 members the server
+// takes, where every mask a number can spell is in range. The conversion
+// skipped such a column — its range check would have shifted a mask by 64 —
+// so a numeric default fell back to its own digits as text: a 64-member SET
+// holding 'a' and '1' took DEFAULT (1) as '1', the member of that value,
+// where the server stores 'a', the member the bit chooses.
+//
+// Measured on mariadb:11.8.8, where a 65th member is 1097.
+func TestReview_WidestSetDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	members := func(n int) string {
+		out := []string{"'a'", "'1'"}
+		for i := 2; i < n; i++ {
+			out = append(out, fmt.Sprintf("'m%d'", i))
+		}
+		return strings.Join(out, ",")
+	}
+	for _, tc := range []struct {
+		name  string
+		count int
+	}{
+		{"sixty_four_members", 64},
+		{"sixty_three_members", 63},
+		{"two_members", 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a SET(" + members(tc.count) + ") DEFAULT (1))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}

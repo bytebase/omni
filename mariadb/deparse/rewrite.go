@@ -473,14 +473,17 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 	//
 	// A window name belongs to the query that declares it, so the walk stops
 	// where a nested query begins and that query is inlined against its own
-	// clause. Measured on mariadb:11.8.8: under an outer `WINDOW w AS (ORDER
-	// BY a)`, the body of
+	// clause — by its own call, RewriteSelectStmt reaching every query nested
+	// in this one. Recursing from here too would walk each subtree once per
+	// level above it, which on a deeply nested body costs seconds.
+	//
+	// Measured on mariadb:11.8.8: under an outer `WINDOW w AS (ORDER BY a)`,
+	// the body of
 	// `(SELECT SUM(b) OVER w FROM t WINDOW w AS (ORDER BY b) LIMIT 1)` comes
 	// back `over ( order by `t`.`b`)`, its own definition, and neither WINDOW
 	// clause is left in the stored body.
 	inline := func(n ast.Node) bool {
 		if nested, ok := n.(*ast.SelectStmt); ok && nested != stmt {
-			inlineNamedWindows(nested)
 			return false
 		}
 		call, ok := n.(*ast.FuncCallExpr)
@@ -491,9 +494,6 @@ func inlineNamedWindows(stmt *ast.SelectStmt) {
 			call.Over = extendWindowDef(def, call.Over)
 		}
 		return true
-	}
-	for _, cte := range stmt.CTEs {
-		inlineNamedWindows(cte.Select)
 	}
 	for _, target := range stmt.TargetList {
 		ast.Inspect(target, inline)
