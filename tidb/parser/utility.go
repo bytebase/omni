@@ -838,25 +838,28 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		stmt.User = p.cur.Str
 		p.advance()
 
-		// @ - lexer scans @ as tokIDENT with Str="@"
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-		} else {
+		// @host: the lexer folds `@'host'` into one tokIDENT (Str="@host"); a
+		// bare `@` (a gap before the host) leaves the host as the next token.
+		if p.cur.Type != tokIDENT || len(p.cur.Str) == 0 || p.cur.Str[0] != '@' {
 			return nil, &ParseError{
 				Message:  "expected @ after user",
 				Position: p.cur.Loc,
 			}
 		}
-
-		// 'host'
-		if p.cur.Type != tokSCONST {
-			return nil, &ParseError{
-				Message:  "expected string literal for host",
-				Position: p.cur.Loc,
+		if len(p.cur.Str) > 1 {
+			stmt.Host = p.cur.Str[1:]
+			p.advance()
+		} else {
+			p.advance() // bare '@'
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for host",
+					Position: p.cur.Loc,
+				}
 			}
+			stmt.Host = p.cur.Str
+			p.advance()
 		}
-		stmt.Host = p.cur.Str
-		p.advance()
 
 		// :port
 		p.expect(':')

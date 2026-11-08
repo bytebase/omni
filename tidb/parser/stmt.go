@@ -989,9 +989,12 @@ func (p *Parser) parseDefinerValue() string {
 	// or for quoted form 'user'@'host' the @ is also part of a variable token.
 	// Check for tokIDENT starting with "@".
 	if p.cur.Type == tokIDENT && len(p.cur.Str) > 0 && p.cur.Str[0] == '@' {
-		atHost := p.cur.Str // e.g. "@localhost" or "@"
+		tok := p.cur
 		p.advance()
-		if atHost == "@" {
+		// A bare `@` spans one source byte; a folded host, `@'host'` or even the
+		// empty `@''`, spans more. Str is "@" for both, so the span, not Str,
+		// tells them apart -- `DEFINER='u'@''` is a valid empty host.
+		if tok.End-tok.Loc == 1 {
 			// Standalone @ followed by host identifier or string
 			var host string
 			if p.cur.Type == tokSCONST {
@@ -1002,8 +1005,10 @@ func (p *Parser) parseDefinerValue() string {
 			}
 			return user + "@" + host
 		}
-		// @host as single token: strip @ prefix
-		host := atHost[1:]
+		// Folded `@host`: take the host from the source so a quoted host keeps its
+		// quotes in the definer string ('u'@'host' stays 'u'@'host', u@host stays
+		// u@host), which the token's stripped Str would lose.
+		host := p.inputText(tok.Loc+1, tok.End)
 		return user + "@" + host
 	}
 

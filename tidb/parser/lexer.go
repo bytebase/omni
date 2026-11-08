@@ -2500,34 +2500,33 @@ func (l *Lexer) scanVariable() Token {
 		return Token{Type: tokAt2, Str: "@@", Loc: start}
 	}
 
-	// User variable: @name — scan the variable name as one token. A backtick-
-	// quoted name (@`x`) is scanned whole; an empty name (@) is valid too. The
-	// single- and double-quoted forms (@'x', @"x") are left for a later change:
-	// the lexer there must not swallow the `@'host'` of a username.
+	// User variable: @name — scanned as one token. The name is a bare identifier
+	// run, or a backtick/single/double-quoted string folded in, with the quotes
+	// stripped and doubled delimiters unescaped. This is TiDB's singleAtIdentifier,
+	// which a user variable (`@'a'`, `@"a"`, "@`a`") and the @host of a username
+	// (`'u'@'host'`) both use, so `@'a'` reads as the variable a and `'u'@'host'`
+	// keeps its host. An empty name (@) is valid: it is TiDB's unnamed variable.
 	var name string
-	if l.pos < len(l.input) && l.input[l.pos] == '`' {
-		l.pos++ // skip opening backtick
-		nameStart := l.pos
-		for l.pos < len(l.input) && l.input[l.pos] != '`' {
-			l.pos++
-		}
-		name = l.input[nameStart:l.pos]
-		if l.pos < len(l.input) {
-			l.pos++ // skip closing backtick
-		} else {
-			l.setError("unterminated quoted identifier", start)
-		}
-	} else {
-		nameStart := l.pos
-		for l.pos < len(l.input) {
-			ch := l.input[l.pos]
-			if isIdentChar(ch) || ch == '.' {
-				l.pos++
-			} else {
-				break
+	if l.pos < len(l.input) {
+		switch l.input[l.pos] {
+		case '`':
+			name = l.scanBacktickIdent().Str
+		case '\'':
+			name = l.scanString('\'').Str
+		case '"':
+			name = l.scanString('"').Str
+		default:
+			nameStart := l.pos
+			for l.pos < len(l.input) {
+				ch := l.input[l.pos]
+				if isIdentChar(ch) || ch == '.' {
+					l.pos++
+				} else {
+					break
+				}
 			}
+			name = l.input[nameStart:l.pos]
 		}
-		name = l.input[nameStart:l.pos]
 	}
 
 	return Token{Type: tokIDENT, Str: "@" + name, Loc: start}

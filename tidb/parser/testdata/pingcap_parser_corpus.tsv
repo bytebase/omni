@@ -685,7 +685,7 @@ accept	accept	unlock stats test.t
 accept	accept	unlock stats t, t2
 accept	accept	unlock stats t partition (p0, p1)
 accept	accept	SET @ = 1
-reject	accept	SET @' ' = 1
+accept	accept	SET @' ' = 1
 reject	reject	SET @! = 1
 accept	accept	SET @1 = 1
 accept	accept	SET @a = 1

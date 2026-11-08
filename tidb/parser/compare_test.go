@@ -471,6 +471,16 @@ func TestParseVariableRefs(t *testing.T) {
 		{"@@global.max_connections", "{VAR :name max_connections :loc 0 :system true :scope GLOBAL}"},
 		{"@@session.sql_mode", "{VAR :name sql_mode :loc 0 :system true :scope SESSION}"},
 		{"@@local.wait_timeout", "{VAR :name wait_timeout :loc 0 :system true :scope LOCAL}"},
+		// Quoted names: TiDB's lexer folds a single/double/backtick-quoted user
+		// variable name into one token, and a system variable name may be a
+		// quoted string. The quotes are stripped and doubled delimiters unescaped.
+		{"@'a'", "{VAR :name a :loc 0}"},
+		{`@"aBC"`, "{VAR :name aBC :loc 0}"},
+		{"@`a``b`", "{VAR :name a`b :loc 0}"},
+		{"@'a''b'", "{VAR :name a'b :loc 0}"},
+		{"@@session.'C'", "{VAR :name C :loc 0 :system true :scope SESSION}"},
+		{`@@local."aBc"`, "{VAR :name aBc :loc 0 :system true :scope LOCAL}"},
+		{"@@'c'", "{VAR :name c :loc 0 :system true}"},
 	}
 
 	for _, tt := range tests {

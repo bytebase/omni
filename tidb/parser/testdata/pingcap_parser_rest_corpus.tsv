@@ -668,17 +668,17 @@ accept	accept	select 1 from t1 where NOT NOT EXISTS (SELECT 2)
 accept	accept	select 1 from t1 where NOT NOT NOT EXISTS (SELECT 2)
 accept	accept	select @a>1
 accept	accept	select @`aB`+1
-reject	accept	select @'a':=1
-reject	accept	select @`a``b`=4
-reject	accept	select @"aBC">1
+accept	accept	select @'a':=1
+accept	accept	select @`a``b`=4
+accept	accept	select @"aBC">1
 accept	accept	select @`a`+1
 accept	accept	select @``
 accept	accept	select @
 accept	accept	select @@``
 accept	accept	select @@var
 accept	accept	select @@global.b='foo'
-reject	accept	select @@session.'C'
-reject	accept	select @@local."aBc"
+accept	accept	select @@session.'C'
+accept	accept	select @@local."aBc"
 accept	accept	SELECT * FROM t WHERE MATCH(content, title) AGAINST ('search for')
 accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST ('search for' IN BOOLEAN MODE)
 accept	accept	SELECT * FROM t WHERE MATCH(content, title) AGAINST ('search for' WITH QUERY EXPANSION)
