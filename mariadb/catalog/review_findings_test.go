@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -4235,6 +4236,82 @@ func TestReview_NumericDefaultIsTheColumnsOwnFloat(t *testing.T) {
 		// An integer column takes the double too, where the literal is one.
 		{"bigint_past_a_double", "BIGINT", "9007199254740993e0"},
 		{"bigint_exact_twin", "BIGINT", "9007199254740993"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_QuotedNumericDefaultIsExact covers a numeric default whose number
+// comes from a string, where an exponent in the text is no sign of a double:
+// the string is converted as a decimal, so DECIMAL(20,0) DEFAULT
+// '9007199254740993e0' keeps all seventeen digits where the bare literal is
+// the double's sixteen, and a tie rounds away from zero rather than to even.
+// Reading the text for an exponent took the double's reading for every one of
+// these — the quoted, X-quoted and introduced forms alike.
+//
+// Measured on mariadb:11.8.8, with the stored value read back on both sides.
+func TestReview_QuotedNumericDefaultIsExact(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	hexOf := func(s string) string {
+		return "X'" + hex.EncodeToString([]byte(s)) + "'"
+	}
+	for _, tc := range []struct{ name, typ, literal string }{
+		// A string keeps the digits an exponent would have spent.
+		{"decimal_quoted_past_a_double", "DECIMAL(20,0)", "'9007199254740993e0'"},
+		{"decimal_bare_past_a_double", "DECIMAL(20,0)", "9007199254740993e0"},
+		{"decimal_quoted_long", "DECIMAL(30,10)", "'123456789012345.123456789e0'"},
+		{"decimal_quoted_exponent", "DECIMAL(20,0)", "'1e15'"},
+		{"decimal_quoted_big_exponent", "DECIMAL(40,0)", "'1e30'"},
+		{"decimal_quoted_rounds_to_a_whole", "DECIMAL(20,0)", "'9.9999999999999999e0'"},
+		{"decimal_quoted_tie", "DECIMAL(5,2)", "'2.675e0'"},
+		// X-quoted and introduced strings are strings too.
+		{"decimal_x_quoted_past_a_double", "DECIMAL(20,0)", hexOf("9007199254740993e0")},
+		{"decimal_x_quoted_tie", "DECIMAL(5,2)", hexOf("2.675e0")},
+		{"decimal_introduced_past_a_double", "DECIMAL(20,0)", "_utf8mb4'9007199254740993e0'"},
+		// An integer column takes the string's number, and its tie.
+		{"bigint_quoted_past_a_double", "BIGINT", "'9007199254740993e0'"},
+		{"bigint_quoted_exact", "BIGINT", "'9007199254740993'"},
+		{"int_quoted_tie", "INT", "'2.5e0'"},
+		{"int_bare_tie", "INT", "2.5e0"},
+		{"int_quoted_fraction", "INT", "'7.5e0'"},
+		{"int_quoted_plain_fraction", "INT", "'7.5'"},
+		// A float column holds a float either way, so the string reads as one.
+		{"double_quoted_past_a_double", "DOUBLE", "'9007199254740993e0'"},
+		{"double_quoted_exact", "DOUBLE", "'9007199254740993'"},
+		{"double_quoted_exponent", "DOUBLE", "'1e15'"},
+		{"double_quoted_tenth", "DOUBLE", "'0.1'"},
+		{"float_quoted_long", "FLOAT", "'0.123456789'"},
+		{"float_quoted_whole", "FLOAT", "'1234567'"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			scenarioReset(t, mc)

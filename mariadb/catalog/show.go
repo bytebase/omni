@@ -597,10 +597,17 @@ func formatLiteralValue(val string, col *Column) string {
 	// everything else the text carried around the digits.
 	if isNumericColumnType(col.DataType) {
 		text := val
+		// Only a bare literal with an exponent is a double. A quoted string
+		// is converted as a decimal however it spells its number: measured,
+		// DECIMAL(20,0) DEFAULT '9007199254740993e0' keeps all seventeen
+		// digits where the bare 9007199254740993e0 is the double's sixteen,
+		// and INT DEFAULT '2.5e0' comes back 3 where 2.5e0 comes back 2.
+		approximate := isApproximateLiteral(val)
 		if raw, ok := unquoteStringLiteral(val); ok {
 			text = string(raw)
+			approximate = false
 		}
-		if out, ok := scaleNumberDefault(text, col); ok {
+		if out, ok := scaleNumberDefault(text, approximate, col); ok {
 			return out
 		}
 		// The text spells no number, which the server refuses outright with
@@ -1589,7 +1596,12 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 		}
 		digits = strconv.FormatUint(n, 10)
 	}
-	return scaleNumberDefault(digits, col)
+	// None of these is a double. A string's number is converted as a decimal
+	// whatever it spells, exponent and all, and the hex and bit notations
+	// spell a whole number: measured, a DECIMAL(20,0) default written as the
+	// characters 9007199254740993e0, quoted or X-quoted, keeps all seventeen
+	// digits where the bare literal is the double's sixteen.
+	return scaleNumberDefault(digits, false, col)
 }
 
 // scaleNumberDefault writes the number a default's text spells the way the
@@ -1598,13 +1610,17 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 // 7.00, 7.00, 7.50 and 65.00, while DECIMAL(5,0) DEFAULT 7 stays 7. Measured
 // on mariadb:11.8.8.
 //
+// approximate says the text came from a bare literal carrying an exponent,
+// which makes it a double. Where the number is a string's, exponent or not,
+// the conversion is decimal and the caller passes false.
+//
 // It reports false where the text spells no number, as `INT DEFAULT 'abc'`
 // does. The server refuses such a default outright with 1067, so there is no
 // value for it to be written as; omni does not check that yet.
 //
 // YEAR does not come through here: its value is more than its digits, and
 // yearDefaultOf writes it.
-func scaleNumberDefault(text string, col *Column) (string, bool) {
+func scaleNumberDefault(text string, approximate bool, col *Column) (string, bool) {
 	digits, ok := normalizeNumberText(text)
 	if !ok {
 		return "", false
@@ -1613,7 +1629,7 @@ func scaleNumberDefault(text string, col *Column) (string, bool) {
 	typeName := normalizedTypeName(col.DataType)
 	switch typeName {
 	case "decimal":
-		if isApproximateLiteral(text) {
+		if approximate {
 			// An exponent makes the literal a double, so what the column
 			// rounds is the double's own decimal rather than the digits
 			// written: measured, DECIMAL(20,0) DEFAULT (9007199254740993e0)
@@ -1657,8 +1673,9 @@ func scaleNumberDefault(text string, col *Column) (string, bool) {
 	default:
 		// The integer types hold no fraction at all: measured, INT DEFAULT 7.9
 		// comes back 8, 7.5 comes back 8 and -7.5 comes back -8. A tie rounds
-		// by the literal's own kind, which roundWholeNumber decides.
-		return dropNegativeZero(roundWholeNumber(digits, isApproximateLiteral(text))), true
+		// by the literal's own kind, which roundWholeNumber decides: INT
+		// DEFAULT 2.5e0 comes back 2, where the string '2.5e0' comes back 3.
+		return dropNegativeZero(roundWholeNumber(digits, approximate)), true
 	}
 }
 
