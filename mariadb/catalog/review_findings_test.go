@@ -4910,6 +4910,18 @@ func TestReview_AliasReferenceInOrderingClauses(t *testing.T) {
 		{"renamed_having", " (x)", "SELECT a AS z FROM t HAVING z > 0"},
 		{"having", "", "SELECT a AS z FROM t HAVING z > 0"},
 		{"renamed_order_by_a_constant_alias", " (x)", "SELECT 2 AS z FROM t ORDER BY z"},
+		{"a_nested_query_keeps_its_own_alias", " (x)",
+			"SELECT a AS z FROM t HAVING EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)"},
+		{"renamed_beside_a_nested_alias", " (x)",
+			"SELECT a AS z FROM t HAVING z > 0 AND EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)"},
+		{"a_nested_query_keeps_its_own_having", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT MAX(b) FROM t t2 HAVING MAX(b) > 0) > 0"},
+		{"cte_columns_rename_the_having", "",
+			"WITH c(x) AS (SELECT a AS z FROM t HAVING z > 0) SELECT c.x FROM c"},
+		{"cte_columns_and_an_ordering_item", "",
+			"WITH c(x) AS (SELECT a AS z FROM t ORDER BY z + 0) SELECT c.x FROM c"},
+		{"cte_columns_and_a_group_by_item", "",
+			"WITH c(x, y) AS (SELECT a AS z, COUNT(*) AS n FROM t GROUP BY z + 0) SELECT c.x FROM c"},
 	} {
 		view := fmt.Sprintf("v_al%d", i)
 		t.Run(tc.name, func(t *testing.T) {
@@ -5033,6 +5045,16 @@ func TestReview_ApproximateBitAndYearDefault(t *testing.T) {
 		{"year_cuts_two_and_a_half", "YEAR", "2.5e0"},
 		{"year_cuts_a_four_digit_year", "YEAR", "2001.9e0"},
 		{"year_cuts_to_zero", "YEAR", "0.9e0"},
+		// The value cut is the double's, not the digits written.
+		{"bit_double_is_a_whole", "BIT(8)", "1.99999999999999999e0"},
+		{"bit_double_is_one", "BIT(8)", "0.99999999999999999e0"},
+		{"bit_double_just_past_two", "BIT(8)", "2.0000000000000001e0"},
+		{"bit_double_short_of_two", "BIT(8)", "1.9999999999e0"},
+		{"bit_wide_double", "BIT(64)", "9007199254740993e0"},
+		{"bit_wide_exact_twin", "BIT(64)", "9007199254740993"},
+		{"year_double_is_a_whole", "YEAR", "1.99999999999999999e0"},
+		{"year_double_is_one", "YEAR", "0.99999999999999999e0"},
+		{"year_double_rounds_a_year_up", "YEAR", "2000.9999999999999999e0"},
 		// An exact fraction rounds away from zero on BIT.
 		{"bit_exact_rounds_up", "BIT(8)", "1.9"},
 		{"bit_exact_tie_rounds_up", "BIT(8)", "1.5"},

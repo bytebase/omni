@@ -547,15 +547,55 @@ func applyCTEColumnNames(ctes []*ast.CommonTableExpr) {
 		if leaf == nil {
 			continue
 		}
+		renamed := make(map[string]string, len(cte.Columns))
 		for i, target := range leaf.TargetList {
 			if i >= len(cte.Columns) {
 				break
 			}
 			if rt, ok := target.(*ast.ResTarget); ok {
+				if rt.Name != "" && !strings.EqualFold(rt.Name, cte.Columns[i]) {
+					renamed[strings.ToLower(rt.Name)] = cte.Columns[i]
+				}
 				rt.Name = cte.Columns[i]
 			}
 		}
+		// A HAVING reference to an output column is kept by name, so the name
+		// the CTE declares replaces the one the target carried: measured on
+		// mariadb:11.8.8, `WITH c(x) AS (SELECT a AS z FROM t HAVING z > 0)`
+		// comes back having `x` > 0. An ORDER BY or GROUP BY mention of the
+		// alias is resolved to the target's expression instead, so it carries
+		// no name to rename.
+		if len(renamed) > 0 && leaf.Having != nil {
+			RenameOutputRefs(leaf.Having, renamed)
+		}
 	}
+}
+
+// RenameOutputRefs renames an unqualified column reference that names a
+// renamed output column, which is how a view's or a CTE's own column list
+// reaches the HAVING that mentions an alias. A reference to a table's own
+// column is qualified by the resolver, so an unqualified one left in the body
+// is the output's.
+//
+// The walk stops where a nested query begins, since that query names its own
+// outputs: measured on mariadb:11.8.8,
+// `CREATE VIEW v (x) AS SELECT a AS z FROM t HAVING z > 0 AND
+// EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)` comes back with the
+// outer reference as `x` and the derived table's own still `z`.
+func RenameOutputRefs(node ast.Node, renamed map[string]string) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		if _, ok := n.(*ast.SelectStmt); ok {
+			return false
+		}
+		cr, ok := n.(*ast.ColumnRef)
+		if !ok || cr.Table != "" || cr.Schema != "" {
+			return true
+		}
+		if name, ok := renamed[strings.ToLower(cr.Column)]; ok {
+			cr.Column = name
+		}
+		return true
+	})
 }
 
 // RewriteSelectStmt applies RewriteExpr to all expression positions in a

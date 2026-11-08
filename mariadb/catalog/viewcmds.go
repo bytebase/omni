@@ -773,24 +773,8 @@ func applyExplicitViewColumns(sel *nodes.SelectStmt, cols []string) {
 	// rename, and a set operation's own ORDER BY keeps the alias either way,
 	// which is a body the server itself cannot execute.
 	if len(renamed) > 0 && leaf.Having != nil {
-		renameOutputRefs(leaf.Having, renamed)
+		deparse.RenameOutputRefs(leaf.Having, renamed)
 	}
-}
-
-// renameOutputRefs renames an unqualified column reference that names a
-// renamed output column. A reference to a table's own column is qualified by
-// the resolver, so an unqualified one left in the body is the output's.
-func renameOutputRefs(node nodes.Node, renamed map[string]string) {
-	nodes.Inspect(node, func(n nodes.Node) bool {
-		cr, ok := n.(*nodes.ColumnRef)
-		if !ok || cr.Table != "" || cr.Schema != "" {
-			return true
-		}
-		if name, ok := renamed[toLower(cr.Column)]; ok {
-			cr.Column = name
-		}
-		return true
-	})
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

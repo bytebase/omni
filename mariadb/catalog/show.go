@@ -1433,13 +1433,20 @@ func wholeNumberOf(text string) (uint64, bool) {
 	whole, fraction, _ := strings.Cut(digits, ".")
 	if strings.Trim(fraction, "0") != "" {
 		// An exact fraction the server refuses outright, measured: YEAR
-		// DEFAULT 99.7 answers 1067. An approximate one is a double, whose
-		// fraction is cut rather than rounded — YEAR DEFAULT (1.9e0) comes
-		// back 2001 and (1.5e0) 2001, where INT DEFAULT (1.9e0) is 2 — so
-		// the whole part already read is the value.
+		// DEFAULT 99.7 answers 1067. An approximate one is the double's, and
+		// the double's fraction is cut rather than rounded: YEAR DEFAULT
+		// (1.9e0) comes back 2001 and (1.5e0) 2001, where INT DEFAULT (1.9e0)
+		// is 2. The cut goes through the double, since that is the value:
+		// (1.99999999999999999e0) comes back 2002, the double being exactly
+		// 2, and (0.99999999999999999e0) 2001.
 		if !isApproximateLiteral(text) {
 			return 0, false
 		}
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return 0, false
+		}
+		whole = cut
 	}
 	// A negative zero is still zero, which `'-0'` relies on; anything else
 	// negative has no year to write.
@@ -1487,9 +1494,16 @@ func bitNumberOf(text string) (uint64, bool) {
 	// 1.5 both coming back b'10'.
 	whole := roundWholeNumber(digits, false)
 	if isApproximateLiteral(text) {
-		// Cutting a fraction can leave a negative zero, which is still zero:
-		// measured, BIT(8) DEFAULT (-0.9e0) is b'0'.
-		whole = dropNegativeZero(truncateWholeNumber(digits))
+		// The value cut is the double's and not the digits written, so the
+		// cut goes through it: measured, BIT(8) DEFAULT
+		// (1.99999999999999999e0) is b'10', the double being exactly 2, and
+		// (0.99999999999999999e0) is b'1'. Cutting can leave a negative zero,
+		// which is still zero: (-0.9e0) is b'0'.
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return 0, false
+		}
+		whole = dropNegativeZero(cut)
 	}
 	if strings.HasPrefix(whole, "-") {
 		return 0, false
