@@ -636,7 +636,11 @@ func (p *Parser) parseFieldItemList() (fieldItems, error) {
 					return fi, err
 				}
 				if _, ok := p.match(kwBY); ok {
-					encl, err := p.parseFieldTerminator()
+					// This is an ENCLOSED item in its own right (the next
+					// FieldItem), so its value is a one-byte enclosure: v8.5.5
+					// answers 1083 for a longer one here as it does for a plain
+					// ENCLOSED BY (parser.y:14956-14961).
+					encl, err := p.parseFieldEnclosure()
 					if err != nil {
 						return fi, err
 					}

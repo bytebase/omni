@@ -35,8 +35,10 @@ var outfileFieldsFormCases = []loadDataFormCase{
 	{"select * into outfile '/x' fields defined null by 'n' optionally enclosed", true},
 	{"select * into outfile '/x' fields defined null by 'a' defined null by 'b'", true},
 	{"select * into outfile '/x' fields terminated by 'a' defined null by 'b' enclosed by 'c'", true},
-	// A BY after OPTIONALLY ENCLOSED makes it the next item, an ENCLOSED one.
+	// A BY after OPTIONALLY ENCLOSED makes it the next item, an ENCLOSED one,
+	// whose value is one byte: a longer one is 1083 as for a plain ENCLOSED.
 	{"select * into outfile '/x' fields defined null by 'a' optionally enclosed by 'b'", true},
+	{"select * into outfile '/x' fields defined null by 'a' optionally enclosed by 'ab'", false},
 	// OPTIONALLY with no ENCLOSED after it is still incomplete.
 	{"select * into outfile '/x' fields defined null by 'a' optionally", false},
 	// Every word of DEFINED NULL BY is a word, not a name.

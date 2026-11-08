@@ -78,9 +78,12 @@ var loadDataFormCases = []loadDataFormCase{
 	// Its OPTIONALLY ENCLOSED tail carries no BY and no value.
 	{"load data infile '/x.csv' into table t fields defined null by 'NULL' optionally enclosed", true},
 	{"load data infile '/x.csv' into table t fields defined null by 'NULL' optionally enclosed ignore 1 lines", true},
-	// A BY after it makes it the next item instead, an ENCLOSED one.
+	// A BY after it makes it the next item instead, an ENCLOSED one, whose
+	// value is one byte: a longer one is 1083 as for a plain ENCLOSED BY.
 	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally enclosed by 'b'", true},
 	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally enclosed by X'62'", true},
+	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally enclosed by 'bc'", false},
+	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally enclosed by X'6263'", false},
 	// OPTIONALLY with no ENCLOSED after it at all.
 	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally", false},
 	// Every word of DEFINED NULL BY is a word, not a name.
