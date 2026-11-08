@@ -99,18 +99,24 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Partitions = parts
 	}
 
-	// [CHARACTER SET charset_name]
+	// [CHARACTER SET charset_name] / [CHARSET charset_name]. The name is a
+	// charset_name, which carries the reserved word BINARY beside
+	// ident_or_text, so `CHARACTER SET BINARY` and a quoted name parse where a
+	// plain identifier would turn them away (MariaDB 11.8.8 accepts both,
+	// measured 2026-11-07).
+	//
+	// Ref: charset and charset_name in mariadb-server sql/sql_yacc.yy.
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
 		p.match(kwSET)
-		name, _, err := p.parseIdentifier()
+		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}
 		stmt.CharacterSet = name
 	} else if p.cur.Type == kwCHARSET {
 		p.advance()
-		name, _, err := p.parseIdentifier()
+		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}

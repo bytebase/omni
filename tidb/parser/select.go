@@ -1833,53 +1833,29 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			into.Charset = charset
 		}
 
-		// [{FIELDS | COLUMNS} ...]
+		// [{FIELDS | COLUMNS} field_item ...]. SELECT ... INTO OUTFILE reads
+		// the same Fields rule LOAD DATA does: a non-empty list whose items --
+		// TERMINATED BY, [OPTIONALLY] ENCLOSED BY, ESCAPED BY and TiDB's own
+		// DEFINED NULL BY -- come in any order and may repeat, the last of a
+		// kind winning. A fixed one-of-each read missed repeats and DEFINED
+		// NULL BY, which v8.5.5 takes here (measured 2026-11-07).
+		//
+		// Ref: SelectStmtIntoOption, Fields and FieldItem in TiDB v8.5.5
+		// pkg/parser/parser.y.
 		if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
 			p.advance()
 			into.HasFieldsClause = true
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				if _, err := p.expect(kwBY); err != nil {
-					return nil, err
-				}
-				v, err := p.parseFieldTerminator()
-				if err != nil {
-					return nil, err
-				}
-				into.FieldsTerminatedBy = v
+			fi, err := p.parseFieldItemList()
+			if err != nil {
+				return nil, err
 			}
-
-			// [[OPTIONALLY] ENCLOSED BY 'char']
-			if p.cur.Type == kwOPTIONALLY {
-				p.advance()
-				into.FieldsOptionalEncl = true
-			}
-			if p.cur.Type == kwENCLOSED {
-				p.advance()
-				if _, err := p.expect(kwBY); err != nil {
-					return nil, err
-				}
-				v, err := p.parseFieldEnclosure()
-				if err != nil {
-					return nil, err
-				}
-				into.FieldsEnclosedBy = v
-			}
-
-			// [ESCAPED BY 'char']
-			if p.cur.Type == kwESCAPED {
-				p.advance()
-				if _, err := p.expect(kwBY); err != nil {
-					return nil, err
-				}
-				v, err := p.parseFieldEnclosure()
-				if err != nil {
-					return nil, err
-				}
-				into.FieldsEscapedBy = v
-			}
+			into.FieldsTerminatedBy = fi.TerminatedBy
+			into.FieldsEnclosedBy = fi.EnclosedBy
+			into.FieldsOptionalEncl = fi.OptionalEncl
+			into.FieldsEscapedBy = fi.EscapedBy
+			into.FieldsDefinedNullBy = fi.DefinedNullBy
+			into.HasDefinedNullBy = fi.HasDefinedNullBy
+			into.DefinedNullOptEnclosed = fi.DefinedNullOptEncl
 		}
 
 		// [LINES ...]

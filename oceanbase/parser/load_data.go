@@ -150,11 +150,18 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Partitions = parts
 	}
 
-	// [CHARACTER SET charset_name]
+	// [CHARACTER SET charset_name]. The name is a charset_name, which carries
+	// the reserved word BINARY beside ident_or_text, so `CHARACTER SET BINARY`
+	// and a quoted name parse where a plain identifier would turn them away.
+	// Unlike MySQL 8.0 and MariaDB, OceanBase CE 4.3.5.6 takes only the two-
+	// word CHARACTER SET here and answers 1064 for the short CHARSET on LOAD
+	// DATA (both measured 2026-11-07), so that arm stays a plain identifier.
+	//
+	// Ref: charset and charset_name in OceanBase's MySQL-mode grammar.
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
 		p.match(kwSET)
-		name, _, err := p.parseIdentifier()
+		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}

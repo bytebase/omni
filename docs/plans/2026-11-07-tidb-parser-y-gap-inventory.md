@@ -14,15 +14,15 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #724 | after #725 | after #730 | after #731 | after #733 | now |
+| | first | after #725 | after #730 | after #731 | after #733 | after #736 | now |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,766 | 2,782 | 2,790 | 2,799 | 2,805 | 2,810 |
-| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 | 23 | 17 | 12 |
+| both accept | 2,670 | 2,782 | 2,790 | 2,799 | 2,805 | 2,810 | 2,814 |
+| gap: TiDB accepts, omni rejects | 152 | 40 | 32 | 23 | 17 | 12 | 8 |
 | over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
 | no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
-omni parses **2,810 of the 2,822 alternatives TiDB accepts — 99.6%**, with zero
+omni parses **2,814 of the 2,822 alternatives TiDB accepts — 99.7%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
@@ -42,17 +42,33 @@ forms`): 9 rows flipped from gap to both-accept, zero new over-acceptances. The
 **after #733** column is after the SHOW / import-job cluster closed
 (`fix(tidb,mysql,mariadb, oceanbase): accept SHOW IMPORT JOB(S), CANCEL IMPORT
 JOB, SHOW AFFINITY and SHOW CHAR SET`): 6 rows flipped from gap to both-accept,
-zero new over-acceptances. The **now** column is after the collate / convert /
-weight_string cluster closed (`fix(tidb,mysql,mariadb,oceanbase): accept COLLATE
-on column option and operand, CONVERT(... USING ...), WEIGHT_STRING(... AS ...)`):
-5 rows flipped from gap to both-accept, zero new over-acceptances. The reserved
-word BINARY became a collation name (`ColumnOption`/`SimpleExpr` COLLATE) and a
-charset name (`CONVERT ... USING`), and `WEIGHT_STRING` gained its AS CHAR(n) /
-CHARACTER(n) / BINARY(n) clause. The dialect split is sharp and was measured per
-engine: TiDB takes `COLLATE BINARY` as both a column option and an operand;
-MySQL takes it only as a column option; MariaDB and OceanBase answer 1064 to
-both. All four take `CONVERT(... USING BINARY)` and the WEIGHT_STRING AS clause,
-but only TiDB takes its zero length (`AS CHAR(0)`).
+zero new over-acceptances. The **after #736** column is after the collate /
+convert / weight_string cluster closed (`fix(tidb,mysql,mariadb,oceanbase):
+accept COLLATE on column option and operand, CONVERT(... USING ...),
+WEIGHT_STRING(... AS ...)`): 5 rows flipped from gap to both-accept, zero new
+over-acceptances. The reserved word BINARY became a collation name
+(`ColumnOption`/`SimpleExpr` COLLATE) and a charset name (`CONVERT ... USING`),
+and `WEIGHT_STRING` gained its AS CHAR(n) / CHARACTER(n) / BINARY(n) clause. The
+dialect split is sharp and was measured per engine: TiDB takes `COLLATE BINARY`
+as both a column option and an operand; MySQL takes it only as a column option;
+MariaDB and OceanBase answer 1064 to both. All four take `CONVERT(... USING
+BINARY)` and the WEIGHT_STRING AS clause, but only TiDB takes its zero length
+(`AS CHAR(0)`).
+
+The **now** column is after the LOAD DATA / OUTFILE field-option cluster closed
+(`fix(tidb,mysql,mariadb,oceanbase): accept CHARACTER SET on LOAD DATA and
+DEFINED NULL BY / repeated OPTIONALLY ENCLOSED field options`): 4 rows flipped
+from gap to both-accept, zero new over-acceptances. LOAD DATA's `CHARACTER SET`
+name became a `CharsetName`, so the reserved word BINARY and a quoted name parse
+there (`CharsetOpt`). SELECT ... INTO OUTFILE's FIELDS clause, read until now as
+a fixed one-of-each set, became the same non-empty, any-order, repeatable
+`FieldItemList` LOAD DATA takes, with TiDB's own `DEFINED NULL BY` among the
+items (`FieldItem`, `FieldItemList`). The OUTFILE changes are TiDB's alone:
+MySQL, MariaDB and OceanBase already read the repeatable list and all three
+answer 1064 to DEFINED NULL BY. The `CHARACTER SET` fix was ported to the three
+forks, each measured to take `CHARACTER SET BINARY` on LOAD DATA; OceanBase
+diverges on the short `CHARSET` spelling, which it answers 1064 to where MySQL
+and MariaDB take it, so that arm stays a plain identifier there.
 
 ## The gaps, by theme
 
@@ -125,10 +141,9 @@ The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
 engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
 zero new over-acceptances.
 
-The 12 that remain are unrelated to usernames, LIMIT, procedures, statistics,
-SHOW, or collation/convert/weight_string:
+The 8 that remain are unrelated to usernames, LIMIT, procedures, statistics,
+SHOW, collation/convert/weight_string, or LOAD DATA / OUTFILE field options:
 
-- **LOAD DATA field options (~4 rows).** `FieldItem(List)`, `CharsetOpt`.
 - **Window frames (~3 rows).** `WindowFrameStart`, `WindowFrameBound`,
   `OptLeadLagInfo`.
 - **Expressions (~1 row).** `SimpleExpr` param marker as an operand (`DO ?`).
@@ -146,10 +161,7 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 
 | Rule | n | Example (shortest form) |
 |---|---:|---|
-| `FieldItem` | 2 | SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' |
 | `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
-| `CharsetOpt` | 1 | LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY |
-| `FieldItemList` | 1 | SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's' |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
 | `OptLeadLagInfo` | 1 | DO LEAD(ident, ?) OVER ident |
 | `SimpleExpr` | 1 | DO ? |

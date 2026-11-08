@@ -88,6 +88,14 @@ var loadDataFormCases = []loadDataFormCase{
 	{"load data infile '/x.csv' into table t fields defined `null` by 'a'", false},
 	{"load data infile '/x.csv' into table t fields defined null `by` 'a'", false},
 
+	// --- CHARACTER SET charset_name, a CharsetName (StringName or BINARY) ---
+	// BINARY is reserved and still a charset name here; a quoted name and a
+	// bare identifier are both StringName; an integer is neither.
+	{"load data infile '/x.csv' into table t character set binary", true},
+	{"load data infile '/x.csv' into table t character set utf8mb4", true},
+	{"load data infile '/x.csv' into table t character set 'utf8mb4'", true},
+	{"load data infile '/x.csv' into table t character set 1", false},
+
 	// --- LINES: STARTING before TERMINATED, each once ---
 	{"load data infile '/x.csv' into table t lines", true},
 	{"load data infile '/x.csv' into table t lines starting by 'a'", true},

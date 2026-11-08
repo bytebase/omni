@@ -47,6 +47,16 @@ var loadDataFieldCases = []loadDataFieldCase{
 	// A hex literal with an odd number of digits is no literal at all.
 	{"load data infile '/x.csv' into table t fields terminated by X'616'", false},
 
+	// --- CHARACTER SET charset_name, a charset_name (ident_or_text or the
+	// reserved word BINARY). This parser used to read a plain identifier
+	// here, turning BINARY and a quoted name away. OceanBase diverges from
+	// MySQL on the short CHARSET spelling, so those forms are pinned against
+	// the live server in load_data_charset_oceanbase_oracle_test.go, not here
+	// against the MySQL proxy.
+	{"load data infile '/x.csv' into table t character set binary", true},
+	{"load data infile '/x.csv' into table t character set 'utf8mb4'", true},
+	{"load data infile '/x.csv' into table t character set 1", false},
+
 	// --- the item list: one or more, any order, repeats allowed ---
 	{"load data infile '/x.csv' into table t fields terminated by 'a' terminated by 'b'", true},
 	{"load data infile '/x.csv' into table t fields escaped by 'a' terminated by 'b'", true},

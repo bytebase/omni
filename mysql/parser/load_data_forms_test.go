@@ -47,6 +47,15 @@ var loadDataFieldCases = []loadDataFieldCase{
 	// A hex literal with an odd number of digits is no literal at all.
 	{"load data infile '/x.csv' into table t fields terminated by X'616'", false},
 
+	// --- CHARACTER SET / CHARSET charset_name, a charset_name (ident_or_text
+	// or the reserved word BINARY). This parser used to read a plain
+	// identifier here, turning BINARY and a quoted name away.
+	{"load data infile '/x.csv' into table t character set binary", true},
+	{"load data infile '/x.csv' into table t character set 'utf8mb4'", true},
+	{"load data infile '/x.csv' into table t charset binary", true},
+	{"load data infile '/x.csv' into table t charset 'utf8mb4'", true},
+	{"load data infile '/x.csv' into table t character set 1", false},
+
 	// --- the item list: one or more, any order, repeats allowed ---
 	{"load data infile '/x.csv' into table t fields terminated by 'a' terminated by 'b'", true},
 	{"load data infile '/x.csv' into table t fields escaped by 'a' terminated by 'b'", true},
