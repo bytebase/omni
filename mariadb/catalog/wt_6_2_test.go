@@ -154,7 +154,7 @@ func TestWalkThrough_6_2_AddFKTypeMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKIncompatibleColumns)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // Scenario 8: ALTER TABLE ADD FK where referenced table has no index on referenced columns — error 1822.
@@ -168,7 +168,7 @@ func TestWalkThrough_6_2_AddFKMissingIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // Scenario 9: SET foreign_key_checks=0 then CREATE circular FKs then SET foreign_key_checks=1 — both tables valid.
@@ -273,7 +273,7 @@ func TestWalkThrough_6_2_FKColumnCountMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCantCreateTable)
 }
 
 // Scenario 12: Cross-database FK: FOREIGN KEY (col) REFERENCES other_db.parent(id) — stored and rendered correctly.

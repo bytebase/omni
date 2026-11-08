@@ -665,6 +665,12 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
+		// `COLLATE DEFAULT` settles nothing — the column keeps the collation it
+		// would have had — so the constraint is not recorded. See
+		// parseCollationName. Measured on mariadb:11.8.8.
+		if _, ok := p.match(kwDEFAULT); ok {
+			return true, nil
+		}
 		// The column option's collation name is an identifier here: MariaDB
 		// 11.8 answers 1064 for `c JSON COLLATE BINARY` (the reserved word),
 		// unlike MySQL 8.0, which takes it. Measured on mariadb:11.8.8.

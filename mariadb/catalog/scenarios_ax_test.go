@@ -140,8 +140,11 @@ ALTER TABLE t MODIFY COLUMN b BIGINT;`)
 		if isNullable != "YES" {
 			t.Errorf("oracle b nullable: got %q, want YES", isNullable)
 		}
-		if colDefault != nil {
-			t.Errorf("oracle b default: got %v, want nil", *colDefault)
+		// MariaDB reports a nullable column's implicit default as the text
+		// "NULL"; MySQL 8.0 leaves the field SQL NULL. Measured on
+		// mariadb:11.8.8.
+		if colDefault == nil || *colDefault != "NULL" {
+			t.Errorf("oracle b default: got %v, want the text \"NULL\"", colDefault)
 		}
 		if colComment != "" {
 			t.Errorf("oracle b comment: got %q, want empty", colComment)
@@ -166,7 +169,7 @@ ALTER TABLE t MODIFY COLUMN b BIGINT;`)
 		if col.Comment != "" {
 			t.Errorf("omni b comment: got %q, want empty (MODIFY should not inherit COMMENT)", col.Comment)
 		}
-		if !strings.Contains(strings.ToLower(col.ColumnType), "bigint") && col.DataType != "bigint" {
+		if !strings.Contains(strings.ToLower(col.ColumnType), "bigint(20)") && col.DataType != "bigint" {
 			t.Errorf("omni b type: got %q/%q, want bigint", col.DataType, col.ColumnType)
 		}
 	})
@@ -288,14 +291,16 @@ CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ADD FOREIGN KEY (a) REFERENCES parent(id);
 CREATE TABLE t2 (a INT REFERENCES parent(id));`)
 
-		// Oracle: t1 has FK, t2 has none.
+		// MariaDB makes a real foreign key of a column-level REFERENCES, so
+		// both tables have one; MySQL parses and ignores the column-level form
+		// for non-NDB tables. Measured on mariadb:11.8.8.
 		oracleT1 := oracleFKNames(t, mc, "t1")
 		if len(oracleT1) != 1 {
 			t.Errorf("oracle t1 FK count: got %d, want 1", len(oracleT1))
 		}
 		oracleT2 := oracleFKNames(t, mc, "t2")
-		if len(oracleT2) != 0 {
-			t.Errorf("oracle t2 FK count: got %d, want 0 (column-level REFERENCES should be ignored)", len(oracleT2))
+		if len(oracleT2) != 1 {
+			t.Errorf("oracle t2 FK count: got %d, want 1 (column-level REFERENCES makes one)", len(oracleT2))
 		}
 
 		tbl1 := c.GetDatabase("testdb").GetTable("t1")
@@ -307,8 +312,8 @@ CREATE TABLE t2 (a INT REFERENCES parent(id));`)
 		if n := len(omniFKNames(tbl1)); n != 1 {
 			t.Errorf("omni t1 FK count: got %d, want 1", n)
 		}
-		if n := len(omniFKNames(tbl2)); n != 0 {
-			t.Errorf("omni t2 FK count: got %d, want 0 (column-level REFERENCES should be parsed-but-ignored)", n)
+		if n := len(omniFKNames(tbl2)); n != 1 {
+			t.Errorf("omni t2 FK count: got %d, want 1 (column-level REFERENCES makes one)", n)
 		}
 	})
 
@@ -582,7 +587,7 @@ ALTER TABLE t ALTER INDEX idx_a IGNORED;`)
 
 // axOracleColumnOrder returns the column names of the given table in
 // ORDINAL_POSITION order, as seen by the MySQL container.
-func axOracleColumnOrder(t *testing.T, mc *mysqlContainer, tableName string) []string {
+func axOracleColumnOrder(t *testing.T, mc *mariadbContainer, tableName string) []string {
 	t.Helper()
 	rows := oracleRows(t, mc, fmt.Sprintf(
 		`SELECT COLUMN_NAME FROM information_schema.COLUMNS
@@ -608,7 +613,7 @@ func axOmniColumnOrder(tbl *Table) []string {
 
 // axOracleIndexNames returns sorted distinct index names for a table
 // from information_schema.STATISTICS (PRIMARY excluded).
-func axOracleIndexNames(t *testing.T, mc *mysqlContainer, tableName string) []string {
+func axOracleIndexNames(t *testing.T, mc *mariadbContainer, tableName string) []string {
 	t.Helper()
 	rows := oracleRows(t, mc, fmt.Sprintf(
 		`SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS

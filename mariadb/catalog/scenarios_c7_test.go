@@ -89,8 +89,10 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		assertBoolEq(t, "omni FK backing index exists", hasBackingIdx, true)
 	})
 
-	// --- 7.3 USING HASH coerced to BTREE on InnoDB ----------------------
-	t.Run("7_3_hash_coerced_to_btree", func(t *testing.T) {
+	// --- 7.3 USING HASH is kept on InnoDB ------------------------------
+	// MariaDB keeps the index type it was given; MySQL 8.0 coerces HASH to
+	// BTREE for InnoDB. Measured on mariadb:11.8.8.
+	t.Run("7_3_hash_kept_on_innodb", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -101,7 +103,7 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			`SELECT INDEX_TYPE FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='a'`,
 			&got)
-		assertStringEq(t, "oracle index type after HASH coercion", got, "BTREE")
+		assertStringEq(t, "oracle index type for USING HASH", got, "HASH")
 
 		idx := c7findIndex(c, "t", "a")
 		if idx == nil {
@@ -208,12 +210,15 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, KEY ix (a));`)
 
-		var visYes string
+		// MariaDB marks an index it skips with IGNORED, where MySQL 8.0 has an
+		// IS_VISIBLE column of the opposite sense. Measured on mariadb:11.8.8:
+		// information_schema.STATISTICS has IGNORED and no IS_VISIBLE.
+		var ignored string
 		oracleScan(t, mc,
-			`SELECT IS_VISIBLE FROM information_schema.STATISTICS
+			`SELECT IGNORED FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='ix'`,
-			&visYes)
-		assertStringEq(t, "oracle IS_VISIBLE default", visYes, "YES")
+			&ignored)
+		assertStringEq(t, "oracle IGNORED default", ignored, "NO")
 
 		idx := c7findIndex(c, "t", "ix")
 		if idx == nil {
@@ -222,17 +227,17 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 			assertBoolEq(t, "omni: index visible default", idx.Visible, true)
 		}
 
-		// PK INVISIBLE must be rejected (oracle 3522). Use fresh table name.
+		// A primary key cannot be skipped. MariaDB has no INVISIBLE keyword for
+		// an index at all — it spells the attribute IGNORED — so the clause is
+		// a syntax error (1064) where MySQL 8.0 answers 3522. Measured on
+		// mariadb:11.8.8.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE)`)
+			`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) IGNORED)`)
 		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_PK_INDEX_CANT_BE_INVISIBLE, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3522") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "primary key cannot be invisible") {
-			t.Errorf("oracle: expected 3522, got %v", mysqlErr)
+			t.Errorf("oracle: expected a primary key to be refused IGNORED, got nil")
 		}
 
-		results, err := c.Exec(`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE);`, nil)
+		results, err := c.Exec(`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) IGNORED);`, nil)
 		omniErrored := err != nil
 		if !omniErrored {
 			for _, r := range results {
@@ -245,31 +250,24 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		assertBoolEq(t, "omni: rejects PK INVISIBLE", omniErrored, true)
 	})
 
-	// --- 7.7 BLOB/TEXT prefix length required ---------------------------
-	t.Run("7_7_blob_text_prefix_required", func(t *testing.T) {
+	// --- 7.7 BLOB/TEXT key prefix --------------------------------------
+	t.Run("7_7_blob_text_prefix", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Form 1: TEXT KEY without length should error (1170).
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_noprefix (a TEXT, KEY (a))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_BLOB_KEY_WITHOUT_LENGTH, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1170") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "blob/text column") {
-			t.Errorf("oracle: expected 1170, got %v", mysqlErr)
-		}
-		results, err := c.Exec(`CREATE TABLE t_noprefix (a TEXT, KEY (a));`, nil)
-		omniErrored := err != nil
-		if !omniErrored {
-			for _, r := range results {
-				if r.Error != nil {
-					omniErrored = true
-					break
-				}
+		// Form 1: a TEXT key with no length is accepted, and the server gives
+		// it the longest prefix the index can hold — `KEY ix (a(768))` for a
+		// utf8mb4 TEXT. MySQL 8.0 refuses it with ER_BLOB_KEY_WITHOUT_LENGTH
+		// (1170). Measured on mariadb:11.8.8.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t_noprefix (a TEXT, KEY ix (a))`); err != nil {
+			t.Errorf("oracle: expected a TEXT key with no length to be accepted, got %v", err)
+		} else {
+			create := oracleShow(t, mc, "SHOW CREATE TABLE t_noprefix")
+			if !strings.Contains(create, "`a`(") {
+				t.Errorf("oracle: expected a prefix length on the TEXT key, got %s", create)
 			}
 		}
-		assertBoolEq(t, "omni: rejects TEXT KEY without prefix", omniErrored, true)
 
 		// Form 2: TEXT KEY with prefix length succeeds; SUB_PART=100.
 		runOnBoth(t, mc, c, `CREATE TABLE t_prefix (a TEXT, KEY (a(100)));`)
@@ -304,31 +302,29 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a));
-CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
+		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a));`)
 
 		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
-		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
 		if strings.Contains(ct1, "WITH PARSER") {
 			t.Errorf("oracle: t1 (no parser) unexpectedly contains WITH PARSER: %s", ct1)
 		}
-		if !strings.Contains(ct2, "WITH PARSER") {
-			t.Errorf("oracle: t2 missing WITH PARSER ngram: %s", ct2)
+
+		// ngram is a MySQL 8.0 plugin, which MariaDB does not ship: the clause
+		// parses and the server then answers 1128 "Function 'ngram' is not
+		// defined". Measured on mariadb:11.8.8.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram)`); err == nil {
+			t.Errorf("oracle: expected WITH PARSER ngram to be refused")
+		} else if !strings.Contains(err.Error(), "1128") {
+			t.Errorf("oracle: expected 1128 for an undefined parser, got %v", err)
 		}
 
-		// omni: catalog Index has no ParserName field — gap. We assert
-		// only that both tables and FULLTEXT indexes exist.
 		idx1 := c7findIndex(c, "t1", "a")
-		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
+		if idx1 == nil {
+			t.Errorf("omni: idx1 missing")
 			return
 		}
 		assertBoolEq(t, "omni t1 fulltext", idx1.Fulltext, true)
-		assertBoolEq(t, "omni t2 fulltext", idx2.Fulltext, true)
-		// Distinction (parser name) is omni gap — flag for bug queue.
-		// We can't read ParserName since the field doesn't exist, so log.
-		t.Logf("omni: ParserName field not present on Index; cannot distinguish t1 vs t2 (expected gap)")
 	})
 
 	// --- 7.9 SPATIAL requires NOT NULL ----------------------------------
@@ -336,8 +332,14 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// OK case: NOT NULL geometry with SRID.
-		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g));`)
+		// OK case: a NOT NULL geometry. A per-column `SRID <n>` is MySQL 8.0's;
+		// MariaDB has no grammar for it and answers 1064. Measured on
+		// mariadb:11.8.8.
+		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL, SPATIAL KEY (g));`)
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t_srid (g GEOMETRY NOT NULL SRID 4326)`); err == nil {
+			t.Errorf("oracle: expected a per-column SRID to be refused")
+		}
 
 		// Error case 1: nullable geometry — ER_SPATIAL_CANT_HAVE_NULL 1252.
 		_, mysqlErr := mc.db.ExecContext(mc.ctx,

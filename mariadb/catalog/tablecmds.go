@@ -9,8 +9,6 @@ import (
 	"github.com/bytebase/omni/mariadb/deparse"
 )
 
-const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
-
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -165,7 +163,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt)); err != nil {
 				return err
 			}
 		}
@@ -183,9 +181,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Defer FK backing index creation until after all explicit indexes are added,
 	// so that explicit indexes can satisfy FK requirements without creating duplicates.
 	type pendingFK struct {
-		conName string
-		cols    []string
-		idxCols []*IndexColumn
+		conName  string
+		cols     []string
+		idxCols  []*IndexColumn
+		position int // the place among the table's indexes its clause had
 	}
 	var pendingFKs []pendingFK
 
@@ -202,19 +201,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// max(existing) — see altercmds.go.
 	var unnamedFKCount int
 
-	// unnamedCheckCount counts CHECK constraints that received an auto-generated
-	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
-	// at sql/sql_table.cc:19073 (cc_max_generated_number starts at 0, used
-	// via ++cc_max_generated_number). Like the FK counter, this IGNORES
-	// user-named CHECK constraints during CREATE TABLE.
+	// The names this statement's table-level CHECK constraints give
+	// explicitly, which allocCheckName reserves while it fills in the rest.
+	// MariaDB names an unnamed one CONSTRAINT_<n> and a column's CHECK after
+	// the column. Measured on mariadb:11.8.8 through
+	// information_schema.CHECK_CONSTRAINTS:
 	//
-	// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
-	//   → unnamed CHECK gets t_chk_1, but t_chk_1 is already taken by user
-	//   → real MySQL errors with ER_CHECK_CONSTRAINT_DUP_NAME
-	//   (see sql/sql_table.cc:19595 check_constraint_dup_name check).
-	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
-	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
-	var unnamedCheckCount int
+	//	CREATE TABLE ck1 (a INT CHECK (a > 0), b INT CHECK (b > 0),
+	//	  CHECK (a < b), CONSTRAINT named CHECK (a <> 5), CHECK (b < 100))
+	//
+	// holds checks `a`, `b`, CONSTRAINT_1, named and CONSTRAINT_2. MySQL 8.0
+	// names every one <table>_chk_<n>.
+	checkNames := &checkNamer{reserved: declaredCheckNames(stmt.Constraints)}
 
 	// PERIOD FOR SYSTEM_TIME columns. Whether this makes a valid system-versioned
 	// table is validated after columns are processed (it requires an explicit
@@ -225,9 +223,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tbl.AppPeriodStartCol = stmt.AppPeriodStartCol
 	tbl.AppPeriodEndCol = stmt.AppPeriodEndCol
 
-	// Process columns.
+	// Process columns. The table-level keys are read first, so a generated
+	// column can be checked against the indexes that will cover it.
+	indexedCols := tableLevelIndexedColumns(stmt)
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef); err != nil {
+		if err := validateColumnDefSemantics(colDef, indexedCols); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -249,9 +249,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
 				col.DataType = "bigint"
-				col.ColumnType = "bigint unsigned"
+				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
+			} else if typeName == "json" {
+				applyJSONColumn(col)
 			} else if typeName == "boolean" || typeName == "bool" {
 				col.DataType = "tinyint"
 				col.ColumnType = formatColumnType(colDef.TypeName)
@@ -317,9 +319,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-				Stored:   colDef.Generated.Stored,
-				RowBound: rowBoundSQL(colDef.Generated.RowBound),
+				Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Stored:           colDef.Generated.Stored,
+				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
+				Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
+				Refs:             generatedColumnRefs(colDef.Generated.Expr),
 			}
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -363,15 +367,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.AutoIncrement = true
 				col.Nullable = false
 			case nodes.ColConstrCheck:
-				// Add check constraint.
+				// Add check constraint. An unnamed one on a column takes the
+				// column's name, which is also how SHOW CREATE TABLE knows to
+				// write it on the column.
 				conName := cc.Name
 				if conName == "" {
-					unnamedCheckCount++
-					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+					conName = colDef.Name
 				}
-				if checkConstraintNameExists(db, tbl, conName) {
-					return errCheckConstraintDupName(conName)
-				}
+				// No duplicate-name test here: a check declared on a column
+				// takes no name of its own, so it collides with none.
+				// Measured on mariadb:11.8.8,
+				// `CREATE TABLE t (a INT, b INT CHECK (b > 0),
+				// CONSTRAINT b CHECK (a > 0))` is accepted in either order and
+				// the table holds both. See checkConstraintNameExists.
 				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
 					return err
 				}
@@ -379,11 +387,57 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Name:        conName,
 					Type:        ConCheck,
 					Table:       tbl,
+					Column:      colDef.Name,
 					CheckExpr:   nodeToSQL(cc.Expr),
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
-				// MySQL parses but ignores column-level REFERENCES for non-NDB tables.
+				// MariaDB makes a real foreign key of a column-level
+				// REFERENCES, named like any other unnamed one. MySQL parses
+				// and ignores it for non-NDB tables. Measured on
+				// mariadb:11.8.8: `CREATE TABLE t2 (pid INT REFERENCES p(id))`
+				// reports CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`pid`)
+				// REFERENCES `p` (`id`).
+				conName := cc.Name
+				if conName == "" {
+					unnamedFKCount++
+					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
+				}
+				if foreignKeyConstraintNameExists(db, tbl, conName) {
+					return errFKDupName(conName)
+				}
+				refDB, refTable := "", ""
+				if cc.RefTable != nil {
+					refDB = cc.RefTable.Schema
+					refTable = cc.RefTable.Name
+				}
+				fkCols := []string{colDef.Name}
+				tbl.Constraints = append(tbl.Constraints, &Constraint{
+					Name:        conName,
+					Type:        ConForeignKey,
+					Table:       tbl,
+					Columns:     fkCols,
+					RefDatabase: refDB,
+					RefTable:    refTable,
+					RefColumns:  cc.RefColumns,
+					OnDelete:    refActionToString(cc.OnDelete),
+					OnUpdate:    refActionToString(cc.OnUpdate),
+				})
+				// The backing index is named after the constraint only where
+				// the statement named one; the symbol generated for an
+				// unnamed reference is not a name the index takes. Measured
+				// on mariadb:11.8.8: `a INT REFERENCES p(id)` makes
+				// KEY `a` (`a`) beside CONSTRAINT `t_ibfk_1`, where
+				// `a INT CONSTRAINT fk1 REFERENCES p(id)` makes KEY `fk1`.
+				// Passing the generated symbol made a second index of that
+				// name where the statement had one of its own, which
+				// SHOW CREATE TABLE then could not replay.
+				pendingFKs = append(pendingFKs, pendingFK{
+					conName:  cc.Name,
+					cols:     fkCols,
+					idxCols:  []*IndexColumn{{Name: colDef.Name}},
+					position: len(tbl.Indexes),
+				})
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
 			case nodes.ColConstrCollate:
@@ -523,6 +577,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
+	// A JSON column carries the json_valid check MariaDB gives it, which the
+	// server holds under the column's own name — unless the column declares a
+	// check of its own, which it carries in place of json_valid rather than
+	// beside it. See columnOwnsCheck.
+	for _, col := range tbl.Columns {
+		if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
+			tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
+		}
+	}
+
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
@@ -633,13 +697,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: fkName(con), cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{
+				conName:  fkName(con),
+				cols:     cols,
+				idxCols:  buildIndexColumns(con),
+				position: len(tbl.Indexes),
+			})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				unnamedCheckCount++
-				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+				conName = checkNames.alloc(db, tbl)
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
@@ -771,19 +839,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
-	if c.generateGIPK {
-		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
-			return errGIPKColumnNameReserved()
-		}
-		if !hasPK {
-			addGeneratedInvisiblePrimaryKey(tbl)
-			hasPK = true
-		}
-	}
-
-	// Process deferred FK backing indexes now that all explicit indexes are in place.
+	// Process deferred FK backing indexes now that all explicit indexes are in
+	// place. The index a foreign key brings with it materializes a VIRTUAL
+	// generated column as any other key does, so the column is held to the
+	// same rule: measured on mariadb:11.8.8, a table declaring both
+	// `a DOUBLE AS (RAND()) VIRTUAL` and a foreign key over a answers 1901.
+	// Each index still takes the place its own clause had, which is where the
+	// server builds it; every one made shifts the places recorded after it.
+	made := 0
 	for _, fk := range pendingFKs {
-		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
+		if err := validateIndexColumns(tbl, fk.idxCols, false, false); err != nil {
+			return err
+		}
+		if insertFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols, fk.position+made) {
+			made++
+		}
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -809,6 +879,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		return err
 	}
 	if err := validateIgnoredPrimaryKey(tbl, true); err != nil {
+		return err
+	}
+	// Once every column is in, a materialized generated column can be asked
+	// about the ones it reads: measured on mariadb:11.8.8,
+	// `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) STORED)`
+	// answers 1901, where the same table without the STORED column is
+	// accepted.
+	if err := validateMaterializedGeneratedColumns(tbl, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
 
@@ -903,47 +981,6 @@ func isAppPeriodColumn(tbl *Table, colName string) bool {
 		(strings.EqualFold(colName, tbl.AppPeriodStartCol) || strings.EqualFold(colName, tbl.AppPeriodEndCol))
 }
 
-func errGIPKColumnNameReserved() error {
-	return &Error{
-		Code:     4108,
-		SQLState: "HY000",
-		Message:  "Failed to generate invisible primary key. Column 'my_row_id' already exists.",
-	}
-}
-
-func addGeneratedInvisiblePrimaryKey(tbl *Table) {
-	col := &Column{
-		Position:                     0,
-		Name:                         generatedInvisiblePrimaryKeyColumnName,
-		DataType:                     "bigint",
-		ColumnType:                   "bigint unsigned",
-		Nullable:                     false,
-		AutoIncrement:                true,
-		Invisible:                    true,
-		GeneratedInvisiblePrimaryKey: true,
-	}
-
-	tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	rebuildColByNamePreservePositions(tbl)
-
-	tbl.Indexes = append(tbl.Indexes, &Index{
-		Name:      "PRIMARY",
-		Table:     tbl,
-		Columns:   []*IndexColumn{{Name: generatedInvisiblePrimaryKeyColumnName}},
-		Unique:    true,
-		Primary:   true,
-		IndexType: "",
-		Visible:   true,
-	})
-	tbl.Constraints = append(tbl.Constraints, &Constraint{
-		Name:      "PRIMARY",
-		Type:      ConPrimaryKey,
-		Table:     tbl,
-		Columns:   []string{generatedInvisiblePrimaryKeyColumnName},
-		IndexName: "PRIMARY",
-	})
-}
-
 func rebuildColByNamePreservePositions(tbl *Table) {
 	tbl.colByName = make(map[string]int, len(tbl.Columns))
 	for i, col := range tbl.Columns {
@@ -988,36 +1025,41 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 	// Analyze CHECK expressions on constraints.
 	// We iterate constraints and match CHECK ones; the AST sources are both
 	// column-level and table-level constraint nodes.
+	// The statement's CHECK clauses are matched to the table's CHECK
+	// constraints in order. A JSON column's implicit json_valid check is not
+	// one of the statement's clauses, so nextCheck passes it over: counting it
+	// would hand the following clause's analyzed expression to the wrong
+	// constraint, and leave that clause's own constraint without one.
 	checkIdx := 0
+	nextCheck := func() *Constraint {
+		for checkIdx < len(tbl.Constraints) {
+			con := tbl.Constraints[checkIdx]
+			checkIdx++
+			if con.Type == ConCheck && !isImplicitJSONCheck(con) {
+				return con
+			}
+		}
+		return nil
+	}
+	analyze := func(expr nodes.ExprNode) {
+		con := nextCheck()
+		if con == nil {
+			return
+		}
+		if analyzed, err := c.AnalyzeStandaloneExpr(expr, tbl); err == nil {
+			con.CheckAnalyzed = analyzed
+		}
+	}
 	for _, colDef := range stmt.Columns {
 		for _, cc := range colDef.Constraints {
 			if cc.Type == nodes.ColConstrCheck && cc.Expr != nil {
-				// Find matching CHECK constraint by index.
-				for checkIdx < len(tbl.Constraints) {
-					if tbl.Constraints[checkIdx].Type == ConCheck {
-						if analyzed, err := c.AnalyzeStandaloneExpr(cc.Expr, tbl); err == nil {
-							tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
-						}
-						checkIdx++
-						break
-					}
-					checkIdx++
-				}
+				analyze(cc.Expr)
 			}
 		}
 	}
 	for _, con := range stmt.Constraints {
 		if con.Type == nodes.ConstrCheck && con.Expr != nil {
-			for checkIdx < len(tbl.Constraints) {
-				if tbl.Constraints[checkIdx].Type == ConCheck {
-					if analyzed, err := c.AnalyzeStandaloneExpr(con.Expr, tbl); err == nil {
-						tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
-					}
-					checkIdx++
-					break
-				}
-				checkIdx++
-			}
+			analyze(con.Expr)
 		}
 	}
 }
@@ -1793,13 +1835,13 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	if refTbl == nil {
-		return errFKNoRefTable(con.RefTable)
+		return errFKIncorrectlyFormed(db.Name, tbl.Name)
 	}
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
 	// that starts with the referenced columns in order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
-		return errFKMissingIndex(con.Name, con.RefTable)
+		return errFKIncorrectlyFormed(db.Name, tbl.Name)
 	}
 
 	// Check column type compatibility.
@@ -1815,14 +1857,12 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
 			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
 		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
-		if refCol.Generated != nil && !refCol.Generated.Stored {
-			return errFKCannotUseVirtualColumn(con.RefColumns[i])
-		}
+		// MariaDB takes a foreign key over a generated column, virtual or
+		// stored, on either side. MySQL 8.0 answers
+		// ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104) for a virtual one. Measured on
+		// mariadb:11.8.8.
 		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+			return errFKIncorrectlyFormed(db.Name, tbl.Name)
 		}
 	}
 
@@ -1979,19 +2019,39 @@ func fkName(con *nodes.Constraint) string {
 // MySQL uses the constraint name as the index name when provided;
 // otherwise falls back to the first column name via allocIndexName.
 func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
+	insertFKBackingIndex(tbl, conName, cols, idxCols, len(tbl.Indexes))
+}
+
+// insertFKBackingIndex is ensureFKBackingIndex with the place the index takes
+// among the table's own. The server builds a backing index where its clause
+// stands, so one stays before a key the statement declares later: measured on
+// mariadb:11.8.8, `FOREIGN KEY (a) REFERENCES p(id), KEY z(b)` shows
+// KEY `a` then KEY `z`, and `KEY z(b), FOREIGN KEY (a)` the other way round.
+// A column-level REFERENCES counts from its column: `a INT REFERENCES p(id),
+// b INT, KEY z(b)` shows KEY `a` first.
+//
+// It reports whether an index was made.
+func insertFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn, at int) bool {
 	if hasIndexCoveringColumns(tbl, cols) {
-		return
+		return false
 	}
 	idxName := conName
 	if idxName == "" {
 		idxName = allocIndexName(tbl, cols[0])
 	}
-	tbl.Indexes = append(tbl.Indexes, &Index{
+	idx := &Index{
 		Name:    idxName,
 		Table:   tbl,
 		Columns: idxCols,
 		Visible: true,
-	})
+	}
+	if at < 0 || at > len(tbl.Indexes) {
+		at = len(tbl.Indexes)
+	}
+	tbl.Indexes = append(tbl.Indexes, nil)
+	copy(tbl.Indexes[at+1:], tbl.Indexes[at:])
+	tbl.Indexes[at] = idx
+	return true
 }
 
 func indexNameExists(tbl *Table, name string) bool {
@@ -2042,6 +2102,22 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
 			continue
+		}
+		// A key over a VIRTUAL generated column materializes its value, and
+		// the server then refuses a non-deterministic expression for it —
+		// when the key arrives later as much as when the column is declared
+		// with one. Measured on mariadb:11.8.8 against
+		// `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)`: 1901 for
+		// `CREATE INDEX idx ON t(a)`, `ALTER TABLE t ADD INDEX idx(a)`,
+		// `ADD UNIQUE idx(a)` and for an index that covers the column
+		// second, and 1901 before the key-length 1170 where both apply.
+		if col.Generated != nil && col.Generated.Nondeterministic != "" {
+			return errNondeterministicGeneratedColumn(col.Generated.Nondeterministic, col.Name)
+		}
+		// The value may also come from another generated column, which
+		// carries its nondeterminism here. See nondeterministicDependency.
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 		if spatial {
 			if col.Nullable {
@@ -2098,16 +2174,25 @@ func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bo
 	return false
 }
 
+// checkConstraintNameExists reports whether the table already holds a CHECK of
+// that name. MariaDB scopes a CHECK constraint's name to its table: two tables
+// in one schema may each hold a `my_rule`. MySQL 8.0 scopes the name to the
+// schema and answers ER_CHECK_CONSTRAINT_DUP_NAME (3822) for the second.
+// Measured on mariadb:11.8.8. The db argument is kept for the call sites that
+// have no pending table yet.
+//
+// A check that belongs to a column is not one of those names: measured,
+// `CREATE TABLE t (j JSON, a INT, CONSTRAINT j CHECK (a > 0))` is accepted
+// beside the json_valid check column j carries, and the table then holds two
+// checks named j. Two checks the statements named collide as before.
 func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
-	if pending != nil && constraintNameExistsInTable(pending, ConCheck, name) {
-		return true
+	if pending == nil {
+		return false
 	}
 	key := toLower(name)
-	for _, tbl := range db.Tables {
-		for _, con := range tbl.Constraints {
-			if con.Type == ConCheck && toLower(con.Name) == key {
-				return true
-			}
+	for _, con := range pending.Constraints {
+		if con.Type == ConCheck && !isColumnCheck(con) && toLower(con.Name) == key {
+			return true
 		}
 	}
 	return false
@@ -2310,37 +2395,74 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 	return max + 1
 }
 
-// nextCheckNumber returns max(existing generated tableName_chk_N) + 1.
-// ALTER TABLE seeds the generated CHECK counter from existing names.
-func nextCheckNumber(tbl *Table) int {
-	prefix := toLower(tbl.Name) + "_chk_"
-	max := 0
-	for _, con := range tbl.Constraints {
-		if con.Type != ConCheck {
+// allocCheckName names a table-level CHECK the statement left unnamed. The
+// server takes the lowest CONSTRAINT_<n> that is free, counting both the names
+// the table already holds and the ones the same statement gives explicitly —
+// so a name declared further along is reserved before the unnamed ones are
+// filled in. declared holds those, lowered; nil where there are none.
+//
+// Measured on mariadb:11.8.8:
+//
+//	CREATE TABLE t (a INT, CHECK (a > 0), CONSTRAINT CONSTRAINT_1 CHECK (a < 9))
+//
+// holds CONSTRAINT_2 and CONSTRAINT_1, and with a third unnamed check after
+// them that one is CONSTRAINT_3; over an explicit CONSTRAINT_2 two unnamed
+// checks are CONSTRAINT_1 and CONSTRAINT_3. It is the lowest free number
+// rather than one past the highest: a table holding CONSTRAINT_5 takes
+// CONSTRAINT_1 for the next unnamed check, on CREATE and on ALTER alike.
+// Only an explicit table-level CHECK reserves a name — a column's check,
+// named after the column, and a foreign key of that name do not, and the
+// server will write two constraints of one name rather than skip it.
+func allocCheckName(db *Database, tbl *Table, declared map[string]bool) string {
+	return (&checkNamer{reserved: declared}).alloc(db, tbl)
+}
+
+// checkNamer hands out those names over a run of constraints, carrying the
+// number it has reached from one to the next. Starting again at 1 for each of
+// them, with a scan of the table's constraints for every candidate, made a
+// statement holding many unnamed checks cubic in their number: 1,200 of them
+// took 27 seconds.
+//
+// The number only rises while a statement adds constraints, which is what lets
+// it carry. A statement that drops one frees a lower number again — measured,
+// `ALTER TABLE t DROP CONSTRAINT CONSTRAINT_1, ADD CHECK (a < 9)` names the
+// new check CONSTRAINT_1 — so each ALTER command starts a namer of its own,
+// adding at most one check, while a CREATE TABLE's run shares one.
+type checkNamer struct {
+	reserved map[string]bool // the names this statement gives explicitly
+	next     int             // the lowest number not yet handed out or ruled out
+}
+
+func (n *checkNamer) alloc(db *Database, tbl *Table) string {
+	if n.next < 1 {
+		n.next = 1
+	}
+	for {
+		name := fmt.Sprintf("CONSTRAINT_%d", n.next)
+		n.next++
+		if n.reserved[toLower(name)] {
 			continue
 		}
-		name := toLower(con.Name)
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		rest := name[len(prefix):]
-		if rest == "" || rest[0] == '0' {
-			continue
-		}
-		n := 0
-		ok := true
-		for _, ch := range rest {
-			if ch < '0' || ch > '9' {
-				ok = false
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		if ok && n > max {
-			max = n
+		if !checkConstraintNameExists(db, tbl, name) {
+			return name
 		}
 	}
-	return max + 1
+}
+
+// declaredCheckNames collects the names a statement's table-level CHECK
+// constraints give explicitly, lowered, which allocCheckName reserves.
+func declaredCheckNames(cons []*nodes.Constraint) map[string]bool {
+	var declared map[string]bool
+	for _, con := range cons {
+		if con == nil || con.Type != nodes.ConstrCheck || con.Name == "" {
+			continue
+		}
+		if declared == nil {
+			declared = map[string]bool{}
+		}
+		declared[toLower(con.Name)] = true
+	}
+	return declared
 }
 
 func isStringType(dt string) bool {
@@ -2393,15 +2515,14 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 }
 
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
-// column definition. MySQL prefixes string literals with a charset introducer
-// (e.g., _utf8mb4'value') in generated column expressions.
+// column definition.
 
 // isRowColumnType reports whether a column has a type valid for a
 // system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
 // versioning, or BIGINT UNSIGNED for transaction-precise versioning.
 func isRowColumnType(col *Column) bool {
 	return strings.EqualFold(col.ColumnType, "timestamp(6)") ||
-		strings.EqualFold(col.ColumnType, "bigint unsigned")
+		strings.EqualFold(col.ColumnType, "bigint(20) unsigned")
 }
 
 // checkDuplicateRowColumns rejects a second ROW START or ROW END column (4134).
@@ -2616,16 +2737,15 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	switch n := node.(type) {
 	case *nodes.ColumnRef:
 		if n.Table != "" {
-			return "`" + n.Table + "`.`" + n.Column + "`"
+			return backtickIDQ(n.Table) + "." + backtickIDQ(n.Column)
 		}
-		return "`" + n.Column + "`"
+		return backtickIDQ(n.Column)
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
-		// MySQL adds charset introducer for string literals in generated columns.
-		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
-		}
+		// MariaDB writes a string literal plainly in a generated column's
+		// expression: concat(`a`,' ',`b`). MySQL 8.0 prefixes it with a charset
+		// introducer, _utf8mb4' '. Measured on mariadb:11.8.8.
 		return "'" + n.Value + "'"
 	case *nodes.FuncCallExpr:
 		funcName := strings.ToLower(n.Name)
@@ -2686,6 +2806,17 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 			return "NOT " + operand
 		case nodes.UnaryBitNot:
 			return "~" + operand
+		case nodes.UnaryBinary:
+			// The server stores the cast the operator stands for, with no
+			// parentheses of its own around the argument: measured on
+			// mariadb:11.8.8, `b INT AS (BINARY (1 + 2))` comes back
+			// cast(1 + 2 as char charset binary), where writing the operand
+			// bare dropped the operator and left the grouping behind.
+			// This writer parenthesizes every binary expression, and the
+			// argument of a cast carries none, so the pair around it goes.
+			return "cast(" +
+				stripOuterParens(nodeToSQLGenerated(unwrapParens(n.Operand), charset)) +
+				" as char charset binary)"
 		default:
 			return operand
 		}
@@ -2694,8 +2825,28 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	}
 }
 
+// unwrapParens strips the parentheses around an expression, which a position
+// that brings its own does not need.
+func unwrapParens(node nodes.ExprNode) nodes.ExprNode {
+	for {
+		p, ok := node.(*nodes.ParenExpr)
+		if !ok {
+			return node
+		}
+		node = p.Expr
+	}
+}
+
+// nodeToSQL writes an expression the way the server stores it. The resolver
+// rewrites are not a view's own: measured on mariadb:11.8.8, a CHECK, a DEFAULT
+// and a generated column all come back with the same ones a view body gets —
+// `(2=1) SOUNDS LIKE '0'` is soundex(2 = 1) = soundex('0'), `NOT (a = 1)` is
+// `a` <> 1, `NOT (a BETWEEN 1 AND 2)` is `a` not between 1 and 2, and
+// `a AND b` over integer columns is `a` <> 0 and `b` <> 0, while
+// `DEFAULT (1 AND 2)` keeps its literals and a bare column in a CHECK stays
+// bare.
 func nodeToSQL(node nodes.ExprNode) string {
-	return deparse.Deparse(node)
+	return deparse.Deparse(deparse.RewriteExpr(node))
 }
 
 func binaryOpToString(op nodes.BinaryOp) string {
@@ -2768,35 +2919,35 @@ func formatColumnType(dt *nodes.DataType) string {
 	if name == "text" && dt.Length > 0 {
 		name = promoteTextType(dt.Length)
 	}
+	if name == "blob" && dt.Length > 0 {
+		name = promoteBlobType(dt.Length)
+	}
 
-	// MySQL type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint unsigned
-	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
+	// Type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal,
+	// SERIAL → bigint(20) unsigned. Measured on mariadb:11.8.8 through SHOW
+	// CREATE TABLE.
 	switch name {
 	case "boolean", "bool":
 		return "tinyint(1)"
 	case "serial":
-		return "bigint unsigned"
+		return "bigint(20) unsigned"
 	}
 
 	var buf strings.Builder
 	buf.WriteString(name)
 
-	// Integer display width handling for MySQL 8.0:
-	// - Display width is deprecated and NOT shown by default
-	// - EXCEPTION: When ZEROFILL is used, MySQL 8.0 still shows the display width
-	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
-	isIntType := isIntegerType(name)
-	if isIntType {
-		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
-			buf.WriteString("(1)")
-		} else if dt.Zerofill {
-			width := dt.Length
-			if width == 0 {
-				width = defaultIntDisplayWidth(name, dt.Unsigned)
-			}
-			fmt.Fprintf(&buf, "(%d)", width)
+	// MariaDB always writes an integer type's display width: the width the
+	// column was declared with, or the type's default. MySQL 8.0 deprecated the
+	// width and writes it only under ZEROFILL. Measured on mariadb:11.8.8:
+	// `INT` → int(11), `INT UNSIGNED` → int(10) unsigned, `INT(5)` → int(5),
+	// `INT ZEROFILL` → int(10) unsigned zerofill, so ZEROFILL takes the
+	// unsigned width, which is what it also makes the column.
+	if isIntegerType(name) {
+		width := dt.Length
+		if width == 0 {
+			width = defaultIntDisplayWidth(name, dt.Unsigned || dt.Zerofill)
 		}
-		// Non-zerofill integer types: strip display width (MySQL 8.0 deprecated)
+		fmt.Fprintf(&buf, "(%d)", width)
 	} else if name == "decimal" {
 		if dt.Length == 0 && dt.Scale == 0 {
 			// DECIMAL with no precision → MySQL shows decimal(10,0)
@@ -2805,11 +2956,21 @@ func formatColumnType(dt *nodes.DataType) string {
 			fmt.Fprintf(&buf, "(%d,%d)", dt.Length, dt.Scale)
 		}
 	} else if isTextBlobLengthStripped(name) {
-		// TEXT(n) and BLOB(n) — MySQL stores the length internally but
-		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
-		// Do not emit length.
+		// TEXT(n) and BLOB(n) carry a length that picks the type rather than
+		// being written back: the promotion happened above for text, and blob
+		// is promoted here by its length in bytes. Measured on mariadb:11.8.8:
+		// `BLOB(255)` → tinyblob, `BLOB(256)` → blob, `BLOB(65536)` →
+		// mediumblob.
 	} else if name == "year" {
-		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+		// MariaDB still has YEAR(2) and keeps that width; every other
+		// declaration, YEAR and YEAR(4) included, reads back as year(4).
+		// MySQL 8.0 deprecated the width and writes `year`. Measured on
+		// mariadb:11.8.8: YEAR(2) → year(2), YEAR(3) and YEAR(5) → year(4).
+		if dt.Length == 2 {
+			buf.WriteString("(2)")
+		} else {
+			buf.WriteString("(4)")
+		}
 	} else if name == "bit" && dt.Length == 0 {
 		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
@@ -2845,6 +3006,48 @@ func formatColumnType(dt *nodes.DataType) string {
 	return buf.String()
 }
 
+// applyJSONColumn gives a column declared JSON the shape MariaDB keeps it in.
+// MariaDB has no JSON type: JSON is longtext with the binary utf8mb4 collation
+// plus a json_valid check named after the column, which is what
+// information_schema.COLUMNS and SHOW CREATE TABLE both report. Measured on
+// mariadb:11.8.8:
+//
+//	`j` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+//	    CHECK (json_valid(`j`))
+//
+// MySQL 8.0 has a JSON type of its own and reports it as one. The check lands
+// through jsonValidConstraint, so that a table built in either order holds it.
+func applyJSONColumn(col *Column) {
+	col.DataType = "longtext"
+	col.ColumnType = "longtext"
+	col.Charset = "utf8mb4"
+	col.Collation = "utf8mb4_bin"
+	col.IsJSON = true
+}
+
+// jsonValidConstraint returns the check MariaDB attaches to a JSON column.
+func jsonValidConstraint(col *Column) *Constraint {
+	return &Constraint{
+		Name:      col.Name,
+		Type:      ConCheck,
+		Column:    col.Name,
+		CheckExpr: "json_valid(" + backtickIDQ(col.Name) + ")",
+		Implicit:  true,
+	}
+}
+
+// tableLevelIndexedColumns returns the lowercased names of the columns the
+// statement's table-level keys cover.
+func tableLevelIndexedColumns(stmt *nodes.CreateTableStmt) map[string]bool {
+	out := make(map[string]bool)
+	for _, con := range stmt.Constraints {
+		for _, name := range extractColumnNames(con) {
+			out[toLower(name)] = true
+		}
+	}
+	return out
+}
+
 func normalizedColumnDataType(dt *nodes.DataType) string {
 	name := normalizedTypeName(dt.Name)
 	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
@@ -2855,6 +3058,9 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 	}
 	if name == "text" && dt.Length > 0 {
 		return promoteTextType(dt.Length)
+	}
+	if name == "blob" && dt.Length > 0 {
+		return promoteBlobType(dt.Length)
 	}
 	return name
 }
@@ -2886,8 +3092,6 @@ func normalizedTypeName(name string) string {
 		return "varchar"
 	case "national char", "nchar":
 		return "char"
-	case "geometrycollection":
-		return "geomcollection"
 	default:
 		return strings.ToLower(strings.TrimSpace(name))
 	}
@@ -2929,7 +3133,22 @@ func promoteTextType(chars int) string {
 	}
 }
 
-// isIntegerType returns true for MySQL integer types.
+// promoteBlobType returns the blob type MariaDB keeps for BLOB(n), which holds
+// n bytes rather than n characters. Measured on mariadb:11.8.8.
+func promoteBlobType(bytes int) string {
+	switch {
+	case bytes <= 255:
+		return "tinyblob"
+	case bytes <= 65535:
+		return "blob"
+	case bytes <= 16777215:
+		return "mediumblob"
+	default:
+		return "longblob"
+	}
+}
+
+// isIntegerType returns true for the integer types.
 func isIntegerType(dt string) bool {
 	switch dt {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint":
@@ -2938,8 +3157,9 @@ func isIntegerType(dt string) bool {
 	return false
 }
 
-// defaultIntDisplayWidth returns the default display width for integer types
-// when ZEROFILL is used. These are the MySQL defaults.
+// defaultIntDisplayWidth returns the display width MariaDB writes for an
+// integer type the column did not declare one for. Measured on
+// mariadb:11.8.8 through SHOW CREATE TABLE.
 func defaultIntDisplayWidth(typeName string, unsigned bool) int {
 	switch typeName {
 	case "tinyint":
@@ -3214,21 +3434,25 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 	// Copy columns.
 	for i, srcCol := range srcTbl.Columns {
 		col := &Column{
-			Position:                     srcCol.Position,
-			Name:                         srcCol.Name,
-			DataType:                     srcCol.DataType,
-			ColumnType:                   srcCol.ColumnType,
-			Nullable:                     srcCol.Nullable,
-			AutoIncrement:                srcCol.AutoIncrement,
-			Charset:                      srcCol.Charset,
-			Collation:                    srcCol.Collation,
-			Comment:                      srcCol.Comment,
-			OnUpdate:                     srcCol.OnUpdate,
-			OnUpdateKind:                 srcCol.OnUpdateKind,
-			Invisible:                    srcCol.Invisible,
-			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
-			Hidden:                       srcCol.Hidden,
-			SystemVersioning:             srcCol.SystemVersioning,
+			Position:         srcCol.Position,
+			Name:             srcCol.Name,
+			DataType:         srcCol.DataType,
+			ColumnType:       srcCol.ColumnType,
+			Nullable:         srcCol.Nullable,
+			AutoIncrement:    srcCol.AutoIncrement,
+			Charset:          srcCol.Charset,
+			Collation:        srcCol.Collation,
+			Comment:          srcCol.Comment,
+			OnUpdate:         srcCol.OnUpdate,
+			OnUpdateKind:     srcCol.OnUpdateKind,
+			Invisible:        srcCol.Invisible,
+			Hidden:           srcCol.Hidden,
+			SystemVersioning: srcCol.SystemVersioning,
+			// The copy is a JSON column too, and its implicit json_valid
+			// check comes with it, so the marker has to come as well: without
+			// it a later ALTER reads the column as newly typed and leaves the
+			// check behind when the type moves away from JSON.
+			IsJSON: srcCol.IsJSON,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
@@ -3237,9 +3461,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     srcCol.Generated.Expr,
-				Stored:   srcCol.Generated.Stored,
-				RowBound: srcCol.Generated.RowBound,
+				Expr:             srcCol.Generated.Expr,
+				Stored:           srcCol.Generated.Stored,
+				RowBound:         srcCol.Generated.RowBound,
+				Nondeterministic: srcCol.Generated.Nondeterministic,
+				Refs:             append([]string{}, srcCol.Generated.Refs...),
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)
@@ -3295,6 +3521,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			RefColumns:  append([]string{}, srcCon.RefColumns...),
 			OnDelete:    srcCon.OnDelete,
 			OnUpdate:    srcCon.OnUpdate,
+			// A copied json_valid check is still the catalog's own, so the
+			// copy belongs to its column the same way the original does, and
+			// a copied column-level check belongs to the copy's column.
+			Implicit: srcCon.Implicit,
+			Column:   srcCon.Column,
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
@@ -3312,11 +3543,19 @@ func refActionToString(action nodes.ReferenceAction) string {
 	case nodes.RefActSetNull:
 		return "SET NULL"
 	case nodes.RefActSetDefault:
-		return "SET DEFAULT"
+		// InnoDB does not carry SET DEFAULT, so MariaDB keeps the constraint at
+		// RESTRICT and reports that. Measured on mariadb:11.8.8 through
+		// information_schema.REFERENTIAL_CONSTRAINTS.
+		return "RESTRICT"
 	case nodes.RefActNoAction:
 		return "NO ACTION"
 	default:
-		return "NO ACTION"
+		// No action was written, which means RESTRICT: that is what
+		// information_schema reports, and SHOW CREATE TABLE leaves it out
+		// (isFKDefault). An explicit NO ACTION is reported and written as
+		// given, so the two are not the same string here. Measured on
+		// mariadb:11.8.8.
+		return "RESTRICT"
 	}
 }
 

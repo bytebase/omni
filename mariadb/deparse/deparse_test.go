@@ -74,8 +74,8 @@ func TestDeparse_Section_1_2_BoolStringLiterals(t *testing.T) {
 		expected string
 	}{
 		// Boolean literals
-		{"true_literal", "TRUE", "true"},
-		{"false_literal", "FALSE", "false"},
+		{"true_literal", "TRUE", "1"},
+		{"false_literal", "FALSE", "0"},
 
 		// String literals
 		{"simple_string", "'hello'", "'hello'"},
@@ -128,7 +128,7 @@ func TestDeparse_Section_1_3_HexBitLiterals(t *testing.T) {
 	}{
 		// Hex literals — MySQL normalizes to 0x lowercase form
 		{"hex_0x_form", "0xFF", "0xff"},
-		{"hex_X_quote_form", "X'FF'", "0xff"},
+		{"hex_X_quote_form", "X'FF'", "X'ff'"},
 
 		// Bit literals — MySQL converts to hex form
 		{"bit_0b_form", "0b1010", "0x0a"},
@@ -157,19 +157,19 @@ func TestDeparse_Section_2_1_ArithmeticUnary(t *testing.T) {
 		expected string
 	}{
 		// Arithmetic binary operators
-		{"addition", "a + b", "(`a` + `b`)"},
-		{"subtraction", "a - b", "(`a` - `b`)"},
-		{"multiplication", "a * b", "(`a` * `b`)"},
-		{"division", "a / b", "(`a` / `b`)"},
-		{"integer_division", "a DIV b", "(`a` DIV `b`)"},
-		{"modulo_MOD", "a MOD b", "(`a` % `b`)"},
-		{"modulo_percent", "a % b", "(`a` % `b`)"},
+		{"addition", "a + b", "`a` + `b`"},
+		{"subtraction", "a - b", "`a` - `b`"},
+		{"multiplication", "a * b", "`a` * `b`"},
+		{"division", "a / b", "`a` / `b`"},
+		{"integer_division", "a DIV b", "`a` DIV `b`"},
+		{"modulo_MOD", "a MOD b", "`a` MOD `b`"},
+		{"modulo_percent", "a % b", "`a` MOD `b`"},
 
 		// Left-associative chaining
-		{"left_assoc_chain", "a + b + c", "((`a` + `b`) + `c`)"},
+		{"left_assoc_chain", "a + b + c", "`a` + `b` + `c`"},
 
 		// Unary minus (with column ref operand)
-		{"unary_minus", "-a", "-(`a`)"},
+		{"unary_minus", "-a", "-`a`"},
 
 		// Unary plus — parser drops it entirely, so +a parses as just ColumnRef
 		{"unary_plus", "+a", "`a`"},
@@ -208,15 +208,15 @@ func TestDeparse_Section_2_2_ComparisonOperators(t *testing.T) {
 		expected string
 	}{
 		// Basic comparison operators
-		{"equal", "a = b", "(`a` = `b`)"},
-		{"not_equal_angle", "a <> b", "(`a` <> `b`)"},
-		{"not_equal_bang", "a != b", "(`a` <> `b`)"}, // != normalized to <>
-		{"greater", "a > b", "(`a` > `b`)"},
-		{"less", "a < b", "(`a` < `b`)"},
-		{"greater_or_equal", "a >= b", "(`a` >= `b`)"},
-		{"less_or_equal", "a <= b", "(`a` <= `b`)"},
-		{"null_safe_equal", "a <=> b", "(`a` <=> `b`)"},
-		{"sounds_like", "a SOUNDS LIKE b", "(`a` sounds like `b`)"},
+		{"equal", "a = b", "`a` = `b`"},
+		{"not_equal_angle", "a <> b", "`a` <> `b`"},
+		{"not_equal_bang", "a != b", "`a` <> `b`"}, // != normalized to <>
+		{"greater", "a > b", "`a` > `b`"},
+		{"less", "a < b", "`a` < `b`"},
+		{"greater_or_equal", "a >= b", "`a` >= `b`"},
+		{"less_or_equal", "a <= b", "`a` <= `b`"},
+		{"null_safe_equal", "a <=> b", "`a` <=> `b`"},
+		{"sounds_like", "a SOUNDS LIKE b", "`a` sounds like `b`"},
 	}
 
 	for _, tc := range cases {
@@ -236,12 +236,12 @@ func TestDeparse_Section_2_3_BitwiseOperators(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"bitwise_or", "a | b", "(`a` | `b`)"},
-		{"bitwise_and", "a & b", "(`a` & `b`)"},
-		{"bitwise_xor", "a ^ b", "(`a` ^ `b`)"},
-		{"left_shift", "a << b", "(`a` << `b`)"},
-		{"right_shift", "a >> b", "(`a` >> `b`)"},
-		{"bitwise_not", "~a", "~(`a`)"},
+		{"bitwise_or", "a | b", "`a` | `b`"},
+		{"bitwise_and", "a & b", "`a` & `b`"},
+		{"bitwise_xor", "a ^ b", "`a` ^ `b`"},
+		{"left_shift", "a << b", "`a` << `b`"},
+		{"right_shift", "a >> b", "`a` >> `b`"},
+		{"bitwise_not", "~a", "~`a`"},
 	}
 
 	for _, tc := range cases {
@@ -263,7 +263,7 @@ func TestDeparse_Section_2_3_BitwiseNotAST(t *testing.T) {
 		Operand: &ast.ColumnRef{Column: "a"},
 	}
 	got := Deparse(node)
-	expected := "~(`a`)"
+	expected := "~`a`"
 	if got != expected {
 		t.Errorf("Deparse(UnaryBitNot(a)) = %q, want %q", got, expected)
 	}
@@ -276,15 +276,15 @@ func TestDeparse_Section_2_4_PrecedenceParenthesization(t *testing.T) {
 		expected string
 	}{
 		// Higher precedence preserved: * binds tighter than +
-		{"higher_prec_preserved", "a + b * c", "(`a` + (`b` * `c`))"},
+		{"higher_prec_preserved", "a + b * c", "`a` + `b` * `c`"},
 		// Lower precedence grouping: explicit parens force + before *
-		{"lower_prec_grouping", "(a + b) * c", "((`a` + `b`) * `c`)"},
+		{"lower_prec_grouping", "(a + b) * c", "(`a` + `b`) * `c`"},
 		// Mixed precedence: * first, then +
-		{"mixed_precedence", "a * b + c", "((`a` * `b`) + `c`)"},
+		{"mixed_precedence", "a * b + c", "`a` * `b` + `c`"},
 		// Deeply nested left-associative chaining
-		{"deeply_nested", "a + b + c + a + b + c", "(((((`a` + `b`) + `c`) + `a`) + `b`) + `c`)"},
+		{"deeply_nested", "a + b + c + a + b + c", "`a` + `b` + `c` + `a` + `b` + `c`"},
 		// Parenthesized expression passthrough — ParenExpr unwrapped, BinaryExpr provides outer parens
-		{"paren_passthrough", "(a + b)", "(`a` + `b`)"},
+		{"paren_passthrough", "(a + b)", "`a` + `b`"},
 	}
 
 	for _, tc := range cases {
@@ -305,29 +305,29 @@ func TestDeparse_Section_2_5_ComparisonPredicates(t *testing.T) {
 		expected string
 	}{
 		// IN list
-		{"in_list", "a IN (1,2,3)", "(`a` in (1,2,3))"},
+		{"in_list", "a IN (1,2,3)", "`a` in (1,2,3)"},
 		// NOT IN
-		{"not_in_list", "a NOT IN (1,2,3)", "(`a` not in (1,2,3))"},
+		{"not_in_list", "a NOT IN (1,2,3)", "`a` not in (1,2,3)"},
 		// BETWEEN
-		{"between", "a BETWEEN 1 AND 10", "(`a` between 1 and 10)"},
+		{"between", "a BETWEEN 1 AND 10", "`a` between 1 and 10"},
 		// NOT BETWEEN
-		{"not_between", "a NOT BETWEEN 1 AND 10", "(`a` not between 1 and 10)"},
+		{"not_between", "a NOT BETWEEN 1 AND 10", "`a` not between 1 and 10"},
 		// LIKE
-		{"like", "a LIKE 'foo%'", "(`a` like 'foo%')"},
+		{"like", "a LIKE 'foo%'", "`a` like 'foo%'"},
 		// LIKE with ESCAPE
-		{"like_escape", "a LIKE 'x' ESCAPE '\\\\'", "(`a` like 'x' escape '\\\\')"},
+		{"like_escape", "a LIKE 'x' ESCAPE '\\\\'", "`a` like 'x' escape '\\\\'"},
 		// IS NULL
-		{"is_null", "a IS NULL", "(`a` is null)"},
+		{"is_null", "a IS NULL", "`a` is null"},
 		// IS NOT NULL
-		{"is_not_null", "a IS NOT NULL", "(`a` is not null)"},
+		{"is_not_null", "a IS NOT NULL", "`a` is not null"},
 		// IS TRUE
-		{"is_true", "a IS TRUE", "(`a` is true)"},
+		{"is_true", "a IS TRUE", "`a` is true"},
 		// IS FALSE
-		{"is_false", "a IS FALSE", "(`a` is false)"},
+		{"is_false", "a IS FALSE", "`a` is false"},
 		// IS UNKNOWN
-		{"is_unknown", "a IS UNKNOWN", "(`a` is unknown)"},
+		{"is_unknown", "a IS UNKNOWN", "`a` is null"},
 		// ROW comparison
-		{"row_comparison", "ROW(a,b) = ROW(1,2)", "(row(`a`,`b`) = row(1,2))"},
+		{"row_comparison", "ROW(a,b) = ROW(1,2)", "(`a`,`b`) = (1,2)"},
 	}
 
 	for _, tc := range cases {
@@ -349,16 +349,16 @@ func TestDeparse_Section_2_6_CaseCastConvert(t *testing.T) {
 	}{
 		// Searched CASE
 		{"searched_case", "CASE WHEN a > 0 THEN 'pos' ELSE 'zero' END",
-			"(case when (`a` > 0) then 'pos' else 'zero' end)"},
+			"case when `a` > 0 then 'pos' else 'zero' end"},
 		// Searched CASE multiple WHEN
 		{"searched_case_multi", "CASE WHEN a>0 THEN 'a' WHEN b>0 THEN 'b' ELSE 'c' END",
-			"(case when (`a` > 0) then 'a' when (`b` > 0) then 'b' else 'c' end)"},
+			"case when `a` > 0 then 'a' when `b` > 0 then 'b' else 'c' end"},
 		// Simple CASE
 		{"simple_case", "CASE a WHEN 1 THEN 'one' ELSE 'other' END",
-			"(case `a` when 1 then 'one' else 'other' end)"},
+			"case `a` when 1 then 'one' else 'other' end"},
 		// CASE without ELSE
 		{"case_no_else", "CASE WHEN a > 0 THEN 'pos' END",
-			"(case when (`a` > 0) then 'pos' end)"},
+			"case when `a` > 0 then 'pos' end"},
 		// CAST to CHAR
 		{"cast_char", "CAST(a AS CHAR)", "cast(`a` as char charset utf8mb4)"},
 		// CAST to CHAR(N)
@@ -400,9 +400,9 @@ func TestDeparse_Section_2_7_OtherExpressions(t *testing.T) {
 		expected string
 	}{
 		// INTERVAL: INTERVAL 1 DAY + a → (`a` + interval 1 day) — operand order swapped
-		{"interval_add", "INTERVAL 1 DAY + a", "(`a` + interval 1 day)"},
+		{"interval_add", "INTERVAL 1 DAY + a", "`a` + interval 1 day"},
 		// COLLATE: a COLLATE utf8mb4_bin → (`a` collate utf8mb4_bin)
-		{"collate", "a COLLATE utf8mb4_bin", "(`a` collate utf8mb4_bin)"},
+		{"collate", "a COLLATE utf8mb4_bin", "`a` collate utf8mb4_bin"},
 	}
 
 	for _, tc := range cases {
@@ -424,23 +424,23 @@ func TestDeparse_Section_3_1_FunctionsAndRewrites(t *testing.T) {
 	}{
 		// Regular function calls — lowercase, no space after comma
 		{"simple_concat", "CONCAT(a, b)", "concat(`a`,`b`)"},
-		{"nested_functions", "CONCAT(UPPER(TRIM(a)), LOWER(b))", "concat(upper(trim(`a`)),lower(`b`))"},
+		{"nested_functions", "CONCAT(UPPER(TRIM(a)), LOWER(b))", "concat(ucase(trim(`a`)),lcase(`b`))"},
 		{"ifnull", "IFNULL(a, 0)", "ifnull(`a`,0)"},
 		{"coalesce", "COALESCE(a, b, 0)", "coalesce(`a`,`b`,0)"},
 		{"nullif", "NULLIF(a, 0)", "nullif(`a`,0)"},
-		{"if_func", "IF(a > 0, 'yes', 'no')", "if((`a` > 0),'yes','no')"},
+		{"if_func", "IF(a > 0, 'yes', 'no')", "if(`a` > 0,'yes','no')"},
 		{"abs", "ABS(a)", "abs(`a`)"},
 		{"greatest", "GREATEST(a, b)", "greatest(`a`,`b`)"},
 		{"least", "LEAST(a, b)", "least(`a`,`b`)"},
 
 		// Function name rewrites
 		{"substring_to_substr", "SUBSTRING(a, 1, 3)", "substr(`a`,1,3)"},
-		{"current_timestamp_no_parens", "CURRENT_TIMESTAMP", "now()"},
-		{"current_timestamp_parens", "CURRENT_TIMESTAMP()", "now()"},
+		{"current_timestamp_no_parens", "CURRENT_TIMESTAMP", "current_timestamp()"},
+		{"current_timestamp_parens", "CURRENT_TIMESTAMP()", "current_timestamp()"},
 		{"current_date", "CURRENT_DATE", "curdate()"},
 		{"current_time", "CURRENT_TIME", "curtime()"},
 		{"current_user", "CURRENT_USER", "current_user()"},
-		{"now_stays", "NOW()", "now()"},
+		{"now_stays", "NOW()", "current_timestamp()"},
 	}
 
 	for _, tc := range cases {
@@ -551,19 +551,19 @@ func TestDeparse_Section_3_5_WindowFunctions(t *testing.T) {
 		// ROW_NUMBER with ORDER BY
 		{"row_number_over_order_by",
 			"ROW_NUMBER() OVER (ORDER BY a)",
-			"row_number() OVER (ORDER BY `a` )"},
+			"row_number() over ( order by `a`)"},
 		// SUM with PARTITION BY and ORDER BY
 		{"sum_over_partition_order",
 			"SUM(b) OVER (PARTITION BY a ORDER BY b)",
-			"sum(`b`) OVER (PARTITION BY `a` ORDER BY `b` )"},
+			"sum(`b`) over ( partition by `a` order by `b`)"},
 		// Frame clause: ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		{"sum_over_frame",
 			"SUM(b) OVER (PARTITION BY a ORDER BY b ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
-			"sum(`b`) OVER (PARTITION BY `a` ORDER BY `b` ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
+			"sum(`b`) over ( partition by `a` order by `b` rows between  unbounded  preceding  and  current row )"},
 		// Named window reference — MySQL 8.0 backtick-quotes window names
 		{"named_window_ref",
 			"ROW_NUMBER() OVER w",
-			"row_number() OVER `w`"},
+			"row_number() over `w`"},
 	}
 
 	for _, tc := range cases {
@@ -584,9 +584,9 @@ func TestDeparse_Section_3_6_OperatorToFunctionRewrites(t *testing.T) {
 		expected string
 	}{
 		// REGEXP → regexp_like()
-		{"regexp", "a REGEXP 'pattern'", "regexp_like(`a`,'pattern')"},
+		{"regexp", "a REGEXP 'pattern'", "`a` regexp 'pattern'"},
 		// NOT REGEXP → (not(regexp_like()))
-		{"not_regexp", "a NOT REGEXP 'p'", "(not(regexp_like(`a`,'p')))"},
+		{"not_regexp", "a NOT REGEXP 'p'", "!(`a` regexp 'p')"},
 		// -> → json_extract()
 		{"json_extract", "a->'$.key'", "json_extract(`a`,'$.key')"},
 		// ->> → json_unquote(json_extract())
@@ -626,22 +626,22 @@ func TestDeparse_Section_4_1_NOTFolding(t *testing.T) {
 		expected string
 	}{
 		// NOT (comparison) → inverted comparison operator
-		{"not_gt", "NOT (a > 0)", "(`a` <= 0)"},
-		{"not_lt", "NOT (a < 0)", "(`a` >= 0)"},
-		{"not_ge", "NOT (a >= 0)", "(`a` < 0)"},
-		{"not_le", "NOT (a <= 0)", "(`a` > 0)"},
-		{"not_eq", "NOT (a = 0)", "(`a` <> 0)"},
-		{"not_ne", "NOT (a <> 0)", "(`a` = 0)"},
+		{"not_gt", "NOT (a > 0)", "`a` <= 0"},
+		{"not_lt", "NOT (a < 0)", "`a` >= 0"},
+		{"not_ge", "NOT (a >= 0)", "`a` < 0"},
+		{"not_le", "NOT (a <= 0)", "`a` > 0"},
+		{"not_eq", "NOT (a = 0)", "`a` <> 0"},
+		{"not_ne", "NOT (a <> 0)", "`a` = 0"},
 
 		// NOT (non-boolean) → (0 = expr)
-		{"not_col", "NOT a", "(0 = `a`)"},
-		{"not_add", "NOT (a + 1)", "(0 = (`a` + 1))"},
+		{"not_col", "NOT a", "`a` = 0"},
+		{"not_add", "NOT (a + 1)", "!(`a` + 1)"},
 
 		// NOT LIKE → not((expr like pattern))  — stays as not() wrapping
-		{"not_like", "NOT (a LIKE 'foo%')", "(not((`a` like 'foo%')))"},
+		{"not_like", "NOT (a LIKE 'foo%')", "`a`  not like 'foo%'"},
 
 		// ! operator on column — same as NOT
-		{"bang_col", "!a", "(0 = `a`)"},
+		{"bang_col", "!a", "`a` = 0"},
 	}
 
 	for _, tc := range cases {
@@ -669,7 +669,7 @@ func TestDeparse_Section_4_1_NOTFolding_AST(t *testing.T) {
 		}
 		rewritten := RewriteExpr(node)
 		got := Deparse(rewritten)
-		expected := "(not((`a` like 'foo%')))"
+		expected := "`a`  not like 'foo%'"
 		if got != expected {
 			t.Errorf("RewriteExpr+Deparse(NOT(a LIKE 'foo%%')) = %q, want %q", got, expected)
 		}
@@ -687,7 +687,7 @@ func TestDeparse_Section_4_1_NOTFolding_AST(t *testing.T) {
 		}
 		rewritten := RewriteExpr(node)
 		got := Deparse(rewritten)
-		expected := "(`a` <= 0)"
+		expected := "`a` <= 0"
 		if got != expected {
 			t.Errorf("RewriteExpr+Deparse(NOT(a > 0)) = %q, want %q", got, expected)
 		}
@@ -701,7 +701,7 @@ func TestDeparse_Section_4_1_NOTFolding_AST(t *testing.T) {
 		}
 		rewritten := RewriteExpr(node)
 		got := Deparse(rewritten)
-		expected := "(0 = `a`)"
+		expected := "`a` = 0"
 		if got != expected {
 			t.Errorf("RewriteExpr+Deparse(!a) = %q, want %q", got, expected)
 		}
@@ -719,7 +719,7 @@ func TestDeparse_Section_4_1_NOTFolding_AST(t *testing.T) {
 		}
 		rewritten := RewriteExpr(node)
 		got := Deparse(rewritten)
-		expected := "(0 = (`a` + 1))"
+		expected := "!(`a` + 1)"
 		if got != expected {
 			t.Errorf("RewriteExpr+Deparse(NOT(a+1)) = %q, want %q", got, expected)
 		}
@@ -735,25 +735,25 @@ func TestDeparse_Section_4_2_BooleanContextWrapping(t *testing.T) {
 		expected string
 	}{
 		// Column ref in AND: non-boolean operands get wrapped
-		{"col_ref_in_and", "a AND b", "((0 <> `a`) and (0 <> `b`))"},
+		{"col_ref_in_and", "a AND b", "`a` <> 0 and `b` <> 0"},
 		// Arithmetic in AND
-		{"arithmetic_in_and", "(a+1) AND b", "((0 <> (`a` + 1)) and (0 <> `b`))"},
+		{"arithmetic_in_and", "(a+1) AND b", "`a` + 1 and `b` <> 0"},
 		// Function in AND
-		{"function_in_and", "ABS(a) AND b", "((0 <> abs(`a`)) and (0 <> `b`))"},
+		{"function_in_and", "ABS(a) AND b", "abs(`a`) and `b` <> 0"},
 		// CASE in AND
 		{"case_in_and", "CASE WHEN a > 0 THEN 1 ELSE 0 END AND b",
-			"((0 <> (case when (`a` > 0) then 1 else 0 end)) and (0 <> `b`))"},
+			"case when `a` > 0 then 1 else 0 end and `b` <> 0"},
 		// IF in AND
 		{"if_in_and", "IF(a > 0, 1, 0) AND b",
-			"((0 <> if((`a` > 0),1,0)) and (0 <> `b`))"},
+			"if(`a` > 0,1,0) and `b` <> 0"},
 		// Literal in AND
-		{"literal_in_and", "'hello' AND 1", "((0 <> 'hello') and (0 <> 1))"},
+		{"literal_in_and", "'hello' AND 1", "'hello' and 1"},
 		// Comparison NOT wrapped: both sides are boolean
-		{"comparison_not_wrapped", "(a > 0) AND (b > 0)", "((`a` > 0) and (`b` > 0))"},
+		{"comparison_not_wrapped", "(a > 0) AND (b > 0)", "`a` > 0 and `b` > 0"},
 		// Mixed: one boolean, one non-boolean
-		{"mixed_bool_nonbool", "(a > 0) AND (b + 1)", "((`a` > 0) and (0 <> (`b` + 1)))"},
+		{"mixed_bool_nonbool", "(a > 0) AND (b + 1)", "`a` > 0 and `b` + 1"},
 		// XOR: non-boolean operands get wrapped
-		{"xor_wrapping", "a XOR b", "((0 <> `a`) xor (0 <> `b`))"},
+		{"xor_wrapping", "a XOR b", "`a` xor `b`"},
 	}
 
 	for _, tc := range cases {
@@ -814,9 +814,9 @@ func TestDeparse_Section_4_2_ISTrueFalse(t *testing.T) {
 		expected string
 	}{
 		// IS TRUE on non-boolean column: wrap with (0 <> col)
-		{"is_true_nonbool", "a IS TRUE", "((0 <> `a`) is true)"},
+		{"is_true_nonbool", "a IS TRUE", "`a` is true"},
 		// IS FALSE on non-boolean column: wrap with (0 <> col)
-		{"is_false_nonbool", "a IS FALSE", "((0 <> `a`) is false)"},
+		{"is_false_nonbool", "a IS FALSE", "`a` is false"},
 	}
 
 	for _, tc := range cases {
@@ -854,10 +854,12 @@ func TestDeparse_Section_4_2_SubqueryInAnd(t *testing.T) {
 		}
 		rewritten := RewriteExpr(node)
 		got := Deparse(rewritten)
-		// SubqueryExpr is not boolean, so should be wrapped
-		// The exact output depends on SubqueryExpr deparsing — we just verify wrapping happened
-		if !contains0Ne(got) {
-			t.Errorf("Subquery in AND was NOT wrapped: got %q", got)
+		// MariaDB wraps only a bare column in `<> 0`, so a subquery operand is
+		// left as written: `(select 1) and (select 2)`. Measured on
+		// mariadb:11.8.8 — `(SELECT 1) AND a` is stored as
+		// `(select 1) and `a` <> 0`.
+		if contains0Ne(got) {
+			t.Errorf("Subquery in AND was wrapped: got %q", got)
 		}
 	})
 }
@@ -907,21 +909,21 @@ func TestDeparseSelect_Section_5_1_TargetListAliases(t *testing.T) {
 		// Column alias without AS (should still produce AS in output)
 		{"column_alias_no_as", "SELECT a col1 FROM t", "select `a` AS `col1` from `t`"},
 		// Expression alias
-		{"expression_alias", "SELECT a + b AS sum_col FROM t", "select (`a` + `b`) AS `sum_col` from `t`"},
+		{"expression_alias", "SELECT a + b AS sum_col FROM t", "select `a` + `b` AS `sum_col` from `t`"},
 		// Auto-alias literal: SELECT 1 → 1 AS `1`
 		{"auto_alias_literal", "SELECT 1", "select 1 AS `1`"},
 		// Auto-alias expression: SELECT a + b → (`a` + `b`) AS `a + b`
-		{"auto_alias_expression", "SELECT a + b FROM t", "select (`a` + `b`) AS `a + b` from `t`"},
+		{"auto_alias_expression", "SELECT a + b FROM t", "select `a` + `b` AS `a + b` from `t`"},
 		// Auto-alias string literal
 		{"auto_alias_string", "SELECT 'hello'", "select 'hello' AS `hello`"},
 		// Auto-alias NULL
 		{"auto_alias_null", "SELECT NULL", "select NULL AS `NULL`"},
 		// Auto-alias function call
 		{"auto_alias_func", "SELECT CONCAT(a, b) FROM t", "select concat(`a`,`b`) AS `CONCAT(a, b)` from `t`"},
-		{"auto_alias_in_list", "SELECT a IN (1,2,3) FROM t", "select (`a` in (1,2,3)) AS `a IN (1, 2, 3)` from `t`"},
+		{"auto_alias_in_list", "SELECT a IN (1,2,3) FROM t", "select `a` in (1,2,3) AS `a IN (1, 2, 3)` from `t`"},
 		// Auto-alias boolean literal
-		{"auto_alias_true", "SELECT TRUE", "select true AS `TRUE`"},
-		{"auto_alias_false", "SELECT FALSE", "select false AS `FALSE`"},
+		{"auto_alias_true", "SELECT TRUE", "select 1 AS `TRUE`"},
+		{"auto_alias_false", "SELECT FALSE", "select 0 AS `FALSE`"},
 	}
 
 	for _, tc := range cases {
@@ -1011,19 +1013,19 @@ func TestDeparseSelect_Section_5_3_JoinClause(t *testing.T) {
 	}{
 		// INNER JOIN
 		{"inner_join", "SELECT a FROM t1 JOIN t2 ON t1.a = t2.a",
-			"select `a` AS `a` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"},
+			"select `a` AS `a` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))"},
 		// LEFT JOIN
 		{"left_join", "SELECT a FROM t1 LEFT JOIN t2 ON t1.a = t2.a",
-			"select `a` AS `a` from (`t1` left join `t2` on((`t1`.`a` = `t2`.`a`)))"},
+			"select `a` AS `a` from (`t1` left join `t2` on(`t1`.`a` = `t2`.`a`))"},
 		// RIGHT JOIN → LEFT JOIN with table swap
 		{"right_join", "SELECT a FROM t1 RIGHT JOIN t2 ON t1.a = t2.a",
-			"select `a` AS `a` from (`t2` left join `t1` on((`t1`.`a` = `t2`.`a`)))"},
+			"select `a` AS `a` from (`t2` left join `t1` on(`t1`.`a` = `t2`.`a`))"},
 		// CROSS JOIN → plain join (no ON)
 		{"cross_join", "SELECT a FROM t1 CROSS JOIN t2",
 			"select `a` AS `a` from (`t1` join `t2`)"},
 		// STRAIGHT_JOIN — lowercase
 		{"straight_join", "SELECT a FROM t1 STRAIGHT_JOIN t2 ON t1.a = t2.a",
-			"select `a` AS `a` from (`t1` straight_join `t2` on((`t1`.`a` = `t2`.`a`)))"},
+			"select `a` AS `a` from (`t1` straight_join `t2` on(`t1`.`a` = `t2`.`a`))"},
 	}
 
 	for _, tc := range cases {
@@ -1076,7 +1078,7 @@ func TestDeparseSelect_Section_5_3_UsingClause(t *testing.T) {
 	}{
 		// USING single column
 		{"using_single", "SELECT a FROM t1 JOIN t2 USING (a)",
-			"select `a` AS `a` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"},
+			"select `a` AS `a` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a`))"},
 	}
 
 	for _, tc := range cases {
@@ -1109,7 +1111,7 @@ func TestDeparseSelect_Section_5_3_UsingMultiColumn(t *testing.T) {
 			From: []ast.TableExpr{join},
 		}
 		got := DeparseSelect(sel)
-		expected := "select `x` AS `x` from (`t1` join `t2` on(((`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`))))"
+		expected := "select `x` AS `x` from (`t1` join `t2` on(`t1`.`a` = `t2`.`a` and `t1`.`b` = `t2`.`b`))"
 		if got != expected {
 			t.Errorf("DeparseSelect(USING multi) =\n  %q\nwant:\n  %q", got, expected)
 		}
@@ -1124,10 +1126,10 @@ func TestDeparseSelect_Section_5_4_WhereGroupByHavingOrderByLimit(t *testing.T) 
 	}{
 		// WHERE simple
 		{"where_simple", "SELECT a FROM t WHERE a > 1",
-			"select `a` AS `a` from `t` where (`a` > 1)"},
+			"select `a` AS `a` from `t` where `a` > 1"},
 		// WHERE compound
 		{"where_compound", "SELECT a FROM t WHERE a > 1 AND b < 10",
-			"select `a` AS `a` from `t` where ((`a` > 1) and (`b` < 10))"},
+			"select `a` AS `a` from `t` where `a` > 1 and `b` < 10"},
 		// GROUP BY single
 		{"group_by_single", "SELECT a FROM t GROUP BY a",
 			"select `a` AS `a` from `t` group by `a`"},
@@ -1139,7 +1141,7 @@ func TestDeparseSelect_Section_5_4_WhereGroupByHavingOrderByLimit(t *testing.T) 
 			"select `a` AS `a` from `t` group by `a` with rollup"},
 		// HAVING
 		{"having", "SELECT a FROM t GROUP BY a HAVING COUNT(*) > 1",
-			"select `a` AS `a` from `t` group by `a` having (count(0) > 1)"},
+			"select `a` AS `a` from `t` group by `a` having count(0) > 1"},
 		// ORDER BY ASC (default — no explicit ASC in output)
 		{"order_by_asc", "SELECT a FROM t ORDER BY a",
 			"select `a` AS `a` from `t` order by `a`"},
@@ -1187,7 +1189,7 @@ func TestDeparseSelect_Section_5_6_Subqueries(t *testing.T) {
 			"select `a` AS `a` from `t` where `a` in (select `a` from `t`)"},
 		// EXISTS in WHERE
 		{"exists_subquery", "SELECT a FROM t WHERE EXISTS (SELECT 1 FROM t)",
-			"select `a` AS `a` from `t` where exists(select 1 from `t`)"},
+			"select `a` AS `a` from `t` where exists(select 1 from `t` limit 1)"},
 	}
 
 	for _, tc := range cases {
@@ -1296,7 +1298,7 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		{"VALUES (1) LOCK IN SHARE MODE", "values (1) lock in share mode"},
 		// A value is written as writeExpr writes any expression, which
 		// parenthesizes 1 + 1 where MariaDB does not.
-		{"VALUES (1 + 1, 'x') UNION VALUES (3, 'y')", "values ((1 + 1),'x') union values (3,'y')"},
+		{"VALUES (1 + 1, 'x') UNION VALUES (3, 'y')", "values (1 + 1,'x') union values (3,'y')"},
 	}
 	for _, tc := range cases {
 		got := DeparseSelect(parseSelect(t, tc.input))
@@ -1320,25 +1322,25 @@ func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 		{
 			"simple_cte",
 			"WITH cte AS (SELECT 1) SELECT a FROM cte",
-			"with `cte` as (select 1 AS `1`) select `a` AS `a` from `cte`",
+			"with cte as (select 1 AS `1`)select `a` AS `a` from `cte`",
 		},
 		// CTE with column list
 		{
 			"cte_with_columns",
 			"WITH cte(x) AS (SELECT 1) SELECT x FROM cte",
-			"with `cte` (`x`) as (select 1 AS `1`) select `x` AS `x` from `cte`",
+			"with cte(`x`) as (select 1 AS `1`)select `x` AS `x` from `cte`",
 		},
 		// RECURSIVE CTE
 		{
 			"recursive_cte",
 			"WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT 1) SELECT a FROM cte",
-			"with recursive `cte` as (select 1 AS `1` union all select 1 AS `1`) select `a` AS `a` from `cte`",
+			"with recursive cte as (select 1 AS `1` union all select 1 AS `1`)select `a` AS `a` from `cte`",
 		},
 		// Multiple CTEs
 		{
 			"multiple_ctes",
 			"WITH c1 AS (SELECT 1), c2 AS (SELECT 2) SELECT a FROM c1, c2",
-			"with `c1` as (select 1 AS `1`), `c2` as (select 2 AS `2`) select `a` AS `a` from (`c1` join `c2`)",
+			"with c1 as (select 1 AS `1`), c2 as (select 2 AS `2`)select `a` AS `a` from (`c1` join `c2`)",
 		},
 	}
 

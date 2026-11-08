@@ -116,8 +116,10 @@ func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexC
 	col.Name = hiddenName
 	col.Nullable = true
 	col.Generated = &GeneratedColumnInfo{
-		Expr:   idxCol.Expr,
-		Stored: false,
+		Expr:             idxCol.Expr,
+		Stored:           false,
+		Nondeterministic: nondeterministicFuncIn(idxCol.ExprNode),
+		Refs:             generatedColumnRefs(idxCol.ExprNode),
 	}
 	col.Hidden = ColumnHiddenSystem
 	return col
@@ -218,7 +220,7 @@ func columnFromResolvedType(rt *ResolvedType) *Column {
 		col.DataType = "bigint"
 		col.ColumnType = "bigint"
 		if rt.Unsigned {
-			col.ColumnType = "bigint unsigned"
+			col.ColumnType = "bigint(20) unsigned"
 		}
 	case BaseTypeInt:
 		col.DataType = "int"

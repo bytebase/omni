@@ -322,48 +322,39 @@ func TestWalkThrough_3_5_AlterIndexVisible(t *testing.T) {
 
 // --- ALTER CHECK ENFORCED / NOT ENFORCED ---
 
+// TestWalkThrough_3_5_AlterCheckEnforced records that there is nothing to
+// toggle: MariaDB has no ENFORCED attribute on a CHECK constraint and no
+// `ALTER TABLE ... ALTER CHECK <name> [NOT] ENFORCED` grammar, so the catalog
+// refuses the statement. MySQL 8.0 has both. Measured on mariadb:11.8.8, which
+// answers 1064. TestScenario_C14 holds the server side.
 func TestWalkThrough_3_5_AlterCheckEnforced(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0))")
 
-	// Default should be enforced.
+	for _, stmt := range []string{
+		"ALTER TABLE t ALTER CHECK chk_age NOT ENFORCED",
+		"ALTER TABLE t ALTER CHECK chk_age ENFORCED",
+	} {
+		results, err := c.Exec(stmt+";", nil)
+		refused := err != nil
+		for _, r := range results {
+			if r.Error != nil {
+				refused = true
+			}
+		}
+		if !refused {
+			t.Errorf("expected %q to be refused", stmt)
+		}
+	}
+
+	// The constraint is unchanged, and carries no enforcement marker.
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
-		t.Fatal("table not found")
+		t.Fatal("table t not found")
 	}
-	var chk *Constraint
 	for _, con := range tbl.Constraints {
-		if con.Name == "chk_age" && con.Type == ConCheck {
-			chk = con
-			break
-		}
-	}
-	if chk == nil {
-		t.Fatal("CHECK constraint chk_age not found")
-	}
-	if chk.NotEnforced {
-		t.Error("CHECK should be enforced by default")
-	}
-
-	// Set NOT ENFORCED.
-	wtExec(t, c, "ALTER TABLE t ALTER CHECK chk_age NOT ENFORCED")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	for _, con := range tbl.Constraints {
-		if con.Name == "chk_age" && con.Type == ConCheck {
-			if !con.NotEnforced {
-				t.Error("CHECK should be NOT ENFORCED after ALTER CHECK NOT ENFORCED")
-			}
-		}
-	}
-
-	// Set ENFORCED.
-	wtExec(t, c, "ALTER TABLE t ALTER CHECK chk_age ENFORCED")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	for _, con := range tbl.Constraints {
-		if con.Name == "chk_age" && con.Type == ConCheck {
-			if con.NotEnforced {
-				t.Error("CHECK should be ENFORCED after ALTER CHECK ENFORCED")
-			}
+		if con.Name == "chk_age" && con.Type == ConCheck && con.NotEnforced {
+			t.Error("CHECK should carry no NOT ENFORCED marker")
 		}
 	}
 }

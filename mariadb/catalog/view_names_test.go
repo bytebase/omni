@@ -126,9 +126,9 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"b01": "from ((`j1` join `j2` on((`j1`.`k1` = `j2`.`k1`))) join `j3` on((`j2`.`k2` = `j3`.`k2`)))",
-		"b06": "from (`j2` left join `j1` on((`j1`.`k1` = `j2`.`k1`)))",
-		"b12": "from ((select `j1`.`k1` AS `k1`,`j1`.`a` AS `a` from `j1`) `d` join `j2` on((`d`.`k1` = `j2`.`k1`)))",
+		"b01": "from ((`j1` join `j2` on(`j1`.`k1` = `j2`.`k1`)) join `j3` on(`j2`.`k2` = `j3`.`k2`))",
+		"b06": "from (`j2` left join `j1` on(`j1`.`k1` = `j2`.`k1`))",
+		"b12": "from ((select `j1`.`k1` AS `k1`,`j1`.`a` AS `a` from `j1`) `d` join `j2` on(`d`.`k1` = `j2`.`k1`))",
 		"b23": "AS select `q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`k` AS `k`,`p`.`p1` AS `p1` from (`q` left join `p` on(1))",
 	} {
 		if got := c.ShowCreateView("test", name); !strings.HasSuffix(got, want) {

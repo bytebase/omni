@@ -301,13 +301,13 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a * 2;`
 		// Alter the partition layout. Oracle: trigger survives.
 		alter := `ALTER TABLE t COALESCE PARTITION 2`
 		if _, err := mc.db.ExecContext(mc.ctx, alter); err != nil {
-			t.Errorf("oracle: COALESCE PARTITION failed: %v", err)
+			t.Errorf("oracle: COALESCE PARTITION `failed`: %v", err)
 		}
 		// omni: execute the same ALTER; if omni's parser does not support
 		// this syntax yet, record it as part of the bug queue but don't
 		// abort the subtest.
 		if _, err := c.Exec(alter+";", nil); err != nil {
-			t.Logf("omni: ALTER TABLE ... COALESCE PARTITION not yet supported: %v", err)
+			t.Logf("omni: ALTER TABLE ... COALESCE PARTITION `not` yet supported: %v", err)
 		}
 
 		var trgCount int64

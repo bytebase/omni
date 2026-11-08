@@ -114,16 +114,6 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.foreignKeyChecks = v
 				c.session.ForeignKeyChecks = v
 			}
-		case "sql_generate_invisible_primary_key":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.generateGIPK = v
-				c.session.GenerateInvisiblePrimaryKey = v
-			}
-		case "show_gipk_in_create_table_and_information_schema":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.showGIPK = v
-				c.session.ShowGIPK = v
-			}
 		case "explicit_defaults_for_timestamp":
 			if isDefaultSetValue(asgn.Value) {
 				c.session.ExplicitDefaultsForTimestamp = true
@@ -163,7 +153,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 // option's variable then goes back to what it was, even if the statement set it too. A variable
 // the statement sets that no option names keeps its new value. Measured on mariadb:11.8.8.
 func (c *Catalog) execSetStatement(s *nodes.SetStatementStmt, source string) error {
-	fkChecks, generateGIPK, showGIPK, session := c.foreignKeyChecks, c.generateGIPK, c.showGIPK, c.session
+	fkChecks, session := c.foreignKeyChecks, c.session
 	if err := c.execSet(&nodes.SetStmt{Assignments: s.Options}); err != nil {
 		return err
 	}
@@ -177,10 +167,6 @@ func (c *Catalog) execSetStatement(s *nodes.SetStatementStmt, source string) err
 		switch normalizeSetVariableName(opt.Column) {
 		case "foreign_key_checks":
 			c.foreignKeyChecks, c.session.ForeignKeyChecks = fkChecks, session.ForeignKeyChecks
-		case "sql_generate_invisible_primary_key":
-			c.generateGIPK, c.session.GenerateInvisiblePrimaryKey = generateGIPK, session.GenerateInvisiblePrimaryKey
-		case "show_gipk_in_create_table_and_information_schema":
-			c.showGIPK, c.session.ShowGIPK = showGIPK, session.ShowGIPK
 		case "explicit_defaults_for_timestamp":
 			c.session.ExplicitDefaultsForTimestamp = session.ExplicitDefaultsForTimestamp
 		case "sql_mode":
@@ -297,7 +283,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.AlterRoutineStmt:
 		return c.alterRoutine(s)
 	case *nodes.CreateTriggerStmt:
-		return c.createTrigger(s)
+		return c.createTrigger(s, source)
 	case *nodes.DropTriggerStmt:
 		return c.dropTrigger(s)
 	case *nodes.CreateEventStmt:

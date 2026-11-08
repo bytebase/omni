@@ -21,9 +21,13 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL;`,
 			code: ErrInvalidDefault,
 		},
 		{
-			name: "alter_column_set_default_rejects_lob_literal_default",
+			// MariaDB refuses a literal default only for the spatial types;
+			// a blob takes one. Measured on mariadb:11.8.8:
+			// `ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x'` on a blob column
+			// reads back as `a` blob DEFAULT 'x'. MySQL 8.0 answers 1101.
+			name: "alter_column_set_default_rejects_spatial_literal_default",
 			sql: `CREATE TABLE t (a INT);
-ALTER TABLE t CHANGE COLUMN a a BLOB;
+ALTER TABLE t CHANGE COLUMN a a GEOMETRY;
 ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x';`,
 			code: 1101,
 		},

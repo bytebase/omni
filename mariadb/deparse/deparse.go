@@ -44,8 +44,14 @@ func deparseExpr(node ast.ExprNode) string {
 	return b.String()
 }
 
-// writeSelectStmt writes a query expression. suppressAlias omits the target
-// list aliases, for subquery contexts (IN, EXISTS) where MySQL omits AS alias.
+// writeSelectStmt writes a query expression. suppressAlias leaves out the
+// target list names the server supplied itself, which is how a subquery's
+// list is written: measured on mariadb:11.8.8, `(SELECT 1 AS z)` keeps
+// (select 1 AS `z`) in a scalar, IN, EXISTS and quantified subquery alike,
+// while `(SELECT * FROM u)` in one is (select `u`.`a`), the name the server
+// gave left out. A derived table carries both and is written without
+// suppression. MySQL 8.0 leaves out every alias there, which is what this
+// wrote.
 func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
 	// Parenthesized query expression: ( inner ) with optional OUTER ORDER BY /
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
@@ -71,10 +77,11 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		return
 	}
 
-	// CTE (WITH clause) — emit before the SELECT keyword
+	// CTE (WITH clause) — emit before the SELECT keyword. MariaDB writes no
+	// separator between the clause and the query it heads:
+	// `with cte as (...)select ...`. Measured on mariadb:11.8.8.
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	b.WriteString("select ")
@@ -89,7 +96,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		if i > 0 {
 			b.WriteString(",")
 		}
-		if suppressAlias {
+		if suppressAlias && !nameWritten(target) {
 			writeResTargetNoAlias(b, target)
 		} else {
 			writeResTarget(b, target, i+1)
@@ -216,7 +223,6 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt) {
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	b.WriteString("(")
@@ -365,7 +371,6 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
 	if len(stmt.CTEs) > 0 {
 		writeCTEs(b, stmt.CTEs)
-		b.WriteString(" ")
 	}
 
 	writeSelectStmt(b, stmt.Left, suppressAlias)
@@ -424,7 +429,7 @@ func deparseCTEs(ctes []*ast.CommonTableExpr) string {
 }
 
 // writeCTEs formats a WITH clause (one or more CTEs).
-// MySQL 8.0 format: with [recursive] `name` [(`col`, ...)] as (select ...) [, ...]
+// MariaDB format: with [recursive] name [(`col`, ...)] as (select ...) [, ...]
 func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 	b.WriteString("with ")
 
@@ -445,11 +450,14 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(quoteIdent(cte.Name))
+		// MariaDB writes a CTE's name bare, where MySQL 8.0 backticks it.
+		// Measured on mariadb:11.8.8 through information_schema.VIEWS.
+		b.WriteString(cte.Name)
 
-		// Column list
+		// Column list, written against the name with no space:
+		// `with cte(`x`,`y`) as (...)`. Measured on mariadb:11.8.8.
 		if len(cte.Columns) > 0 {
-			b.WriteString(" (")
+			b.WriteString("(")
 			for j, col := range cte.Columns {
 				if j > 0 {
 					b.WriteString(",")
@@ -467,8 +475,16 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 	}
 }
 
+// nameWritten reports whether a target carries a name the statement wrote,
+// which a subquery's target list keeps where it leaves out the ones the server
+// supplied.
+func nameWritten(target ast.ExprNode) bool {
+	rt, ok := target.(*ast.ResTarget)
+	return ok && rt.NameWritten
+}
+
 // writeResTargetNoAlias formats a target list entry without the AS alias.
-// Used for subquery contexts (IN, EXISTS) where MySQL omits aliases.
+// Used in a subquery for a name the server supplied rather than the statement.
 func writeResTargetNoAlias(b *strings.Builder, node ast.ExprNode) {
 	if rt, ok := node.(*ast.ResTarget); ok {
 		writeExpr(b, rt.Val)
@@ -503,28 +519,11 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 		alias = autoAlias(expr, b.String()[exprStart:], position)
 	}
 
-	// MySQL 8.0 uses double-space before AS for window function expressions.
-	// The OVER clause already ends with " )", and MySQL adds an extra space.
-	if hasWindowFunction(expr) {
-		b.WriteString("  AS ")
-	} else {
-		b.WriteString(" AS ")
-	}
+	// MariaDB writes one space before AS whatever the expression is; MySQL 8.0
+	// writes two after a window function, whose OVER clause it ends with
+	// " )". Measured on mariadb:11.8.8.
+	b.WriteString(" AS ")
 	b.WriteString(quoteIdent(alias))
-}
-
-// hasWindowFunction checks if an expression is or contains a window function
-// with an inline OVER (...) clause (not a named window reference like OVER w).
-// MySQL 8.0 uses double-space before AS only for inline window definitions.
-func hasWindowFunction(node ast.ExprNode) bool {
-	if fc, ok := node.(*ast.FuncCallExpr); ok && fc.Over != nil {
-		// Named window reference (OVER w) — no double space
-		if fc.Over.RefName != "" && len(fc.Over.PartitionBy) == 0 && len(fc.Over.OrderBy) == 0 && fc.Over.Frame == nil {
-			return false
-		}
-		return true
-	}
-	return false
 }
 
 // autoAlias generates an automatic alias for a SELECT target expression.
@@ -1292,18 +1291,14 @@ func tableExprName(tbl ast.TableExpr) string {
 // e.g., USING (a, b) with left=t1, right=t2 → ((`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`))
 // MySQL 8.0 format: on((`t1`.`a` = `t2`.`a`))
 func writeUsingAsOn(b *strings.Builder, columns []string, leftName, rightName string) {
-	// Multiple columns: chain with "and", left-deep.
-	for i := 1; i < len(columns); i++ {
-		b.WriteString("(")
-	}
+	// A flat `and` chain with no parentheses of its own, as the server writes
+	// it: on(`t1`.`a` = `t3`.`a` and `t1`.`b` = `t3`.`b`). Measured on
+	// mariadb:11.8.8 over `t1 JOIN t3 USING (a,b)`.
 	for i, col := range columns {
 		if i > 0 {
 			b.WriteString(" and ")
 		}
-		b.WriteString("(" + quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col) + ")")
-		if i > 0 {
-			b.WriteString(")")
-		}
+		b.WriteString(quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col))
 	}
 }
 
@@ -1375,10 +1370,11 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	case *ast.FloatLit:
 		b.WriteString(n.Value)
 	case *ast.BoolLit:
+		// MariaDB stores TRUE and FALSE as 1 and 0. Measured on mariadb:11.8.8.
 		if n.Value {
-			b.WriteString("true")
+			b.WriteString("1")
 		} else {
-			b.WriteString("false")
+			b.WriteString("0")
 		}
 	case *ast.StringLit:
 		b.WriteString(deparseStringLit(n))
@@ -1459,15 +1455,15 @@ func deparseStringLit(n *ast.StringLit) string {
 }
 
 func deparseHexLit(n *ast.HexLit) string {
-	// MySQL 8.0 normalizes all hex literals to 0x lowercase form.
-	// HexLit.Value is either "0xFF" (0x prefix form) or "FF" (X'' form).
+	// MariaDB keeps the spelling the literal was written in: `0xFF` comes back
+	// as 0xff and `X'FF'` as X'ff', where MySQL 8.0 normalizes both to the 0x
+	// form. Measured on mariadb:11.8.8. HexLit.Value is either "0xFF" (0x
+	// prefix form) or "FF" (X'' form).
 	val := n.Value
 	if strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
-		// Already has 0x prefix — just lowercase
 		return "0x" + strings.ToLower(val[2:])
 	}
-	// X'FF' form — value is just the hex digits
-	return "0x" + strings.ToLower(val)
+	return "X'" + strings.ToLower(val) + "'"
 }
 
 func deparseBitLit(n *ast.BitLit) string {
@@ -1530,9 +1526,143 @@ func bareLevel(node ast.ExprNode) int {
 	}
 }
 
-// writeBitOperand writes an operand the grammar reads as a bit_expr.
-func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
-	if bareLevel(node) == printsDelimited {
+// MariaDB's operator precedence, which its own printer uses to decide where a
+// parenthesis is needed; higher binds tighter. MySQL 8.0 instead parenthesizes
+// every operator it prints, which is why this writer used to.
+//
+// Measured on mariadb:11.8.8 through information_schema.VIEWS: `(a + b) * 2`
+// keeps the parentheses the multiplication needs, `a + b * 2` needs none,
+// `a = 1 and b = 2 and c = 'y'` prints flat, `(a > 0 or b < 1) and c = 'x'`
+// keeps only the one the OR needs, and `a - (b - 1)` keeps the one the
+// left-associative minus needs on its right.
+//
+// The predicates bind tighter than a comparison, and IN and LIKE tighter than
+// BETWEEN, which is what `(a = 1) in (1,2)` keeping its parentheses and
+// `a between 1 and 2 = 1` losing them say.
+// https://mariadb.com/docs/server/reference/sql-statements/operators/operator-precedence
+const (
+	precLowest = iota
+	precOr
+	precXor
+	precAnd
+	precNot
+	precComparison
+	precBetween
+	precIn
+	precBitOr
+	precBitAnd
+	precShift
+	precAdd
+	precMul
+	precBitXor
+	precUnary
+	precBang
+	precCollate
+	// precAtom is what the writer delimits itself: a literal, a column, a
+	// function call, a parenthesized subquery.
+	precAtom
+)
+
+// binOpPrec returns op's precedence. An operator this writer rewrites into a
+// function call (REGEXP, ->, ->>) prints delimited, so it is an atom.
+func binOpPrec(op ast.BinaryOp) int {
+	switch op {
+	case ast.BinOpOr:
+		return precOr
+	case ast.BinOpXor:
+		return precXor
+	case ast.BinOpAnd:
+		return precAnd
+	case ast.BinOpEq, ast.BinOpNe, ast.BinOpLt, ast.BinOpGt, ast.BinOpLe, ast.BinOpGe,
+		ast.BinOpNullSafeEq, ast.BinOpSoundsLike:
+		return precComparison
+	case ast.BinOpBitOr:
+		return precBitOr
+	case ast.BinOpBitAnd:
+		return precBitAnd
+	case ast.BinOpShiftLeft, ast.BinOpShiftRight:
+		return precShift
+	case ast.BinOpAdd, ast.BinOpSub:
+		return precAdd
+	case ast.BinOpMul, ast.BinOpDiv, ast.BinOpMod, ast.BinOpDivInt:
+		return precMul
+	case ast.BinOpBitXor:
+		return precBitXor
+	}
+	return precAtom
+}
+
+// exprPrec returns the precedence node prints at: how tightly its outermost
+// operator binds, or precAtom for one the writer delimits itself. A ParenExpr
+// is looked through, since writeExpr drops it and this writer puts a
+// parenthesis back where the precedence needs one.
+func exprPrec(node ast.ExprNode) int {
+	switch n := node.(type) {
+	case *ast.ParenExpr:
+		return exprPrec(n.Expr)
+	case *ast.BinaryExpr:
+		if sub, ok := n.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" && sub.Select != nil {
+			// The server stores `a = ANY (q)` as `a in (q)` and `a <> ALL (q)`
+			// as `!(a in (q))`, so each prints at its own form's precedence:
+			// `1 = (a = ANY (q))` comes back as `1 = a in (q)`. Measured on
+			// mariadb:11.8.8.
+			switch {
+			case n.Op == ast.BinOpEq && sub.Quantifier != "ALL":
+				return precIn
+			case n.Op == ast.BinOpNe && sub.Quantifier == "ALL":
+				return precBang
+			}
+			return precComparison
+		}
+		switch n.Op {
+		case ast.BinOpRegexp:
+			// REGEXP sits with IN and LIKE, above comparison, so a comparison
+			// operand keeps its parentheses: `(2 = 1) REGEXP '0'` is 1 and
+			// `2 = 1 REGEXP '0'` is 0, and the server stores the first as
+			// `(`a` = 1) regexp '0'`. Measured on mariadb:11.8.8.
+			return precIn
+		case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
+			return precAtom
+		}
+		return binOpPrec(n.Op)
+	case *ast.UnaryExpr:
+		switch n.Op {
+		case ast.UnaryMinus, ast.UnaryBitNot:
+			return precUnary
+		case ast.UnaryNot:
+			// Printed as `!`, which binds tighter than the unary minus.
+			return precBang
+		case ast.UnaryPlus:
+			// Dropped, so the operand is what prints.
+			return exprPrec(n.Operand)
+		}
+	case *ast.IsExpr:
+		return precComparison
+	case *ast.InExpr, *ast.LikeExpr:
+		return precIn
+	case *ast.BetweenExpr:
+		return precBetween
+	case *ast.CollateExpr:
+		return precCollate
+	}
+	return precAtom
+}
+
+// writeOperand writes node as the operand of an operator whose operand slot
+// reaches precedence min, parenthesizing it where MariaDB would.
+func writeOperand(b *strings.Builder, node ast.ExprNode, min int) {
+	if exprPrec(node) < min {
+		b.WriteString("(")
+		writeExpr(b, node)
+		b.WriteString(")")
+		return
+	}
+	writeExpr(b, node)
+}
+
+// writeBitOperandAt writes a bit_expr operand of an operator reaching min.
+func writeBitOperandAt(b *strings.Builder, node ast.ExprNode, min int) {
+	if bareLevel(node) == printsDelimited && exprPrec(node) >= min {
 		writeExpr(b, node)
 		return
 	}
@@ -1541,10 +1671,9 @@ func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
 	b.WriteString(")")
 }
 
-// writeComparisonRight writes the right side of a comparison, which the grammar reads
-// as a predicate.
-func writeComparisonRight(b *strings.Builder, node ast.ExprNode) {
-	if bareLevel(node) != printsBoolPri {
+// writeComparisonRightAt writes a predicate operand of an operator reaching min.
+func writeComparisonRightAt(b *strings.Builder, node ast.ExprNode, min int) {
+	if bareLevel(node) != printsBoolPri && exprPrec(node) >= min {
 		writeExpr(b, node)
 		return
 	}
@@ -1585,17 +1714,23 @@ func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.S
 	}
 	switch {
 	case n.Op == ast.BinOpEq && !all:
-		writeBitOperand(b, n.Left)
+		writeBitOperandAt(b, n.Left, precIn)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString(")")
 	case n.Op == ast.BinOpNe && all:
 		b.WriteString("!(")
-		writeBitOperand(b, n.Left)
+		writeBitOperandAt(b, n.Left, precIn)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString("))")
 	default:
+		// The quantified forms the server leaves as written lose the
+		// grouping on the left: measured on mariadb:11.8.8,
+		// `(1 OR 0) > ALL (SELECT 1)` is stored as
+		// `1 or 0 > all (select 1)`, and the view then answers 1 where the
+		// expression it was created from answers 0. That is the server's own
+		// output, so it is what this writes.
 		writeExpr(b, n.Left)
 		b.WriteString(" ")
 		b.WriteString(binaryOpToString(n.Op))
@@ -1613,16 +1748,23 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 		return
 	}
 
+	// MariaDB keeps REGEXP an operator — `a regexp 'x'`, and `!(a regexp 'y')`
+	// for NOT REGEXP — where MySQL 8.0 rewrites it to regexp_like(). Measured
+	// on mariadb:11.8.8.
+	if n.Op == ast.BinOpRegexp {
+		writeOperand(b, n.Left, precIn)
+		b.WriteString(" regexp ")
+		writeOperand(b, n.Right, precIn+1)
+		return
+	}
+
 	// Operator-to-function rewrites:
-	// REGEXP → regexp_like(left, right)
 	// -> → json_extract(left, right)
 	// ->> → json_unquote(json_extract(left, right))
 	switch n.Op {
-	case ast.BinOpRegexp, ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
+	case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
 		closing := ")"
 		switch n.Op {
-		case ast.BinOpRegexp:
-			b.WriteString("regexp_like(")
 		case ast.BinOpJsonExtract:
 			b.WriteString("json_extract(")
 		default:
@@ -1644,24 +1786,27 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 			left, right = right, left
 		}
 	}
-	b.WriteString("(")
+	// Every operator here is left-associative, so an operand of the same
+	// precedence needs a parenthesis on the right and none on the left:
+	// `a = 1 = 1` is what `(a = 1) = 1` prints as, and `a - (b - 1)` keeps its
+	// own. Measured on mariadb:11.8.8.
+	own := binOpPrec(n.Op)
 	if isLogical(n.Op) || isComparison(n.Op) {
-		writeExpr(b, left)
+		writeOperand(b, left, own)
 	} else {
-		writeBitOperand(b, left)
+		writeBitOperandAt(b, left, own)
 	}
 	b.WriteString(" ")
 	b.WriteString(binaryOpToString(n.Op))
 	b.WriteString(" ")
 	switch {
 	case isLogical(n.Op):
-		writeExpr(b, right)
+		writeOperand(b, right, own+1)
 	case isComparison(n.Op):
-		writeComparisonRight(b, right)
+		writeComparisonRightAt(b, right, own+1)
 	default:
-		writeBitOperand(b, right)
+		writeBitOperandAt(b, right, own+1)
 	}
-	b.WriteString(")")
 }
 
 func deparseColumnRef(n *ast.ColumnRef) string {
@@ -1685,7 +1830,9 @@ func binaryOpToString(op ast.BinaryOp) string {
 	case ast.BinOpDiv:
 		return "/"
 	case ast.BinOpMod:
-		return "%"
+		// MariaDB writes MOD for both spellings: `a % b` comes back as
+		// `a MOD b`. Measured on mariadb:11.8.8.
+		return "MOD"
 	case ast.BinOpDivInt:
 		return "DIV"
 	case ast.BinOpEq:
@@ -1791,31 +1938,32 @@ func writeWindowDefAlias(b *strings.Builder, wd *ast.WindowDef) {
 func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 	switch n.Op {
 	case ast.UnaryMinus:
-		// MySQL 8.0 wraps non-literal operands in parens: -(`t`.`a`) but keeps -5
-		switch n.Operand.(type) {
-		case *ast.IntLit, *ast.FloatLit:
-			b.WriteString("-")
-			writeExpr(b, n.Operand)
-		default:
-			b.WriteString("-(")
-			writeExpr(b, n.Operand)
-			b.WriteString(")")
-		}
+		// MariaDB writes the operand bare where it binds at least as tightly as
+		// the unary minus: `-a`, `-5`, and `-(a + b)`. MySQL 8.0 parenthesizes
+		// every non-literal operand. Measured on mariadb:11.8.8.
+		b.WriteString("-")
+		writeOperand(b, n.Operand, precUnary)
 	case ast.UnaryNot:
-		// MariaDB 11.8 stores NOT over an IN subquery as `!(a in (q))`.
-		if in, ok := unwrapParen(n.Operand).(*ast.InExpr); ok && in.Select != nil {
-			b.WriteString("!(")
-			writeExpr(b, n.Operand)
-			b.WriteString(")")
-			return
-		}
-		b.WriteString("(not(")
-		writeExpr(b, n.Operand)
-		b.WriteString("))")
+		// MariaDB writes NOT as `!`, parenthesizing the operand only where the
+		// precedence needs it: `!(a + 1)`, `!(a in (q))`, `!(a regexp 'y')`,
+		// but `!ifnull(a,0)`. MySQL 8.0 writes `(not(...))`. Measured on
+		// mariadb:11.8.8.
+		b.WriteString("!")
+		writeOperand(b, n.Operand, precBang)
 	case ast.UnaryBitNot:
-		b.WriteString("~(")
-		writeExpr(b, n.Operand)
-		b.WriteString(")")
+		b.WriteString("~")
+		writeOperand(b, n.Operand, precUnary)
+	case ast.UnaryBinary:
+		// BINARY is written as the cast it stands for, which is what the
+		// server stores and what RewriteExpr already turns one into: measured
+		// on mariadb:11.8.8, `2 * BINARY (1 + 2)` comes back
+		// 2 * cast(1 + 2 as char charset binary). Writing the operand bare,
+		// as unary plus is written, lost both the operator and the grouping
+		// it stood before — `2 * BINARY (1 + 2)` came out 2 * 1 + 2.
+		writeCastExpr(b, &ast.CastExpr{
+			Expr:     n.Operand,
+			TypeName: &ast.DataType{Name: "binary"},
+		})
 	default:
 		// MySQL drops unary plus entirely
 		writeExpr(b, n.Operand)
@@ -1828,20 +1976,20 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 		keyword = " not in ("
 	}
 
-	// IN subquery: a IN (SELECT ...)
-	// MySQL 8.0 does NOT wrap IN subquery in outer parens (unlike IN value list).
-	// MySQL 8.0 also omits AS aliases in the subquery's target list.
+	// IN subquery: a IN (SELECT ...), with no outer parenthesis and no AS
+	// aliases in the subquery's target list.
 	if n.Select != nil {
-		writeBitOperand(b, n.Expr)
+		writeBitOperandAt(b, n.Expr, precIn+1)
 		b.WriteString(keyword)
 		writeSelectStmt(b, n.Select, true)
 		b.WriteString(")")
 		return
 	}
 
-	// Build the value list with no spaces after commas
-	b.WriteString("(")
-	writeBitOperand(b, n.Expr)
+	// Value list, with no spaces after the commas and no parenthesis around
+	// the whole: `a in (1,2,3)`. MySQL 8.0 writes `(a in (1,2,3))`. Measured on
+	// mariadb:11.8.8.
+	writeBitOperandAt(b, n.Expr, precIn+1)
 	b.WriteString(keyword)
 	for i, item := range n.List {
 		if i > 0 {
@@ -1849,38 +1997,36 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 		}
 		writeExpr(b, item)
 	}
-	b.WriteString("))")
+	b.WriteString(")")
 }
 
 func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
-	b.WriteString("(")
-	writeBitOperand(b, n.Expr)
+	writeBitOperandAt(b, n.Expr, precBetween+1)
 	if n.Not {
 		b.WriteString(" not between ")
 	} else {
 		b.WriteString(" between ")
 	}
-	writeBitOperand(b, n.Low)
+	writeBitOperandAt(b, n.Low, precBetween+1)
 	b.WriteString(" and ")
-	writeBitOperand(b, n.High)
-	b.WriteString(")")
+	writeBitOperandAt(b, n.High, precBetween+1)
 }
 
+// writeLikeExpr writes `a like 'x'`, and the negated form as the operator
+// MariaDB stores, with the extra space it writes before the keyword:
+// `a  not like 'x'`. MySQL 8.0 writes `(not((a like 'x')))`. Measured on
+// mariadb:11.8.8.
 func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
+	writeBitOperandAt(b, n.Expr, precIn+1)
 	if n.Not {
-		b.WriteString("(not(")
+		b.WriteString("  not like ")
+	} else {
+		b.WriteString(" like ")
 	}
-	b.WriteString("(")
-	writeBitOperand(b, n.Expr)
-	b.WriteString(" like ")
-	writeBitOperand(b, n.Pattern)
+	writeBitOperandAt(b, n.Pattern, precIn+1)
 	if n.Escape != nil {
 		b.WriteString(" escape ")
-		writeBitOperand(b, n.Escape)
-	}
-	b.WriteString(")")
-	if n.Not {
-		b.WriteString("))")
+		writeBitOperandAt(b, n.Escape, precIn+1)
 	}
 }
 
@@ -1906,23 +2052,26 @@ func writeIsExpr(b *strings.Builder, n *ast.IsExpr) {
 			test = "is false"
 		}
 	case ast.IsUnknown:
+		// MariaDB stores IS UNKNOWN as IS NULL, which is what it means for a
+		// three-valued operand. Measured on mariadb:11.8.8.
 		if n.Not {
-			test = "is not unknown"
+			test = "is not null"
 		} else {
-			test = "is unknown"
+			test = "is null"
 		}
 	default:
 		test = "is ?"
 	}
-	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeOperand(b, n.Expr, precComparison+1)
 	b.WriteString(" ")
 	b.WriteString(test)
-	b.WriteString(")")
 }
 
+// writeRowExpr writes a row constructor as the parenthesized list MariaDB
+// stores: `ROW(a,b) = ROW(1,2)` comes back as `(`a`,`b`) = (1,2)`. Measured on
+// mariadb:11.8.8.
 func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
-	b.WriteString("row(")
+	b.WriteString("(")
 	for i, item := range n.Items {
 		if i > 0 {
 			b.WriteString(",")
@@ -1932,8 +2081,10 @@ func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
 	b.WriteString(")")
 }
 
+// writeCaseExpr writes `case ... end`, which delimits itself: MariaDB adds no
+// parentheses around it, where MySQL 8.0 does. Measured on mariadb:11.8.8.
 func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
-	b.WriteString("(case")
+	b.WriteString("case")
 	if n.Operand != nil {
 		b.WriteString(" ")
 		writeExpr(b, n.Operand)
@@ -1948,12 +2099,16 @@ func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 		b.WriteString(" else ")
 		writeExpr(b, n.Default)
 	}
-	b.WriteString(" end)")
+	b.WriteString(" end")
 }
 
 func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	b.WriteString("cast(")
-	writeExpr(b, n.Expr)
+	// The argument is delimited by `as`, so parentheses around it are never
+	// needed and the server writes none: measured on mariadb:11.8.8,
+	// `CAST(((1+2)) AS CHAR)` is stored as cast(1 + 2 as char charset utf8mb4)
+	// and `CAST((1+2) AS SIGNED)` as cast(1 + 2 as signed).
+	writeExpr(b, unwrapParen(n.Expr))
 	b.WriteString(" as ")
 	b.WriteString(deparseDataType(n.TypeName))
 	b.WriteString(")")
@@ -1974,10 +2129,19 @@ func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
 // 11.8.8 store the call as locate(substr, str), the same function under its
 // other name, and TiDB v8.5.5 stores POSITION. Keeping POSITION makes the
 // text parse back to this node on every engine.
+// writePositionExpr writes POSITION as the locate() call MariaDB stores it
+// as. Measured on mariadb:11.8.8 through SHOW CREATE VIEW:
+// `POSITION('1' IN '1')` comes back `locate('1','1')`, whatever the arguments.
+//
+// That is also what keeps the output parseable. POSITION's first argument is
+// a bit_expr, so an operand of lower precedence needs parentheses there —
+// `POSITION((1 = 1) IN '1')` means nothing written as
+// `position(1 = 1 in '1')` — while locate's arguments are separated by a
+// comma and carry no such constraint.
 func writePositionExpr(b *strings.Builder, n *ast.PositionExpr) {
-	b.WriteString("position(")
+	b.WriteString("locate(")
 	writeExpr(b, n.Substr)
-	b.WriteString(" in ")
+	b.WriteString(",")
 	writeExpr(b, n.Str)
 	b.WriteString(")")
 }
@@ -2069,24 +2233,40 @@ func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
 }
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
-	b.WriteString("(")
-	writeBitOperand(b, n.Expr)
+	writeBitOperandAt(b, n.Expr, precCollate)
 	b.WriteString(" collate ")
 	b.WriteString(n.Collation)
-	b.WriteString(")")
 }
 
-// funcNameRewrites maps uppercase function names to their MySQL 8.0 canonical forms.
-// These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
+// funcNameRewrites maps uppercase function names to the canonical form MariaDB
+// stores. Measured on mariadb:11.8.8 through information_schema.VIEWS:
+// NOW() and CURRENT_TIMESTAMP both come back as current_timestamp(), UPPER as
+// ucase, LOWER as lcase, SUBSTRING as substr, CHARACTER_LENGTH as char_length
+// and STDDEV as std. MySQL 8.0 picks now(), upper() and lower() instead.
 var funcNameRewrites = map[string]string{
 	"SUBSTRING":         "substr",
-	"CURRENT_TIMESTAMP": "now",
+	"SUBSTR":            "substr",
+	"CURRENT_TIMESTAMP": "current_timestamp",
 	"CURRENT_DATE":      "curdate",
 	"CURRENT_TIME":      "curtime",
 	"CURRENT_USER":      "current_user",
-	"NOW":               "now",
-	"LOCALTIME":         "now",
-	"LOCALTIMESTAMP":    "now",
+	"NOW":               "current_timestamp",
+	"LOCALTIME":         "current_timestamp",
+	"LOCALTIMESTAMP":    "current_timestamp",
+	"UPPER":             "ucase",
+	"UCASE":             "ucase",
+	"LOWER":             "lcase",
+	"LCASE":             "lcase",
+	"CHARACTER_LENGTH":  "char_length",
+	"CHAR_LENGTH":       "char_length",
+	"STDDEV":            "std",
+	"STDDEV_POP":        "std",
+	// LENGTH counts bytes, and the name it is stored under says so; MID is
+	// SUBSTRING's third spelling. Both measured on mariadb:11.8.8, in a view
+	// body and in a DEFAULT expression alike: length('ab') comes back
+	// octet_length('ab') and mid('abc',1,1) comes back substr('abc',1,1).
+	"LENGTH": "octet_length",
+	"MID":    "substr",
 }
 
 // writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -2144,18 +2324,29 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	// Determine the canonical function name
-	canonical, ok := funcNameRewrites[name]
-	if !ok {
-		canonical = strings.ToLower(n.Name)
-	}
-
-	// Schema-qualified name
+	// A built-in's canonical name belongs to an unqualified call only. A
+	// qualified one names a stored routine, which keeps the name it was
+	// declared with and is written quoted, like any other identifier.
+	//
+	// Measured on mariadb:11.8.8: with a stored function `upper` in testdb,
+	// `SELECT testdb.`upper`(1)` comes back `` `testdb`.`upper`(1) `` while an
+	// unqualified `upper(1)` is `ucase(1)` even though that function exists,
+	// and `testdb.MixedFn(1)` keeps its spelling as `` `testdb`.`MixedFn` ``.
 	if n.Schema != "" {
-		canonical = strings.ToLower(n.Schema) + "." + canonical
+		routine := n.RawName
+		if routine == "" {
+			routine = n.Name
+		}
+		b.WriteString(quoteIdent(n.Schema))
+		b.WriteString(".")
+		b.WriteString(quoteIdent(routine))
+	} else {
+		canonical, ok := funcNameRewrites[name]
+		if !ok {
+			canonical = strings.ToLower(n.Name)
+		}
+		b.WriteString(canonical)
 	}
-
-	b.WriteString(canonical)
 	switch {
 	case len(n.Args) == 0 && !n.Star:
 		// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens
@@ -2197,26 +2388,35 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 // MySQL 8.0 format: OVER (PARTITION BY ... ORDER BY ... frame_clause )
 // Note: trailing space before closing paren, uppercase keywords.
 func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
-	// Named window reference: OVER `window_name`
+	// A named window reference that the rewrite could not resolve. MariaDB
+	// inlines every one it stores, so this is a reference to a window the
+	// statement does not define.
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		b.WriteString("OVER " + quoteIdent(wd.RefName))
+		b.WriteString("over " + quoteIdent(wd.RefName))
 		return
 	}
 
-	b.WriteString("OVER ")
+	b.WriteString("over ")
 	writeWindowBody(b, wd)
 }
 
 // writeWindowBody formats the body of a window definition: (PARTITION BY ... ORDER BY ... frame_clause )
 // Used by both OVER clauses and WINDOW named window definitions.
+// writeWindowBody formats a window body as MariaDB stores it: a space after
+// the opening parenthesis, lowercase keywords, and no space before the closing
+// one except the trailing one the frame clause writes. Measured on
+// mariadb:11.8.8: `over ( order by \`t\`.\`a\`)` and
+// `over ( order by \`t\`.\`a\` rows between  unbounded  preceding  and  current row )`.
+// MySQL 8.0 writes uppercase keywords and the space before the closing
+// parenthesis instead.
 func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
-	b.WriteString("(")
+	b.WriteString("( ")
 
 	needSpace := false
 
 	// PARTITION BY
 	if len(wd.PartitionBy) > 0 {
-		b.WriteString("PARTITION BY ")
+		b.WriteString("partition by ")
 		for i, expr := range wd.PartitionBy {
 			if i > 0 {
 				b.WriteString(",")
@@ -2231,7 +2431,7 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 		if needSpace {
 			b.WriteString(" ")
 		}
-		b.WriteString("ORDER BY ")
+		b.WriteString("order by ")
 		for i, item := range wd.OrderBy {
 			if i > 0 {
 				b.WriteString(",")
@@ -2244,61 +2444,64 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 		needSpace = true
 	}
 
-	// Frame clause
+	// Frame clause. It writes its own trailing space, so the closing
+	// parenthesis follows whatever came last.
 	if wd.Frame != nil {
 		if needSpace {
 			b.WriteString(" ")
 		}
 		writeWindowFrame(b, wd.Frame)
-		// When frame clause is present, MySQL 8.0 has no trailing space before )
-		b.WriteString(")")
-	} else {
-		// No frame clause — MySQL 8.0 puts a trailing space before )
-		b.WriteString(" )")
 	}
+	b.WriteString(")")
 }
 
-// writeWindowFrame formats a window frame specification.
-// MySQL 8.0 format: ROWS/RANGE/GROUPS BETWEEN start AND end (all uppercase).
+// writeWindowFrame formats a window frame as MariaDB stores it: lowercase, and
+// always the BETWEEN form — a single bound is the start of a frame that ends at
+// CURRENT ROW, and the server writes it back that way. The spacing is the
+// server's own, measured on mariadb:11.8.8:
+//
+//	rows between  unbounded  preceding  and  current row
+//	rows between 2 preceding  and  current row
+//	range between  unbounded  preceding  and  unbounded  following
+//
+// which is two spaces before `and`, a bound that carries its own leading space
+// where it has no offset, and a trailing space the caller writes nothing after.
 func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
-	// Frame type
 	switch f.Type {
 	case ast.FrameRows:
-		b.WriteString("ROWS")
+		b.WriteString("rows")
 	case ast.FrameRange:
-		b.WriteString("RANGE")
+		b.WriteString("range")
 	case ast.FrameGroups:
-		b.WriteString("GROUPS")
+		b.WriteString("groups")
 	}
 
+	b.WriteString(" between ")
+	writeWindowFrameBound(b, f.Start)
+	b.WriteString("  and ")
 	if f.End != nil {
-		// BETWEEN ... AND ... form
-		b.WriteString(" BETWEEN ")
-		writeWindowFrameBound(b, f.Start)
-		b.WriteString(" AND ")
 		writeWindowFrameBound(b, f.End)
 	} else {
-		// Single bound form
-		b.WriteString(" ")
-		writeWindowFrameBound(b, f.Start)
+		b.WriteString(" current row")
 	}
+	b.WriteString(" ")
 }
 
 // writeWindowFrameBound formats a window frame bound.
 func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 	switch fb.Type {
 	case ast.BoundUnboundedPreceding:
-		b.WriteString("UNBOUNDED PRECEDING")
+		b.WriteString(" unbounded  preceding")
 	case ast.BoundPreceding:
 		writeExpr(b, fb.Offset)
-		b.WriteString(" PRECEDING")
+		b.WriteString(" preceding")
 	case ast.BoundCurrentRow:
-		b.WriteString("CURRENT ROW")
+		b.WriteString(" current row")
 	case ast.BoundFollowing:
 		writeExpr(b, fb.Offset)
-		b.WriteString(" FOLLOWING")
+		b.WriteString(" following")
 	case ast.BoundUnboundedFollowing:
-		b.WriteString("UNBOUNDED FOLLOWING")
+		b.WriteString(" unbounded  following")
 	default:
 		b.WriteString("/* unknown bound */")
 	}
@@ -2306,14 +2509,45 @@ func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 
 // writeExistsExpr formats an EXISTS expression.
 // MySQL 8.0 format: exists(select ...) — column aliases are omitted inside EXISTS.
+// writeExistsExpr writes `exists(...)`. MariaDB caps the subquery at one row,
+// since one settles the predicate, but only where that cannot change the
+// answer: it reduces a count that is absent or above one, and leaves a
+// `LIMIT 0` and any offset alone. Measured on mariadb:11.8.8:
+//
+//	EXISTS(SELECT 1 FROM t)                 → exists(select 1 from `t` limit 1)
+//	EXISTS(SELECT 1 FROM t LIMIT 5)         → exists(select 1 from `t` limit 1)
+//	EXISTS(SELECT 1 FROM t LIMIT 0)         → exists(select 1 from `t` limit 0)
+//	EXISTS(SELECT 1 FROM t LIMIT 1 OFFSET 1) → exists(select 1 from `t` limit 1,1)
 func writeExistsExpr(b *strings.Builder, n *ast.ExistsExpr) {
 	if n.Select != nil {
 		b.WriteString("exists(")
-		writeSelectStmt(b, n.Select, true)
+		inner := *n.Select
+		inner.Limit = existsLimit(n.Select.Limit)
+		writeSelectStmt(b, &inner, true)
 		b.WriteString(")")
 		return
 	}
 	b.WriteString("exists(/* subquery */)")
+}
+
+// existsLimit returns the LIMIT an EXISTS subquery is stored with.
+func existsLimit(limit *ast.Limit) *ast.Limit {
+	one := &ast.Limit{Count: &ast.IntLit{Value: 1}}
+	if limit == nil {
+		return one
+	}
+	// A count the writer cannot read — a parameter marker, an expression — is
+	// left as written rather than guessed at.
+	lit, ok := limit.Count.(*ast.IntLit)
+	if !ok {
+		return limit
+	}
+	if lit.Value <= 1 {
+		return limit
+	}
+	capped := *limit
+	capped.Count = &ast.IntLit{Value: 1}
+	return &capped
 }
 
 // writeSubqueryExpr formats a subquery expression.

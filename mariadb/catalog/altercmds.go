@@ -90,6 +90,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
+	dropsPK := alterDropsPrimaryKey(stmt.Commands)
+	droppedColumns := alterDroppedColumns(stmt.Commands)
+	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
+
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
 		if skip[cmd] {
@@ -104,13 +108,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -140,7 +144,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			rollback()
 			return err
 		}
@@ -201,18 +205,24 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+// execAlterCmd runs one ALTER command. dropsPK says whether another command of
+// the same statement drops the primary key and droppedColumns holds every
+// column the statement drops, which together decide whether dropping one of a
+// composite key's columns would leave a half-built key behind; declaredChecks
+// holds the CHECK names the statement gives explicitly, which the unnamed ones
+// are named around.
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd)
+		return c.alterDropColumn(tbl, cmd, dropsPK, droppedColumns)
 	case nodes.ATModifyColumn:
 		return c.alterModifyColumn(tbl, cmd)
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -292,7 +302,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		if !tbl.SystemVersioned {
 			return errNotSystemVersioned(tbl.Name)
 		}
-		return errCantDropKey("PERIOD `SYSTEM_TIME`")
+		return errCantDropKey("PERIOD", "SYSTEM_TIME")
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -441,11 +451,14 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 				return err
 			}
 		}
+		// The names these constraints give explicitly are reserved for each
+		// other, as a CREATE TABLE's are.
+		declared := declaredCheckNames(cmd.Constraints)
 		for _, con := range cmd.Constraints {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}); err != nil {
+			}, declared); err != nil {
 				return err
 			}
 		}
@@ -462,7 +475,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
 	colKey := toLower(colDef.Name)
@@ -474,13 +487,42 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
+	// A materialized generated column cannot read a non-deterministic one,
+	// whichever statement adds it. See nondeterministicDependency.
+	if col.Generated != nil && (col.Generated.Stored || columnDefHasKey(colDef)) {
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
+		}
+	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
-
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
 		switch cc.Type {
+		case nodes.ColConstrCheck:
+			// A check declared on the added column belongs to it and takes
+			// the column's name, as one declared with the table does.
+			// Measured on mariadb:11.8.8: `ALTER TABLE t ADD COLUMN b INT
+			// CHECK (b > 0)` reports `b` int(11) DEFAULT NULL CHECK (`b` > 0)
+			// and holds the check under the name b, even where the table
+			// already has a check of that name — it takes no name of its own,
+			// so it collides with none. See checkConstraintNameExists.
+			conName := cc.Name
+			if conName == "" {
+				conName = colDef.Name
+			}
+			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+				return err
+			}
+			tbl.Constraints = append(tbl.Constraints, &Constraint{
+				Name:        conName,
+				Type:        ConCheck,
+				Table:       tbl,
+				Column:      colDef.Name,
+				CheckExpr:   nodeToSQL(cc.Expr),
+				NotEnforced: cc.NotEnforced,
+			})
 		case nodes.ColConstrPrimaryKey:
 			// Check for duplicate PK.
 			for _, idx := range tbl.Indexes {
@@ -528,19 +570,84 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 		}
 	}
 
+	// A JSON column carries json_valid only where it declares no check of its
+	// own, so this is decided after the column's constraints are in: measured
+	// on mariadb:11.8.8, `ALTER TABLE t ADD COLUMN j JSON CHECK (j IS NOT
+	// NULL)` reports that check alone, where `ADD COLUMN j JSON` reports
+	// json_valid(`j`).
+	if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
+		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
+	}
+
 	return nil
 }
 
 // alterDropColumn removes a column from the table.
-func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+// alterDropsPrimaryKey reports whether any command of the statement drops the
+// primary key. The parser builds `DROP PRIMARY KEY` as a DROP CONSTRAINT named
+// PRIMARY.
+func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		// The primary key has more than one spelling, and the parser files
+		// them under two commands: DROP PRIMARY KEY and the two DROP
+		// CONSTRAINT forms are a dropped constraint named PRIMARY, while
+		// DROP INDEX `PRIMARY` and DROP KEY `PRIMARY` are a dropped index of
+		// that name. Measured on mariadb:11.8.8, every one of them lets the
+		// same statement drop the key's columns, whichever order the clauses
+		// come in.
+		switch cmd.Type {
+		case nodes.ATDropConstraint, nodes.ATDropIndex:
+			if strings.EqualFold(cmd.Name, "PRIMARY") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// alterDroppedColumns returns the columns the statement drops, which is what
+// decides whether a composite primary key survives it.
+// alterDeclaredCheckNames collects the names this statement's added CHECK
+// constraints give explicitly, lowered, which allocCheckName reserves while it
+// names the unnamed ones: measured on mariadb:11.8.8,
+// `ALTER TABLE t ADD CHECK (a > 0), ADD CONSTRAINT CONSTRAINT_1 CHECK (a < 9)`
+// holds CONSTRAINT_2 and CONSTRAINT_1, where naming them in the order the
+// commands come takes CONSTRAINT_1 twice.
+func alterDeclaredCheckNames(cmds []*nodes.AlterTableCmd) map[string]bool {
+	var declared map[string]bool
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Type != nodes.ATAddConstraint || cmd.Constraint == nil {
+			continue
+		}
+		con := cmd.Constraint
+		if con.Type != nodes.ConstrCheck || con.Name == "" {
+			continue
+		}
+		if declared == nil {
+			declared = map[string]bool{}
+		}
+		declared[toLower(con.Name)] = true
+	}
+	return declared
+}
+
+func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
+	out := make(map[string]bool)
+	for _, cmd := range cmds {
+		if cmd.Type == nodes.ATDropColumn {
+			out[toLower(cmd.Name)] = true
+		}
+	}
+	return out
+}
+
+func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
 	colKey := toLower(cmd.Name)
 	if _, exists := tbl.colByName[colKey]; !exists {
 		if cmd.IfExists {
 			return nil
 		}
-		// MySQL 8.0 returns error 1091 for DROP COLUMN on nonexistent column,
-		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
-		return errCantDropKey(cmd.Name)
+		return errCantDropKey("COLUMN", cmd.Name)
 	}
 	idx := tbl.colByName[colKey]
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
@@ -571,6 +678,55 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			}
 		}
 	}
+
+	// A column a composite PRIMARY KEY is built on cannot be dropped while
+	// part of that key survives the statement: MariaDB answers 1072, "Key
+	// column '<col>' doesn't exist in table", rather than rebuilding the key
+	// over the columns that are left. Where the statement drops every part the
+	// key goes with them and the drop is accepted — measured on
+	// mariadb:11.8.8, `PRIMARY KEY (a,b)` with `DROP COLUMN a, DROP COLUMN b`
+	// in either order, and `PRIMARY KEY (a,b,c)` with all three, while
+	// dropping two of those three answers 1072 for the first of them. The
+	// statement may also drop the key itself, and then the column goes with
+	// it: `DROP COLUMN a, DROP PRIMARY KEY` is accepted whichever order the
+	// clauses come in. A single-column primary key goes with its column, and a
+	// key that is not the primary one is rebuilt over what is left.
+	if !droppingPrimaryKey {
+		for _, idx := range tbl.Indexes {
+			if !idx.Primary || len(idx.Columns) < 2 {
+				continue
+			}
+			covers, survives, last := false, false, ""
+			for _, ic := range idx.Columns {
+				key := toLower(ic.Name)
+				if key == colKey {
+					covers = true
+				}
+				if droppedColumns[key] {
+					// The column named is the last part of the key the
+					// statement drops, in the key's own order and not the
+					// statement's: measured, `PRIMARY KEY (a,b,c,d)` reports
+					// 'b' for `DROP COLUMN a, DROP COLUMN b` and 'c' for
+					// `DROP COLUMN c, DROP COLUMN a`.
+					last = ic.Name
+					continue
+				}
+				survives = true
+			}
+			if covers && survives {
+				return &Error{
+					Code:     1072,
+					SQLState: "42000",
+					Message:  fmt.Sprintf("Key column '%s' doesn't exist in table", last),
+				}
+			}
+		}
+	}
+
+	// The check the column carries goes with it; leaving it behind would name
+	// a column the table no longer has. Measured on mariadb:11.8.8: after
+	// `ALTER TABLE t DROP COLUMN j` the table reports no check.
+	dropColumnCheck(tbl, cmd.Name)
 
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
@@ -621,11 +777,17 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 	}
 	tbl.Indexes = newIndexes
 
-	// Clean up constraints that reference removed indexes.
+	// Clean up constraints that reference removed indexes. Only a constraint
+	// an index holds up goes with it; a CHECK merely carrying an index's name
+	// has nothing to do with it. Measured on mariadb:11.8.8: after
+	// `CREATE TABLE t (a INT, j JSON, KEY j(a)); ALTER TABLE t DROP COLUMN a`
+	// the json_valid check column j carries is still there, and so is
+	// `CONSTRAINT ck CHECK (b > 0)` beside a `KEY ck(a)`.
 	if len(removedIndexNames) > 0 {
 		newConstraints := make([]*Constraint, 0, len(tbl.Constraints))
 		for _, con := range tbl.Constraints {
-			if removedIndexNames[toLower(con.IndexName)] || removedIndexNames[toLower(con.Name)] {
+			if con.Type != ConCheck &&
+				(removedIndexNames[toLower(con.IndexName)] || removedIndexNames[toLower(con.Name)]) {
 				continue
 			}
 			newConstraints = append(newConstraints, con)
@@ -665,7 +827,18 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	// Whether a key covers the column is a question about the column being
+	// replaced, not about the name the replacement carries: a CHANGE renames
+	// it and the key follows. Measured on mariadb:11.8.8, after
+	// `CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, KEY (a))`:
+	// `ALTER TABLE t CHANGE a b DOUBLE AS (RAND()) VIRTUAL` answers 1901,
+	// where `CHANGE a b DOUBLE AS (2) VIRTUAL` is accepted and keeps
+	// KEY `a` (`b`).
+	indexed := indexedColumnsOf(tbl)
+	if indexed[toLower(oldName)] {
+		indexed[toLower(colDef.Name)] = true
+	}
+	if err := validateColumnDefSemantics(colDef, indexed); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)
@@ -694,8 +867,49 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
 	}
+	// The replacement is held to the same rule as a column added outright: a
+	// materialized generated column cannot read a non-deterministic one.
+	if col.Generated != nil && (col.Generated.Stored || indexed[toLower(col.Name)]) {
+		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+			return errUnusableInGeneratedColumn(dep, col.Name)
+		}
+	}
+	// So are the columns that read this one: replacing an expression can make
+	// a materialized dependent invalid, and the table would then hold a schema
+	// the server refuses. Measured on mariadb:11.8.8 with
+	// `b DOUBLE AS (a) STORED` in place, `ALTER TABLE t MODIFY a DOUBLE AS
+	// (RAND()) VIRTUAL` answers 1901 naming a, and so does the same table with
+	// b VIRTUAL under a key, while an unmaterialized b takes it.
+	//
+	// The question is about the table as it would stand, so the column goes in
+	// for the length of the check and comes back out. Nothing else has been
+	// touched yet, so a refusal leaves the table as it was.
+	if col.Generated != nil {
+		prev := tbl.Columns[idx]
+		tbl.Columns[idx] = col
+		depErr := validateMaterializedGeneratedColumns(tbl, indexed)
+		tbl.Columns[idx] = prev
+		if depErr != nil {
+			return depErr
+		}
+	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
+
+	// MODIFY and CHANGE replace the column's definition, so the check the old
+	// definition carried goes with it and the new one's takes its place: a
+	// JSON column's is json_valid, and any other definition's is whatever it
+	// declares, which is nothing here since a column-level CHECK is not part
+	// of what MODIFY accepts. Measured on mariadb:11.8.8:
+	// `ALTER TABLE t MODIFY COLUMN a INT` against
+	// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check, and
+	// `ALTER TABLE t MODIFY COLUMN j JSON` against
+	// `CREATE TABLE t (j JSON CHECK (j IS NOT NULL))` replaces that check
+	// with json_valid(`j`).
+	dropColumnCheck(tbl, oldName)
+	if col.IsJSON {
+		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
+	}
 
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
@@ -812,8 +1026,12 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 		}
 		return false
 	case nodes.ConstrCheck:
+		// A check that belongs to a column does not occupy the name, so
+		// IF NOT EXISTS over a JSON column's own name still adds the
+		// statement's check. See checkConstraintNameExists.
 		for _, existing := range tbl.Constraints {
-			if existing.Type == ConCheck && toLower(existing.Name) == toLower(con.Name) {
+			if existing.Type == ConCheck && !isColumnCheck(existing) &&
+				toLower(existing.Name) == toLower(con.Name) {
 				return true
 			}
 		}
@@ -843,7 +1061,7 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -966,16 +1184,27 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return err
 			}
 		}
+		// The backing index a foreign key brings with it materializes a
+		// VIRTUAL generated column as any other key does, so the column is
+		// held to the same rule: measured on mariadb:11.8.8,
+		// `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)`
+		// over `a DOUBLE AS (RAND()) VIRTUAL` answers 1901, and over a column
+		// reading one it names that column. Checked before the constraint
+		// goes in, so a refusal leaves the table as it was.
+		fkIdxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, fkName(con), cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkName(con), cols, fkIdxCols)
 
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			conName = allocCheckName(tbl.Database, tbl, declaredChecks)
 		}
-		if checkConstraintNameExists(tbl.Database, nil, conName) {
+		if checkConstraintNameExists(tbl.Database, tbl, conName) {
 			return errCheckConstraintDupName(conName)
 		}
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
@@ -1125,7 +1354,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return errCantDropKey("INDEX", name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -1139,6 +1368,86 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	return nil
 }
 
+// dropColumnCheck removes the check a column carries, which goes with the
+// column: dropped with it, and replaced along with its definition. Measured on
+// mariadb:11.8.8: after `ALTER TABLE t DROP COLUMN j` a JSON column's
+// json_valid check is gone, and `ALTER TABLE t MODIFY COLUMN a INT` against
+// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check behind — the new
+// definition declares none, so the column has none.
+//
+// It finds the check by the column it belongs to rather than by its name,
+// which can have moved on: measured, after `ALTER TABLE t RENAME COLUMN j TO
+// z` the check reads json_valid(`z`) while its name stays j.
+func dropColumnCheck(tbl *Table, colName string) {
+	key := toLower(colName)
+	kept := tbl.Constraints[:0]
+	for _, con := range tbl.Constraints {
+		if isColumnCheck(con) && toLower(con.Column) == key {
+			continue
+		}
+		kept = append(kept, con)
+	}
+	tbl.Constraints = kept
+}
+
+// isImplicitJSONCheck reports whether the constraint is the json_valid check a
+// JSON column carries, which the catalog names after that column. It is not a
+// constraint a statement can name: it comes and goes with its column.
+//
+// The answer comes from the constraint's own record of how it was made, not
+// from its SQL, since a statement may declare a check with the same name and
+// expression and that one is ordinary. See Constraint.Implicit.
+func isImplicitJSONCheck(con *Constraint) bool {
+	return con != nil && con.Type == ConCheck && con.Implicit
+}
+
+// moveColumnChecks follows a renamed column: the check it carries belongs to
+// it, so the ownership moves to the new name. Every check the column carries
+// moves, not only the json_valid one the catalog wrote — ownership left behind
+// would make the check the next column of that name's, and go with that one
+// when it is dropped.
+//
+// The name stays as it was: measured on mariadb:11.8.8, after
+// `CREATE TABLE t (a INT CHECK (a > 0)); ALTER TABLE t RENAME COLUMN a TO z`
+// the check is written on z and reads CHECK (`z` > 0), while
+// information_schema.CHECK_CONSTRAINTS still calls it a — and still a after
+// a second rename to w. A JSON column's check behaves the same way.
+//
+// The expression is rewritten only for the json_valid check, which the catalog
+// wrote itself. Rewriting the column references inside a check a statement
+// declared is the general stored-expression rewrite the catalog does not do:
+// measured, the server turns CHECK (`a` > 0) into CHECK (`z` > 0) there too.
+//
+// Checks are found by the column they belong to, since another constraint may
+// carry the old name.
+func moveColumnChecks(tbl *Table, oldName, newName string) {
+	key := toLower(oldName)
+	for _, con := range tbl.Constraints {
+		if !isColumnCheck(con) || toLower(con.Column) != key {
+			continue
+		}
+		con.Column = newName
+		if con.Implicit {
+			con.CheckExpr = "json_valid(" + backtickIDQ(newName) + ")"
+		}
+	}
+}
+
+// indexedColumnsOf returns the lowercased names of the columns the table's
+// indexes cover.
+func indexedColumnsOf(tbl *Table) map[string]bool {
+	out := make(map[string]bool)
+	if tbl == nil {
+		return out
+	}
+	for _, idx := range tbl.Indexes {
+		for _, ic := range idx.Columns {
+			out[toLower(ic.Name)] = true
+		}
+	}
+	return out
+}
+
 // alterDropConstraint removes a constraint by name.
 func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	name := cmd.Name
@@ -1147,19 +1456,34 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		// A check that belongs to a column carries the column's name but is
+		// not a constraint the statement can name: measured on
+		// mariadb:11.8.8, the server answers 1091 both for
+		// `ALTER TABLE t DROP CONSTRAINT j` on a JSON column `j` and for
+		// `ALTER TABLE t DROP CONSTRAINT a` against
+		// `CREATE TABLE t (a INT CHECK (a > 0))`. Such a check goes only with
+		// its column.
+		if isColumnCheck(con) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
 		if cmd.IfExists {
 			return nil
 		}
-		return errCantDropKey(name)
+		// The server names the spelling it was given, so a missing name under
+		// DROP FOREIGN KEY reports FOREIGN KEY where DROP CONSTRAINT reports
+		// CONSTRAINT. The AST folds both to ATDropConstraint and keeps no
+		// record of which was written, so this reports CONSTRAINT for both.
+		return errCantDropKey("CONSTRAINT", name)
 	}
 
 	// For FK constraints, MySQL keeps the backing index when dropping the FK.
@@ -1420,6 +1744,15 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// A column added or retyped JSON takes the same shape it would in a
+		// CREATE TABLE: longtext with the binary collation, and the
+		// json_valid check its caller attaches. Measured on mariadb:11.8.8:
+		// `ALTER TABLE t ADD COLUMN j JSON` reports
+		// `j` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+		// CHECK (json_valid(`j`)).
+		if col.DataType == "json" {
+			applyJSONColumn(col)
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			col.Charset = "utf8mb3"
 		}
@@ -1469,9 +1802,11 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-			Stored:   colDef.Generated.Stored,
-			RowBound: rowBoundSQL(colDef.Generated.RowBound),
+			Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Stored:           colDef.Generated.Stored,
+			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
+			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
+			Refs:             generatedColumnRefs(colDef.Generated.Expr),
 		}
 	}
 	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -1562,15 +1897,48 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		}
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
+	moveColumnChecks(tbl, oldName, newName)
+	// What a generated expression reads follows the column too. The server
+	// rewrites the expression's own text, which this does not do yet, but the
+	// recorded names have to keep pointing at the column or the dependency
+	// goes unseen: measured on mariadb:11.8.8, after
+	// `CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED);
+	// ALTER TABLE t RENAME COLUMN a TO z`, `ALTER TABLE t MODIFY z DOUBLE AS
+	// (RAND()) VIRTUAL` answers 1901 naming z.
+	for _, col := range tbl.Columns {
+		if col.Generated == nil {
+			continue
+		}
+		// A fresh slice rather than a write through this one, which a
+		// snapshot of the table may still be sharing.
+		refs := make([]string, len(col.Generated.Refs))
+		for i, ref := range col.Generated.Refs {
+			if toLower(ref) == oldKey {
+				ref = newName
+			}
+			refs[i] = ref
+		}
+		col.Generated.Refs = refs
+	}
 }
 
-// alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
+// alterCheckEnforced refuses `ALTER TABLE ... ALTER CHECK <name> [NOT]
+// ENFORCED`, which MariaDB has no grammar for: a CHECK constraint carries no
+// enforcement attribute there, and information_schema.TABLE_CONSTRAINTS has no
+// ENFORCED column. MySQL 8.0 has both. The parser still accepts the clause —
+// one of the MySQL-isms mariadb/parser's divergence inventory pins — so the
+// refusal lands here. Measured on mariadb:11.8.8: the server answers 1064.
 func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	key := toLower(cmd.Name)
 	for _, con := range tbl.Constraints {
 		if toLower(con.Name) == key && con.Type == ConCheck {
-			con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
-			return nil
+			return &Error{
+				Code:     1064,
+				SQLState: "42000",
+				Message: fmt.Sprintf("You have an error in your SQL syntax; check the manual that "+
+					"corresponds to your MariaDB server version for the right syntax to use near "+
+					"'CHECK %s %s' at line 1", cmd.Name, cmd.NewName),
+			}
 		}
 	}
 	return &Error{

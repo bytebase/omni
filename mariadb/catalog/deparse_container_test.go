@@ -86,7 +86,7 @@ func deparseExprRewriteForOracle(t *testing.T, expr string) string {
 func resolveDeparseOracleSelect(t *testing.T, sel *nodes.SelectStmt) {
 	t.Helper()
 	c := New()
-	results, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT, b INT, c INT)", nil)
+	results, err := c.Exec("CREATE DATABASE catalog_shared; USE catalog_shared; CREATE TABLE t (a INT, b INT, c INT)", nil)
 	if err != nil {
 		t.Fatalf("failed to set up resolver catalog: %v", err)
 	}
@@ -95,7 +95,7 @@ func resolveDeparseOracleSelect(t *testing.T, sel *nodes.SelectStmt) {
 			t.Fatalf("failed to set up resolver catalog: %v", r.Error)
 		}
 	}
-	db := c.GetDatabase("test")
+	db := c.GetDatabase("catalog_shared")
 	resolver := &deparse.Resolver{
 		Lookup:         tableLookupForDB(db),
 		DefaultCharset: c.defaultCharset,
@@ -276,14 +276,14 @@ func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -349,8 +349,8 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
@@ -370,7 +370,7 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -437,8 +437,8 @@ func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
@@ -453,7 +453,7 @@ func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -513,14 +513,14 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 
 		// --- Our catalog side ---
 		cat := New()
-		cat.Exec("CREATE DATABASE test", nil)
-		cat.SetCurrentDatabase("test")
+		cat.Exec("CREATE DATABASE catalog_shared", nil)
+		cat.SetCurrentDatabase("catalog_shared")
 		cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 		results, _ := cat.Exec(createSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 		}
-		omniOutput := cat.ShowCreateView("test", viewName)
+		omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 		if omniOutput == "" {
 			t.Fatal("ShowCreateView returned empty")
 		}
@@ -578,14 +578,14 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -648,8 +648,8 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -664,7 +664,7 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -731,8 +731,8 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -741,7 +741,7 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -798,14 +798,14 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -870,8 +870,8 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -886,7 +886,7 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -954,8 +954,8 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -964,7 +964,7 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1026,8 +1026,8 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1036,7 +1036,7 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1093,8 +1093,8 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1103,7 +1103,7 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1174,8 +1174,8 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			if tc.tables != "" {
 				cat.Exec(tc.tables, nil)
@@ -1193,7 +1193,7 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -1260,8 +1260,8 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			if tc.tables != "" {
 				cat.Exec(tc.tables, nil)
@@ -1273,7 +1273,7 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1338,8 +1338,8 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1348,7 +1348,7 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1412,8 +1412,8 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1422,7 +1422,7 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1479,8 +1479,8 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1489,7 +1489,7 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1558,8 +1558,8 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
@@ -1576,7 +1576,7 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -1651,8 +1651,8 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
@@ -1670,7 +1670,7 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -1737,8 +1737,8 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1753,7 +1753,7 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -1817,8 +1817,8 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
@@ -1833,7 +1833,7 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -1932,8 +1932,8 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 
 			// --- Omni catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
@@ -1953,7 +1953,7 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -2042,8 +2042,8 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
@@ -2059,7 +2059,7 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -2173,8 +2173,8 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
@@ -2189,7 +2189,7 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				if tc.partial {
 					t.Skip("ShowCreateView returned empty (expected partial)")
@@ -2242,8 +2242,8 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 
 		// Omni side
 		cat := New()
-		cat.Exec("CREATE DATABASE test", nil)
-		cat.SetCurrentDatabase("test")
+		cat.Exec("CREATE DATABASE catalog_shared", nil)
+		cat.SetCurrentDatabase("catalog_shared")
 		cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 		results, _ := cat.Exec("CREATE VIEW v1_vov AS SELECT a FROM t", nil)
 		if len(results) > 0 && results[0].Error != nil {
@@ -2253,7 +2253,7 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 		if len(results) > 0 && results[0].Error != nil {
 			t.Fatalf("CREATE VIEW v2_vov on catalog failed: %v", results[0].Error)
 		}
-		omniOutput := cat.ShowCreateView("test", "v2_vov")
+		omniOutput := cat.ShowCreateView("catalog_shared", "v2_vov")
 		if omniOutput == "" {
 			t.Fatal("ShowCreateView returned empty for v2_vov")
 		}
@@ -2308,8 +2308,8 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
@@ -2318,7 +2318,7 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -2432,8 +2432,8 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 
 			// --- Our catalog side ---
 			cat := New()
-			cat.Exec("CREATE DATABASE test", nil)
-			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE DATABASE catalog_shared", nil)
+			cat.SetCurrentDatabase("catalog_shared")
 			// Create the appropriate table(s)
 			switch tc.setupTable {
 			case "t":
@@ -2450,7 +2450,7 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
-			omniOutput := cat.ShowCreateView("test", viewName)
+			omniOutput := cat.ShowCreateView("catalog_shared", viewName)
 			if omniOutput == "" {
 				t.Fatal("ShowCreateView returned empty")
 			}

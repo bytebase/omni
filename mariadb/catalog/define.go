@@ -157,7 +157,7 @@ func (c *Catalog) DefineTrigger(stmt *nodes.CreateTriggerStmt) error {
 	if stmt == nil || stmt.Name == "" || stmt.Table == nil || stmt.Table.Name == "" {
 		return errWrongArguments("DefineTrigger")
 	}
-	return c.createTrigger(stmt)
+	return c.createTrigger(stmt, "")
 }
 
 // DefineEvent installs an event in the current or specified database.

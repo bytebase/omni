@@ -51,7 +51,7 @@ func TestLongChainsDeparseStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name, sql, marker string
 	}{
-		{"sum", "SELECT " + repeatTerms(n, "1", " + ", "1"), " + 1)"},
+		{"sum", "SELECT " + repeatTerms(n, "1", " + ", "1"), " + 1"},
 		{"UNION ALL", repeatTerms(n, "SELECT 1", " UNION ALL ", "SELECT 1"), " union all "},
 		{"AND", "SELECT * FROM t WHERE " + repeatTerms(n, "a = 1", " AND ", "a = 1"), " and "},
 		{"OR", "SELECT * FROM t WHERE " + repeatTerms(n, "a = 1", " OR ", "a = 1"), " or "},
@@ -94,7 +94,7 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 		// inputs; SELECT * lists each such column once.
 		{"USING chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (a)"), "` AS `b`", n},
 		{"USING chain on two columns", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (b, a)"), "` AS `b`", 1},
-		{"NATURAL chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " NATURAL JOIN t AS t%d"), "(`t0`.`b` = `t", n - 1},
+		{"NATURAL chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " NATURAL JOIN t AS t%d"), "`t0`.`b` = `t", n - 1},
 		{"right-nested USING", "SELECT * FROM " + numberedTerms(9000, "", "t AS t%d JOIN (") + "t AS t0" + strings.Repeat(") USING (a)", 8999), "` AS `b`", 9000},
 	} {
 		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
@@ -107,6 +107,38 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Fatalf("%s: Resolve over a %d-table join chain took over 10s", tc.name, n)
+		}
+	}
+}
+
+// TestRewriteNestedQueriesStaysLinear guards the walk that inlines a named
+// window. Every query nested in a body has a rewrite pass of its own, so
+// recursing from the inliner as well walked each subtree once per level above
+// it: each shape here takes 2ms walked once and over 2s walked that way.
+//
+// The windows themselves are covered by the catalog's own container-backed
+// cases, which hold a named window in each nested position against the
+// server; this one holds the cost down.
+func TestRewriteNestedQueriesStaysLinear(t *testing.T) {
+	// A level of query nesting costs two of the parser's own, so this goes as
+	// deep as it takes them. Only nesting is quadratic this way: a chain of
+	// CTEs beside one another is walked once however long it is.
+	const n = 4900
+	for _, tc := range []struct{ name, sql string }{
+		{"scalar subqueries", "SELECT " + strings.Repeat("(SELECT ", n) + "1" + strings.Repeat(")", n)},
+		{"derived tables", "SELECT 1 FROM " + strings.Repeat("(SELECT 1 FROM ", n) + "t" +
+			numberedTerms(n, ") d0", ") d%d")},
+	} {
+		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
+		done := make(chan struct{})
+		go func() {
+			RewriteSelectStmt(stmt)
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: RewriteSelectStmt over %d nested queries took over 2s", tc.name, n)
 		}
 	}
 }

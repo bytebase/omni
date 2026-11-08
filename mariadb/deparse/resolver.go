@@ -35,48 +35,120 @@ type Resolver struct {
 	// from the AST, which matches MySQL only for text written the way the
 	// rebuilt name spells it.
 	Source string
+	// aliasTargets holds the query an ORDER BY or GROUP BY item is being
+	// resolved for, where a mention of a target-list alias stands for that
+	// target's expression. It is nil everywhere else: HAVING keeps the output
+	// name instead, and a set operation's own ORDER BY keeps the alias.
+	aliasTargets *ast.SelectStmt
+	// aliasColumnsOnly limits that to a target that is a column reference,
+	// which is ORDER BY's rule where GROUP BY takes any target.
+	aliasColumnsOnly bool
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
 // references fully qualified. The original AST is modified in-place.
 func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
+	// A query of its own resolves against its own target list, so the one an
+	// outer ordering item was being resolved for does not reach into it.
+	saved := r.aliasTargets
+	r.aliasTargets = nil
+	defer func() { r.aliasTargets = saved }()
 	return r.resolveWithCTEs(stmt, nil)
 }
 
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
 // available in scope. cteTables maps CTE names to virtual ResolverTables
 // built from their SELECT target lists.
-// resolveOrderByOrdinals rewrites positional ORDER BY items (ORDER BY 1) to the
-// matching column alias from the leftmost SELECT's target list, matching MySQL
-// 8.0 behavior.
-func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt) {
-	if leftmost == nil {
-		return
+// orderByTargetAlias returns the target-list expression an ORDER BY item names
+// by alias. MariaDB stores the expression rather than the alias:
+// `SELECT a AS z FROM t ORDER BY z` comes back as `order by \`t\`.\`a\“, and
+// `SELECT a + 1 AS z ... ORDER BY z` as `order by \`t\`.\`a\` + 1`. A
+// positional item is left alone, since the server keeps `order by 1` as
+// written. Measured on mariadb:11.8.8.
+//
+// Only an unqualified name can be an alias: `ORDER BY t.z` names a column of t.
+func orderByTargetAlias(stmt *ast.SelectStmt, expr ast.ExprNode) (ast.ExprNode, bool) {
+	cr, ok := expr.(*ast.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" {
+		return nil, false
 	}
-	for _, item := range orderBy {
-		lit, ok := item.Expr.(*ast.IntLit)
-		if !ok {
+	for _, target := range stmt.TargetList {
+		rt, ok := target.(*ast.ResTarget)
+		if !ok || rt.Name == "" {
 			continue
 		}
-		idx := int(lit.Value) - 1 // 1-based to 0-based
-		if idx < 0 || idx >= len(leftmost.TargetList) {
-			continue
-		}
-		rt, ok := leftmost.TargetList[idx].(*ast.ResTarget)
-		if !ok {
-			continue
-		}
-		alias := rt.Name
-		if alias == "" {
-			// Derive alias from a bare column ref.
-			if cr, ok := rt.Val.(*ast.ColumnRef); ok {
-				alias = cr.Column
-			}
-		}
-		if alias != "" {
-			item.Expr = &ast.ColumnRef{Column: alias}
+		if strings.EqualFold(rt.Name, cr.Column) {
+			return rt.Val, true
 		}
 	}
+	return nil, false
+}
+
+// namesColumn reports whether an unqualified reference names a column of the
+// FROM clause, which is what a GROUP BY item is resolved against before the
+// target list is consulted.
+func (sc *fromScope) namesColumn(expr ast.ExprNode) bool {
+	cr, ok := expr.(*ast.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" {
+		return false
+	}
+	if _, ok := sc.coalesced[strings.ToLower(cr.Column)]; ok {
+		return true
+	}
+	_, ok = sc.FirstWithColumn(cr.Column)
+	return ok
+}
+
+// resolveOrderingItem resolves an ORDER BY or GROUP BY item that is not a bare
+// alias, where a mention of one inside the expression can still stand for that
+// target's expression. resolveColumnRef makes the substitution; this says
+// where it applies, and columnsOnly which targets it holds for.
+//
+// Measured on mariadb:11.8.8. A GROUP BY item takes the target's expression
+// whatever it is: over `a + 1 AS z` it comes back
+// group by `t`.`a` + 1 + 0, over `2.5 AS z` group by 2.5 + 0 and over
+// `RAND() AS z` group by rand() + 0. An ORDER BY item takes it only where the
+// target is a column — `a AS z` gives order by `t`.`a` + 0 — and keeps the
+// alias for anything else, `a + 1 AS z` and `2 AS z` both coming back
+// order by `z` + 0.
+func (r *Resolver) resolveOrderingItem(expr ast.ExprNode, stmt *ast.SelectStmt, sc *fromScope, columnsOnly bool) ast.ExprNode {
+	savedTargets, savedColumnsOnly := r.aliasTargets, r.aliasColumnsOnly
+	r.aliasTargets, r.aliasColumnsOnly = stmt, columnsOnly
+	defer func() { r.aliasTargets, r.aliasColumnsOnly = savedTargets, savedColumnsOnly }()
+	return r.resolveExpr(expr, sc)
+}
+
+// orderedConstant guards the one substitution that would change what an
+// ORDER BY or GROUP BY means. An integer is read as an output position there,
+// so MariaDB writes an empty string in place of a whole-number constant the
+// item took from an alias: measured on mariadb:11.8.8,
+// `SELECT 2 AS z FROM t ORDER BY z` comes back ordered by an empty string, and
+// so do 0, -2, +2, (2) and TRUE, while 2.5, 1e2, NULL and X'31' are written as
+// they stand, none of them being readable as a position. An item that is not
+// the bare alias keeps the alias instead, ORDER BY z + 0 coming back as the
+// alias plus zero.
+func orderedConstant(expr ast.ExprNode) ast.ExprNode {
+	if isWholeNumberConstant(expr) {
+		return &ast.StringLit{Value: ""}
+	}
+	return expr
+}
+
+// isWholeNumberConstant reports whether the expression is a constant that
+// prints as a bare whole number, which is what an ORDER BY item reads as a
+// position.
+func isWholeNumberConstant(expr ast.ExprNode) bool {
+	switch n := expr.(type) {
+	case *ast.ParenExpr:
+		return isWholeNumberConstant(n.Expr)
+	case *ast.IntLit, *ast.BoolLit:
+		return true
+	case *ast.UnaryExpr:
+		if n.Op == ast.UnaryMinus || n.Op == ast.UnaryPlus {
+			return isWholeNumberConstant(n.Operand)
+		}
+	}
+	return false
 }
 
 // resolveParenSource resolves a parenthesized query expression: the inner query
@@ -108,7 +180,6 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		return
 	}
 	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
-	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
@@ -149,9 +220,6 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
-		if len(stmt.OrderBy) > 0 {
-			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
-		}
 		return stmt
 	}
 
@@ -234,9 +302,21 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Where = r.resolveExpr(stmt.Where, sc)
 	}
 
-	// Resolve GROUP BY
+	// Resolve GROUP BY, which takes a target-list alias as ORDER BY does but
+	// only where the FROM clause has no column of that name: the source
+	// column wins there, where in ORDER BY the alias does. Measured on
+	// mariadb:11.8.8 over a table holding a and b:
+	// `SELECT a AS z, COUNT(*) FROM t GROUP BY z` groups by `t`.`a` and
+	// `SELECT 2 AS z FROM t GROUP BY z` by '', while
+	// `SELECT a AS b, COUNT(*) FROM t GROUP BY b` groups by `t`.`b` — two
+	// rows where the alias would have given one — and the same query ordered
+	// by b orders by `t`.`a`.
 	for _, item := range stmt.GroupBy {
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok && !sc.namesColumn(item.Expr) {
+			item.Expr = orderedConstant(expr)
+			continue
+		}
+		item.Expr = r.resolveOrderingItem(item.Expr, stmt, sc, false)
 	}
 
 	// Resolve HAVING
@@ -244,19 +324,19 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
 	}
 
-	// Resolve WINDOW clause
+	// Resolve WINDOW clause, each entry as the specification it is
 	for _, wd := range stmt.WindowClause {
-		for i, expr := range wd.PartitionBy {
-			wd.PartitionBy[i] = r.resolveExpr(expr, sc)
-		}
-		for _, item := range wd.OrderBy {
-			item.Expr = r.resolveExpr(item.Expr, sc)
-		}
+		r.resolveWindowDef(wd, sc)
 	}
 
-	// Resolve ORDER BY
+	// Resolve ORDER BY. An item that names a target-list alias takes that
+	// target's expression, which is already resolved.
 	for _, item := range stmt.OrderBy {
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok {
+			item.Expr = orderedConstant(expr)
+			continue
+		}
+		item.Expr = r.resolveOrderingItem(item.Expr, stmt, sc, true)
 	}
 
 	return stmt
@@ -569,7 +649,23 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	// field list is ambiguous. TODO: return error
 	entry, ok := sc.FirstWithColumn(col.Column)
 	if !ok {
-		// Column not found — return as-is (could be a literal alias or error)
+		// Not a column the FROM clause holds. In an ORDER BY or GROUP BY item
+		// a name the target list aliases stands for that target's expression,
+		// which is what the server stores — the alias reaches the body
+		// nowhere: measured on mariadb:11.8.8,
+		// `SELECT a AS z FROM t ORDER BY z + 0` comes back ordered by
+		// `t`.`a` + 0 and `ORDER BY ABS(z)` by abs(`t`.`a`), named columns or
+		// not. Leaving the name wrote a body that names nothing, which a view
+		// declaring its own columns cannot even be replayed from.
+		if r.aliasTargets != nil {
+			if expr, ok := orderByTargetAlias(r.aliasTargets, col); ok {
+				_, isColumn := unwrapParen(expr).(*ast.ColumnRef)
+				if isColumn || !r.aliasColumnsOnly {
+					return expr
+				}
+			}
+		}
+		// Otherwise as-is: a literal alias HAVING keeps, or an error.
 		return col
 	}
 	col.Table = entry.Name
@@ -577,12 +673,21 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 }
 
 // resolveWindowDef resolves column references in a window definition.
+// resolveWindowDef resolves a window specification's own expressions. Neither
+// of its lists reads a number as an output position, so a whole-number
+// constant in one is written as the empty string an item taking such a
+// constant from an alias is written as: measured on mariadb:11.8.8,
+// `OVER (ORDER BY TRUE)`, `OVER (ORDER BY 1)` and `OVER (ORDER BY -1)` all
+// come back ordered by an empty string, and PARTITION BY the same, where 2.5,
+// NULL, 1e2, X'31' and 0x31 are written as they stand. A statement's own GROUP BY and
+// ORDER BY are the other way round, reading even TRUE as the position 1, and
+// an aggregate's ORDER BY keeps its constant as written.
 func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *fromScope) {
 	for i, expr := range wd.PartitionBy {
-		wd.PartitionBy[i] = r.resolveExpr(expr, sc)
+		wd.PartitionBy[i] = orderedConstant(r.resolveExpr(expr, sc))
 	}
 	for _, item := range wd.OrderBy {
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		item.Expr = orderedConstant(r.resolveExpr(item.Expr, sc))
 	}
 }
 

@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 
@@ -127,15 +127,23 @@ func TestScenario_C25(t *testing.T) {
 				strings.ToLower(col.ColumnType), "decimal(65,30)")
 		}
 
-		// 25.3b: DECIMAL(66,0) → ER_TOO_BIG_PRECISION (1426).
+		// 25.3b: DECIMAL(66,0) → ER_TOO_BIG_PRECISION (1426). MariaDB words it
+		// "Too big precision specified for 'd'. Maximum is 65", naming the
+		// limit rather than the value asked for. Measured on mariadb:11.8.8.
 		c25AssertBothError(t, mc, c,
 			"CREATE TABLE err_p_gt_65 (d DECIMAL(66, 0))",
-			"precision 66", "25.3b precision > 65")
+			"too big precision", "25.3b precision > 65")
 
-		// 25.3c: DECIMAL(40,31) → ER_TOO_BIG_SCALE (1425).
+		// 25.3c: MariaDB's scale maximum is 38, not MySQL 8.0's 30, so
+		// DECIMAL(40,31) is accepted and DECIMAL(40,39) answers
+		// ER_TOO_BIG_SCALE (1425). Measured on mariadb:11.8.8.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"CREATE TABLE ok_s_31 (d DECIMAL(40, 31))"); err != nil {
+			t.Errorf("oracle 25.3c: expected DECIMAL(40,31) to be accepted, got %v", err)
+		}
 		c25AssertBothError(t, mc, c,
-			"CREATE TABLE err_s_gt_30 (d DECIMAL(40, 31))",
-			"scale 31", "25.3c scale > 30")
+			"CREATE TABLE err_s_gt_38 (d DECIMAL(40, 39))",
+			"too big scale", "25.3c scale > 38")
 
 		// 25.3d: DECIMAL(5,6) → ER_M_BIGGER_THAN_D (1427).
 		c25AssertBothError(t, mc, c,
@@ -282,7 +290,7 @@ func c25Col(t *testing.T, c *Catalog, table, col string) *Column {
 // catalog, asserting that BOTH return an error. If wantSubstr is non-empty it
 // must appear in the MySQL container error message (case-insensitive). label
 // is used only in error messages for easier triage.
-func c25AssertBothError(t *testing.T, mc *mysqlContainer, c *Catalog, ddl, wantSubstr, label string) {
+func c25AssertBothError(t *testing.T, mc *mariadbContainer, c *Catalog, ddl, wantSubstr, label string) {
 	t.Helper()
 
 	_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)

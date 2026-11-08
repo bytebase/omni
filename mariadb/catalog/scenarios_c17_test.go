@@ -262,7 +262,12 @@ func TestScenario_C17(t *testing.T) {
 		}
 	})
 
-	// ---- 17.6 REPEAT / LPAD / RPAD pin to first-arg charset ---------------
+	// ---- 17.6 REPEAT pins to its argument; LPAD / RPAD coerce -------------
+	// REPEAT has one string argument and keeps its charset. LPAD and RPAD take
+	// two, and MariaDB coerces the result to the wider of them — latin1 with
+	// utf8mb4 gives utf8mb4 either way round — where MySQL 8.0 pins the result
+	// to the first argument's. Measured on mariadb:11.8.8:
+	// `LPAD(a, 20, b)` over a latin1 `a` and a utf8mb4 `b` reports utf8mb4.
 	t.Run("17_6_first_arg_pins_charset", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -278,7 +283,7 @@ func TestScenario_C17(t *testing.T) {
 		type want struct{ cs, co string }
 		cases := map[string]want{
 			"v6a": {"latin1", "latin1_swedish_ci"},
-			"v6b": {"latin1", "latin1_swedish_ci"},
+			"v6b": {"utf8mb4", "utf8mb4_0900_ai_ci"},
 			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
 		}
 		for view, w := range cases {

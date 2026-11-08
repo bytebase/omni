@@ -98,30 +98,34 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position                     int
-	Name                         string
-	DataType                     string // normalized (int, varchar, etc.)
-	ColumnType                   string // full type string (varchar(100), int unsigned)
-	Nullable                     bool
-	Default                      *string
-	DefaultKind                  ColumnDefaultKind
-	DefaultDropped               bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement                bool
-	Charset                      string
-	Collation                    string
-	Comment                      string
-	OnUpdate                     string
-	OnUpdateKind                 ColumnDefaultKind
-	Generated                    *GeneratedColumnInfo
-	Invisible                    bool
-	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
-	Hidden                       ColumnHiddenKind
-	SRID                         int          // Spatial Reference ID (0 = not set)
-	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
-	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+	Position          int
+	Name              string
+	DataType          string // normalized (int, varchar, etc.)
+	ColumnType        string // full type string (varchar(100), int unsigned)
+	Nullable          bool
+	Default           *string
+	DefaultKind       ColumnDefaultKind
+	DefaultDropped    bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement     bool
+	Charset           string
+	Collation         string
+	Comment           string
+	OnUpdate          string
+	OnUpdateKind      ColumnDefaultKind
+	Generated         *GeneratedColumnInfo
+	Invisible         bool
+	Hidden            ColumnHiddenKind
+	SRID              int          // Spatial Reference ID (0 = not set)
+	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 	// SystemVersioning is "WITH" / "WITHOUT" for a column-level
 	// WITH/WITHOUT SYSTEM VERSIONING attribute, else "".
 	SystemVersioning string
+	// IsJSON records that the column was declared JSON. MariaDB has no JSON
+	// type and keeps the column as longtext with a json_valid check, which is
+	// what DataType and ColumnType hold; this says what it was written as, for
+	// a caller that needs to tell such a column from a plain longtext.
+	IsJSON bool
 }
 
 type ColumnDefaultKind int
@@ -143,6 +147,20 @@ const (
 type GeneratedColumnInfo struct {
 	Expr   string
 	Stored bool
+	// Nondeterministic names the non-deterministic function the expression
+	// calls, spelled as MariaDB spells it in its 1901 message, or "" where it
+	// calls none. It is recorded when the column is defined, while the
+	// expression is still an AST, because a key added later materializes a
+	// VIRTUAL column's value and the server then refuses the expression:
+	// measured on mariadb:11.8.8, `CREATE INDEX idx ON t(a)` over
+	// `a DOUBLE AS (RAND()) VIRTUAL` answers 1901 just as declaring the key
+	// with the table does.
+	Nondeterministic string
+	// Refs holds the columns the expression reads, recorded at the same time
+	// and for the same reason: MariaDB carries nondeterminism through them, so
+	// a materialized column that takes its value from a non-deterministic
+	// generated column is refused too. See nondeterministicDependency.
+	Refs []string
 	// RowBound is "ROW START" / "ROW END" for a system-versioning period
 	// column (GENERATED ALWAYS AS ROW START/END), else "".
 	RowBound string
@@ -192,13 +210,18 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name                string
-	Database            *Database
-	Table               string // table name the trigger is on
-	Timing              string // BEFORE, AFTER
-	Event               string // INSERT, UPDATE, DELETE
-	Definer             string
-	Body                string
+	Name     string
+	Database *Database
+	Table    string // table name the trigger is on
+	Timing   string // BEFORE, AFTER
+	Event    string // INSERT, UPDATE, DELETE
+	Definer  string
+	Body     string
+	// SourceText is the CREATE TRIGGER statement from its TRIGGER keyword to
+	// its end, as the statement was written, which is what SHOW CREATE TRIGGER
+	// echoes. It is empty for a trigger that did not come from a statement
+	// this catalog executed, such as a synced one.
+	SourceText          string
 	CharacterSetClient  string
 	CollationConnection string
 	DatabaseCollation   string
@@ -239,6 +262,12 @@ func cloneTable(src *Table) Table {
 		}
 		if sc.Generated != nil {
 			gen := *sc.Generated
+			// Refs is a slice, so the struct copy would leave the clone
+			// writing through to it: a rejected ALTER restores this snapshot,
+			// and a rename it had already applied would survive in the
+			// restored table and leave the dependency pointing at a name no
+			// column has.
+			gen.Refs = append([]string(nil), sc.Generated.Refs...)
 			col.Generated = &gen
 		}
 		dst.Columns[i] = &col

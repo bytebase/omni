@@ -44,7 +44,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	// Build return type -- MySQL shows lowercase with CHARSET for string types.
 	var returns string
 	if stmt.Returns != nil {
-		returns = formatReturnType(stmt.Returns, db.Charset)
+		returns = formatReturnType(stmt.Returns, db.Charset, db.Collation)
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -202,14 +202,37 @@ func formatParamType(dt *nodes.DataType) string {
 	return strings.ToUpper(raw)
 }
 
-// formatReturnType formats a DataType for display in the RETURNS clause.
-// MySQL 8.0 shows return types in lowercase but adds CHARSET for string types.
-func formatReturnType(dt *nodes.DataType, dbCharset string) string {
+// formatReturnType formats a DataType for display in the RETURNS clause, which
+// MariaDB normalizes where it leaves the parameter list as written:
+//
+//	FUNCTION `fa`(a INT, b INT) RETURNS int(11)
+//	FUNCTION `fb`(x INT) RETURNS varchar(100) CHARSET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
+//
+// so an integer type carries its display width and a string type its charset
+// and collation. MySQL 8.0 writes neither the width nor the collation.
+// Measured on mariadb:11.8.8 through SHOW CREATE FUNCTION.
+func formatReturnType(dt *nodes.DataType, dbCharset, dbCollation string) string {
 	raw := formatDataType(dt)
-	// MySQL 8.0 appends CHARSET for string return types.
 	name := strings.ToLower(dt.Name)
+	if normalized := normalizedTypeName(name); isIntegerType(normalized) && dt.Length == 0 {
+		raw = fmt.Sprintf("%s(%d)", normalized, defaultIntDisplayWidth(normalized, dt.Unsigned))
+		if dt.Unsigned {
+			raw += " unsigned"
+		}
+	}
 	if isStringRoutineType(name) {
 		charset := dt.Charset
+		if charset == "" && dt.Collate != "" {
+			// A RETURNS clause that names a collation and no charset takes
+			// that collation's charset, not the database's: measured on
+			// mariadb:11.8.8 in a utf8mb4 database,
+			// `RETURNS VARCHAR(20) COLLATE latin1_bin` comes back
+			// CHARSET latin1 COLLATE latin1_bin, and utf8mb3_bin comes back
+			// CHARSET utf8mb3. Pairing the collation with the database's
+			// charset instead wrote a combination the server refuses with
+			// 1253.
+			charset = normalizeCharsetName(charsetForCollation(dt.Collate))
+		}
 		if charset == "" {
 			charset = dbCharset
 		}
@@ -217,11 +240,35 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+		// The collation comes from the RETURNS clause where it names one, and
+		// otherwise from the database — not from the charset — because a
+		// function with neither attribute takes the database's defaults at
+		// creation time. Naming a CHARACTER SET, even the database's own,
+		// takes that charset's default collation instead.
+		//
+		// Measured on mariadb:11.8.8 in a database declared
+		// `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`:
+		// `RETURNS VARCHAR(20)` is utf8mb4 COLLATE utf8mb4_bin,
+		// `RETURNS VARCHAR(20) CHARACTER SET utf8mb4` is
+		// utf8mb4 COLLATE utf8mb4_uca1400_ai_ci, and
+		// `RETURNS VARCHAR(20) COLLATE utf8mb4_general_ci` keeps the one it
+		// names.
+		collation := dt.Collate
+		if collation == "" && dt.Charset == "" {
+			collation = dbCollation
+		}
+		if collation == "" {
+			collation = defaultCollationForCharset[toLower(charset)]
+		}
+		if collation != "" {
+			raw += " COLLATE " + collation
+		}
 	}
 	return raw
 }
 
-// isStringRoutineType returns true for types where MySQL shows CHARSET in routine RETURNS.
+// isStringRoutineType returns true for the types a RETURNS clause carries a
+// charset and collation for.
 func isStringRoutineType(dt string) bool {
 	switch dt {
 	case "varchar", "char", "text", "tinytext", "mediumtext", "longtext",
@@ -231,7 +278,7 @@ func isStringRoutineType(dt string) bool {
 	return false
 }
 
-// ShowCreateFunction produces MySQL 8.0-compatible SHOW CREATE FUNCTION output.
+// ShowCreateFunction produces MariaDB-compatible SHOW CREATE FUNCTION output.
 func (c *Catalog) ShowCreateFunction(database, name string) string {
 	db := c.GetDatabase(database)
 	if db == nil {

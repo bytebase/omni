@@ -121,12 +121,15 @@ func TestScenario_C9(t *testing.T) {
             b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
             FOREIGN KEY (b) REFERENCES p(id)
         )`
+		// MariaDB takes a foreign key over a generated column, virtual or
+		// stored; MySQL 8.0 answers ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104).
+		// Measured on mariadb:11.8.8.
 		_, oracleVirtErr := mc.db.ExecContext(mc.ctx, badVirtual)
-		if oracleVirtErr == nil {
-			t.Errorf("oracle: expected FK-on-VIRTUAL-gcol rejection, got nil error")
+		if oracleVirtErr != nil {
+			t.Errorf("oracle: expected an FK over a virtual generated column to be accepted, got %v", oracleVirtErr)
 		}
 		omniVirtErrored, _ := c9OmniExec(c2, badVirtual+";")
-		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol (child)", omniVirtErrored, true)
+		assertBoolEq(t, "omni accepts FK on VIRTUAL gcol (child)", omniVirtErrored, false)
 	})
 
 	// --- 9.3 VIRTUAL gcol in PK rejected; secondary KEY allowed --------------
@@ -169,19 +172,23 @@ func TestScenario_C9(t *testing.T) {
 		assertBoolEq(t, "omni rejects VIRTUAL gcol as PRIMARY KEY", omniErrored, true)
 	})
 
-	// --- 9.4 Gcol expression must be deterministic (NOW() rejected) ---------
-	t.Run("9_4_gcol_expr_must_be_deterministic", func(t *testing.T) {
+	// --- 9.4 Gcol expression may be non-deterministic -----------------------
+	// MariaDB takes a non-deterministic generated column and keeps the call in
+	// the expression; MySQL 8.0 refuses one. Measured on mariadb:11.8.8:
+	// `g INT GENERATED ALWAYS AS (a + RAND()) VIRTUAL` reads back as
+	// `g` int(11) GENERATED ALWAYS AS (`a` + rand()) VIRTUAL.
+	t.Run("9_4_gcol_expr_may_be_nondeterministic", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		bad := `CREATE TABLE t (a INT, b TIMESTAMP GENERATED ALWAYS AS (NOW()) VIRTUAL)`
-		_, oracleErr := mc.db.ExecContext(mc.ctx, bad)
-		if oracleErr == nil {
-			t.Errorf("oracle: expected non-deterministic gcol rejection, got nil error")
+		ddl := `CREATE TABLE t (a INT, b TIMESTAMP GENERATED ALWAYS AS (NOW()) VIRTUAL)`
+		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
+		if oracleErr != nil {
+			t.Errorf("oracle: expected a non-deterministic generated column to be accepted, got %v", oracleErr)
 		}
 
-		omniErrored, _ := c9OmniExec(c, bad+";")
-		assertBoolEq(t, "omni rejects NOW() in gcol expression", omniErrored, true)
+		omniErrored, _ := c9OmniExec(c, ddl+";")
+		assertBoolEq(t, "omni accepts NOW() in gcol expression", omniErrored, false)
 	})
 
 	// --- 9.5 UNIQUE on gcol allowed (both STORED and VIRTUAL under InnoDB) ---

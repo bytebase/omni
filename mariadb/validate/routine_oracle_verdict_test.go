@@ -36,7 +36,7 @@ func recordVerdict(t *testing.T, f func(testing.TB)) string {
 }
 
 // TestMySQLExecAcceptsFailsWithoutVerdict pins that a closed oracle connection is no
-// verdict. mysqlExecAccepts used to read any error that was not a server error as a
+// verdict. mariadbExecAccepts used to read any error that was not a server error as a
 // rejection, so a dead connection passed every probe that expects MySQL to refuse.
 // This needs no container, so it guards the helper wherever it runs.
 func TestMySQLExecAcceptsFailsWithoutVerdict(t *testing.T) {
@@ -48,7 +48,7 @@ func TestMySQLExecAcceptsFailsWithoutVerdict(t *testing.T) {
 	o := &routineValidationOracle{db: db, ctx: context.Background()}
 
 	var accepted bool
-	if msg := recordVerdict(t, func(tb testing.TB) { accepted, _ = mysqlExecAccepts(tb, o, "SELECT 1") }); msg == "" {
+	if msg := recordVerdict(t, func(tb testing.TB) { accepted, _ = mariadbExecAccepts(tb, o, "SELECT 1") }); msg == "" {
 		t.Errorf("a closed connection came back as a verdict (accepted=%v), not a failure", accepted)
 	}
 }

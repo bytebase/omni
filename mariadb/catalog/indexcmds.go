@@ -204,7 +204,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		if stmt.IfExists {
 			return nil
 		}
-		return errCantDropKey(stmt.Name)
+		return errCantDropKey("INDEX", stmt.Name)
 	}
 	removeFunctionalIndexHiddenColumns(tbl, dropped)
 

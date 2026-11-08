@@ -32,7 +32,7 @@ func TestLongChainViewsStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name, sql, defMarker, queryMarker string
 	}{
-		{"sum", "SELECT " + chainSQL(n, "1", " + ", "1"), " + 1)", " + 1)"},
+		{"sum", "SELECT " + chainSQL(n, "1", " + ", "1"), " + 1", " + 1"},
 		{"UNION ALL", chainSQL(n, "SELECT a FROM t", " UNION ALL ", "SELECT a FROM t"), " union all ", " union all "},
 		{"AND", "SELECT a FROM t WHERE " + chainSQL(n, "a = 1", " AND ", "a = 1"), " and ", " and "},
 		{"OR", "SELECT a FROM t WHERE " + chainSQL(n, "a = 1", " OR ", "a = 1"), " or ", " or "},
@@ -156,4 +156,161 @@ func TestJoinChainAnalysisStaysLinear(t *testing.T) {
 			t.Errorf("%s: four times the joins allocated %.1f times the bytes", tc.name, ratio)
 		}
 	}
+}
+
+// TestGeneratedColumnChecksStayLinear guards the walk behind the
+// non-deterministic-dependency check. Carrying nondeterminism through the
+// columns an expression reads means following each column's dependencies, and
+// doing that from scratch for each of them walked the chain below it again:
+// a table whose columns each read the one before took time quadratic in their
+// number, seconds of it at a few thousand. Walked once it is milliseconds.
+//
+// The chain is deterministic, which is the case that has to be followed to its
+// end; one non-deterministic column is answered where it is met.
+func TestGeneratedColumnChecksStayLinear(t *testing.T) {
+	const n = 20000
+	tbl := &Table{Name: "t", colByName: make(map[string]int, n)}
+	for i := 0; i < n; i++ {
+		col := &Column{Name: fmt.Sprintf("c%d", i)}
+		if i > 0 {
+			prev := fmt.Sprintf("c%d", i-1)
+			col.Generated = &GeneratedColumnInfo{
+				Expr:   "`" + prev + "`",
+				Stored: true,
+				Refs:   []string{prev},
+			}
+		}
+		tbl.colByName[toLower(col.Name)] = len(tbl.Columns)
+		tbl.Columns = append(tbl.Columns, col)
+	}
+	done := make(chan error, 1)
+	go func() { done <- validateMaterializedGeneratedColumns(tbl, nil) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("a chain of %d generated columns: %v", n, err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("checking a chain of %d generated columns took over 5s", n)
+	}
+}
+
+// TestShowCreateTableStaysLinear guards the lookups behind writing a table.
+// The CHECK a column carries was found by scanning the table's columns and
+// then its constraints, once per column written and once per constraint
+// sorted, which made writing a wide table quadratic in its columns — a table
+// of 4,000 spent most of its time there, with no CHECK in sight. Each shape
+// takes milliseconds when linear and seconds otherwise.
+func TestShowCreateTableStaysLinear(t *testing.T) {
+	const n = 40000
+	for _, tc := range []struct {
+		name  string
+		check bool
+	}{
+		{"plain columns", false},
+		{"a check on every column", true},
+	} {
+		c := New()
+		if _, err := c.Exec("CREATE DATABASE d; USE d;", nil); err != nil {
+			t.Fatalf("%s: setup: %v", tc.name, err)
+		}
+		db := c.GetDatabase("d")
+		tbl := &Table{Name: "t", Database: db, colByName: make(map[string]int, n)}
+		for i := 0; i < n; i++ {
+			col := &Column{
+				Name:       fmt.Sprintf("c%d", i),
+				DataType:   "int",
+				ColumnType: "int(11)",
+				Nullable:   true,
+			}
+			tbl.colByName[toLower(col.Name)] = len(tbl.Columns)
+			tbl.Columns = append(tbl.Columns, col)
+			if tc.check {
+				tbl.Constraints = append(tbl.Constraints, &Constraint{
+					Name:      col.Name,
+					Type:      ConCheck,
+					Table:     tbl,
+					Column:    col.Name,
+					CheckExpr: backtickIDQ(col.Name) + " > 0",
+				})
+			}
+		}
+		db.Tables["t"] = tbl
+		done := make(chan string, 1)
+		go func() { done <- c.ShowCreateTable("d", "t") }()
+		select {
+		case out := <-done:
+			if got := strings.Count(out, "int(11)"); got != n {
+				t.Errorf("%s: wrote %d columns, want %d", tc.name, got, n)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s: writing a table of %d columns took over 5s", tc.name, n)
+		}
+	}
+}
+
+// TestUnnamedCheckNamesStayLinear guards the naming of an unnamed table-level
+// CHECK. The name is the lowest CONSTRAINT_<n> free of the names the table
+// holds and the ones the statement gives explicitly, and looking for it from 1
+// again for each check — with a scan of the table's constraints for every
+// candidate — made a statement of many of them cubic in their number: 1,200
+// took 27 seconds. The run of them shares one namer now, so the number carries
+// from one to the next.
+func TestUnnamedCheckNamesStayLinear(t *testing.T) {
+	const n = 4000
+	for _, tc := range []struct{ name, ddl string }{
+		{"unnamed checks", checkChain(n, "")},
+		{"unnamed checks beside explicit names", checkChain(n, "named")},
+	} {
+		c := New()
+		if _, err := c.Exec("CREATE DATABASE d; USE d;", nil); err != nil {
+			t.Fatalf("%s: setup: %v", tc.name, err)
+		}
+		done := make(chan error, 1)
+		go func() {
+			results, err := c.Exec(tc.ddl, nil)
+			if err != nil {
+				done <- err
+				return
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					done <- r.Error
+					return
+				}
+			}
+			done <- nil
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+			tbl := c.GetDatabase("d").GetTable("t")
+			if got := len(tbl.Constraints); got != n {
+				t.Errorf("%s: table holds %d constraints, want %d", tc.name, got, n)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s: a table of %d unnamed checks took over 5s", tc.name, n)
+		}
+		if _, err := c.Exec("DROP TABLE t;", nil); err != nil {
+			t.Fatalf("%s: drop: %v", tc.name, err)
+		}
+	}
+}
+
+// checkChain writes a table of n table-level CHECK constraints, every other
+// one of them explicitly named when named is set.
+func checkChain(n int, named string) string {
+	var b strings.Builder
+	b.WriteString("CREATE TABLE t (a INT")
+	for i := 0; i < n; i++ {
+		if named != "" && i%2 == 0 {
+			fmt.Fprintf(&b, ", CONSTRAINT %s%d CHECK (a <> %d)", named, i, i)
+			continue
+		}
+		fmt.Fprintf(&b, ", CHECK (a <> %d)", i)
+	}
+	b.WriteString(");")
+	return b.String()
 }

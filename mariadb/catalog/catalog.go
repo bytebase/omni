@@ -1,6 +1,6 @@
 package catalog
 
-// Catalog is the in-memory MySQL catalog.
+// Catalog is the in-memory MariaDB catalog.
 type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
 	currentDB        string
@@ -9,15 +9,15 @@ type Catalog struct {
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	generateGIPK     bool // SET sql_generate_invisible_primary_key
-	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
 	session          SessionState
 }
 
+// SessionState holds the session settings the catalog follows. MariaDB has no
+// generated invisible primary key, so no sql_generate_invisible_primary_key or
+// show_gipk_in_create_table_and_information_schema: both answer 1193. Measured
+// on mariadb:11.8.8.
 type SessionState struct {
 	ForeignKeyChecks             bool
-	GenerateInvisiblePrimaryKey  bool
-	ShowGIPK                     bool
 	CharsetClient                string
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
@@ -29,12 +29,10 @@ func New() *Catalog {
 	return &Catalog{
 		databases:        make(map[string]*Database),
 		defaultCharset:   "utf8mb4",
-		defaultCollation: "utf8mb4_0900_ai_ci",
+		defaultCollation: "utf8mb4_uca1400_ai_ci",
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
-		generateGIPK:     session.GenerateInvisiblePrimaryKey,
-		showGIPK:         session.ShowGIPK,
 		session:          session,
 	}
 }
@@ -43,7 +41,7 @@ func defaultSessionState() SessionState {
 	return SessionState{
 		ForeignKeyChecks:             true,
 		CharsetClient:                "utf8mb4",
-		CollationConnection:          "utf8mb4_0900_ai_ci",
+		CollationConnection:          "utf8mb4_uca1400_ai_ci",
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
 	}

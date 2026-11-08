@@ -61,8 +61,8 @@ func TestWalkThrough_8_2_ConvertToCharset(t *testing.T) {
 	if tbl.Charset != "utf8mb4" {
 		t.Errorf("expected table charset=utf8mb4, got %s", tbl.Charset)
 	}
-	if tbl.Collation != "utf8mb4_0900_ai_ci" {
-		t.Errorf("expected table collation=utf8mb4_0900_ai_ci, got %s", tbl.Collation)
+	if tbl.Collation != "utf8mb4_uca1400_ai_ci" {
+		t.Errorf("expected table collation=utf8mb4_uca1400_ai_ci, got %s", tbl.Collation)
 	}
 
 	// All string columns should be updated.
@@ -74,8 +74,8 @@ func TestWalkThrough_8_2_ConvertToCharset(t *testing.T) {
 		if col.Charset != "utf8mb4" {
 			t.Errorf("column %s: expected charset=utf8mb4, got %s", colName, col.Charset)
 		}
-		if col.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("column %s: expected collation=utf8mb4_0900_ai_ci, got %s", colName, col.Collation)
+		if col.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("column %s: expected collation=utf8mb4_uca1400_ai_ci, got %s", colName, col.Collation)
 		}
 	}
 }
@@ -210,8 +210,8 @@ func TestWalkThrough_8_2_ConvertOverwritesExplicitCharset(t *testing.T) {
 	if colName.Charset != "utf8mb4" {
 		t.Errorf("expected name charset=utf8mb4 after CONVERT, got %s", colName.Charset)
 	}
-	if colName.Collation != "utf8mb4_0900_ai_ci" {
-		t.Errorf("expected name collation=utf8mb4_0900_ai_ci after CONVERT, got %s", colName.Collation)
+	if colName.Collation != "utf8mb4_uca1400_ai_ci" {
+		t.Errorf("expected name collation=utf8mb4_uca1400_ai_ci after CONVERT, got %s", colName.Collation)
 	}
 }
 

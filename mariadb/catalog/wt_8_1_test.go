@@ -24,8 +24,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "utf8mb4" {
 			t.Errorf("column charset: expected utf8mb4, got %q", col.Charset)
 		}
-		if col.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("column collation: expected utf8mb4_0900_ai_ci, got %q", col.Collation)
+		if col.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("column collation: expected utf8mb4_uca1400_ai_ci, got %q", col.Collation)
 		}
 	})
 
@@ -60,8 +60,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "utf8mb4" {
 			t.Errorf("column charset: expected utf8mb4, got %q", col.Charset)
 		}
-		if col.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("column collation: expected utf8mb4_0900_ai_ci, got %q", col.Collation)
+		if col.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("column collation: expected utf8mb4_uca1400_ai_ci, got %q", col.Collation)
 		}
 	})
 
@@ -94,9 +94,9 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if !strings.Contains(ddl, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("SHOW CREATE TABLE should contain DEFAULT CHARSET=utf8mb4, got:\n%s", ddl)
 		}
-		// MySQL 8.0 always shows COLLATE for utf8mb4
-		if !strings.Contains(ddl, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("SHOW CREATE TABLE should contain COLLATE=utf8mb4_0900_ai_ci for utf8mb4, got:\n%s", ddl)
+		// MariaDB always writes the table collation.
+		if !strings.Contains(ddl, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("SHOW CREATE TABLE should contain COLLATE=utf8mb4_uca1400_ai_ci for utf8mb4, got:\n%s", ddl)
 		}
 	})
 

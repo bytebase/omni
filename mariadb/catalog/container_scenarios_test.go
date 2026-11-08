@@ -45,8 +45,8 @@ func TestContainer_Section_1_2_StringTypes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -54,7 +54,7 @@ func TestContainer_Section_1_2_StringTypes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -93,8 +93,8 @@ func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -102,7 +102,7 @@ func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -128,7 +128,7 @@ func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
 		{"tinyint", "CREATE TABLE t_tinyint (a TINYINT)", "t_tinyint"},
 		{"smallint", "CREATE TABLE t_smallint (a SMALLINT)", "t_smallint"},
 		{"mediumint", "CREATE TABLE t_mediumint (a MEDIUMINT)", "t_mediumint"},
-		{"bigint", "CREATE TABLE t_bigint (a BIGINT)", "t_bigint"},
+		{"bigint(20)", "CREATE TABLE t_bigint (a BIGINT)", "t_bigint"},
 		{"bigint_unsigned", "CREATE TABLE t_bigint_u (a BIGINT UNSIGNED)", "t_bigint_u"},
 		{"float_basic", "CREATE TABLE t_float (a FLOAT)", "t_float"},
 		{"float_precision", "CREATE TABLE t_float_p (a FLOAT(7,3))", "t_float_p"},
@@ -156,13 +156,13 @@ func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, _ := c.Exec(tc.sql, nil)
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -199,8 +199,8 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -208,7 +208,7 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -261,8 +261,8 @@ func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -270,7 +270,7 @@ func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -306,8 +306,8 @@ func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -315,7 +315,7 @@ func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -353,8 +353,8 @@ func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -362,7 +362,7 @@ func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -500,8 +500,8 @@ func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			// Run setup on omni too.
 			if tc.setup != "" {
 				results, err := c.Exec(tc.setup, nil)
@@ -521,7 +521,7 @@ func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -556,8 +556,8 @@ func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -565,7 +565,7 @@ func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -586,7 +586,9 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 	}{
 		{"check_basic", "CREATE TABLE t_chk1 (a INT, CHECK (a > 0))", "t_chk1"},
 		{"check_named", "CREATE TABLE t_chk2 (a INT, CONSTRAINT `chk_name` CHECK (a > 0))", "t_chk2"},
-		{"check_not_enforced", "CREATE TABLE t_chk3 (a INT, CHECK (a > 0) NOT ENFORCED)", "t_chk3"},
+		// `CHECK (...) NOT ENFORCED` is MySQL 8.0's; MariaDB has no grammar for
+		// it and answers 1064, so the case that was here cannot run against
+		// it. TestScenario_C14 records the refusal.
 		{"check_auto_naming", "CREATE TABLE t_chk4 (a INT, b INT, CHECK (a > 0), CHECK (b > 0))", "t_chk4"},
 		{"check_expr_parens", "CREATE TABLE t_chk5 (a INT, CHECK (a > 0 AND a < 100))", "t_chk5"},
 		{"check_multi_col", "CREATE TABLE t_chk6 (a INT, b INT, CHECK (a > b))", "t_chk6"},
@@ -601,8 +603,8 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -610,7 +612,7 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -653,8 +655,8 @@ func TestContainer_Section_1_19_TableOptions(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -662,7 +664,7 @@ func TestContainer_Section_1_19_TableOptions(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -696,8 +698,8 @@ func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -705,7 +707,7 @@ func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -864,8 +866,8 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -873,7 +875,7 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -911,8 +913,8 @@ func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -920,7 +922,7 @@ func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -952,8 +954,8 @@ func TestContainer_Section_1_6_JSONType(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -961,7 +963,7 @@ func TestContainer_Section_1_6_JSONType(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -988,9 +990,9 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 		{"multilinestring", "CREATE TABLE t_multilinestring (a MULTILINESTRING)", "t_multilinestring"},
 		{"multipolygon", "CREATE TABLE t_multipolygon (a MULTIPOLYGON)", "t_multipolygon"},
 		{"geometrycollection", "CREATE TABLE t_geomcoll (a GEOMETRYCOLLECTION)", "t_geomcoll"},
-		{"point_srid", "CREATE TABLE t_point_srid (a POINT NOT NULL SRID 4326)", "t_point_srid"},
-		{"linestring_srid", "CREATE TABLE t_ls_srid (a LINESTRING SRID 4326)", "t_ls_srid"},
-		{"polygon_srid", "CREATE TABLE t_poly_srid (a POLYGON NOT NULL SRID 4326)", "t_poly_srid"},
+		// A per-column `SRID <n>` is MySQL 8.0's; MariaDB has no grammar for it
+		// and answers 1064, so the three cases that were here cannot run
+		// against it. TestScenario_C7/7_9 records the refusal.
 	}
 
 	for _, tc := range cases {
@@ -1002,8 +1004,8 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -1011,7 +1013,7 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1045,8 +1047,8 @@ func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -1054,7 +1056,7 @@ func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1090,8 +1092,8 @@ func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -1099,7 +1101,7 @@ func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1125,8 +1127,8 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 
 		// Omni should also not error.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ine (id INT)", nil)
 		results, _ := c.Exec("CREATE TABLE IF NOT EXISTS t_ine (id INT)", nil)
 		if results[0].Error != nil {
@@ -1135,7 +1137,7 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 
 		// Compare SHOW CREATE TABLE.
 		ctrDDL, _ := ctr.showCreateTable("t_ine")
-		omniDDL := c.ShowCreateTable("test", "t_ine")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ine")
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
 				ctrDDL, omniDDL)
@@ -1155,13 +1157,13 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE TEMPORARY TABLE t_temp (id INT, name VARCHAR(50))", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_temp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_temp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1180,14 +1182,14 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_like_dst")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_like_src (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT '', score DECIMAL(10,2))", nil)
 		results, _ := c.Exec("CREATE TABLE t_like_dst LIKE t_like_src", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_like_dst")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_like_dst")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1206,8 +1208,8 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW t_view_conflict AS SELECT 1 AS a", nil)
 		results, _ := c.Exec("CREATE TABLE t_view_conflict (id INT)", nil)
 		if results[0].Error == nil {
@@ -1224,13 +1226,13 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("`select`")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE TABLE `select` (`from` INT, `where` VARCHAR(50))", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "select")
+		omniDDL := c.ShowCreateTable("catalog_shared", "select")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1392,12 +1394,11 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"ALTER TABLE t_invis MODIFY val INT INVISIBLE",
 			"t_invis",
 		},
-		{
-			"drop_column_part_of_pk",
-			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
-			"ALTER TABLE t_drop_pk DROP COLUMN a",
-			"t_drop_pk",
-		},
+		// Dropping a column a composite PRIMARY KEY is built on: MariaDB
+		// refuses it with 1072, "Key column 'a' doesn't exist in table",
+		// rather than rebuilding the key, so this table of
+		// accepted-and-compared ALTERs is the wrong place for it.
+		// TestWalkThrough_2_2 covers the refusal.
 	}
 
 	for _, tc := range ddlCases {
@@ -1417,8 +1418,8 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 
 			// Omni: setup + alter.
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, _ := c.Exec(tc.setup, nil)
 			if results[0].Error != nil {
 				t.Fatalf("omni setup error: %v", results[0].Error)
@@ -1429,7 +1430,7 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 					t.Fatalf("omni alter error: %v", r.Error)
 				}
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1468,8 +1469,8 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			ctrErr := ctr.execSQL(tc.alter)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			c.Exec(tc.setup, nil)
 			results, _ := c.Exec(tc.alter, nil)
 			var omniErr error
@@ -1575,8 +1576,8 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			}
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			if results, _ := c.Exec(tc.setup, nil); results != nil {
 				for _, r := range results {
 					if r.Error != nil {
@@ -1591,7 +1592,7 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 					}
 				}
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1626,8 +1627,8 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			ctrErr := ctr.execSQL(tc.alter)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			c.Exec(tc.setup, nil)
 			results, _ := c.Exec(tc.alter, nil)
 			var omniErr error
@@ -1686,18 +1687,10 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 			"ALTER TABLE t_drop_con DROP CONSTRAINT chk_val",
 			"t_drop_con",
 		},
-		{
-			"alter_check_not_enforced",
-			"CREATE TABLE t_chk_ne (id INT PRIMARY KEY, score INT, CONSTRAINT chk_score CHECK (score >= 0))",
-			"ALTER TABLE t_chk_ne ALTER CHECK chk_score NOT ENFORCED",
-			"t_chk_ne",
-		},
-		{
-			"alter_check_enforced",
-			"CREATE TABLE t_chk_enf (id INT PRIMARY KEY, score INT, CONSTRAINT chk_score2 CHECK (score >= 0) /*!80016 NOT ENFORCED */)",
-			"ALTER TABLE t_chk_enf ALTER CHECK chk_score2 ENFORCED",
-			"t_chk_enf",
-		},
+		// `ALTER TABLE ... ALTER CHECK <name> [NOT] ENFORCED` is MySQL 8.0's;
+		// MariaDB has no grammar for it and answers 1064, so the two cases
+		// that were here cannot run against it. TestScenario_C14 records the
+		// refusal on both sides instead.
 	}
 
 	for _, tc := range ddlCases {
@@ -1708,8 +1701,6 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 				"t_parent_dfk", "t_child_dfk",
 				"t_add_chk",
 				"t_drop_con",
-				"t_chk_ne",
-				"t_chk_enf",
 			} {
 				ctr.execSQL("DROP TABLE IF EXISTS " + tName)
 			}
@@ -1725,8 +1716,8 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 			}
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			if results, _ := c.Exec(tc.setup, nil); results != nil {
 				for _, r := range results {
 					if r.Error != nil {
@@ -1741,7 +1732,7 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 					}
 				}
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1831,8 +1822,8 @@ func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 			}
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			if results, _ := c.Exec(tc.setup, nil); results != nil {
 				for _, r := range results {
 					if r.Error != nil {
@@ -1847,7 +1838,7 @@ func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 					}
 				}
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -1876,14 +1867,14 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_drop1 (id INT PRIMARY KEY, name VARCHAR(100))", nil)
 		results, _ := c.Exec("DROP TABLE t_drop1", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP TABLE error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_drop1")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_drop1")
 		if omniDDL != "" {
 			t.Errorf("omni: table still exists after DROP TABLE, got: %s", omniDDL)
 		}
@@ -1899,8 +1890,8 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TABLE IF EXISTS t_drop_ine", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP TABLE IF EXISTS error: %v", results[0].Error)
@@ -1927,8 +1918,8 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_dm1 (id INT)", nil)
 		c.Exec("CREATE TABLE t_dm2 (id INT)", nil)
 		c.Exec("CREATE TABLE t_dm3 (id INT)", nil)
@@ -1937,7 +1928,7 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 			t.Fatalf("omni DROP TABLE multi error: %v", results[0].Error)
 		}
 		for _, tbl := range []string{"t_dm1", "t_dm2", "t_dm3"} {
-			ddl := c.ShowCreateTable("test", tbl)
+			ddl := c.ShowCreateTable("catalog_shared", tbl)
 			if ddl != "" {
 				t.Errorf("omni: table %s still exists after multi-drop", tbl)
 			}
@@ -1953,8 +1944,8 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TABLE t_noexist", nil)
 		omniErr := results[0].Error
 		if omniErr == nil {
@@ -1983,14 +1974,14 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TEMPORARY TABLE t_temp_drop (id INT, val VARCHAR(50))", nil)
 		results, _ := c.Exec("DROP TEMPORARY TABLE t_temp_drop", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP TEMPORARY TABLE error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_temp_drop")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_temp_drop")
 		if omniDDL != "" {
 			t.Errorf("omni: temp table still exists after DROP TEMPORARY TABLE")
 		}
@@ -2009,8 +2000,8 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_fk_parent (id INT PRIMARY KEY)", nil)
 		c.Exec("CREATE TABLE t_fk_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fk_parent(id))", nil)
 		results, _ := c.Exec("DROP TABLE t_fk_parent", nil)
@@ -2020,7 +2011,7 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 		}
 
 		// Verify table still exists after failed drop.
-		omniDDL := c.ShowCreateTable("test", "t_fk_parent")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_fk_parent")
 		if omniDDL == "" {
 			t.Error("omni: parent table was deleted despite FK reference")
 		}
@@ -2043,14 +2034,14 @@ func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_trunc1")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trunc1 (id INT PRIMARY KEY, name VARCHAR(100))", nil)
 		results, _ := c.Exec("TRUNCATE TABLE t_trunc1", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni truncate error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_trunc1")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_trunc1")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2075,11 +2066,11 @@ func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_trunc_ai")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000", nil)
 		c.Exec("TRUNCATE TABLE t_trunc_ai", nil)
-		omniDDL := c.ShowCreateTable("test", "t_trunc_ai")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_trunc_ai")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2096,8 +2087,8 @@ func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("TRUNCATE TABLE t_trunc_noexist", nil)
 		omniErr := results[0].Error
 		if omniErr == nil {
@@ -2120,14 +2111,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_ci1")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ci1 (id INT PRIMARY KEY, name VARCHAR(100))", nil)
 		results, _ := c.Exec("CREATE INDEX idx_name ON t_ci1 (name)", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE INDEX error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_ci1")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ci1")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2145,14 +2136,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_ci2")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ci2 (id INT PRIMARY KEY, email VARCHAR(255))", nil)
 		results, _ := c.Exec("CREATE UNIQUE INDEX idx_email ON t_ci2 (email)", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE UNIQUE INDEX error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_ci2")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ci2")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2170,14 +2161,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_ci3")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)", nil)
 		results, _ := c.Exec("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE FULLTEXT INDEX error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_ci3")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ci3")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2195,14 +2186,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_ci4")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)", nil)
 		results, _ := c.Exec("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE SPATIAL INDEX error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_ci4")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ci4")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2219,23 +2210,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
 		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
 		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
-		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if ctrErr == nil {
-			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		// MariaDB takes IF NOT EXISTS on CREATE INDEX; MySQL 8.0 has no such
+		// clause and answers a syntax error. Measured on mariadb:11.8.8.
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Fatalf("container: expected CREATE INDEX IF NOT EXISTS to be accepted, got %v", err)
 		}
-		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
-
-		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)", nil)
-		c.Exec("CREATE INDEX idx_val ON t_ci5 (val)", nil)
-		results, _ := c.Exec("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)", nil)
-		if results[0].Error != nil {
-			t.Errorf("omni: unexpected error for IF NOT EXISTS: %v", results[0].Error)
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Fatalf("container: expected a second CREATE INDEX IF NOT EXISTS to be a no-op, got %v", err)
 		}
-		// This is a known divergence from MySQL 8.0 behavior.
 	})
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061
@@ -2249,8 +2231,8 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ci6 (id INT PRIMARY KEY, a INT, b INT)", nil)
 		c.Exec("CREATE INDEX idx_a ON t_ci6 (a)", nil)
 		results, _ := c.Exec("CREATE INDEX idx_a ON t_ci6 (b)", nil)
@@ -2277,14 +2259,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_di1")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_di1 (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_name (name))", nil)
 		results, _ := c.Exec("DROP INDEX idx_name ON t_di1", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP INDEX error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_di1")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_di1")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -2302,8 +2284,8 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_di2 (id INT PRIMARY KEY)", nil)
 		results, _ := c.Exec("DROP INDEX idx_noexist ON t_di2", nil)
 		omniErr := results[0].Error
@@ -2339,20 +2321,20 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ren1 (id INT PRIMARY KEY, name VARCHAR(100))", nil)
 		results, _ := c.Exec("RENAME TABLE t_ren1 TO t_ren2", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni RENAME TABLE error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_ren2")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_ren2")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 		// Old table should not exist
-		if c.ShowCreateTable("test", "t_ren1") != "" {
+		if c.ShowCreateTable("catalog_shared", "t_ren1") != "" {
 			t.Error("omni: old table t_ren1 still exists after rename")
 		}
 	})
@@ -2373,9 +2355,9 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
+		c.Exec("CREATE DATABASE catalog_shared", nil)
 		c.Exec("CREATE DATABASE test2", nil)
-		c.SetCurrentDatabase("test")
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ren_cross (id INT PRIMARY KEY, val VARCHAR(50) NOT NULL DEFAULT '')", nil)
 		results, _ := c.Exec("RENAME TABLE t_ren_cross TO test2.t_ren_cross", nil)
 		if results[0].Error != nil {
@@ -2387,7 +2369,7 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 		// Old table should not exist in test
-		if c.ShowCreateTable("test", "t_ren_cross") != "" {
+		if c.ShowCreateTable("catalog_shared", "t_ren_cross") != "" {
 			t.Error("omni: old table still exists in test after cross-db rename")
 		}
 	})
@@ -2414,16 +2396,16 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_mp1 (id INT PRIMARY KEY)", nil)
 		c.Exec("CREATE TABLE t_mp3 (val VARCHAR(100))", nil)
 		results, _ := c.Exec("RENAME TABLE t_mp1 TO t_mp2, t_mp3 TO t_mp4", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni RENAME TABLE multi-pair error: %v", results[0].Error)
 		}
-		omniDDL2 := c.ShowCreateTable("test", "t_mp2")
-		omniDDL4 := c.ShowCreateTable("test", "t_mp4")
+		omniDDL2 := c.ShowCreateTable("catalog_shared", "t_mp2")
+		omniDDL4 := c.ShowCreateTable("catalog_shared", "t_mp4")
 
 		if normalizeWhitespace(ctrDDL2) != normalizeWhitespace(omniDDL2) {
 			t.Errorf("t_mp2 mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL2, omniDDL2)
@@ -2432,10 +2414,10 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 			t.Errorf("t_mp4 mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL4, omniDDL4)
 		}
 		// Old tables should be gone
-		if c.ShowCreateTable("test", "t_mp1") != "" {
+		if c.ShowCreateTable("catalog_shared", "t_mp1") != "" {
 			t.Error("omni: t_mp1 still exists after rename")
 		}
-		if c.ShowCreateTable("test", "t_mp3") != "" {
+		if c.ShowCreateTable("catalog_shared", "t_mp3") != "" {
 			t.Error("omni: t_mp3 still exists after rename")
 		}
 	})
@@ -2449,8 +2431,8 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("RENAME TABLE t_noexist_ren TO t_noexist_ren2", &ExecOptions{ContinueOnError: true})
 		omniErr := results[0].Error
 		if omniErr == nil {
@@ -2471,8 +2453,8 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_ren_exist1 (id INT)", nil)
 		c.Exec("CREATE TABLE t_ren_exist2 (id INT)", nil)
 		results, _ := c.Exec("RENAME TABLE t_ren_exist1 TO t_ren_exist2", &ExecOptions{ContinueOnError: true})
@@ -2496,13 +2478,13 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE VIEW v_basic AS SELECT 1 AS a", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE VIEW error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		if db.Views[toLower("v_basic")] == nil {
 			t.Error("omni: view v_basic should exist after CREATE VIEW")
 		}
@@ -2518,14 +2500,14 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW v_replace AS SELECT 1 AS a", nil)
 		results, _ := c.Exec("CREATE OR REPLACE VIEW v_replace AS SELECT 2 AS b", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE OR REPLACE VIEW error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		if db.Views[toLower("v_replace")] == nil {
 			t.Error("omni: view v_replace should exist after CREATE OR REPLACE VIEW")
 		}
@@ -2540,13 +2522,13 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE VIEW v_cols (x, y) AS SELECT 1, 2", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE VIEW with columns error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		v := db.Views[toLower("v_cols")]
 		if v == nil {
 			t.Fatal("omni: view v_cols should exist")
@@ -2565,13 +2547,13 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW v_opts AS SELECT 1 AS a", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE VIEW with options error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		v := db.Views[toLower("v_opts")]
 		if v == nil {
 			t.Fatal("omni: view v_opts should exist")
@@ -2595,14 +2577,14 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_chk_view (id INT, val INT)", nil)
 		results, _ := c.Exec("CREATE VIEW v_chk AS SELECT * FROM t_chk_view WHERE val > 0 WITH CASCADED CHECK OPTION", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE VIEW WITH CHECK OPTION error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		v := db.Views[toLower("v_chk")]
 		if v == nil {
 			t.Fatal("omni: view v_chk should exist")
@@ -2622,14 +2604,14 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW v_drop1 AS SELECT 1 AS a", nil)
 		results, _ := c.Exec("DROP VIEW v_drop1", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP VIEW error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		if db.Views[toLower("v_drop1")] != nil {
 			t.Error("omni: view v_drop1 should not exist after DROP VIEW")
 		}
@@ -2644,8 +2626,8 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP VIEW IF EXISTS v_noexist", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP VIEW IF EXISTS error: %v", results[0].Error)
@@ -2664,15 +2646,15 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW v_m1 AS SELECT 1 AS a", nil)
 		c.Exec("CREATE VIEW v_m2 AS SELECT 2 AS b", nil)
 		results, _ := c.Exec("DROP VIEW v_m1, v_m2", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP VIEW multi error: %v", results[0].Error)
 		}
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		if db.Views[toLower("v_m1")] != nil {
 			t.Error("omni: view v_m1 should not exist after DROP VIEW")
 		}
@@ -2691,8 +2673,8 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW v_dup AS SELECT 1 AS a", nil)
 		results, _ := c.Exec("CREATE VIEW v_dup AS SELECT 2 AS b", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -2711,8 +2693,8 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE v_tbl_conflict (id INT)", nil)
 		results, _ := c.Exec("CREATE VIEW v_tbl_conflict AS SELECT 1 AS a", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -2729,8 +2711,8 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP VIEW v_nonexist_err", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for DROP VIEW on nonexistent view")
@@ -2770,8 +2752,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("omni collation mismatch: got %q, want utf8mb4_uca1400_ai_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
@@ -2918,8 +2900,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_uca1400_ai_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_uca1400_ai_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})
@@ -3121,7 +3103,7 @@ func TestContainer_Section_3_1_DatabaseErrors(t *testing.T) {
 	t.Run("1046_no_database_selected", func(t *testing.T) {
 		// On ctr, try to CREATE TABLE without selecting a database.
 		// We need a fresh connection with no default database.
-		// The container connection defaults to "test" database, so we'll
+		// The container connection defaults to the harness database, so we'll
 		// test omni behavior and verify the error code/SQLSTATE/message match MySQL's known format.
 
 		// First verify MySQL's behavior: SELECT DATABASE() after no USE should work,
@@ -3189,8 +3171,8 @@ func TestContainer_Section_3_2_TableErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_err_dup (id INT)", nil)
 		results, _ := c.Exec("CREATE TABLE t_err_dup (id INT)", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3234,8 +3216,8 @@ func TestContainer_Section_3_2_TableErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TABLE t_err_noexist", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for DROP nonexistent table")
@@ -3276,8 +3258,8 @@ func TestContainer_Section_3_2_TableErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("ALTER TABLE t_err_noexist2 ADD COLUMN x INT", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for ALTER nonexistent table")
@@ -3334,8 +3316,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_err_nocol (id INT, name VARCHAR(50))", nil)
 		results, _ := c.Exec("ALTER TABLE t_err_nocol MODIFY COLUMN name VARCHAR(50) AFTER nonexistent", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3379,8 +3361,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE TABLE t_err_dupcol (a INT, a VARCHAR(10))", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for duplicate column name")
@@ -3421,8 +3403,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for multiple primary key")
@@ -3478,8 +3460,8 @@ func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_dup_key (a INT, b INT, KEY idx_a (a))", nil)
 		results, _ := c.Exec("ALTER TABLE t_dup_key ADD INDEX idx_a (b)", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3524,8 +3506,8 @@ func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_drop_key (a INT)", nil)
 		results, _ := c.Exec("ALTER TABLE t_drop_key DROP INDEX idx_nonexistent", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3578,14 +3560,14 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
 		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if ctrCode != 1824 {
-			t.Fatalf("container: expected error code 1824, got %d", ctrCode)
+		if ctrCode != 1005 {
+			t.Fatalf("container: expected error code 1005, got %d", ctrCode)
 		}
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for FK referencing nonexistent table")
@@ -3623,14 +3605,14 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
 		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if ctrCode != 1822 {
-			t.Fatalf("container: expected error code 1822, got %d", ctrCode)
+		if ctrCode != 1005 {
+			t.Fatalf("container: expected error code 1005, got %d", ctrCode)
 		}
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_fk_parent_nokey (id INT, val INT)", nil)
 		results, _ := c.Exec("CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3673,8 +3655,8 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 
 		// Run on omni.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)", nil)
 		results, _ := c.Exec("CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -3752,8 +3734,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		t.Logf("container dup table: %d %s", ctrCode, ctrMsg)
 
 		c2 := New()
-		c2.Exec("CREATE DATABASE test", nil)
-		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE DATABASE catalog_shared", nil)
+		c2.SetCurrentDatabase("catalog_shared")
 		c2.Exec("CREATE TABLE t_quote_test (id INT)", nil)
 		results, _ = c2.Exec("CREATE TABLE t_quote_test (id INT)", &ExecOptions{ContinueOnError: true})
 		catErr, ok = results[0].Error.(*Error)
@@ -3775,8 +3757,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		t.Logf("container unknown col: %d %s", ctrCode, ctrMsg)
 
 		c3 := New()
-		c3.Exec("CREATE DATABASE test", nil)
-		c3.SetCurrentDatabase("test")
+		c3.Exec("CREATE DATABASE catalog_shared", nil)
+		c3.SetCurrentDatabase("catalog_shared")
 		c3.Exec("CREATE TABLE t_col_quote (id INT)", nil)
 		results, _ = c3.Exec("ALTER TABLE t_col_quote DROP COLUMN nonexistent", &ExecOptions{ContinueOnError: true})
 		catErr, ok = results[0].Error.(*Error)
@@ -3798,8 +3780,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		t.Logf("container dup key: %d %s", ctrCode, ctrMsg)
 
 		c4 := New()
-		c4.Exec("CREATE DATABASE test", nil)
-		c4.SetCurrentDatabase("test")
+		c4.Exec("CREATE DATABASE catalog_shared", nil)
+		c4.SetCurrentDatabase("catalog_shared")
 		c4.Exec("CREATE TABLE t_key_quote (id INT, val INT, KEY idx_val (val))", nil)
 		results, _ = c4.Exec("ALTER TABLE t_key_quote ADD INDEX idx_val (id)", &ExecOptions{ContinueOnError: true})
 		catErr, ok = results[0].Error.(*Error)
@@ -3821,8 +3803,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		t.Logf("container can't drop key: %d %s", ctrCode, ctrMsg)
 
 		c5 := New()
-		c5.Exec("CREATE DATABASE test", nil)
-		c5.SetCurrentDatabase("test")
+		c5.Exec("CREATE DATABASE catalog_shared", nil)
+		c5.SetCurrentDatabase("catalog_shared")
 		c5.Exec("CREATE TABLE t_dropkey_quote (id INT)", nil)
 		results, _ = c5.Exec("ALTER TABLE t_dropkey_quote DROP INDEX nokey", &ExecOptions{ContinueOnError: true})
 		catErr, ok = results[0].Error.(*Error)
@@ -3843,8 +3825,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		t.Logf("container unknown table: %d %s", ctrCode, ctrMsg)
 
 		c6 := New()
-		c6.Exec("CREATE DATABASE test", nil)
-		c6.SetCurrentDatabase("test")
+		c6.Exec("CREATE DATABASE catalog_shared", nil)
+		c6.SetCurrentDatabase("catalog_shared")
 		results, _ = c6.Exec("DROP TABLE t_unknown_quote", &ExecOptions{ContinueOnError: true})
 		catErr, ok = results[0].Error.(*Error)
 		if !ok {
@@ -3868,8 +3850,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		// Setup: Execute 3 statements where the 3rd one fails.
 		// The first two should succeed, the third should error.
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 
 		sql := "CREATE TABLE t_pos1 (id INT); CREATE TABLE t_pos2 (id INT); CREATE TABLE t_pos1 (id INT)"
 		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
@@ -3916,8 +3898,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 
 		// Second test: error on the 1st statement of multi-statement batch.
 		c2 := New()
-		c2.Exec("CREATE DATABASE test", nil)
-		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE DATABASE catalog_shared", nil)
+		c2.SetCurrentDatabase("catalog_shared")
 
 		sql2 := "CREATE TABLE t_pos1 (a INT, a INT); CREATE TABLE t_pos3 (id INT)"
 		results2, _ := c2.Exec(sql2, &ExecOptions{ContinueOnError: true})
@@ -3946,8 +3928,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TABLE IF EXISTS t_ifexists_none", nil)
 		if results[0].Error != nil {
 			t.Errorf("omni DROP TABLE IF EXISTS error: %v", results[0].Error)
@@ -3974,8 +3956,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		c3 := New()
-		c3.Exec("CREATE DATABASE test", nil)
-		c3.SetCurrentDatabase("test")
+		c3.Exec("CREATE DATABASE catalog_shared", nil)
+		c3.SetCurrentDatabase("catalog_shared")
 		results, _ = c3.Exec("DROP VIEW IF EXISTS v_ifexists_none", nil)
 		if results[0].Error != nil {
 			t.Errorf("omni DROP VIEW IF EXISTS error: %v", results[0].Error)
@@ -3990,8 +3972,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		c4 := New()
-		c4.Exec("CREATE DATABASE test", nil)
-		c4.SetCurrentDatabase("test")
+		c4.Exec("CREATE DATABASE catalog_shared", nil)
+		c4.SetCurrentDatabase("catalog_shared")
 		c4.Exec("CREATE TABLE t_ifexists_real (id INT)", nil)
 		results, _ = c4.Exec("DROP TABLE IF EXISTS t_ifexists_real", nil)
 		if results[0].Error != nil {
@@ -4012,8 +3994,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		ctrCode, _, ctrMsg := extractMySQLErr(ctrErr)
 
 		c5 := New()
-		c5.Exec("CREATE DATABASE test", nil)
-		c5.SetCurrentDatabase("test")
+		c5.Exec("CREATE DATABASE catalog_shared", nil)
+		c5.SetCurrentDatabase("catalog_shared")
 		results, _ = c5.Exec("DROP TABLE t_noifexists", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
 			t.Fatal("omni: expected error for DROP TABLE without IF EXISTS")
@@ -4061,15 +4043,15 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		c2 := New()
-		c2.Exec("CREATE DATABASE test", nil)
-		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE DATABASE catalog_shared", nil)
+		c2.SetCurrentDatabase("catalog_shared")
 		c2.Exec("CREATE TABLE t_ifne (id INT)", nil)
 		results, _ = c2.Exec("CREATE TABLE IF NOT EXISTS t_ifne (val VARCHAR(100))", nil)
 		if results[0].Error != nil {
 			t.Errorf("omni CREATE TABLE IF NOT EXISTS error: %v", results[0].Error)
 		}
 		// Verify original table is unchanged.
-		omniDDL := c2.ShowCreateTable("test", "t_ifne")
+		omniDDL := c2.ShowCreateTable("catalog_shared", "t_ifne")
 		if !strings.Contains(omniDDL, "`id`") {
 			t.Errorf("omni: original table structure should be preserved, got: %s", omniDDL)
 		}
@@ -4084,8 +4066,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 		ctrCode, _, ctrMsg := extractMySQLErr(ctrErr)
 
 		c3 := New()
-		c3.Exec("CREATE DATABASE test", nil)
-		c3.SetCurrentDatabase("test")
+		c3.Exec("CREATE DATABASE catalog_shared", nil)
+		c3.SetCurrentDatabase("catalog_shared")
 		c3.Exec("CREATE TABLE t_no_ifne (id INT)", nil)
 		results, _ = c3.Exec("CREATE TABLE t_no_ifne (id INT)", &ExecOptions{ContinueOnError: true})
 		if results[0].Error == nil {
@@ -4213,13 +4195,13 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, _ := c.Exec(tc.sql, nil)
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4241,21 +4223,21 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_addp ADD PARTITION (PARTITION p2 VALUES LESS THAN (30))"
+		alterSQL := "ALTER TABLE t_alter_addp ADD PARTITION (PARTITION `p2` VALUES LESS THAN (30))"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
 		ctrDDL, _ := ctr.showCreateTable("t_alter_addp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_addp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_addp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4276,21 +4258,21 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_dropp DROP PARTITION p1"
+		alterSQL := "ALTER TABLE t_alter_dropp DROP PARTITION `p1`"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
 		ctrDDL, _ := ctr.showCreateTable("t_alter_dropp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_dropp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_dropp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4320,14 +4302,14 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_alter_reorgp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_reorgp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_reorgp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4347,21 +4329,21 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(setupSQL); err != nil {
 			t.Fatalf("container setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_truncp TRUNCATE PARTITION p0"
+		alterSQL := "ALTER TABLE t_alter_truncp TRUNCATE PARTITION `p0`"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
 		ctrDDL, _ := ctr.showCreateTable("t_alter_truncp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_truncp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_truncp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4384,14 +4366,14 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		ctrDDL, _ := ctr.showCreateTable("t_alter_coalp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_coalp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_coalp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4419,22 +4401,22 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 		if err := ctr.execSQL(swapSQL); err != nil {
 			t.Fatalf("container swap table setup: %v", err)
 		}
-		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap"
+		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION `p0` WITH TABLE t_alter_exchp_swap"
 		if err := ctr.execSQL(alterSQL); err != nil {
 			t.Fatalf("container alter: %v", err)
 		}
 		ctrDDL, _ := ctr.showCreateTable("t_alter_exchp")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec(setupSQL, nil)
 		c.Exec(swapSQL, nil)
 		results, _ := c.Exec(alterSQL, nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_exchp")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_alter_exchp")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4460,8 +4442,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -4469,7 +4451,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateFunction("test", "fn_add")
+		omniDDL := c.ShowCreateFunction("catalog_shared", "fn_add")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4490,8 +4472,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -4499,7 +4481,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_greet")
+		omniDDL := c.ShowCreateProcedure("catalog_shared", "sp_greet")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4513,8 +4495,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		ctr.execSQL("CREATE FUNCTION fn_drop_test() RETURNS INT DETERMINISTIC RETURN 1")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE FUNCTION fn_drop_test() RETURNS INT DETERMINISTIC RETURN 1", nil)
 
 		// Drop on container
@@ -4529,7 +4511,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 
 		// Both should now error on SHOW CREATE FUNCTION
 		_, ctrErr := ctr.showCreateFunction("fn_drop_test")
-		omniDDL := c.ShowCreateFunction("test", "fn_drop_test")
+		omniDDL := c.ShowCreateFunction("catalog_shared", "fn_drop_test")
 
 		if ctrErr == nil {
 			t.Error("expected container error after DROP FUNCTION")
@@ -4544,8 +4526,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		ctr.execSQLDirect("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END", nil)
 
 		// Drop on container
@@ -4559,7 +4541,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		_, ctrErr := ctr.showCreateProcedure("sp_drop_test")
-		omniDDL := c.ShowCreateProcedure("test", "sp_drop_test")
+		omniDDL := c.ShowCreateProcedure("catalog_shared", "sp_drop_test")
 
 		if ctrErr == nil {
 			t.Error("expected container error after DROP PROCEDURE")
@@ -4574,8 +4556,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		ctr.execSQL("DROP FUNCTION IF EXISTS fn_nonexistent_xyz")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP FUNCTION IF EXISTS fn_nonexistent_xyz", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP FUNCTION IF EXISTS should not error: %v", results[0].Error)
@@ -4587,8 +4569,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		ctrErr := ctr.execSQL("DROP FUNCTION fn_totally_nonexistent")
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP FUNCTION fn_totally_nonexistent", nil)
 
 		if ctrErr == nil {
@@ -4622,14 +4604,14 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE FUNCTION fn_alter_test() RETURNS INT DETERMINISTIC RETURN 42", nil)
 		results, _ := c.Exec("ALTER FUNCTION fn_alter_test COMMENT 'test comment'", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni ALTER FUNCTION error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateFunction("test", "fn_alter_test")
+		omniDDL := c.ShowCreateFunction("catalog_shared", "fn_alter_test")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4649,14 +4631,14 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE PROCEDURE sp_alter_test() BEGIN SELECT 1; END", nil)
 		results, _ := c.Exec("ALTER PROCEDURE sp_alter_test SQL SECURITY INVOKER", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni ALTER PROCEDURE error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_alter_test")
+		omniDDL := c.ShowCreateProcedure("catalog_shared", "sp_alter_test")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4677,8 +4659,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -4686,7 +4668,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateFunction("test", "fn_show_test")
+		omniDDL := c.ShowCreateFunction("catalog_shared", "fn_show_test")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4707,8 +4689,8 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -4716,7 +4698,7 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_show_test")
+		omniDDL := c.ShowCreateProcedure("catalog_shared", "sp_show_test")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4748,8 +4730,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -4758,7 +4740,7 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTrigger("test", "tr_before_insert")
+		omniDDL := c.ShowCreateTrigger("catalog_shared", "tr_before_insert")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4778,8 +4760,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -4788,7 +4770,7 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTrigger("test", "tr_after_update")
+		omniDDL := c.ShowCreateTrigger("catalog_shared", "tr_after_update")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4808,8 +4790,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -4818,7 +4800,7 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTrigger("test", "tr_before_delete")
+		omniDDL := c.ShowCreateTrigger("catalog_shared", "tr_before_delete")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4835,8 +4817,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		c.Exec("CREATE TRIGGER tr_drop_test BEFORE INSERT ON t_trigger FOR EACH ROW SET NEW.val = 0", nil)
 		results, _ := c.Exec("DROP TRIGGER tr_drop_test", nil)
@@ -4845,7 +4827,7 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		// Verify trigger is gone
-		ddl := c.ShowCreateTrigger("test", "tr_drop_test")
+		ddl := c.ShowCreateTrigger("catalog_shared", "tr_drop_test")
 		if ddl != "" {
 			t.Errorf("trigger should be gone, but got: %s", ddl)
 		}
@@ -4858,8 +4840,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TRIGGER IF EXISTS tr_nonexistent_drop", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP TRIGGER IF EXISTS should not error: %v", results[0].Error)
@@ -4874,8 +4856,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP TRIGGER tr_no_exist", nil)
 		if results[0].Error == nil {
 			t.Fatal("expected omni error for DROP TRIGGER on nonexistent trigger")
@@ -4900,8 +4882,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -4910,7 +4892,7 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTrigger("test", "tr_show_test")
+		omniDDL := c.ShowCreateTrigger("catalog_shared", "tr_show_test")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -4941,8 +4923,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results1, _ := c.Exec(create1, nil)
 		if results1[0].Error != nil {
@@ -4953,8 +4935,8 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 			t.Fatalf("omni exec trigger 2 error: %v", results2[0].Error)
 		}
 
-		omniDDL1 := c.ShowCreateTrigger("test", "tr_multi_1")
-		omniDDL2 := c.ShowCreateTrigger("test", "tr_multi_2")
+		omniDDL1 := c.ShowCreateTrigger("catalog_shared", "tr_multi_1")
+		omniDDL2 := c.ShowCreateTrigger("catalog_shared", "tr_multi_2")
 
 		if normalizeWhitespace(ctrDDL1) != normalizeWhitespace(omniDDL1) {
 			t.Errorf("trigger 1 mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -5009,8 +4991,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -5018,7 +5000,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_test_every")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_test_every")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5040,8 +5022,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -5049,7 +5031,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_test_at")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_test_at")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -5073,8 +5055,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -5083,7 +5065,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_test_opts")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_test_opts")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5105,8 +5087,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -5114,7 +5096,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_test_disabled")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_test_disabled")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5137,14 +5119,14 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT after ALTER:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE EVENT ev_alter_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1", nil)
 		results, _ := c.Exec("ALTER EVENT ev_alter_test DISABLE", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni ALTER EVENT error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_alter_test")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_alter_test")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5167,14 +5149,14 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT after RENAME:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1", nil)
 		results, _ := c.Exec("ALTER EVENT ev_rename_old RENAME TO ev_rename_new", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni ALTER EVENT RENAME error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_rename_new")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_rename_new")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5183,7 +5165,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 
 		// Verify old name is gone
-		oldDDL := c.ShowCreateEvent("test", "ev_rename_old")
+		oldDDL := c.ShowCreateEvent("catalog_shared", "ev_rename_old")
 		if oldDDL != "" {
 			t.Errorf("old event name should be gone, but got: %s", oldDDL)
 		}
@@ -5198,8 +5180,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE EVENT ev_drop_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1", nil)
 		results, _ := c.Exec("DROP EVENT ev_drop_test", nil)
 		if results[0].Error != nil {
@@ -5207,7 +5189,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 
 		// Verify event is gone
-		ddl := c.ShowCreateEvent("test", "ev_drop_test")
+		ddl := c.ShowCreateEvent("catalog_shared", "ev_drop_test")
 		if ddl != "" {
 			t.Errorf("event should be gone, but got: %s", ddl)
 		}
@@ -5219,8 +5201,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP EVENT IF EXISTS ev_nonexistent", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni DROP EVENT IF EXISTS should not error: %v", results[0].Error)
@@ -5235,8 +5217,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("DROP EVENT ev_no_exist", nil)
 		if results[0].Error == nil {
 			t.Fatal("expected omni error for DROP EVENT on nonexistent event")
@@ -5262,8 +5244,8 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -5271,7 +5253,7 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_show_test")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_show_test")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
 		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
@@ -5311,15 +5293,15 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE VIEW v_alter_test AS SELECT 1 AS a", nil)
 		results, _ := c.Exec("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni ALTER VIEW error: %v", results[0].Error)
 		}
 		// Verify omni view was updated.
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		v := db.Views[toLower("v_alter_test")]
 		if v == nil {
 			t.Fatal("omni: view v_alter_test should exist after ALTER VIEW")
@@ -5336,8 +5318,8 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		c2 := New()
-		c2.Exec("CREATE DATABASE test", nil)
-		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE DATABASE catalog_shared", nil)
+		c2.SetCurrentDatabase("catalog_shared")
 		results2, _ := c2.Exec("ALTER VIEW v_alter_noexist AS SELECT 1", &ExecOptions{ContinueOnError: true})
 		if results2[0].Error == nil {
 			t.Fatal("omni: expected error for ALTER VIEW on nonexistent view")
@@ -5366,14 +5348,14 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 
 		// Omni: same behavior
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_dep_base (id INT, val VARCHAR(100))", nil)
 		c.Exec("CREATE VIEW v_dep_test AS SELECT id, val FROM t_dep_base", nil)
 		c.Exec("DROP TABLE t_dep_base", nil)
 
 		// View should still exist
-		db := c.GetDatabase("test")
+		db := c.GetDatabase("catalog_shared")
 		if db.Views[toLower("v_dep_test")] == nil {
 			t.Error("omni: view v_dep_test should still exist after base table drop")
 		}
@@ -5394,8 +5376,8 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b", nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -5403,7 +5385,7 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateView("test", "v_show_basic")
+		omniDDL := c.ShowCreateView("catalog_shared", "v_show_basic")
 
 		// Verify structural preamble matches.
 		oraclePreamble := extractViewPreamble(ctrDDL)
@@ -5425,13 +5407,13 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateView("test", "v_show_opts")
+		omniDDL := c.ShowCreateView("catalog_shared", "v_show_opts")
 
 		// Verify structural preamble matches (up to and including AS).
 		oraclePreamble := extractViewPreamble(ctrDDL)
@@ -5452,13 +5434,13 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, _ := c.Exec("CREATE VIEW v_col_aliases (x, y, z) AS SELECT 1, 2, 3", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateView("test", "v_col_aliases")
+		omniDDL := c.ShowCreateView("catalog_shared", "v_col_aliases")
 
 		// Verify columns are present in SHOW CREATE VIEW output.
 		oraclePreamble := extractViewPreamble(ctrDDL)
@@ -5593,14 +5575,14 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("SET foreign_key_checks = 0", nil)
 		results, _ := c.Exec("CREATE TABLE t_fkoff_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_parent(id))", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni: unexpected error with FK checks off: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_fkoff_child")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_fkoff_child")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
@@ -5623,8 +5605,8 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_fkdrop_parent (id INT PRIMARY KEY)", nil)
 		c.Exec("CREATE TABLE t_fkdrop_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fkdrop_parent(id))", nil)
 		c.Exec("SET foreign_key_checks = 0", nil)
@@ -5632,7 +5614,7 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni: unexpected error dropping FK-referenced table with checks off: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_fkdrop_parent")
+		omniDDL := c.ShowCreateTable("catalog_shared", "t_fkdrop_parent")
 		if omniDDL != "" {
 			t.Errorf("omni: parent table should be gone after drop, got: %s", omniDDL)
 		}
@@ -5649,8 +5631,8 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("SET foreign_key_checks = 1", nil)
 		results, _ := c.Exec("CREATE TABLE t_fkon_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_on_parent(id))", nil)
 		if results[0].Error == nil {
@@ -5757,13 +5739,13 @@ func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
 		{
 			"grant_privileges",
 			"CREATE USER IF NOT EXISTS 'grantee53'@'localhost' IDENTIFIED BY 'Password123!'",
-			"GRANT SELECT, INSERT ON test.* TO 'grantee53'@'localhost'",
+			"GRANT SELECT, INSERT ON catalog_shared.* TO 'grantee53'@'localhost'",
 			"DROP USER IF EXISTS 'grantee53'@'localhost'",
 		},
 		{
 			"revoke_privileges",
-			"CREATE USER IF NOT EXISTS 'revokee53'@'localhost' IDENTIFIED BY 'Password123!'; GRANT SELECT ON test.* TO 'revokee53'@'localhost'",
-			"REVOKE SELECT ON test.* FROM 'revokee53'@'localhost'",
+			"CREATE USER IF NOT EXISTS 'revokee53'@'localhost' IDENTIFIED BY 'Password123!'; GRANT SELECT ON catalog_shared.* TO 'revokee53'@'localhost'",
+			"REVOKE SELECT ON catalog_shared.* FROM 'revokee53'@'localhost'",
 			"DROP USER IF EXISTS 'revokee53'@'localhost'",
 		},
 	}
@@ -5793,8 +5775,8 @@ func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
 			// track users/roles/privileges, which is expected behavior
 			// for an in-memory DDL catalog.
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			results, err := c.Exec(tc.sql, nil)
 			if err != nil {
 				t.Fatalf("omni parse error: %v", err)
@@ -5999,8 +5981,8 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			}
 
 			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
+			c.Exec("CREATE DATABASE catalog_shared", nil)
+			c.SetCurrentDatabase("catalog_shared")
 			// For constraint tests, need parent table first
 			if tc.table == "t_all_constraints" {
 				c.Exec("CREATE TABLE t_parent (id INT NOT NULL AUTO_INCREMENT, code VARCHAR(10) NOT NULL, PRIMARY KEY (id), UNIQUE KEY uk_code (code))", nil)
@@ -6012,7 +5994,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			if len(results) > 0 && results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
+			omniDDL := c.ShowCreateTable("catalog_shared", tc.table)
 
 			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -6041,8 +6023,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2", nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -6050,7 +6032,7 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateView("test", "v_sc_basic")
+		omniDDL := c.ShowCreateView("catalog_shared", "v_sc_basic")
 
 		// Compare preamble (up to AS) — SELECT text may differ due to MySQL rewriting.
 		oraclePreamble := extractViewPreamble(ctrDDL)
@@ -6085,8 +6067,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -6094,7 +6076,7 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateFunction("test", "fn_sc_multiply")
+		omniDDL := c.ShowCreateFunction("catalog_shared", "fn_sc_multiply")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -6116,8 +6098,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -6125,7 +6107,7 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_sc_swap")
+		omniDDL := c.ShowCreateProcedure("catalog_shared", "sp_sc_swap")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -6151,8 +6133,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		c.Exec("CREATE TABLE t_sc_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, updated_at DATETIME)", nil)
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
@@ -6161,7 +6143,7 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTrigger("test", "tr_sc_audit")
+		omniDDL := c.ShowCreateTrigger("catalog_shared", "tr_sc_audit")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -6183,8 +6165,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 
 		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
+		c.Exec("CREATE DATABASE catalog_shared", nil)
+		c.SetCurrentDatabase("catalog_shared")
 		results, parseErr := c.Exec(createSQL, nil)
 		if parseErr != nil {
 			t.Fatalf("omni parse error: %v", parseErr)
@@ -6192,7 +6174,7 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni exec error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateEvent("test", "ev_sc_onetime")
+		omniDDL := c.ShowCreateEvent("catalog_shared", "ev_sc_onetime")
 
 		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
@@ -6244,8 +6226,8 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// Setup on omni.
 	c := New()
-	c.Exec("CREATE DATABASE test", nil)
-	c.SetCurrentDatabase("test")
+	c.Exec("CREATE DATABASE catalog_shared", nil)
+	c.SetCurrentDatabase("catalog_shared")
 	if results, _ := c.Exec(parentSQL, nil); results[0].Error != nil {
 		t.Fatalf("omni parent table: %v", results[0].Error)
 	}
@@ -6253,12 +6235,12 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		t.Fatalf("omni setup: %v", results[0].Error)
 	}
 
-	db := c.GetDatabase("test")
+	db := c.GetDatabase("catalog_shared")
 	tbl := db.GetTable("t_is_test")
 
 	// 6.3.1: INFORMATION_SCHEMA.COLUMNS matches catalog state
 	t.Run("columns_match", func(t *testing.T) {
-		oracleCols, err := ctr.queryColumns("test", "t_is_test")
+		oracleCols, err := ctr.queryColumns("catalog_shared", "t_is_test")
 		if err != nil {
 			t.Fatalf("container queryColumns: %v", err)
 		}
@@ -6286,7 +6268,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.2: INFORMATION_SCHEMA.STATISTICS matches catalog indexes
 	t.Run("statistics_match", func(t *testing.T) {
-		oracleIdxs, err := ctr.queryIndexes("test", "t_is_test")
+		oracleIdxs, err := ctr.queryIndexes("catalog_shared", "t_is_test")
 		if err != nil {
 			t.Fatalf("container queryIndexes: %v", err)
 		}
@@ -6329,7 +6311,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.3: INFORMATION_SCHEMA.TABLE_CONSTRAINTS matches
 	t.Run("table_constraints_match", func(t *testing.T) {
-		oracleCons, err := ctr.queryConstraints("test", "t_is_test")
+		oracleCons, err := ctr.queryConstraints("catalog_shared", "t_is_test")
 		if err != nil {
 			t.Fatalf("container queryConstraints: %v", err)
 		}
@@ -6378,7 +6360,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION,
 			       REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
 			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-			WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION`)
 		if err != nil {
 			t.Fatalf("container KEY_COLUMN_USAGE query: %v", err)
@@ -6446,7 +6428,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			       MATCH_OPTION, UPDATE_RULE, DELETE_RULE,
 			       REFERENCED_TABLE_NAME
 			FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
-			WHERE CONSTRAINT_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
+			WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
 			t.Fatalf("container REFERENTIAL_CONSTRAINTS query: %v", err)
@@ -6499,7 +6481,7 @@ func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		rows, err := ctr.db.QueryContext(ctr.ctx, `
 			SELECT CONSTRAINT_NAME, CHECK_CLAUSE
 			FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
-			WHERE CONSTRAINT_SCHEMA = 'test'
+			WHERE CONSTRAINT_SCHEMA = DATABASE()
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
 			t.Fatalf("container CHECK_CONSTRAINTS query: %v", err)

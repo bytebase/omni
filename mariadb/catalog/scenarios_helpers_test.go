@@ -23,7 +23,7 @@ import (
 // queries may execute on a different pool connection and silently run
 // against the wrong schema or session settings, producing nondeterministic
 // oracle results. (Codex BATCH 4 review P1/P2.)
-func scenarioContainer(t *testing.T) (*mysqlContainer, func()) {
+func scenarioContainer(t *testing.T) (*mariadbContainer, func()) {
 	t.Helper()
 	mc, cleanup := startContainer(t)
 	mc.db.SetMaxOpenConns(1)
@@ -34,7 +34,7 @@ func scenarioContainer(t *testing.T) (*mysqlContainer, func()) {
 // scenarioReset drops and recreates the shared testdb database on the MySQL
 // container and selects it. It uses t.Error rather than t.Fatal so that the
 // calling test can continue and report additional diffs within one run.
-func scenarioReset(t *testing.T, mc *mysqlContainer) {
+func scenarioReset(t *testing.T, mc *mariadbContainer) {
 	t.Helper()
 	stmts := []string{
 		"DROP DATABASE IF EXISTS testdb",
@@ -71,7 +71,7 @@ func scenarioNewCatalog(t *testing.T) *Catalog {
 // via t.Error so that the calling test can continue comparing remaining
 // scenario state. Statements are split respecting quotes; individual
 // statements are executed one at a time on the container side.
-func runOnBoth(t *testing.T, mc *mysqlContainer, c *Catalog, ddl string) {
+func runOnBoth(t *testing.T, mc *mariadbContainer, c *Catalog, ddl string) {
 	t.Helper()
 
 	for _, stmt := range splitStmts(ddl) {
@@ -95,7 +95,7 @@ func runOnBoth(t *testing.T, mc *mysqlContainer, c *Catalog, ddl string) {
 // oracleScan runs a single-row information_schema (or other) query against
 // the MySQL container and scans into dests. Uses t.Error on failure so the
 // test can continue.
-func oracleScan(t *testing.T, mc *mysqlContainer, query string, dests ...any) {
+func oracleScan(t *testing.T, mc *mariadbContainer, query string, dests ...any) {
 	t.Helper()
 	row := mc.db.QueryRowContext(mc.ctx, query)
 	if err := row.Scan(dests...); err != nil {
@@ -106,7 +106,7 @@ func oracleScan(t *testing.T, mc *mysqlContainer, query string, dests ...any) {
 // oracleRows runs a multi-row query against the MySQL container and returns
 // the rows as a [][]any, converting []byte values to string for readability.
 // Uses t.Error on failure and returns nil.
-func oracleRows(t *testing.T, mc *mysqlContainer, query string) [][]any {
+func oracleRows(t *testing.T, mc *mariadbContainer, query string) [][]any {
 	t.Helper()
 	rows, err := mc.db.QueryContext(mc.ctx, query)
 	if err != nil {
@@ -154,7 +154,7 @@ func oracleRows(t *testing.T, mc *mysqlContainer, query string) [][]any {
 // (SHOW CREATE TABLE returns 2, SHOW CREATE VIEW returns 4, SHOW CREATE
 // FUNCTION/PROCEDURE/TRIGGER/EVENT return 6 or 7). This helper scans
 // dynamically so it works with any of them.
-func oracleShow(t *testing.T, mc *mysqlContainer, stmt string) string {
+func oracleShow(t *testing.T, mc *mariadbContainer, stmt string) string {
 	t.Helper()
 	rows, err := mc.db.QueryContext(mc.ctx, stmt)
 	if err != nil {

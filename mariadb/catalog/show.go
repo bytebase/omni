@@ -2,7 +2,10 @@ package catalog
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -12,10 +15,12 @@ func charsetForCollation(collation string) string {
 	collation = toLower(collation)
 	// Try known charsets from longest to shortest to handle prefixes like utf8mb4 vs utf8.
 	knownCharsets := []string{
-		"utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
-		"eucjpms", "cp1252", "gb2312", "euckr", "utf16", "utf32",
-		"latin1", "ascii", "binary", "cp932", "tis620", "hebrew",
-		"greek", "sjis", "big5", "ucs2", "utf8", "gbk",
+		"utf8mb4", "utf8mb3", "utf16le", "geostd8", "armscii8", "macroman",
+		"eucjpms", "keybcs2", "gb2312", "euckr", "utf16", "utf32", "macce",
+		"latin1", "latin2", "latin5", "latin7", "cp1250", "cp1251", "cp1256",
+		"cp1257", "cp850", "cp852", "cp866", "cp932", "koi8r", "koi8u",
+		"ascii", "binary", "tis620", "hebrew", "greek", "sjis", "swe7",
+		"big5", "ucs2", "ujis", "dec8", "hp8", "utf8", "gbk",
 	}
 	for _, cs := range knownCharsets {
 		if strings.HasPrefix(collation, cs+"_") || collation == cs {
@@ -29,12 +34,24 @@ func charsetForCollation(collation string) string {
 	return ""
 }
 
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset returns the default collation for each charset
+// MariaDB has. Measured on mariadb:11.8.8 through
+// information_schema.CHARACTER_SETS: the Unicode charsets default to the
+// UCA 14.0.0 collations, where MySQL 8.0 defaults utf8mb4 to
+// utf8mb4_0900_ai_ci and the rest to <charset>_general_ci. MariaDB has no
+// gb18030.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
-	"utf8mb3":  "utf8mb3_general_ci",
-	"utf8":     "utf8mb3_general_ci",
+	"utf8mb4":  "utf8mb4_uca1400_ai_ci",
+	"utf8mb3":  "utf8mb3_uca1400_ai_ci",
+	"utf8":     "utf8mb3_uca1400_ai_ci",
+	"ucs2":     "ucs2_uca1400_ai_ci",
+	"utf16":    "utf16_uca1400_ai_ci",
+	"utf32":    "utf32_uca1400_ai_ci",
+	"utf16le":  "utf16le_general_ci",
 	"latin1":   "latin1_swedish_ci",
+	"latin2":   "latin2_general_ci",
+	"latin5":   "latin5_turkish_ci",
+	"latin7":   "latin7_general_ci",
 	"ascii":    "ascii_general_ci",
 	"binary":   "binary",
 	"gbk":      "gbk_chinese_ci",
@@ -42,14 +59,24 @@ var defaultCollationForCharset = map[string]string{
 	"euckr":    "euckr_korean_ci",
 	"gb2312":   "gb2312_chinese_ci",
 	"sjis":     "sjis_japanese_ci",
-	"cp1252":   "cp1252_general_ci",
-	"ucs2":     "ucs2_general_ci",
-	"utf16":    "utf16_general_ci",
-	"utf16le":  "utf16le_general_ci",
-	"utf32":    "utf32_general_ci",
+	"ujis":     "ujis_japanese_ci",
 	"cp932":    "cp932_japanese_ci",
 	"eucjpms":  "eucjpms_japanese_ci",
-	"gb18030":  "gb18030_chinese_ci",
+	"cp1250":   "cp1250_general_ci",
+	"cp1251":   "cp1251_general_ci",
+	"cp1256":   "cp1256_general_ci",
+	"cp1257":   "cp1257_general_ci",
+	"cp850":    "cp850_general_ci",
+	"cp852":    "cp852_general_ci",
+	"cp866":    "cp866_general_ci",
+	"dec8":     "dec8_swedish_ci",
+	"hp8":      "hp8_english_ci",
+	"keybcs2":  "keybcs2_general_ci",
+	"koi8r":    "koi8r_general_ci",
+	"koi8u":    "koi8u_general_ci",
+	"macce":    "macce_general_ci",
+	"macroman": "macroman_general_ci",
+	"swe7":     "swe7_swedish_ci",
 	"geostd8":  "geostd8_general_ci",
 	"tis620":   "tis620_thai_ci",
 	"hebrew":   "hebrew_general_ci",
@@ -57,7 +84,7 @@ var defaultCollationForCharset = map[string]string{
 	"armscii8": "armscii8_general_ci",
 }
 
-// ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
+// ShowCreateTable produces MariaDB-compatible SHOW CREATE TABLE output.
 // Returns "" if the database or table does not exist.
 func (c *Catalog) ShowCreateTable(database, table string) string {
 	db := c.GetDatabase(database)
@@ -71,32 +98,33 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 
 	var b strings.Builder
 	if tbl.Temporary {
-		b.WriteString(fmt.Sprintf("CREATE TEMPORARY TABLE `%s` (\n", tbl.Name))
+		b.WriteString("CREATE TEMPORARY TABLE " + backtickIDQ(tbl.Name) + " (\n")
 	} else {
-		b.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tbl.Name))
+		b.WriteString("CREATE TABLE " + backtickIDQ(tbl.Name) + " (\n")
 	}
 
-	// Columns.
+	// Columns. The CHECK each one carries is indexed once for the whole
+	// rendering, not looked up per column.
+	checks := columnChecks(tbl)
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
 		if col.Hidden == ColumnHiddenSystem {
 			continue
 		}
-		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
-			continue
-		}
-		parts = append(parts, showColumnWithTable(col, tbl))
+		parts = append(parts, showColumnWithTable(col, tbl, checks))
 	}
 
 	// Application-time period — rendered before SYSTEM_TIME; the name is
 	// backtick-quoted (unlike the SYSTEM_TIME keyword).
 	if tbl.AppPeriodName != "" {
-		parts = append(parts, fmt.Sprintf("PERIOD FOR `%s` (`%s`, `%s`)", tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol))
+		parts = append(parts, "PERIOD FOR "+backtickIDQ(tbl.AppPeriodName)+
+			" ("+backtickIDQ(tbl.AppPeriodStartCol)+", "+backtickIDQ(tbl.AppPeriodEndCol)+")")
 	}
 
 	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
 	if tbl.PeriodStartCol != "" {
-		parts = append(parts, fmt.Sprintf("PERIOD FOR SYSTEM_TIME (`%s`, `%s`)", tbl.PeriodStartCol, tbl.PeriodEndCol))
+		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
+			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -107,9 +135,6 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// 5. FULLTEXT KEYs (creation order)
 	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector []*Index
 	for _, idx := range tbl.Indexes {
-		if isGeneratedInvisiblePrimaryKeyIndex(idx) && !c.showGIPK {
-			continue
-		}
 		switch {
 		case idx.Primary:
 			idxPrimary = append(idxPrimary, idx)
@@ -133,22 +158,27 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
-	// MySQL 8.0 sorts FKs alphabetically by name, then CHECKs alphabetically by name.
+	// A CHECK that belongs to a column was written on that column, so it is
+	// left out here. The question is asked of this very constraint and not of
+	// its name: a table-level check carrying a column's name is still the
+	// table's, and two checks of one name are written one in each place.
 	var fkConstraints, chkConstraints []*Constraint
 	for _, con := range tbl.Constraints {
 		switch con.Type {
 		case ConForeignKey:
 			fkConstraints = append(fkConstraints, con)
 		case ConCheck:
-			chkConstraints = append(chkConstraints, con)
+			if !writtenOnColumn(checks, con) {
+				chkConstraints = append(chkConstraints, con)
+			}
 		}
 	}
 	sort.Slice(fkConstraints, func(i, j int) bool {
 		return fkConstraints[i].Name < fkConstraints[j].Name
 	})
-	sort.Slice(chkConstraints, func(i, j int) bool {
-		return chkConstraints[i].Name < chkConstraints[j].Name
-	})
+	// The table-level checks keep the order they were declared in, which is
+	// what the server writes: ck1 above reports CONSTRAINT_1, named,
+	// CONSTRAINT_2. Measured on mariadb:11.8.8.
 	for _, con := range fkConstraints {
 		parts = append(parts, showConstraint(con))
 	}
@@ -181,24 +211,21 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	return b.String()
 }
 
-func isGeneratedInvisiblePrimaryKeyIndex(idx *Index) bool {
-	return idx != nil &&
-		idx.Primary &&
-		len(idx.Columns) == 1 &&
-		strings.EqualFold(idx.Columns[0].Name, generatedInvisiblePrimaryKeyColumnName)
-}
-
 func showColumn(col *Column) string {
-	return showColumnWithTable(col, nil)
+	return showColumnWithTable(col, nil, nil)
 }
 
-func showColumnWithTable(col *Column, tbl *Table) string {
+// showColumnWithTable writes a column definition. checks holds the CHECK each
+// column of the table carries, indexed by columnChecks.
+func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
+	b.WriteString(backtickIDQ(col.Name) + " " + col.ColumnType)
 
-	// CHARACTER SET and COLLATE — MySQL 8.0 display rules:
-	// - CHARACTER SET shown when column charset differs from table charset
-	// - COLLATE shown when column collation differs from the charset's default collation
+	// CHARACTER SET and COLLATE. MariaDB writes them together, and only where
+	// the column's collation differs from the table's: a column that inherits
+	// the table's collation reports neither, whatever the charset's own default
+	// is, and one that does not reports both. MySQL 8.0 instead compares
+	// against the charset's default collation. Measured on mariadb:11.8.8.
 	if isStringType(col.DataType) || isEnumSetType(col.DataType) {
 		tableCharset := ""
 		if tbl != nil {
@@ -212,38 +239,29 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			}
 		}
 		charsetDiffers := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
-		// Show COLLATE when the column's collation differs from its charset's default.
-		collationNonDefault := col.Collation != "" && !eqFoldStr(col.Collation, colCharsetDefault)
 
-		// Determine the table's effective collation for comparison.
+		// The table's effective collation, which the column inherits when it
+		// names none of its own.
 		tableCollation := ""
 		if tbl != nil {
 			tableCollation = tbl.Collation
+			if tableCollation == "" {
+				tableCollation = defaultCollationForCharset[toLower(tbl.Charset)]
+			}
 		}
-		// Column collation differs from table collation (= explicitly set on column).
-		collationDiffersFromTable := col.Collation != "" && !eqFoldStr(col.Collation, tableCollation)
+		collation := col.Collation
+		if collation == "" {
+			collation = colCharsetDefault
+		}
+		collationDiffers := collation != "" && !eqFoldStr(collation, tableCollation)
 
-		if charsetDiffers {
-			// When charset differs from table, show CHARACTER SET and always COLLATE.
-			b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			collation := col.Collation
-			if collation == "" {
-				collation = colCharsetDefault
+		if charsetDiffers || collationDiffers {
+			if col.Charset != "" {
+				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
 			}
 			if collation != "" {
 				b.WriteString(fmt.Sprintf(" COLLATE %s", collation))
 			}
-		} else if collationNonDefault && collationDiffersFromTable {
-			// Collation explicitly set on column (differs from both charset default and table).
-			// MySQL shows both CHARACTER SET and COLLATE.
-			if col.Charset != "" {
-				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			}
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
-		} else if collationNonDefault {
-			// Collation inherited from table but non-default for charset.
-			// MySQL shows only COLLATE (no CHARACTER SET).
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
 		}
 	}
 
@@ -257,7 +275,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 			}
 			if col.Invisible {
-				b.WriteString(" /*!80023 INVISIBLE */")
+				b.WriteString(" INVISIBLE")
 			}
 			return b.String()
 		}
@@ -265,7 +283,12 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		if col.Generated.Stored {
 			mode = "STORED"
 		}
-		b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS (%s) %s", col.Generated.Expr, mode))
+		// MariaDB writes the expression inside one pair of parentheses:
+		// `(`a` + `b`)` for a + b, and `((`a` + `b`) * `c`)` for (a+b)*c, where
+		// the inner pair is the one the precedence needs. The stored form
+		// carries a pair of its own around a top-level operator, so one level
+		// comes off here. Measured on mariadb:11.8.8.
+		b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS (%s) %s", stripOuterParens(col.Generated.Expr), mode))
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
@@ -273,7 +296,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 		}
 		if col.Invisible {
-			b.WriteString(" /*!80023 INVISIBLE */")
+			b.WriteString(" INVISIBLE")
 		}
 		return b.String()
 	}
@@ -295,7 +318,12 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	if col.Default != nil {
 		b.WriteString(" DEFAULT ")
 		b.WriteString(formatDefault(*col.Default, col))
-	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
+	} else if col.Nullable && !col.AutoIncrement {
+		// MariaDB writes DEFAULT NULL for every nullable column — the text,
+		// blob, JSON and spatial types included, and one whose default was
+		// dropped — where MySQL 8.0 leaves it off the types that cannot carry
+		// a literal default and off a column after DROP DEFAULT. Measured on
+		// mariadb:11.8.8 through SHOW CREATE TABLE.
 		b.WriteString(" DEFAULT NULL")
 	}
 
@@ -314,9 +342,10 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
 	}
 
-	// INVISIBLE.
+	// INVISIBLE. MariaDB writes the keyword bare; MySQL 8.0 hides it in a
+	// version comment. Measured on mariadb:11.8.8.
 	if col.Invisible {
-		b.WriteString(" /*!80023 INVISIBLE */")
+		b.WriteString(" INVISIBLE")
 	}
 
 	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
@@ -324,11 +353,195 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		b.WriteString(" WITHOUT SYSTEM VERSIONING")
 	}
 
+	// The column's own CHECK, which MariaDB writes on the column and names
+	// after it, last in the definition and after any COMMENT:
+	// `a` int(11) DEFAULT 5 COMMENT 'hi' CHECK (`a` > 0). MySQL 8.0 writes
+	// every check as a table-level constraint. Measured on mariadb:11.8.8.
+	if con := checks[toLower(col.Name)]; con != nil {
+		b.WriteString(fmt.Sprintf(" CHECK (%s)", con.CheckExpr))
+	}
+
 	return b.String()
 }
 
+// columnCheckOf returns the CHECK constraint that belongs to the named column
+// and is written on it, or nil.
+//
+// The answer comes from each check's own record of the column it was declared
+// on, since a name match is a different question: a check declared at table
+// level is written at table level even when it carries a column's name.
+// Measured on mariadb:11.8.8 —
+// `CREATE TABLE t (k INT, a INT, CONSTRAINT k CHECK (a > 0))` writes
+// CONSTRAINT `k` at table level, beside an untouched column `k`.
+//
+// A generated column does not carry one: MariaDB writes
+// `CREATE TABLE c8 (a INT, b INT AS (a+1), CONSTRAINT b CHECK (a>0))` back with
+// the check as a table-level CONSTRAINT `b`, not on `b`. Measured on
+// mariadb:11.8.8. Treating it as the column's would drop it from the output
+// altogether, since the generated-column branch writes no check.
+// columnChecks indexes the CHECK each column carries, which SHOW CREATE TABLE
+// writes on the column rather than among the table's constraints. It is built
+// once for a rendering: finding each one by scanning the table's columns and
+// its constraints made writing a wide table quadratic in its columns, and a
+// table of 4,000 of them spent most of its time there.
+func columnChecks(tbl *Table) map[string]*Constraint {
+	if tbl == nil {
+		return nil
+	}
+	out := make(map[string]*Constraint, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		if !isColumnCheck(con) {
+			continue
+		}
+		key := toLower(con.Column)
+		if _, seen := out[key]; seen {
+			continue // the first one the table holds is the one written
+		}
+		// A generated column's CHECK is not written on it.
+		if owner := tbl.GetColumn(con.Column); owner == nil || owner.Generated != nil {
+			continue
+		}
+		out[key] = con
+	}
+	return out
+}
+
+// writtenOnColumn reports whether this check is the one SHOW CREATE TABLE
+// writes on a column of the table, which is where it then appears instead of
+// among the table's constraints.
+func writtenOnColumn(checks map[string]*Constraint, con *Constraint) bool {
+	return isColumnCheck(con) && checks[toLower(con.Column)] == con
+}
+
+// formatExpressionDefault writes an expression default the way MariaDB stores
+// it: bare when it is a single function call, and otherwise inside the
+// parentheses the DEFAULT grammar requires for an operator expression.
+// Measured on mariadb:11.8.8 — see formatDefault.
+func formatExpressionDefault(val string) string {
+	inner := stripOuterParens(val)
+	if isBareFunctionCall(inner) {
+		return inner
+	}
+	return "(" + inner + ")"
+}
+
+// scanOutsideQuotes calls f for each byte of expr that is not inside a quoted
+// string or identifier, and reports whether every quote was closed. MariaDB
+// quotes strings with '\” or '"' and identifiers with '`'; a quote inside one
+// is written doubled, or, in a string, escaped with a backslash.
+func scanOutsideQuotes(expr string, f func(i int, c byte)) bool {
+	var quote byte
+	for i := 0; i < len(expr); i++ {
+		c := expr[i]
+		if quote == 0 {
+			switch c {
+			case '\'', '"', '`':
+				quote = c
+			default:
+				f(i, c)
+			}
+			continue
+		}
+		switch {
+		case c == '\\' && quote != '`' && i+1 < len(expr):
+			i++ // an escaped byte, whatever it is
+		case c == quote && i+1 < len(expr) && expr[i+1] == quote:
+			i++ // a doubled quote stands for one
+		case c == quote:
+			quote = 0
+		}
+	}
+	return quote == 0
+}
+
+// isNameByte reports whether c can appear in an unquoted function name.
+func isNameByte(c byte) bool {
+	return c == '_' || c == '$' || c == '.' ||
+		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9')
+}
+
+// isBareFunctionCall reports whether expr is one function call and nothing
+// else: a name, then a balanced argument list that ends the text.
+//
+// A parenthesis inside a string or a quoted identifier is text rather than
+// structure, so it is not counted: `length('(') + length(')')` is two calls
+// either side of an operator and keeps its parentheses, while `length('()')`
+// is the one call and loses them. Measured on mariadb:11.8.8.
+func isBareFunctionCall(expr string) bool {
+	nameEnd := -1
+	nameOK := true
+	type paren struct {
+		at   int
+		open bool
+	}
+	var parens []paren
+	balanced := scanOutsideQuotes(expr, func(i int, c byte) {
+		switch c {
+		case '(':
+			if nameEnd < 0 {
+				nameEnd = i
+			}
+			parens = append(parens, paren{i, true})
+		case ')':
+			parens = append(parens, paren{i, false})
+		default:
+			if nameEnd < 0 && !isNameByte(c) {
+				nameOK = false
+			}
+		}
+	})
+	if !balanced || !nameOK || nameEnd <= 0 || len(parens) == 0 {
+		return false
+	}
+	// The name's own argument list has to be the one that closes the text, so
+	// `f(1) + 1` and `f(1) + g(2)` are not one call.
+	depth := 0
+	for _, p := range parens {
+		if p.open {
+			depth++
+			continue
+		}
+		depth--
+		if depth == 0 && p.at != len(expr)-1 {
+			return false
+		}
+	}
+	return depth == 0 && parens[len(parens)-1].at == len(expr)-1
+}
+
+// stripOuterParens removes one balanced outer pair of parentheses, and leaves
+// the text alone when the pair does not wrap the whole expression.
+func stripOuterParens(expr string) string {
+	if len(expr) < 2 || expr[0] != '(' || expr[len(expr)-1] != ')' {
+		return expr
+	}
+	// Quoted parentheses are text, so `('(')` is wrapped while `'('` is not.
+	depth, wraps := 0, true
+	balanced := scanOutsideQuotes(expr, func(i int, c byte) {
+		switch c {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(expr)-1 {
+				wraps = false
+			}
+		}
+	})
+	if !balanced || !wraps || depth != 0 {
+		return expr
+	}
+	return expr[1 : len(expr)-1]
+}
+
 // formatDefault formats a default value for SHOW CREATE TABLE output.
-// MySQL 8.0 quotes numeric defaults as strings (e.g. DEFAULT '0').
+//
+// MariaDB writes a numeric column's default unquoted whatever it was written
+// as: `INT DEFAULT 0` and `INT DEFAULT '7'` come back as `DEFAULT 0` and
+// `DEFAULT 7`, and `FLOAT DEFAULT 3.14` as `DEFAULT 3.14`. A string, date or
+// enum default keeps its quotes. MySQL 8.0 quotes every literal, numerics
+// included. Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
 func formatDefault(val string, col *Column) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
@@ -337,45 +550,122 @@ func formatDefault(val string, col *Column) string {
 	case ColumnDefaultCurrentTimestamp:
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
-		return "(" + val + ")"
+		// A parenthesized literal is still a literal, however many layers it
+		// carries, and is written in the column's own notation without them.
+		// Measured on mariadb:11.8.8: ('x') is 'x', ((7)) is 7, (-1) is -1,
+		// (1e2) is 100, ('a' 'b') is 'ab' and BINARY(1) DEFAULT (X'FF') is
+		// x'ff', while a real expression keeps its parentheses, (1 + 1)
+		// staying (1 + 1).
+		if inner := stripAllOuterParens(val); isOneLiteral(inner) {
+			return formatLiteralValue(inner, col)
+		}
+		// A default that is one function call is written bare; anything else
+		// keeps the parentheses, which the DEFAULT grammar needs for an
+		// operator expression. Measured on mariadb:11.8.8:
+		// `DEFAULT (uuid())` → DEFAULT uuid(),
+		// `DEFAULT (floor(rand() * 100))` → DEFAULT floor(rand() * 100),
+		// `DEFAULT (1+1)` → DEFAULT (1 + 1). MySQL 8.0 parenthesizes all of
+		// them.
+		return formatExpressionDefault(val)
 	}
-	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	if _, ok := currentTimestampSQL(val); ok {
+		return formatCurrentTimestamp(val)
+	}
+	// Expression defaults — not quoted, and written without the parentheses
+	// they may carry where the grammar does not need them.
+	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
+		if inner := stripAllOuterParens(val); isOneLiteral(inner) {
+			return formatLiteralValue(inner, col)
+		}
+		return formatExpressionDefault(val)
+	}
+	return formatLiteralValue(val, col)
+}
+
+// formatLiteralValue writes a literal default in the notation the column
+// carries it in.
+func formatLiteralValue(val string, col *Column) string {
+	if out, ok := formatBinaryDefault(val, col); ok {
+		return out
+	}
+	// A BIT or YEAR column's default is never quoted: a quoted string is read
+	// as the bytes it holds on the one and as a year on the other, so quoting
+	// would change the value. What the family rule above could not read is
+	// written back as it stands, and the server refuses such a default
+	// outright with 1067 anyway.
+	switch columnDefaultFamily(col.DataType) {
+	case familyBit, familyYear:
+		return val
 	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		return val
 	}
-	// Expression defaults: (expr) — not quoted, shown as-is.
-	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
+	// A numeric column holds the number the literal spells, not the text, so
+	// the default is written from that number: the quotes go, and so does
+	// everything else the text carried around the digits.
+	if isNumericColumnType(col.DataType) {
+		text := val
+		// Only a bare literal with an exponent is a double. A quoted string
+		// is converted as a decimal however it spells its number: measured,
+		// DECIMAL(20,0) DEFAULT '9007199254740993e0' keeps all seventeen
+		// digits where the bare 9007199254740993e0 is the double's sixteen,
+		// and INT DEFAULT '2.5e0' comes back 3 where 2.5e0 comes back 2.
+		approximate := isApproximateLiteral(val)
+		if raw, ok := unquoteStringLiteral(val); ok {
+			text = string(raw)
+			approximate = false
+		}
+		if out, ok := scaleNumberDefault(text, approximate, col); ok {
+			return out
+		}
+		// The text spells no number, which the server refuses outright with
+		// 1067, so there is no value to write it as. It is written back as it
+		// stands, which at least parses.
 		return val
 	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
 	}
-	// MySQL 8.0 quotes all literal defaults (including numerics).
 	return "'" + val + "'"
 }
 
-// formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
+// isNumericColumnType reports whether the type's default is written unquoted.
+func isNumericColumnType(dt string) bool {
+	switch normalizedTypeName(dt) {
+	case "tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "float", "double", "boolean":
+		return true
+	}
+	return false
+}
+
+// formatOnUpdate normalizes ON UPDATE values to the form MariaDB writes.
 func formatOnUpdate(val string, kind ColumnDefaultKind) string {
 	if kind == ColumnDefaultCurrentTimestamp {
 		return formatCurrentTimestamp(val)
 	}
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	if _, ok := currentTimestampSQL(val); ok {
+		return formatCurrentTimestamp(val)
 	}
 	return val
 }
 
+// formatCurrentTimestamp renders a CURRENT_TIMESTAMP default or ON UPDATE the
+// way MariaDB writes it: lowercase and called, `current_timestamp()`, and
+// `current_timestamp(3)` where the column carries a precision. MySQL 8.0 writes
+// the bare keyword. Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
 func formatCurrentTimestamp(val string) string {
-	if ts, ok := currentTimestampSQL(val); ok {
-		return ts
+	ts, ok := currentTimestampSQL(val)
+	if !ok {
+		return "current_timestamp()"
 	}
-	return "CURRENT_TIMESTAMP"
+	if args, found := strings.CutPrefix(ts, "CURRENT_TIMESTAMP("); found {
+		return "current_timestamp(" + args
+	}
+	return "current_timestamp()"
 }
 
 func currentTimestampSQL(val string) (string, bool) {
@@ -400,7 +690,8 @@ func isTimestampType(dt string) bool {
 	return false
 }
 
-// isTextBlobType returns true for types where MySQL doesn't show DEFAULT NULL.
+// isTextBlobType returns true for the types an index must give a prefix length
+// for.
 func isTextBlobType(dt string) bool {
 	switch strings.ToLower(dt) {
 	case "text", "tinytext", "mediumtext", "longtext",
@@ -416,15 +707,15 @@ func showIndex(idx *Index) string {
 	if idx.Primary {
 		b.WriteString("PRIMARY KEY (")
 	} else if idx.Unique {
-		b.WriteString(fmt.Sprintf("UNIQUE KEY `%s` (", idx.Name))
+		b.WriteString("UNIQUE KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Fulltext {
-		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
+		b.WriteString("FULLTEXT KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Spatial {
-		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+		b.WriteString("SPATIAL KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Vector {
-		b.WriteString(fmt.Sprintf("VECTOR KEY `%s` (", idx.Name))
+		b.WriteString("VECTOR KEY " + backtickIDQ(idx.Name) + " (")
 	} else {
-		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
+		b.WriteString("KEY " + backtickIDQ(idx.Name) + " (")
 	}
 
 	cols := make([]string, 0, len(idx.Columns))
@@ -439,11 +730,13 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
-	// KEY_BLOCK_SIZE is intentionally NOT rendered here: MySQL 8.0 parses
-	// the index-level KEY_BLOCK_SIZE option but does not include it in
-	// SHOW CREATE TABLE output (only the table-level KEY_BLOCK_SIZE is
-	// shown). The catalog still preserves the value for programmatic
-	// access.
+	// KEY_BLOCK_SIZE, which MariaDB writes on the index and before its
+	// comment, whichever order they were given in:
+	// KEY `idx1` (`a`) KEY_BLOCK_SIZE=4 COMMENT 'c'. MySQL 8.0 parses the
+	// option but writes only the table-level one. Measured on mariadb:11.8.8.
+	if idx.KeyBlockSize > 0 {
+		b.WriteString(fmt.Sprintf(" KEY_BLOCK_SIZE=%d", idx.KeyBlockSize))
+	}
 
 	// Comment.
 	if idx.Comment != "" {
@@ -469,7 +762,7 @@ func showIndexColumn(ic *IndexColumn) string {
 	if ic.Expr != "" {
 		b.WriteString(fmt.Sprintf("(%s)", ic.Expr))
 	} else {
-		b.WriteString(fmt.Sprintf("`%s`", ic.Name))
+		b.WriteString(backtickIDQ(ic.Name))
 		if ic.Length > 0 {
 			b.WriteString(fmt.Sprintf("(%d)", ic.Length))
 		}
@@ -488,6 +781,15 @@ func showConstraint(con *Constraint) string {
 
 	switch con.Type {
 	case ConForeignKey:
+		// This line alone writes its identifiers without doubling a backtick
+		// inside one, because the server does not either: measured on
+		// mariadb:11.8.8, a table holding ``CONSTRAINT `fk``1` FOREIGN KEY
+		// (`c``1`) REFERENCES `p``q` (`i``d`)`` comes back as
+		// CONSTRAINT `fk`1` FOREIGN KEY (`c`1`) REFERENCES `p``q` (`i`d`) —
+		// the referenced table doubled and the constraint, its columns and
+		// the referenced columns not, which is a line the server cannot read
+		// back itself. The backing index on the line above is written the
+		// other way, doubled, by the writer every other key goes through.
 		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` FOREIGN KEY (", con.Name))
 		cols := make([]string, 0, len(con.Columns))
 		for _, c := range con.Columns {
@@ -495,9 +797,10 @@ func showConstraint(con *Constraint) string {
 		}
 		b.WriteString(strings.Join(cols, ", "))
 		if con.RefDatabase != "" {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s`.`%s` (", con.RefDatabase, con.RefTable))
+			b.WriteString(") REFERENCES " + backtickIDQ(con.RefDatabase) +
+				"." + backtickIDQ(con.RefTable) + " (")
 		} else {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
+			b.WriteString(") REFERENCES " + backtickIDQ(con.RefTable) + " (")
 		}
 		refCols := make([]string, 0, len(con.RefColumns))
 		for _, c := range con.RefColumns {
@@ -516,7 +819,7 @@ func showConstraint(con *Constraint) string {
 		}
 
 	case ConCheck:
-		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` CHECK (%s)", con.Name, con.CheckExpr))
+		b.WriteString("CONSTRAINT " + backtickIDQ(con.Name) + " CHECK (" + con.CheckExpr + ")")
 		if con.NotEnforced {
 			b.WriteString(" /*!80016 NOT ENFORCED */")
 		}
@@ -545,22 +848,17 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("DEFAULT CHARSET=%s", tbl.Charset))
 	}
 
-	// MySQL 8.0 shows COLLATE when:
-	// - The collation differs from the charset's default, OR
-	// - The collation was explicitly specified, OR
-	// - The charset is utf8mb4 (MySQL 8.0 always shows collation for utf8mb4)
+	// MariaDB always writes the table's collation, the charset's own default
+	// included: a latin1 table reports COLLATE=latin1_swedish_ci. MySQL 8.0
+	// writes it only for utf8mb4 or a non-default collation. Measured on
+	// mariadb:11.8.8.
 	if tbl.Charset != "" {
 		effectiveCollation := tbl.Collation
 		if effectiveCollation == "" {
 			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
 		}
-		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
-		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
-		isUtf8mb4 := eqFoldStr(tbl.Charset, "utf8mb4")
-		if isNonDefaultCollation || isUtf8mb4 {
-			if effectiveCollation != "" {
-				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
-			}
+		if effectiveCollation != "" {
+			parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
 		}
 	}
 
@@ -624,9 +922,12 @@ func unquoteTableOption(s string) string {
 
 // isFKDefault returns true if the action is a MySQL FK default that should not be shown.
 // MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
+// isFKDefault reports whether MariaDB leaves a referential action out of SHOW
+// CREATE TABLE. It leaves out RESTRICT, which is what an unwritten action and a
+// written one both mean, and writes NO ACTION; MySQL 8.0 leaves out NO ACTION
+// and RESTRICT. Measured on mariadb:11.8.8.
 func isFKDefault(action string) bool {
-	upper := strings.ToUpper(action)
-	return upper == "NO ACTION"
+	return strings.EqualFold(action, "RESTRICT")
 }
 
 func isEnumSetType(dt string) bool {
@@ -658,16 +959,19 @@ func escapeComment(s string) string {
 }
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
-// MySQL 8.0 outputs partitioning after table options with specific formatting.
+//
+// MariaDB writes the clause plainly, with one leading space and no version
+// comment, and backticks every partition name and every COLUMNS column:
+//
+//	 PARTITION BY RANGE (`val`)
+//	(PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB)
+//
+// MySQL 8.0 wraps the whole clause in /*!50100 ... */ (/*!50500 for the COLUMNS
+// forms) and leaves those names bare. Measured on mariadb:11.8.8.
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
 
-	// MySQL uses /*!50500 for RANGE COLUMNS and LIST COLUMNS, /*!50100 for others.
-	versionComment := "50100"
-	if pi.Type == "RANGE COLUMNS" || pi.Type == "LIST COLUMNS" {
-		versionComment = "50500"
-	}
-	b.WriteString(fmt.Sprintf("/*!%s PARTITION BY ", versionComment))
+	b.WriteString(" PARTITION BY ")
 	if pi.Linear {
 		b.WriteString("LINEAR ")
 	}
@@ -675,20 +979,19 @@ func showPartitioning(pi *PartitionInfo) string {
 	case "RANGE":
 		b.WriteString(fmt.Sprintf("RANGE (%s)", pi.Expr))
 	case "RANGE COLUMNS":
-		// MySQL uses double space before COLUMNS and no backticks on column names.
-		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		// Double space before COLUMNS, as the server writes it.
+		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "LIST":
 		b.WriteString(fmt.Sprintf("LIST (%s)", pi.Expr))
 	case "LIST COLUMNS":
-		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
+		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumns(pi.Columns)))
 	case "HASH":
 		b.WriteString(fmt.Sprintf("HASH (%s)", pi.Expr))
 	case "KEY":
-		// MySQL does not backtick-quote KEY column names.
 		if pi.Algorithm > 0 {
-			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumns(pi.Columns)))
 		} else {
-			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
+			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.Columns)))
 		}
 	case "SYSTEM_TIME":
 		b.WriteString("SYSTEM_TIME")
@@ -741,7 +1044,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(",\n ")
 			}
 			b.WriteString("PARTITION ")
-			b.WriteString(pd.Name)
+			b.WriteString(backtickIDQ(pd.Name))
 			if pd.SystemTime != "" {
 				b.WriteString(" " + pd.SystemTime)
 			}
@@ -763,10 +1066,13 @@ func showPartitioning(pi *PartitionInfo) string {
 				}
 			}
 			if pi.SubType == "" || pi.UseDefaultSubpartitions {
-				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
+				// MariaDB writes a partition's comment before its engine:
+				// PARTITION `p0` VALUES LESS THAN (10) COMMENT = 'pc0'
+				// ENGINE = InnoDB. Measured on mariadb:11.8.8.
 				if pd.Comment != "" {
 					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
 				}
+				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
 			}
 			// Explicit subpartition definitions are rendered instead of parent options.
 			if len(pd.SubPartitions) > 0 && !pi.UseDefaultSubpartitions {
@@ -776,11 +1082,11 @@ func showPartitioning(pi *PartitionInfo) string {
 						b.WriteString(",\n  ")
 					}
 					b.WriteString("SUBPARTITION ")
-					b.WriteString(spd.Name)
-					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
+					b.WriteString(backtickIDQ(spd.Name))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
 					}
+					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 				}
 				b.WriteString(")")
 			}
@@ -788,7 +1094,6 @@ func showPartitioning(pi *PartitionInfo) string {
 		b.WriteString(")")
 	}
 
-	b.WriteString(" */")
 	return b.String()
 }
 
@@ -796,14 +1101,9 @@ func showPartitioning(pi *PartitionInfo) string {
 func formatPartitionColumns(cols []string) string {
 	parts := make([]string, len(cols))
 	for i, c := range cols {
-		parts[i] = "`" + c + "`"
+		parts[i] = backtickIDQ(c)
 	}
 	return strings.Join(parts, ",")
-}
-
-// formatPartitionColumnsPlain formats column names without backticks (MySQL style for RANGE COLUMNS, LIST COLUMNS, KEY).
-func formatPartitionColumnsPlain(cols []string) string {
-	return strings.Join(cols, ",")
 }
 
 // partitionEngine returns the engine for a partition, defaulting to InnoDB.
@@ -812,4 +1112,1595 @@ func partitionEngine(engine string) string {
 		return "InnoDB"
 	}
 	return engine
+}
+
+// formatBinaryDefault renders a literal default on a binary column, and
+// reports whether it applied. The two halves of the family answer differently,
+// both measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+//
+// BINARY and VARBINARY store the coerced value, so the literal is evaluated
+// and written back as lowercase hex, padded with zero bytes to the declared
+// width where the type is fixed:
+//
+//	BINARY(1) DEFAULT X'FF'  -> x'ff'        BINARY(4) DEFAULT X'FF' -> x'ff000000'
+//	BINARY(4) DEFAULT 'a'    -> x'61000000'  BINARY(3) DEFAULT 0x4142 -> x'414200'
+//	BINARY(1) DEFAULT X''    -> x'00'        VARBINARY(4) DEFAULT 'a' -> x'61'
+//	VARBINARY(4) DEFAULT b'1000001' -> x'41'
+//
+// The BLOB family stores the expression instead, so the literal is kept as it
+// was written and only normalized: hex keeps its own spelling with the digits
+// lowercased, a bit literal becomes 0x, and a string stays a string:
+//
+//	BLOB DEFAULT X'FF' -> X'ff'   BLOB DEFAULT 0xFF -> 0xff
+//	BLOB DEFAULT b'1000001' -> 0x41   BLOB DEFAULT 'a' -> 'a'
+func formatBinaryDefault(val string, col *Column) (string, bool) {
+	family := columnDefaultFamily(col.DataType)
+	if family == familyOther {
+		return "", false
+	}
+	kind, raw, ok := literalDefaultBytes(val)
+	if !ok {
+		// A BIT or YEAR column's default may be written as a plain number as
+		// well, which is the value itself.
+		switch family {
+		case familyExpression:
+			// A column that holds its default as an expression keeps the
+			// literal rather than the value it spells, but as the server
+			// re-prints it: an exact number loses its leading zeros, a
+			// leading plus and a zero's sign, and keeps every digit of its
+			// fraction. Measured on mariadb:11.8.8, `TEXT DEFAULT (007)`
+			// comes back 7, (+1) 1, (-0) 0, (-0.000) 0.000, (0.10) 0.10 and
+			// (00.100) 0.100.
+			//
+			// One written with an exponent is kept as it stands, where a
+			// value column would convert it: (1e2) stays 1e2, and (-0e0)
+			// keeps the sign a value column drops.
+			if isNumberLiteral(val) && !isApproximateLiteral(val) {
+				if digits, ok := normalizeNumberText(val); ok {
+					return dropNegativeZero(digits), true
+				}
+			}
+			return val, true
+		case familyBit:
+			if n, ok := bitNumberOf(val); ok {
+				return bitLiteralOf(n), true
+			}
+		case familyYear:
+			if n, ok := wholeNumberOf(val); ok {
+				return yearLiteralOf(n, true), true
+			}
+		case familyTemporal:
+			// A temporal column converts a number to the value it holds and
+			// writes that value's own literal: measured on mariadb:11.8.8,
+			// `TIME DEFAULT (1e2)` comes back '00:01:00' and
+			// `DATE DEFAULT (2.0200101e7)` '2020-01-01'. Quoting the digits
+			// as written left a literal the server refuses outright, since
+			// '1e2' is no TIME.
+			if lit, ok := temporalNumberDefault(val, col); ok {
+				return lit, true
+			}
+		case familyString, familyFixedBinary, familyVarBinary:
+			if family == familyString && isEnumSetType(col.DataType) {
+				// On an ENUM or SET column a number is a choice among the
+				// members rather than text, which enumNumberDefault makes.
+				return enumNumberDefault(val, col)
+			}
+			// A column that stores a value takes a number's own text:
+			// measured on mariadb:11.8.8, `VARCHAR(20) DEFAULT (1e2)` is
+			// '100', (1e-3) is '0.001', (1.5) is '1.5', (0.10) keeps its
+			// trailing zero, (007) is '7' and (-1) is '-1', while
+			// `VARBINARY(20) DEFAULT (1e2)` is x'313030', the bytes of 100,
+			// and BINARY(4) pads them. A TEXT column keeps the literal as
+			// written, which familyExpression already does.
+			if digits, ok := numberStringForm(val); ok {
+				raw := []byte(digits)
+				if family == familyString {
+					return quoteStringDefault(raw), true
+				}
+				if width := declaredTypeLength(col.ColumnType); family == familyFixedBinary && width > len(raw) {
+					raw = append(raw, make([]byte, width-len(raw))...)
+				}
+				return "x'" + hexOf(raw) + "'", true
+			}
+		}
+		return "", false
+	}
+	// A column whose default is held as an expression keeps the literal as it
+	// was written, only normalized. Everything else holds a value, so the
+	// literal is coerced and written in that type's own notation.
+	if family == familyExpression {
+		switch kind {
+		case literalHexX:
+			return val[:2] + strings.ToLower(val[2:]), true
+		case literalHex0x:
+			return "0x" + strings.ToLower(val[2:]), true
+		case literalBits:
+			return "0x" + hexOf(raw), true
+		default:
+			return val, true // a string default keeps its quotes
+		}
+	}
+	if (family == familyString || family == familyNumber || family == familyTemporal) &&
+		kind == literalString {
+		// A plain string literal is already in the column's own notation. A
+		// hex, bit or introduced one has to be converted: measured on
+		// mariadb:11.8.8, `INT DEFAULT _utf8mb4'7'` comes back DEFAULT 7,
+		// `DECIMAL(5,2) DEFAULT _utf8mb4'7'` DEFAULT 7.00, and
+		// `VARCHAR(4) DEFAULT _latin1'x'` DEFAULT 'x' with the introducer
+		// gone, while a TEXT column keeps the literal as written.
+		return "", false
+	}
+	switch family {
+	case familyFixedBinary, familyVarBinary:
+		if width := declaredTypeLength(col.ColumnType); family == familyFixedBinary && width > len(raw) {
+			raw = append(raw, make([]byte, width-len(raw))...)
+		}
+		return "x'" + hexOf(raw) + "'", true
+	case familyString, familyTemporal:
+		// Only a column with a charset of its own converts the literal. A
+		// date has none: it reads the characters as a date, and the digits of
+		// one are the same bytes in every charset the introducer can name.
+		if family == familyString {
+			column := normalizeCharsetName(col.Charset)
+			// The bytes are read in the charset the introducer names, or in
+			// the column's own where it names none, as a hex or bit literal's
+			// are.
+			from := column
+			if kind == literalIntroduced {
+				from = introducedCharsetOf(val)
+			}
+			value, ok := convertIntroducedBytes(raw, from, column)
+			if !ok {
+				// Not a conversion this can do exactly, so the literal is
+				// written as it stands and the server reads the same value
+				// from it as it did from the statement.
+				return val, true
+			}
+			// The value then has to be written in the charset the output is
+			// read in, which is where the server writes it too.
+			text, ok := convertIntroducedBytes(value, column, outputCharset)
+			if !ok {
+				return val, true
+			}
+			raw = text
+		}
+		return quoteStringDefault(raw), true
+	case familyNumber:
+		return numberDefaultOf(kind, raw, col)
+	case familyBit:
+		// Every notation is read as bytes here, a quoted string and X'..'
+		// included: measured, BIT(8) DEFAULT 'A' and X'41' are both
+		// b'1000001' where INT DEFAULT 'A' and X'41' are refused, and
+		// BIT(8) DEFAULT X'37' is b'110111', the byte and not the character
+		// it spells. So the bytes are the value and not the text.
+		n, ok := uintOfBytes(raw)
+		if !ok {
+			return "", false
+		}
+		return bitLiteralOf(n), true
+	case familyYear:
+		return yearDefaultOf(kind, raw)
+	}
+	return "", false
+}
+
+// yearDefaultOf writes a YEAR column's default as the four-digit year the
+// literal denotes. Measured on mariadb:11.8.8: a quoted year and an X'..' one
+// are read as their text, while 0x.. and a bit literal are the number their
+// bytes spell. So YEAR DEFAULT '99', _utf8mb4'99', X'3939' and b'1100011' are
+// all 1999, X'37' is 2007 — the character 7 — where 0x37 is 2055, and X'41'
+// the server refuses outright, the character A spelling no year.
+func yearDefaultOf(kind literalKind, raw []byte) (string, bool) {
+	switch kind {
+	case literalString, literalIntroduced, literalHexX:
+		n, ok := wholeNumberOf(string(raw))
+		if !ok {
+			return "", false
+		}
+		// Zero written as a four-character string is the zero year, where
+		// zero written as a string of any other length is 2000: measured,
+		// '0000' and '+000' are 0000 while '0', '00', '000', '00000' and
+		// ' 0000 ' are 2000. The characters are counted as written, before
+		// the surrounding whitespace is taken off.
+		return yearLiteralOf(n, len(raw) == 4), true
+	case literalHex0x, literalBits:
+		n, ok := uintOfBytes(raw)
+		if !ok {
+			return "", false
+		}
+		return yearLiteralOf(n, true), true
+	}
+	return "", false
+}
+
+// yearLiteralOf writes the four-digit year a number denotes. Measured on
+// mariadb:11.8.8: 1 through 69 are 2001 through 2069, 70 through 99 are 1970
+// through 1999, and 1901 through 2155 are themselves. Zero is the zero year
+// where it was written as a number and 2000 where it was written as a string,
+// which is what numberZero says. A year outside those ranges the server
+// refuses with 1067, and writing it back changes nothing.
+func yearLiteralOf(n uint64, numberZero bool) string {
+	switch {
+	case n == 0 && !numberZero:
+		return "2000"
+	case n == 0:
+		return "0000"
+	case n <= 69:
+		n += 2000
+	case n <= 99:
+		n += 1900
+	}
+	return fmt.Sprintf("%04d", n)
+}
+
+// numberStringForm reads a default written as a number and reports the text a
+// column that stores a value takes from it. The number's own spelling is kept
+// where it has one — (1.5) is '1.5' and (0.10) keeps its trailing zero — while
+// a leading plus and leading zeros go and an exponent is worked out.
+//
+// An exponent makes the literal a double, and is worked out into a plain
+// decimal as far as the server does, which is the 15 positions a double
+// holds: measured on mariadb:11.8.8, `VARCHAR(40) DEFAULT (1e14)` is
+// '100000000000000' and (1e-15) is '0.000000000000001', where (1e15) is
+// '1e15' and (1e-16) is '1e-16'. Past that the exponent form is written, but
+// as the double's own and not as the literal was spelled.
+//
+// The 15 positions bound only that expansion. An exact literal has no double
+// in it and keeps every digit it was written with.
+func numberStringForm(val string) (string, bool) {
+	if !isNumberLiteral(val) {
+		return "", false
+	}
+	digits, ok := normalizeNumberText(val)
+	if !ok {
+		return "", false
+	}
+	if !isApproximateLiteral(val) {
+		// An exact literal keeps its digits and its fraction as written,
+		// however long: only the leading zeros and a leading plus go, which
+		// is what normalizing has already done. Measured,
+		// (000123456789012345678.50) is '123456789012345678.50',
+		// (0000000000000000000001) is '1', (00.100) is '0.100',
+		// (0.000000000000000000001) keeps all twenty-one decimals and a
+		// thirty-digit whole number keeps all thirty.
+		//
+		// A zero's sign is the one thing a value column drops, where its
+		// digits stay: measured, VARCHAR(12) DEFAULT (-0) is '0' and (-0.0)
+		// is '0.0', keeping the fraction it was written with, while (-0.5)
+		// keeps the sign.
+		return dropNegativeZero(digits), true
+	}
+	// An approximate literal is a double, so the value is the double's and not
+	// the digits the literal was written with: measured,
+	// (123456789012345.123456789e0) comes back '123456789012345.12' and
+	// (1.23456789012345678e5) '123456.78901234567', where the same digits
+	// without the exponent keep every one of them.
+	f, err := strconv.ParseFloat(digits, 64)
+	if err != nil {
+		return "", false
+	}
+	// The double keeps a zero's sign where the column does not: measured,
+	// VARCHAR(12) DEFAULT (-0e0) and (-0.0e0) are both '0'.
+	return dropNegativeZero(doubleText(f)), true
+}
+
+// doubleText writes a double the way the server writes one: the shortest
+// digits that read back as it, plainly where the point sits inside the
+// positions a plain decimal gets and in exponent form where it does not.
+//
+// Measured on mariadb:11.8.8 through a string column's default, which is
+// where the conversion shows. Reading the point's position as the digit it
+// sits after — 15 for 1e14, 16 for 1e15 — the plain form is written while
+// that position is at most 15, and past it only when the value has digits of
+// its own beyond the point: (1e14) is '100000000000000' and
+// (123456789012345.6e0) is '123456789012345.6', while (1e15), (1.5e15),
+// (1.23e15) and (1234567890123456e0) are '1e15', '1.5e15', '1.23e15' and
+// '1.234567890123456e15' — and (1234567890123456.7e0), at the same position
+// but with a seventeenth digit, is '1234567890123456.8'. Below the point the
+// plain form runs out at fifteen places: (1e-15) is '0.000000000000001' and
+// (1.5e-15) is '0.0000000000000015', where (1e-16) is '1e-16'.
+func doubleText(f float64) string {
+	// FormatFloat's 'e' gives the shortest mantissa and the exponent, which
+	// is where both the digit count and the point's position come from.
+	return scientificText(strconv.FormatFloat(f, 'e', -1, 64))
+}
+
+// singleText writes a single-precision float the way the server writes one:
+// the float32 the column holds, shown to the six significant digits a float
+// is shown to, in the notation a double is written in.
+//
+// Measured on mariadb:11.8.8 through a scaleless FLOAT column's default.
+// FLOAT DEFAULT (0.123456789) comes back 0.123457, (1234567) comes back
+// 1234570, (16777217) comes back 16777200 and (1.0000001) comes back 1, where
+// a DOUBLE of the same digits keeps them; (0.3333333333) comes back 0.333333
+// and the smallest subnormal (1e-45) comes back 1.4013e-45, six digits with
+// the trailing zero gone. The notation window is the double's: (1e-7) is
+// 0.0000001 and (123456789012345.123456789) is 123457000000000, while (1e15)
+// is 1e15 and (1e38) is 1e38.
+func singleText(f float64) string {
+	g := float64(float32(f))
+	if math.IsInf(g, 0) || math.IsNaN(g) {
+		// Past what a float32 holds there is no float32 form to write. The
+		// server refuses such a default, so this only guards the text.
+		return doubleText(f)
+	}
+	return scientificText(strconv.FormatFloat(g, 'e', 5, 64))
+}
+
+// scientificText writes the value an 'e' form carries the way the server
+// writes a float default, taking the digit count and the point's position
+// from the mantissa and the exponent.
+func scientificText(sci string) string {
+	mantissa, exp, _ := strings.Cut(sci, "e")
+	decExp, err := strconv.Atoi(exp)
+	if err != nil {
+		return sci
+	}
+	if strings.Contains(mantissa, ".") {
+		// Rounding to a digit count pads with zeros the server does not
+		// write: 2.675 as a float is 2.67500e0 and comes back 2.675.
+		mantissa = strings.TrimSuffix(strings.TrimRight(mantissa, "0"), ".")
+	}
+	digits := len(strings.TrimPrefix(strings.Replace(mantissa, ".", "", 1), "-"))
+	point := decExp + 1
+	if point >= -14 && (point <= 15 || digits > point) {
+		// The plain form of those same digits. A decimal this short reads
+		// back as one float64 and no other, so formatting the float64 it
+		// reads as writes the digits again.
+		f, err := strconv.ParseFloat(mantissa+"e"+strconv.Itoa(decExp), 64)
+		if err != nil {
+			return sci
+		}
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	// The exponent form is written without a plus or a padded exponent, which
+	// is what the server writes: 'g' would hand back a plain form here for a
+	// value whose digits fill the point's position.
+	return mantissa + "e" + strconv.Itoa(decExp)
+}
+
+// wholeNumberOf reads a default written as a number and reports the whole,
+// non-negative number it spells. It reports false for a fraction the type
+// cannot drop: measured, YEAR DEFAULT 1.0 is 2001 where 99.7 is refused with
+// 1067 rather than rounded.
+func wholeNumberOf(text string) (uint64, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return 0, false
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	if strings.Trim(fraction, "0") != "" {
+		// An exact fraction the server refuses outright, measured: YEAR
+		// DEFAULT 99.7 answers 1067. An approximate one is the double's, and
+		// the double's fraction is cut rather than rounded: YEAR DEFAULT
+		// (1.9e0) comes back 2001 and (1.5e0) 2001, where INT DEFAULT (1.9e0)
+		// is 2. The cut goes through the double, since that is the value:
+		// (1.99999999999999999e0) comes back 2002, the double being exactly
+		// 2, and (0.99999999999999999e0) 2001.
+		if !isApproximateLiteral(text) {
+			return 0, false
+		}
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return 0, false
+		}
+		whole = cut
+	}
+	// A negative zero is still zero, which `'-0'` relies on; anything else
+	// negative has no year to write.
+	whole = strings.TrimPrefix(whole, "-")
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil || (n != 0 && strings.HasPrefix(digits, "-")) {
+		return 0, false
+	}
+	return n, true
+}
+
+// bitLiteralOf writes a BIT column's default the way MariaDB does: a bit
+// literal of exactly the value's own digits, b'0' for zero.
+func bitLiteralOf(n uint64) string {
+	return "b'" + strconv.FormatUint(n, 2) + "'"
+}
+
+// uintOfBytes reads a literal's bytes as one big-endian number, and reports
+// false for more bytes than the widest BIT column could hold.
+func uintOfBytes(raw []byte) (uint64, bool) {
+	if len(raw) > 8 {
+		return 0, false
+	}
+	var n uint64
+	for _, c := range raw {
+		n = n<<8 | uint64(c)
+	}
+	return n, true
+}
+
+// bitNumberOf reads a BIT column's default written as a plain number, which is
+// the value itself, rounded to a whole number the way the integer types round:
+// measured on mariadb:11.8.8, BIT(8) DEFAULT 65 is b'1000001', 1.7 is b'10',
+// 007 is b'111' and 1e2 is b'1100100'. A negative one the server refuses
+// outright with 1067, so there is no value to write it as.
+func bitNumberOf(text string) (uint64, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return 0, false
+	}
+	// A double's fraction is cut here rather than rounded, which is not what
+	// the integer types do: measured on mariadb:11.8.8, BIT(8) DEFAULT
+	// (1.9e0) is b'1' and (1.5e0) b'1', where INT DEFAULT (1.9e0) is 2 and
+	// (3.5e0) is 4. An exact fraction still rounds away from zero, 1.9 and
+	// 1.5 both coming back b'10'.
+	whole := roundWholeNumber(digits, false)
+	if isApproximateLiteral(text) {
+		// The value cut is the double's and not the digits written, so the
+		// cut goes through it: measured, BIT(8) DEFAULT
+		// (1.99999999999999999e0) is b'10', the double being exactly 2, and
+		// (0.99999999999999999e0) is b'1'. Cutting can leave a negative zero,
+		// which is still zero: (-0.9e0) is b'0'.
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return 0, false
+		}
+		whole = dropNegativeZero(cut)
+	}
+	if strings.HasPrefix(whole, "-") {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// columnDefaultFamily groups the column types by how a literal default is
+// written back, each group measured on mariadb:11.8.8 through SHOW CREATE
+// TABLE. See formatBinaryDefault.
+type defaultFamily int
+
+const (
+	familyOther defaultFamily = iota
+	// familyExpression holds its default as an expression, so the literal
+	// survives as written: TEXT DEFAULT 0x41 stays 0x41 and TEXT DEFAULT
+	// X'41' stays X'41', where a bit literal becomes 0x41.
+	familyExpression
+	// familyFixedBinary pads the value to the declared width:
+	// BINARY(4) DEFAULT X'FF' is x'ff000000'.
+	familyFixedBinary
+	// familyVarBinary writes the value as lowercase hex, unpadded.
+	familyVarBinary
+	// familyString writes the value as a quoted string:
+	// VARCHAR(4) DEFAULT 0x41 is 'A', and so is ENUM('A','B') DEFAULT 0x41.
+	familyString
+	// familyTemporal reads the value as a quoted string too, since a date is
+	// held as the text of one: DATE DEFAULT X'323032302d30312d3031' and
+	// 0x323032302d30312d3031 both come back '2020-01-01'.
+	//
+	// The server coerces further than this, and those normalizations are not
+	// done here: measured, a date is written in its canonical spelling
+	// ('2020-1-1' comes back '2020-01-01'), a DATETIME given a date is padded
+	// with a time ('2020-01-01 00:00:00'), a fraction is scaled to the
+	// column's precision (DATETIME(3) DEFAULT '2020-01-01 00:00:00.5' is
+	// '...00.500') and a number is read as a date (DATE DEFAULT 20200101 is
+	// '2020-01-01', DEFAULT 0 is '0000-00-00').
+	familyTemporal
+	// familyNumber reads the literal as the number it spells, which depends on
+	// the notation: INT DEFAULT 0xFF is 255 and DECIMAL(5,2) DEFAULT 0x41 is
+	// 65.00, where X'..' is a string and INT DEFAULT X'37' is 7. See
+	// numberDefaultOf.
+	familyNumber
+	// familyYear reads the value as a number and writes the four-digit year it
+	// denotes: YEAR DEFAULT 99, '99' and 0x63 are all 1999, and 1 is 2001.
+	familyYear
+	// familyBit reads the value as a number too, and writes it as a bit
+	// literal of exactly its own digits: BIT(8) DEFAULT X'41', 0x41, 'A',
+	// b'1000001' and 65 all come back b'1000001', and BIT(16) DEFAULT X'41'
+	// too, where BINARY(2) would have padded it.
+	familyBit
+)
+
+func columnDefaultFamily(dt string) defaultFamily {
+	switch normalizedTypeName(dt) {
+	case "tinytext", "text", "mediumtext", "longtext",
+		"tinyblob", "blob", "mediumblob", "longblob":
+		return familyExpression
+	case "binary":
+		return familyFixedBinary
+	case "varbinary":
+		return familyVarBinary
+	case "char", "varchar", "enum", "set":
+		return familyString
+	case "date", "datetime", "time", "timestamp":
+		return familyTemporal
+	case "tinyint", "smallint", "mediumint", "int", "bigint",
+		"decimal", "float", "double", "boolean":
+		return familyNumber
+	case "year":
+		return familyYear
+	case "bit":
+		return familyBit
+	}
+	return familyOther
+}
+
+// quoteStringDefault writes bytes as a quoted string default. MariaDB escapes
+// five bytes and leaves the rest alone, control bytes and UTF-8 included:
+// 0x27 is ”, 0x5C is \\, 0x0A is \n, 0x0D is \r and 0x00 is \0, while
+// 0x08, 0x09, 0x0B, 0x0C, 0x1A, 0x22 and 0x7F come through raw. Measured on
+// mariadb:11.8.8 one byte at a time.
+func quoteStringDefault(raw []byte) string {
+	var b strings.Builder
+	b.Grow(len(raw) + 2)
+	b.WriteByte('\'')
+	for _, c := range raw {
+		switch c {
+		case '\'':
+			b.WriteString("''")
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('\'')
+	return b.String()
+}
+
+// numberDefaultOf writes a literal default in the column's own notation, which
+// for DECIMAL carries the declared scale.
+func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
+	// Which number a literal spells depends on how it was written, and the two
+	// hex notations part company here: X'..' is a string, while 0x.. and a bit
+	// literal are numbers. Measured on mariadb:11.8.8, the same byte three
+	// ways: `INT DEFAULT X'37'` is 7 — the character 7 — where
+	// `INT DEFAULT 0x37` and `INT DEFAULT b'110111'` are 55, and
+	// `INT DEFAULT X'41'` is refused outright with 1067 because the character
+	// A spells no number, where 0x41 is 65.
+	// https://mariadb.com/docs/server/reference/sql-structure/sql-language-structure/hexadecimal-literals
+	digits := ""
+	switch kind {
+	case literalString, literalIntroduced, literalHexX:
+		digits = string(raw)
+	default:
+		n, ok := uintOfBytes(raw)
+		if !ok {
+			return "", false // wider than a number the column could hold
+		}
+		digits = strconv.FormatUint(n, 10)
+	}
+	// None of these is a double. A string's number is converted as a decimal
+	// whatever it spells, exponent and all, and the hex and bit notations
+	// spell a whole number: measured, a DECIMAL(20,0) default written as the
+	// characters 9007199254740993e0, quoted or X-quoted, keeps all seventeen
+	// digits where the bare literal is the double's sixteen.
+	return scaleNumberDefault(digits, false, col)
+}
+
+// scaleNumberDefault writes the number a default's text spells the way the
+// column carries it. A DECIMAL is shown to its declared scale however the
+// default was written: DECIMAL(5,2) DEFAULT 7, '7', 7.5 and 0x41 come back
+// 7.00, 7.00, 7.50 and 65.00, while DECIMAL(5,0) DEFAULT 7 stays 7. Measured
+// on mariadb:11.8.8.
+//
+// approximate says the text came from a bare literal carrying an exponent,
+// which makes it a double. Where the number is a string's, exponent or not,
+// the conversion is decimal and the caller passes false.
+//
+// It reports false where the text spells no number, as `INT DEFAULT 'abc'`
+// does. The server refuses such a default outright with 1067, so there is no
+// value for it to be written as; omni does not check that yet.
+//
+// YEAR does not come through here: its value is more than its digits, and
+// yearDefaultOf writes it.
+func scaleNumberDefault(text string, approximate bool, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
+	}
+	scale, declared := declaredScaleOf(col.ColumnType)
+	typeName := normalizedTypeName(col.DataType)
+	switch typeName {
+	case "decimal":
+		if approximate {
+			// An exponent makes the literal a double, so what the column
+			// rounds is the double's own decimal rather than the digits
+			// written: measured, DECIMAL(20,0) DEFAULT (9007199254740993e0)
+			// comes back 9007199254740992, where the same digits without the
+			// exponent keep all seventeen. It is the double's shortest
+			// decimal, not its exact expansion: DECIMAL(5,2) DEFAULT
+			// (2.675e0) comes back 2.68 like the exact 2.675, where the
+			// expansion 2.67499999... would give 2.67.
+			if f, err := strconv.ParseFloat(digits, 64); err == nil {
+				digits = strconv.FormatFloat(f, 'f', -1, 64)
+			}
+		}
+		// DECIMAL is decimal arithmetic, so a tie rounds away from zero:
+		// measured, DECIMAL(5,2) DEFAULT 7.125 comes back 7.13, 0.005 0.01
+		// and 9.999 10.00. A DECIMAL that declares no scale has scale 0, so
+		// DECIMAL DEFAULT 7.9 comes back 8.
+		return dropNegativeZero(roundDecimalText(digits, scale)), true
+	case "float", "double":
+		if !declared {
+			// A scaleless float prints as the float it holds, whether or not
+			// the literal carried an exponent: measured, DOUBLE DEFAULT
+			// (9007199254740993) comes back 9.007199254740992e15, 7.000 comes
+			// back 7 and (1e15) stays 1e15. A FLOAT holds a float32, which
+			// singleText writes.
+			if f, err := strconv.ParseFloat(digits, 64); err == nil {
+				if typeName == "float" {
+					return dropNegativeZero(singleText(f)), true
+				}
+				return dropNegativeZero(doubleText(f)), true
+			}
+			return dropNegativeZero(trimFractionZeros(digits)), true
+		}
+		// A float that declares a scale is shown to it, rounded as the double
+		// it holds rather than as decimal digits: measured on mariadb:11.8.8,
+		// DOUBLE(10,2) DEFAULT 0.125 comes back 0.12 where DECIMAL(10,2)
+		// DEFAULT 0.125 comes back 0.13, and (2.675) comes back 2.67 where
+		// the decimal rounds to 2.68. That is what FormatFloat does, which
+		// rounds the double's own value.
+		//
+		// It is not quite what the server does. The conversion there is
+		// my_fcvt, which asks dtoa for the digits by its fast path —
+		// floating-point arithmetic carrying an error bound rather than an
+		// exact decimal conversion — so for a value whose double sits a hair
+		// off a tie at the places asked for, the answer turns on that error
+		// and no closed rule gives it. Over 120 measured literals this is
+		// wrong on six, all of them small ties: (0.005) comes back 0.00 here
+		// where the server stores 0.00... and (0.015) 0.01 where the server
+		// stores 0.02, with (0.025), (0.065), (0.075) and (0.085) the others.
+		// Rounding the scaled product to even instead — which gives those six
+		// — is wrong on twenty-three, (1.055), (12.005) and (123.025) among
+		// them, so this stays as it is. Matching it everywhere would mean
+		// following dtoa's fast path itself.
+		if f, err := strconv.ParseFloat(digits, 64); err == nil {
+			return dropNegativeZero(strconv.FormatFloat(f, 'f', scale, 64)), true
+		}
+		return digits, true
+	default:
+		// The integer types hold no fraction at all: measured, INT DEFAULT 7.9
+		// comes back 8, 7.5 comes back 8 and -7.5 comes back -8. A tie rounds
+		// by the literal's own kind, which roundWholeNumber decides: INT
+		// DEFAULT 2.5e0 comes back 2, where the string '2.5e0' comes back 3.
+		return dropNegativeZero(roundWholeNumber(digits, approximate)), true
+	}
+}
+
+// normalizeNumberText reads the number a default's text spells and writes it
+// as plain signed digits. Surrounding whitespace, a leading plus, leading
+// zeros, a bare point and exponent notation are all notation rather than
+// value, so the server keeps none of them: measured on mariadb:11.8.8,
+// `DECIMAL(5,2) DEFAULT ' 7 '` comes back 7.00, `INT DEFAULT '007.00'` 7,
+// `DECIMAL(5,2) DEFAULT '.7'` 0.70 and `DECIMAL(5,2) DEFAULT '7.'` 7.00.
+//
+// A number default is written as a plain decimal, so exponent notation is
+// worked out rather than carried: measured, `DECIMAL(5,2) DEFAULT 1e2` comes
+// back 100.00, `DECIMAL(6,2) DEFAULT 1.5e2` 150.00, `DECIMAL(5,2) DEFAULT
+// 1e-1` 0.10, and on a column with no scale, `INT DEFAULT 1e2` and `DOUBLE
+// DEFAULT 1e2` both come back 100. A double large enough that the server
+// prints it back in exponent notation, as DOUBLE DEFAULT 1e15 does, is
+// expanded here instead.
+func normalizeNumberText(text string) (string, bool) {
+	text = strings.Trim(text, " \t\n\r\v\f")
+	sign := ""
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		if text[0] == '-' {
+			sign = "-"
+		}
+		text = text[1:]
+	}
+	if plain, ok := expandExponent(text); ok {
+		text = plain
+	}
+	whole, fraction, hasPoint := strings.Cut(text, ".")
+	if whole+fraction == "" || !allDigits(whole) || !allDigits(fraction) {
+		return "", false
+	}
+	if whole = strings.TrimLeft(whole, "0"); whole == "" {
+		whole = "0"
+	}
+	if hasPoint && fraction != "" {
+		return sign + whole + "." + fraction, true
+	}
+	return sign + whole, true
+}
+
+// isApproximateLiteral reports whether a literal's text is read as a double
+// rather than as an exact decimal, which is what carrying an exponent makes
+// it.
+func isApproximateLiteral(text string) bool {
+	_, exponent, found := cutAnyFold(strings.TrimSpace(text), "e")
+	return found && exponent != ""
+}
+
+// roundWholeNumber writes the whole number a literal becomes. A tie rounds by
+// the literal's own kind: an exact decimal rounds away from zero, where an
+// approximate one is a double and rounds to its even neighbour, which is what
+// rint does. Measured on mariadb:11.8.8: INT DEFAULT (2.5) is 3 and (-2.5) is
+// -3, where (2.5e0) is 2, (-2.5e0) is -2, (1.5e0) is 2, (3.5e0) is 4 and
+// (0.5e0) is 0, and BIT(8) DEFAULT (2.5e0) is b'10'. A DECIMAL column rounds
+// away from zero either way — (2.5e0) and (2.5) both come back 3 — so it does
+// not come through here.
+func roundWholeNumber(digits string, approximate bool) string {
+	if !approximate {
+		return roundDecimalText(digits, 0)
+	}
+	f, err := strconv.ParseFloat(digits, 64)
+	if err != nil {
+		return roundDecimalText(digits, 0)
+	}
+	return strconv.FormatFloat(math.RoundToEven(f), 'f', 0, 64)
+}
+
+// roundDecimalText writes signed plain digits to the given scale, padding the
+// fraction with zeros or rounding it away from zero at the first digit the
+// scale cannot hold.
+func roundDecimalText(digits string, scale int) string {
+	sign := ""
+	if strings.HasPrefix(digits, "-") {
+		sign, digits = "-", digits[1:]
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	if len(fraction) > scale {
+		roundUp := fraction[scale] >= '5'
+		fraction = fraction[:scale]
+		if roundUp {
+			whole, fraction = carryOne(whole, fraction)
+		}
+	}
+	fraction += strings.Repeat("0", scale-len(fraction))
+	if scale == 0 {
+		return sign + whole
+	}
+	return sign + whole + "." + fraction
+}
+
+// carryOne adds one to the last digit of a number held as a whole part and a
+// fraction of fixed width, carrying into the whole part and widening it where
+// every digit was a nine.
+func carryOne(whole, fraction string) (string, string) {
+	digits := []byte(whole + fraction)
+	i := len(digits) - 1
+	for ; i >= 0; i-- {
+		if digits[i] != '9' {
+			digits[i]++
+			break
+		}
+		digits[i] = '0'
+	}
+	if i < 0 {
+		digits = append([]byte{'1'}, digits...)
+	}
+	return string(digits[:len(digits)-len(fraction)]), string(digits[len(digits)-len(fraction):])
+}
+
+// trimFractionZeros drops a fraction's trailing zeros, and the point with them
+// where nothing of the fraction is left.
+func trimFractionZeros(digits string) string {
+	if !strings.Contains(digits, ".") {
+		return digits
+	}
+	return strings.TrimSuffix(strings.TrimRight(digits, "0"), ".")
+}
+
+// dropNegativeZero drops the sign from a value that came out zero, as a
+// rounded one can: measured on mariadb:11.8.8, DECIMAL(5,2) DEFAULT '-0.001'
+// comes back 0.00 and DOUBLE DEFAULT '-0.0' comes back 0.
+func dropNegativeZero(digits string) string {
+	if strings.HasPrefix(digits, "-") && strings.Trim(digits[1:], "0.") == "" {
+		return digits[1:]
+	}
+	return digits
+}
+
+// literalKind is the notation a literal default was written in.
+type literalKind int
+
+const (
+	literalNone       literalKind = iota
+	literalHexX                   // X'ff'
+	literalHex0x                  // 0xff
+	literalBits                   // b'101'
+	literalString                 // 'a'
+	literalIntroduced             // _utf8mb4'a'
+)
+
+// literalDefaultBytes decodes a literal default to the bytes it stands for and
+// reports the notation it was written in. It reports false for anything else,
+// an expression included.
+func literalDefaultBytes(val string) (literalKind, []byte, bool) {
+	switch {
+	case hasPrefixFold(val, "x'") && strings.HasSuffix(val, "'"):
+		raw, ok := decodeHex(val[2 : len(val)-1])
+		return literalHexX, raw, ok
+	case hasPrefixFold(val, "0x"):
+		raw, ok := decodeHex(val[2:])
+		return literalHex0x, raw, ok
+	case hasPrefixFold(val, "b'") && strings.HasSuffix(val, "'"):
+		raw, ok := decodeBits(val[2 : len(val)-1])
+		return literalBits, raw, ok
+	case len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'':
+		raw, ok := unquoteStringLiteral(val)
+		return literalString, raw, ok
+	case val != "" && val[0] == '_':
+		// A character-set introducer, `_utf8mb4'a'`, is another spelling of a
+		// string literal: the charset says how to read the bytes and the value
+		// is the quoted part.
+		quote := strings.IndexByte(val, '\'')
+		if quote < 2 {
+			return literalNone, nil, false
+		}
+		for i := 1; i < quote; i++ {
+			if !isNameByte(val[i]) {
+				return literalNone, nil, false
+			}
+		}
+		raw, ok := unquoteStringLiteral(val[quote:])
+		return literalIntroduced, raw, ok
+	}
+	return literalNone, nil, false
+}
+
+// outputCharset is the charset the DDL this package writes is read in: the
+// text is UTF-8, which is what a utf8mb4 client sends and is handed back.
+//
+// The server writes a default's bytes re-encoded into the client's charset,
+// not as the column holds them: measured on mariadb:11.8.8 with a utf8mb4
+// client, a latin1 column holding the byte E4 is written back as the two UTF-8
+// bytes of ä, and one holding C3 A4 as the four bytes of Ã¤. Writing the
+// column's bytes into the text instead would change the value on replay, the
+// first being read back as one character and stored as E4.
+const outputCharset = "utf8mb4"
+
+// introducedCharsetOf returns the charset an introduced literal names, or ""
+// where val is not one.
+func introducedCharsetOf(val string) string {
+	if val == "" || val[0] != '_' {
+		return ""
+	}
+	quote := strings.IndexByte(val, '\'')
+	if quote < 2 {
+		return ""
+	}
+	return normalizeCharsetName(val[1:quote])
+}
+
+// convertIntroducedBytes re-encodes an introduced literal's bytes from the
+// charset it names into the column's own, which is the value the server holds:
+// a column that stores a value converts the literal and writes it back without
+// the introducer. Measured on mariadb:11.8.8 in a utf8mb4 database,
+// `VARCHAR(20) DEFAULT (_latin1'<C3 A4>')` comes back as the four bytes
+// C3 83 C2 A4 — those two bytes read as two latin1 characters and written in
+// the column's own encoding — where writing them as they stand would have been
+// the one character C3 A4.
+//
+// It reports false where the conversion is not one it can do exactly, and the
+// caller then keeps the literal as written. MariaDB's latin1 is cp1252, whose
+// bytes 0x80 through 0x9F are not the code points of the same number: measured
+// one band at a time, 0x80 converts to the euro sign and 0x9F to U+0178, while
+// 0x00-0x7F and 0xA0-0xFF are the code points they look like. Only the bands
+// that agree are converted here.
+func convertIntroducedBytes(raw []byte, from, to string) ([]byte, bool) {
+	switch {
+	case from == "" || to == "":
+		return nil, false
+	case from == to:
+		return raw, true
+	case from == "binary":
+		// The bytes are the value, whatever the column reads them as:
+		// measured, `VARCHAR(20) DEFAULT (_binary'<C3 A4>')` keeps both bytes
+		// and the column reads them as its own one character.
+		return raw, true
+	case from == "ascii" && isASCIIBytes(raw):
+		return raw, true
+	case from == "utf8mb3" && to == "utf8mb4":
+		// utf8mb3 is utf8mb4 without the four-byte characters, so the bytes
+		// are already in the column's own encoding: measured,
+		// `VARCHAR(20) DEFAULT (_utf8mb3'ä')` comes back DEFAULT 'ä' with the
+		// introducer gone and the bytes unchanged.
+		return raw, true
+	case from == "latin1" && (to == "utf8mb4" || to == "utf8mb3"):
+		out := make([]byte, 0, len(raw)*2)
+		for _, c := range raw {
+			switch {
+			case c < 0x80:
+				out = append(out, c)
+			case c < 0xa0:
+				return nil, false // the cp1252 band, which does not agree
+			default:
+				out = append(out, 0xc0|c>>6, 0x80|c&0x3f)
+			}
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// isASCIIBytes reports whether every byte is one the ASCII-compatible charsets
+// all read the same way.
+func isASCIIBytes(raw []byte) bool {
+	for _, c := range raw {
+		if c >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// unquoteStringLiteral takes the quotes off a single-quoted literal, where a
+// doubled quote stands for one. A literal holding a backslash escape is
+// refused, and its caller keeps it as written.
+func unquoteStringLiteral(val string) ([]byte, bool) {
+	if !isOneStringLiteral(val) {
+		return nil, false
+	}
+	inner := val[1 : len(val)-1]
+	if strings.ContainsRune(inner, '\\') {
+		return nil, false
+	}
+	return []byte(strings.ReplaceAll(inner, "''", "'")), true
+}
+
+// declaredScaleOf reads the scale out of a column type, as the 2 of
+// decimal(5,2), and reports whether the type declares one at all: decimal(5),
+// decimal and double do not, and a double that declares no scale is written
+// back differently from one that declares 0.
+func declaredScaleOf(columnType string) (int, bool) {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0, false
+	}
+	rest := columnType[open+1:]
+	comma := strings.IndexByte(rest, ',')
+	closing := strings.IndexByte(rest, ')')
+	if comma < 0 || closing < 0 || comma > closing {
+		return 0, false
+	}
+	scale := strings.TrimSpace(rest[comma+1 : closing])
+	if scale == "" || !allDigits(scale) {
+		return 0, false
+	}
+	n := 0
+	for i := 0; i < len(scale); i++ {
+		n = n*10 + int(scale[i]-'0')
+	}
+	return n, true
+}
+
+// decodeHex reads an even-length run of hex digits.
+func decodeHex(digits string) ([]byte, bool) {
+	if len(digits)%2 != 0 {
+		digits = "0" + digits
+	}
+	out := make([]byte, 0, len(digits)/2)
+	for i := 0; i < len(digits); i += 2 {
+		hi, ok := hexNibble(digits[i])
+		if !ok {
+			return nil, false
+		}
+		lo, ok2 := hexNibble(digits[i+1])
+		if !ok2 {
+			return nil, false
+		}
+		out = append(out, hi<<4|lo)
+	}
+	return out, true
+}
+
+func hexNibble(c byte) (byte, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0', true
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10, true
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
+}
+
+// decodeBits reads a bit literal as a big-endian number in as few bytes as
+// hold it, which is how b'1000001' becomes one byte, 0x41.
+func decodeBits(bits string) ([]byte, bool) {
+	if bits == "" {
+		return nil, true
+	}
+	for i := 0; i < len(bits); i++ {
+		if bits[i] != '0' && bits[i] != '1' {
+			return nil, false
+		}
+	}
+	n := (len(bits) + 7) / 8
+	out := make([]byte, n)
+	for i := 0; i < len(bits); i++ {
+		if bits[len(bits)-1-i] == '1' {
+			out[n-1-i/8] |= 1 << (i % 8)
+		}
+	}
+	return out, true
+}
+
+// hexOf renders bytes as lowercase hex digits.
+func hexOf(raw []byte) string {
+	const digits = "0123456789abcdef"
+	var b strings.Builder
+	b.Grow(len(raw) * 2)
+	for _, c := range raw {
+		b.WriteByte(digits[c>>4])
+		b.WriteByte(digits[c&0xf])
+	}
+	return b.String()
+}
+
+// hasPrefixFold reports whether s starts with prefix, ignoring case.
+func hasPrefixFold(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
+}
+
+// declaredTypeLength reads the width out of a column type, as the 4 of
+// binary(4), or 0 where the type carries none.
+func declaredTypeLength(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0
+	}
+	close := strings.IndexByte(columnType[open:], ')')
+	if close < 0 {
+		return 0
+	}
+	n := 0
+	digits := columnType[open+1 : open+close]
+	if digits == "" {
+		return 0
+	}
+	for i := 0; i < len(digits); i++ {
+		if digits[i] < '0' || digits[i] > '9' {
+			return 0
+		}
+		n = n*10 + int(digits[i]-'0')
+	}
+	return n
+}
+
+// expandExponent rewrites a number in exponent notation as a plain decimal,
+// and reports whether it applied. The point is moved through the digits rather
+// than the value passed through a float, so no precision is invented.
+func expandExponent(text string) (string, bool) {
+	mantissa, exponent, found := cutAnyFold(text, "e")
+	if !found || mantissa == "" || exponent == "" {
+		return "", false
+	}
+	sign := ""
+	if mantissa[0] == '+' || mantissa[0] == '-' {
+		if mantissa[0] == '-' {
+			sign = "-"
+		}
+		mantissa = mantissa[1:]
+	}
+	exp, ok := parseSignedInt(exponent)
+	if !ok {
+		return "", false
+	}
+	whole, fraction, _ := strings.Cut(mantissa, ".")
+	if whole == "" && fraction == "" {
+		return "", false
+	}
+	if !allDigits(whole) || !allDigits(fraction) {
+		return "", false
+	}
+
+	digits := whole + fraction
+	point := len(whole) + exp
+	var out string
+	switch {
+	case point <= 0:
+		out = "0." + strings.Repeat("0", -point) + digits
+	case point >= len(digits):
+		out = digits + strings.Repeat("0", point-len(digits))
+	default:
+		out = digits[:point] + "." + digits[point:]
+	}
+
+	// A shifted mantissa can carry leading zeros, as 0.5e1 does; one digit
+	// stays before the point.
+	whole, fraction, hasPoint := strings.Cut(out, ".")
+	whole = strings.TrimLeft(whole, "0")
+	if whole == "" {
+		whole = "0"
+	}
+	if hasPoint {
+		return sign + whole + "." + fraction, true
+	}
+	return sign + whole, true
+}
+
+// cutAnyFold cuts text at the first occurrence of sep in either case.
+func cutAnyFold(text, sep string) (before, after string, found bool) {
+	i := strings.IndexAny(text, strings.ToLower(sep)+strings.ToUpper(sep))
+	if i < 0 {
+		return text, "", false
+	}
+	return text[:i], text[i+1:], true
+}
+
+// parseSignedInt reads an optionally signed run of digits.
+func parseSignedInt(text string) (int, bool) {
+	negative := false
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		negative = text[0] == '-'
+		text = text[1:]
+	}
+	if text == "" || !allDigits(text) || len(text) > 4 {
+		return 0, false // a wild exponent is left as written
+	}
+	n := 0
+	for i := 0; i < len(text); i++ {
+		n = n*10 + int(text[i]-'0')
+	}
+	if negative {
+		return -n, true
+	}
+	return n, true
+}
+
+// allDigits reports whether text is only decimal digits; the empty string is.
+func allDigits(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] < '0' || text[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// isOneStringLiteral reports whether val is a single quoted string and nothing
+// else: the quote opening it closes at its last byte, where a doubled quote
+// stands for one. `'1' + '2'` is two literals around an operator and so is not
+// one, which keeps its source text from being read as a value.
+func isOneStringLiteral(val string) bool {
+	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
+		return false
+	}
+	outside := false
+	balanced := scanOutsideQuotes(val, func(int, byte) { outside = true })
+	return balanced && !outside
+}
+
+// isOneLiteral reports whether text is a single literal: a quoted string, a
+// hex or bit literal, one with a character-set introducer, or a number.
+func isOneLiteral(text string) bool {
+	if text == "" {
+		return false
+	}
+	if kind, _, ok := literalDefaultBytes(text); ok {
+		if kind != literalString {
+			return true
+		}
+		return isOneStringLiteral(text)
+	}
+	return isNumberLiteral(text)
+}
+
+// isNumberLiteral reports whether text is a number and nothing else, in plain
+// or exponent notation, with an optional sign.
+func isNumberLiteral(text string) bool {
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		text = text[1:]
+	}
+	if mantissa, exponent, found := cutAnyFold(text, "e"); found {
+		if _, ok := parseSignedInt(exponent); !ok {
+			return false
+		}
+		text = mantissa
+	}
+	whole, fraction, _ := strings.Cut(text, ".")
+	if whole == "" && fraction == "" {
+		return false
+	}
+	return allDigits(whole) && allDigits(fraction)
+}
+
+// stripAllOuterParens takes off every layer of parentheses wrapping the whole
+// expression, so ((7)) reduces to 7.
+func stripAllOuterParens(expr string) string {
+	for {
+		inner := stripOuterParens(expr)
+		if inner == expr {
+			return expr
+		}
+		expr = strings.TrimSpace(inner)
+	}
+}
+
+// maxTimeNumber is the widest TIME a number spells, 838:59:59, and
+// maxDateTimeNumber the widest date and time one does.
+// maxSetMembers is the widest SET the server takes, a bit of a mask each.
+const maxSetMembers = 64
+
+const (
+	maxTimeNumber        = 8385959
+	maxDateTimeNumber    = 99991231235959
+	minDateTimeDigits    = 10000000000
+	maxFractionalSeconds = 6
+)
+
+// temporalNumberDefault writes a default written as a number on a temporal
+// column as the literal of the value the column converts it to. Measured on
+// mariadb:11.8.8: TIME DEFAULT (1e2) comes back '00:01:00',
+// DATE DEFAULT (2.0200101e7) '2020-01-01' and DATETIME(3) DEFAULT
+// (20200101123456.456789) '2020-01-01 12:34:56.456'. Quoting the digits as
+// they were written gave a literal the server refuses outright, since '1e2'
+// is no TIME.
+//
+// It reports false for a number the server refuses, where there is no value
+// to write. The server answers 1067 on such a default and omni does not check
+// that yet, so the text is left as it stands.
+func temporalNumberDefault(text string, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
+	}
+	if isApproximateLiteral(text) {
+		// An exponent makes the literal a double, so the value the column
+		// converts is the double's and not the digits written: measured on
+		// mariadb:11.8.8, DATETIME(6) DEFAULT (20200101123456.123456e0) is
+		// '2020-01-01 12:34:56.125000', where the same digits without the
+		// exponent keep every one of them.
+		converted, ok := exactDoubleText(digits, declaredTypeLength(col.ColumnType))
+		if !ok {
+			return "", false
+		}
+		digits = converted
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	negative := strings.HasPrefix(whole, "-")
+	n, err := strconv.ParseUint(strings.TrimPrefix(whole, "-"), 10, 64)
+	if err != nil {
+		return "", false // wider than any temporal value
+	}
+	fsp := declaredTypeLength(col.ColumnType)
+	typeName := normalizedTypeName(col.DataType)
+	if negative && n != 0 && typeName != "time" {
+		// Only TIME holds a negative value: measured, TIME DEFAULT (-100) is
+		// '-00:01:00' where DATE DEFAULT (-20200101) and DATETIME DEFAULT
+		// (-20200101123456) are both refused with 1067.
+		return "", false
+	}
+	switch typeName {
+	case "time":
+		return timeNumberLiteral(n, negative, fraction, fsp)
+	case "date":
+		v, ok := dateTimeNumber(n)
+		if !ok {
+			return "", false
+		}
+		year, month, day, _, _, _ := dateTimeFieldsOf(v)
+		if !storableDate(year, month, day) {
+			return "", false
+		}
+		// A DATE keeps only the date the number spells, and the fraction and
+		// the time of day go: measured, DATE DEFAULT (20200101123456) and
+		// (20200101.5) are both '2020-01-01'.
+		return fmt.Sprintf("'%04d-%02d-%02d'", year, month, day), true
+	case "datetime", "timestamp":
+		v, ok := dateTimeNumber(n)
+		if !ok {
+			return "", false
+		}
+		year, month, day, hour, minute, second := dateTimeFieldsOf(v)
+		if !storableDate(year, month, day) || hour > 23 || minute > 59 || second > 59 {
+			return "", false
+		}
+		return fmt.Sprintf("'%04d-%02d-%02d %02d:%02d:%02d%s'",
+			year, month, day, hour, minute, second, fractionText(fraction, fsp)), true
+	}
+	return "", false
+}
+
+// timeNumberLiteral writes the TIME a number spells, which is read from the
+// right as seconds, minutes and hours: measured on mariadb:11.8.8, TIME
+// DEFAULT (7) is '00:00:07', (100) '00:01:00', (10000) '01:00:00' and
+// (8385959) '838:59:59', where (60), (960) and (8395959) are refused with
+// 1067 — a minute or second of its own past 59, or an hour past the widest
+// TIME.
+func timeNumberLiteral(n uint64, negative bool, fraction string, fsp int) (string, bool) {
+	if n > maxTimeNumber {
+		// Past the widest TIME the number is read as a date and time, and
+		// only its time of day is kept: measured, TIME DEFAULT
+		// (20200101123456) is '12:34:56' and (99991231235959) '23:59:59',
+		// where (9999999999), a digit short of a date and time, is refused
+		// and so is a negative one.
+		if negative || n < minDateTimeDigits || n > maxDateTimeNumber {
+			return "", false
+		}
+		n %= 1000000
+	}
+	second, minute, hour := n%100, (n/100)%100, n/10000
+	if second > 59 || minute > 59 {
+		return "", false
+	}
+	sign := ""
+	if negative && (n != 0 || strings.Trim(fraction, "0") != "") {
+		// A negative zero is just zero: measured, TIME DEFAULT (-0) is
+		// '00:00:00'.
+		sign = "-"
+	}
+	return fmt.Sprintf("'%s%02d:%02d:%02d%s'",
+		sign, hour, minute, second, fractionText(fraction, fsp)), true
+}
+
+// dateTimeNumber reads a number the way a date or datetime column does,
+// returning the YYYYMMDDhhmmss value it carries. The ranges are the server's
+// own, which is what makes a number of an unexpected length land where it
+// does: measured on mariadb:11.8.8, DATE DEFAULT (20200) is '2002-02-00',
+// since 20200 is below 691231 and so is read as the two-digit-year 020200,
+// and (2020010), below the eight digits a date needs, is refused with 1067.
+//
+// A two-digit year is read as 2000 to 2069 up to 691231 and as 1970 to 1999
+// from 700101: measured, (691231) is '2069-12-31' and (700101) '1970-01-01'.
+func dateTimeNumber(n uint64) (uint64, bool) {
+	switch {
+	case n == 0 || n >= 10000101000000:
+		return n, true
+	case n < 101:
+		return 0, false
+	case n <= 691231:
+		return (n + 20000000) * 1000000, true // YYMMDD, 2000 to 2069
+	case n < 700101:
+		return 0, false
+	case n <= 991231:
+		return (n + 19000000) * 1000000, true // YYMMDD, 1970 to 1999
+	case n < 10000101:
+		return 0, false
+	case n <= 99991231:
+		return n * 1000000, true // YYYYMMDD
+	case n < 101000000:
+		return 0, false
+	case n <= 691231235959:
+		return n + 20000000000000, true // YYMMDDhhmmss, 2000 to 2069
+	case n < 700101000000:
+		return 0, false
+	case n <= 991231235959:
+		return n + 19000000000000, true // YYMMDDhhmmss, 1970 to 1999
+	default:
+		// Between the widest two-digit year and the first full fourteen
+		// digits the number is read as it stands, which is how DATETIME
+		// DEFAULT (2020010112345) comes back '0202-00-10 11:23:45'.
+		return n, true
+	}
+}
+
+// dateTimeFieldsOf splits a YYYYMMDDhhmmss value into its fields.
+func dateTimeFieldsOf(v uint64) (year, month, day, hour, minute, second uint64) {
+	date, clock := v/1000000, v%1000000
+	return date / 10000, (date / 100) % 100, date % 100,
+		clock / 10000, (clock / 100) % 100, clock % 100
+}
+
+// storableDate reports whether a date is one a default holds. A zero year,
+// month or day is allowed — measured on mariadb:11.8.8, DATE DEFAULT
+// (20200100) is '2020-01-00' and (20200001) '2020-00-01' — but a day past the
+// month's own length is not: (20200230) and (20210229) are refused with 1067
+// where (20200229) is '2020-02-29'.
+func storableDate(year, month, day uint64) bool {
+	if year > 9999 || month > 12 || day > 31 {
+		return false
+	}
+	if month == 0 || day == 0 {
+		return true
+	}
+	return day <= daysInMonth(year, month)
+}
+
+func daysInMonth(year, month uint64) uint64 {
+	switch month {
+	case 2:
+		if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+			return 29
+		}
+		return 28
+	case 4, 6, 9, 11:
+		return 30
+	}
+	return 31
+}
+
+// fractionText writes a value's fraction to the precision the column declares,
+// which truncates rather than rounds: measured on mariadb:11.8.8, TIME(3)
+// DEFAULT (100.4567) is '00:01:00.456' and TIME DEFAULT (100.999), declaring
+// none, is '00:01:00'.
+func fractionText(fraction string, fsp int) string {
+	if fsp <= 0 {
+		return ""
+	}
+	if fsp > maxFractionalSeconds {
+		fsp = maxFractionalSeconds
+	}
+	if len(fraction) > fsp {
+		fraction = fraction[:fsp]
+	}
+	return "." + fraction + strings.Repeat("0", fsp-len(fraction))
+}
+
+// exactDoubleText writes the value a double holds, with its fraction cut to
+// the places a column keeps. The value is the double's own rather than the
+// digits the literal spelled, and it is the double's exact value rather than
+// its shortest decimal: measured on mariadb:11.8.8, DATETIME(6) DEFAULT
+// (20200101123456.1e0) comes back '2020-01-01 12:34:56.101562', the double
+// 20200101123456.1015625 cut at six places, where the shortest decimal that
+// reads back as that double is ...56.102. The places it does not keep are cut
+// and not rounded, which is what TIME(6) DEFAULT (8385959.999999e0), coming
+// back '838:59:59.999998', shows.
+//
+// The cut is exact, through the rational the double is, so no digit of the
+// value turns on how many were asked for.
+func exactDoubleText(digits string, places int) (string, bool) {
+	f, err := strconv.ParseFloat(digits, 64)
+	if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+		return "", false
+	}
+	value := new(big.Rat).SetFloat64(f)
+	if value == nil {
+		return "", false
+	}
+	if places < 0 {
+		places = 0
+	}
+	if places > maxFractionalSeconds {
+		places = maxFractionalSeconds
+	}
+	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(places)), nil)
+	value.Mul(value, new(big.Rat).SetInt(scale))
+	// Quo truncates toward zero, which is the cut the column makes.
+	scaled := new(big.Int).Quo(value.Num(), value.Denom())
+	text := scaled.String()
+	if places == 0 {
+		return text, true
+	}
+	sign := ""
+	if strings.HasPrefix(text, "-") {
+		sign, text = "-", text[1:]
+	}
+	for len(text) <= places {
+		text = "0" + text
+	}
+	return sign + text[:len(text)-places] + "." + text[len(text)-places:], true
+}
+
+// enumNumberDefault writes a default written as a number on an ENUM or SET
+// column, where a number is not text but a choice among the members. An ENUM
+// takes it as a member's position and a SET as a bitmask of them: measured on
+// mariadb:11.8.8, `ENUM('2','1') DEFAULT (1)` comes back '2', the first
+// member, and `SET('1','2','3') DEFAULT (3)` comes back '1,2', the first two,
+// where the characters 1 — '1', X'31' or 0x31 — come back '1', the member of
+// that value. Writing the digits as text chose the member of that value
+// instead of the one the number points at.
+//
+// It reports false where there is no member to write, which is also where the
+// server refuses the default outright with 1067: a position of zero or past
+// the last member, a bitmask past them, a negative number, and a fraction,
+// approximate or not — `ENUM('2','1') DEFAULT (1.9e0)` and (1.4) are both
+// refused. The text is then left as it stands, omni not checking such a
+// default yet.
+//
+// The server's own acceptance is stranger than the value it stores: it takes
+// the default only where the number's digits are themselves a member, so
+// `ENUM('a','b') DEFAULT (1)` is refused where `ENUM('a','1') DEFAULT (1)` is
+// 'a', and `ENUM('3','b','c') DEFAULT (3)` is 'c'. Nothing here turns on that,
+// since a statement omni is given has already been accepted.
+func enumNumberDefault(text string, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
+	}
+	if isApproximateLiteral(text) {
+		// An exponent makes the literal a double, and the member is chosen by
+		// the double's own value with its fraction cut: measured on
+		// mariadb:11.8.8, ENUM('2','1') DEFAULT (1.99999999999999999e0) comes
+		// back '1', the second member, the double being exactly 2, and
+		// (0.99999999999999999e0) comes back '2'. Reading the digits as
+		// written saw a fraction there and wrote them back as text, which
+		// names no member at all.
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return "", false
+		}
+		digits = cut
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	if strings.Trim(fraction, "0") != "" {
+		return "", false
+	}
+	// A negative zero is still zero, which a SET reads as the empty set.
+	whole = dropNegativeZero(whole)
+	if strings.HasPrefix(whole, "-") {
+		return "", false
+	}
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil {
+		return "", false
+	}
+	members := enumMembersOf(col.ColumnType)
+	if len(members) == 0 {
+		return "", false
+	}
+	if normalizedTypeName(col.DataType) == "set" {
+		// A SET holds up to 64 members, one bit each, so a 64-member column
+		// has a bit for every mask a uint64 can hold and needs no range check
+		// at all: measured on mariadb:11.8.8, a 65th member is 1097 and a
+		// 64-member SET takes DEFAULT (1) as its first member.
+		if len(members) > maxSetMembers ||
+			(len(members) < maxSetMembers && n >= 1<<uint(len(members))) {
+			return "", false
+		}
+		// Zero is a bitmask like any other and chooses no member, which the
+		// column holds as the empty set and shows as an empty string:
+		// measured, SET('0','1','2') DEFAULT (0) comes back '', and so do
+		// (-0) and (0e0). An ENUM has no member at that position and refuses
+		// it, even where '0' is one of them.
+		chosen := make([]string, 0, len(members))
+		for i, member := range members {
+			if n&(1<<uint(i)) != 0 {
+				chosen = append(chosen, member)
+			}
+		}
+		return quoteStringDefault([]byte(strings.Join(chosen, ","))), true
+	}
+	if n == 0 || n > uint64(len(members)) {
+		return "", false
+	}
+	return quoteStringDefault([]byte(members[n-1])), true
+}
+
+// enumMembersOf reads the members an ENUM or SET column declares out of its
+// type text, which is where the catalog keeps them, a quote written twice
+// standing for one.
+func enumMembersOf(columnType string) []string {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 || !strings.HasSuffix(columnType, ")") {
+		return nil
+	}
+	body := columnType[open+1 : len(columnType)-1]
+	var members []string
+	for i := 0; i < len(body); {
+		if body[i] != '\'' {
+			i++ // the comma between two members, and any space around it
+			continue
+		}
+		i++
+		var member strings.Builder
+		for i < len(body) {
+			if body[i] != '\'' {
+				member.WriteByte(body[i])
+				i++
+				continue
+			}
+			if i+1 < len(body) && body[i+1] == '\'' {
+				member.WriteByte('\'')
+				i += 2
+				continue
+			}
+			i++
+			break
+		}
+		members = append(members, member.String())
+	}
+	return members
+}
+
+// truncateWholeNumber drops a value's fraction rather than rounding it, which
+// is how a BIT or YEAR column takes an approximate one.
+func truncateWholeNumber(digits string) string {
+	whole, _, _ := strings.Cut(digits, ".")
+	if whole == "" || whole == "-" {
+		return "0"
+	}
+	return whole
 }

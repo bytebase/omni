@@ -139,14 +139,14 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(mysqlCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("oracle: DEFAULT CHARSET=utf8mb4 missing; got %q", mysqlCreate)
 		}
-		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("oracle: COLLATE=utf8mb4_0900_ai_ci missing; got %q", mysqlCreate)
+		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("oracle: COLLATE=utf8mb4_uca1400_ai_ci missing; got %q", mysqlCreate)
 		}
 		if !strings.Contains(omniCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("omni: DEFAULT CHARSET=utf8mb4 missing; got %q", omniCreate)
 		}
-		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("omni: COLLATE=utf8mb4_0900_ai_ci missing; got %q", omniCreate)
+		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_uca1400_ai_ci") {
+			t.Errorf("omni: COLLATE=utf8mb4_uca1400_ai_ci missing; got %q", omniCreate)
 		}
 	})
 
@@ -201,11 +201,13 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(mysqlPrim, "DEFAULT CHARSET=latin1") {
 			t.Errorf("oracle t_prim: missing DEFAULT CHARSET=latin1; got %q", mysqlPrim)
 		}
-		if strings.Contains(mysqlPrim, "COLLATE=") {
-			t.Errorf("oracle t_prim: COLLATE= should be elided; got %q", mysqlPrim)
+		// MariaDB writes the collation even when it is the charset's own
+		// default, where MySQL 8.0 elides it. Measured on mariadb:11.8.8.
+		if !strings.Contains(mysqlPrim, "COLLATE=latin1_swedish_ci") {
+			t.Errorf("oracle t_prim: missing COLLATE=latin1_swedish_ci; got %q", mysqlPrim)
 		}
-		if strings.Contains(omniPrim, "COLLATE=") {
-			t.Errorf("omni t_prim: COLLATE= should be elided; got %q", omniPrim)
+		if !strings.Contains(omniPrim, "COLLATE=latin1_swedish_ci") {
+			t.Errorf("omni t_prim: missing COLLATE=latin1_swedish_ci; got %q", omniPrim)
 		}
 		// t_nonprim: COLLATE=latin1_bin.
 		if !strings.Contains(mysqlNonPrim, "COLLATE=latin1_bin") {
@@ -214,7 +216,9 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(omniNonPrim, "COLLATE=latin1_bin") {
 			t.Errorf("omni t_nonprim: missing COLLATE=latin1_bin; got %q", omniNonPrim)
 		}
-		// t_0900: COLLATE=utf8mb4_0900_ai_ci (special case — always rendered).
+		// t_0900 names utf8mb4_0900_ai_ci in its DDL, which MariaDB has as a
+		// non-default collation, so the table reports what was asked for.
+		// Measured on mariadb:11.8.8.
 		if !strings.Contains(mysql0900, "COLLATE=utf8mb4_0900_ai_ci") {
 			t.Errorf("oracle t_0900: missing COLLATE=utf8mb4_0900_ai_ci; got %q", mysql0900)
 		}
@@ -255,29 +259,27 @@ func TestScenario_C18(t *testing.T) {
 	// -----------------------------------------------------------------
 	// 18.9 COMPRESSION elision
 	// -----------------------------------------------------------------
-	t.Run("18_9_compression_elision", func(t *testing.T) {
+	// MariaDB has no COMPRESSION table option — it answers 1911, "Unknown
+	// option 'COMPRESSION'", and spells page compression PAGE_COMPRESSED,
+	// which it writes back as an engine-defined option. MySQL 8.0 has
+	// COMPRESSION and elides it when unset. Measured on mariadb:11.8.8.
+	t.Run("18_9_no_compression_option", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, "CREATE TABLE t_nocomp (a INT)")
-		runOnBoth(t, mc, c, "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'")
+		if strings.Contains(oracleShow(t, mc, "SHOW CREATE TABLE t_nocomp"), "COMPRESSION=") {
+			t.Errorf("oracle t_nocomp: unexpected COMPRESSION=")
+		}
+		if strings.Contains(c.ShowCreateTable("testdb", "t_nocomp"), "COMPRESSION=") {
+			t.Errorf("omni t_nocomp: unexpected COMPRESSION=")
+		}
 
-		mysqlNo := oracleShow(t, mc, "SHOW CREATE TABLE t_nocomp")
-		mysqlYes := oracleShow(t, mc, "SHOW CREATE TABLE t_comp")
-		omniNo := c.ShowCreateTable("testdb", "t_nocomp")
-		omniYes := c.ShowCreateTable("testdb", "t_comp")
-
-		if strings.Contains(mysqlNo, "COMPRESSION=") {
-			t.Errorf("oracle t_nocomp: COMPRESSION should be elided; got %q", mysqlNo)
-		}
-		if !strings.Contains(mysqlYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("oracle t_comp: missing COMPRESSION='ZLIB'; got %q", mysqlYes)
-		}
-		if strings.Contains(omniNo, "COMPRESSION=") {
-			t.Errorf("omni t_nocomp: COMPRESSION should be elided; got %q", omniNo)
-		}
-		if !strings.Contains(omniYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("omni t_comp: missing COMPRESSION='ZLIB'; got %q", omniYes)
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'"); err == nil {
+			t.Errorf("oracle: expected COMPRESSION='ZLIB' to be refused")
+		} else if !strings.Contains(err.Error(), "1911") {
+			t.Errorf("oracle: expected 1911 for an unknown option, got %v", err)
 		}
 	})
 

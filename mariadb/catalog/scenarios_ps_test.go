@@ -30,7 +30,7 @@ func TestScenario_PS(t *testing.T) {
             CHECK (b < 100)
         )`)
 
-		want := []string{"t_chk_1", "t_chk_5"}
+		want := []string{"CONSTRAINT_1", "t_chk_5"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -50,9 +50,11 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.2 CHECK constraint counter — ALTER path (max+1).
-	// The user-named t_chk_20 IS seeded on the ALTER path; new unnamed
-	// CHECK gets t_chk_21.
+	// PS.2 CHECK constraint counter — ALTER path.
+	// MariaDB counts its own CONSTRAINT_<n> names and ignores a user-named
+	// constraint, so an ALTER that adds an unnamed CHECK beside a user-named
+	// t_chk_20 gets CONSTRAINT_1. MySQL 8.0 seeds its counter from the
+	// existing maximum and would pick t_chk_21. Measured on mariadb:11.8.8.
 	t.Run("PS_2_Check_counter_ALTER_maxplus1", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -61,7 +63,7 @@ func TestScenario_PS(t *testing.T) {
 			`CREATE TABLE t (a INT, b INT, CONSTRAINT t_chk_20 CHECK (a>0))`)
 		runOnBoth(t, mc, c, `ALTER TABLE t ADD CHECK (b>0)`)
 
-		want := []string{"t_chk_20", "t_chk_21"}
+		want := []string{"CONSTRAINT_1", "t_chk_20"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -150,21 +152,23 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.5 DEFAULT NOW() / fsp precision mismatch must error.
-	// MySQL rejects DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT (1067).
-	// omni should reject as well.
-	t.Run("PS_5_Datetime_fsp_mismatch_errors", func(t *testing.T) {
+	// PS.5 DEFAULT NOW() against a column of another precision is accepted.
+	// MariaDB stores the default at the column's precision:
+	// DATETIME(6) DEFAULT NOW() becomes current_timestamp(6). MySQL 8.0
+	// answers ER_INVALID_DEFAULT (1067). Measured on mariadb:11.8.8.
+	t.Run("PS_5_Datetime_fsp_mismatch_accepted", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		ddl := `CREATE TABLE t (a DATETIME(6) DEFAULT NOW())`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.5 oracle: expected MySQL to reject DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT, got success")
-		} else if !strings.Contains(oracleErr.Error(), "1067") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "invalid default") {
-			t.Errorf("PS.5 oracle: unexpected error text: %v", oracleErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, ddl); oracleErr != nil {
+			t.Errorf("PS.5 oracle: expected %q to be accepted, got %v", ddl, oracleErr)
+		} else {
+			create := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+			if !strings.Contains(create, "default current_timestamp(6)") {
+				t.Errorf("PS.5 oracle: expected DEFAULT current_timestamp(6), got %s", create)
+			}
 		}
 
 		var omniErr error
@@ -254,10 +258,14 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES p(id)
         )`
 
+		// MariaDB answers the one error it gives for a foreign key it cannot
+		// form, 1005 "Can't create table ... (errno: 150 ...)", where MySQL 8.0
+		// names the collision with ER_FK_DUP_NAME (1826). Measured on
+		// mariadb:11.8.8.
 		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
 		if oracleErr == nil {
-			t.Errorf("PS.7 oracle: expected ER_FK_DUP_NAME (1826), got success")
-		} else if !strings.Contains(oracleErr.Error(), "1826") &&
+			t.Errorf("PS.7 oracle: expected the FK name collision to be refused, got success")
+		} else if !strings.Contains(oracleErr.Error(), "1005") &&
 			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
 			t.Errorf("PS.7 oracle: unexpected error text: %v", oracleErr)
 		}
@@ -280,10 +288,11 @@ func TestScenario_PS(t *testing.T) {
 	})
 
 	// PS.8 CHECK constraint duplicate name in schema — must error.
-	// CHECK constraint names are schema-scoped in MySQL; the second
-	// CREATE TABLE with the same check name fails with
-	// ER_CHECK_CONSTRAINT_DUP_NAME (3822). omni should reject as well.
-	t.Run("PS_8_Check_dup_name_schema_scope", func(t *testing.T) {
+	// A CHECK constraint's name is scoped to its table in MariaDB, so two
+	// tables in one schema may each hold a `my_rule`. MySQL 8.0 scopes the
+	// name to the schema and answers ER_CHECK_CONSTRAINT_DUP_NAME (3822) for
+	// the second. Measured on mariadb:11.8.8.
+	t.Run("PS_8_Check_name_is_table_scoped", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -293,12 +302,8 @@ func TestScenario_PS(t *testing.T) {
 
 		ddl2 := `CREATE TABLE t2 (b INT, CONSTRAINT my_rule CHECK (b > 0))`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl2)
-		if oracleErr == nil {
-			t.Errorf("PS.8 oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
-		} else if !strings.Contains(oracleErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.8 oracle: unexpected error text: %v", oracleErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, ddl2); oracleErr != nil {
+			t.Errorf("PS.8 oracle: expected the same CHECK name in another table to be accepted, got %v", oracleErr)
 		}
 
 		var omniErr error
@@ -313,8 +318,8 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.8 omni: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
+		if omniErr != nil {
+			t.Errorf("PS.8 omni: expected the same CHECK name in another table to be accepted, got %v", omniErr)
 		}
 	})
 }

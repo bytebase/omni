@@ -33,27 +33,31 @@ func TestScenario_C21(t *testing.T) {
 CREATE TABLE t2 (c INT);`
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: column a has COLUMN_DEFAULT NULL, IS_NULLABLE YES.
+		// Oracle: column a reports the text "NULL" as its COLUMN_DEFAULT, and
+		// IS_NULLABLE YES. MariaDB writes a nullable column's implicit default
+		// as that text where MySQL leaves the field SQL NULL. Measured on
+		// mariadb:11.8.8: a nullable column reports 'NULL' and a NOT NULL one
+		// with no default reports SQL NULL.
 		var aDefault *string
 		var aNullable string
 		oracleScan(t, mc,
 			`SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='a'`,
 			&aDefault, &aNullable)
-		if aDefault != nil {
-			t.Errorf("oracle: expected COLUMN_DEFAULT NULL for t.a, got %q", *aDefault)
+		if aDefault == nil || *aDefault != "NULL" {
+			t.Errorf("oracle: expected COLUMN_DEFAULT \"NULL\" for t.a, got %v", aDefault)
 		}
 		assertStringEq(t, "oracle t.a IS_NULLABLE", aNullable, "YES")
 
-		// Oracle: column c (no DEFAULT clause at all) also has DEFAULT NULL.
+		// Oracle: column c (no DEFAULT clause at all) reports the same text.
 		var cDefault *string
 		var cNullable string
 		oracleScan(t, mc,
 			`SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t2' AND COLUMN_NAME='c'`,
 			&cDefault, &cNullable)
-		if cDefault != nil {
-			t.Errorf("oracle: expected COLUMN_DEFAULT NULL for t2.c, got %q", *cDefault)
+		if cDefault == nil || *cDefault != "NULL" {
+			t.Errorf("oracle: expected COLUMN_DEFAULT \"NULL\" for t2.c, got %v", cDefault)
 		}
 		assertStringEq(t, "oracle t2.c IS_NULLABLE", cNullable, "YES")
 
@@ -208,17 +212,18 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 		runOnBoth(t, mc, c, ddl)
 
 		// Oracle: information_schema.REFERENTIAL_CONSTRAINTS reports
-		// DELETE_RULE and UPDATE_RULE as "NO ACTION" (rendering of UNDEF).
+		// DELETE_RULE and UPDATE_RULE as "RESTRICT", which is what an unwritten
+		// action means. Measured on mariadb:11.8.8.
 		var deleteRule, updateRule string
 		oracleScan(t, mc,
 			`SELECT DELETE_RULE, UPDATE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
-		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
+		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
 
-		// omni catalog: the FK constraint's OnDelete/OnUpdate should render as
-		// "NO ACTION" (via refActionToString mapping RefActNone -> "NO ACTION").
+		// omni catalog: the FK constraint's OnDelete/OnUpdate hold "RESTRICT",
+		// which refActionToString maps RefActNone to.
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
@@ -235,10 +240,10 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			t.Errorf("omni: FK constraint missing on child")
 			return
 		}
-		// Omni maps UNDEF -> "NO ACTION" which matches the info_schema
-		// rendering. Any value distinct from NO ACTION is a bug.
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		// Omni maps UNDEF -> "RESTRICT", which matches the info_schema
+		// rendering. Any other value is a bug.
+		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "RESTRICT")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -257,7 +262,7 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
 		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
 
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
@@ -276,7 +281,7 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			return
 		}
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------

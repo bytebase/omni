@@ -784,8 +784,12 @@ func (e *UnaryExpr) exprNode() {}
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Loc        Loc
-	Name       string
+	Loc  Loc
+	Name string
+	// RawName is the name as it was written, where Name is upper-cased for
+	// comparison against the built-ins. A stored routine keeps the spelling it
+	// was declared with, which a qualified call is written back with.
+	RawName    string
 	Schema     string // schema-qualified name
 	Args       []ExprNode
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
@@ -1244,6 +1248,11 @@ type ResTarget struct {
 	Loc  Loc
 	Name string   // AS alias
 	Val  ExprNode // expression
+	// NameWritten records that the statement wrote this name, rather than the
+	// server naming the item after its own text. A subquery's target list is
+	// written with the names a statement gave and without the ones the server
+	// supplied, where a derived table's carries both.
+	NameWritten bool
 }
 
 func (r *ResTarget) nodeTag()  {}
@@ -1257,6 +1266,12 @@ type WindowDef struct {
 	PartitionBy []ExprNode
 	OrderBy     []*OrderByItem
 	Frame       *WindowFrame
+	// BareRef marks `OVER name`: a reference with no specification of its
+	// own, as against `OVER (name)`, which is an empty specification that
+	// references one. MariaDB tells the two apart — a specification
+	// referencing a window that has a frame is 4013, while a bare reference
+	// inherits that frame — so the form has to survive parsing.
+	BareRef bool
 }
 
 func (w *WindowDef) nodeTag() {}
