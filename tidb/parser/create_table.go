@@ -343,19 +343,15 @@ func (p *Parser) isTableConstraintStart() bool {
 // parsing even refuses a functional key part), so their parsers keep their own
 // stricter reading -- this is a measured dialect delta, not a shared gap.
 //
-// The names it keeps are the columns', as the qualifier names nothing the
-// foreign key uses; a prefix length and an expression key part are read only far
-// enough to parse, since a foreign key that reaches DDL still references columns.
-// indexColumnsToNames drops the expression parts, as it does for the local list.
+// The caller keeps both the key parts and their column names: a prefix length
+// is valid in a REFERENCES list (TiDB v8.5.5 runs the DDL for `id(8)`), so the
+// name is enough there; an expression key part is not (TiDB's DDL rejects it),
+// so the catalog reads the key parts to reject a foreign key that references one.
 //
 // Ref: `ReferDef: "REFERENCES" TableName IndexPartSpecificationListOpt MatchOpt
 // OnDeleteUpdateOpt` in TiDB v8.5.5 pkg/parser/parser.y.
-func (p *Parser) parseReferencedColumns() ([]string, error) {
-	cols, err := p.parseParenIndexKeyParts()
-	if err != nil {
-		return nil, err
-	}
-	return indexColumnsToNames(cols), nil
+func (p *Parser) parseReferencedColumns() ([]*nodes.IndexColumn, error) {
+	return p.parseParenIndexKeyParts()
 }
 
 // parseColumnName reads ColumnName, parser.y:3511: an Identifier, with up to two more before
@@ -903,7 +899,8 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 		if err != nil {
 			return nil, err
 		}
-		constr.RefColumns = cols
+		constr.RefKeyParts = cols
+		constr.RefColumns = indexColumnsToNames(cols)
 	}
 
 	// MATCH
@@ -1182,7 +1179,8 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 				if err != nil {
 					return nil, err
 				}
-				constr.RefColumns = refCols
+				constr.RefKeyParts = refCols
+				constr.RefColumns = indexColumnsToNames(refCols)
 			}
 			// MATCH
 			if _, ok := p.match(kwMATCH); ok {

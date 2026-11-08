@@ -615,12 +615,14 @@ const (
 
 // ColumnConstraint represents a column-level constraint.
 type ColumnConstraint struct {
-	Loc         Loc
-	Type        ColumnConstraintType
-	Name        string   // constraint name
-	Expr        ExprNode // for CHECK, DEFAULT, etc.
-	RefTable    *TableRef
-	RefColumns  []string
+	Loc        Loc
+	Type       ColumnConstraintType
+	Name       string   // constraint name
+	Expr       ExprNode // for CHECK, DEFAULT, etc.
+	RefTable   *TableRef
+	RefColumns []string
+	// RefKeyParts is the REFERENCES list as written (see Constraint.RefKeyParts).
+	RefKeyParts []*IndexColumn
 	Match       string // FULL, PARTIAL, SIMPLE
 	OnDelete    ReferenceAction
 	OnUpdate    ReferenceAction
@@ -667,12 +669,17 @@ type Constraint struct {
 	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, VISIBLE/INVISIBLE, etc.)
 	Expr         ExprNode       // for CHECK
 	RefTable     *TableRef      // for FOREIGN KEY
-	RefColumns   []string       // for FOREIGN KEY
-	OnDelete     ReferenceAction
-	OnUpdate     ReferenceAction
-	Match        string // FULL, PARTIAL, SIMPLE
-	NotEnforced  bool   // for CHECK ... NOT ENFORCED
-	Clustered    *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
+	RefColumns   []string       // for FOREIGN KEY: the referenced column names
+	// RefKeyParts is the REFERENCES list as written: key parts with an optional
+	// prefix length or an expression, the same shape as IndexColumns. RefColumns
+	// is its column names; a part that is an expression contributes no name, so
+	// the catalog reads RefKeyParts to reject a foreign key that references one.
+	RefKeyParts []*IndexColumn
+	OnDelete    ReferenceAction
+	OnUpdate    ReferenceAction
+	Match       string // FULL, PARTIAL, SIMPLE
+	NotEnforced bool   // for CHECK ... NOT ENFORCED
+	Clustered   *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
 	// IfNotExists records the IF NOT EXISTS that TiDB and MariaDB allow after
 	// {INDEX | KEY}, after FOREIGN KEY and after VECTOR INDEX, and nowhere
 	// else: TiDB v8.5.5 answers 1064 for it after UNIQUE, PRIMARY KEY,

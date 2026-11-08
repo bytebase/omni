@@ -71,7 +71,28 @@ func TestForeignKeyReferenceIndexParts(t *testing.T) {
 			if !equalStrings(fk.Columns, c.wantCols) {
 				t.Errorf("Columns = %v, want %v", fk.Columns, c.wantCols)
 			}
+			// RefKeyParts keeps the list as written, so the catalog can see an
+			// expression part that RefColumns drops.
+			if len(fk.RefKeyParts) == 0 {
+				t.Errorf("RefKeyParts is empty; the key parts were not retained")
+			}
 		})
+	}
+}
+
+// TestReferenceKeyPartRequiresLength pins that an empty prefix `()` is a syntax
+// error, not a zero-length prefix: TiDB's FieldLen is `'(' LengthNum ')'`, and
+// v8.5.5 answers 1064 to each of these. The fix is in the shared key-part
+// reader, so it holds for a REFERENCES list and for an index alike.
+func TestReferenceKeyPartRequiresLength(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE child (id INT, FOREIGN KEY (id) REFERENCES parent(id()))",
+		"CREATE TABLE t (a INT, KEY (a()))",
+		"CREATE INDEX i ON t (a())",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse accepted %q; want a syntax error for the empty prefix length", sql)
+		}
 	}
 }
 

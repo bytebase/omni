@@ -166,13 +166,17 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			Column: colName,
 		}
 
-		// Optional (length)
+		// Optional (length). The number is required: FieldLen in v8.5.5
+		// pkg/parser/parser.y is `'(' LengthNum ')'`, so `a()` is a syntax
+		// error, not a zero-length prefix. TiDB answers 1064 to `KEY (a())` and
+		// to `REFERENCES t (a())`.
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				col.Length = int(p.cur.Ival)
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			col.Length = int(p.cur.Ival)
+			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
