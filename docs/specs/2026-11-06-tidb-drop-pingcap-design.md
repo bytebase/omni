@@ -233,6 +233,16 @@ At these sizes a live run of every row on every test run is expensive:
   other sweeps;
 - the omni-verdict test always reads every row.
 
+**Status (2026-11-08).** Sample 1 landed:
+`tidb/parser/testdata/pingcap_parser_rest_corpus.tsv` (885 statements) and
+`rest_corpus_oracle_test.go`, which share the pingcap corpus's `PREPARE` harness
+and add the `TIDB_CORPUS_N` sample knob (wired in CI, so the larger samples stay
+bounded). First measurement: 869 both-accept, 11 gaps, **0 over-acceptances**, 5
+both-reject — omni parses 98.8% of what TiDB accepts. The 11 gaps (foreign-key
+index-part lists, quoted variable names, `OPTIMIZE TABLES`) are the work list in
+`docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`. Samples 2 (TiDB
+integrationtest) and 3 (Bytebase's own TiDB test files) are still to land.
+
 ### 3.5 Tree shape
 
 Bytebase's consumers read trees, not verdicts. A tree that groups or attaches

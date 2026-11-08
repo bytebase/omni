@@ -1,0 +1,914 @@
+# TiDB parser "rest" corpus: the statements in pingcap's own parser tests that
+# the single-statement pingcap_parser_corpus.tsv did not already carry, with the
+# verdict omni/tidb/parser and TiDB v8.5.5 each give each one.
+#
+# Where pingcap_parser_corpus.tsv is forms tested one at a time, these are forms
+# combined the way people write them: the ast restore tests parse a fragment
+# inside a full statement template, so one row is a function inside a SELECT, a
+# reference option inside a CREATE TABLE, a partition bound inside an ALTER.
+#
+# Columns, tab-separated: <omni>\t<engine>\t<sql>
+#   omni    accept | reject -- what tidb/parser.Parse does with the statement
+#   engine  accept | reject -- whether TiDB v8.5.5 accepts the syntax, via the
+#           same PREPARE harness pingcap_parser_corpus.tsv uses
+#   sql     the statement, verbatim, one line
+#
+# A gap is a row with omni reject and engine accept; an over-acceptance is the
+# reverse and is a bug. Column 2 is measured, never hand-edited: see README.md.
+#
+# Provenance: extracted from github.com/pingcap/tidb at tag v8.5.5
+# (commit 1fa258b833ff113883beeba40bc130be7ce66610), two classes:
+#   - parser_test.go: the src of every []testCase / []testErrMsgCase element.
+#   - ast/*_test.go:  for each runNodeRestoreTest / ...WithFlags /
+#                     ...WithFlagsStmtChange call, fmt.Sprintf(template, sourceSQL)
+#                     for every NodeRestoreTestCase the call parses.
+# Deduplicated against each other and against pingcap_parser_corpus.tsv. Only
+# single-line statements are kept; 30 statements with an embedded newline or tab
+# (multi-statement BEGIN/COMMIT scripts, LOAD DATA line terminators, base64
+# BINLOG, set/enum members with a tab) are excluded, as the first corpus
+# excludes them, because this format is one statement per line. See README.md.
+accept	accept	recommend index show
+accept	accept	SELECT get_mvcc_info('hex', '0xabc');
+accept	accept	SELECT MASTER_POS_WAIT(@log_name, @log_pos), MASTER_POS_WAIT(@log_name, @log_pos, @timeout), MASTER_POS_WAIT(@log_name, @log_pos, @timeout, @channel_name);
+accept	accept	SELECT MASTER_POS_WAIT();
+accept	accept	create resource group x burstable=false ru_per_sec=4000
+accept	accept	create resource group x burstable = true ru_per_sec=4000
+accept	accept	alter resource group x ru_per_sec=20 priority=HIGH BURSTABLE=FALSE
+accept	accept	alter resource group default burstable background ( task_types = 'a,b,c' )
+accept	accept	alter resource group default burstable background ( utilization_limit = 20 )
+accept	accept	alter resource group default burstable background ( task_types = 'a,b,c', utilization_limit = 20 )
+reject	reject	alter resource group default burstable background ( utilization_limit = 'abc' )
+reject	reject	select 1/*
+accept	accept	select 1/* comment */
+accept	accept	select a.b()
+accept	accept	SELECT foo.bar('baz');
+accept	accept	create table t (a int) AFFINITY = 'table'
+accept	accept	create table t (a int) affinity 'TABLE'
+accept	accept	create table t (a int) affinity 'partition'
+accept	accept	create table t (a int) AFFINITY = ''
+accept	accept	create table t (a int) AFFINITY 'none'
+accept	accept	create table t (a int) AFFINITY 'PARTITION' partition by hash ( a ) PARTITIONS 1
+accept	accept	create table t (a int) /*T![affinity] AFFINITY = 'table'*/
+accept	accept	create table t (a int) AFFINITY 'abcd'
+accept	accept	alter table t AFFINITY = 'table'
+accept	accept	alter table t affinity 'TABLE'
+accept	accept	alter table t /*T![affinity] affinity 'table'*/
+reject	reject	create table t (a int) AFFINITY 1
+reject	reject	create table t (a int) AFFINITY = 1
+reject	reject	create table t (a int) AFFINITY
+accept	accept	CREATE INDEX idx ON t ((a + 1)) USING HASH
+accept	accept	CREATE INDEX idx ON t ((1 * 1 + (1 + 1))) USING HASH
+accept	accept	CREATE INDEX idx ON t (((1 * 1 + (1 + 1)))) USING HASH
+accept	accept	CREATE INDEX idx ON t (world) USING HASH
+accept	accept	CREATE INDEX idx ON t (world(2)) USING HASH
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete restrict)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete SET NULL)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete no action)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update CASCADE on delete restrict)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update CASCADE on delete CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update CASCADE on delete SET NULL)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update CASCADE on delete no action)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete restrict on update CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete CASCADE on update CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete SET NULL on update CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on delete no action on update CASCADE)
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE on update CASCADE )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE on update SET NULL )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE on update no action )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON UPDATE RESTRICT ON DELETE CASCADE)
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update CASCADE ON DELETE CASCADE)
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update SET NULL ON DELETE CASCADE)
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) on update no action ON DELETE CASCADE)
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)  ON UPDATE RESTRICT )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)  on update CASCADE )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)  on update SET NULL )
+accept	accept	CREATE TABLE child ( id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)  on update no action )
+accept	accept	CREATE INDEX idx ON t (a) key_block_size=16
+accept	accept	CREATE INDEX idx ON t (a) comment 'hello'
+accept	accept	CREATE INDEX idx ON t (a) key_block_size=16 USING HASH
+accept	accept	CREATE INDEX idx ON t (a) USING HASH KEY_BLOCK_SIZE=16
+accept	accept	CREATE INDEX idx ON t (a) key_block_size = 32 using hash comment 'hello'
+accept	accept	CREATE INDEX idx ON t (a) key_block_size=32 using btree comment 'hello'
+accept	accept	rename table t1 to t2
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id,hello) ON DELETE CASCADE)
+reject	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id,hello(12)) ON DELETE CASCADE)
+reject	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id(8),hello(12)) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id))
+reject	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent((id+1)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id(6)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX expr_ind ((id + parent_id)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, INDEX expr_ind ((lower(id))))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, key par_ind (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, key expr_ind ((lower(id))))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique par_ind (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique key par_ind (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique index par_ind (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique expr_ind ((id + parent_id)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique expr_ind ((lower(id))))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique key expr_ind ((id + parent_id)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique key expr_ind ((lower(id))))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique index expr_ind ((id + parent_id)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, unique index expr_ind ((lower(id))))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, fulltext key full_id (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, fulltext INDEX full_id (parent_id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, fulltext INDEX full_id ((parent_id+1)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, PRIMARY KEY (id))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, PRIMARY KEY (id) key_block_size = 32 using hash comment 'hello')
+accept	accept	CREATE TABLE child (id INT, parent_id INT, PRIMARY KEY ((id+1)))
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id(2),hello(4)) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+reject	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id(2),hello(4)) REFERENCES parent((id+1)) ON DELETE CASCADE)
+reject	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id) REFERENCES parent((id+1)) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT fk_123 FOREIGN KEY (parent_id(2),hello(4)) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT fk_123 FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT fk_123 FOREIGN KEY ((parent_id+1),hello(4)) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, CONSTRAINT fk_123 FOREIGN KEY ((parent_id+1)) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, FOREIGN KEY (parent_id(2),hello(4)) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, FOREIGN KEY ((parent_id+1),hello(4)) REFERENCES parent(id) ON DELETE CASCADE)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, FOREIGN KEY ((parent_id+1)) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, PRIMARY KEY (id) CLUSTERED)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, primary key (id) NONCLUSTERED)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, PRIMARY KEY (id) /*T![clustered_index] CLUSTERED */)
+accept	accept	CREATE TABLE child (id INT, parent_id INT, primary key (id) /*T![clustered_index] NONCLUSTERED */)
+accept	accept	CREATE TABLE child (id INT primary key)
+accept	accept	CREATE TABLE child (id INT not null)
+accept	accept	CREATE TABLE child (id INT null)
+accept	accept	CREATE TABLE child (id INT auto_increment)
+accept	accept	CREATE TABLE child (id INT DEFAULT 10)
+accept	accept	CREATE TABLE child (id INT DEFAULT '10')
+accept	accept	CREATE TABLE child (id INT DEFAULT 'hello')
+accept	accept	CREATE TABLE child (id INT DEFAULT 1.1)
+accept	accept	CREATE TABLE child (id INT DEFAULT NULL)
+accept	accept	CREATE TABLE child (id INT DEFAULT '')
+accept	accept	CREATE TABLE child (id INT DEFAULT TRUE)
+accept	accept	CREATE TABLE child (id INT DEFAULT FALSE)
+accept	accept	CREATE TABLE child (id INT UNIQUE KEY)
+accept	accept	CREATE TABLE child (id INT on update CURRENT_TIMESTAMP)
+accept	accept	CREATE TABLE child (id INT comment 'hello')
+accept	accept	CREATE TABLE child (id INT generated always as(id + 1))
+accept	accept	CREATE TABLE child (id INT generated always as(id + 1) virtual)
+accept	accept	CREATE TABLE child (id INT generated always as(id + 1) stored)
+accept	accept	CREATE TABLE child (id INT REFERENCES parent(id))
+accept	accept	CREATE TABLE child (id INT COLLATE utf8_bin)
+accept	accept	CREATE TABLE child (id INT STORAGE DEFAULT)
+accept	accept	CREATE TABLE child (id INT STORAGE DISK)
+accept	accept	CREATE TABLE child (id INT STORAGE MEMORY)
+accept	accept	CREATE TABLE child (id INT AUTO_RANDOM (3))
+accept	accept	CREATE TABLE child (id INT AUTO_RANDOM)
+accept	accept	CREATE TABLE child (id INT generated always as(lower(id)) stored)
+accept	accept	CREATE TABLE child (id INT generated always as(lower(child.id)) stored)
+accept	accept	CREATE TABLE t (id json)
+accept	accept	CREATE TABLE t (id time(5))
+accept	accept	CREATE TABLE t (id int(5) unsigned)
+accept	accept	CREATE TABLE t (id int(5) UNSIGNED ZEROFILL)
+accept	accept	CREATE TABLE t (id float(12,3))
+accept	accept	CREATE TABLE t (id float)
+accept	accept	CREATE TABLE t (id double(22,3))
+accept	accept	CREATE TABLE t (id double)
+accept	accept	CREATE TABLE t (id tinyint(4))
+accept	accept	CREATE TABLE t (id smallint(6))
+accept	accept	CREATE TABLE t (id mediumint(9))
+accept	accept	CREATE TABLE t (id integer(11))
+accept	accept	CREATE TABLE t (id bigint(20))
+accept	accept	CREATE TABLE t (id DATE)
+accept	accept	CREATE TABLE t (id DATETIME)
+accept	accept	CREATE TABLE t (id DECIMAL(4,2))
+accept	accept	CREATE TABLE t (id char(1))
+accept	accept	CREATE TABLE t (id varchar(10) BINARY)
+accept	accept	CREATE TABLE t (id binary(1))
+accept	accept	CREATE TABLE t (id timestamp(2))
+accept	accept	CREATE TABLE t (id timestamp)
+accept	accept	CREATE TABLE t (id datetime(2))
+accept	accept	CREATE TABLE t (id date)
+accept	accept	CREATE TABLE t (id year)
+accept	accept	CREATE TABLE t (id INT)
+accept	accept	CREATE TABLE t (id INT NULL)
+accept	accept	CREATE TABLE t (id enum('a','b'))
+accept	accept	CREATE TABLE t (id enum('''a''','''b'''))
+accept	accept	CREATE TABLE t (id enum('a\nb','a\tb','a\rb'))
+accept	accept	CREATE TABLE t (id enum('a','b') binary)
+accept	accept	CREATE TABLE t (id enum(0x61, 0b01100010))
+accept	accept	CREATE TABLE t (id set('a','b'))
+accept	accept	CREATE TABLE t (id set('''a''','''b'''))
+accept	accept	CREATE TABLE t (id set("a'\nb","a'b\tc"))
+accept	accept	CREATE TABLE t (id set('a','b') binary)
+accept	accept	CREATE TABLE t (id set(0x61, 0b01100010))
+accept	accept	CREATE TABLE t (id TEXT CHARACTER SET UTF8 COLLATE UTF8_UNICODE_CI)
+accept	accept	CREATE TABLE t (id text character set UTF8)
+accept	accept	CREATE TABLE t (id text charset UTF8)
+accept	accept	CREATE TABLE t (id varchar(50) collate UTF8MB4_CZECH_CI)
+accept	accept	CREATE TABLE t (id varchar(50) collate utf8_bin)
+accept	accept	CREATE TABLE t (id varchar(50) collate utf8_unicode_ci collate utf8mb4_bin)
+accept	accept	CREATE TABLE t (c1 char(10) character set LATIN1 collate latin1_german1_ci)
+accept	accept	CREATE TABLE t (id int(11) PRIMARY KEY)
+accept	accept	CREATE TABLE t (id int(11) NOT NULL)
+accept	accept	CREATE TABLE t (id INT(11) NULL)
+accept	accept	CREATE TABLE t (id INT(11) auto_increment)
+accept	accept	CREATE TABLE t (id INT(11) DEFAULT 10)
+accept	accept	CREATE TABLE t (id INT(11) DEFAULT '10')
+accept	accept	CREATE TABLE t (id INT(11) DEFAULT 1.1)
+accept	accept	CREATE TABLE t (id INT(11) UNIQUE KEY)
+accept	accept	CREATE TABLE t (id INT(11) COLLATE ascii_bin)
+accept	accept	CREATE TABLE t (id INT(11) collate ascii_bin collate utf8_bin)
+accept	accept	CREATE TABLE t (id INT(11) on update CURRENT_TIMESTAMP)
+accept	accept	CREATE TABLE t (id INT(11) comment 'hello')
+accept	accept	CREATE TABLE t (id INT(11) generated always as(id + 1))
+accept	accept	CREATE TABLE t (id INT(11) REFERENCES parent(id))
+accept	accept	CREATE TABLE t (id bit)
+accept	accept	CREATE TABLE t (id bit(1))
+accept	accept	CREATE TABLE t (id bit(64))
+accept	accept	CREATE TABLE t (id tinyint)
+accept	accept	CREATE TABLE t (id tinyint(255))
+accept	accept	CREATE TABLE t (id bool)
+accept	accept	CREATE TABLE t (id boolean)
+accept	accept	CREATE TABLE t (id smallint)
+accept	accept	CREATE TABLE t (id smallint(255))
+accept	accept	CREATE TABLE t (id mediumint)
+accept	accept	CREATE TABLE t (id mediumint(255))
+accept	accept	CREATE TABLE t (id int)
+accept	accept	CREATE TABLE t (id int(255))
+accept	accept	CREATE TABLE t (id integer)
+accept	accept	CREATE TABLE t (id integer(255))
+accept	accept	CREATE TABLE t (id bigint)
+accept	accept	CREATE TABLE t (id bigint(255))
+accept	accept	CREATE TABLE t (id decimal)
+accept	accept	CREATE TABLE t (id decimal(10))
+accept	accept	CREATE TABLE t (id decimal(10,0))
+accept	accept	CREATE TABLE t (id decimal(65))
+accept	accept	CREATE TABLE t (id decimal(65,30))
+accept	accept	CREATE TABLE t (id dec(10,0))
+accept	accept	CREATE TABLE t (id numeric(10,0))
+accept	accept	CREATE TABLE t (id float(0))
+accept	accept	CREATE TABLE t (id float(24))
+accept	accept	CREATE TABLE t (id float(25))
+accept	accept	CREATE TABLE t (id float(53))
+accept	accept	CREATE TABLE t (id float(7,0))
+accept	accept	CREATE TABLE t (id float(25,0))
+accept	accept	CREATE TABLE t (id double(15,0))
+accept	accept	CREATE TABLE t (id double precision(15,0))
+accept	accept	CREATE TABLE t (id real(15,0))
+accept	accept	CREATE TABLE t (id year(4))
+accept	accept	CREATE TABLE t (id time)
+accept	accept	CREATE TABLE t (id char)
+accept	accept	CREATE TABLE t (id char(0))
+accept	accept	CREATE TABLE t (id char(255))
+accept	accept	CREATE TABLE t (id national char(0))
+accept	accept	CREATE TABLE t (id binary)
+accept	accept	CREATE TABLE t (id varbinary(0))
+accept	accept	CREATE TABLE t (id varbinary(65535))
+accept	accept	CREATE TABLE t (id tinyblob)
+accept	accept	CREATE TABLE t (id tinytext)
+accept	accept	CREATE TABLE t (id blob)
+accept	accept	CREATE TABLE t (id blob(0))
+accept	accept	CREATE TABLE t (id blob(65535))
+accept	accept	CREATE TABLE t (id text(0))
+accept	accept	CREATE TABLE t (id text(65535))
+accept	accept	CREATE TABLE t (id mediumblob)
+accept	accept	CREATE TABLE t (id mediumtext)
+accept	accept	CREATE TABLE t (id longblob)
+accept	accept	CREATE TABLE t (id longtext)
+accept	accept	truncate t1
+accept	accept	truncate table t1
+accept	accept	truncate a.t1
+accept	accept	drop table t1
+accept	accept	drop table if exists t1
+accept	accept	drop temporary table t1
+accept	accept	drop temporary table if exists t1
+accept	accept	DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`
+accept	accept	alter table t add column a varchar(255) 
+accept	accept	alter table t add column a varchar(255) first
+accept	accept	alter table t add column a varchar(255) after b
+accept	accept	ALTER TABLE t ENGINE innodb
+accept	accept	ALTER TABLE t ENGINE tokudb
+accept	accept	ALTER TABLE t ENGINE = tokudb
+accept	accept	ALTER TABLE t ENGINE = 'tokudb'
+accept	accept	ALTER TABLE t DEFAULT CHARACTER SET utf8
+accept	accept	ALTER TABLE t DEFAULT CHARACTER SET = utf8
+accept	accept	ALTER TABLE t DEFAULT CHARSET utf8
+accept	accept	ALTER TABLE t DEFAULT CHARSET = utf8
+accept	accept	ALTER TABLE t DEFAULT COLLATE utf8_bin
+accept	accept	ALTER TABLE t DEFAULT COLLATE = utf8_bin
+accept	accept	ALTER TABLE t AUTO_INCREMENT = 6
+accept	accept	ALTER TABLE t COMMENT ''
+accept	accept	ALTER TABLE t COMMENT 'system role'
+accept	accept	ALTER TABLE t COMMENT = 'system role'
+accept	accept	ALTER TABLE t AVG_ROW_LENGTH 12
+accept	accept	ALTER TABLE t AVG_ROW_LENGTH = 6
+accept	accept	ALTER TABLE t connection 'abc'
+accept	accept	ALTER TABLE t CONNECTION = 'abc'
+accept	accept	ALTER TABLE t checksum 1
+accept	accept	ALTER TABLE t checksum = 0
+accept	accept	ALTER TABLE t PASSWORD '123456'
+accept	accept	ALTER TABLE t PASSWORD = ''
+accept	accept	ALTER TABLE t compression 'NONE'
+accept	accept	ALTER TABLE t compression = 'lz4'
+accept	accept	ALTER TABLE t key_block_size 1024
+accept	accept	ALTER TABLE t KEY_BLOCK_SIZE = 1024
+accept	accept	ALTER TABLE t max_rows 1000
+accept	accept	ALTER TABLE t max_rows = 1000
+accept	accept	ALTER TABLE t min_rows 1000
+accept	accept	ALTER TABLE t MIN_ROWS = 1000
+accept	accept	ALTER TABLE t DELAY_KEY_WRITE 1
+accept	accept	ALTER TABLE t DELAY_KEY_WRITE = 1000
+accept	accept	ALTER TABLE t ROW_FORMAT default
+accept	accept	ALTER TABLE t ROW_FORMAT = default
+accept	accept	ALTER TABLE t ROW_FORMAT = fixed
+accept	accept	ALTER TABLE t ROW_FORMAT = compressed
+accept	accept	ALTER TABLE t ROW_FORMAT = compact
+accept	accept	ALTER TABLE t ROW_FORMAT = redundant
+accept	accept	ALTER TABLE t ROW_FORMAT = dynamic
+accept	accept	ALTER TABLE t ROW_FORMAT tokudb_default
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_default
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_fast
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_small
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_zlib
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_zstd
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_quicklz
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_lzma
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_snappy
+accept	accept	ALTER TABLE t ROW_FORMAT = tokudb_uncompressed
+accept	accept	ALTER TABLE t shard_row_id_bits 1
+accept	accept	ALTER TABLE t CONVERT TO CHARACTER SET utf8
+accept	accept	ALTER TABLE t CONVERT TO CHARSET utf8
+accept	accept	ALTER TABLE t CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+accept	accept	ALTER TABLE t CONVERT TO CHARSET utf8 COLLATE utf8_bin
+accept	accept	ALTER TABLE t ADD COLUMN name mediumtext CHARACTER SET UTF8MB4 COLLATE utf8mb4_unicode_ci NOT NULL
+accept	accept	ALTER TABLE t ADD CONSTRAINT INDEX par_ind (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT INDEX par_ind (parent_id(6))
+accept	accept	ALTER TABLE t ADD CONSTRAINT key par_ind (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT unique par_ind (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT unique key par_ind (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT unique index par_ind (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT fulltext key full_id (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT fulltext INDEX full_id (parent_id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT PRIMARY KEY (id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT PRIMARY KEY (id) key_block_size = 32 using hash comment 'hello'
+accept	accept	ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (parent_id(2),hello(4)) REFERENCES parent(id) ON DELETE CASCADE
+accept	accept	ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT
+accept	accept	ALTER TABLE t ADD CONSTRAINT fk_123 FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE RESTRICT
+accept	accept	ALTER TABLE t DROP COLUMN a
+accept	accept	ALTER TABLE t DROP COLUMN a RESTRICT
+accept	accept	ALTER TABLE t DROP PRIMARY KEY
+accept	accept	ALTER TABLE t drop index a
+accept	accept	ALTER TABLE t drop key a
+accept	accept	ALTER TABLE t drop FOREIGN key a
+accept	accept	ALTER TABLE t MODIFY column a varchar(255)
+accept	accept	ALTER TABLE t modify COLUMN a varchar(255) FIRST
+accept	accept	ALTER TABLE t modify COLUMN a varchar(255) AFTER b
+accept	accept	ALTER TABLE t change column a b VARCHAR(255)
+accept	accept	ALTER TABLE t change COLUMN a b varchar(255) CHARACTER SET UTF8 BINARY
+accept	accept	ALTER TABLE t CHANGE column a b varchar(255) FIRST
+accept	accept	ALTER TABLE t change COLUMN a b varchar(255) AFTER c
+accept	accept	ALTER TABLE t RENAME db1.t1
+accept	accept	ALTER TABLE t RENAME to db1.t1
+accept	accept	ALTER TABLE t LOCK=NONE
+accept	accept	ALTER TABLE t LOCK=DEFAULT
+accept	accept	ALTER TABLE t LOCK=SHARED
+accept	accept	ALTER TABLE t LOCK=EXCLUSIVE
+accept	accept	ALTER TABLE t RENAME KEY a TO b
+accept	accept	ALTER TABLE t RENAME INDEX a TO b
+accept	accept	ALTER TABLE t ADD PARTITION
+accept	accept	ALTER TABLE t ADD PARTITION ( PARTITION P1 VALUES LESS THAN (2010))
+accept	accept	ALTER TABLE t ADD PARTITION ( PARTITION P2 VALUES LESS THAN MAXVALUE)
+accept	accept	ALTER TABLE t ADD PARTITION (PARTITION `p5` VALUES LESS THAN (2010) COMMENT 'AP_START \' AP_END')
+accept	accept	ALTER TABLE t ADD PARTITION (PARTITION `p5` VALUES LESS THAN (2010) COMMENT = 'xxx')
+accept	accept	ALTER TABLE t coalesce partition 3
+accept	accept	ALTER TABLE t drop partition p1
+accept	accept	ALTER TABLE t TRUNCATE PARTITION p0
+accept	accept	ALTER TABLE t add stats_extended s1 cardinality(a,b)
+accept	accept	ALTER TABLE t add stats_extended if not exists s1 cardinality(a,b)
+accept	accept	ALTER TABLE t add stats_extended s1 correlation(a,b)
+accept	accept	ALTER TABLE t add stats_extended if not exists s1 correlation(a,b)
+accept	accept	ALTER TABLE t add stats_extended s1 dependency(a,b)
+accept	accept	ALTER TABLE t add stats_extended if not exists s1 dependency(a,b)
+accept	accept	ALTER TABLE t drop stats_extended s1
+accept	accept	ALTER TABLE t drop stats_extended if exists s1
+accept	accept	ALTER TABLE t placement policy p1
+accept	accept	ALTER TABLE t placement policy p1 comment='aaa'
+accept	accept	ALTER TABLE t partition p0 placement policy p1
+accept	accept	ALTER TABLE t ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 8
+accept	accept	ALTER TABLE t ROW_FORMAT = COMPRESSED, KEY_BLOCK_SIZE = 8
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a TINYINT UNSIGNED)
+accept	accept	OPTIMIZE TABLE t
+accept	accept	OPTIMIZE LOCAL TABLE t
+accept	accept	OPTIMIZE NO_WRITE_TO_BINLOG TABLE t
+accept	accept	OPTIMIZE TABLE t1, t2
+accept	accept	optimize table t1,t2
+reject	accept	optimize tables t1, t2
+accept	accept	create sequence seq increment 1 minvalue 0 maxvalue 1000
+accept	accept	create sequence seq minvalue 0 maxvalue 1000 increment 1
+accept	accept	create sequence seq cache = 1 minvalue 0 maxvalue -1000
+accept	accept	create sequence seq increment -1 minvalue 0 maxvalue -1000
+accept	accept	create sequence seq nocycle nocache maxvalue 1000 cache 1
+accept	accept	create sequence seq increment -1 no minvalue no maxvalue cache = 1
+accept	accept	create sequence if not exists seq increment 1 minvalue 0 nomaxvalue cache 100 nocycle
+accept	accept	drop sequence if exists seq, seq2
+accept	accept	drop sequence sequence
+accept	accept	flashback database M
+accept	accept	flashback schema M
+accept	accept	flashback database M to n
+accept	accept	flashback schema M to N
+accept	accept	CREATE RESOURCE GROUP IF NOT EXISTS rg1 RU_PER_SEC = 500 BURSTABLE
+accept	accept	CREATE RESOURCE GROUP IF NOT EXISTS rg2 RU_PER_SEC = 600
+accept	accept	CREATE RESOURCE GROUP IF NOT EXISTS rg3 RU_PER_SEC = 100 PRIORITY = HIGH
+accept	accept	CREATE RESOURCE GROUP IF NOT EXISTS rg1 RU_PER_SEC = 500 QUERY_LIMIT=(EXEC_ELAPSED='60s', ACTION=COOLDOWN)
+accept	accept	CREATE RESOURCE GROUP IF NOT EXISTS rg1 RU_PER_SEC = 500 QUERY_LIMIT=(ACTION=SWITCH_GROUP(rg2))
+accept	accept	ALTER RESOURCE GROUP rg1 QUERY_LIMIT=(EXEC_ELAPSED='60s', ACTION=KILL, WATCH=SIMILAR DURATION='10m')
+accept	accept	ALTER RESOURCE GROUP rg1 QUERY_LIMIT=(EXEC_ELAPSED='1m', ACTION=SWITCH_GROUP(rg2), WATCH=SIMILAR DURATION='10m')
+accept	accept	ALTER RESOURCE GROUP rg1 QUERY_LIMIT=NULL
+accept	accept	ALTER RESOURCE GROUP `default` BACKGROUND=(TASK_TYPES='br,ddl')
+accept	accept	ALTER RESOURCE GROUP `default` BACKGROUND=NULL
+accept	accept	ALTER RESOURCE GROUP `default` BACKGROUND=(TASK_TYPES='')
+accept	accept	CREATE TABLE dbb.`tbb1` (id VARCHAR(128) NOT NULL);
+accept	accept	CREATE TABLE `tbb2` (id VARCHAR(128) NOT NULL);
+accept	accept	CREATE TABLE tbb3 (id VARCHAR(128) NOT NULL);
+accept	accept	CREATE TABLE dbb.`hello-world` (id VARCHAR(128) NOT NULL);
+accept	accept	CREATE TABLE `dbb`.`hello-world` (id VARCHAR(128) NOT NULL);
+accept	accept	CREATE TABLE `dbb.HelloWorld` (id VARCHAR(128) NOT NULL);
+accept	accept	SELECT * FROM t use index (hello)
+accept	accept	SELECT * FROM t use index (hello, world)
+accept	accept	SELECT * FROM t use index ()
+accept	accept	SELECT * FROM t use key ()
+accept	accept	SELECT * FROM t ignore key ()
+accept	accept	SELECT * FROM t force key ()
+accept	accept	SELECT * FROM t use index for order by (idx1)
+accept	accept	SELECT * FROM t use index (hello, world, yes) force key (good)
+accept	accept	SELECT * FROM t use index (hello, world, yes) use index for order by (good)
+accept	accept	SELECT * FROM t ignore key (hello, world, yes) force key (good)
+accept	accept	SELECT * FROM t use index for group by (idx1) use index for order by (idx2)
+accept	accept	SELECT * FROM t use index for group by (idx1) ignore key for order by (idx2)
+accept	accept	SELECT * FROM t use index for group by (idx1) ignore key for group by (idx2)
+accept	accept	SELECT * FROM t use index for order by (idx1) ignore key for group by (idx2)
+accept	accept	SELECT * FROM t use index for order by (idx1) ignore key for group by (idx2) use index (idx3)
+accept	accept	SELECT * FROM t use index (`foo``bar`) force index (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t force index (`foo``bar`) ignore index (`baz``1`, xyz)
+accept	accept	SELECT * FROM t ignore index (`foo``bar`) force key (`baz``1`, xyz)
+accept	accept	SELECT * FROM t ignore index (`foo``bar`) ignore key for group by (`baz``1`, xyz)
+accept	accept	SELECT * FROM t ignore index (`foo``bar`) ignore key for order by (`baz``1`, xyz)
+accept	accept	SELECT * FROM t use index for group by (`foo``bar`) use index for order by (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t use index for group by (`foo``bar`) ignore key for order by (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t use index for group by (`foo``bar`) ignore key for group by (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t use index for order by (`foo``bar`) ignore key for group by (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t tt use index for order by (`foo``bar`) ignore key for group by (`baz``1`, `xyz`)
+accept	accept	SELECT * FROM t as tt use index for order by (`foo``bar`) ignore key for group by (`baz``1`, `xyz`)
+accept	accept	SELECT 1 limit 10
+accept	accept	SELECT 1 limit 10,20
+accept	accept	SELECT 1 limit 20 offset 10
+accept	accept	SELECT *
+accept	accept	SELECT t.*
+accept	accept	SELECT testdb.t.*
+accept	accept	SELECT col as a
+accept	accept	SELECT col + 1 a
+accept	accept	SELECT `t`.*, s.col as a
+accept	accept	select * from tbl
+accept	accept	select * from tbl as t
+accept	accept	select * from (select * from tbl) as t
+accept	accept	select * from (select * from a union select * from b) as t
+accept	accept	select * from t1 join t2 on t1.a=t2.a
+accept	accept	select * from t1 join t2 on t1.a=t2.a and t1.b=t2.b
+accept	accept	select * from t1 natural left join t2
+accept	accept	select * from t1 natural right outer join t2
+accept	accept	select * from t1 straight_join t2
+accept	accept	select * from t1 straight_join t2 on t1.a>t2.a
+accept	accept	select * from t1 cross join t2
+accept	accept	select * from t1 cross join t2 on t1.a>t2.a
+accept	accept	select * from t1 inner join t2 using (b)
+accept	accept	select * from t1 join t2 using (b,c) left join t3 on t1.a>t3.a
+accept	accept	select * from t1 natural join t2 right outer join t3 using (b,c)
+accept	accept	select * from t1, t2
+accept	accept	select * from t1, t2, t3
+accept	accept	select * from (select * from t) t1, (t2, t3)
+accept	accept	select * from (select * from t) t1, t2
+accept	accept	select * from (select * from (select a from t1) tb1) tb;
+accept	accept	select * from (select * from t) t1 cross join t2
+accept	accept	select * from (select * from t) t1 natural join t2
+accept	accept	select * from (select * from t) t1 cross join t2 on t1.a>t2.a
+accept	accept	select * from (select * from t union select * from t1) tb1, t2;
+accept	accept	select * from (select a from t) t1 join t t2, t3;
+accept	accept	select * from (a al left join b bl on al.a1 > bl.b1) join (a ar right join b br on ar.a1 > br.b1)
+accept	accept	select * from a al left join b bl on al.a1 > bl.b1, a ar right join b br on ar.a1 > br.b1
+accept	accept	select * from t1 join (t2 right join t3 on t2.a > t3.a join (t4 right join t5 on t4.a > t5.a))
+accept	accept	select * from t1 join t2 right join t3 on t2.a=t3.a
+accept	accept	select * from t1 join (t2 right join t3 on t2.a=t3.a)
+accept	accept	select * from t1 join t2
+accept	accept	DELETE t1,t2 FROM t1, t2;
+accept	accept	DELETE FROM t1,t2 USING t1, t2;
+accept	accept	DELETE FROM t1 USE key (`fld1`) WHERE fld=1
+accept	accept	DELETE FROM t1 as tbl USE key (`fld1`) WHERE tbl.fld=2
+accept	accept	select * from t order by a
+accept	accept	select * from t order by a desc
+accept	accept	select * from t order by NULL
+accept	accept	select * from t GROUP BY a,b desc
+accept	accept	select * from t GROUP BY 1 desc,b
+accept	accept	SELECT 1 FROM t1 ORDER BY a
+accept	accept	SELECT 1 FROM t1 ORDER BY a,b
+accept	accept	SELECT 1 FROM t1 UNION SELECT 2 FROM t2 ORDER BY a
+accept	accept	SELECT 1 FROM t1 UNION SELECT 2 FROM t2 ORDER BY a,b
+accept	accept	UPDATE t1 SET a=1
+accept	accept	UPDATE t1 SET b=1+2
+accept	accept	select 1 from t1 group by 1 HAVING a
+accept	accept	select 1 from t1 group by 1 HAVING NULL
+accept	accept	select 1 from t1 group by 1 HAVING a>b
+accept	accept	select avg(val) over (rows between CURRENT ROW and current row) from t
+accept	accept	select avg(val) over (rows between UNBOUNDED PRECEDING and current row) from t
+accept	accept	select avg(val) over (rows between 1 PRECEDING and current row) from t
+accept	accept	select avg(val) over (rows between ? PRECEDING and current row) from t
+accept	accept	select avg(val) over (rows between INTERVAL 5 DAY PRECEDING and current row) from t
+accept	accept	select avg(val) over (rows between UNBOUNDED FOLLOWING and current row) from t
+accept	accept	select avg(val) over (rows between 1 FOLLOWING and current row) from t
+accept	accept	select avg(val) over (rows between ? FOLLOWING and current row) from t
+accept	accept	select avg(val) over (rows between INTERVAL '2:30' MINUTE_SECOND FOLLOWING and current row) from t
+accept	accept	select avg(val) over (ROWS CURRENT ROW) from t
+accept	accept	select avg(val) over (ROWS UNBOUNDED PRECEDING) from t
+accept	accept	select avg(val) over (ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) from t
+accept	accept	select avg(val) over (RANGE BETWEEN ? PRECEDING AND ? FOLLOWING) from t
+accept	accept	select avg(val) over (RANGE BETWEEN INTERVAL 5 DAY PRECEDING AND INTERVAL '2:30' MINUTE_SECOND FOLLOWING) from t
+accept	accept	select avg(val) over (PARTITION BY a rows current row) from t
+accept	accept	select avg(val) over (PARTITION BY NULL rows current row) from t
+accept	accept	select avg(val) over (PARTITION BY a, b rows current row) from t
+accept	accept	select rank() over w from t window w as ()
+accept	accept	select rank() over w from t window w as (w1)
+accept	accept	select rank() over w from t window w as (w1 order by country)
+accept	accept	select rank() over w from t window w as (partition by a order by b rows current row)
+accept	accept	select rank() over w from t window w as (order by a)
+accept	accept	select rank() over () from t window w as (order by a)
+accept	accept	select rank() over (w) from t window w as (order by a)
+accept	accept	select rank() over (w PARTITION BY country) from t window w as (order by a)
+accept	accept	select rank() over (PARTITION BY a ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) from t window w as (order by a)
+accept	accept	load data low_priority infile '/a.csv' into table `t`
+accept	accept	load data infile '/a.csv' format 'sql file' into table `t`
+accept	accept	load data infile '/a.csv' format 'sql file' into table `t` character set utf8mb4
+accept	accept	load data infile '/a.csv' format 'sql file' into table `t` character set gbk
+accept	accept	load data infile '/a.csv' into table `t` ignore 0 lines
+accept	accept	load data infile '/a.csv' into table `t` ignore 11 lines
+accept	accept	load data infile '/a.csv' into table `t` fields terminated by 'a\t'
+accept	accept	load data infile '/a.csv' into table `t` FIELDS OPTIONALLY ENCLOSED BY 'a'
+accept	accept	load data infile '/a.csv' into table `t` fields enclosed by 'a'
+accept	accept	load data infile '/a.csv' into table `t` fields escaped by 'a'
+accept	accept	load data infile '/a.csv' into table `t` fields defined null by 'a'
+accept	accept	load data infile '/a.csv' into table `t` fields defined null by 'a' optionally enclosed
+accept	accept	load data infile '/a.csv' into table `t` fields defined null by 'a' optionally enclosed  optionally  enclosed  by  'a'
+accept	accept	load data infile '/a.csv' into table `t` fields optionally  enclosed  by  'a'  defined null by 'a' optionally enclosed
+accept	accept	load data infile '/a.csv' into table `t` lines starting by 'a'
+accept	accept	load data infile '/a.csv' into table `t` lines terminated by '\n'
+accept	accept	load data infile '/a.csv' into table `t` lines starting by 'a' terminated by '\n'
+accept	accept	load data infile '/a.csv' into table `t` with detached
+accept	accept	load data infile '/a.csv' into table `t` with batch_size=999,detached
+accept	accept	load data infile '/a.csv' into table `t` with detached, batch_size=999
+accept	accept	load data infile '/a.csv' into table `t` with detached, thread=-100, batch_size=999
+accept	accept	load data infile '/a.csv' format 'sql' into table `t` with detached, batch_size=999
+accept	accept	cancel import job 123
+accept	accept	show import jobs
+accept	accept	show import job 123
+accept	accept	show import jobs where aa > 1
+accept	accept	IMPORT INTO t from '/file.csv'
+accept	accept	IMPORT INTO t (a, @1, c) from '/file.csv'
+accept	accept	IMPORT INTO t set a=100 from '/file.csv'
+accept	accept	IMPORT INTO t (b, c) set a=100 from '/file.csv'
+accept	accept	IMPORT INTO t from '/file.csv' format 'csv'
+accept	accept	IMPORT INTO `t` from '/file.csv' with detached
+accept	accept	IMPORT INTO `t` from '/file.csv' with detached, thread=1
+accept	accept	IMPORT INTO `t` from select * from xx
+accept	accept	IMPORT INTO `t` from with `c` as (select * from `xx`) select * from `c` with thread=1
+accept	accept	IMPORT INTO `t` from select * from `xx` union select * from `yy` with thread=1
+accept	accept	IMPORT INTO `t` from with `c` as (select * from `xx`) select * from `c` union select * from `c` with thread=1
+accept	accept	IMPORT INTO `t` from (select * from xx)
+accept	accept	select ++1
+accept	accept	select --1
+accept	accept	select -+1
+accept	accept	select -1
+accept	accept	select not true
+accept	accept	select ~3
+accept	accept	select !true
+accept	accept	select abc
+accept	accept	select `abc`
+accept	accept	select `ab``c`
+accept	accept	select sabc.tABC
+accept	accept	select dabc.sabc.tabc
+accept	accept	select dabc.`sabc`.tabc
+accept	accept	select `dABC`.`sabc`.tabc
+accept	accept	select a is null
+accept	accept	select a is not null
+accept	accept	select a is true
+accept	accept	select a is not true
+accept	accept	select a is FALSE
+accept	accept	select a is not false
+accept	accept	select b between 1 and 2
+accept	accept	select b not between 1 and 2
+accept	accept	select b between a and b
+accept	accept	select b between '' and 'b'
+accept	accept	select b between '2018-11-01' and '2018-11-02'
+accept	accept	select case when 1 then 2 end
+accept	accept	select case when 1 then 'a' when 2 then 'b' end
+accept	accept	select case when 1 then 'a' when 2 then 'b' else 'c' end
+accept	accept	select case when 'a'!=1 then true else false end
+accept	accept	select case a when 'a' then true else false end
+accept	accept	select 'a'!=1
+accept	accept	select a!=1
+accept	accept	select 3<5
+accept	accept	select 10>5
+accept	accept	select 3+5
+accept	accept	select 3-5
+accept	accept	select a<>5
+accept	accept	select a=1
+accept	accept	select a mod 2
+accept	accept	select a div 2
+accept	accept	select true and true
+accept	accept	select false or false
+accept	accept	select true xor false
+accept	accept	select 3 & 4
+accept	accept	select 5 | 6
+accept	accept	select 7 ^ 8
+accept	accept	select 9 << 10
+accept	accept	select 11 >> 12
+accept	accept	select (1+2)*3
+accept	accept	select 1+2*3
+accept	accept	select case when 1 then 'a' end
+accept	accept	select case when 'a'!=1 then true end
+accept	accept	insert into t values(default)
+accept	accept	insert into t values(default(i))
+accept	accept	select 'a' in ('b')
+accept	accept	select 2 in (0,3,7)
+accept	accept	select 2 not in (0,3,7)
+accept	accept	select 2 in (select 2)
+accept	accept	select 2 not in (select 2)
+accept	accept	select a like 't1'
+accept	accept	select a like 't1%'
+accept	accept	select a like '%t1%'
+accept	accept	select a like '%t1_|'
+accept	accept	select a not like 't1'
+accept	accept	select a not like 't1%'
+accept	accept	select a not like '%D%v%'
+accept	accept	select a not like '%t1_|'
+accept	accept	insert into t values (1,2,3) on duplicate key update c=values(a)
+accept	accept	insert into t values (1,2,3) on duplicate key update c=values(a)+values(b)
+accept	accept	select a regexp 't1'
+accept	accept	select a regexp '^[abc][0-9]{11}|ok$'
+accept	accept	select a rlike 't1'
+accept	accept	select a rlike '^[abc][0-9]{11}|ok$'
+accept	accept	select a not regexp 't1'
+accept	accept	select a not regexp '^[abc][0-9]{11}|ok$'
+accept	accept	select a not rlike 't1'
+accept	accept	select a not rlike '^[abc][0-9]{11}|ok$'
+accept	accept	select 1 from t1 where (1,2) = row(1,2)
+accept	accept	select 1 from t1 where (col1,col2) = row(1,2)
+accept	accept	select 1 from t1 where row(1,2) = row(1,2)
+accept	accept	select 1 from t1 where row(col1,col2) = row(1,2)
+accept	accept	alter table posts add partition ( partition p1 values less than maxvalue)
+accept	accept	select * from t order by 1
+accept	accept	select 1 from t1 where EXISTS (SELECT 2)
+accept	accept	select 1 from t1 where NOT EXISTS (SELECT 2)
+accept	accept	select 1 from t1 where NOT NOT EXISTS (SELECT 2)
+accept	accept	select 1 from t1 where NOT NOT NOT EXISTS (SELECT 2)
+accept	accept	select @a>1
+accept	accept	select @`aB`+1
+reject	accept	select @'a':=1
+reject	accept	select @`a``b`=4
+reject	accept	select @"aBC">1
+accept	accept	select @`a`+1
+accept	accept	select @``
+accept	accept	select @
+accept	accept	select @@``
+accept	accept	select @@var
+accept	accept	select @@global.b='foo'
+reject	accept	select @@session.'C'
+reject	accept	select @@local."aBc"
+accept	accept	SELECT * FROM t WHERE MATCH(content, title) AGAINST ('search for')
+accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST ('search for' IN BOOLEAN MODE)
+accept	accept	SELECT * FROM t WHERE MATCH(content, title) AGAINST ('search for' WITH QUERY EXPANSION)
+accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST ('search for' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)
+accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST ('search') AND id = 1
+accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST ('search') OR id = 1
+accept	accept	SELECT * FROM t WHERE MATCH(content) AGAINST (X'40404040' | X'01020304') OR id = 1
+accept	accept	select JSON_ARRAYAGG(attribute)
+accept	accept	select JSON_OBJECTAGG(attribute, value)
+accept	accept	select ABS(-1024)
+accept	accept	select ACOS(3.14)
+accept	accept	select CONV('a',16,2)
+accept	accept	select COS(PI())
+accept	accept	select RAND()
+accept	accept	select ADDDATE('2000-01-01', 1)
+accept	accept	select DATE_ADD('2000-01-01', INTERVAL 1 DAY)
+accept	accept	select DATE_ADD('2000-01-01', INTERVAL '1 1:12:23.100000' DAY_MICROSECOND)
+accept	accept	select EXTRACT(DAY FROM '2000-01-01')
+accept	accept	select extract(day from '1999-01-01')
+accept	accept	select GET_FORMAT(DATE, 'EUR')
+accept	accept	select POSITION('a' IN 'abc')
+accept	accept	select TRIM('  bar   ')
+accept	accept	select TRIM('a' FROM '  bar   ')
+accept	accept	select TRIM(LEADING FROM '  bar   ')
+accept	accept	select TRIM(BOTH FROM '  bar   ')
+accept	accept	select TRIM(TRAILING FROM '  bar   ')
+accept	accept	select TRIM(LEADING 'x' FROM 'xxxyxxx')
+accept	accept	select TRIM(BOTH 'x' FROM 'xxxyxxx')
+accept	accept	select TRIM(TRAILING 'x' FROM 'xxxyxxx')
+accept	accept	select TRIM(BOTH col1 FROM col2)
+accept	accept	select DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY)
+accept	accept	select BENCHMARK(1000000, AES_ENCRYPT('text', UNHEX('F3229A0B371ED2D9441B830D21A390C3')))
+accept	accept	select SUBSTRING('Quadratically', 5)
+accept	accept	select SUBSTRING('Quadratically' FROM 5)
+accept	accept	select SUBSTRING('Quadratically', 5, 6)
+accept	accept	select SUBSTRING('Quadratically' FROM 5 FOR 6)
+accept	accept	select MASTER_POS_WAIT(@log_name, @log_pos, @timeout, @channel_name)
+accept	accept	select JSON_TYPE('[123]')
+accept	accept	select bit_and(all c1)
+accept	accept	select nextval(test.seq)
+accept	accept	select lastval(test.seq)
+accept	accept	select setval(test.seq, 100)
+accept	accept	select next value for test.seq
+accept	accept	select NeXt vAluE for test.seQuEncE2
+accept	accept	select weight_string(a)
+accept	accept	select Weight_stRing(test.a)
+accept	accept	select weight_string('a')
+accept	accept	select weight_string('a' collate utf8_general_ci collate utf8mb4_general_ci)
+accept	accept	select weight_string(_utf8 'a' collate utf8_general_ci)
+accept	accept	select weight_string(_utf8 'a')
+accept	accept	select weight_string(a as char(5))
+accept	accept	select weight_string(a as character(5))
+accept	accept	select weight_string(a as binary(5))
+accept	accept	select hex(weight_string('abc' as binary(5)))
+accept	accept	select soundex(attr)
+accept	accept	select soundex('string')
+accept	accept	select CONVERT('Müller' USING UtF8)
+accept	accept	select CONVERT('Müller' USING UtF8Mb4)
+accept	accept	select CONVERT('Müller', CHAR(32) CHARACTER SET UtF8)
+accept	accept	select CAST('test' AS CHAR CHARACTER SET UtF8)
+accept	accept	select BINARY 'New York'
+accept	accept	select AVG(test_score)
+accept	accept	select AVG(distinct test_score)
+accept	accept	select BIT_AND(test_score)
+accept	accept	select BIT_OR(test_score)
+accept	accept	select BIT_XOR(test_score)
+accept	accept	select COUNT(test_score)
+accept	accept	select COUNT(*)
+accept	accept	select COUNT(DISTINCT scores, results)
+accept	accept	select MIN(test_score)
+accept	accept	select MIN(DISTINCT test_score)
+accept	accept	select MAX(test_score)
+accept	accept	select MAX(DISTINCT test_score)
+accept	accept	select STD(test_score)
+accept	accept	select STDDEV(test_score)
+accept	accept	select STDDEV_POP(test_score)
+accept	accept	select STDDEV_SAMP(test_score)
+accept	accept	select SUM(test_score)
+accept	accept	select SUM(DISTINCT test_score)
+accept	accept	select VAR_POP(test_score)
+accept	accept	select VAR_SAMP(test_score)
+accept	accept	select VARIANCE(test_score)
+accept	accept	select JSON_OBJECTAGG(test_score, results)
+accept	accept	select GROUP_CONCAT(a)
+accept	accept	select GROUP_CONCAT(a separator '--')
+accept	accept	select GROUP_CONCAT(a order by b desc, c)
+accept	accept	select GROUP_CONCAT(a order by b desc, c separator '--')
+accept	accept	select RANK() OVER w from t
+accept	accept	select RANK() OVER (PARTITION BY a) from t
+accept	accept	select MAX(DISTINCT a) OVER (PARTITION BY a) from t
+accept	accept	select MAX(DISTINCTROW a) OVER (PARTITION BY a) from t
+accept	accept	select MAX(DISTINCT ALL a) OVER (PARTITION BY a) from t
+accept	accept	select MAX(ALL a) OVER (PARTITION BY a) from t
+accept	accept	select FIRST_VALUE(val) IGNORE NULLS OVER (w) from t
+accept	accept	select FIRST_VALUE(val) RESPECT NULLS OVER w from t
+accept	accept	select NTH_VALUE(val, 233) FROM LAST IGNORE NULLS OVER w from t
+accept	accept	select NTH_VALUE(val, 233) FROM FIRST IGNORE NULLS OVER (w) from t
+accept	accept	select s.a() from t
+accept	accept	select `s`.`a`() from t
+accept	accept	select now() from t
+accept	accept	select `s`.`now`() from t
+accept	accept	select generic_func() from t
+accept	accept	select `ident.1`.`ident.2`() from t
+accept	accept	select /*+ USE_INDEX(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX(test.t1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX(test.t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX(test.t1@sel_1 partition(p0) c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(test.t1 c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(test.t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ FORCE_INDEX(test.t1@sel_1 partition(p0) c1) */ * from t1 join t2
+accept	accept	select /*+ IGNORE_INDEX(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ IGNORE_INDEX(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ IGNORE_INDEX(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ IGNORE_INDEX(t1@sel_1 partition(p0, p1) c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(test.t1 c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(test.t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ ORDER_INDEX(test.t1@sel_1 partition(p0) c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(test.t1 c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(test.t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ NO_ORDER_INDEX(test.t1@sel_1 partition(p0) c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(test.t1 c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(@sel_1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(test.t1@sel_1 c1) */ * from t1 join t2
+accept	accept	select /*+ INDEX_LOOKUP_PUSHDOWN(test.t1@sel_1 partition(p0) c1) */ * from t1 join t2
+accept	accept	select /*+ TIDB_SMJ(`t1`) */ * from t1 join t2
+accept	accept	select /*+ TIDB_SMJ(t1) */ * from t1 join t2
+accept	accept	select /*+ TIDB_SMJ(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_SMJ(@sel1 t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_SMJ(t1@sel1,t2@sel2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_INLJ(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_INLJ(@sel1 t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_INLJ(t1@sel1,t2@sel2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_HJ(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_HJ(@sel1 t1,t2) */ * from t1 join t2
+accept	accept	select /*+ TIDB_HJ(t1@sel1,t2@sel2) */ * from t1 join t2
+accept	accept	select /*+ MERGE_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ BROADCAST_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ INL_HASH_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ INL_MERGE_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ INL_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ HASH_JOIN(t1,t2) */ * from t1 join t2
+accept	accept	select /*+ HASH_JOIN_BUILD(t1) */ * from t1 join t2
+accept	accept	select /*+ HASH_JOIN_PROBE(t1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1, c1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1, c1, t2) */ * from t1 join t2
+accept	accept	select /*+ LEADING(@sel1 t1, c1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(@sel1 t1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(@sel1 t1, c1, t2) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1@sel1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1@sel1, c1) */ * from t1 join t2
+accept	accept	select /*+ LEADING(t1@sel1, c1, t2) */ * from t1 join t2
+accept	accept	select /*+ MAX_EXECUTION_TIME(3000) */ * from t1 join t2
+accept	accept	select /*+ MAX_EXECUTION_TIME(@sel1 3000) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX_MERGE(t1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX_MERGE(@sel1 t1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_INDEX_MERGE(t1@sel1 c1) */ * from t1 join t2
+accept	accept	select /*+ USE_TOJA(TRUE) */ * from t1 join t2
+accept	accept	select /*+ USE_TOJA(FALSE) */ * from t1 join t2
+accept	accept	select /*+ USE_TOJA(@sel1 TRUE) */ * from t1 join t2
+accept	accept	select /*+ USE_CASCADES(TRUE) */ * from t1 join t2
+accept	accept	select /*+ USE_CASCADES(FALSE) */ * from t1 join t2
+accept	accept	select /*+ USE_CASCADES(@sel1 TRUE) */ * from t1 join t2
+accept	accept	select /*+ QUERY_TYPE(OLAP) */ * from t1 join t2
+accept	accept	select /*+ QUERY_TYPE(OLTP) */ * from t1 join t2
+accept	accept	select /*+ QUERY_TYPE(@sel1 OLTP) */ * from t1 join t2
+accept	accept	select /*+ NTH_PLAN(10) */ * from t1 join t2
+accept	accept	select /*+ NTH_PLAN(@sel1 30) */ * from t1 join t2
+accept	accept	select /*+ MEMORY_QUOTA(1 GB) */ * from t1 join t2
+accept	accept	select /*+ MEMORY_QUOTA(@sel1 1 GB) */ * from t1 join t2
+accept	accept	select /*+ HASH_AGG() */ * from t1 join t2
+accept	accept	select /*+ HASH_AGG(@sel1) */ * from t1 join t2
+accept	accept	select /*+ STREAM_AGG() */ * from t1 join t2
+accept	accept	select /*+ STREAM_AGG(@sel1) */ * from t1 join t2
+accept	accept	select /*+ AGG_TO_COP() */ * from t1 join t2
+accept	accept	select /*+ AGG_TO_COP(@sel_1) */ * from t1 join t2
+accept	accept	select /*+ LIMIT_TO_COP() */ * from t1 join t2
+accept	accept	select /*+ MERGE() */ * from t1 join t2
+accept	accept	select /*+ STRAIGHT_JOIN() */ * from t1 join t2
+accept	accept	select /*+ NO_INDEX_MERGE() */ * from t1 join t2
+accept	accept	select /*+ NO_INDEX_MERGE(@sel1) */ * from t1 join t2
+accept	accept	select /*+ READ_CONSISTENT_REPLICA() */ * from t1 join t2
+accept	accept	select /*+ READ_CONSISTENT_REPLICA(@sel1) */ * from t1 join t2
+accept	accept	select /*+ QB_NAME(sel1) */ * from t1 join t2
+accept	accept	select /*+ READ_FROM_STORAGE(@sel TIFLASH[t1, t2]) */ * from t1 join t2
+accept	accept	select /*+ READ_FROM_STORAGE(@sel TIFLASH[t1 partition(p0)]) */ * from t1 join t2
+accept	accept	select /*+ TIME_RANGE('2020-02-02 10:10:10','2020-02-02 11:10:10') */ * from t1 join t2
+accept	accept	select /*+ RESOURCE_GROUP(rg1) */ * from t1 join t2
+accept	accept	select /*+ RESOURCE_GROUP(`default`) */ * from t1 join t2
+accept	accept	alter table abc compact tiflash replica
+accept	accept	alter table abc compact
+accept	accept	alter table test.abc compact
+accept	accept	plan replayer dump with stats as of timestamp '2023-06-28 12:34:00' explain select * from t where a > 10
+accept	accept	plan replayer dump explain analyze select * from t where a > 10
+accept	accept	plan replayer dump with stats as of timestamp 12345 explain analyze select * from t where a > 10
+accept	accept	plan replayer dump explain analyze 'test'
+accept	accept	plan replayer dump with stats as of timestamp '12345' explain analyze 'test2'
+accept	accept	QUERY WATCH ADD ACTION KILL SQL TEXT EXACT TO 'select * from test.t2'
+accept	accept	QUERY WATCH ADD RESOURCE GROUP rg1 SQL TEXT SIMILAR TO 'select * from test.t2'
+accept	accept	QUERY WATCH ADD RESOURCE GROUP rg1 ACTION COOLDOWN PLAN DIGEST 'd08bc323a934c39dc41948b0a073725be3398479b6fa4f6dd1db2a9b115f7f57'
+accept	accept	QUERY WATCH ADD ACTION SWITCH_GROUP(rg1) SQL TEXT EXACT TO 'select * from test.t1'
+accept	accept	CREATE PROCEDURE `proc_2`( IN `id` BIGINT(20), IN `id2` VARCHAR(100), IN `id3` DECIMAL(30,2)) BEGIN DECLARE `s` VARCHAR(100) DEFAULT FROM_UNIXTIME(1447430881);SELECT `s`;SELECT * FROM `t1`;SELECT * FROM `t2`;INSERT INTO `t1` VALUES (111); END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN SELECT * FROM `t1`;IF `i`>1 THEN SELECT 2;ELSEIF `i`=3 THEN SELECT 4;ELSE SELECT 5;END IF; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN SELECT * FROM `t1`;IF `i`>1 THEN SELECT 2;ELSEIF `i`=3 THEN SELECT 4;END IF; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN SELECT * FROM `t1`;IF `i`>1 THEN SELECT 2;END IF; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN SELECT * FROM `t1`;IF `i`>1 THEN SELECT 2;ELSE SELECT 5;END IF; END
+accept	accept	CREATE PROCEDURE `proc_2`( IN `id` INT(11)) BEGIN WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE TEST1 CURSOR FOR SELECT 1;SELECT 1;OPEN TEST1;FETCH TEST1 INTO A;CLOSE TEST1; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE EXIT HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END
+accept	accept	CREATE PROCEDURE `proc_2`( INOUT `id` BIGINT(20), OUT `id1` BIGINT(20)) BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR 1211, SQLSTATE 'xdw' SELECT 1; END
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLSTATE 'ssss' WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE; END
+accept	accept	CREATE PROCEDURE `proc_2`() CASE NOW() WHEN _UTF8MB4'1980-10-01' THEN SELECT 1; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() CASE NOW() WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() CASE NOW() WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; ELSE SELECT 3; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() CASE WHEN _UTF8MB4'1980-10-01' THEN SELECT 1; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() CASE WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() CASE WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; ELSE SELECT 3; END CASE
+accept	accept	CREATE PROCEDURE `proc_2`() `labelname`: BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END `labelname`
+accept	accept	CREATE PROCEDURE `proc_2`() BEGIN `labelname`: WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE `labelname`; END
+accept	accept	CREATE PROCEDURE `proc_2`( IN `id` INT(11)) BEGIN `labelname`: REPEAT SET @@SESSION.`id`=`id`+1;SELECT 1;UNTIL `id`<10 END REPEAT `labelname`; END
