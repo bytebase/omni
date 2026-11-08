@@ -626,6 +626,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// Optional IGNORE keyword between ALTER and TABLE: legacy copy-ALTER
+	// syntax MariaDB still accepts (MySQL removed it in 5.7). It is valid
+	// only immediately before TABLE and carries no AST state.
+	// Ref: MariaDB ALTER TABLE grammar, "ALTER [ONLINE] [IGNORE] TABLE ...";
+	// measured accept on MariaDB 11.8.8.
+	if p.cur.Type == kwIGNORE && p.peekNext().Type == kwTABLE {
+		p.advance() // consume IGNORE; fall through to the TABLE arm
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt(start)

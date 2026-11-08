@@ -14,16 +14,17 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #725 | after #731 | after #733 | after #736 | after #737 | after #738 | now |
+| | first | after #731 | after #733 | after #736 | after #737 | after #738 | after #739 | now |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,782 | 2,799 | 2,805 | 2,810 | 2,814 | 2,818 | 2,821 |
-| gap: TiDB accepts, omni rejects | 152 | 40 | 23 | 17 | 12 | 8 | 4 | 1 |
+| both accept | 2,670 | 2,799 | 2,805 | 2,810 | 2,814 | 2,818 | 2,821 | 2,822 |
+| gap: TiDB accepts, omni rejects | 152 | 23 | 17 | 12 | 8 | 4 | 1 | 0 |
 | over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
 | no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
-omni parses **2,821 of the 2,822 alternatives TiDB accepts — 100.0%**, with zero
-over-acceptances. The 121 both-reject rows are alternatives the server itself
+**COMPLETE: the parser.y corpus is fully closed.** omni parses **2,822 of the
+2,822 alternatives TiDB accepts — 100.0%**, with zero over-acceptances and zero
+remaining gaps. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
 
@@ -100,6 +101,18 @@ NODEGROUP a `LengthNum`, each refusal held to the engine. All three are
 TiDB-only: `mysql` and `oceanbase` have no CREATE SEQUENCE, and `mariadb`'s takes
 no trailing table options, so nothing ported.
 
+The **now** column is after the ALTER IGNORE TABLE cluster closed
+(`fix(tidb,mariadb): accept optional IGNORE keyword in ALTER IGNORE TABLE`): the
+last gap row flipped from gap to both-accept, zero new over-acceptances. This
+closes the parser.y corpus — 0 gaps, 0 over-acceptances. `IgnoreOptional` is
+"IGNORE or empty" and appears only in the `AlterTableStmt` family
+(parser.y:6585, 1703), so `parseAlterDispatch` consumes an optional `IGNORE`
+solely when `TABLE` follows and discards it, as TiDB's grammar does (its action
+does not read the `IgnoreOptional` value). It is legacy copy-ALTER syntax:
+`mariadb` keeps it (measured accept on 11.8.8, ported) while `mysql` removed it
+in 5.7, so `mysql` and `oceanbase` — whose parser oracle is MySQL 8.0 — both
+reject it, measured, and nothing ported there.
+
 ## The gaps, by theme
 
 The first measurement's dominant root cause was one form, not 72 unrelated ones:
@@ -172,21 +185,13 @@ The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
 engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
 zero new over-acceptances.
 
-The 1 that remains is unrelated to usernames, LIMIT, procedures, statistics,
-SHOW, collation/convert/weight_string, LOAD DATA / OUTFILE field options, the
-`?` parameter marker, or CREATE SEQUENCE options:
+The final cluster, unrelated to usernames, LIMIT, procedures, statistics, SHOW,
+collation/convert/weight_string, LOAD DATA / OUTFILE field options, the `?`
+parameter marker, or CREATE SEQUENCE options, is now **closed**:
 
-- **ALTER IGNORE TABLE (1 row).** `IgnoreOptional`.
-
-A fix lands as a small PR of the kind §3.2's work landed as: close the rule,
-rerun `TestTiDBParserYCorpusOmniVerdicts -update`, and the diff is the rows it
-bought. Check `mysql`, `mariadb`, and `oceanbase` for the same gap.
+- **ALTER IGNORE TABLE (1 row).** `IgnoreOptional`. Closed in
+  `fix(tidb,mariadb): accept optional IGNORE keyword in ALTER IGNORE TABLE`.
 
 ## Every rule with a gap
 
-One example statement per rule; `n` is how many of the rule's alternatives gap.
-
-
-| Rule | n | Example (shortest form) |
-|---|---:|---|
-| `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
+None. Every rule in the corpus is closed; there are no remaining gaps.

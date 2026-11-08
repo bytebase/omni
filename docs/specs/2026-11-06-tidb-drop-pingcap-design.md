@@ -197,10 +197,11 @@ diff is the list of forms the release added or removed.
 **Status (2026-11-08).** Landed: `tidb/parser/cmd/grammarcorpus` and the first
 measurement. parser.y at v8.5.5 has 690 rules and 2,946 alternatives (two,
 `||` concat and high-precedence `NOT`, need a non-default SQL mode and are
-reported uncovered); omni parses 2,821 of the 2,822 the server accepts (100.0%)
-with zero over-acceptances. The 1 remaining gap, grouped by rule, is
-`docs/plans/2026-11-07-tidb-parser-y-gap-inventory.md`, and are the grammar
-work list that replaces §3.2.
+reported uncovered); omni parses all 2,822 the server accepts (100.0%) with zero
+over-acceptances. The corpus is fully closed — 0 gaps, 0 over-acceptances; the
+per-rule record and the cluster-by-cluster history are in
+`docs/plans/2026-11-07-tidb-parser-y-gap-inventory.md`, the grammar work list
+that replaced §3.2.
 
 ### 3.4 Samples of real SQL
 

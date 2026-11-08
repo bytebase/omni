@@ -100,6 +100,15 @@ var alterTableClauseCases = []alterTableClauseCase{
 	{"ALTER TABLE t ALTER COLUMN a SET DEFAULT _utf8'x'", true},
 	{"ALTER TABLE t ALTER COLUMN a SET DEFAULT DATE '2020-01-01'", true},
 	{"ALTER TABLE t ALTER COLUMN a SET DEFAULT (1+1)", true},
+	// Optional IGNORE keyword between ALTER and TABLE (legacy copy-ALTER
+	// syntax MariaDB keeps; MySQL removed it in 5.7). Valid only right before
+	// TABLE, measured on MariaDB 11.8.8.
+	{"ALTER IGNORE TABLE ident", true},
+	{"ALTER IGNORE TABLE t ADD COLUMN z INT", true},
+	{"ALTER IGNORE TABLE t RENAME to t1", true},
+	{"ALTER IGNORE DATABASE d", false},
+	{"ALTER TABLE IGNORE t", false},
+	{"ALTER IGNORE SEQUENCE s", false},
 }
 
 // TestAlterTableClauseForms holds this parser to alterTableClauseCases without
