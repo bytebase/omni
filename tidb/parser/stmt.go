@@ -991,7 +991,10 @@ func (p *Parser) parseDefinerValue() string {
 	if p.cur.Type == tokIDENT && len(p.cur.Str) > 0 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
-		if tok.Str == "@" {
+		// A bare `@` spans one source byte; a folded host, `@'host'` or even the
+		// empty `@''`, spans more. Str is "@" for both, so the span, not Str,
+		// tells them apart -- `DEFINER='u'@''` is a valid empty host.
+		if tok.End-tok.Loc == 1 {
 			// Standalone @ followed by host identifier or string
 			var host string
 			if p.cur.Type == tokSCONST {

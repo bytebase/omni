@@ -1095,7 +1095,11 @@ func (p *Parser) parseUserHostOpt() (string, bool, error) {
 	if !p.atAtIdent() {
 		return "", false, nil
 	}
-	if len(p.cur.Str) > 1 {
+	// A bare `@` spans one source byte; a folded host, `@'host'` or even the empty
+	// `@''`, spans more. Str is "@" for both, so the span, not Str, tells them
+	// apart -- `'u'@''` is a valid empty host, and its next token (an auth option,
+	// say) must not be read as the host.
+	if p.cur.End-p.cur.Loc > 1 {
 		host := strings.TrimPrefix(p.cur.Str, "@")
 		p.advance()
 		return host, true, nil

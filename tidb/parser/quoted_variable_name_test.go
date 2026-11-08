@@ -27,6 +27,16 @@ func TestQuotedVariableNames(t *testing.T) {
 		"DROP USER 'u'@'host'",
 		"CREATE DEFINER = 'u'@'host' VIEW v AS SELECT 1",
 		"CLONE INSTANCE FROM 'u'@'host':3306 IDENTIFIED BY 'p'",
+		// An empty quoted host `@''` is a valid empty host, distinct from a bare
+		// `@` that needs a following token. The fold makes both Str "@", so the
+		// host consumers tell them apart by the source span.
+		"CREATE DEFINER = 'u'@'' VIEW v AS SELECT 1",
+		"CREATE USER 'u'@''",
+		"CREATE USER 'u'@'' IDENTIFIED BY 'p'",
+		"CREATE USER 'u'@''IDENTIFIED BY 'p'",
+		"GRANT SELECT ON *.* TO 'u'@''",
+		"DROP USER 'u'@''",
+		"SELECT @''",
 	}
 	for _, sql := range accept {
 		if _, err := Parse(sql); err != nil {
@@ -38,6 +48,9 @@ func TestQuotedVariableNames(t *testing.T) {
 	// a quoted name is the whole name, so omni must reject it too.
 	reject := []string{
 		"select @@session.\"a\".\"b\"",
+		// CLONE INSTANCE needs a non-empty host: TiDB v8.5.5 answers 1064 to an
+		// empty one, so omni must too (the following colon has nothing before it).
+		"CLONE INSTANCE FROM 'u'@'':3306 IDENTIFIED BY 'p'",
 	}
 	for _, sql := range reject {
 		if _, err := Parse(sql); err == nil {
