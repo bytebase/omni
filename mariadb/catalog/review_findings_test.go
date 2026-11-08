@@ -5272,3 +5272,50 @@ func TestReview_BacktickInAJSONColumnName(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ValuesRowsTakeTheRewrites covers a view backed by a table value
+// constructor. Its rows were the last expression position the rewrite walk did
+// not reach, so a SOUNDS LIKE in one came out at comparison precedence without
+// the parentheses its left operand needs: `VALUES (((2=1) SOUNDS LIKE '0'))`
+// stored values (2 = 1 sounds like '0'), which is 0 where the original is 1.
+//
+// Measured on mariadb:11.8.8. A VALUES node's own ORDER BY is positional, so
+// `VALUES (1),(2) ORDER BY 1` keeps order by 1, and is pinned here beside the
+// rows.
+func TestReview_ValuesRowsTakeTheRewrites(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	for i, tc := range []struct{ name, body string }{
+		{"a_row_with_sounds_like", "VALUES (((2=1) SOUNDS LIKE '0'))"},
+		{"a_row_with_a_not", "VALUES (NOT (1 > 0))"},
+		{"two_rows", "VALUES (((2=1) SOUNDS LIKE '0')), (1)"},
+		{"literals_under_an_and", "VALUES (1 AND 2)"},
+		{"under_a_union", "SELECT 1 UNION VALUES (((2=1) SOUNDS LIKE '0'))"},
+		{"ordered_rows", "VALUES (1),(2) ORDER BY 1"},
+		{"ordered_rows_descending", "VALUES (2),(1) ORDER BY 1 DESC"},
+		{"a_rewritten_row_ordered", "VALUES (((2=1) SOUNDS LIKE '0')) ORDER BY 1"},
+		{"rows_with_a_limit", "VALUES (1),(2) LIMIT 1"},
+	} {
+		view := fmt.Sprintf("v_vs%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}

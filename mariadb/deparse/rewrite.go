@@ -642,6 +642,21 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 		rewriteOrderBy(stmt.OrderBy)
 		return
 	}
+	if stmt.ValuesSource != nil {
+		// A table value constructor's rows hold expressions like any other
+		// position: measured on mariadb:11.8.8,
+		// `VALUES (((2=1) SOUNDS LIKE '0'))` is stored as
+		// values (soundex(2 = 1) = soundex('0')) and `VALUES (NOT (1 > 0))`
+		// as values (1 <= 0), while `VALUES (1 AND 2)` keeps its literals as
+		// an AND of them anywhere else does. Its own ORDER BY is positional,
+		// `VALUES (1),(2) ORDER BY 1` keeping order by 1.
+		for _, row := range stmt.ValuesSource.Rows {
+			for i, expr := range row {
+				row[i] = RewriteExpr(expr)
+			}
+		}
+		rewriteOrderBy(stmt.ValuesSource.OrderBy)
+	}
 	for i, target := range stmt.TargetList {
 		if rt, ok := target.(*ast.ResTarget); ok {
 			rt.Val = RewriteExpr(rt.Val)
