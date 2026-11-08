@@ -2685,21 +2685,21 @@ accept	accept	FormatOpt#2	IMPORT INTO ident FROM 's' FORMAT 's'
 accept	accept	IgnoreLines#1	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	IgnoreLines#2	LOAD DATA INFILE 's' INTO TABLE ident IGNORE 1 LINES
 accept	accept	CharsetOpt#1	LOAD DATA INFILE 's' INTO TABLE ident
-reject	accept	CharsetOpt#2	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY
+accept	accept	CharsetOpt#2	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY
 accept	accept	LocalOpt#1	LOAD DATA INFILE 's' INTO TABLE ident
 accept	accept	LocalOpt#2	LOAD DATA LOCAL INFILE 's' INTO TABLE ident
 accept	accept	Fields#1	SELECT * INTO OUTFILE 's'
 accept	accept	Fields#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldsOrColumns#1	SHOW FIELDS FROM ident
 accept	accept	FieldsOrColumns#2	SHOW COLUMNS FROM ident
-reject	accept	FieldItemList#1	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's'
+accept	accept	FieldItemList#1	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldItemList#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldItem#1	SELECT * INTO OUTFILE 's' FIELDS TERMINATED BY 's'
 accept	accept	FieldItem#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldItem#3	SELECT * INTO OUTFILE 's' FIELDS ENCLOSED BY 's'
 accept	accept	FieldItem#4	SELECT * INTO OUTFILE 's' FIELDS ESCAPED BY 's'
-reject	accept	FieldItem#5	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's'
-reject	accept	FieldItem#6	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' OPTIONALLY ENCLOSED
+accept	accept	FieldItem#5	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's'
+accept	accept	FieldItem#6	SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' OPTIONALLY ENCLOSED
 accept	accept	FieldTerminator#1	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's'
 accept	accept	FieldTerminator#2	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 0x1
 accept	accept	FieldTerminator#3	SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY b'1'

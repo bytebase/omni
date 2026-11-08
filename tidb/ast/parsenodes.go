@@ -1449,10 +1449,16 @@ type IntoClause struct {
 	FieldsEnclosedBy   string // [OPTIONALLY] ENCLOSED BY 'char'
 	FieldsOptionalEncl bool   // OPTIONALLY keyword before ENCLOSED BY
 	FieldsEscapedBy    string // ESCAPED BY 'char'
-	LinesStartingBy    string // LINES STARTING BY 'string'
-	LinesTerminatedBy  string // LINES TERMINATED BY 'string'
-	HasFieldsClause    bool   // true if FIELDS/COLUMNS clause present
-	HasLinesClause     bool   // true if LINES clause present
+	// TiDB: FIELDS DEFINED NULL BY 'x' [OPTIONALLY ENCLOSED], the same field
+	// item LOAD DATA takes. HasDefinedNullBy tells DEFINED NULL BY '' from no
+	// such item.
+	FieldsDefinedNullBy    string
+	HasDefinedNullBy       bool
+	DefinedNullOptEnclosed bool
+	LinesStartingBy        string // LINES STARTING BY 'string'
+	LinesTerminatedBy      string // LINES TERMINATED BY 'string'
+	HasFieldsClause        bool   // true if FIELDS/COLUMNS clause present
+	HasLinesClause         bool   // true if LINES clause present
 }
 
 func (c *IntoClause) nodeTag() {}

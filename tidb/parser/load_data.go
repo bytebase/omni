@@ -137,11 +137,15 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Partitions = parts
 	}
 
-	// [CHARACTER SET charset_name]
+	// [CHARACTER SET charset_name]. The name is a CharsetName, which carries
+	// the reserved word BINARY beside ident_or_text, so `CHARACTER SET BINARY`
+	// parses on v8.5.5 where a plain identifier would turn BINARY away.
+	//
+	// Ref: CharsetOpt and CharsetName in TiDB v8.5.5 pkg/parser/parser.y.
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
 		p.match(kwSET)
-		name, _, err := p.parseIdentifier()
+		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}
@@ -508,44 +512,78 @@ func (p *Parser) parseLoadDataOptions() ([]*nodes.LoadDataOption, error) {
 // IGNORE 1 LINES` -- OPTIONALLY ENCLOSED with no BY and no DEFINED NULL BY
 // before it -- is a 1064 on all four servers.
 func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
+	fi, err := p.parseFieldItemList()
+	if err != nil {
+		return err
+	}
+	stmt.FieldsTerminatedBy = fi.TerminatedBy
+	stmt.FieldsEnclosedBy = fi.EnclosedBy
+	stmt.FieldsOptionalEncl = fi.OptionalEncl
+	stmt.FieldsEscapedBy = fi.EscapedBy
+	stmt.FieldsDefinedNullBy = fi.DefinedNullBy
+	stmt.HasDefinedNullBy = fi.HasDefinedNullBy
+	stmt.DefinedNullOptEnclosed = fi.DefinedNullOptEncl
+	return nil
+}
+
+// fieldItems collects the parsed items of a FIELDS/COLUMNS list. LOAD DATA
+// and SELECT ... INTO OUTFILE read the same Fields rule, so both fill this
+// through parseFieldItemList and map it onto their own node.
+//
+// Ref: Fields and FieldItem in TiDB v8.5.5 pkg/parser/parser.y.
+type fieldItems struct {
+	TerminatedBy       string
+	EnclosedBy         string
+	OptionalEncl       bool
+	EscapedBy          string
+	DefinedNullBy      string
+	HasDefinedNullBy   bool
+	DefinedNullOptEncl bool
+}
+
+// parseFieldItemList parses the one-or-more items that follow FIELDS/COLUMNS,
+// the FieldItemList rule. The caller has consumed FIELDS or COLUMNS and left
+// p.cur on the first item.
+func (p *Parser) parseFieldItemList() (fieldItems, error) {
+	var fi fieldItems
 	for n := 0; ; n++ {
 		switch {
 		case p.cur.Type == kwTERMINATED:
 			p.advance()
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return fi, err
 			}
 			v, err := p.parseFieldTerminator()
 			if err != nil {
-				return err
+				return fi, err
 			}
-			stmt.FieldsTerminatedBy = v
+			fi.TerminatedBy = v
 
 		case p.cur.Type == kwOPTIONALLY:
 			p.advance()
 			if _, err := p.expect(kwENCLOSED); err != nil {
-				return err
+				return fi, err
 			}
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return fi, err
 			}
 			v, err := p.parseFieldEnclosure()
 			if err != nil {
-				return err
+				return fi, err
 			}
-			stmt.FieldsOptionalEncl = true
-			stmt.FieldsEnclosedBy = v
+			fi.OptionalEncl = true
+			fi.EnclosedBy = v
 
 		case p.cur.Type == kwENCLOSED:
 			p.advance()
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return fi, err
 			}
 			v, err := p.parseFieldEnclosure()
 			if err != nil {
-				return err
+				return fi, err
 			}
-			stmt.FieldsEnclosedBy = v
+			fi.EnclosedBy = v
 			// Each ENCLOSED item carries its own OPTIONALLY, so a plain
 			// one after an OPTIONALLY one clears the flag. v8.5.5 writes
 			// `"7"` for `INTO OUTFILE ... FIELDS OPTIONALLY ENCLOSED BY
@@ -554,39 +592,39 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			// MySQL 8.0.46 and MariaDB 11.8.8 do not clear it -- both
 			// write `7` for that statement -- so their copy of this
 			// clause keeps the flag (all read on 2026-11-04).
-			stmt.FieldsOptionalEncl = false
+			fi.OptionalEncl = false
 
 		case p.cur.Type == kwESCAPED:
 			p.advance()
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return fi, err
 			}
 			v, err := p.parseFieldEnclosure()
 			if err != nil {
-				return err
+				return fi, err
 			}
-			stmt.FieldsEscapedBy = v
+			fi.EscapedBy = v
 
 		case p.isBareWord("DEFINED"):
 			p.advance()
 			if _, err := p.expect(kwNULL); err != nil {
-				return err
+				return fi, err
 			}
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return fi, err
 			}
 			v, err := p.parseFieldTerminator()
 			if err != nil {
-				return err
+				return fi, err
 			}
-			stmt.FieldsDefinedNullBy, stmt.HasDefinedNullBy = v, true
+			fi.DefinedNullBy, fi.HasDefinedNullBy = v, true
 			// A repeat without the tail clears it, the last item winning:
 			// v8.5.5 reads an enclosed `"a"` as NULL for `DEFINED NULL BY
 			// 'a' OPTIONALLY ENCLOSED` and as the string "a" both for
 			// `DEFINED NULL BY 'a'` and for `DEFINED NULL BY 'a'
 			// OPTIONALLY ENCLOSED DEFINED NULL BY 'a'` (measured by
 			// loading a file on 2026-11-04).
-			stmt.DefinedNullOptEnclosed = false
+			fi.DefinedNullOptEncl = false
 			// [OPTIONALLY ENCLOSED], with no BY and no value after it.
 			// What follows OPTIONALLY ENCLOSED here settles which of the
 			// two it is: a BY makes it the next field item instead, so
@@ -595,25 +633,29 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if p.cur.Type == kwOPTIONALLY {
 				p.advance()
 				if _, err := p.expect(kwENCLOSED); err != nil {
-					return err
+					return fi, err
 				}
 				if _, ok := p.match(kwBY); ok {
-					encl, err := p.parseFieldTerminator()
+					// This is an ENCLOSED item in its own right (the next
+					// FieldItem), so its value is a one-byte enclosure: v8.5.5
+					// answers 1083 for a longer one here as it does for a plain
+					// ENCLOSED BY (parser.y:14956-14961).
+					encl, err := p.parseFieldEnclosure()
 					if err != nil {
-						return err
+						return fi, err
 					}
-					stmt.FieldsOptionalEncl = true
-					stmt.FieldsEnclosedBy = encl
+					fi.OptionalEncl = true
+					fi.EnclosedBy = encl
 				} else {
-					stmt.DefinedNullOptEnclosed = true
+					fi.DefinedNullOptEncl = true
 				}
 			}
 
 		default:
 			if n == 0 {
-				return p.syntaxErrorAtCur()
+				return fi, p.syntaxErrorAtCur()
 			}
-			return nil
+			return fi, nil
 		}
 	}
 }
