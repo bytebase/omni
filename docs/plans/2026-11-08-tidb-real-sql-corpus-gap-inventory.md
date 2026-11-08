@@ -13,17 +13,18 @@ extraction skipped, or the statement an `ast/*_test.go` restore case parses
 (a fragment inside a full-statement template). Each was measured against omni and
 against TiDB v8.5.5 via `PREPARE`.
 
-| | first | after FK fix | after var fix |
-|---|---:|---:|---:|
-| both accept | 869 | 874 | 879 |
-| gap: TiDB accepts, omni rejects | 11 | 6 | 1 |
-| **over-acceptance: TiDB rejects, omni accepts** | **0** | **0** | **0** |
-| both reject | 5 | 5 | 5 |
-| no verdict | 0 | 0 | 0 |
+| | first | after FK fix | after var fix | after OPTIMIZE fix |
+|---|---:|---:|---:|---:|
+| both accept | 869 | 874 | 879 | 880 |
+| gap: TiDB accepts, omni rejects | 11 | 6 | 1 | 0 |
+| **over-acceptance: TiDB rejects, omni accepts** | **0** | **0** | **0** | **0** |
+| both reject | 5 | 5 | 5 | 5 |
+| no verdict | 0 | 0 | 0 | 0 |
 
-omni parses **879 of the 880 statements TiDB accepts — 99.9%** (was 869/880,
-98.8%, at first measurement), with **zero over-acceptances**. The 5 both-reject
-rows are statements the server itself refuses (`AFFINITY 1` with a non-string, an
+**COMPLETE: §3.4 sample 1 is fully closed.** omni parses **880 of the 880
+statements TiDB accepts — 100.0%** (was 869/880, 98.8%, at first measurement),
+with **zero over-acceptances** and zero remaining gaps. The 5 both-reject rows
+are statements the server itself refuses (`AFFINITY 1` with a non-string, an
 unterminated `/*` comment, a resource group option with a bad value); they are
 not work.
 
@@ -65,14 +66,29 @@ select @@session.'C'
 select @@local."aBc"
 ```
 
-### C. `OPTIMIZE TABLES` plural — 1 row — open (the last gap)
+### C. `OPTIMIZE TABLES` plural — 1 row — ✅ CLOSED
+
+**Closed** by `fix(tidb,mysql,mariadb): accept OPTIMIZE TABLES and require TABLE
+or TABLES`.
 
 ```
 optimize tables t1, t2
 ```
 
-TiDB takes `TABLE` and `TABLES`; omni takes only the singular. (Check the sibling
-engines mysql/mariadb/oceanbase and port in one PR where they agree.)
+`OPTIMIZE`'s `TableOrTables` is `TABLE | TABLES` and is required; omni matched
+only the singular and made it optional, so it missed `OPTIMIZE TABLES` and
+over-accepted `OPTIMIZE t` with neither. Measured against TiDB v8.5.5, MySQL 8.0
+and MariaDB 11.8: all three accept `OPTIMIZE TABLE/TABLES t` and answer 1064 to
+`OPTIMIZE t`, so the fix is the same across those three (closing the latent
+`OPTIMIZE t` over-acceptance in each).
+
+**OceanBase is not in this fix.** Measured against a live OceanBase (through
+`oceanBaseOracle`, not `startParserOracle`, which connects to MySQL 8.0), its
+`OPTIMIZE` is far stricter: it takes only `OPTIMIZE TABLE tbl` and answers 1064 to
+`OPTIMIZE TABLES`, `OPTIMIZE NO_WRITE_TO_BINLOG TABLE`, `OPTIMIZE LOCAL TABLE` and
+bare `OPTIMIZE t`. omni-oceanbase already over-accepts the `NO_WRITE_TO_BINLOG`,
+`LOCAL` and bare-table forms (pre-existing, not from this change); tightening
+OceanBase's `OPTIMIZE` to its own grammar is a separate follow-up.
 
 ## Next
 
