@@ -163,3 +163,51 @@ go test ./tidb/parser/ -run '^TestTiDBParserYCorpusEngineVerdicts$' -count=1 -up
 fill columns 1 and 2, exactly as the pingcap corpus's pair does. When the pin
 moves, regenerate and re-record: the diff is the list of forms the new release
 added or removed.
+
+## `pingcap_parser_rest_corpus.tsv` — the rest of pingcap's parser tests
+
+The first sample of the design's §3.4 real-SQL corpora. `pingcap_parser_corpus.tsv`
+took the single-statement cases of pingcap's parser test one form at a time; this
+file takes what that extraction left behind and the forms people combine:
+
+- the `src` of every `[]testCase` / `[]testErrMsgCase` element in
+  `parser_test.go` that the first extraction skipped (backtick and multi-line Go
+  literals that still yield a one-line statement);
+- for every `runNodeRestoreTest` / `...WithFlags` / `...WithFlagsStmtChange` call
+  in `ast/*_test.go`, the statement the call parses — `fmt.Sprintf(template,
+  sourceSQL)` for each `NodeRestoreTestCase`, so a row is a function inside a
+  `SELECT`, a reference option inside a `CREATE TABLE`, a partition bound inside
+  an `ALTER`.
+
+`rest_corpus_oracle_test.go` is its only reader. The columns, the `accept`/`reject`
+verdicts, the `#` header, and the `PREPARE` engine harness are the pingcap corpus's
+(three fields: omni verdict, engine verdict, statement). A gap is `reject`/`accept`;
+an over-acceptance is `accept`/`reject` and is a bug.
+
+### Provenance
+
+Extracted from `parser_test.go` and `ast/*_test.go` in
+`github.com/pingcap/tidb/pkg/parser` at tag `v8.5.5` (commit
+`1fa258b833ff113883beeba40bc130be7ce66610`), by a throwaway tool that reads those
+`.go` files with `go/parser` (no build, no network) and emits one statement per
+line. Deduplicated against each other and against `pingcap_parser_corpus.tsv`.
+Only one-line statements are kept: 30 statements with an embedded newline or tab
+are excluded — multi-statement `BEGIN`/`COMMIT` scripts (not single statements),
+`LOAD DATA` line terminators and base64 `BINLOG` (newline inside a literal), and
+`set`/`enum` members with a tab — as `pingcap_parser_corpus.tsv` excludes them,
+because the format is one statement per line. The Apache-2.0 attribution above
+covers this file too.
+
+### Regenerating
+
+The engine column is sampled on a normal run and measured whole under `-update`,
+so a recorded file is always measured in full. From `<repo root>`:
+
+```bash
+go test ./tidb/parser/ -run '^TestTiDBRestCorpusEngineVerdicts$' -count=1 -update
+```
+
+rewrites both columns from a live server. `TIDB_CORPUS_N` caps how many rows a
+plain (non-`-update`) run measures live, so CI stays bounded as the later §3.4
+samples land; the omni-verdict pass always reads every row. Re-extracting after a
+pingcap bump means rerunning the extraction above at the new tag and re-recording.

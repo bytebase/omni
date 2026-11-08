@@ -27,6 +27,9 @@ jobs:
       # OceanBase's walk takes its changes one at a time, about 5 s each on a
       # busy runner; 500 would take 40 minutes.
       WALK_SWEEP_N_OCEANBASE: '40'
+      # Caps the live rows the §3.4 real-SQL corpora measure against TiDB. Sample
+      # 1 (885 rows) runs in full here; it bounds the larger samples still to land.
+      TIDB_CORPUS_N: '3000'
     steps:
       - uses: actions/checkout@v4
         with:
