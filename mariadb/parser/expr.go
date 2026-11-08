@@ -1301,23 +1301,28 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 			}
 		}
 	} else {
-		// expr PRECEDING | expr FOLLOWING
+		// expr PRECEDING | expr FOLLOWING.
+		//
+		// MariaDB's frame bound is a numeric literal or INTERVAL; its grammar
+		// has no `paramMarker` alternative here, unlike MySQL. parseExpr would
+		// accept the SimpleExpr `?`, so reject a leading marker to match the
+		// engine — it stays valid as a general operand elsewhere. The check is
+		// a single token, not a walk of the parsed offset: a left-deep operand
+		// chain is built iteratively and its height is bounded only by the
+		// post-parse treeTooHigh pass, so a recursive walk here could overflow
+		// the stack (AGENTS.md).
+		if p.cur.Type == '?' {
+			return nil, &ParseError{
+				Message:  "parameter marker (?) is not allowed as a window frame bound",
+				Position: p.cur.Loc,
+			}
+		}
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
-		}
-		// MariaDB does not accept a `?` parameter marker as a window-frame
-		// bound — its bound is a numeric literal or INTERVAL — unlike MySQL,
-		// which takes a marker there. parseExpr accepts `?` as a SimpleExpr
-		// operand (valid elsewhere), so reject it here to match the engine.
-		if loc, ok := firstParamMarkerLoc(expr); ok {
-			return nil, &ParseError{
-				Message:  "parameter marker (?) is not allowed as a window frame bound",
-				Position: loc,
-			}
 		}
 		bound.Offset = expr
 		if _, ok := p.match(kwPRECEDING); ok {
@@ -1334,26 +1339,6 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 
 	bound.Loc.End = p.prev.End
 	return bound, nil
-}
-
-// firstParamMarkerLoc returns the start offset of the first `?` parameter
-// marker in n, if any. It is used to keep a marker out of a MariaDB window-frame
-// bound, where parseExpr would otherwise accept the SimpleExpr form.
-func firstParamMarkerLoc(n nodes.Node) (int, bool) {
-	var loc int
-	found := false
-	nodes.Inspect(n, func(x nodes.Node) bool {
-		if found {
-			return false
-		}
-		if pm, ok := x.(*nodes.ParamMarkerExpr); ok {
-			loc = pm.Loc.Start
-			found = true
-			return false
-		}
-		return true
-	})
-	return loc, found
 }
 
 // parseTrimFunc parses TRIM's argument list, after the '('. A direction is
