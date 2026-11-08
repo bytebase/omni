@@ -292,14 +292,9 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
 	}
 
-	// Resolve WINDOW clause
+	// Resolve WINDOW clause, each entry as the specification it is
 	for _, wd := range stmt.WindowClause {
-		for i, expr := range wd.PartitionBy {
-			wd.PartitionBy[i] = r.resolveExpr(expr, sc)
-		}
-		for _, item := range wd.OrderBy {
-			item.Expr = r.resolveExpr(item.Expr, sc)
-		}
+		r.resolveWindowDef(wd, sc)
 	}
 
 	// Resolve ORDER BY. An item that names a target-list alias takes that
@@ -630,12 +625,21 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 }
 
 // resolveWindowDef resolves column references in a window definition.
+// resolveWindowDef resolves a window specification's own expressions. Neither
+// of its lists reads a number as an output position, so a whole-number
+// constant in one is written as the empty string an item taking such a
+// constant from an alias is written as: measured on mariadb:11.8.8,
+// `OVER (ORDER BY TRUE)`, `OVER (ORDER BY 1)` and `OVER (ORDER BY -1)` all
+// come back ordered by an empty string, and PARTITION BY the same, where 2.5,
+// NULL, 1e2, X'31' and 0x31 are written as they stand. A statement's own GROUP BY and
+// ORDER BY are the other way round, reading even TRUE as the position 1, and
+// an aggregate's ORDER BY keeps its constant as written.
 func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *fromScope) {
 	for i, expr := range wd.PartitionBy {
-		wd.PartitionBy[i] = r.resolveExpr(expr, sc)
+		wd.PartitionBy[i] = orderedConstant(r.resolveExpr(expr, sc))
 	}
 	for _, item := range wd.OrderBy {
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		item.Expr = orderedConstant(r.resolveExpr(item.Expr, sc))
 	}
 }
 

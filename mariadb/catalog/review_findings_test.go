@@ -4773,3 +4773,88 @@ func TestReview_SetOperationOrderByIsRewritten(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ConstantOrderingItems covers a constant written straight into an
+// ordering clause. GROUP BY and ORDER BY read a whole number as an output
+// position, and the server reads a boolean there as one too: measured on
+// mariadb:11.8.8, `GROUP BY TRUE` is stored as group by 1 and groups by the
+// first column, exactly as `GROUP BY 1` does, while `GROUP BY FALSE`,
+// `ORDER BY FALSE`, `ORDER BY -1` and `ORDER BY NOT TRUE` are all refused with
+// 1054, the position 0 or -1 being no column. A constant that cannot be read
+// as a position — 2.5, NULL, 1e2, X'31', b'1', 0x31 — is kept as it stands.
+//
+// Neither of a window specification's lists reads a number as a position, so
+// there the same constant is written as the empty string an item taking a
+// whole-number constant from an alias is written as — ORDER BY and PARTITION
+// BY alike, and through a named WINDOW clause too. omni wrote the number,
+// which is the one gap here. An aggregate's own ORDER BY keeps its constant as
+// written.
+//
+// `GROUP_CONCAT(a ORDER BY -1)` is left out: both sides store it as
+// order by -1, and selecting from the view the server itself stored answers
+// 1054, so there is nothing a row comparison can say.
+func TestReview_ConstantOrderingItems(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		// A boolean is a position, as a plain number is.
+		{"group_by_true", "SELECT a, COUNT(*) AS n FROM t GROUP BY TRUE"},
+		{"group_by_one", "SELECT a, COUNT(*) AS n FROM t GROUP BY 1"},
+		{"order_by_true", "SELECT a, b FROM t ORDER BY TRUE"},
+		{"order_by_parenthesized_true", "SELECT a, b FROM t ORDER BY (TRUE)"},
+		{"order_by_signed_position", "SELECT a, b FROM t ORDER BY +2"},
+		{"order_by_true_then_a_column", "SELECT a, b FROM t ORDER BY TRUE, a DESC"},
+		{"group_by_a_column_and_true", "SELECT a, b FROM t GROUP BY a, TRUE"},
+		// A constant that is no position stays as written.
+		{"order_by_a_decimal", "SELECT a, b FROM t ORDER BY 2.5"},
+		{"order_by_null", "SELECT a, b FROM t ORDER BY NULL"},
+		{"order_by_an_exponent", "SELECT a, b FROM t ORDER BY 1e2"},
+		{"order_by_x_quoted", "SELECT a, b FROM t ORDER BY X'31'"},
+		{"order_by_a_bit_literal", "SELECT a, b FROM t ORDER BY b'1'"},
+		{"order_by_hex", "SELECT a, b FROM t ORDER BY 0x31"},
+		// A window's ordering is not positional; an aggregate's is.
+		{"window_order_by_true", "SELECT SUM(a) OVER (ORDER BY TRUE) AS x FROM t"},
+		{"window_order_by_one", "SELECT SUM(a) OVER (ORDER BY 1) AS x FROM t"},
+		{"window_order_by_negative_one", "SELECT SUM(a) OVER (ORDER BY -1) AS x FROM t"},
+		{"window_order_by_one_desc", "SELECT SUM(a) OVER (ORDER BY 1 DESC) AS x FROM t"},
+		{"window_order_by_one_and_a_column", "SELECT SUM(a) OVER (ORDER BY 1, a) AS x FROM t"},
+		{"window_partition_by_true", "SELECT SUM(a) OVER (PARTITION BY TRUE) AS x FROM t"},
+		{"window_partition_by_one", "SELECT SUM(a) OVER (PARTITION BY 1) AS x FROM t"},
+		{"window_order_by_a_decimal", "SELECT SUM(a) OVER (ORDER BY 2.5) AS x FROM t"},
+		{"window_order_by_null", "SELECT SUM(a) OVER (ORDER BY NULL) AS x FROM t"},
+		{"window_order_by_an_exponent", "SELECT SUM(a) OVER (ORDER BY 1e2) AS x FROM t"},
+		{"window_order_by_x_quoted", "SELECT SUM(a) OVER (ORDER BY X'31') AS x FROM t"},
+		{"named_window_order_by_true", "SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (ORDER BY TRUE)"},
+		{"named_window_partition_by_one", "SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (PARTITION BY 1)"},
+		{"aggregate_order_by_true", "SELECT GROUP_CONCAT(a ORDER BY TRUE) AS x FROM t"},
+		{"aggregate_order_by_a_decimal", "SELECT GROUP_CONCAT(a ORDER BY 2.5) AS x FROM t"},
+		// The alias an item takes a whole-number constant from, already held.
+		{"order_by_a_constant_alias", "SELECT 2 AS z FROM t ORDER BY z"},
+	} {
+		view := fmt.Sprintf("v_co%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
