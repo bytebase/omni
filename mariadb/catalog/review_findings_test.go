@@ -4858,3 +4858,221 @@ func TestReview_ConstantOrderingItems(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_AliasReferenceInOrderingClauses covers an ORDER BY or GROUP BY
+// item that mentions a target-list alias inside a larger expression, and what
+// a view's own column list does to it. omni kept the alias everywhere, which a
+// view naming its columns cannot even be replayed from: `CREATE VIEW v (x) AS
+// SELECT a AS z FROM t ORDER BY z + 0` stored an order by `z` that names
+// nothing.
+//
+// Measured on mariadb:11.8.8, and the three clauses each have their own rule.
+// A GROUP BY item takes the target's expression whatever it is — over
+// `a + 1 AS z` it is group by `t`.`a` + 1 + 0 and over `2.5 AS z`
+// group by 2.5 + 0. An ORDER BY item takes it only where the target is a
+// column, `a AS z` giving order by `t`.`a` + 0, and keeps the alias for
+// anything else. HAVING keeps the output name and so takes the one the column
+// list declares, coming back having `x` > 0.
+func TestReview_AliasReferenceInOrderingClauses(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, cols, body string }{
+		{"renamed_order_by_an_expression", " (x)", "SELECT a AS z FROM t ORDER BY z + 0"},
+		{"order_by_over_an_expression_target", "", "SELECT a + 1 AS z FROM t ORDER BY z + 0"},
+		{"order_by_over_a_constant_target", "", "SELECT 2 AS z FROM t ORDER BY z + 0"},
+		{"order_by_over_a_call_target", "", "SELECT ABS(a) AS z FROM t ORDER BY z + 0"},
+		{"order_by_a_qualified_column_target", "", "SELECT t.a AS z FROM t ORDER BY z + 0"},
+		{"order_by_negating_the_alias", "", "SELECT a AS z FROM t ORDER BY -z"},
+		{"group_by_over_an_expression_target", "",
+			"SELECT a + 1 AS z, COUNT(*) AS n FROM t GROUP BY z + 0"},
+		{"group_by_over_a_constant_target", "",
+			"SELECT 2.5 AS z, COUNT(*) AS n FROM t GROUP BY z + 0"},
+		{"group_by_a_call_over_the_alias", "",
+			"SELECT a AS z, COUNT(*) AS n FROM t GROUP BY ABS(z)"},
+		{"group_by_a_call_over_a_constant_target", "",
+			"SELECT 2 AS z, COUNT(*) AS n FROM t GROUP BY ABS(z)"},
+		{"order_by_an_expression", "", "SELECT a AS z FROM t ORDER BY z + 0"},
+		{"renamed_to_the_same_name", " (z)", "SELECT a AS z FROM t ORDER BY z + 0"},
+		{"renamed_order_by_a_call", " (x)", "SELECT a AS z FROM t ORDER BY ABS(z)"},
+		{"order_by_a_call", "", "SELECT a AS z FROM t ORDER BY ABS(z)"},
+		{"renamed_order_by_the_alias", " (x)", "SELECT a AS z FROM t ORDER BY z"},
+		{"renamed_group_by_an_expression", " (x, y)",
+			"SELECT a AS z, COUNT(*) AS n FROM t GROUP BY z + 0"},
+		{"group_by_an_expression", "",
+			"SELECT a AS z, COUNT(*) AS n FROM t GROUP BY z + 0"},
+		{"renamed_having", " (x)", "SELECT a AS z FROM t HAVING z > 0"},
+		{"having", "", "SELECT a AS z FROM t HAVING z > 0"},
+		{"renamed_order_by_a_constant_alias", " (x)", "SELECT 2 AS z FROM t ORDER BY z"},
+	} {
+		view := fmt.Sprintf("v_al%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+tc.cols+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_EnumNumberDefault covers a default written as a number on an ENUM
+// or SET column, where a number is a choice among the members rather than
+// text. An ENUM takes it as a member's position and a SET as a bitmask of
+// them; omni wrote the digits as a string, which names the member of that
+// value instead — `ENUM('2','1') DEFAULT (1)` came out '1', the second
+// member, where the server stores '2', the first.
+//
+// Measured on mariadb:11.8.8, with the stored value read back on both sides.
+// The characters of a number are the other reading, and both are pinned here:
+// '1', X'31' and 0x31 all name the member '1'.
+//
+// The cases the server refuses are left out, since it answers 1067 and omni
+// does not check such a default yet: a position of zero or past the last
+// member, a SET bitmask past them, a negative number, and any fraction,
+// approximate or not. Its acceptance is stranger than the value it stores —
+// the default is taken only where the number's digits are themselves a member,
+// so `ENUM('a','b') DEFAULT (1)` is refused where `ENUM('a','1') DEFAULT (1)`
+// is 'a' — but nothing omni writes turns on that, a statement it is given
+// having been accepted already.
+func TestReview_EnumNumberDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		{"enum_first_member", "ENUM('2','1')", "1"},
+		{"enum_second_member", "ENUM('2','1')", "2"},
+		{"enum_from_an_exponent", "ENUM('2','1')", "1e0"},
+		{"enum_third_member", "ENUM('3','b','c')", "3"},
+		{"enum_member_of_its_own_digits", "ENUM('1','2','3')", "3"},
+		{"enum_first_of_three", "ENUM('x','2','1')", "1"},
+		{"enum_digits_that_are_a_member", "ENUM('a','1')", "1"},
+		{"set_first_member", "SET('2','1')", "1"},
+		{"set_second_member", "SET('2','1')", "2"},
+		{"set_two_members", "SET('1','2','3')", "3"},
+		{"set_three_members", "SET('7','b','c')", "7"},
+		{"set_from_an_exponent", "SET('2','1')", "1e0"},
+		{"set_digits_that_are_a_member", "SET('a','1')", "1"},
+		// The characters of a number name the member of that value.
+		{"enum_quoted_digits", "ENUM('2','1')", "'1'"},
+		{"enum_x_quoted_digits", "ENUM('2','1')", "X'31'"},
+		{"enum_hex_digits", "ENUM('2','1')", "0x31"},
+		{"enum_quoted_member", "ENUM('2','1')", "'2'"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_ApproximateBitAndYearDefault covers a BIT or YEAR default written
+// with an exponent. Both cut the double's fraction where the integer types
+// round it, which omni had them doing: BIT(8) DEFAULT (1.9e0) came out b'10'
+// and YEAR DEFAULT (1.9e0) 2002, where the server stores 1 and 2001. The
+// earlier 2.5e0 case could not tell the two apart, both readings giving 2.
+//
+// Measured on mariadb:11.8.8, with the integer and decimal families pinned
+// beside them for the contrast: an exact fraction still rounds away from zero
+// on BIT, where YEAR refuses one outright.
+func TestReview_ApproximateBitAndYearDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		// BIT and YEAR cut the fraction.
+		{"bit_cuts_nine_tenths", "BIT(8)", "1.9e0"},
+		{"bit_cuts_a_half", "BIT(8)", "1.5e0"},
+		{"bit_cuts_two_and_a_half", "BIT(8)", "2.5e0"},
+		{"bit_cuts_three_point_seven", "BIT(8)", "3.7e0"},
+		{"bit_cuts_to_zero", "BIT(8)", "0.9e0"},
+		{"bit_cuts_a_negative_to_zero", "BIT(8)", "-0.9e0"},
+		{"year_cuts_nine_tenths", "YEAR", "1.9e0"},
+		{"year_cuts_a_half", "YEAR", "1.5e0"},
+		{"year_cuts_two_and_a_half", "YEAR", "2.5e0"},
+		{"year_cuts_a_four_digit_year", "YEAR", "2001.9e0"},
+		{"year_cuts_to_zero", "YEAR", "0.9e0"},
+		// An exact fraction rounds away from zero on BIT.
+		{"bit_exact_rounds_up", "BIT(8)", "1.9"},
+		{"bit_exact_tie_rounds_up", "BIT(8)", "1.5"},
+		{"bit_exact_seven_tenths", "BIT(8)", "1.7"},
+		// The integer and decimal families round instead, and to even.
+		{"int_rounds_nine_tenths", "INT", "1.9e0"},
+		{"int_rounds_a_tie_to_even", "INT", "2.5e0"},
+		{"int_rounds_the_other_tie_to_even", "INT", "3.5e0"},
+		{"int_rounds_a_negative_tie_to_even", "INT", "-2.5e0"},
+		{"int_exact_rounds_away_from_zero", "INT", "2.5"},
+		{"decimal_rounds_away_from_zero", "DECIMAL(5,0)", "2.5e0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}

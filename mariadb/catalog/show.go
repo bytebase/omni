@@ -1149,6 +1149,11 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 				return lit, true
 			}
 		case familyString, familyFixedBinary, familyVarBinary:
+			if family == familyString && isEnumSetType(col.DataType) {
+				// On an ENUM or SET column a number is a choice among the
+				// members rather than text, which enumNumberDefault makes.
+				return enumNumberDefault(val, col)
+			}
 			// A column that stores a value takes a number's own text:
 			// measured on mariadb:11.8.8, `VARCHAR(20) DEFAULT (1e2)` is
 			// '100', (1e-3) is '0.001', (1.5) is '1.5', (0.10) keeps its
@@ -1428,13 +1433,13 @@ func wholeNumberOf(text string) (uint64, bool) {
 	whole, fraction, _ := strings.Cut(digits, ".")
 	if strings.Trim(fraction, "0") != "" {
 		// An exact fraction the server refuses outright, measured: YEAR
-		// DEFAULT 99.7 answers 1067. An approximate one is a double and
-		// rounds like any other: YEAR DEFAULT (2.5e0) comes back 2002.
+		// DEFAULT 99.7 answers 1067. An approximate one is a double, whose
+		// fraction is cut rather than rounded — YEAR DEFAULT (1.9e0) comes
+		// back 2001 and (1.5e0) 2001, where INT DEFAULT (1.9e0) is 2 — so
+		// the whole part already read is the value.
 		if !isApproximateLiteral(text) {
 			return 0, false
 		}
-		digits = roundWholeNumber(digits, true)
-		whole, _, _ = strings.Cut(digits, ".")
 	}
 	// A negative zero is still zero, which `'-0'` relies on; anything else
 	// negative has no year to write.
@@ -1475,7 +1480,17 @@ func bitNumberOf(text string) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	whole := roundWholeNumber(digits, isApproximateLiteral(text))
+	// A double's fraction is cut here rather than rounded, which is not what
+	// the integer types do: measured on mariadb:11.8.8, BIT(8) DEFAULT
+	// (1.9e0) is b'1' and (1.5e0) b'1', where INT DEFAULT (1.9e0) is 2 and
+	// (3.5e0) is 4. An exact fraction still rounds away from zero, 1.9 and
+	// 1.5 both coming back b'10'.
+	whole := roundWholeNumber(digits, false)
+	if isApproximateLiteral(text) {
+		// Cutting a fraction can leave a negative zero, which is still zero:
+		// measured, BIT(8) DEFAULT (-0.9e0) is b'0'.
+		whole = dropNegativeZero(truncateWholeNumber(digits))
+	}
 	if strings.HasPrefix(whole, "-") {
 		return 0, false
 	}
@@ -2486,4 +2501,106 @@ func exactDoubleText(digits string, places int) (string, bool) {
 		text = "0" + text
 	}
 	return sign + text[:len(text)-places] + "." + text[len(text)-places:], true
+}
+
+// enumNumberDefault writes a default written as a number on an ENUM or SET
+// column, where a number is not text but a choice among the members. An ENUM
+// takes it as a member's position and a SET as a bitmask of them: measured on
+// mariadb:11.8.8, `ENUM('2','1') DEFAULT (1)` comes back '2', the first
+// member, and `SET('1','2','3') DEFAULT (3)` comes back '1,2', the first two,
+// where the characters 1 — '1', X'31' or 0x31 — come back '1', the member of
+// that value. Writing the digits as text chose the member of that value
+// instead of the one the number points at.
+//
+// It reports false where there is no member to write, which is also where the
+// server refuses the default outright with 1067: a position of zero or past
+// the last member, a bitmask past them, a negative number, and a fraction,
+// approximate or not — `ENUM('2','1') DEFAULT (1.9e0)` and (1.4) are both
+// refused. The text is then left as it stands, omni not checking such a
+// default yet.
+//
+// The server's own acceptance is stranger than the value it stores: it takes
+// the default only where the number's digits are themselves a member, so
+// `ENUM('a','b') DEFAULT (1)` is refused where `ENUM('a','1') DEFAULT (1)` is
+// 'a', and `ENUM('3','b','c') DEFAULT (3)` is 'c'. Nothing here turns on that,
+// since a statement omni is given has already been accepted.
+func enumNumberDefault(text string, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	if strings.Trim(fraction, "0") != "" || strings.HasPrefix(whole, "-") {
+		return "", false
+	}
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil || n == 0 {
+		return "", false
+	}
+	members := enumMembersOf(col.ColumnType)
+	if len(members) == 0 {
+		return "", false
+	}
+	if normalizedTypeName(col.DataType) == "set" {
+		if len(members) > 63 || n >= 1<<uint(len(members)) {
+			return "", false
+		}
+		chosen := make([]string, 0, len(members))
+		for i, member := range members {
+			if n&(1<<uint(i)) != 0 {
+				chosen = append(chosen, member)
+			}
+		}
+		return quoteStringDefault([]byte(strings.Join(chosen, ","))), true
+	}
+	if n > uint64(len(members)) {
+		return "", false
+	}
+	return quoteStringDefault([]byte(members[n-1])), true
+}
+
+// enumMembersOf reads the members an ENUM or SET column declares out of its
+// type text, which is where the catalog keeps them, a quote written twice
+// standing for one.
+func enumMembersOf(columnType string) []string {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 || !strings.HasSuffix(columnType, ")") {
+		return nil
+	}
+	body := columnType[open+1 : len(columnType)-1]
+	var members []string
+	for i := 0; i < len(body); {
+		if body[i] != '\'' {
+			i++ // the comma between two members, and any space around it
+			continue
+		}
+		i++
+		var member strings.Builder
+		for i < len(body) {
+			if body[i] != '\'' {
+				member.WriteByte(body[i])
+				i++
+				continue
+			}
+			if i+1 < len(body) && body[i+1] == '\'' {
+				member.WriteByte('\'')
+				i += 2
+				continue
+			}
+			i++
+			break
+		}
+		members = append(members, member.String())
+	}
+	return members
+}
+
+// truncateWholeNumber drops a value's fraction rather than rounding it, which
+// is how a BIT or YEAR column takes an approximate one.
+func truncateWholeNumber(digits string) string {
+	whole, _, _ := strings.Cut(digits, ".")
+	if whole == "" || whole == "-" {
+		return "0"
+	}
+	return whole
 }

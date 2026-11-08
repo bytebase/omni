@@ -35,11 +35,24 @@ type Resolver struct {
 	// from the AST, which matches MySQL only for text written the way the
 	// rebuilt name spells it.
 	Source string
+	// aliasTargets holds the query an ORDER BY or GROUP BY item is being
+	// resolved for, where a mention of a target-list alias stands for that
+	// target's expression. It is nil everywhere else: HAVING keeps the output
+	// name instead, and a set operation's own ORDER BY keeps the alias.
+	aliasTargets *ast.SelectStmt
+	// aliasColumnsOnly limits that to a target that is a column reference,
+	// which is ORDER BY's rule where GROUP BY takes any target.
+	aliasColumnsOnly bool
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
 // references fully qualified. The original AST is modified in-place.
 func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
+	// A query of its own resolves against its own target list, so the one an
+	// outer ordering item was being resolved for does not reach into it.
+	saved := r.aliasTargets
+	r.aliasTargets = nil
+	defer func() { r.aliasTargets = saved }()
 	return r.resolveWithCTEs(stmt, nil)
 }
 
@@ -84,6 +97,25 @@ func (sc *fromScope) namesColumn(expr ast.ExprNode) bool {
 	}
 	_, ok = sc.FirstWithColumn(cr.Column)
 	return ok
+}
+
+// resolveOrderingItem resolves an ORDER BY or GROUP BY item that is not a bare
+// alias, where a mention of one inside the expression can still stand for that
+// target's expression. resolveColumnRef makes the substitution; this says
+// where it applies, and columnsOnly which targets it holds for.
+//
+// Measured on mariadb:11.8.8. A GROUP BY item takes the target's expression
+// whatever it is: over `a + 1 AS z` it comes back
+// group by `t`.`a` + 1 + 0, over `2.5 AS z` group by 2.5 + 0 and over
+// `RAND() AS z` group by rand() + 0. An ORDER BY item takes it only where the
+// target is a column — `a AS z` gives order by `t`.`a` + 0 — and keeps the
+// alias for anything else, `a + 1 AS z` and `2 AS z` both coming back
+// order by `z` + 0.
+func (r *Resolver) resolveOrderingItem(expr ast.ExprNode, stmt *ast.SelectStmt, sc *fromScope, columnsOnly bool) ast.ExprNode {
+	savedTargets, savedColumnsOnly := r.aliasTargets, r.aliasColumnsOnly
+	r.aliasTargets, r.aliasColumnsOnly = stmt, columnsOnly
+	defer func() { r.aliasTargets, r.aliasColumnsOnly = savedTargets, savedColumnsOnly }()
+	return r.resolveExpr(expr, sc)
 }
 
 // orderedConstant guards the one substitution that would change what an
@@ -284,7 +316,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			item.Expr = orderedConstant(expr)
 			continue
 		}
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		item.Expr = r.resolveOrderingItem(item.Expr, stmt, sc, false)
 	}
 
 	// Resolve HAVING
@@ -304,7 +336,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			item.Expr = orderedConstant(expr)
 			continue
 		}
-		item.Expr = r.resolveExpr(item.Expr, sc)
+		item.Expr = r.resolveOrderingItem(item.Expr, stmt, sc, true)
 	}
 
 	return stmt
@@ -617,7 +649,23 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	// field list is ambiguous. TODO: return error
 	entry, ok := sc.FirstWithColumn(col.Column)
 	if !ok {
-		// Column not found — return as-is (could be a literal alias or error)
+		// Not a column the FROM clause holds. In an ORDER BY or GROUP BY item
+		// a name the target list aliases stands for that target's expression,
+		// which is what the server stores — the alias reaches the body
+		// nowhere: measured on mariadb:11.8.8,
+		// `SELECT a AS z FROM t ORDER BY z + 0` comes back ordered by
+		// `t`.`a` + 0 and `ORDER BY ABS(z)` by abs(`t`.`a`), named columns or
+		// not. Leaving the name wrote a body that names nothing, which a view
+		// declaring its own columns cannot even be replayed from.
+		if r.aliasTargets != nil {
+			if expr, ok := orderByTargetAlias(r.aliasTargets, col); ok {
+				_, isColumn := unwrapParen(expr).(*ast.ColumnRef)
+				if isColumn || !r.aliasColumnsOnly {
+					return expr
+				}
+			}
+		}
+		// Otherwise as-is: a literal alias HAVING keeps, or an error.
 		return col
 	}
 	col.Table = entry.Name
