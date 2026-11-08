@@ -98,9 +98,9 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 
 	var b strings.Builder
 	if tbl.Temporary {
-		b.WriteString(fmt.Sprintf("CREATE TEMPORARY TABLE `%s` (\n", tbl.Name))
+		b.WriteString("CREATE TEMPORARY TABLE " + backtickIDQ(tbl.Name) + " (\n")
 	} else {
-		b.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tbl.Name))
+		b.WriteString("CREATE TABLE " + backtickIDQ(tbl.Name) + " (\n")
 	}
 
 	// Columns.
@@ -115,12 +115,14 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Application-time period — rendered before SYSTEM_TIME; the name is
 	// backtick-quoted (unlike the SYSTEM_TIME keyword).
 	if tbl.AppPeriodName != "" {
-		parts = append(parts, fmt.Sprintf("PERIOD FOR `%s` (`%s`, `%s`)", tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol))
+		parts = append(parts, "PERIOD FOR "+backtickIDQ(tbl.AppPeriodName)+
+			" ("+backtickIDQ(tbl.AppPeriodStartCol)+", "+backtickIDQ(tbl.AppPeriodEndCol)+")")
 	}
 
 	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
 	if tbl.PeriodStartCol != "" {
-		parts = append(parts, fmt.Sprintf("PERIOD FOR SYSTEM_TIME (`%s`, `%s`)", tbl.PeriodStartCol, tbl.PeriodEndCol))
+		parts = append(parts, "PERIOD FOR SYSTEM_TIME ("+backtickIDQ(tbl.PeriodStartCol)+
+			", "+backtickIDQ(tbl.PeriodEndCol)+")")
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -213,7 +215,7 @@ func showColumn(col *Column) string {
 
 func showColumnWithTable(col *Column, tbl *Table) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
+	b.WriteString(backtickIDQ(col.Name) + " " + col.ColumnType)
 
 	// CHARACTER SET and COLLATE. MariaDB writes them together, and only where
 	// the column's collation differs from the table's: a column that inherits
@@ -698,15 +700,15 @@ func showIndex(idx *Index) string {
 	if idx.Primary {
 		b.WriteString("PRIMARY KEY (")
 	} else if idx.Unique {
-		b.WriteString(fmt.Sprintf("UNIQUE KEY `%s` (", idx.Name))
+		b.WriteString("UNIQUE KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Fulltext {
-		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
+		b.WriteString("FULLTEXT KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Spatial {
-		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+		b.WriteString("SPATIAL KEY " + backtickIDQ(idx.Name) + " (")
 	} else if idx.Vector {
-		b.WriteString(fmt.Sprintf("VECTOR KEY `%s` (", idx.Name))
+		b.WriteString("VECTOR KEY " + backtickIDQ(idx.Name) + " (")
 	} else {
-		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
+		b.WriteString("KEY " + backtickIDQ(idx.Name) + " (")
 	}
 
 	cols := make([]string, 0, len(idx.Columns))
@@ -753,7 +755,7 @@ func showIndexColumn(ic *IndexColumn) string {
 	if ic.Expr != "" {
 		b.WriteString(fmt.Sprintf("(%s)", ic.Expr))
 	} else {
-		b.WriteString(fmt.Sprintf("`%s`", ic.Name))
+		b.WriteString(backtickIDQ(ic.Name))
 		if ic.Length > 0 {
 			b.WriteString(fmt.Sprintf("(%d)", ic.Length))
 		}
@@ -772,6 +774,15 @@ func showConstraint(con *Constraint) string {
 
 	switch con.Type {
 	case ConForeignKey:
+		// This line alone writes its identifiers without doubling a backtick
+		// inside one, because the server does not either: measured on
+		// mariadb:11.8.8, a table holding ``CONSTRAINT `fk``1` FOREIGN KEY
+		// (`c``1`) REFERENCES `p``q` (`i``d`)`` comes back as
+		// CONSTRAINT `fk`1` FOREIGN KEY (`c`1`) REFERENCES `p``q` (`i`d`) —
+		// the referenced table doubled and the constraint, its columns and
+		// the referenced columns not, which is a line the server cannot read
+		// back itself. The backing index on the line above is written the
+		// other way, doubled, by the writer every other key goes through.
 		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` FOREIGN KEY (", con.Name))
 		cols := make([]string, 0, len(con.Columns))
 		for _, c := range con.Columns {
@@ -779,9 +790,10 @@ func showConstraint(con *Constraint) string {
 		}
 		b.WriteString(strings.Join(cols, ", "))
 		if con.RefDatabase != "" {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s`.`%s` (", con.RefDatabase, con.RefTable))
+			b.WriteString(") REFERENCES " + backtickIDQ(con.RefDatabase) +
+				"." + backtickIDQ(con.RefTable) + " (")
 		} else {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
+			b.WriteString(") REFERENCES " + backtickIDQ(con.RefTable) + " (")
 		}
 		refCols := make([]string, 0, len(con.RefColumns))
 		for _, c := range con.RefColumns {
@@ -800,7 +812,7 @@ func showConstraint(con *Constraint) string {
 		}
 
 	case ConCheck:
-		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` CHECK (%s)", con.Name, con.CheckExpr))
+		b.WriteString("CONSTRAINT " + backtickIDQ(con.Name) + " CHECK (" + con.CheckExpr + ")")
 		if con.NotEnforced {
 			b.WriteString(" /*!80016 NOT ENFORCED */")
 		}
@@ -1082,7 +1094,7 @@ func showPartitioning(pi *PartitionInfo) string {
 func formatPartitionColumns(cols []string) string {
 	parts := make([]string, len(cols))
 	for i, c := range cols {
-		parts[i] = "`" + c + "`"
+		parts[i] = backtickIDQ(c)
 	}
 	return strings.Join(parts, ",")
 }

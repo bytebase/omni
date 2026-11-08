@@ -2710,9 +2710,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	switch n := node.(type) {
 	case *nodes.ColumnRef:
 		if n.Table != "" {
-			return "`" + n.Table + "`.`" + n.Column + "`"
+			return backtickIDQ(n.Table) + "." + backtickIDQ(n.Column)
 		}
-		return "`" + n.Column + "`"
+		return backtickIDQ(n.Column)
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
@@ -2779,11 +2779,34 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 			return "NOT " + operand
 		case nodes.UnaryBitNot:
 			return "~" + operand
+		case nodes.UnaryBinary:
+			// The server stores the cast the operator stands for, with no
+			// parentheses of its own around the argument: measured on
+			// mariadb:11.8.8, `b INT AS (BINARY (1 + 2))` comes back
+			// cast(1 + 2 as char charset binary), where writing the operand
+			// bare dropped the operator and left the grouping behind.
+			// This writer parenthesizes every binary expression, and the
+			// argument of a cast carries none, so the pair around it goes.
+			return "cast(" +
+				stripOuterParens(nodeToSQLGenerated(unwrapParens(n.Operand), charset)) +
+				" as char charset binary)"
 		default:
 			return operand
 		}
 	default:
 		return "(?)"
+	}
+}
+
+// unwrapParens strips the parentheses around an expression, which a position
+// that brings its own does not need.
+func unwrapParens(node nodes.ExprNode) nodes.ExprNode {
+	for {
+		p, ok := node.(*nodes.ParenExpr)
+		if !ok {
+			return node
+		}
+		node = p.Expr
 	}
 }
 
@@ -2981,7 +3004,7 @@ func jsonValidConstraint(col *Column) *Constraint {
 		Name:      col.Name,
 		Type:      ConCheck,
 		Column:    col.Name,
-		CheckExpr: fmt.Sprintf("json_valid(`%s`)", col.Name),
+		CheckExpr: "json_valid(" + backtickIDQ(col.Name) + ")",
 		Implicit:  true,
 	}
 }

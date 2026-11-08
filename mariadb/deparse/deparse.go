@@ -1939,6 +1939,17 @@ func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 	case ast.UnaryBitNot:
 		b.WriteString("~")
 		writeOperand(b, n.Operand, precUnary)
+	case ast.UnaryBinary:
+		// BINARY is written as the cast it stands for, which is what the
+		// server stores and what RewriteExpr already turns one into: measured
+		// on mariadb:11.8.8, `2 * BINARY (1 + 2)` comes back
+		// 2 * cast(1 + 2 as char charset binary). Writing the operand bare,
+		// as unary plus is written, lost both the operator and the grouping
+		// it stood before — `2 * BINARY (1 + 2)` came out 2 * 1 + 2.
+		writeCastExpr(b, &ast.CastExpr{
+			Expr:     n.Operand,
+			TypeName: &ast.DataType{Name: "binary"},
+		})
 	default:
 		// MySQL drops unary plus entirely
 		writeExpr(b, n.Operand)
@@ -2079,7 +2090,11 @@ func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 
 func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	b.WriteString("cast(")
-	writeExpr(b, n.Expr)
+	// The argument is delimited by `as`, so parentheses around it are never
+	// needed and the server writes none: measured on mariadb:11.8.8,
+	// `CAST(((1+2)) AS CHAR)` is stored as cast(1 + 2 as char charset utf8mb4)
+	// and `CAST((1+2) AS SIGNED)` as cast(1 + 2 as signed).
+	writeExpr(b, unwrapParen(n.Expr))
 	b.WriteString(" as ")
 	b.WriteString(deparseDataType(n.TypeName))
 	b.WriteString(")")

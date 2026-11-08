@@ -1398,7 +1398,7 @@ func moveColumnChecks(tbl *Table, oldName, newName string) {
 		}
 		con.Column = newName
 		if con.Implicit {
-			con.CheckExpr = fmt.Sprintf("json_valid(`%s`)", newName)
+			con.CheckExpr = "json_valid(" + backtickIDQ(newName) + ")"
 		}
 	}
 }

@@ -27,6 +27,18 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		if n.Op == ast.UnaryNot {
 			return rewriteNot(n.Operand)
 		}
+		if n.Op == ast.UnaryBinary {
+			// The server keeps no BINARY operator: it stores the cast the
+			// operator stands for, which is the text CAST(x AS BINARY) gives.
+			// Measured on mariadb:11.8.8, `2 * BINARY (1 + 2)` comes back
+			// 2 * cast(1 + 2 as char charset binary) and `BINARY 'a' = 'A'`
+			// cast('a' as char charset binary) = 'A'.
+			return &ast.CastExpr{
+				Loc:      n.Loc,
+				Expr:     n.Operand,
+				TypeName: &ast.DataType{Name: "binary"},
+			}
+		}
 		return n
 
 	case *ast.BinaryExpr:

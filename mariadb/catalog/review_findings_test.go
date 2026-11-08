@@ -5098,3 +5098,177 @@ func TestReview_ApproximateBitAndYearDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_UnaryBinaryIsACast covers the BINARY operator written before an
+// expression. The server keeps no such operator: it stores the cast it stands
+// for, so `2 * BINARY (1 + 2)` is 2 * cast(1 + 2 as char charset binary). omni
+// wrote the operand bare — the operator and the grouping both gone — which
+// turned `2 * BINARY (1 + 2)` into 2 * 1 + 2, 4 where the original is 6, and
+// `BINARY 'a' = 'A'` into a comparison that holds where the original does not.
+//
+// Measured on mariadb:11.8.8, with the view's own rows read back.
+func TestReview_UnaryBinaryIsACast(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b VARCHAR(10));`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,'x'),(2,'y')"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		{"under_a_product", "SELECT 2 * BINARY (1 + 2) AS x"},
+		{"alone", "SELECT BINARY (1 + 2) AS x"},
+		{"over_a_literal", "SELECT 2 * BINARY 3 AS x"},
+		{"in_a_comparison", "SELECT BINARY 'a' = 'A' AS x"},
+		{"under_a_minus", "SELECT -BINARY (1 + 2) AS x"},
+		{"as_an_argument", "SELECT CONCAT(BINARY (1+2), 'x') AS x"},
+		{"over_a_subquery", "SELECT 2 * BINARY (SELECT 3) AS x"},
+		{"over_a_column", "SELECT BINARY b AS x FROM t"},
+		// The cast the operator stands for, written out.
+		{"the_cast_itself", "SELECT 2 * CAST((1 + 2) AS BINARY) AS x"},
+		{"a_cast_over_a_column", "SELECT CAST(b AS BINARY) AS x FROM t"},
+	} {
+		view := fmt.Sprintf("v_bn%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_UnaryBinaryInStoredExpressions covers the same operator where a
+// table stores the expression: a CHECK, a DEFAULT and a generated column each
+// come back with the cast, the last through a writer of its own that no
+// rewrite reaches.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_UnaryBinaryInStoredExpressions(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"a_check", "CREATE TABLE t (a INT, CHECK (BINARY 'a' = 'A'))"},
+		{"a_default", "CREATE TABLE t (a INT DEFAULT (2 * BINARY (1 + 2)))"},
+		{"a_generated_column",
+			"CREATE TABLE t (a VARCHAR(5), b INT AS (BINARY (1 + 2)) VIRTUAL)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := oracleShow(t, mc, "SHOW CREATE TABLE t"); got != want {
+				t.Errorf("replaying what omni wrote changed the table\n--- was ---\n%s\n--- now ---\n%s",
+					want, got)
+			}
+		})
+	}
+}
+
+// TestReview_BacktickInAJSONColumnName covers an identifier holding a
+// backtick, which has to be written twice. The implicit json_valid check a
+// JSON column carries names that column and wrapped the raw name, so a column
+// named a`b gave json_valid(`a`b`) — not that column, and not even parseable —
+// and SHOW CREATE TABLE wrote the column, key, constraint and period names the
+// same way.
+//
+// The FOREIGN KEY line is the one place the server does not double a backtick
+// either, and omni follows it there rather than writing something the server
+// does not: a constraint named fk`1 over a column c`1 comes back
+// CONSTRAINT `fk`1` FOREIGN KEY (`c`1`) REFERENCES `p“q` (`i`d`), the
+// referenced table doubled and nothing else, which is why such a table's own
+// SHOW CREATE TABLE will not replay. These cases compare that text and stop
+// there.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE TABLE, with what omni wrote
+// replayed where the server can read it back.
+func TestReview_BacktickInAJSONColumnName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name, ddl string
+		noReplay  bool // the text the server itself stores will not parse
+	}{
+		{"a_backtick", "CREATE TABLE t (`a``b` JSON)", false},
+		{"a_backtick_with_a_check_of_its_own",
+			"CREATE TABLE t (`a``b` JSON, CHECK (json_valid(`a``b`)))", false},
+		{"a_backtick_on_a_longtext",
+			"CREATE TABLE t (`a``b` LONGTEXT CHECK (json_valid(`a``b`)))", false},
+		{"a_quote", "CREATE TABLE t (`q'u` JSON)", false},
+		{"a_double_quote", "CREATE TABLE t (`a\"b` JSON)", false},
+		{"renamed_to_a_backtick",
+			"CREATE TABLE t (j JSON); ALTER TABLE t CHANGE COLUMN j `a``b` JSON", false},
+		{"every_identifier_at_once",
+			"CREATE TABLE `p``q` (`i``d` INT PRIMARY KEY); " +
+				"CREATE TABLE t (`c``1` INT, `c``2` INT, KEY `k``1` (`c``2`), " +
+				"CONSTRAINT `ck``1` CHECK (`c``1` > 0), " +
+				"CONSTRAINT `fk``1` FOREIGN KEY (`c``1`) REFERENCES `p``q` (`i``d`))", true},
+		{"a_generated_column_and_a_period",
+			"CREATE TABLE t (`a``1` INT, `b``2` INT AS (`a``1` + 1) VIRTUAL, " +
+				"`s``t` TIMESTAMP(6) AS ROW START, `e``n` TIMESTAMP(6) AS ROW END, " +
+				"PERIOD FOR SYSTEM_TIME (`s``t`, `e``n`)) WITH SYSTEM VERSIONING", false},
+		{"a_partition_on_a_backticked_column",
+			"CREATE TABLE t (`a``1` INT) PARTITION BY HASH(`a``1`) PARTITIONS 2", false},
+		{"a_range_partition_on_a_backticked_column",
+			"CREATE TABLE t (`a``1` INT) PARTITION BY RANGE COLUMNS(`a``1`) " +
+				"(PARTITION `p``0` VALUES LESS THAN (10))", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range strings.Split(tc.ddl, "; ") {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+			if tc.noReplay {
+				// The server's own output holds the undoubled backticks of
+				// its FOREIGN KEY line, which it answers 1064 on itself, so
+				// matching it is all there is to check.
+				return
+			}
+
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := oracleShow(t, mc, "SHOW CREATE TABLE t"); got != want {
+				t.Errorf("replaying what omni wrote changed the table\n--- was ---\n%s\n--- now ---\n%s",
+					want, got)
+			}
+		})
+	}
+}
