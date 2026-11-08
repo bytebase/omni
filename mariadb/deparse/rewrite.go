@@ -75,6 +75,19 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, item := range n.List {
 			n.List[i] = rewriteExpr(item)
 		}
+		RewriteSelectStmt(n.Select)
+		return n
+
+	case *ast.SubqueryExpr:
+		// A subquery's body is rewritten like any other: measured on
+		// mariadb:11.8.8, `(SELECT (a = 1) SOUNDS LIKE '0' FROM t LIMIT 1)`
+		// is stored as soundex(`t`.`a` = 1) = soundex('0'), the same as in a
+		// target of its own.
+		RewriteSelectStmt(n.Select)
+		return n
+
+	case *ast.ExistsExpr:
+		RewriteSelectStmt(n.Select)
 		return n
 
 	case *ast.BetweenExpr:
@@ -115,6 +128,7 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
+		rewriteWindowDef(n.Over)
 		return n
 
 	case *ast.PositionExpr:
@@ -137,6 +151,53 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 	default:
 		// Leaf nodes (literals, column refs, etc.) — no rewriting needed
 		return node
+	}
+}
+
+// rewriteWindowDef applies the rewrites to a window specification's own
+// expressions. The server rewrites what a window partitions and orders by
+// exactly as it rewrites a target: measured on mariadb:11.8.8,
+// OVER (PARTITION BY (a = 1) SOUNDS LIKE '0') is stored as
+// partition by soundex(a = 1) = soundex('0'),
+// OVER (PARTITION BY NOT (a > 0)) as partition by a <= 0 and
+// OVER (PARTITION BY a AND b) as a <> 0 and b <> 0, with the columns
+// qualified, and ORDER BY the same. Leaving the specification alone kept
+// SOUNDS LIKE at comparison precedence, which drops the parentheses its left
+// operand needs and merges partitions the original holds apart.
+//
+// A frame bound is left alone: it takes no expression at all, so there is
+// nothing in one to rewrite. Measured — ROWS BETWEEN (1 + 1) PRECEDING is
+// 1064, and so is a bound spelling a predicate.
+func rewriteWindowDef(def *ast.WindowDef) {
+	if def == nil {
+		return
+	}
+	for i, expr := range def.PartitionBy {
+		def.PartitionBy[i] = RewriteExpr(expr)
+	}
+	for _, item := range def.OrderBy {
+		if item != nil {
+			item.Expr = RewriteExpr(item.Expr)
+		}
+	}
+}
+
+// rewriteTableExpr applies the rewrites inside a FROM item: a derived table's
+// own query and a join's ON condition, through both sides of a join.
+//
+// Measured on mariadb:11.8.8: `JOIN t t2 ON (t1.a = 1) SOUNDS LIKE '0'` is
+// stored as `on(soundex(`t1`.`a` = 1) = soundex('0'))` and a derived table's
+// body is rewritten as its own query.
+func rewriteTableExpr(src ast.TableExpr) {
+	switch n := src.(type) {
+	case *ast.SubqueryExpr:
+		RewriteSelectStmt(n.Select)
+	case *ast.JoinClause:
+		rewriteTableExpr(n.Left)
+		rewriteTableExpr(n.Right)
+		if on, ok := n.Condition.(*ast.OnCondition); ok {
+			on.Expr = RewriteExpr(on.Expr)
+		}
 	}
 }
 
@@ -455,7 +516,10 @@ func applyCTEColumnNames(ctes []*ast.CommonTableExpr) {
 	}
 }
 
-// RewriteSelectStmt applies RewriteExpr to all expression positions in a SelectStmt.
+// RewriteSelectStmt applies RewriteExpr to all expression positions in a
+// SelectStmt, which includes the queries nested in it: a CTE's body, a derived
+// table's, and a subquery's in an expression are each rewritten as a query of
+// their own. Measured on mariadb:11.8.8.
 // This should be called after resolver but before deparsing.
 func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt == nil {
@@ -463,6 +527,11 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	}
 	inlineNamedWindows(stmt)
 	applyCTEColumnNames(stmt.CTEs)
+	for _, cte := range stmt.CTEs {
+		if cte != nil {
+			RewriteSelectStmt(cte.Select)
+		}
+	}
 	if stmt.SetOp != ast.SetOpNone {
 		RewriteSelectStmt(stmt.Left)
 		RewriteSelectStmt(stmt.Right)
@@ -481,6 +550,9 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 		} else {
 			stmt.TargetList[i] = RewriteExpr(target)
 		}
+	}
+	for _, src := range stmt.From {
+		rewriteTableExpr(src)
 	}
 	if stmt.Where != nil {
 		stmt.Where = RewriteExpr(stmt.Where)

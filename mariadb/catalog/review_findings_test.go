@@ -4344,3 +4344,70 @@ func TestReview_QuotedNumericDefaultIsExact(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_RewritesReachWindowsAndSubqueries covers the places inside a view
+// body the resolver rewrites have to reach. A window specification is one: the
+// rewrite walked a call's arguments but not its OVER clause, so a SOUNDS LIKE
+// partitioned on came out at comparison precedence without the parentheses its
+// left operand needed, which merges partitions the original keeps apart.
+//
+// Measured on mariadb:11.8.8: the server rewrites a window's PARTITION BY and
+// ORDER BY exactly as it rewrites a target, and so it does every query nested
+// in the body — a CTE's, a derived table's, a scalar, IN, EXISTS or quantified
+// subquery's — and a join's ON condition. The walk reached none of those, so
+// each one kept what it was written as. A frame bound is the one position with
+// nothing to rewrite: it takes no expression at all, ROWS BETWEEN (1 + 1)
+// PRECEDING being 1064.
+//
+// Each case compares the stored body and then replays what omni wrote and
+// compares the view's own rows, so a changed expression fails as changed rows.
+func TestReview_RewritesReachWindowsAndSubqueries(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		{"named_window_partition", "SELECT SUM(a) OVER w AS x FROM t WINDOW w AS (PARTITION BY (a = 1) SOUNDS LIKE '0')"},
+		{"inline_window_partition", "SELECT SUM(a) OVER (PARTITION BY (a = 1) SOUNDS LIKE '0') AS x FROM t"},
+		{"inline_window_order", "SELECT SUM(a) OVER (ORDER BY (a = 1) SOUNDS LIKE '0') AS x FROM t"},
+		{"window_partition_not", "SELECT SUM(a) OVER (PARTITION BY NOT (a > 0)) AS x FROM t"},
+		{"window_partition_and", "SELECT SUM(a) OVER (PARTITION BY a AND b) AS x FROM t"},
+		{"window_order_not", "SELECT SUM(a) OVER (ORDER BY NOT (a > 0)) AS x FROM t"},
+		{"window_partition_de_morgan", "SELECT SUM(a) OVER (PARTITION BY NOT (a > 0 AND b > 0)) AS x FROM t"},
+		{"derived_table_sounds_like", "SELECT d.x FROM (SELECT (a = 1) SOUNDS LIKE '0' AS x FROM t) d"},
+		{"derived_table_not", "SELECT d.x FROM (SELECT NOT (a > 0) AS x FROM t) d"},
+		{"scalar_subquery_sounds_like", "SELECT (SELECT (a = 1) SOUNDS LIKE '0' FROM t LIMIT 1) AS x"},
+		{"in_subquery_sounds_like", "SELECT a FROM t WHERE a IN (SELECT (b = 1) SOUNDS LIKE '0' FROM t)"},
+		{"exists_subquery_sounds_like", "SELECT a FROM t WHERE EXISTS (SELECT 1 FROM t t2 WHERE (t2.a = 1) SOUNDS LIKE '0')"},
+		{"quantified_subquery_sounds_like", "SELECT a FROM t WHERE a = ANY (SELECT (b = 1) SOUNDS LIKE '0' FROM t)"},
+		{"cte_body_sounds_like", "WITH cte AS (SELECT (a = 1) SOUNDS LIKE '0' AS x FROM t) SELECT cte.x FROM cte"},
+		{"join_on_sounds_like", "SELECT t1.a FROM t t1 JOIN t t2 ON (t1.a = 1) SOUNDS LIKE '0'"},
+		{"join_on_not", "SELECT t1.a FROM t t1 JOIN t t2 ON NOT (t1.a > 0)"},
+		{"derived_table_in_a_join", "SELECT d.x FROM t t1 JOIN (SELECT NOT (a > 0) AS x FROM t) d ON d.x = t1.a"},
+		{"window_in_a_derived_table", "SELECT d.x FROM (SELECT SUM(a) OVER (PARTITION BY NOT (a > 0)) AS x FROM t) d"},
+	} {
+		view := fmt.Sprintf("v_rw%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1"))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1")); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
