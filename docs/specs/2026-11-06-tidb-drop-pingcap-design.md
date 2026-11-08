@@ -221,6 +221,13 @@ format, measured by the same `PREPARE` harness:
      directives.
    - A statement that names a missing table still gets a verdict, because
      `PREPARE` parses before it resolves names.
+   - **Landed (2026-11-08).** `tidb_integrationtest_corpus.tsv`, 27,246
+     single-line rows (239 files; 1,236 multi-line and 243 `$variable`
+     statements excluded, 18,515 within-corpus and 82 cross-corpus duplicates
+     dropped). omni parses 26,941 of the 27,209 the server accepts (99.0%) with
+     6 over-acceptances; the 268 gaps and 6 over-acceptances are grouped in
+     `docs/plans/2026-11-08-tidb-integrationtest-corpus-gap-inventory.md`
+     (biggest: `DESC`/`DESCRIBE` as an `EXPLAIN` synonym, 211).
 3. **Bytebase's own TiDB test files.** These are the 64 files under
    `backend/plugin/parser/tidb/test-data`, `backend/plugin/advisor/tidb/test`,
    and `backend/plugin/schema/tidb/testdata`. They are what Bytebase already
@@ -246,6 +253,14 @@ TABLES` (1, `fix(tidb,mysql,mariadb): accept OPTIMIZE TABLES …`) — so
 sample 1 is **fully closed at 880 both-accept, 0 gaps, 0 over-acceptances**
 (`docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`).
 
+Sample 2 (TiDB integrationtest) landed 2026-11-08:
+`tidb/parser/testdata/tidb_integrationtest_corpus.tsv` and
+`integrationtest_corpus_oracle_test.go`, 27,246 single-line rows reusing the same
+harness and `TIDB_CORPUS_N` knob. First measurement: 26,941 both-accept, 268
+gaps, **6 over-acceptances**, 31 both-reject — omni parses 99.0% of what TiDB
+accepts; the work list, over-acceptances first, is
+`docs/plans/2026-11-08-tidb-integrationtest-corpus-gap-inventory.md`.
+
 Sample 3 landed: `tidb/parser/testdata/bytebase_tidb_corpus.tsv` (527
 statements) and `bytebase_corpus_oracle_test.go`, the input-side SQL of
 Bytebase's own 64 TiDB test files (bytebase commit `5a6096dfd5`), reusing the
@@ -254,8 +269,7 @@ gaps, 0 over-acceptances**, 1 both-reject — omni parses 100.0% of what TiDB
 accepts, and none of these forms Bytebase ships against over-accepts. The one
 both-reject is `SELECT FROM`, which the server also refuses; there is no work
 list beyond the inventory in
-`docs/plans/2026-11-08-tidb-bytebase-corpus-gap-inventory.md`. Sample 2 (TiDB
-integrationtest) is still to land.
+`docs/plans/2026-11-08-tidb-bytebase-corpus-gap-inventory.md`.
 
 ### 3.5 Tree shape
 
