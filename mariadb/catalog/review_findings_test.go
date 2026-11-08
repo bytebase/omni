@@ -1870,3 +1870,256 @@ func messageTailOf(err error) string {
 	}
 	return msg
 }
+
+// TestReview_YearColumnDefault covers a YEAR column's default, whose value is
+// more than its digits: the number is expanded to the four-digit year it
+// denotes, and zero means one year or another depending on how it was written.
+// Coercing the literal into plain digits had turned DEFAULT '0', which is the
+// year 2000, into DEFAULT 0, which is the zero year.
+//
+// All of it measured on mariadb:11.8.8 through SHOW CREATE TABLE, with the
+// stored value read back from a row to confirm the year each one means.
+func TestReview_YearColumnDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// Zero: the year zero where it was written as a number, 2000 where it
+		// was written as a string — except as a four-character one.
+		{"number_zero", "CREATE TABLE t (a YEAR DEFAULT 0)"},
+		{"number_zero_padded", "CREATE TABLE t (a YEAR DEFAULT 0000)"},
+		{"number_zero_long", "CREATE TABLE t (a YEAR DEFAULT 00000)"},
+		{"number_zero_signed", "CREATE TABLE t (a YEAR DEFAULT +0)"},
+		{"number_zero_fraction", "CREATE TABLE t (a YEAR DEFAULT 0.0)"},
+		{"number_zero_parenthesized", "CREATE TABLE t (a YEAR DEFAULT (0))"},
+		{"string_zero", "CREATE TABLE t (a YEAR DEFAULT '0')"},
+		{"string_zero_two", "CREATE TABLE t (a YEAR DEFAULT '00')"},
+		{"string_zero_three", "CREATE TABLE t (a YEAR DEFAULT '000')"},
+		{"string_zero_four", "CREATE TABLE t (a YEAR DEFAULT '0000')"},
+		{"string_zero_five", "CREATE TABLE t (a YEAR DEFAULT '00000')"},
+		{"string_zero_four_with_sign", "CREATE TABLE t (a YEAR DEFAULT '+000')"},
+		{"string_zero_spaced", "CREATE TABLE t (a YEAR DEFAULT ' 0000 ')"},
+		{"string_zero_negative", "CREATE TABLE t (a YEAR DEFAULT '-0')"},
+		{"string_zero_fraction", "CREATE TABLE t (a YEAR DEFAULT '0.0')"},
+		{"string_zero_parenthesized", "CREATE TABLE t (a YEAR DEFAULT ('0'))"},
+		{"introduced_zero", "CREATE TABLE t (a YEAR DEFAULT _utf8mb4'0')"},
+
+		// The two-digit years, quoted or not.
+		{"one", "CREATE TABLE t (a YEAR DEFAULT 1)"},
+		{"string_one", "CREATE TABLE t (a YEAR DEFAULT '1')"},
+		{"string_one_padded", "CREATE TABLE t (a YEAR DEFAULT '01')"},
+		{"one_fraction", "CREATE TABLE t (a YEAR DEFAULT 1.0)"},
+		{"sixty_nine", "CREATE TABLE t (a YEAR DEFAULT 69)"},
+		{"seventy", "CREATE TABLE t (a YEAR DEFAULT 70)"},
+		{"string_seventy", "CREATE TABLE t (a YEAR DEFAULT '70')"},
+		{"ninety_nine", "CREATE TABLE t (a YEAR DEFAULT 99)"},
+		{"string_ninety_nine", "CREATE TABLE t (a YEAR DEFAULT '99')"},
+		{"string_ninety_nine_spaced", "CREATE TABLE t (a YEAR DEFAULT ' 99 ')"},
+		{"introduced_ninety_nine", "CREATE TABLE t (a YEAR DEFAULT _utf8mb4'99')"},
+
+		// The four-digit years.
+		{"first_year", "CREATE TABLE t (a YEAR DEFAULT 1901)"},
+		{"string_first_year", "CREATE TABLE t (a YEAR DEFAULT '1901')"},
+		{"string_first_year_padded", "CREATE TABLE t (a YEAR DEFAULT '01901')"},
+		{"last_year", "CREATE TABLE t (a YEAR DEFAULT 2155)"},
+		{"two_thousand", "CREATE TABLE t (a YEAR DEFAULT 2000)"},
+		{"string_two_thousand", "CREATE TABLE t (a YEAR DEFAULT '2000')"},
+
+		// Hex and bit notations are the number their bytes spell.
+		{"hex_0x", "CREATE TABLE t (a YEAR DEFAULT 0x41)"},
+		{"hex_0x_zero", "CREATE TABLE t (a YEAR DEFAULT 0x0)"},
+		{"hex_0x_four_digit", "CREATE TABLE t (a YEAR DEFAULT 0x7E3)"},
+		{"bits", "CREATE TABLE t (a YEAR DEFAULT b'1100011')"},
+		{"bits_zero", "CREATE TABLE t (a YEAR DEFAULT b'0')"},
+
+		{"null", "CREATE TABLE t (a YEAR DEFAULT NULL)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			// What omni wrote has to mean the same year to the server, which
+			// is what the quoting carried and plain digits would have lost.
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var stored any
+			oracleScan(t, mc, "SELECT a FROM t", &stored)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var replayed any
+			oracleScan(t, mc, "SELECT a FROM t", &replayed)
+			if fmt.Sprint(stored) != fmt.Sprint(replayed) {
+				t.Errorf("replaying what omni wrote changed the year: %v became %v\n%s",
+					stored, replayed, replay)
+			}
+		})
+	}
+}
+
+// TestReview_BooleanLiteralDefault covers a hex or bit literal default on a
+// BOOLEAN column, which is a TINYINT and reads the literal as a number.
+// BOOLEAN was in no family, so the literal came back as written.
+func TestReview_BooleanLiteralDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"hex_0x", "CREATE TABLE t (a BOOLEAN DEFAULT 0x41)"},
+		{"bits", "CREATE TABLE t (a BOOLEAN DEFAULT b'1000001')"},
+		{"bool_alias", "CREATE TABLE t (a BOOL DEFAULT 0x41)"},
+		{"number", "CREATE TABLE t (a BOOLEAN DEFAULT 1)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_DroppedIndexKeepsUnrelatedChecks covers the constraint cleanup a
+// dropped column sets off. An index goes when the column it covered goes, and
+// the constraints that index held up go with it — but a CHECK is held up by no
+// index, so one that merely carries the index's name stays, enforcement and
+// all.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_DroppedIndexKeepsUnrelatedChecks(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		{"json_check_named_like_the_index", []string{
+			"CREATE TABLE t (a INT, j JSON, KEY j(a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		{"table_check_named_like_the_index", []string{
+			"CREATE TABLE t (a INT, b INT, CONSTRAINT ck CHECK (b > 0), KEY ck(a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		{"column_check_named_like_the_index", []string{
+			"CREATE TABLE t (a INT, b INT CHECK (b > 0), KEY b(a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		{"unique_constraint_is_kept", []string{
+			"CREATE TABLE t (a INT, b INT, UNIQUE u(b), KEY u2(a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		// The case the name match was there for: an index-backed constraint
+		// over the dropped column goes with its index.
+		{"unique_over_the_dropped_column_goes", []string{
+			"CREATE TABLE t (a INT, b INT, UNIQUE u(a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+		{"primary_key_over_the_dropped_column_goes", []string{
+			"CREATE TABLE t (a INT, b INT, PRIMARY KEY (a))",
+			"ALTER TABLE t DROP COLUMN a",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_ReplacedGeneratedColumnKeepsItsIndex covers MODIFY and CHANGE
+// over a generated column a key already covers. The key materializes the
+// column's value, so the new definition is held to the same rule as one
+// declared with a key — and under CHANGE the question is about the column
+// being replaced, not about the name the replacement carries.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_ReplacedGeneratedColumnKeepsItsIndex(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		alter   string
+		accepts bool
+	}{
+		{
+			name:  "change_to_nondeterministic",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, KEY (a))",
+			alter: "ALTER TABLE t CHANGE a b DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:  "modify_to_nondeterministic",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, KEY (a))",
+			alter: "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:  "change_to_nondeterministic_under_a_second_key_part",
+			setup: "CREATE TABLE t (x INT, a DOUBLE AS (1) VIRTUAL, KEY (x, a))",
+			alter: "ALTER TABLE t CHANGE a b DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:    "change_to_nondeterministic_without_a_key",
+			setup:   "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL)",
+			alter:   "ALTER TABLE t CHANGE a b DOUBLE AS (RAND()) VIRTUAL",
+			accepts: true,
+		},
+		{
+			name:    "change_staying_deterministic",
+			setup:   "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, KEY (a))",
+			alter:   "ALTER TABLE t CHANGE a b DOUBLE AS (2) VIRTUAL",
+			accepts: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.alter)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.alter, oracleErr, tc.accepts)
+			}
+
+			results, err := c.Exec(tc.alter+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: %q gave %v, want accepted=%v", tc.alter, omniErr, tc.accepts)
+			}
+			if tc.accepts {
+				want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+				if got := c.ShowCreateTable("testdb", "t"); got != want {
+					t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+				}
+				return
+			}
+			if want := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), want) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", want, omniErr)
+			}
+		})
+	}
+}

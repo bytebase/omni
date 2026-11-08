@@ -668,11 +668,17 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 	}
 	tbl.Indexes = newIndexes
 
-	// Clean up constraints that reference removed indexes.
+	// Clean up constraints that reference removed indexes. Only a constraint
+	// an index holds up goes with it; a CHECK merely carrying an index's name
+	// has nothing to do with it. Measured on mariadb:11.8.8: after
+	// `CREATE TABLE t (a INT, j JSON, KEY j(a)); ALTER TABLE t DROP COLUMN a`
+	// the json_valid check column j carries is still there, and so is
+	// `CONSTRAINT ck CHECK (b > 0)` beside a `KEY ck(a)`.
 	if len(removedIndexNames) > 0 {
 		newConstraints := make([]*Constraint, 0, len(tbl.Constraints))
 		for _, con := range tbl.Constraints {
-			if removedIndexNames[toLower(con.IndexName)] || removedIndexNames[toLower(con.Name)] {
+			if con.Type != ConCheck &&
+				(removedIndexNames[toLower(con.IndexName)] || removedIndexNames[toLower(con.Name)]) {
 				continue
 			}
 			newConstraints = append(newConstraints, con)
@@ -712,7 +718,18 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
-	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
+	// Whether a key covers the column is a question about the column being
+	// replaced, not about the name the replacement carries: a CHANGE renames
+	// it and the key follows. Measured on mariadb:11.8.8, after
+	// `CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, KEY (a))`:
+	// `ALTER TABLE t CHANGE a b DOUBLE AS (RAND()) VIRTUAL` answers 1901,
+	// where `CHANGE a b DOUBLE AS (2) VIRTUAL` is accepted and keeps
+	// KEY `a` (`b`).
+	indexed := indexedColumnsOf(tbl)
+	if indexed[toLower(oldName)] {
+		indexed[toLower(colDef.Name)] = true
+	}
+	if err := validateColumnDefSemantics(colDef, indexed); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)

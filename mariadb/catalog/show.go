@@ -577,6 +577,15 @@ func formatLiteralValue(val string, col *Column) string {
 	if out, ok := formatBinaryDefault(val, col); ok {
 		return out
 	}
+	// A BIT or YEAR column's default is never quoted: a quoted string is read
+	// as the bytes it holds on the one and as a year on the other, so quoting
+	// would change the value. What the family rule above could not read is
+	// written back as it stands, and the server refuses such a default
+	// outright with 1067 anyway.
+	switch columnDefaultFamily(col.DataType) {
+	case familyBit, familyYear:
+		return val
+	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
@@ -598,13 +607,6 @@ func formatLiteralValue(val string, col *Column) string {
 		// stands, which at least parses.
 		return val
 	}
-	// A BIT column's default is never quoted either: a quoted string there is
-	// read as the bytes it holds rather than as the text, so quoting one would
-	// change the value. What the family rule above could not read is written
-	// back as it stands.
-	if columnDefaultFamily(col.DataType) == familyBit {
-		return val
-	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
@@ -616,7 +618,7 @@ func formatLiteralValue(val string, col *Column) string {
 func isNumericColumnType(dt string) bool {
 	switch normalizedTypeName(dt) {
 	case "tinyint", "smallint", "mediumint", "int", "bigint",
-		"decimal", "float", "double", "boolean", "year":
+		"decimal", "float", "double", "boolean":
 		return true
 	}
 	return false
@@ -1110,11 +1112,16 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 	}
 	kind, raw, ok := literalDefaultBytes(val)
 	if !ok {
-		// A BIT column's default may be written as a plain number as well,
-		// which is the value itself.
-		if family == familyBit {
+		// A BIT or YEAR column's default may be written as a plain number as
+		// well, which is the value itself.
+		switch family {
+		case familyBit:
 			if n, ok := bitNumberOf(val); ok {
 				return bitLiteralOf(n), true
+			}
+		case familyYear:
+			if n, ok := wholeNumberOf(val); ok {
+				return yearLiteralOf(n, true), true
 			}
 		}
 		return "", false
@@ -1162,8 +1169,81 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 			return "", false
 		}
 		return bitLiteralOf(n), true
+	case familyYear:
+		return yearDefaultOf(kind, raw)
 	}
 	return "", false
+}
+
+// yearDefaultOf writes a YEAR column's default as the four-digit year the
+// literal denotes. Measured on mariadb:11.8.8: a quoted year is read as its
+// text and a hex or bit one as the number its bytes spell, so YEAR DEFAULT
+// '99', _utf8mb4'99' and b'1100011' are all 1999 while 0x41 is 2065, and
+// X'41' the server refuses outright.
+func yearDefaultOf(kind literalKind, raw []byte) (string, bool) {
+	switch kind {
+	case literalString, literalIntroduced:
+		n, ok := wholeNumberOf(string(raw))
+		if !ok {
+			return "", false
+		}
+		// Zero written as a four-character string is the zero year, where
+		// zero written as a string of any other length is 2000: measured,
+		// '0000' and '+000' are 0000 while '0', '00', '000', '00000' and
+		// ' 0000 ' are 2000. The characters are counted as written, before
+		// the surrounding whitespace is taken off.
+		return yearLiteralOf(n, len(raw) == 4), true
+	case literalHex0x, literalBits:
+		n, ok := uintOfBytes(raw)
+		if !ok {
+			return "", false
+		}
+		return yearLiteralOf(n, true), true
+	}
+	return "", false
+}
+
+// yearLiteralOf writes the four-digit year a number denotes. Measured on
+// mariadb:11.8.8: 1 through 69 are 2001 through 2069, 70 through 99 are 1970
+// through 1999, and 1901 through 2155 are themselves. Zero is the zero year
+// where it was written as a number and 2000 where it was written as a string,
+// which is what numberZero says. A year outside those ranges the server
+// refuses with 1067, and writing it back changes nothing.
+func yearLiteralOf(n uint64, numberZero bool) string {
+	switch {
+	case n == 0 && !numberZero:
+		return "2000"
+	case n == 0:
+		return "0000"
+	case n <= 69:
+		n += 2000
+	case n <= 99:
+		n += 1900
+	}
+	return fmt.Sprintf("%04d", n)
+}
+
+// wholeNumberOf reads a default written as a number and reports the whole,
+// non-negative number it spells. It reports false for a fraction the type
+// cannot drop: measured, YEAR DEFAULT 1.0 is 2001 where 99.7 is refused with
+// 1067 rather than rounded.
+func wholeNumberOf(text string) (uint64, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return 0, false
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
+	if strings.Trim(fraction, "0") != "" {
+		return 0, false
+	}
+	// A negative zero is still zero, which `'-0'` relies on; anything else
+	// negative has no year to write.
+	whole = strings.TrimPrefix(whole, "-")
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil || (n != 0 && strings.HasPrefix(digits, "-")) {
+		return 0, false
+	}
+	return n, true
 }
 
 // bitLiteralOf writes a BIT column's default the way MariaDB does: a bit
@@ -1225,9 +1305,12 @@ const (
 	// familyString writes the value as a quoted string:
 	// VARCHAR(4) DEFAULT 0x41 is 'A', and so is ENUM('A','B') DEFAULT 0x41.
 	familyString
-	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255,
-	// DECIMAL(5,2) DEFAULT 0x41 is 65.00, YEAR DEFAULT 0x07D0 is 2000.
+	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255 and
+	// DECIMAL(5,2) DEFAULT 0x41 is 65.00.
 	familyNumber
+	// familyYear reads the value as a number and writes the four-digit year it
+	// denotes: YEAR DEFAULT 99, '99' and 0x63 are all 1999, and 1 is 2001.
+	familyYear
 	// familyBit reads the value as a number too, and writes it as a bit
 	// literal of exactly its own digits: BIT(8) DEFAULT X'41', 0x41, 'A',
 	// b'1000001' and 65 all come back b'1000001', and BIT(16) DEFAULT X'41'
@@ -1247,8 +1330,10 @@ func columnDefaultFamily(dt string) defaultFamily {
 	case "char", "varchar", "enum", "set":
 		return familyString
 	case "tinyint", "smallint", "mediumint", "int", "bigint",
-		"decimal", "float", "double", "year":
+		"decimal", "float", "double", "boolean":
 		return familyNumber
+	case "year":
+		return familyYear
 	case "bit":
 		return familyBit
 	}
@@ -1315,9 +1400,8 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 // does. The server refuses such a default outright with 1067, so there is no
 // value for it to be written as; omni does not check that yet.
 //
-// YEAR is the one numeric type whose value is more than its digits: measured,
-// `YEAR DEFAULT '99'` comes back 1999 and `YEAR DEFAULT '0'` 2000, while
-// unquoted 0 stays 0000. That expansion is not done here.
+// YEAR does not come through here: its value is more than its digits, and
+// yearDefaultOf writes it.
 func scaleNumberDefault(text string, col *Column) (string, bool) {
 	digits, ok := normalizeNumberText(text)
 	if !ok {
