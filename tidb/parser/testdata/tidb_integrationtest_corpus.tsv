@@ -98,7 +98,7 @@ accept	accept	explain format = 'verbose' select * from t
 accept	accept	create table t(id int, value decimal(5,2))
 accept	accept	table t
 accept	accept	explain table t
-reject	accept	desc table t
+accept	accept	desc table t
 accept	accept	create binding for select * from t where a in(1) using select * from t where a in(1)
 accept	accept	create binding for select * from t where a in(1,2) using select * from t where a in(1)
 accept	accept	create binding for select * from t where a in(1) using select * from t where a in(1,2)
@@ -236,17 +236,17 @@ accept	accept	delete from mysql.expr_pushdown_blacklist
 accept	accept	create table t(a enum('a','b','c'), b enum('a','b','c'), c int, index idx(b,a))
 accept	accept	insert into t values(1,1,1),(2,2,2),(3,3,3)
 accept	accept	insert into mysql.expr_pushdown_blacklist(name) values('enum')
-reject	accept	desc format='brief' select /*+ HASH_AGG() */ max(a) from t
-reject	accept	desc format='brief' select /*+ STREAM_AGG() */ max(a) from t
-reject	accept	desc format='brief' select * from t where a + b
-reject	accept	desc format='brief' select * from t where b = 1
-reject	accept	desc format='brief' select * from t where b = 'a'
-reject	accept	desc format='brief' select * from t where b > 1
-reject	accept	desc format='brief' select * from t where b > 'a'
-reject	accept	desc format='brief' select * from t where b = 1 and a = 1
-reject	accept	desc format='brief' select * from t where b = 'a' and a = 'a'
-reject	accept	desc format='brief' select * from t where b = 1 and a > 1
-reject	accept	desc format='brief' select * from t where b = 1 and a > 'a'
+accept	accept	desc format='brief' select /*+ HASH_AGG() */ max(a) from t
+accept	accept	desc format='brief' select /*+ STREAM_AGG() */ max(a) from t
+accept	accept	desc format='brief' select * from t where a + b
+accept	accept	desc format='brief' select * from t where b = 1
+accept	accept	desc format='brief' select * from t where b = 'a'
+accept	accept	desc format='brief' select * from t where b > 1
+accept	accept	desc format='brief' select * from t where b > 'a'
+accept	accept	desc format='brief' select * from t where b = 1 and a = 1
+accept	accept	desc format='brief' select * from t where b = 'a' and a = 'a'
+accept	accept	desc format='brief' select * from t where b = 1 and a > 1
+accept	accept	desc format='brief' select * from t where b = 1 and a > 'a'
 accept	accept	set @@tidb_enable_outer_join_reorder=true
 accept	accept	drop database if exists with_cluster_index
 accept	accept	create database with_cluster_index
@@ -283,35 +283,35 @@ accept	accept	explain select count(*) from wout_cluster_index.tbl_0 where col_0 
 accept	accept	set @@tidb_enable_outer_join_reorder=false
 accept	accept	create table t(id int, value varchar(20) charset utf8mb4 collate utf8mb4_general_ci, value1 varchar(20) charset utf8mb4 collate utf8mb4_bin)
 accept	accept	insert into t values (1, 'abc', 'abc '),(4, 'Abc', 'abc'),(3,'def', 'def '), (5, 'abc', 'ABC')
-reject	accept	desc format='brief' select group_concat(value order by 1) from t
+accept	accept	desc format='brief' select group_concat(value order by 1) from t
 accept	accept	select group_concat(value order by 1) from t
-reject	accept	desc format='brief' select group_concat(value) from t
+accept	accept	desc format='brief' select group_concat(value) from t
 accept	accept	select group_concat(value) from t
-reject	accept	desc format='brief' select group_concat(value collate utf8mb4_bin) from t
+accept	accept	desc format='brief' select group_concat(value collate utf8mb4_bin) from t
 accept	accept	select group_concat(value collate utf8mb4_bin) from t
-reject	accept	desc format='brief' select group_concat(distinct value order by 1) from t
+accept	accept	desc format='brief' select group_concat(distinct value order by 1) from t
 accept	accept	select upper(group_concat(distinct value order by 1)) from t
-reject	accept	desc format='brief' select group_concat(distinct value collate utf8mb4_bin order by 1) from t
+accept	accept	desc format='brief' select group_concat(distinct value collate utf8mb4_bin order by 1) from t
 accept	accept	select upper(group_concat(distinct value collate utf8mb4_bin order by 1)) from t
-reject	accept	desc format='brief' select group_concat(distinct value) from t
+accept	accept	desc format='brief' select group_concat(distinct value) from t
 accept	accept	select upper(group_concat(distinct value)) from t
-reject	accept	desc format='brief' select group_concat(distinct value collate utf8mb4_bin) from t
+accept	accept	desc format='brief' select group_concat(distinct value collate utf8mb4_bin) from t
 accept	accept	select upper(group_concat(distinct value collate utf8mb4_bin)) from t
-reject	accept	desc format='brief' select count(distinct value) from t
+accept	accept	desc format='brief' select count(distinct value) from t
 accept	accept	select count(distinct value) from t
-reject	accept	desc format='brief' select count(distinct value collate utf8mb4_bin) from t
+accept	accept	desc format='brief' select count(distinct value collate utf8mb4_bin) from t
 accept	accept	select count(distinct value collate utf8mb4_bin) from t
-reject	accept	desc format='brief' select count(distinct value, value1) from t
+accept	accept	desc format='brief' select count(distinct value, value1) from t
 accept	accept	select count(distinct value, value1) from t
-reject	accept	desc format='brief' select count(distinct value collate utf8mb4_bin, value1) from t
+accept	accept	desc format='brief' select count(distinct value collate utf8mb4_bin, value1) from t
 accept	accept	select count(distinct value collate utf8mb4_bin, value1) from t
-reject	accept	desc format='brief' select approx_count_distinct(value) from t
+accept	accept	desc format='brief' select approx_count_distinct(value) from t
 accept	accept	select approx_count_distinct(value) from t
-reject	accept	desc format='brief' select approx_count_distinct(value collate utf8mb4_bin) from t
+accept	accept	desc format='brief' select approx_count_distinct(value collate utf8mb4_bin) from t
 accept	accept	select approx_count_distinct(value collate utf8mb4_bin) from t
-reject	accept	desc format='brief' select approx_count_distinct(value, value1) from t
+accept	accept	desc format='brief' select approx_count_distinct(value, value1) from t
 accept	accept	select approx_count_distinct(value, value1) from t
-reject	accept	desc format='brief' select approx_count_distinct(value collate utf8mb4_bin, value1) from t
+accept	accept	desc format='brief' select approx_count_distinct(value collate utf8mb4_bin, value1) from t
 accept	accept	select approx_count_distinct(value collate utf8mb4_bin, value1) from t
 accept	accept	create table tt(a char(10), b enum('a', 'B', 'c'), c set('a', 'B', 'c'), d json) collate utf8mb4_general_ci
 accept	accept	insert into tt values ("a", "a", "a", JSON_OBJECT("a", "a"))
@@ -321,38 +321,38 @@ accept	accept	insert into tt values ("B", "B", "B", JSON_OBJECT("B", "B"))
 accept	accept	insert into tt values ("c", "c", "c", JSON_OBJECT("c", "c"))
 accept	accept	insert into tt values ("C", "C", "C", JSON_OBJECT("C", "C"))
 accept	accept	split table tt by (0), (1), (2), (3), (4), (5)
-reject	accept	desc format='brief' select min(a) from tt
-reject	accept	desc format='brief' select lower(min(a)) from tt
+accept	accept	desc format='brief' select min(a) from tt
+accept	accept	desc format='brief' select lower(min(a)) from tt
 accept	accept	select lower(min(a)) from tt
-reject	accept	desc format='brief' select min(a collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select min(a collate utf8mb4_bin) from tt
 accept	accept	select min(a collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select max(a) from tt
+accept	accept	desc format='brief' select max(a) from tt
 accept	accept	select max(a) from tt
-reject	accept	desc format='brief' select max(a collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select max(a collate utf8mb4_bin) from tt
 accept	accept	select max(a collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select min(b) from tt
+accept	accept	desc format='brief' select min(b) from tt
 accept	accept	select min(b) from tt
-reject	accept	desc format='brief' select min(b collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select min(b collate utf8mb4_bin) from tt
 accept	accept	select min(b collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select max(b) from tt
+accept	accept	desc format='brief' select max(b) from tt
 accept	accept	select max(b) from tt
-reject	accept	desc format='brief' select max(b collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select max(b collate utf8mb4_bin) from tt
 accept	accept	select max(b collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select min(c) from tt
+accept	accept	desc format='brief' select min(c) from tt
 accept	accept	select min(c) from tt
-reject	accept	desc format='brief' select min(c collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select min(c collate utf8mb4_bin) from tt
 accept	accept	select min(c collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select max(c) from tt
+accept	accept	desc format='brief' select max(c) from tt
 accept	accept	select max(c) from tt
-reject	accept	desc format='brief' select max(c collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select max(c collate utf8mb4_bin) from tt
 accept	accept	select max(c collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select min(d) from tt
+accept	accept	desc format='brief' select min(d) from tt
 accept	accept	select min(d) from tt
-reject	accept	desc format='brief' select min(d collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select min(d collate utf8mb4_bin) from tt
 accept	accept	select min(d collate utf8mb4_bin) from tt
-reject	accept	desc format='brief' select max(d) from tt
+accept	accept	desc format='brief' select max(d) from tt
 accept	accept	select max(d) from tt
-reject	accept	desc format='brief' select max(d collate utf8mb4_bin) from tt
+accept	accept	desc format='brief' select max(d collate utf8mb4_bin) from tt
 accept	accept	select max(d collate utf8mb4_bin) from tt
 accept	accept	insert into t values ("A")
 accept	accept	insert into t1 values ("a")
@@ -414,7 +414,7 @@ accept	accept	INSERT INTO t1(c0, c1) VALUES (true, 2)
 accept	accept	SELECT v0.c0 FROM v0
 accept	accept	SELECT (v0.c0)NOT LIKE(BINARY v0.c0) FROM v0
 accept	accept	SELECT v0.c0 FROM v0 WHERE (v0.c0)NOT LIKE(BINARY v0.c0)
-reject	accept	desc format='brief' SELECT v0.c0 FROM v0 WHERE (v0.c0)NOT LIKE(BINARY v0.c0)
+accept	accept	desc format='brief' SELECT v0.c0 FROM v0 WHERE (v0.c0)NOT LIKE(BINARY v0.c0)
 accept	accept	create table t1(a varchar(20) charset utf8)
 accept	accept	insert into t1 values ("t1_value")
 accept	accept	alter table t1 collate uTf8mB4_uNiCoDe_Ci charset Utf8mB4 charset uTF8Mb4 collate UTF8MB4_BiN
@@ -456,7 +456,7 @@ accept	accept	insert into t values ("1", "a    ", "a")
 accept	accept	select /*+USE_INDEX(t, idx)*/ * from t
 accept	accept	create table t1(code varchar(32)) CHARSET=utf8 COLLATE=utf8_general_ci
 accept	accept	create table t2(code varchar(32)) CHARSET=utf8 COLLATE=utf8_bin
-reject	accept	desc format=brief select * from t1 join t2 on t1.code=t2.code and t1.code in ('1') and t2.code in ('1')
+accept	accept	desc format=brief select * from t1 join t2 on t1.code=t2.code and t1.code in ('1') and t2.code in ('1')
 accept	accept	create database collation_point_get
 accept	accept	use collation_point_get
 accept	accept	create table t(a char(2), b char(2), index idx_1(a))
@@ -579,9 +579,9 @@ accept	accept	create table t1(c1 bigint unsigned)
 accept	accept	insert into t1 values(0)
 accept	accept	with recursive cte1 as (select c1 - 1 c1 from t1 union all select c1 - 1 c1 from cte1 where c1 != 0) select * from cte1 dt1, cte1 dt2
 accept	accept	create table t(a int, b int, key (b))
-reject	accept	desc with cte as (select * from t) select * from cte
+accept	accept	desc with cte as (select * from t) select * from cte
 accept	accept	create SESSION binding for with cte as (select * from t) select * from cte using with cte as (select * from t use index(b)) select * from cte
-reject	accept	desc with cte as (select * from t use index()) select * from cte
+accept	accept	desc with cte as (select * from t use index()) select * from cte
 accept	accept	drop table if exists t1, tpk
 accept	accept	create table t1(c1 int)
 accept	accept	insert into t1 values(1), (2), (1), (2)
@@ -3036,7 +3036,7 @@ accept	accept	analyze table t11 all columns
 accept	accept	select * from t11 order by a
 accept	accept	select * from t11 partition (p0)
 accept	accept	select * from t11 partition (p1)
-reject	accept	desc select * from t11 where a = 'b'
+accept	accept	desc select * from t11 where a = 'b'
 accept	accept	drop table if exists global_partition_table
 accept	accept	create global temporary table global_partition_table (a int, b int) partition by hash(a) partitions 3 ON COMMIT DELETE ROWS
 accept	accept	drop table if exists partition_table
@@ -7338,10 +7338,10 @@ accept	accept	explain analyze insert into t select 1
 accept	accept	explain analyze update t set a=2 where a=1
 accept	accept	explain format = 'brief' insert into t select 1
 accept	accept	explain analyze replace into t values (3)
-reject	accept	desc format='brief' select * from information_schema.statements_summary
-reject	accept	desc format='brief' select * from information_schema.statements_summary where digest is null
-reject	accept	desc format='brief' select * from information_schema.statements_summary where digest = 'abcdefg'
-reject	accept	desc format='brief' select * from information_schema.statements_summary where digest in ('a','b','c')
+accept	accept	desc format='brief' select * from information_schema.statements_summary
+accept	accept	desc format='brief' select * from information_schema.statements_summary where digest is null
+accept	accept	desc format='brief' select * from information_schema.statements_summary where digest = 'abcdefg'
+accept	accept	desc format='brief' select * from information_schema.statements_summary where digest in ('a','b','c')
 accept	accept	drop table if exists tt123
 accept	accept	explain format='brief' select /*+ inl_hash_join(t1) */ * from tt123 t1 join tt123 t2 on t1.b=t2.e
 accept	accept	set @@tidb_constraint_check_in_place=1
@@ -7392,24 +7392,24 @@ accept	accept	explain format='brief' SELECT /*+ AGG_TO_COP() STREAM_AGG()*/ (NOT
 accept	accept	select count(*) from (SELECT /*+ AGG_TO_COP() STREAM_AGG()*/ (NOT (`t`.`i`>=_UTF8MB4'j筧8') OR NOT (`t`.`i`=_UTF8MB4'暈lH忧ll6')) IS TRUE,MAX(`t`.`e`) AS `r0`,QUOTE(`t`.`i`) AS `r1` FROM `t` WHERE `t`.`h`>240817 OR `t`.`i` BETWEEN _UTF8MB4'WVz' AND _UTF8MB4'G#駧褉ZC領*lov' GROUP BY `t`.`i`) derived
 accept	accept	explain format='brief' SELECT /*+ AGG_TO_COP() */ (NOT (`t`.`i`>=_UTF8MB4'j筧8') OR NOT (`t`.`i`=_UTF8MB4'暈lH忧ll6')) IS TRUE,MAX(`t`.`e`) AS `r0`,QUOTE(`t`.`i`) AS `r1` FROM `t` WHERE `t`.`h`>240817 OR `t`.`i` BETWEEN _UTF8MB4'WVz' AND _UTF8MB4'G#駧褉ZC領*lov' GROUP BY `t`.`i`
 accept	accept	select count(*) from (SELECT /*+ AGG_TO_COP() */ (NOT (`t`.`i`>=_UTF8MB4'j筧8') OR NOT (`t`.`i`=_UTF8MB4'暈lH忧ll6')) IS TRUE,MAX(`t`.`e`) AS `r0`,QUOTE(`t`.`i`) AS `r1` FROM `t` WHERE `t`.`h`>240817 OR `t`.`i` BETWEEN _UTF8MB4'WVz' AND _UTF8MB4'G#駧褉ZC領*lov' GROUP BY `t`.`i`) derived
-reject	accept	desc format='brief' select * from METRICS_SCHEMA.tidb_query_duration where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
-reject	accept	desc format='brief' select * from METRICS_SCHEMA.up where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
-reject	accept	desc format='brief' select * from information_schema.cluster_log where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
-reject	accept	desc format='brief' select * from information_schema.cluster_log where level in ('warn','error') and time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
-reject	accept	desc format='brief' select * from information_schema.cluster_log where type in ('high_cpu_1','high_memory_1') and time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
-reject	accept	desc format='brief' select * from information_schema.slow_query
-reject	accept	desc format='brief' select * from information_schema.slow_query where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from METRICS_SCHEMA.tidb_query_duration where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from METRICS_SCHEMA.up where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from information_schema.cluster_log where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from information_schema.cluster_log where level in ('warn','error') and time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from information_schema.cluster_log where type in ('high_cpu_1','high_memory_1') and time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
+accept	accept	desc format='brief' select * from information_schema.slow_query
+accept	accept	desc format='brief' select * from information_schema.slow_query where time >= '2019-12-23 16:10:13' and time <= '2019-12-23 16:30:13'
 accept	accept	set @@time_zone = '+00:00'
-reject	accept	desc format='brief' select * from information_schema.cluster_config where type in ('tikv', 'tidb')
-reject	accept	desc format='brief' select * from information_schema.cluster_config where instance='192.168.1.7:2379'
-reject	accept	desc format='brief' select * from information_schema.cluster_config where type='tidb' and instance='192.168.1.7:2379'
-reject	accept	desc format='brief' select * from information_schema.inspection_result where rule = 'ddl' and rule = 'config'
-reject	accept	desc format='brief' select * from information_schema.inspection_result where rule in ('ddl', 'config')
-reject	accept	desc format='brief' select * from information_schema.inspection_result where item in ('ddl.lease', 'raftstore.threadpool')
-reject	accept	desc format='brief' select * from information_schema.inspection_result where item in ('ddl.lease', 'raftstore.threadpool') and rule in ('ddl', 'config')
-reject	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection'
-reject	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection' or type='summary'
-reject	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection' and type='summary'
+accept	accept	desc format='brief' select * from information_schema.cluster_config where type in ('tikv', 'tidb')
+accept	accept	desc format='brief' select * from information_schema.cluster_config where instance='192.168.1.7:2379'
+accept	accept	desc format='brief' select * from information_schema.cluster_config where type='tidb' and instance='192.168.1.7:2379'
+accept	accept	desc format='brief' select * from information_schema.inspection_result where rule = 'ddl' and rule = 'config'
+accept	accept	desc format='brief' select * from information_schema.inspection_result where rule in ('ddl', 'config')
+accept	accept	desc format='brief' select * from information_schema.inspection_result where item in ('ddl.lease', 'raftstore.threadpool')
+accept	accept	desc format='brief' select * from information_schema.inspection_result where item in ('ddl.lease', 'raftstore.threadpool') and rule in ('ddl', 'config')
+accept	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection'
+accept	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection' or type='summary'
+accept	accept	desc format='brief' select * from information_schema.inspection_rules where type='inspection' and type='summary'
 accept	accept	set tidb_enable_prepared_plan_cache=1
 accept	accept	create table t(a int, b int, c int generated always as (a+b) stored)
 accept	accept	insert into t(a,b) values(1,1)
@@ -7420,29 +7420,29 @@ accept	accept	execute stmt using @p
 accept	accept	set @p = 1
 accept	accept	insert into t(a,b,c) values(3,3,3)
 accept	accept	set tidb_enable_prepared_plan_cache=default
-reject	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_SCHEMA = 'information_schema'
-reject	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_NAME = 'schemata'
-reject	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_SCHEMA = 'information_schema' and TABLE_NAME = 'schemata'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where 'ddl'=rule or rule='config'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where 'ddl'=rule or rule='config' or rule='slow_query'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where (rule='config' or rule='slow_query') and (metrics_name='metric_name3' or metrics_name='metric_name1')
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query')
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query') and metrics_name='metric_name1'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query') and metrics_name in ('metric_name1', 'metric_name2')
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl' and metrics_name in ('metric_name1', 'metric_name2')
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl' and metrics_name='metric_NAME3'
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'config') and rule in ('slow_query', 'config')
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where metrics_name in ('metric_name1', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name4') and rule in ('ddl', 'config') and rule in ('slow_query', 'config') and quantile in (0.80, 0.90)
-reject	accept	desc format='brief' select * from information_schema.inspection_summary where metrics_name in ('metric_name1', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name1') and metrics_name in ('metric_name1', 'metric_name3')
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIFLASH_INSTANCE = '192.168.1.7:3930'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIFLASH_INSTANCE = '192.168.1.7:3930'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIDB_DATABASE = 'test'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIDB_DATABASE = 'test'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIDB_TABLE = 't'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIDB_TABLE = 't'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIFLASH_INSTANCE = '192.168.1.7:3930' and TIDB_DATABASE = 'test' and TIDB_TABLE = 't'
-reject	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIFLASH_INSTANCE = '192.168.1.7:3930' and TIDB_DATABASE = 'test' and TIDB_TABLE = 't'
+accept	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_SCHEMA = 'information_schema'
+accept	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_NAME = 'schemata'
+accept	accept	desc format='brief' select * from information_schema.TABLE_STORAGE_STATS where TABLE_SCHEMA = 'information_schema' and TABLE_NAME = 'schemata'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where 'ddl'=rule or rule='config'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where 'ddl'=rule or rule='config' or rule='slow_query'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where (rule='config' or rule='slow_query') and (metrics_name='metric_name3' or metrics_name='metric_name1')
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query')
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query') and metrics_name='metric_name1'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'slow_query') and metrics_name in ('metric_name1', 'metric_name2')
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl' and metrics_name in ('metric_name1', 'metric_name2')
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule='ddl' and metrics_name='metric_NAME3'
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where rule in ('ddl', 'config') and rule in ('slow_query', 'config')
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where metrics_name in ('metric_name1', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name4') and rule in ('ddl', 'config') and rule in ('slow_query', 'config') and quantile in (0.80, 0.90)
+accept	accept	desc format='brief' select * from information_schema.inspection_summary where metrics_name in ('metric_name1', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name4') and metrics_name in ('metric_name5', 'metric_name1') and metrics_name in ('metric_name1', 'metric_name3')
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIFLASH_INSTANCE = '192.168.1.7:3930'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIFLASH_INSTANCE = '192.168.1.7:3930'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIDB_DATABASE = 'test'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIDB_DATABASE = 'test'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIDB_TABLE = 't'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIDB_TABLE = 't'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_TABLES where TIFLASH_INSTANCE = '192.168.1.7:3930' and TIDB_DATABASE = 'test' and TIDB_TABLE = 't'
+accept	accept	desc format='brief' select * from information_schema.TIFLASH_SEGMENTS where TIFLASH_INSTANCE = '192.168.1.7:3930' and TIDB_DATABASE = 'test' and TIDB_TABLE = 't'
 accept	accept	CREATE TABLE `t1` (a int)
 accept	accept	CREATE TABLE `t2` (a int)
 accept	accept	insert into t1 values(1), (2)
@@ -7511,23 +7511,23 @@ accept	accept	create binding for select * from t, r where r.a = t.a using select
 accept	accept	execute stmt_join
 accept	accept	create binding for select * from t, r where r.a = t.a using select /*+ ignore_plan_cache() */* from t, r where r.a = t.a
 accept	accept	create database s1
-reject	accept	desc format='brief' select * from information_schema.tables where table_name='t'
-reject	accept	desc format='brief' select * from information_schema.tables where lower(table_name)='t'
-reject	accept	desc format='brief' select * from information_schema.tables where upper(table_name)=upper('t')
-reject	accept	desc format='brief' select * from information_schema.REFERENTIAL_CONSTRAINTS where table_name='t'
-reject	accept	desc format='brief' select * from information_schema.KEY_COLUMN_USAGE where table_name='t'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t' and table_name='r'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t' or table_name='r'
-reject	accept	desc format='brief' select * from information_schema.tables where table_schema='t'
-reject	accept	desc format='brief' select * from information_schema.KEY_COLUMN_USAGE where table_schema='s1'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1' and table_schema='test'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='s1' and table_schema='test'
-reject	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1' or table_schema='test'
-reject	accept	desc format='brief' SELECT column_name FROM information_schema.statistics WHERE index_name = 'idx1' AND table_schema = DATABASE () AND table_name = 't' ORDER BY seq_in_index
-reject	accept	desc format='brief' SELECT table_comment FROM information_schema.tables WHERE table_schema = DATABASE () AND table_name = 't'
-reject	accept	desc format='brief' SELECT * FROM information_schema.referential_constraints rc JOIN information_schema.key_column_usage fk USING (constraint_schema, constraint_name) WHERE fk.referenced_column_name != 't' AND fk.table_schema = DATABASE () AND fk.table_name = 't' AND rc.constraint_schema = DATABASE () AND rc.table_name = 't'
+accept	accept	desc format='brief' select * from information_schema.tables where table_name='t'
+accept	accept	desc format='brief' select * from information_schema.tables where lower(table_name)='t'
+accept	accept	desc format='brief' select * from information_schema.tables where upper(table_name)=upper('t')
+accept	accept	desc format='brief' select * from information_schema.REFERENTIAL_CONSTRAINTS where table_name='t'
+accept	accept	desc format='brief' select * from information_schema.KEY_COLUMN_USAGE where table_name='t'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t' and table_name='r'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='t' or table_name='r'
+accept	accept	desc format='brief' select * from information_schema.tables where table_schema='t'
+accept	accept	desc format='brief' select * from information_schema.KEY_COLUMN_USAGE where table_schema='s1'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1' and table_schema='test'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_name='s1' and table_schema='test'
+accept	accept	desc format='brief' select * from information_schema.STATISTICS where table_schema='s1' or table_schema='test'
+accept	accept	desc format='brief' SELECT column_name FROM information_schema.statistics WHERE index_name = 'idx1' AND table_schema = DATABASE () AND table_name = 't' ORDER BY seq_in_index
+accept	accept	desc format='brief' SELECT table_comment FROM information_schema.tables WHERE table_schema = DATABASE () AND table_name = 't'
+accept	accept	desc format='brief' SELECT * FROM information_schema.referential_constraints rc JOIN information_schema.key_column_usage fk USING (constraint_schema, constraint_name) WHERE fk.referenced_column_name != 't' AND fk.table_schema = DATABASE () AND fk.table_name = 't' AND rc.constraint_schema = DATABASE () AND rc.table_name = 't'
 accept	accept	CREATE TABLE t1 (i INT PRIMARY KEY)
 accept	accept	CREATE TABLE t2 (i INT, FOREIGN KEY (i) REFERENCES t1 (i))
 accept	accept	INSERT INTO t1 VALUES (1),(3)
@@ -9538,7 +9538,7 @@ accept	accept	insert into t values(1), (2), (3), (4), (5), (6), (7), (8), (9), (
 accept	accept	insert into s values(1), (128)
 accept	accept	set @@tidb_index_lookup_join_concurrency=1
 accept	accept	set @@tidb_index_join_batch_size=32
-reject	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(s) */ * from t join s on t.a=s.a order by t.a
+accept	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(s) */ * from t join s on t.a=s.a order by t.a
 accept	accept	select /*+ INL_HASH_JOIN(s) */ * from t join s on t.a=s.a order by t.a
 accept	accept	set @@tidb_index_lookup_join_concurrency=default
 accept	accept	set @@tidb_index_join_batch_size=default
@@ -9605,11 +9605,11 @@ accept	accept	insert into t values(0, '01:01:01')
 accept	accept	insert into t select 0, b + 1 from t
 accept	accept	insert into s select a, b - 1 from t
 accept	accept	analyze table s all columns
-reject	accept	desc format = 'brief' select /*+ TIDB_INLJ(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
+accept	accept	desc format = 'brief' select /*+ TIDB_INLJ(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
 accept	accept	select /*+ TIDB_INLJ(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
-reject	accept	desc format = 'brief' select /*+ INL_MERGE_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
+accept	accept	desc format = 'brief' select /*+ INL_MERGE_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
 accept	accept	select /*+ INL_MERGE_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
-reject	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
+accept	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
 accept	accept	select /*+ INL_HASH_JOIN(s) */ count(*) from t join s use index(idx) on s.a = t.a and s.b < t.b
 accept	accept	create table t1(id int primary key)
 accept	accept	insert into t2 values(1,1),(2,1)
@@ -10192,7 +10192,7 @@ accept	accept	set @@tidb_hashagg_final_concurrency=default
 accept	accept	set tidb_mem_quota_query = 1 << 18
 accept	accept	set global tidb_mem_oom_action = 'CANCEL'
 accept	accept	set global tidb_enable_tmp_storage_on_oom = off
-reject	accept	desc analyze select * from t t1, t t2, t t3, t t4, t t5, t t6
+accept	accept	desc analyze select * from t t1, t t2, t t3, t t4, t t5, t t6
 accept	accept	set tidb_mem_quota_query = default
 accept	accept	set global tidb_enable_tmp_storage_on_oom = default
 accept	accept	select * from t1 natural join (t3 cross join t4)
@@ -10409,12 +10409,12 @@ accept	accept	analyze table c all columns
 accept	accept	alter table t add column serial_id varchar(24) default '2022111700196920'
 accept	accept	set @@tidb_opt_advanced_join_hint=default
 accept	accept	insert into t values (9223372036854775807), (9223372036854775808), (9223372036854775809), (9223372036854775812), (9223372036854775813)
-reject	accept	desc SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN 9223372036854775807 AND 9223372036854775808
+accept	accept	desc SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN 9223372036854775807 AND 9223372036854775808
 accept	accept	SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN 9223372036854775807 AND 9223372036854775808
 accept	accept	explain select * from t where col_51 between 9223372036854775812 and 9223372036854775813
 accept	accept	select * from t where col_51 between 9223372036854775812 and 9223372036854775813
 accept	accept	insert into t values (9223372036854775807), (-9223372036854775808)
-reject	accept	desc SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN -9223372036854775808 AND 9223372036854775807
+accept	accept	desc SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN -9223372036854775808 AND 9223372036854775807
 accept	accept	SELECT * FROM `t` WHERE `t`.`col_51` BETWEEN -9223372036854775808 AND 9223372036854775807
 accept	accept	insert into t values (9223372036854775807), (9223372036854775808), (9223372036854775809)
 accept	accept	INSERT INTO `t` VALUES (-1), (11), (-128), (39), (-46), (38), (-102), (-99), (-87), (-127), (-89), (43), (108), (59), (0), (24), (101), (37), (-103), (90), (-95), (-44), (123), (124), (-123), (-52), (-49), (-98), (-104), (-68), (2), (-24), (67), (89), (1), (-65), (36), (-109), (41), (5), (98), (-63), (-14), (127), (-6), (121), (14), (-122)
@@ -14167,36 +14167,36 @@ accept	accept	explain format = 'brief' delete t_1,t_2 from t_1 join t_2 where t_
 accept	accept	create table t(a int, b real, c bigint as ((a+1)) virtual, e real as ((b+a)))
 accept	accept	alter table t add index idx_c(c)
 accept	accept	alter table t add index idx_e(e)
-reject	accept	desc select * from t where a+1=3
+accept	accept	desc select * from t where a+1=3
 accept	accept	select * from t where a+1=3
-reject	accept	desc select a+1 from t where a+1=3
+accept	accept	desc select a+1 from t where a+1=3
 accept	accept	select a+1 from t where a+1=3
-reject	accept	desc select c from t where a+1=3
+accept	accept	desc select c from t where a+1=3
 accept	accept	select c from t where a+1=3
-reject	accept	desc select * from t where b+a=3
+accept	accept	desc select * from t where b+a=3
 accept	accept	select * from t where b+a=3
-reject	accept	desc select b+a from t where b+a=3
+accept	accept	desc select b+a from t where b+a=3
 accept	accept	select b+a from t where b+a=3
-reject	accept	desc select e from t where b+a=3
+accept	accept	desc select e from t where b+a=3
 accept	accept	select e from t where b+a=3
-reject	accept	desc select a+1 from t where a+1 in (1, 2, 3)
+accept	accept	desc select a+1 from t where a+1 in (1, 2, 3)
 accept	accept	select a+1 from t where a+1 in (1, 2, 3)
-reject	accept	desc select * from t where a+1 in (1, 2, 3)
+accept	accept	desc select * from t where a+1 in (1, 2, 3)
 accept	accept	select * from t where a+1 in (1, 2, 3)
-reject	accept	desc select a+1 from t where a+1 between 1 and 4
+accept	accept	desc select a+1 from t where a+1 between 1 and 4
 accept	accept	select a+1 from t where a+1 between 1 and 4
-reject	accept	desc select * from t where a+1 between 1 and 4
+accept	accept	desc select * from t where a+1 between 1 and 4
 accept	accept	select * from t where a+1 between 1 and 4
-reject	accept	desc select * from t order by a+1
+accept	accept	desc select * from t order by a+1
 accept	accept	select * from t order by a+1
-reject	accept	desc select a+1 from t order by a+1
+accept	accept	desc select a+1 from t order by a+1
 accept	accept	select a+1 from t order by a+1
-reject	accept	desc select b+a from t order by b+a
+accept	accept	desc select b+a from t order by b+a
 accept	accept	select b+a from t order by b+a
-reject	accept	desc update t set a=1 where a+1 = 3
-reject	accept	desc update t set a=2, b = 3 where b+a = 3
-reject	accept	desc delete from t where a+1 = 3
-reject	accept	desc delete from t where b+a = 0
+accept	accept	desc update t set a=1 where a+1 = 3
+accept	accept	desc update t set a=2, b = 3 where b+a = 3
+accept	accept	desc delete from t where a+1 = 3
+accept	accept	desc delete from t where b+a = 0
 accept	accept	alter table t drop index idx_c
 accept	accept	alter table t drop index idx_e
 accept	accept	alter table t add index expr_idx_c((a+1))
@@ -14206,7 +14206,7 @@ accept	accept	alter table t drop index expr_idx_e
 accept	accept	alter table t add UNIQUE expr_idx_c((a+1))
 accept	accept	alter table t add UNIQUE expr_idx_e((b+a))
 accept	accept	insert into t values (2, 2.1, default, default)
-reject	accept	desc select * from t where a+1 = 3
+accept	accept	desc select * from t where a+1 = 3
 accept	accept	create table t0(c0 float(24), c1 double as (c0) unique)
 accept	accept	explain format = 'brief' select c0 from t0
 accept	accept	create table t0(c0 float(25), c1 double as (c0) unique)
@@ -14223,12 +14223,12 @@ accept	accept	explain format = 'brief' select count(*) from tbl1 where md5(s) li
 accept	accept	select count(*) from tbl1 use index() where md5(s) like '02e74f10e0327ad868d138f2b4fdd6f%'
 accept	accept	create table t(a int, b varchar(10), key((lower(b)), (a+1)), key((upper(b))))
 accept	accept	insert into t values (1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"), (6, "F")
-reject	accept	desc format = 'brief' select * from t where (lower(b) = "a" and a+1 = 2) or (lower(b) = "b" and a+1 = 5)
-reject	accept	desc format = 'brief' select * from t where not (lower(b) >= "a")
-reject	accept	desc format = 'brief' select count(upper(b)) from t group by upper(b)
-reject	accept	desc format = 'brief' select max(upper(b)) from t group by upper(b)
-reject	accept	desc format = 'brief' select count(upper(b)) from t use index() group by upper(b)
-reject	accept	desc format = 'brief' select max(upper(b)) from t use index() group by upper(b)
+accept	accept	desc format = 'brief' select * from t where (lower(b) = "a" and a+1 = 2) or (lower(b) = "b" and a+1 = 5)
+accept	accept	desc format = 'brief' select * from t where not (lower(b) >= "a")
+accept	accept	desc format = 'brief' select count(upper(b)) from t group by upper(b)
+accept	accept	desc format = 'brief' select max(upper(b)) from t group by upper(b)
+accept	accept	desc format = 'brief' select count(upper(b)) from t use index() group by upper(b)
+accept	accept	desc format = 'brief' select max(upper(b)) from t use index() group by upper(b)
 accept	accept	insert into t values ('2021-01-02', '2021-03-30 08:10:00', '12:01:03', '2021-08-13 04:10:44', 2021)
 accept	accept	select * from t use index(expression_index) where ADDDATE(a, interval 10 MICROSECOND) = ADDDATE('2021-01-02', interval 10 MICROSECOND)
 accept	accept	select * from t ignore index(expression_index) where ADDDATE(a, interval 10 MICROSECOND) = ADDDATE('2021-01-02', interval 10 MICROSECOND)
@@ -14237,8 +14237,8 @@ accept	accept	select * from t ignore index(expression_index2) where timediff(`b`
 accept	accept	select * from t use index(expression_index3) where d+ timestamp'0000-00-00 00:00:00.00001' = timestamp'2021-08-13 04:10:44'+ timestamp'0000-00-00 00:00:00.00001'
 accept	accept	select * from t ignore index(expression_index3) where d+ timestamp'0000-00-00 00:00:00.00001' = timestamp'2021-08-13 04:10:44'+ timestamp'0000-00-00 00:00:00.00001'
 accept	accept	create table t(a int, b int as (a+1), key((a+1)), key(b))
-reject	accept	desc format = 'brief' select a+1 from t
-reject	accept	desc format = 'brief' select b from t
+accept	accept	desc format = 'brief' select a+1 from t
+accept	accept	desc format = 'brief' select b from t
 accept	accept	create table t01(a varchar(20))
 accept	accept	insert into t01 values ("齆斮聒蚆髙锐潊贩哨啅捸爖斥圱犳飁綴纜牖蚙")
 accept	accept	alter table t01 add index eidx ((concat_ws('expression_index', a, 'test')))
@@ -14280,7 +14280,7 @@ accept	accept	insert into t2 values( 11, 'wizardly antonelli', '2020-01-30 17:27
 accept	accept	insert into t2 values( 2, 'angry kapitsa'       , '2020-03-30 05:09:44', '2020-02-15 00:36:52', 95.798378, 3.118000, 'blue'  )
 accept	accept	insert into t2 values( 7, 'dreamy shamir'       , '2020-05-28 14:13:42', '2020-06-02 07:23:22', 26.623227, 3.105000, 'orange')
 accept	accept	delete from t2 where c_decimal > c_double/2 order by c_int, c_str, c_double, c_decimal limit 1
-reject	accept	desc format='brief' select t2.c_enum from t2,t1 where t1.c_int - 1 = t2.c_int - 1 order  by t2.c_enum
+accept	accept	desc format='brief' select t2.c_enum from t2,t1 where t1.c_int - 1 = t2.c_int - 1 order  by t2.c_enum
 accept	accept	select t2.c_enum from t2,t1 where t1.c_int - 1 = t2.c_int - 1 order  by t2.c_enum
 accept	accept	create table t1 (c_int int, c_str varchar(40) ,primary key (c_int)  , key(c_str(36))  , key((c_int + 1))) partition by hash (c_int) partitions 4
 accept	accept	create table t2  like t1
@@ -14296,9 +14296,9 @@ accept	accept	drop table person
 accept	accept	create table t(a char(5), b char(6) as (concat(a, a)), index bx(b))
 accept	accept	insert into t(a) values ('aaaaa')
 accept	accept	select * from t ignore index(bx) where concat(a, a) = 'aaaaaaaaaa'
-reject	accept	desc format = 'brief' select * from t ignore index(bx) where concat(a, a) = 'aaaaaaaaaa'
+accept	accept	desc format = 'brief' select * from t ignore index(bx) where concat(a, a) = 'aaaaaaaaaa'
 accept	accept	select * from t force index(bx) where concat(a, a) = 'aaaaaaaaaa'
-reject	accept	desc format = 'brief' select * from t force index(bx) where concat(a, a) = 'aaaaaaaaaa'
+accept	accept	desc format = 'brief' select * from t force index(bx) where concat(a, a) = 'aaaaaaaaaa'
 accept	accept	create table t(a char(5), b char(10) as (concat(a, a)), index bx(b))
 accept	accept	set @@tidb_enable_unsafe_substitute=0
 accept	accept	create table t (a int primary key, b int, c int, d int, e int, f int)
@@ -14322,7 +14322,7 @@ accept	accept	explain format = 'brief' select /*+ use_index_merge(t, tb, tc) */ 
 accept	accept	explain format = 'brief' select /*+ use_index_merge(t, tb) */ * from t where b < 50 or c < 5000000
 accept	accept	explain format = 'brief' select /*+ no_index_merge(), use_index_merge(t, tb, tc) */ * from t where b < 50 or c < 5000000
 accept	accept	explain format = 'brief' select /*+ use_index_merge(t, primary, tb) */ * from t where a < 50 or b < 5000000
-reject	accept	desc select /*+ USE_INDEX_MERGE(t, aid_c1, aid_c2) */ * from t where (aid = 1 and c1='aaa') or (aid = 2 and c2='bbb')
+accept	accept	desc select /*+ USE_INDEX_MERGE(t, aid_c1, aid_c2) */ * from t where (aid = 1 and c1='aaa') or (aid = 2 and c2='bbb')
 accept	accept	drop table if exists user_authorization_simple
 accept	accept	set @@tidb_opt_fix_control='52869:ON'
 accept	accept	load stats 's/issue_61093.json'
@@ -16816,7 +16816,7 @@ accept	accept	select c from t1 where a=1 and b is null and c>2 order by c
 accept	accept	select c from t1 where a=1 and b is not null and c>2 order by c
 accept	accept	SELECT COUNT(*) FROM t1 WHERE d < '2018-01-01'
 accept	accept	SELECT COUNT(*) FROM t1 WHERE d > '2018-01-01'
-reject	accept	desc format='brief' select ifnull("aaaa", a) from t
+accept	accept	desc format='brief' select ifnull("aaaa", a) from t
 accept	accept	select ifnull("aaaa", a) from t
 accept	accept	drop table if exists prefix
 accept	accept	insert into t1 values('借款策略集_网页')
@@ -17899,8 +17899,8 @@ accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA 
 accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 't3'
 accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA in ('mysql', 'test') and TABLE_NAME in ('t1', 't2')
 accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE (TABLE_SCHEMA= 'mysql' or TABLE_SCHEMA = 'test') and (TABLE_NAME = 't1' or TABLE_NAME = 't2')
-reject	accept	desc format='brief' SELECT count(*) FROM information_schema.TABLES WHERE (TABLE_SCHEMA= 'mysql' or TABLE_SCHEMA = 'test') and (TABLE_NAME = 't1' or TABLE_NAME = 't2')
-reject	accept	desc format='brief' SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA in ('mysql', 'test') and TABLE_NAME in ('t1', 't2')
+accept	accept	desc format='brief' SELECT count(*) FROM information_schema.TABLES WHERE (TABLE_SCHEMA= 'mysql' or TABLE_SCHEMA = 'test') and (TABLE_NAME = 't1' or TABLE_NAME = 't2')
+accept	accept	desc format='brief' SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA in ('mysql', 'test') and TABLE_NAME in ('t1', 't2')
 accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE TABLE_NAME in ('t1', 't2') and TABLE_SCHEMA = 'mysql'
 accept	accept	SELECT count(*) FROM information_schema.TABLES WHERE (TABLE_NAME = 't1' or TABLE_NAME = 't2') and TABLE_SCHEMA = 'mysql'
 accept	accept	drop table mysql.t1, mysql.t2, mysql.t3
@@ -18053,7 +18053,7 @@ accept	accept	explain select sequence_schema, sequence_name from information_sch
 accept	accept	select sequence_schema, sequence_name from information_schema.sequences where sequence_schema like '%db1%'
 accept	accept	create database test_db_080
 accept	accept	select SCHEMA_NAME from information_schema.schemata where schema_name rlike 'test_db_0[0-8][0-7]'
-reject	accept	desc format=brief select SCHEMA_NAME from information_schema.schemata where schema_name rlike 'test_db_0[0-8][0-7]'
+accept	accept	desc format=brief select SCHEMA_NAME from information_schema.schemata where schema_name rlike 'test_db_0[0-8][0-7]'
 accept	accept	drop table if EXISTS charset_collate_col_test
 accept	accept	drop table if EXISTS default_time_table
 accept	accept	select * from information_schema.column_statistics
@@ -19342,12 +19342,12 @@ accept	accept	INSERT INTO t1 VALUES (1,1), (2,2), (3,3)
 accept	accept	CREATE VIEW v1 AS SELECT c1, c2 FROM t1
 accept	accept	SELECT * FROM v1 USE INDEX (PRIMARY) WHERE c1=2
 accept	accept	create table t(a int primary key, b int, c int, key b(b))
-reject	accept	desc format = 'brief' select /*+ INL_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.b order by t2.a
-reject	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.b order by t2.a
-reject	accept	desc format = 'brief' select /*+ INL_MERGE_JOIN(t2)*/ t1.a, t2.a from t t1, t t2 ,t t3 where t1.a = t2.a and t3.a=t2.a
-reject	accept	desc format = 'brief' select * from t t1, (select /*+ HASH_AGG() */ b, max(a) from t t2 group by b) t2 where t1.b = t2.b order by t1.b
-reject	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(t2) */ distinct t2.a from t t1 join t t2 on t1.a = t2.a
-reject	accept	desc format = 'brief' select /*+ INL_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.c order by t1.a
+accept	accept	desc format = 'brief' select /*+ INL_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.b order by t2.a
+accept	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.b order by t2.a
+accept	accept	desc format = 'brief' select /*+ INL_MERGE_JOIN(t2)*/ t1.a, t2.a from t t1, t t2 ,t t3 where t1.a = t2.a and t3.a=t2.a
+accept	accept	desc format = 'brief' select * from t t1, (select /*+ HASH_AGG() */ b, max(a) from t t2 group by b) t2 where t1.b = t2.b order by t1.b
+accept	accept	desc format = 'brief' select /*+ INL_HASH_JOIN(t2) */ distinct t2.a from t t1 join t t2 on t1.a = t2.a
+accept	accept	desc format = 'brief' select /*+ INL_JOIN(t2) */ * from t t1, t t2 where t1.a = t2.c order by t1.a
 accept	accept	create table t1(a int, b int, c int, key a(a))
 accept	accept	create table t2(a int, b int, c int, key a(a))
 accept	accept	select /*+ TIDB_SMJ() */ * from t1, t2 where t1.a=t2.a
@@ -19386,10 +19386,10 @@ accept	accept	explain format = 'brief' select /*+ USE_INDEX_MERGE(t, a, b, c) */
 accept	accept	create table t1(a int, b int, primary key (a), key idx_t1_b (b))
 accept	accept	create table t2(a int, b int, primary key (a), key idx_t1_b (b))
 accept	accept	create table t4(a int, b int, c int, primary key (a, b) clustered)
-reject	accept	desc format = 'brief' select /*+ TIDB_INLJ(t2)*/ * from t1, t2 where t1.a = t2.a and t1.b = t2.b
-reject	accept	desc format = 'brief' select /*+ TIDB_INLJ(t2)*/ * from t1, t2 where t1.a = t2.a and t1.b = t2.a and t1.b = t2.b
-reject	accept	desc format = 'brief' select /*+ INL_JOIN(t4) */ * from t3 join t4 on t3.a = t4.a where t4.b = 1
-reject	accept	desc format = 'brief' select /*+ INL_JOIN(t4) */ * from t3 join t4 on t3.b = t4.b where t4.a = 1
+accept	accept	desc format = 'brief' select /*+ TIDB_INLJ(t2)*/ * from t1, t2 where t1.a = t2.a and t1.b = t2.b
+accept	accept	desc format = 'brief' select /*+ TIDB_INLJ(t2)*/ * from t1, t2 where t1.a = t2.a and t1.b = t2.a and t1.b = t2.b
+accept	accept	desc format = 'brief' select /*+ INL_JOIN(t4) */ * from t3 join t4 on t3.a = t4.a where t4.b = 1
+accept	accept	desc format = 'brief' select /*+ INL_JOIN(t4) */ * from t3 join t4 on t3.b = t4.b where t4.a = 1
 accept	accept	create table t1(a int not null, b int not null, c int not null)
 accept	accept	create table t2(a int not null, b int not null, c int not null, index idx1(a,b), index idx2(c))
 accept	accept	insert into t1 values(1,1,1),(1,1,1),(1,1,1)
@@ -19398,10 +19398,10 @@ accept	accept	explain format = 'brief' select /*+ inl_join(t2) */ * from t1, t2 
 accept	accept	create table t (a int, b int, unique key(a), unique key(b))
 accept	accept	insert into t value (1, 5), (2, 4), (3, 3), (4, 2), (5, 1)
 accept	accept	insert into t value (6, 0), (7, -1), (8, -2), (9, -3), (10, -4)
-reject	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where a =1 or (b=1 and b+2>1)
-reject	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where a =1 or (b=1 and length(b)=1)
-reject	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where (a=1 and length(a)=1) or (b=1 and length(b)=1)
-reject	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where (a=1 and length(b)=1) or (b=1 and length(a)=1)
+accept	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where a =1 or (b=1 and b+2>1)
+accept	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where a =1 or (b=1 and length(b)=1)
+accept	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where (a=1 and length(a)=1) or (b=1 and length(b)=1)
+accept	accept	desc format='brief' select /*+ use_index_merge(t) */ * from t where (a=1 and length(b)=1) or (b=1 and length(a)=1)
 accept	accept	create table t (a int, b varchar(20), c decimal(40,10), d int, primary key(a,b), key(c))
 accept	accept	insert into t values (1,"111",1.1,11), (2,"222",2.2,12), (3,"333",3.3,13)
 accept	accept	explain  format = 'brief'select /*+ inl_join(t1, t2) */ * from t t1 join t t2 on t1.a = t2.a
@@ -19464,8 +19464,8 @@ accept	accept	explain format = 'verbose' insert into t3 select a, b, c from t1 w
 accept	accept	explain format = 'verbose' replace into t3 select a, b, c from t1 where a = 3
 accept	accept	set @@tidb_enable_chunk_rpc = default
 accept	accept	create table t(a int, b int, c int, d int, index idx(a,b,c))
-reject	accept	desc format = 'brief' select * from t where a = 1 and b > 2 and b < 10 and d = 10 order by b,c limit 10
-reject	accept	desc format = 'brief' select * from t where a = 1 and b > 2 and b < 10 and d = 10 order by b desc, c desc limit 10
+accept	accept	desc format = 'brief' select * from t where a = 1 and b > 2 and b < 10 and d = 10 order by b,c limit 10
+accept	accept	desc format = 'brief' select * from t where a = 1 and b > 2 and b < 10 and d = 10 order by b desc, c desc limit 10
 accept	accept	create table t1 (a int, b varchar(20), c decimal(40,10), d int, primary key(a,b), key(c))
 accept	accept	insert into t1 values (1,"111",1.1,11), (2,"222",2.2,12), (3,"333",3.3,13)
 accept	accept	explain format='brief' select * from t1
@@ -19528,9 +19528,9 @@ accept	accept	explain format = 'brief' select min(b), max(b) from cluster_index_
 accept	accept	explain format = 'brief' select min(a), max(a) from cluster_index_t where b = 1
 accept	accept	explain format = 'brief' select min(b), max(b) from cluster_index_t where b = 1
 accept	accept	set tidb_enable_clustered_index=DEFAULT
-reject	accept	desc format = 'brief' select t1.b from t t1 where t1.b in (select t2.a from t t2 order by t1.a+t2.a limit 1)
-reject	accept	desc format = 'brief' select t1.a from t t1 order by (t1.b = 1 and exists (select 1 from t t2 where t1.b = t2.b)) limit 1
-reject	accept	desc format = 'brief' select * from (select b+b as x from t) t1, t t2 where t1.x=t2.b order by t1.x limit 1
+accept	accept	desc format = 'brief' select t1.b from t t1 where t1.b in (select t2.a from t t2 order by t1.a+t2.a limit 1)
+accept	accept	desc format = 'brief' select t1.a from t t1 order by (t1.b = 1 and exists (select 1 from t t2 where t1.b = t2.b)) limit 1
+accept	accept	desc format = 'brief' select * from (select b+b as x from t) t1, t t2 where t1.x=t2.b order by t1.x limit 1
 accept	accept	insert into t values(1, 1), (2, 1), (3, 2), (4, 2), (5, 2)
 accept	accept	explain select approx_percentile(a, 50) from t
 accept	accept	select approx_percentile(a, 50) from t
@@ -19733,7 +19733,7 @@ accept	accept	select * from v2 where a = 1
 accept	accept	explain format='brief' select * from v2 where a > 'test'
 accept	accept	select * from v2 where a > 'test'
 accept	accept	create table t (id int, value decimal(10,5))
-reject	accept	desc format = 'brief' select count(*) from t join (select t.id, t.value v1 from t join t t1 on t.id = t1.id order by t.value limit 1) v on v.id = t.id and v.v1 = t.value
+accept	accept	desc format = 'brief' select count(*) from t join (select t.id, t.value v1 from t join t t1 on t.id = t1.id order by t.value limit 1) v on v.id = t.id and v.v1 = t.value
 accept	accept	explain format = 'brief' select count(*) from t join (select t.id, t.value v1 from t join t t1 on t.id = t1.id order by t.value limit 1) v on v.id = t.id and v.v1 = t.value
 accept	accept	drop table if exists t1, t2_part
 accept	accept	create table t2_part (a int, b int, key(a)) partition by hash(a) partitions 4
@@ -20699,34 +20699,34 @@ accept	accept	explain format = 'brief' select * from tbl use index(idx_b_c) wher
 accept	accept	create table t (a int, b real, i int, id int, value decimal(6,3), name char(128), d decimal(6,3), s char(128), t datetime, c bigint as ((a+1)) virtual, e real as ((b+a)))
 accept	accept	create table t2(a json)
 accept	accept	set session tidb_opt_projection_push_down=1
-reject	accept	desc format = 'brief' select a from t2
-reject	accept	desc format = 'brief' select json_length(a) from t2
-reject	accept	desc format = 'brief' select json_valid(a) from t2
-reject	accept	desc format = 'brief' select json_type(a) from t2
-reject	accept	desc format = 'brief' select json_depth(a) from t2
-reject	accept	desc format = 'brief' select json_keys(a) from t2
-reject	accept	desc format = 'brief' select 'ab' MEMBER OF(a) from t2
-reject	accept	desc format = 'brief' select json_overlaps(a, a) from t2
-reject	accept	desc format = 'brief' select json_search(a, 'one', 'key0') from t2
-reject	accept	desc format = 'brief' select json_unquote(a) from t2
-reject	accept	desc format = 'brief' select i * 2 from t
-reject	accept	desc format = 'brief' select DATE_FORMAT(t, '%Y-%m-%d %H') as date from t
-reject	accept	desc format = 'brief' select md5(s) from t
-reject	accept	desc format = 'brief' select c from t where a+1=3
-reject	accept	desc format = 'brief' select /*+ hash_agg()*/ count(b) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select /*+ hash_agg()*/ count(*) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select /*+ hash_agg()*/ sum(b) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select /*+ stream_agg()*/ count(b) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select /*+ stream_agg()*/ count(*) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select /*+ stream_agg()*/ sum(b) from  (select id + 1 as b from t)A
-reject	accept	desc format = 'brief' select * from (select id-2 as b from t) B join (select id-2 as b from t) A on A.b=B.b
-reject	accept	desc format = 'brief' select * from t join (select id-2 as b from t) A on A.b=t.id
-reject	accept	desc format = 'brief' select * from t left join (select id-2 as b from t) A on A.b=t.id
-reject	accept	desc format = 'brief' select * from t right join (select id-2 as b from t) A on A.b=t.id
-reject	accept	desc format = 'brief' select A.b, B.b from (select id-2 as b from t) B join (select id-2 as b from t) A on A.b=B.b
-reject	accept	desc format = 'brief' select A.id from t as A where exists (select 1 from t where t.id=A.id)
-reject	accept	desc format = 'brief' select A.id from t as A where not exists  (select 1 from t where t.id=A.id)
-reject	accept	desc format = 'brief' SELECT FROM_UNIXTIME(name,'%Y-%m-%d')  FROM t
+accept	accept	desc format = 'brief' select a from t2
+accept	accept	desc format = 'brief' select json_length(a) from t2
+accept	accept	desc format = 'brief' select json_valid(a) from t2
+accept	accept	desc format = 'brief' select json_type(a) from t2
+accept	accept	desc format = 'brief' select json_depth(a) from t2
+accept	accept	desc format = 'brief' select json_keys(a) from t2
+accept	accept	desc format = 'brief' select 'ab' MEMBER OF(a) from t2
+accept	accept	desc format = 'brief' select json_overlaps(a, a) from t2
+accept	accept	desc format = 'brief' select json_search(a, 'one', 'key0') from t2
+accept	accept	desc format = 'brief' select json_unquote(a) from t2
+accept	accept	desc format = 'brief' select i * 2 from t
+accept	accept	desc format = 'brief' select DATE_FORMAT(t, '%Y-%m-%d %H') as date from t
+accept	accept	desc format = 'brief' select md5(s) from t
+accept	accept	desc format = 'brief' select c from t where a+1=3
+accept	accept	desc format = 'brief' select /*+ hash_agg()*/ count(b) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select /*+ hash_agg()*/ count(*) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select /*+ hash_agg()*/ sum(b) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select /*+ stream_agg()*/ count(b) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select /*+ stream_agg()*/ count(*) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select /*+ stream_agg()*/ sum(b) from  (select id + 1 as b from t)A
+accept	accept	desc format = 'brief' select * from (select id-2 as b from t) B join (select id-2 as b from t) A on A.b=B.b
+accept	accept	desc format = 'brief' select * from t join (select id-2 as b from t) A on A.b=t.id
+accept	accept	desc format = 'brief' select * from t left join (select id-2 as b from t) A on A.b=t.id
+accept	accept	desc format = 'brief' select * from t right join (select id-2 as b from t) A on A.b=t.id
+accept	accept	desc format = 'brief' select A.b, B.b from (select id-2 as b from t) B join (select id-2 as b from t) A on A.b=B.b
+accept	accept	desc format = 'brief' select A.id from t as A where exists (select 1 from t where t.id=A.id)
+accept	accept	desc format = 'brief' select A.id from t as A where not exists  (select 1 from t where t.id=A.id)
+accept	accept	desc format = 'brief' SELECT FROM_UNIXTIME(name,'%Y-%m-%d')  FROM t
 accept	accept	explain select 1, r0 as col_754 from (     select format(t4a8656d1.col_74, 1) as r0     from t4a8656d1     join tld47bc815 on t4a8656d1.col_74 = tld47bc815.col_1     where JSON_OVERLAPS(t4a8656d1.col_73, '[0.035131302371695955]')     group by t4a8656d1.col_74, t4a8656d1.col_73 ) as subquery where IsNull(subquery.r0)
 accept	accept	set tidb_opt_derive_topn=1
 accept	accept	create table t(a int, b int, c int, primary key(b,a))
@@ -23165,9 +23165,9 @@ accept	accept	select * from test1 where partition_no >= 200000
 accept	accept	drop table test1
 accept	accept	drop database issue43459
 accept	accept	use planner__core__partition_pruner
-reject	accept	desc select * from t where a BETWEEN -6895222 AND 3125507
-reject	accept	desc select * from t where a > 9223372036854775808
-reject	accept	desc select * from t where a in (-6895222, 3125507, 9223372036854775809)
+accept	accept	desc select * from t where a BETWEEN -6895222 AND 3125507
+accept	accept	desc select * from t where a > 9223372036854775808
+accept	accept	desc select * from t where a in (-6895222, 3125507, 9223372036854775809)
 accept	accept	create table t(a int, b int, c int, key(b), key(c))
 accept	accept	explain format='hint' select /*+ inl_merge_join(t2) */ * from t t1 inner join t t2 on t1.b = t2.b and t1.c = 1
 accept	accept	explain format='hint' select /*+ inl_hash_join(t2) */ * from t t1 inner join t t2 on t1.b = t2.b and t1.c = 1
@@ -24874,12 +24874,12 @@ accept	accept	explain format = 'brief' select count(a) from t where b>0 group by
 accept	accept	create table t (id int primary key, a int, b int)
 accept	accept	explain format = 'brief' select * from (t t1 left join t t2 on t1.a = t2.a) left join (t t3 left join t t4 on t3.a = t4.a) on t2.b = 1
 accept	accept	create table t(a bigint primary key, b bigint)
-reject	accept	desc select * from t where a = 1
-reject	accept	desc select * from t where a = '1'
-reject	accept	desc select sysdate(), sleep(1), sysdate()
-reject	accept	desc select * from th where a=-2
-reject	accept	desc select * from th
-reject	accept	desc select * from th partition (p2,p1)
+accept	accept	desc select * from t where a = 1
+accept	accept	desc select * from t where a = '1'
+accept	accept	desc select sysdate(), sleep(1), sysdate()
+accept	accept	desc select * from th where a=-2
+accept	accept	desc select * from th
+accept	accept	desc select * from th partition (p2,p1)
 accept	accept	analyze table th all columns
 accept	accept	explain format = 'brief' select a != any (select a from t t2) from t t1
 accept	accept	explain format = 'brief' select a = all (select a from t t2) from t t1
@@ -26810,9 +26810,9 @@ accept	accept	create view tv as select a from t
 accept	accept	create temporary table t(a int)
 accept	accept	select * from tv
 accept	accept	select * from (select a from t union all select a from tv) t1 order by a
-reject	accept	desc select 1 as a from dual order by a limit 1
-reject	accept	desc select * from t1 where t1.a in (select t2.a as a from t2 where t2.b > t1.b order by t1.b limit 1)
-reject	accept	desc select * from t1 where t1.a in (select a from (select t2.a as a, t1.b as b from t2 where t2.b > t1.b) x order by b limit 1)
+accept	accept	desc select 1 as a from dual order by a limit 1
+accept	accept	desc select * from t1 where t1.a in (select t2.a as a from t2 where t2.b > t1.b order by t1.b limit 1)
+accept	accept	desc select * from t1 where t1.a in (select a from (select t2.a as a, t1.b as b from t2 where t2.b > t1.b) x order by b limit 1)
 accept	accept	create table t(a int not null, index idx(a))
 accept	accept	explain format = 'brief' select /*+ TIDB_INLJ(t2) */ * from t t1 join t t2 on t1.a = t2.a limit 5
 accept	accept	explain format = 'brief' select /*+ TIDB_INLJ(t2) */ * from t t1 left join t t2 on t1.a = t2.a where t2.a is null limit 5
