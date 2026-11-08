@@ -920,9 +920,10 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 
 	if alias != "" {
 		return &nodes.ResTarget{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Name: alias,
-			Val:  expr,
+			Loc:         nodes.Loc{Start: start, End: p.prev.End},
+			Name:        alias,
+			Val:         expr,
+			NameWritten: true,
 		}, nil
 	}
 

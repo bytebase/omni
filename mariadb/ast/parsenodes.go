@@ -1248,6 +1248,11 @@ type ResTarget struct {
 	Loc  Loc
 	Name string   // AS alias
 	Val  ExprNode // expression
+	// NameWritten records that the statement wrote this name, rather than the
+	// server naming the item after its own text. A subquery's target list is
+	// written with the names a statement gave and without the ones the server
+	// supplied, where a derived table's carries both.
+	NameWritten bool
 }
 
 func (r *ResTarget) nodeTag()  {}

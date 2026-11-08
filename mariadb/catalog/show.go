@@ -2558,6 +2558,20 @@ func enumNumberDefault(text string, col *Column) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	if isApproximateLiteral(text) {
+		// An exponent makes the literal a double, and the member is chosen by
+		// the double's own value with its fraction cut: measured on
+		// mariadb:11.8.8, ENUM('2','1') DEFAULT (1.99999999999999999e0) comes
+		// back '1', the second member, the double being exactly 2, and
+		// (0.99999999999999999e0) comes back '2'. Reading the digits as
+		// written saw a fraction there and wrote them back as text, which
+		// names no member at all.
+		cut, ok := exactDoubleText(digits, 0)
+		if !ok {
+			return "", false
+		}
+		digits = cut
+	}
 	whole, fraction, _ := strings.Cut(digits, ".")
 	if strings.Trim(fraction, "0") != "" {
 		return "", false

@@ -157,3 +157,40 @@ func TestJoinChainAnalysisStaysLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestGeneratedColumnChecksStayLinear guards the walk behind the
+// non-deterministic-dependency check. Carrying nondeterminism through the
+// columns an expression reads means following each column's dependencies, and
+// doing that from scratch for each of them walked the chain below it again:
+// a table whose columns each read the one before took time quadratic in their
+// number, seconds of it at a few thousand. Walked once it is milliseconds.
+//
+// The chain is deterministic, which is the case that has to be followed to its
+// end; one non-deterministic column is answered where it is met.
+func TestGeneratedColumnChecksStayLinear(t *testing.T) {
+	const n = 20000
+	tbl := &Table{Name: "t", colByName: make(map[string]int, n)}
+	for i := 0; i < n; i++ {
+		col := &Column{Name: fmt.Sprintf("c%d", i)}
+		if i > 0 {
+			prev := fmt.Sprintf("c%d", i-1)
+			col.Generated = &GeneratedColumnInfo{
+				Expr:   "`" + prev + "`",
+				Stored: true,
+				Refs:   []string{prev},
+			}
+		}
+		tbl.colByName[toLower(col.Name)] = len(tbl.Columns)
+		tbl.Columns = append(tbl.Columns, col)
+	}
+	done := make(chan error, 1)
+	go func() { done <- validateMaterializedGeneratedColumns(tbl, nil) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("a chain of %d generated columns: %v", n, err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("checking a chain of %d generated columns took over 5s", n)
+	}
+}

@@ -44,8 +44,14 @@ func deparseExpr(node ast.ExprNode) string {
 	return b.String()
 }
 
-// writeSelectStmt writes a query expression. suppressAlias omits the target
-// list aliases, for subquery contexts (IN, EXISTS) where MySQL omits AS alias.
+// writeSelectStmt writes a query expression. suppressAlias leaves out the
+// target list names the server supplied itself, which is how a subquery's
+// list is written: measured on mariadb:11.8.8, `(SELECT 1 AS z)` keeps
+// (select 1 AS `z`) in a scalar, IN, EXISTS and quantified subquery alike,
+// while `(SELECT * FROM u)` in one is (select `u`.`a`), the name the server
+// gave left out. A derived table carries both and is written without
+// suppression. MySQL 8.0 leaves out every alias there, which is what this
+// wrote.
 func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
 	// Parenthesized query expression: ( inner ) with optional OUTER ORDER BY /
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
@@ -90,7 +96,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		if i > 0 {
 			b.WriteString(",")
 		}
-		if suppressAlias {
+		if suppressAlias && !nameWritten(target) {
 			writeResTargetNoAlias(b, target)
 		} else {
 			writeResTarget(b, target, i+1)
@@ -469,8 +475,16 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 	}
 }
 
+// nameWritten reports whether a target carries a name the statement wrote,
+// which a subquery's target list keeps where it leaves out the ones the server
+// supplied.
+func nameWritten(target ast.ExprNode) bool {
+	rt, ok := target.(*ast.ResTarget)
+	return ok && rt.NameWritten
+}
+
 // writeResTargetNoAlias formats a target list entry without the AS alias.
-// Used for subquery contexts (IN, EXISTS) where MySQL omits aliases.
+// Used in a subquery for a name the server supplied rather than the statement.
 func writeResTargetNoAlias(b *strings.Builder, node ast.ExprNode) {
 	if rt, ok := node.(*ast.ResTarget); ok {
 		writeExpr(b, rt.Val)

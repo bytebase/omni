@@ -429,24 +429,19 @@ func generatedColumnRefs(expr nodes.ExprNode) []string {
 // server reports: measured on mariadb:11.8.8,
 // `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL,
 // c DOUBLE AS (b) STORED)` answers 1901 naming b, not a.
-func nondeterministicDependency(tbl *Table, col *Column, seen map[string]bool) string {
+func nondeterministicDependency(tbl *Table, col *Column, carries map[string]bool) string {
 	if tbl == nil || col == nil || col.Generated == nil {
 		return ""
 	}
-	if seen == nil {
-		seen = map[string]bool{}
+	if carries == nil {
+		carries = map[string]bool{}
 	}
-	if seen[toLower(col.Name)] {
-		return ""
-	}
-	seen[toLower(col.Name)] = true
 	for _, ref := range col.Generated.Refs {
 		dep := tbl.GetColumn(ref)
 		if dep == nil || dep.Generated == nil {
 			continue
 		}
-		if dep.Generated.Nondeterministic != "" ||
-			nondeterministicDependency(tbl, dep, seen) != "" {
+		if carriesNondeterminism(tbl, dep, carries, nil) {
 			// The column's own name, not the text of the reference: a CHANGE
 			// renames the column the reference was written against, and the
 			// server names it as it now stands. Measured on mariadb:11.8.8,
@@ -458,12 +453,57 @@ func nondeterministicDependency(tbl *Table, col *Column, seen map[string]bool) s
 	return ""
 }
 
+// carriesNondeterminism reports whether a generated column's value is
+// non-deterministic, by its own expression or through the columns it reads.
+// Each answer is kept in carries for as long as the caller holds it, which is
+// one check of one table: a chain of columns each reading the one before is
+// then walked once rather than once per column that depends on it, where a
+// table of a few thousand took seconds of the latter.
+//
+// path holds the columns the walk is inside, which stops it going round a
+// cycle. Nothing is lost by that: the edge it cuts leads back to a column
+// already being walked, and a non-deterministic column anywhere below is
+// still reached by the edges that are not cut.
+func carriesNondeterminism(tbl *Table, col *Column, carries, path map[string]bool) bool {
+	name := toLower(col.Name)
+	if answer, ok := carries[name]; ok {
+		return answer
+	}
+	if path[name] {
+		return false
+	}
+	if col.Generated.Nondeterministic != "" {
+		carries[name] = true
+		return true
+	}
+	if path == nil {
+		path = map[string]bool{}
+	}
+	path[name] = true
+	defer delete(path, name)
+	for _, ref := range col.Generated.Refs {
+		dep := tbl.GetColumn(ref)
+		if dep == nil || dep.Generated == nil {
+			continue
+		}
+		if carriesNondeterminism(tbl, dep, carries, path) {
+			carries[name] = true
+			return true
+		}
+	}
+	carries[name] = false
+	return false
+}
+
 // validateMaterializedGeneratedColumns refuses a generated column whose value
 // the table materializes — a STORED one, or a VIRTUAL one a key covers — and
 // which takes that value from a non-deterministic generated column. An
 // unmaterialized VIRTUAL column may take it, which is why this asks about the
 // table and not about the expression alone.
 func validateMaterializedGeneratedColumns(tbl *Table, indexed map[string]bool) error {
+	// One map for the whole table, so a column's answer is reached once
+	// however many columns depend on it.
+	carries := map[string]bool{}
 	for _, col := range tbl.Columns {
 		if col.Generated == nil || col.Generated.RowBound != "" {
 			continue
@@ -471,7 +511,7 @@ func validateMaterializedGeneratedColumns(tbl *Table, indexed map[string]bool) e
 		if !col.Generated.Stored && !indexed[toLower(col.Name)] {
 			continue
 		}
-		if dep := nondeterministicDependency(tbl, col, nil); dep != "" {
+		if dep := nondeterministicDependency(tbl, col, carries); dep != "" {
 			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 	}

@@ -589,25 +589,131 @@ func applyCTEColumnNames(ctes []*ast.CommonTableExpr) {
 // column is qualified by the resolver, so an unqualified one left in the body
 // is the output's.
 //
-// The walk stops where a nested query begins, since that query names its own
-// outputs: measured on mariadb:11.8.8,
-// `CREATE VIEW v (x) AS SELECT a AS z FROM t HAVING z > 0 AND
-// EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)` comes back with the
-// outer reference as `x` and the derived table's own still `z`.
+// A query nested in that expression can hold such a reference too, correlated
+// to the output being renamed, and those are renamed as well: measured on
+// mariadb:11.8.8, `CREATE VIEW v (x) AS SELECT a AS z FROM t HAVING
+// (SELECT z) > 0` comes back having (select `x`) > 0, and so do a reference
+// two levels down, one in a nested WHERE, GROUP BY or ORDER BY, and one in a
+// nested set operation.
+//
+// What a nested query declares itself binds first in the clauses an alias
+// binds in — its GROUP BY, HAVING and ORDER BY — and shadows the name there:
+// `HAVING z > 0 AND EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)`
+// renames the outer reference and leaves the derived table's own. An output
+// the server named after a reference it passes through is no such
+// declaration, the output and the reference being one:
+// `HAVING (SELECT z HAVING z = 1) > 0` comes back
+// having (select `x` having `x` = 1) > 0.
 func RenameOutputRefs(node ast.Node, renamed map[string]string) {
+	renameRefsIn(node, renamed)
+}
+
+// renameRefsIn renames the references of one expression, handing each query
+// nested in it to renameRefsInQuery, which knows that query's own scope.
+func renameRefsIn(node ast.Node, renamed map[string]string) {
+	if node == nil || len(renamed) == 0 {
+		return
+	}
 	ast.Inspect(node, func(n ast.Node) bool {
-		if _, ok := n.(*ast.SelectStmt); ok {
+		switch t := n.(type) {
+		case *ast.SelectStmt:
+			renameRefsInQuery(t, renamed)
 			return false
-		}
-		cr, ok := n.(*ast.ColumnRef)
-		if !ok || cr.Table != "" || cr.Schema != "" {
-			return true
-		}
-		if name, ok := renamed[strings.ToLower(cr.Column)]; ok {
-			cr.Column = name
+		case *ast.ColumnRef:
+			if t.Table != "" || t.Schema != "" {
+				return true
+			}
+			if name, ok := renamed[strings.ToLower(t.Column)]; ok {
+				t.Column = name
+			}
 		}
 		return true
 	})
+}
+
+// renameRefsInQuery renames the references of a nested query, clause by
+// clause, because what the query declares itself shadows the names being
+// renamed in some of them and not others.
+func renameRefsInQuery(stmt *ast.SelectStmt, renamed map[string]string) {
+	if stmt == nil || len(renamed) == 0 {
+		return
+	}
+	if stmt.SetOp != ast.SetOpNone {
+		renameRefsInQuery(stmt.Left, renamed)
+		renameRefsInQuery(stmt.Right, renamed)
+		renameRefsInItems(stmt.OrderBy, renamed)
+		return
+	}
+	if stmt.ParenSource != nil {
+		renameRefsInQuery(stmt.ParenSource, renamed)
+		renameRefsInItems(stmt.OrderBy, renamed)
+		return
+	}
+	// The shadowed names are read before anything is renamed, an output
+	// carrying the name it passes through only until then.
+	inner := withoutShadowed(renamed, stmt)
+	for _, cte := range stmt.CTEs {
+		if cte != nil {
+			renameRefsInQuery(cte.Select, renamed)
+		}
+	}
+	for _, target := range stmt.TargetList {
+		renameRefsIn(target, renamed)
+	}
+	for _, src := range stmt.From {
+		renameRefsIn(src, renamed)
+	}
+	renameRefsIn(stmt.Where, renamed)
+	if stmt.ValuesSource != nil {
+		for _, row := range stmt.ValuesSource.Rows {
+			for _, expr := range row {
+				renameRefsIn(expr, renamed)
+			}
+		}
+		renameRefsInItems(stmt.ValuesSource.OrderBy, renamed)
+	}
+	renameRefsInItems(stmt.GroupBy, inner)
+	renameRefsIn(stmt.Having, inner)
+	renameRefsInItems(stmt.OrderBy, inner)
+}
+
+func renameRefsInItems(items []*ast.OrderByItem, renamed map[string]string) {
+	for _, item := range items {
+		if item != nil {
+			renameRefsIn(item.Expr, renamed)
+		}
+	}
+}
+
+// withoutShadowed drops the names a query's own output declares, which bind
+// ahead of an enclosing query's in its ordering clauses and its HAVING. An
+// output named after a bare reference it passes through declares nothing: the
+// output and the reference are one, so both take the new name.
+func withoutShadowed(renamed map[string]string, stmt *ast.SelectStmt) map[string]string {
+	inner, copied := renamed, false
+	for _, target := range stmt.TargetList {
+		rt, ok := target.(*ast.ResTarget)
+		if !ok || rt.Name == "" {
+			continue
+		}
+		key := strings.ToLower(rt.Name)
+		if _, ok := inner[key]; !ok {
+			continue
+		}
+		if cr, ok := rt.Val.(*ast.ColumnRef); ok &&
+			cr.Table == "" && cr.Schema == "" && strings.EqualFold(cr.Column, rt.Name) {
+			continue
+		}
+		if !copied {
+			inner = make(map[string]string, len(renamed))
+			for k, v := range renamed {
+				inner[k] = v
+			}
+			copied = true
+		}
+		delete(inner, key)
+	}
+	return inner
 }
 
 // RewriteSelectStmt applies RewriteExpr to all expression positions in a

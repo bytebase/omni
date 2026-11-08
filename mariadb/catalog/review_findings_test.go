@@ -5448,3 +5448,127 @@ func TestReview_WidestSetDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_CorrelatedAliasReference covers a reference to a renamed output
+// from inside a query nested in the HAVING that holds it. The rename stopped
+// at every nested query, which left such a reference naming an output that no
+// longer exists: `CREATE VIEW v (x) AS SELECT a AS z FROM t HAVING
+// (SELECT z) > 0` stored a `select z` the server answers 1054 on.
+//
+// Measured on mariadb:11.8.8, which renames it at any depth and in any clause
+// — a nested WHERE, GROUP BY or ORDER BY, and through a set operation — while
+// what a nested query declares itself binds first in the clauses an alias
+// binds in and keeps its own name there. An output the server named after a
+// reference it passes through declares nothing, so
+// `HAVING (SELECT z HAVING z = 1) > 0` takes the new name in both places.
+func TestReview_CorrelatedAliasReference(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, cols, body string }{
+		{"a_scalar_subquery", " (x)", "SELECT a AS z FROM t HAVING (SELECT z) > 0"},
+		{"not_renamed_without_a_column_list", "", "SELECT a AS z FROM t HAVING (SELECT z) > 0"},
+		{"inside_an_expression", " (x)", "SELECT a AS z FROM t HAVING (SELECT z + 0) > 0"},
+		{"inside_a_call", " (x)", "SELECT a AS z FROM t HAVING (SELECT MAX(z)) > 0"},
+		{"two_levels_down", " (x)", "SELECT a AS z FROM t HAVING (SELECT (SELECT z)) > 0"},
+		{"in_a_nested_where", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT COUNT(*) FROM t t2 WHERE t2.a = z) > 0"},
+		{"in_a_nested_group_by", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 FROM t t2 GROUP BY z) > 0"},
+		{"in_a_nested_order_by", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 FROM t t2 ORDER BY z LIMIT 1) > 0"},
+		{"through_a_set_operation", " (x)", "SELECT a AS z FROM t HAVING (SELECT z UNION SELECT z) > 0"},
+		{"two_renamed_outputs", " (x, y)", "SELECT a AS z, b AS w FROM t HAVING (SELECT z + w) > 0"},
+		{"a_passthrough_output", " (x)", "SELECT a AS z FROM t HAVING (SELECT z HAVING z = 1) > 0"},
+		// What a nested query declares itself keeps its own name.
+		{"shadowed_by_a_derived_table", " (x)",
+			"SELECT a AS z FROM t HAVING EXISTS(SELECT 1 FROM (SELECT 1 AS z HAVING z=1) AS d)"},
+		{"shadowed_in_a_subquery", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 2 AS z HAVING z = 2) > 0"},
+		{"shadowed_in_a_nested_group_by", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 GROUP BY z) > 0"},
+		{"shadowed_in_a_nested_order_by", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 ORDER BY z LIMIT 1) > 0"},
+		// A CTE's column list goes through the same rename.
+		{"a_cte_column_list", "",
+			"WITH c(x) AS (SELECT a AS z FROM t HAVING (SELECT z) > 0) SELECT c.x FROM c"},
+	} {
+		view := fmt.Sprintf("v_cr%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+tc.cols+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_ApproximateEnumNumberDefault covers an ENUM or SET default
+// written with an exponent. The member is chosen by the double's own value,
+// where omni read the digits as written, saw a fraction in them and wrote them
+// back as text — which names no member and will not replay.
+//
+// Measured on mariadb:11.8.8: ENUM('2','1') DEFAULT (1.99999999999999999e0)
+// is '1', the second member, the double being exactly 2, and
+// (0.99999999999999999e0) is '2'. The double's fraction is cut, so
+// (1.0000000000000001e0), whose double is a shade over 1, is '2' as well.
+func TestReview_ApproximateEnumNumberDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		{"enum_double_is_two", "ENUM('2','1')", "1.99999999999999999e0"},
+		{"enum_double_is_one", "ENUM('2','1')", "0.99999999999999999e0"},
+		{"enum_double_just_past_one", "ENUM('2','1')", "1.0000000000000001e0"},
+		{"enum_whole_double", "ENUM('2','1')", "2.0e0"},
+		{"set_double_is_one", "SET('0','1','2')", "0.99999999999999999e0"},
+		{"set_double_is_one_of_two", "SET('a','1')", "0.99999999999999999e0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
