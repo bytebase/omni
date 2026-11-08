@@ -248,3 +248,69 @@ func TestShowCreateTableStaysLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestUnnamedCheckNamesStayLinear guards the naming of an unnamed table-level
+// CHECK. The name is the lowest CONSTRAINT_<n> free of the names the table
+// holds and the ones the statement gives explicitly, and looking for it from 1
+// again for each check — with a scan of the table's constraints for every
+// candidate — made a statement of many of them cubic in their number: 1,200
+// took 27 seconds. The run of them shares one namer now, so the number carries
+// from one to the next.
+func TestUnnamedCheckNamesStayLinear(t *testing.T) {
+	const n = 4000
+	for _, tc := range []struct{ name, ddl string }{
+		{"unnamed checks", checkChain(n, "")},
+		{"unnamed checks beside explicit names", checkChain(n, "named")},
+	} {
+		c := New()
+		if _, err := c.Exec("CREATE DATABASE d; USE d;", nil); err != nil {
+			t.Fatalf("%s: setup: %v", tc.name, err)
+		}
+		done := make(chan error, 1)
+		go func() {
+			results, err := c.Exec(tc.ddl, nil)
+			if err != nil {
+				done <- err
+				return
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					done <- r.Error
+					return
+				}
+			}
+			done <- nil
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+			tbl := c.GetDatabase("d").GetTable("t")
+			if got := len(tbl.Constraints); got != n {
+				t.Errorf("%s: table holds %d constraints, want %d", tc.name, got, n)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s: a table of %d unnamed checks took over 5s", tc.name, n)
+		}
+		if _, err := c.Exec("DROP TABLE t;", nil); err != nil {
+			t.Fatalf("%s: drop: %v", tc.name, err)
+		}
+	}
+}
+
+// checkChain writes a table of n table-level CHECK constraints, every other
+// one of them explicitly named when named is set.
+func checkChain(n int, named string) string {
+	var b strings.Builder
+	b.WriteString("CREATE TABLE t (a INT")
+	for i := 0; i < n; i++ {
+		if named != "" && i%2 == 0 {
+			fmt.Fprintf(&b, ", CONSTRAINT %s%d CHECK (a <> %d)", named, i, i)
+			continue
+		}
+		fmt.Fprintf(&b, ", CHECK (a <> %d)", i)
+	}
+	b.WriteString(");")
+	return b.String()
+}

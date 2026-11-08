@@ -212,7 +212,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	//
 	// holds checks `a`, `b`, CONSTRAINT_1, named and CONSTRAINT_2. MySQL 8.0
 	// names every one <table>_chk_<n>.
-	declaredChecks := declaredCheckNames(stmt.Constraints)
+	checkNames := &checkNamer{reserved: declaredCheckNames(stmt.Constraints)}
 
 	// PERIOD FOR SYSTEM_TIME columns. Whether this makes a valid system-versioned
 	// table is validated after columns are processed (it requires an explicit
@@ -707,7 +707,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				conName = allocCheckName(db, tbl, declaredChecks)
+				conName = checkNames.alloc(db, tbl)
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
@@ -2414,9 +2414,33 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 // named after the column, and a foreign key of that name do not, and the
 // server will write two constraints of one name rather than skip it.
 func allocCheckName(db *Database, tbl *Table, declared map[string]bool) string {
-	for n := 1; ; n++ {
-		name := fmt.Sprintf("CONSTRAINT_%d", n)
-		if declared[toLower(name)] {
+	return (&checkNamer{reserved: declared}).alloc(db, tbl)
+}
+
+// checkNamer hands out those names over a run of constraints, carrying the
+// number it has reached from one to the next. Starting again at 1 for each of
+// them, with a scan of the table's constraints for every candidate, made a
+// statement holding many unnamed checks cubic in their number: 1,200 of them
+// took 27 seconds.
+//
+// The number only rises while a statement adds constraints, which is what lets
+// it carry. A statement that drops one frees a lower number again — measured,
+// `ALTER TABLE t DROP CONSTRAINT CONSTRAINT_1, ADD CHECK (a < 9)` names the
+// new check CONSTRAINT_1 — so each ALTER command starts a namer of its own,
+// adding at most one check, while a CREATE TABLE's run shares one.
+type checkNamer struct {
+	reserved map[string]bool // the names this statement gives explicitly
+	next     int             // the lowest number not yet handed out or ruled out
+}
+
+func (n *checkNamer) alloc(db *Database, tbl *Table) string {
+	if n.next < 1 {
+		n.next = 1
+	}
+	for {
+		name := fmt.Sprintf("CONSTRAINT_%d", n.next)
+		n.next++
+		if n.reserved[toLower(name)] {
 			continue
 		}
 		if !checkConstraintNameExists(db, tbl, name) {
