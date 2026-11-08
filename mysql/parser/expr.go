@@ -182,6 +182,10 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 		case p.cur.Type == kwCOLLATE:
 			p.advance() // consume COLLATE
+			// The expression COLLATE takes an identifier collation name only:
+			// MySQL 8.0 answers 1064 for `x COLLATE BINARY` (the reserved
+			// word), unlike the column option's collation_name, which has a
+			// BINARY_SYM arm. Measured on mysql:8.0.
 			collation, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -1576,6 +1580,7 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		p.addRuleCandidate("func_name")
 		return nil, &ParseError{Message: "collecting"}
 	}
+	argStart := p.cur.Loc
 	arg, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -1591,7 +1596,10 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		p.advance()
 		var typeName string
 		switch p.cur.Type {
-		case kwCHAR:
+		case kwCHAR, kwCHARACTER:
+			// CHARACTER is a spelling of CHAR_SYM (sql_yacc.yy), so
+			// WEIGHT_STRING('x' AS CHARACTER(1)) parses on MySQL 8.0 as
+			// WEIGHT_STRING('x' AS CHAR(1)) does.
 			typeName = "CHAR"
 		case kwBINARY:
 			typeName = "BINARY"
@@ -1624,8 +1632,11 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			// weight_string(cast(expr as char(n) charset binary)).
 			dt.Charset = "binary"
 			asBinary = true
+			// The synthetic cast wraps arg, so its Loc must start at arg, not
+			// at the BINARY token, to stay inside WeightStringExpr and keep arg
+			// inside it (the Loc contract: a child lies within its parent).
 			ws.Expr = &nodes.CastExpr{
-				Loc:      nodes.Loc{Start: typeTok.Loc, End: p.prev.End},
+				Loc:      nodes.Loc{Start: argStart, End: p.prev.End},
 				Expr:     arg,
 				TypeName: dt,
 			}
@@ -2086,7 +2097,10 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		charset, _, err := p.parseIdentifier()
+		// charset_name is ident_or_text | BINARY_SYM (sql_yacc.yy): an
+		// identifier, a string literal, or the reserved word BINARY, so
+		// CONVERT(x USING BINARY) parses on MySQL 8.0.
+		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}

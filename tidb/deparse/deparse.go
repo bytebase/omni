@@ -747,6 +747,9 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(" USING ")
 			b.WriteString(n.Using)
 		}
+		if n.WeightAs != "" {
+			fmt.Fprintf(b, " AS %s(%d)", n.WeightAs, n.WeightAsLen)
+		}
 		b.WriteString(")")
 		if n.Over != nil {
 			b.WriteString(" ")
@@ -2166,6 +2169,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		if n.Using != "" {
 			b.WriteString(" using ")
 			b.WriteString(strings.ToLower(n.Using))
+		}
+		if n.WeightAs != "" {
+			fmt.Fprintf(b, " as %s(%d)", strings.ToLower(n.WeightAs), n.WeightAsLen)
 		}
 		b.WriteString(")")
 	}

@@ -163,6 +163,10 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 		case p.cur.Type == kwCOLLATE:
 			p.advance() // consume COLLATE
+			// MariaDB 11.8 answers 1064 for `x COLLATE BINARY` (the reserved
+			// word) and for the column option `... COLLATE BINARY` alike,
+			// unlike MySQL 8.0, which takes the column-option form. Measured on
+			// mariadb:11.8.8.
 			collation, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -869,6 +873,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
 			return p.parseGetFormatFunc(fc)
+		case "WEIGHT_STRING":
+			// WEIGHT_STRING(expr [AS CHAR(n) | AS BINARY(n)]) — the AS clause
+			// is weight_string's own grammar, not a general cast.
+			return p.parseWeightStringFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -1003,6 +1011,65 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	}
 
 	return p.finishFuncCall(fc, builtin)
+}
+
+// parseWeightStringFunc parses weight_string '(' Expression
+// [ "AS" Char FieldLen | "AS" "BINARY" FieldLen ] ')', where Char is
+// CHAR | CHARACTER and FieldLen is '(' LengthNum ')'. The AS clause is
+// optional and names no general cast type, so `WEIGHT_STRING(c AS DECIMAL(1))`
+// and a bare `WEIGHT_STRING(c AS CHAR)` without the length are 1064s on
+// MariaDB 11.8. The LEVEL clause is a separate, still-unsupported form.
+// p.cur is just past '('.
+func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path this intercepts.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = []nodes.ExprNode{arg}
+
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		switch p.cur.Type {
+		case kwCHAR, kwCHARACTER:
+			fc.WeightAs = "CHAR"
+		case kwBINARY:
+			fc.WeightAs = "BINARY"
+		default:
+			return nil, &ParseError{Message: "expected CHAR or BINARY", Position: p.cur.Loc}
+		}
+		p.advance() // consume CHAR/CHARACTER/BINARY
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Ival < 1 {
+			// MariaDB 11.8 requires N >= 1: WEIGHT_STRING('x' AS CHAR(0)) is a
+			// 1064 syntax error. Measured on mariadb:11.8.8.
+			return nil, &ParseError{Message: "WEIGHT_STRING AS length must be at least 1", Position: p.cur.Loc}
+		}
+		lenTok := p.advance()
+		fc.WeightAsLen = uint64(lenTok.Ival)
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return p.finishFuncCall(fc, true)
 }
 
 // finishFuncCall reads the optional OVER clause of a builtin call and closes
@@ -1712,7 +1779,10 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		charset, _, err := p.parseIdentifier()
+		// charset_name is ident_or_text | BINARY (MariaDB yy_mariadb.yy): an
+		// identifier, a string literal, or the reserved word BINARY, so
+		// CONVERT(x USING BINARY) parses on MariaDB 11.8.
+		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}

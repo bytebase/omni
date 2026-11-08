@@ -142,6 +142,39 @@ func TestRestoreExpr(t *testing.T) {
 	}
 }
 
+// TestRestoreWeightStringQualified pins that Restore keeps the argument list of
+// a call named WEIGHT_STRING that does not carry the builtin's AS clause. Only
+// the bare builtin parses `weight_string(expr AS CHAR(n))` and sets WeightAs; a
+// schema-qualified or backtick-quoted name uses the ordinary call grammar and
+// may take any number of arguments, so restore must not special-case it by name
+// and drop them (regressed `db.weight_string(1, 2)` to an empty arg list).
+func TestRestoreWeightStringQualified(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"db.weight_string(1, 2)", "`db`.`WEIGHT_STRING`(1, 2)"},
+		{"db.weight_string(1)", "`db`.`WEIGHT_STRING`(1)"},
+		{"`weight_string`(1, 2)", "WEIGHT_STRING(1, 2)"},
+		// The bare builtin keeps restoring its own grammar unchanged.
+		{"weight_string(a)", "WEIGHT_STRING(`a`)"},
+		{"weight_string(a as char(4))", "WEIGHT_STRING(`a` AS CHAR(4))"},
+		{"weight_string(a as binary(2))", "WEIGHT_STRING(`a` AS BINARY(2))"},
+	}
+	for _, tc := range cases {
+		stmts, err := parser.Parse("SELECT " + tc.in + " FROM t")
+		if err != nil {
+			t.Errorf("%s: parse: %v", tc.in, err)
+			continue
+		}
+		sel := stmts.Items[0].(*ast.SelectStmt)
+		target := sel.TargetList[0]
+		if rt, ok := target.(*ast.ResTarget); ok {
+			target = rt.Val
+		}
+		if got := deparse.Restore(target); got != tc.want {
+			t.Errorf("%s:\n got: %s\nwant: %s", tc.in, got, tc.want)
+		}
+	}
+}
+
 // TestRestoreSelect pins whole view bodies: the query prepared by a Resolver
 // in Restore mode over tables t (a, b) and t2 (a, x) in schema test, then
 // restored. Every want is what pingcap/tidb:v8.5.5 stores for the query.

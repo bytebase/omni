@@ -666,7 +666,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
-		collName, _, err := p.parseIdent()
+		// ColumnOption "COLLATE" CollationName (parser.y:3760), where
+		// CollationName is StringName | binaryType: an identifier, a string
+		// literal, or the reserved word BINARY. `c JSON COLLATE BINARY` parses
+		// on TiDB v8.5.5.
+		collName, err := p.parseCollationName()
 		if err != nil {
 			return false, err
 		}

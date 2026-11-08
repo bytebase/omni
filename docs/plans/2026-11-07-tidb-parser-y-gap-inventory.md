@@ -14,15 +14,15 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #724 | after #725 | after #730 | after #731 | now |
-|---|---:|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,766 | 2,782 | 2,790 | 2,799 | 2,805 |
-| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 | 23 | 17 |
-| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 |
-| both reject | 121 | 121 | 121 | 121 | 121 | 121 |
-| no verdict | 0 | 0 | 0 | 0 | 0 | 0 |
+| | first | after #724 | after #725 | after #730 | after #731 | after #733 | now |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| both accept | 2,670 | 2,766 | 2,782 | 2,790 | 2,799 | 2,805 | 2,810 |
+| gap: TiDB accepts, omni rejects | 152 | 56 | 40 | 32 | 23 | 17 | 12 |
+| over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
+| no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
-omni parses **2,805 of the 2,822 alternatives TiDB accepts — 99.4%**, with zero
+omni parses **2,810 of the 2,822 alternatives TiDB accepts — 99.6%**, with zero
 over-acceptances. The 121 both-reject rows are alternatives the server itself
 refuses on a semantic check (`CREATE USER CURRENT_USER IDENTIFIED BY PASSWORD`
 with a non-hash, a repeated option, and so on); they are not work.
@@ -36,12 +36,23 @@ items`): 16 rows flipped from gap to both-accept, zero new over-acceptances. The
 **after #730** column is after the stored-procedure cluster closed
 (`fix(tidb,mysql,mariadb,oceanbase): accept a bare IF ... END IF procedure
 body`): 8 rows flipped from gap to both-accept, zero new over-acceptances. The
-**now** column is after the statistics / hypothetical-index / TiFlash cluster
-closed (`fix(tidb): accept extended statistics, HYPO index and TiFlash forms`):
-9 rows flipped from gap to both-accept, zero new over-acceptances. The **now**
-column is after the SHOW / import-job cluster closed (`fix(tidb,mysql,mariadb,
-oceanbase): accept SHOW IMPORT JOB(S), CANCEL IMPORT JOB, SHOW AFFINITY and SHOW
-CHAR SET`): 6 rows flipped from gap to both-accept, zero new over-acceptances.
+**after #731** column is after the statistics / hypothetical-index / TiFlash
+cluster closed (`fix(tidb): accept extended statistics, HYPO index and TiFlash
+forms`): 9 rows flipped from gap to both-accept, zero new over-acceptances. The
+**after #733** column is after the SHOW / import-job cluster closed
+(`fix(tidb,mysql,mariadb, oceanbase): accept SHOW IMPORT JOB(S), CANCEL IMPORT
+JOB, SHOW AFFINITY and SHOW CHAR SET`): 6 rows flipped from gap to both-accept,
+zero new over-acceptances. The **now** column is after the collate / convert /
+weight_string cluster closed (`fix(tidb,mysql,mariadb,oceanbase): accept COLLATE
+on column option and operand, CONVERT(... USING ...), WEIGHT_STRING(... AS ...)`):
+5 rows flipped from gap to both-accept, zero new over-acceptances. The reserved
+word BINARY became a collation name (`ColumnOption`/`SimpleExpr` COLLATE) and a
+charset name (`CONVERT ... USING`), and `WEIGHT_STRING` gained its AS CHAR(n) /
+CHARACTER(n) / BINARY(n) clause. The dialect split is sharp and was measured per
+engine: TiDB takes `COLLATE BINARY` as both a column option and an operand;
+MySQL takes it only as a column option; MariaDB and OceanBase answer 1064 to
+both. All four take `CONVERT(... USING BINARY)` and the WEIGHT_STRING AS clause,
+but only TiDB takes its zero length (`AS CHAR(0)`).
 
 ## The gaps, by theme
 
@@ -114,14 +125,13 @@ The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
 engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
 zero new over-acceptances.
 
-The 17 that remain are unrelated to usernames, LIMIT, procedures, statistics, or
-SHOW:
+The 12 that remain are unrelated to usernames, LIMIT, procedures, statistics,
+SHOW, or collation/convert/weight_string:
 
 - **LOAD DATA field options (~4 rows).** `FieldItem(List)`, `CharsetOpt`.
 - **Window frames (~3 rows).** `WindowFrameStart`, `WindowFrameBound`,
   `OptLeadLagInfo`.
-- **Expressions (~6 rows).** `SimpleExpr`/`ColumnOption` `COLLATE` on an
-  operand, `FunctionCallNonKeyword` (`WEIGHT_STRING ... AS`).
+- **Expressions (~1 row).** `SimpleExpr` param marker as an operand (`DO ?`).
 - **CREATE SEQUENCE options and ALTER IGNORE TABLE (~4 rows).**
   `TableOption`/`PartDefOption` on `CREATE SEQUENCE`, `IgnoreOptional`.
 
@@ -136,15 +146,13 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 
 | Rule | n | Example (shortest form) |
 |---|---:|---|
-| `SimpleExpr` | 3 | DO ? |
 | `FieldItem` | 2 | SELECT * INTO OUTFILE 's' FIELDS DEFINED NULL BY 's' |
-| `FunctionCallNonKeyword` | 2 | DO WEIGHT_STRING(ident AS BINARY(1)) |
 | `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
 | `CharsetOpt` | 1 | LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY |
-| `ColumnOption` | 1 | ALTER TABLE ident ADD ident JSON COLLATE BINARY |
 | `FieldItemList` | 1 | SELECT * INTO OUTFILE 's' FIELDS OPTIONALLY ENCLOSED BY 's' OPTIONALLY ENCLOSED BY 's' |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
 | `OptLeadLagInfo` | 1 | DO LEAD(ident, ?) OVER ident |
+| `SimpleExpr` | 1 | DO ? |
 | `TableOption` | 1 | CREATE SEQUENCE ident AFFINITY 's' |
 | `WindowFrameBound` | 1 | DO ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING) |
 | `WindowFrameStart` | 1 | DO ROW_NUMBER() OVER(ROWS ? PRECEDING) |

@@ -182,7 +182,11 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 		case p.cur.Type == kwCOLLATE:
 			p.advance() // consume COLLATE
-			collation, _, err := p.parseIdentifier()
+			// CollationName is StringName | binaryType (parser.y SimpleExpr
+			// "COLLATE" CollationName), so the reserved word BINARY and a
+			// string literal are names here as well as an identifier:
+			// `x COLLATE BINARY` parses on TiDB v8.5.5.
+			collation, err := p.parseCollationName()
 			if err != nil {
 				return nil, err
 			}
@@ -942,6 +946,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			// `MOD(10, 2 BETWEEN 0 AND 5)` are 1064s, where a general argument
 			// list would take them.
 			return p.parseModFunc(fc)
+		case "WEIGHT_STRING":
+			// WEIGHT_STRING(expr [AS CHAR(n) | AS BINARY(n)]) — the AS clause
+			// is weight_string's own grammar, not a general cast.
+			return p.parseWeightStringFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -1222,6 +1230,60 @@ func (p *Parser) parseModFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	fc.Args = []nodes.ExprNode{a, b}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return p.finishFuncCall(fc, true)
+}
+
+// parseWeightStringFunc parses weight_string '(' Expression
+// [ "AS" Char FieldLen | "AS" "BINARY" FieldLen ] ')' (FunctionCallNonKeyword,
+// parser.y:8367,8374,8381). Char is CHAR | CHARACTER and FieldLen is
+// '(' LengthNum ')'. The AS clause is optional and names no general cast type,
+// so `WEIGHT_STRING(c AS DECIMAL(1))` and a bare `WEIGHT_STRING(c AS CHAR)`
+// without the length are 1064s on TiDB v8.5.5. p.cur is just past '('.
+func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path this intercepts.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = []nodes.ExprNode{arg}
+
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		switch p.cur.Type {
+		case kwCHAR, kwCHARACTER:
+			fc.WeightAs = "CHAR"
+		case kwBINARY:
+			fc.WeightAs = "BINARY"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume CHAR/CHARACTER/BINARY
+		// FieldLen is required: it is '(' LengthNum ')', not OptFieldLen.
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		n, err := p.parseLengthNum()
+		if err != nil {
+			return nil, err
+		}
+		fc.WeightAsLen = n
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -1881,18 +1943,16 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		// CharsetName is a StringName, an identifier or a string
-		// (parser.y): CONVERT(x USING 'utf8mb4') is the form TiDB writes
-		// into a view it stores, so it has to read back.
-		if p.cur.Type == tokSCONST {
-			conv.Charset = p.advance().Str
-		} else {
-			charset, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			conv.Charset = charset
+		// CharsetName is StringName | binaryType (parser.y CONVERT "("
+		// Expression "USING" CharsetName ")"): a string, an identifier or the
+		// reserved word BINARY. CONVERT(x USING 'utf8mb4') is the form TiDB
+		// writes into a view it stores, so it has to read back, and
+		// CONVERT(x USING BINARY) parses on TiDB v8.5.5.
+		charset, err := p.parseCharsetName()
+		if err != nil {
+			return nil, err
 		}
+		conv.Charset = charset
 	} else if p.cur.Type == ',' {
 		p.advance()
 		dt, err := p.parseCastDataType()

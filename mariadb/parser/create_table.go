@@ -665,6 +665,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
+		// The column option's collation name is an identifier here: MariaDB
+		// 11.8 answers 1064 for `c JSON COLLATE BINARY` (the reserved word),
+		// unlike MySQL 8.0, which takes it. Measured on mariadb:11.8.8.
 		collName, _, err := p.parseIdent()
 		if err != nil {
 			return false, err
