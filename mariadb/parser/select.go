@@ -1060,10 +1060,20 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 // at the join-keyword level and bind left-deep. allowChain is false in the right
 // operand of a non-absorbing join, where no further join may attach.
 // Container-verified against mariadb:11.8.
+//
+// An absorbing join recurses once per level, so enterNesting bounds the right
+// operand against a stack overflow the way every other recursive production is
+// bounded. A conditioned chain (`a JOIN b ON x JOIN c ON y`) does not recurse —
+// the right operand stops at the ON — so it is built by this loop and bounded
+// by maxTreeHeight, as before.
 func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.TableExpr, error) {
 	if !allowChain {
 		return left, nil
 	}
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	for {
 		jt, ok, err := p.matchJoinType()
 		if err != nil {

@@ -83,6 +83,17 @@ var nestingShapes = []struct {
 		}
 		return b.String() + "t" + strings.Repeat(" ON 1)", n)
 	}},
+	// A conditionless join absorbs its right operand, so a long chain of them
+	// right-nests through parseJoinChain and must be bounded, not overflow.
+	// Distinct aliases keep the parser's duplicate-alias check out of the way.
+	{"conditionless join chain", func(n int) string {
+		var b strings.Builder
+		b.WriteString("SELECT * FROM t0")
+		for i := 1; i <= n; i++ {
+			fmt.Fprintf(&b, " JOIN t%d", i)
+		}
+		return b.String()
+	}},
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
