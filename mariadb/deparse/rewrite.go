@@ -572,13 +572,20 @@ func applyCTEColumnNames(ctes []*ast.CommonTableExpr) {
 			}
 		}
 		// A HAVING reference to an output column is kept by name, so the name
-		// the CTE declares replaces the one the target carried: measured on
-		// mariadb:11.8.8, `WITH c(x) AS (SELECT a AS z FROM t HAVING z > 0)`
-		// comes back having `x` > 0. An ORDER BY or GROUP BY mention of the
-		// alias is resolved to the target's expression instead, so it carries
-		// no name to rename.
-		if len(renamed) > 0 && leaf.Having != nil {
+		// the CTE declares replaces the one the target carried, and an ORDER
+		// BY item keeps the name wherever it is not the bare alias: measured
+		// on mariadb:11.8.8, `WITH c(x) AS (SELECT a AS z FROM t HAVING
+		// z > 0)` comes back having `x` > 0 and
+		// `WITH c(x) AS (SELECT a + 1 AS z FROM t ORDER BY z + 0)` order by
+		// `x` + 0. A GROUP BY item carries no name to rename, its mention
+		// being resolved to the target's expression.
+		if len(renamed) > 0 {
 			RenameOutputRefs(leaf.Having, renamed)
+			for _, item := range leaf.OrderBy {
+				if item != nil {
+					RenameOutputRefs(item.Expr, renamed)
+				}
+			}
 		}
 	}
 }

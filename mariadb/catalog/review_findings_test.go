@@ -5462,6 +5462,12 @@ func TestReview_WidestSetDefault(t *testing.T) {
 // reference it passes through declares nothing, so
 // `HAVING (SELECT z HAVING z = 1) > 0` takes the new name in both places.
 //
+// Two shapes are left out. `ORDER BY -z` comes back order by -(`x`), the
+// server parenthesizing an output reference under a unary minus where it
+// writes `x` bare everywhere else, which is a difference of its own and not
+// this rename's. And a RAND() target cannot be compared by its rows, though
+// its body renames like any other.
+//
 // A set operation is the one place where even a passthrough shadows: its
 // ORDER BY binds to its output columns, the leftmost operand's, and a name
 // that is none of them is 1054 rather than an outer reference, so nothing
@@ -5514,9 +5520,29 @@ func TestReview_CorrelatedAliasReference(t *testing.T) {
 			"SELECT a AS z FROM t HAVING (SELECT 1 AS z UNION SELECT 2 ORDER BY 1 LIMIT 1) > 0"},
 		{"a_set_operations_ordering_over_an_expression", " (x)",
 			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 UNION SELECT 2 ORDER BY z + 0 LIMIT 1) > 0"},
+		// An ORDER BY item keeps the name wherever it is not the bare alias,
+		// so the column list reaches it too.
+		{"an_ordering_item_over_an_expression_target", " (x)",
+			"SELECT a + 1 AS z FROM t ORDER BY z + 0"},
+		{"an_ordering_item_not_renamed_without_a_column_list", "",
+			"SELECT a + 1 AS z FROM t ORDER BY z + 0"},
+		{"an_ordering_item_that_is_the_bare_alias", " (x)",
+			"SELECT a + 1 AS z FROM t ORDER BY z"},
+		{"an_ordering_item_in_a_call", " (x)",
+			"SELECT a + 1 AS z FROM t ORDER BY ABS(z)"},
+		{"an_ordering_item_over_a_constant_target", " (x)",
+			"SELECT 2 AS z FROM t ORDER BY z + 0"},
+		{"a_group_by_item_carries_no_name", " (x, y)",
+			"SELECT a + 1 AS z, COUNT(*) AS n FROM t GROUP BY z + 0"},
+		{"a_having_and_an_ordering_item", " (x)",
+			"SELECT a + 1 AS z FROM t HAVING z > 0 ORDER BY z + 0"},
+		{"an_ordering_item_through_a_subquery", " (x)",
+			"SELECT a + 1 AS z FROM t ORDER BY (SELECT z) + 0"},
 		// A CTE's column list goes through the same rename.
 		{"a_cte_column_list", "",
 			"WITH c(x) AS (SELECT a AS z FROM t HAVING (SELECT z) > 0) SELECT c.x FROM c"},
+		{"a_cte_column_list_and_an_ordering_item", "",
+			"WITH c(x) AS (SELECT a + 1 AS z FROM t ORDER BY z + 0) SELECT c.x FROM c"},
 	} {
 		view := fmt.Sprintf("v_cr%d", i)
 		t.Run(tc.name, func(t *testing.T) {

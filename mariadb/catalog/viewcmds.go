@@ -768,12 +768,22 @@ func applyExplicitViewColumns(sel *nodes.SelectStmt, cols []string) {
 	// A HAVING reference to an output column is kept by name, so the name the
 	// view declares replaces the one the target carried: measured on
 	// mariadb:11.8.8, `CREATE VIEW v (x) AS SELECT a AS z FROM t HAVING z > 0`
-	// comes back having `x` > 0. An ORDER BY or GROUP BY mention of the alias
-	// is resolved to the target's expression instead and carries no name to
-	// rename, and a set operation's own ORDER BY keeps the alias either way,
-	// which is a body the server itself cannot execute.
-	if len(renamed) > 0 && leaf.Having != nil {
+	// comes back having `x` > 0.
+	//
+	// An ORDER BY item keeps the name too wherever it is not the bare alias,
+	// which is every target but a column: `v (x) AS SELECT a + 1 AS z FROM t
+	// ORDER BY z + 0` comes back order by `x` + 0, and so do ABS(z), -z, a
+	// constant target and RAND(). A GROUP BY item carries no name to rename,
+	// its mention being resolved to the target's expression, and a set
+	// operation's own ORDER BY keeps the alias either way — a body the server
+	// itself cannot execute.
+	if len(renamed) > 0 {
 		deparse.RenameOutputRefs(leaf.Having, renamed)
+		for _, item := range leaf.OrderBy {
+			if item != nil {
+				deparse.RenameOutputRefs(item.Expr, renamed)
+			}
+		}
 	}
 }
 
