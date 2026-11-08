@@ -2339,32 +2339,27 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 	defer p.leaveNesting()
 
-	// The value is a primary expression, or another INTERVAL: the nested
-	// function form is what `DATE_ADD(d, INTERVAL INTERVAL(1, 0, 1) DAY)`
-	// needs.
-	//
-	// The grammar takes a whole Expression — `"INTERVAL" Expression TimeUnit`
-	// — and TiDB v8.5.5 parses INTERVAL NOT `n` DAY, INTERVAL -1 DAY and
-	// INTERVAL 1 + 2 DAY too, storing each value unparenthesized. omni's
-	// deparse parenthesizes a NOT, a CASE or a binary expression, as
-	// mysql/deparse does, and `interval (not(`n`)) day` is the INTERVAL
-	// function to this grammar — the engine answers 1582 for it — so a value
-	// whose text comes back out in parentheses stays unread here. mysql,
-	// mariadb and oceanbase take the whole expression, because their engines
-	// read a parenthesized value as the literal.
-	var val nodes.ExprNode
+	// The leading operand is a primary, a signed numeric literal, or a nested
+	// INTERVAL — the narrow set the value has always allowed, each of which
+	// deparse writes back out bare. TiDB reads `INTERVAL (x) unit` as the
+	// INTERVAL function (error 1582), never the literal, so a value that deparse
+	// would wrap in parentheses, drop an operator from, or lead with a '('
+	// (CASE, EXISTS, BINARY, COLLATE, a sign on anything but a number) stays
+	// unread here even though the engine parses it. mysql, mariadb and oceanbase
+	// take the whole expression, because their engines read a parenthesized
+	// value as the literal.
+	valStart := p.pos()
+	var left nodes.ExprNode
 	var err error
 	switch p.cur.Type {
 	case kwINTERVAL:
-		val, err = p.parseIntervalExpr()
+		left, err = p.parseIntervalExpr()
 	case '-', '+':
 		// A sign directly on a numeric literal is part of the value: TiDB v8.5.5
 		// runs INTERVAL -1 DAY and INTERVAL -2.2 MINUTE_MICROSECOND. A signed
 		// literal deparses without parentheses (`-2.2`, or `1` for a dropped unary
 		// plus), so it stays the interval literal. A sign on anything else stays
-		// narrowed: deparse drops a unary plus and parenthesises the rest, and
-		// `interval (1 + 2) day` / `interval (1 collate binary) day` is the
-		// INTERVAL function to TiDB.
+		// narrowed: `interval (1 + 2) day` is the INTERVAL function to TiDB.
 		//
 		// The operand is read with parsePrimaryExpr, not parseUnaryExpr, so a
 		// suffix that binds tighter than the sign (COLLATE) is not folded into it:
@@ -2382,11 +2377,23 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		var operand nodes.ExprNode
 		operand, err = p.parsePrimaryExpr()
 		if err == nil {
-			val = &nodes.UnaryExpr{Loc: nodes.Loc{Start: opStart, End: p.prev.End}, Op: op, Operand: operand}
+			left = &nodes.UnaryExpr{Loc: nodes.Loc{Start: opStart, End: p.prev.End}, Op: op, Operand: operand}
 		}
 	default:
-		val, err = p.parsePrimaryExpr()
+		left, err = p.parsePrimaryExpr()
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Fold the bit_expr binary operators (|, &, <<, >>, +, -, *, /, %, DIV, MOD,
+	// ^) that follow, so `INTERVAL 1 << 37 SECOND` and `INTERVAL 1 + 2 DAY` read
+	// as the arithmetic value TiDB v8.5.5 stores (container-verified) and deparse
+	// writes back out bare. Folding stops below COLLATE and the JSON accessors
+	// and never reaches a comparison or logical operator, so the leading token
+	// decides what the value may be; a later operand it folds in is never the
+	// token the engine reads as `INTERVAL (`, so it may be richer.
+	val, err := p.parseInfixExprPrec(left, valStart, precBitOr, precBitXor)
 	if err != nil {
 		return nil, err
 	}

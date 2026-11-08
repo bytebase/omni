@@ -475,7 +475,6 @@ func TestTiDBIntervalValueStaysUnread(t *testing.T) {
 	for _, sql := range []string{
 		"SELECT a + INTERVAL NOT c1 DAY FROM t",
 		"SELECT a + INTERVAL CASE WHEN 1 THEN 1 END DAY FROM t",
-		"SELECT a + INTERVAL 1 + 2 DAY FROM t",
 		// A sign is read only on a bare numeric literal; on anything else it is
 		// narrowed, since deparse drops a unary plus and `interval (1 + 2) day`
 		// is the INTERVAL function to TiDB.
