@@ -1189,9 +1189,11 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 	case familyNumber:
 		return numberDefaultOf(kind, raw, col)
 	case familyBit:
-		// Every notation is read as bytes here, a quoted string included:
-		// measured, BIT(8) DEFAULT 'A' is b'1000001' where INT DEFAULT 'A'
-		// is refused, so the bytes are the value and not the text.
+		// Every notation is read as bytes here, a quoted string and X'..'
+		// included: measured, BIT(8) DEFAULT 'A' and X'41' are both
+		// b'1000001' where INT DEFAULT 'A' and X'41' are refused, and
+		// BIT(8) DEFAULT X'37' is b'110111', the byte and not the character
+		// it spells. So the bytes are the value and not the text.
 		n, ok := uintOfBytes(raw)
 		if !ok {
 			return "", false
@@ -1204,13 +1206,14 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 }
 
 // yearDefaultOf writes a YEAR column's default as the four-digit year the
-// literal denotes. Measured on mariadb:11.8.8: a quoted year is read as its
-// text and a hex or bit one as the number its bytes spell, so YEAR DEFAULT
-// '99', _utf8mb4'99' and b'1100011' are all 1999 while 0x41 is 2065, and
-// X'41' the server refuses outright.
+// literal denotes. Measured on mariadb:11.8.8: a quoted year and an X'..' one
+// are read as their text, while 0x.. and a bit literal are the number their
+// bytes spell. So YEAR DEFAULT '99', _utf8mb4'99', X'3939' and b'1100011' are
+// all 1999, X'37' is 2007 — the character 7 — where 0x37 is 2055, and X'41'
+// the server refuses outright, the character A spelling no year.
 func yearDefaultOf(kind literalKind, raw []byte) (string, bool) {
 	switch kind {
-	case literalString, literalIntroduced:
+	case literalString, literalIntroduced, literalHexX:
 		n, ok := wholeNumberOf(string(raw))
 		if !ok {
 			return "", false
@@ -1345,8 +1348,10 @@ const (
 	// '...00.500') and a number is read as a date (DATE DEFAULT 20200101 is
 	// '2020-01-01', DEFAULT 0 is '0000-00-00').
 	familyTemporal
-	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255 and
-	// DECIMAL(5,2) DEFAULT 0x41 is 65.00.
+	// familyNumber reads the literal as the number it spells, which depends on
+	// the notation: INT DEFAULT 0xFF is 255 and DECIMAL(5,2) DEFAULT 0x41 is
+	// 65.00, where X'..' is a string and INT DEFAULT X'37' is 7. See
+	// numberDefaultOf.
 	familyNumber
 	// familyYear reads the value as a number and writes the four-digit year it
 	// denotes: YEAR DEFAULT 99, '99' and 0x63 are all 1999, and 1 is 2001.
@@ -1411,16 +1416,20 @@ func quoteStringDefault(raw []byte) string {
 	return b.String()
 }
 
-// numberDefaultOf reads the bytes as a big-endian unsigned number and writes
-// it in the column's notation, which for DECIMAL carries the declared scale.
+// numberDefaultOf writes a literal default in the column's own notation, which
+// for DECIMAL carries the declared scale.
 func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
-	// A hex or bit literal is the number its bytes spell, while a string one
-	// is the number its text spells: INT DEFAULT 0x37 is 55 and
-	// INT DEFAULT '7' is 7, the same byte read two ways. Measured on
-	// mariadb:11.8.8.
+	// Which number a literal spells depends on how it was written, and the two
+	// hex notations part company here: X'..' is a string, while 0x.. and a bit
+	// literal are numbers. Measured on mariadb:11.8.8, the same byte three
+	// ways: `INT DEFAULT X'37'` is 7 — the character 7 — where
+	// `INT DEFAULT 0x37` and `INT DEFAULT b'110111'` are 55, and
+	// `INT DEFAULT X'41'` is refused outright with 1067 because the character
+	// A spells no number, where 0x41 is 65.
+	// https://mariadb.com/docs/server/reference/sql-structure/sql-language-structure/hexadecimal-literals
 	digits := ""
 	switch kind {
-	case literalString, literalIntroduced:
+	case literalString, literalIntroduced, literalHexX:
 		digits = string(raw)
 	default:
 		n, ok := uintOfBytes(raw)

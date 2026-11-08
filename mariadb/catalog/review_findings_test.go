@@ -3199,3 +3199,137 @@ func TestReview_RejectedAlterLeavesDependenciesAlone(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_HexNotationsPartCompany covers the two hex notations, which are
+// not the same literal: X'..' is a string, where 0x.. and a bit literal are
+// numbers. Reading all three as bytes made `INT DEFAULT (X'37')` 55 instead of
+// 7, changing the value on replay.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE TABLE. Where a column reads
+// bytes rather than text — BIT, BINARY — all three are the bytes they hold,
+// and the notations agree again.
+//
+// https://mariadb.com/docs/server/reference/sql-structure/sql-language-structure/hexadecimal-literals
+func TestReview_HexNotationsPartCompany(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// A numeric column reads X'..' as the characters it spells and the
+		// other two as the number their bytes spell.
+		{"int_x_quoted", "CREATE TABLE t (a INT DEFAULT (X'37'))"},
+		{"int_x_quoted_bare", "CREATE TABLE t (a INT DEFAULT X'37')"},
+		{"int_0x", "CREATE TABLE t (a INT DEFAULT 0x37)"},
+		{"int_bits", "CREATE TABLE t (a INT DEFAULT b'110111')"},
+		{"int_x_quoted_two_digits", "CREATE TABLE t (a INT DEFAULT (X'3137'))"},
+		{"bigint_x_quoted", "CREATE TABLE t (a BIGINT DEFAULT (X'3132333435'))"},
+		{"decimal_x_quoted", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT (X'37'))"},
+		{"decimal_0x", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 0x37)"},
+		{"double_x_quoted_fraction", "CREATE TABLE t (a DOUBLE DEFAULT (X'372E35'))"},
+		{"boolean_x_quoted", "CREATE TABLE t (a BOOLEAN DEFAULT (X'37'))"},
+		{"boolean_0x", "CREATE TABLE t (a BOOLEAN DEFAULT 0x37)"},
+
+		// A YEAR column reads them the same two ways.
+		{"year_x_quoted", "CREATE TABLE t (a YEAR DEFAULT (X'37'))"},
+		{"year_x_quoted_two_digits", "CREATE TABLE t (a YEAR DEFAULT (X'3939'))"},
+		{"year_0x", "CREATE TABLE t (a YEAR DEFAULT 0x37)"},
+
+		// A column that reads bytes reads all three alike.
+		{"bit_x_quoted", "CREATE TABLE t (a BIT(8) DEFAULT X'37')"},
+		{"bit_x_quoted_letter", "CREATE TABLE t (a BIT(8) DEFAULT X'41')"},
+		{"bit_0x", "CREATE TABLE t (a BIT(8) DEFAULT 0x37)"},
+		{"binary_x_quoted", "CREATE TABLE t (a BINARY(2) DEFAULT (X'41'))"},
+		{"varchar_x_quoted", "CREATE TABLE t (a VARCHAR(4) DEFAULT (X'41'))"},
+		{"varchar_0x", "CREATE TABLE t (a VARCHAR(4) DEFAULT 0x41)"},
+		{"text_keeps_the_literal", "CREATE TABLE t (a TEXT DEFAULT (X'41'))"},
+		{"date_x_quoted", "CREATE TABLE t (a DATE DEFAULT (X'323032302D30312D3031'))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			// And what omni wrote means the same to the server.
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_XQuotedNonNumberIsRefused covers the other half of X'..' being a
+// string: on a numeric column the characters have to spell a number, and the
+// server refuses the default outright where they do not — which is how the
+// two notations were told apart. Measured on mariadb:11.8.8:
+// `INT DEFAULT (X'41')` answers 1067, the character A spelling no number,
+// where `INT DEFAULT 0x41` is 65.
+func TestReview_XQuotedNonNumberIsRefused(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	for _, ddl := range []string{
+		"CREATE TABLE t (a INT DEFAULT (X'41'))",
+		"CREATE TABLE t (a INT DEFAULT (X''))",
+		"CREATE TABLE t (a YEAR DEFAULT (X'41'))",
+	} {
+		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
+		if oracleErr == nil {
+			t.Errorf("oracle: expected %q to be refused", ddl)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			continue
+		}
+		// omni does not check 1067 yet, so what it writes has to parse and
+		// mean what the statement said.
+		results, err := c.Exec(ddl+";", nil)
+		if err != nil {
+			continue // a parse error counts as a refusal
+		}
+		refused := false
+		for _, r := range results {
+			if r.Error != nil {
+				refused = true
+			}
+		}
+		if refused {
+			continue
+		}
+		create := c.ShowCreateTable("testdb", "t")
+		again := scenarioNewCatalog(t)
+		results, err = again.Exec(create+";", nil)
+		if err != nil {
+			t.Errorf("omni wrote a default it cannot read back: %v\n%s", err, create)
+			continue
+		}
+		for _, r := range results {
+			if r.Error != nil {
+				t.Errorf("omni wrote a default it cannot read back: %v\n%s", r.Error, create)
+			}
+		}
+		if _, err := c.Exec("DROP TABLE t;", nil); err != nil {
+			t.Fatalf("omni drop: %v", err)
+		}
+	}
+}
