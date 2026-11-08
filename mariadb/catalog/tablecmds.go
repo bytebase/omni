@@ -381,6 +381,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Name:        conName,
 					Type:        ConCheck,
 					Table:       tbl,
+					Column:      colDef.Name,
 					CheckExpr:   nodeToSQL(cc.Expr),
 					NotEnforced: cc.NotEnforced,
 				})
@@ -561,9 +562,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	// A JSON column carries the json_valid check MariaDB gives it, which the
-	// server holds under the column's own name.
+	// server holds under the column's own name — unless the column declares a
+	// check of its own, which it carries in place of json_valid rather than
+	// beside it. See columnOwnsCheck.
 	for _, col := range tbl.Columns {
-		if col.IsJSON {
+		if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
 			tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 		}
 	}
@@ -2110,9 +2113,20 @@ func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bo
 // schema and answers ER_CHECK_CONSTRAINT_DUP_NAME (3822) for the second.
 // Measured on mariadb:11.8.8. The db argument is kept for the call sites that
 // have no pending table yet.
+//
+// A check that belongs to a column is not one of those names: measured,
+// `CREATE TABLE t (j JSON, a INT, CONSTRAINT j CHECK (a > 0))` is accepted
+// beside the json_valid check column j carries, and the table then holds two
+// checks named j. Two checks the statements named collide as before.
 func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
-	if pending != nil {
-		return constraintNameExistsInTable(pending, ConCheck, name)
+	if pending == nil {
+		return false
+	}
+	key := toLower(name)
+	for _, con := range pending.Constraints {
+		if con.Type == ConCheck && !isColumnCheck(con) && toLower(con.Name) == key {
+			return true
+		}
 	}
 	return false
 }
@@ -2881,6 +2895,7 @@ func jsonValidConstraint(col *Column) *Constraint {
 	return &Constraint{
 		Name:      col.Name,
 		Type:      ConCheck,
+		Column:    col.Name,
 		CheckExpr: fmt.Sprintf("json_valid(`%s`)", col.Name),
 		Implicit:  true,
 	}
@@ -3370,8 +3385,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			OnDelete:    srcCon.OnDelete,
 			OnUpdate:    srcCon.OnUpdate,
 			// A copied json_valid check is still the catalog's own, so the
-			// copy belongs to its column the same way the original does.
+			// copy belongs to its column the same way the original does, and
+			// a copied column-level check belongs to the copy's column.
 			Implicit: srcCon.Implicit,
+			Column:   srcCon.Column,
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}

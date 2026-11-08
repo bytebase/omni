@@ -482,7 +482,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
-	if col.IsJSON {
+	if col.IsJSON && !columnOwnsCheck(tbl, col.Name) {
 		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 	}
 
@@ -614,10 +614,10 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, dropping
 		}
 	}
 
-	// A JSON column's implicit json_valid check goes with it; leaving it behind
-	// would name a column the table no longer has. Measured on mariadb:11.8.8:
-	// after `ALTER TABLE t DROP COLUMN j` the table reports no check.
-	dropImplicitJSONCheck(tbl, cmd.Name)
+	// The check the column carries goes with it; leaving it behind would name
+	// a column the table no longer has. Measured on mariadb:11.8.8: after
+	// `ALTER TABLE t DROP COLUMN j` the table reports no check.
+	dropColumnCheck(tbl, cmd.Name)
 
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
@@ -742,16 +742,20 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		return errIncorrectAutoIncrementDefinition()
 	}
 	col.Position = idx + 1
-	wasJSON := tbl.Columns[idx].IsJSON
 	tbl.Columns[idx] = col
 
-	// The implicit json_valid check follows the type: a column retyped away
-	// from JSON loses it, one retyped to JSON gains it, and one that stays
-	// JSON keeps the single check it already has.
-	if wasJSON && !col.IsJSON {
-		dropImplicitJSONCheck(tbl, oldName)
-	}
-	if col.IsJSON && !wasJSON {
+	// MODIFY and CHANGE replace the column's definition, so the check the old
+	// definition carried goes with it and the new one's takes its place: a
+	// JSON column's is json_valid, and any other definition's is whatever it
+	// declares, which is nothing here since a column-level CHECK is not part
+	// of what MODIFY accepts. Measured on mariadb:11.8.8:
+	// `ALTER TABLE t MODIFY COLUMN a INT` against
+	// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check, and
+	// `ALTER TABLE t MODIFY COLUMN j JSON` against
+	// `CREATE TABLE t (j JSON CHECK (j IS NOT NULL))` replaces that check
+	// with json_valid(`j`).
+	dropColumnCheck(tbl, oldName)
+	if col.IsJSON {
 		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 	}
 
@@ -870,8 +874,12 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 		}
 		return false
 	case nodes.ConstrCheck:
+		// A check that belongs to a column does not occupy the name, so
+		// IF NOT EXISTS over a JSON column's own name still adds the
+		// statement's check. See checkConstraintNameExists.
 		for _, existing := range tbl.Constraints {
-			if existing.Type == ConCheck && toLower(existing.Name) == toLower(con.Name) {
+			if existing.Type == ConCheck && !isColumnCheck(existing) &&
+				toLower(existing.Name) == toLower(con.Name) {
 				return true
 			}
 		}
@@ -1197,13 +1205,21 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	return nil
 }
 
-// dropImplicitJSONCheck removes the json_valid check a JSON column carries,
-// which the catalog names after the column.
-func dropImplicitJSONCheck(tbl *Table, colName string) {
+// dropColumnCheck removes the check a column carries, which goes with the
+// column: dropped with it, and replaced along with its definition. Measured on
+// mariadb:11.8.8: after `ALTER TABLE t DROP COLUMN j` a JSON column's
+// json_valid check is gone, and `ALTER TABLE t MODIFY COLUMN a INT` against
+// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check behind — the new
+// definition declares none, so the column has none.
+//
+// It finds the check by the column it belongs to rather than by its name,
+// which can have moved on: measured, after `ALTER TABLE t RENAME COLUMN j TO
+// z` the check reads json_valid(`z`) while its name stays j.
+func dropColumnCheck(tbl *Table, colName string) {
 	key := toLower(colName)
 	kept := tbl.Constraints[:0]
 	for _, con := range tbl.Constraints {
-		if toLower(con.Name) == key && isImplicitJSONCheck(con) {
+		if isColumnCheck(con) && toLower(con.Column) == key {
 			continue
 		}
 		kept = append(kept, con)
@@ -1222,15 +1238,19 @@ func isImplicitJSONCheck(con *Constraint) bool {
 	return con != nil && con.Type == ConCheck && con.Implicit
 }
 
-// renameImplicitJSONCheck follows a renamed JSON column: the check keeps the
-// column's name and references it, so both move. Measured on mariadb:11.8.8:
-// after `ALTER TABLE t CHANGE COLUMN j k JSON` the check reads
+// renameImplicitJSONCheck follows a renamed JSON column: the check belongs to
+// the column and references it, so both move with it. Measured on
+// mariadb:11.8.8: after `ALTER TABLE t CHANGE COLUMN j k JSON` the check reads
 // CHECK (json_valid(`k`)).
+//
+// The check is found by the column it belongs to, since another constraint may
+// have taken its name in the meantime.
 func renameImplicitJSONCheck(tbl *Table, oldName, newName string) {
 	key := toLower(oldName)
 	for _, con := range tbl.Constraints {
-		if toLower(con.Name) == key && isImplicitJSONCheck(con) {
+		if isImplicitJSONCheck(con) && toLower(con.Column) == key {
 			con.Name = newName
+			con.Column = newName
 			con.CheckExpr = fmt.Sprintf("json_valid(`%s`)", newName)
 		}
 	}
@@ -1262,11 +1282,14 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if toLower(con.Name) != key {
 			continue
 		}
-		// A JSON column's implicit json_valid check carries the column's name
-		// but is not a constraint the statement can name: the server answers
-		// 1091 for `ALTER TABLE t DROP CONSTRAINT j` on a JSON column `j`.
-		// Measured on mariadb:11.8.8. It goes only with its column.
-		if isImplicitJSONCheck(con) {
+		// A check that belongs to a column carries the column's name but is
+		// not a constraint the statement can name: measured on
+		// mariadb:11.8.8, the server answers 1091 both for
+		// `ALTER TABLE t DROP CONSTRAINT j` on a JSON column `j` and for
+		// `ALTER TABLE t DROP CONSTRAINT a` against
+		// `CREATE TABLE t (a INT CHECK (a > 0))`. Such a check goes only with
+		// its column.
+		if isColumnCheck(con) {
 			continue
 		}
 		isForeignKey = (con.Type == ConForeignKey)

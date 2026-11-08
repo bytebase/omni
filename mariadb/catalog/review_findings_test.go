@@ -1485,3 +1485,175 @@ func TestReview_NonNumberDefaultStaysParseable(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_CheckBelongsToItsColumn covers where a CHECK is written. MariaDB
+// writes a check declared inside a column definition, and the json_valid
+// check a JSON column carries, on that column; one declared at table level it
+// writes at table level, whatever either is named. Reading the placement off
+// the name instead had a table-level check named after a column written on the
+// column, and dropped one of two checks of the same name from the output
+// altogether.
+//
+// All of it measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+//
+// What a renamed column does to a check's own text is a separate matter, and
+// not covered here: the server rewrites the references inside every stored
+// expression, so after `CREATE TABLE t (j JSON, CONSTRAINT k CHECK
+// (json_valid(j))); ALTER TABLE t RENAME COLUMN j TO k` the table-level check
+// reads json_valid(`k`), where the catalog rewrites only the json_valid check
+// it wrote itself.
+func TestReview_CheckBelongsToItsColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name  string
+		stmts []string
+	}{
+		// A table-level check keeps its place even when it carries a
+		// column's name.
+		{"table_level_named_after_a_column", []string{
+			"CREATE TABLE t (k INT, a INT, CONSTRAINT k CHECK (a > 0))",
+		}},
+		{"table_level_named_after_its_own_column", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT a CHECK (a > 0))",
+		}},
+		{"table_level_survives_a_column_rename", []string{
+			"CREATE TABLE t (k INT, a INT, CONSTRAINT k CHECK (a > 0))",
+			"ALTER TABLE t RENAME COLUMN k TO z",
+		}},
+
+		// A JSON column's own check beside a table-level check of the same
+		// name: the server carries both and writes both.
+		{"change_a_json_column_onto_a_check_name", []string{
+			"CREATE TABLE t (j JSON, a INT, CONSTRAINT k CHECK (a > 0))",
+			"ALTER TABLE t CHANGE j k JSON",
+		}},
+		{"rename_a_json_column_onto_a_check_name", []string{
+			"CREATE TABLE t (j JSON, a INT, CONSTRAINT k CHECK (a > 0))",
+			"ALTER TABLE t RENAME COLUMN j TO k",
+		}},
+		{"declare_a_check_named_after_a_json_column", []string{
+			"CREATE TABLE t (j JSON, a INT, CONSTRAINT j CHECK (a > 0))",
+		}},
+		{"add_a_check_named_after_a_json_column", []string{
+			"CREATE TABLE t (j JSON, a INT)",
+			"ALTER TABLE t ADD CONSTRAINT j CHECK (a > 0)",
+		}},
+		{"retype_to_json_where_the_name_is_taken", []string{
+			"CREATE TABLE t (j LONGTEXT, a INT, CONSTRAINT j CHECK (a > 0))",
+			"ALTER TABLE t MODIFY COLUMN j JSON",
+		}},
+		{"add_a_json_column_whose_name_is_taken", []string{
+			"CREATE TABLE t (a INT, CONSTRAINT k CHECK (a > 0))",
+			"ALTER TABLE t ADD COLUMN k JSON",
+		}},
+
+		// A JSON column that declares its own check carries that one
+		// instead: the json_valid check is what a JSON column has in place
+		// of one, not on top of it.
+		{"json_column_with_its_own_check", []string{
+			"CREATE TABLE t (j JSON CHECK (j IS NOT NULL))",
+		}},
+		{"json_column_with_its_own_check_and_a_table_one", []string{
+			"CREATE TABLE t (j JSON CHECK (j IS NOT NULL), a INT, CONSTRAINT ck CHECK (a > 0))",
+		}},
+
+		// CHANGE recreates the column, so the check declared on it goes;
+		// a JSON column gets a fresh json_valid check named after the new
+		// column.
+		{"change_drops_the_columns_check", []string{
+			"CREATE TABLE t (a INT CHECK (a > 0))",
+			"ALTER TABLE t CHANGE a z INT",
+		}},
+		{"change_resynthesizes_the_json_check", []string{
+			"CREATE TABLE t (j JSON)",
+			"ALTER TABLE t CHANGE j z JSON",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			for _, stmt := range tc.stmts {
+				runOnBoth(t, mc, c, stmt+";")
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// TestReview_ColumnCheckIsNotDroppableByName covers the other side of where a
+// check belongs: a check that belongs to a column is not a constraint a
+// statement can name, so DROP CONSTRAINT does not find it and the server
+// answers 1091, while a table-level check of the very same name is dropped.
+//
+// Measured on mariadb:11.8.8.
+func TestReview_ColumnCheckIsNotDroppableByName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		drop    string
+		accepts bool
+	}{
+		{
+			name:  "a_json_columns_own",
+			setup: "CREATE TABLE t (j JSON)",
+			drop:  "ALTER TABLE t DROP CONSTRAINT j", accepts: false,
+		},
+		{
+			name:  "declared_on_its_column",
+			setup: "CREATE TABLE t (a INT CHECK (a > 0))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT a", accepts: false,
+		},
+		{
+			name:  "declared_at_table_level",
+			setup: "CREATE TABLE t (a INT, CONSTRAINT ck CHECK (a > 0))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT ck", accepts: true,
+		},
+		{
+			name:  "declared_at_table_level_under_a_columns_name",
+			setup: "CREATE TABLE t (k INT, a INT, CONSTRAINT k CHECK (a > 0))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT k", accepts: true,
+		},
+		{
+			name:  "declared_at_table_level_beside_a_json_columns_own",
+			setup: "CREATE TABLE t (j JSON, a INT, CONSTRAINT j CHECK (a > 0))",
+			drop:  "ALTER TABLE t DROP CONSTRAINT j", accepts: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.drop)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.drop, oracleErr, tc.accepts)
+			}
+
+			results, err := c.Exec(tc.drop+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Errorf("omni: %q gave %v, want accepted=%v", tc.drop, omniErr, tc.accepts)
+			}
+			if !tc.accepts {
+				return
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}

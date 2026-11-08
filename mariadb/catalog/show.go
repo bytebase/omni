@@ -152,15 +152,17 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
-	// A CHECK named after a column of the table is that column's own, and was
-	// written on the column.
+	// A CHECK that belongs to a column was written on that column, so it is
+	// left out here. The question is asked of this very constraint and not of
+	// its name: a table-level check carrying a column's name is still the
+	// table's, and two checks of one name are written one in each place.
 	var fkConstraints, chkConstraints []*Constraint
 	for _, con := range tbl.Constraints {
 		switch con.Type {
 		case ConForeignKey:
 			fkConstraints = append(fkConstraints, con)
 		case ConCheck:
-			if columnCheckOf(tbl, con.Name) == nil {
+			if !writtenOnColumn(tbl, con) {
 				chkConstraints = append(chkConstraints, con)
 			}
 		}
@@ -356,8 +358,15 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	return b.String()
 }
 
-// columnCheckOf returns the CHECK constraint that belongs to the named column,
-// which is the one carrying the column's name, or nil.
+// columnCheckOf returns the CHECK constraint that belongs to the named column
+// and is written on it, or nil.
+//
+// The answer comes from each check's own record of the column it was declared
+// on, since a name match is a different question: a check declared at table
+// level is written at table level even when it carries a column's name.
+// Measured on mariadb:11.8.8 —
+// `CREATE TABLE t (k INT, a INT, CONSTRAINT k CHECK (a > 0))` writes
+// CONSTRAINT `k` at table level, beside an untouched column `k`.
 //
 // A generated column does not carry one: MariaDB writes
 // `CREATE TABLE c8 (a INT, b INT AS (a+1), CONSTRAINT b CHECK (a>0))` back with
@@ -379,11 +388,18 @@ func columnCheckOf(tbl *Table, name string) *Constraint {
 		return nil
 	}
 	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && eqFoldStr(con.Name, name) {
+		if isColumnCheck(con) && eqFoldStr(con.Column, name) {
 			return con
 		}
 	}
 	return nil
+}
+
+// writtenOnColumn reports whether this check is the one SHOW CREATE TABLE
+// writes on a column of the table, which is where it then appears instead of
+// among the table's constraints.
+func writtenOnColumn(tbl *Table, con *Constraint) bool {
+	return isColumnCheck(con) && columnCheckOf(tbl, con.Column) == con
 }
 
 // formatExpressionDefault writes an expression default the way MariaDB stores
