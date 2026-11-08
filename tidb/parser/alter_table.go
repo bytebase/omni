@@ -252,7 +252,12 @@ func (p *Parser) startsAlterPartitioningTail() bool {
 	case kwPARTITION:
 		return true
 	case kwREMOVE:
-		return p.peekNext().Type == kwPARTITIONING
+		// REMOVE PARTITIONING and REMOVE TTL are both AlterTableSpecSingleOpt
+		// tails: TiDB v8.5.5 runs `TTL_ENABLE='OFF' REMOVE TTL` but answers 1064
+		// for `TTL_ENABLE='OFF', REMOVE TTL` and for a second clause after
+		// either, so neither takes a comma before it nor allows one after.
+		nt := p.peekNext().Type
+		return nt == kwPARTITIONING || nt == kwTTL
 	case kwSPLIT:
 		return p.peekNext().Type == kwMAXVALUE
 	case kwMERGE:
@@ -281,7 +286,7 @@ func (p *Parser) parseAlterPartitioningTail(stmt *nodes.AlterTableStmt, pendingC
 	}
 	if pendingComma {
 		return &ParseError{
-			Message:  "a partitioning clause takes no comma before it",
+			Message:  "this trailing clause takes no comma before it",
 			Position: p.cur.Loc,
 		}
 	}
@@ -289,6 +294,10 @@ func (p *Parser) parseAlterPartitioningTail(stmt *nodes.AlterTableStmt, pendingC
 	switch {
 	case p.cur.Type == kwREMOVE:
 		p.advance() // consume REMOVE
+		if _, ok := p.match(kwTTL); ok {
+			cmd.Type = nodes.ATRemoveTTL
+			break
+		}
 		if _, err := p.expect(kwPARTITIONING); err != nil {
 			return err
 		}

@@ -5843,7 +5843,7 @@ accept	accept	ALTER TABLE t CHANGE updated_at updated_at_new INT
 accept	accept	ALTER TABLE t RENAME COLUMN `updated_at` TO `updated_at_2`
 accept	accept	ALTER TABLE t CHANGE `updated_at_2` `updated_at_3` date
 accept	accept	ALTER TABLE t TTL = `updated_at_3` + INTERVAL 3 YEAR
-reject	accept	ALTER TABLE t TTL_ENABLE = 'OFF' REMOVE TTL
+accept	accept	ALTER TABLE t TTL_ENABLE = 'OFF' REMOVE TTL
 accept	accept	ALTER TABLE t REMOVE TTL
 accept	accept	ALTER TABLE t TTL_JOB_INTERVAL = '1h'
 accept	accept	CREATE TEMPORARY TABLE t (created_at datetime) TTL = `created_at` + INTERVAL 5 DAY
@@ -12614,7 +12614,7 @@ accept	accept	create table t1(c int unsigned default 0)
 accept	accept	show create table `t1`
 accept	accept	CREATE TABLE `log` (`LOG_ID` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,`ROUND_ID` bigint(20) UNSIGNED NOT NULL,`USER_ID` int(10) UNSIGNED NOT NULL,`USER_IP` int(10) UNSIGNED DEFAULT NULL,`END_TIME` datetime NOT NULL,`USER_TYPE` int(11) DEFAULT NULL,`APP_ID` int(11) DEFAULT NULL,PRIMARY KEY (`LOG_ID`,`END_TIME`) NONCLUSTERED,KEY `IDX_EndTime` (`END_TIME`),KEY `IDX_RoundId` (`ROUND_ID`),KEY `IDX_UserId_EndTime` (`USER_ID`,`END_TIME`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=505488 PARTITION BY RANGE ( month(`end_time`) ) (PARTITION `p1` VALUES LESS THAN (2),PARTITION `p2` VALUES LESS THAN (3),PARTITION `p3` VALUES LESS THAN (4),PARTITION `p4` VALUES LESS THAN (5),PARTITION `p5` VALUES LESS THAN (6),PARTITION `p6` VALUES LESS THAN (7),PARTITION `p7` VALUES LESS THAN (8),PARTITION `p8` VALUES LESS THAN (9),PARTITION `p9` VALUES LESS THAN (10),PARTITION `p10` VALUES LESS THAN (11),PARTITION `p11` VALUES LESS THAN (12),PARTITION `p12` VALUES LESS THAN (MAXVALUE))
 accept	accept	show create table log
-reject	accept	create table ttt4(a varchar(123) default null collate utf8mb4_unicode_ci)engine=innodb default charset=utf8mb4 collate=utf8mb4_unicode_ci
+accept	accept	create table ttt4(a varchar(123) default null collate utf8mb4_unicode_ci)engine=innodb default charset=utf8mb4 collate=utf8mb4_unicode_ci
 accept	accept	show create table `ttt4`
 accept	accept	create table ttt5(a varchar(123) default null)engine=innodb default charset=utf8mb4 collate=utf8mb4_bin
 accept	accept	show create table `ttt5`
@@ -21209,7 +21209,7 @@ accept	accept	select default(a0) from (select a+1 as a0 from t1) as t0
 accept	accept	create table t2(a varchar(10), b varchar(10))
 accept	accept	insert into t2 values ('1', '1')
 accept	accept	select default(a) from t1, t2
-reject	accept	select default(t1.a) from t1, t2
+accept	accept	select default(t1.a) from t1, t2
 accept	accept	create table t4(a int default 1, b varchar(5))
 accept	accept	insert into t4 values (0, 'B'), (1, 'B'), (2, 'B')
 accept	accept	create table t5(d int default 0, e varchar(5))
