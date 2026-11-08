@@ -641,12 +641,28 @@ func renameRefsInQuery(stmt *ast.SelectStmt, renamed map[string]string) {
 	if stmt.SetOp != ast.SetOpNone {
 		renameRefsInQuery(stmt.Left, renamed)
 		renameRefsInQuery(stmt.Right, renamed)
-		renameRefsInItems(stmt.OrderBy, renamed)
+		// The ORDER BY over the whole set operation binds to its output
+		// columns, which are the leftmost operand's, and nothing else:
+		// measured on mariadb:11.8.8,
+		// `(SELECT 1 AS z UNION SELECT 2 ORDER BY z DESC LIMIT 1)` keeps
+		// order by `z`, and so does the same with an operand that only
+		// passes the outer reference through, while a name that is none of
+		// those columns is 1054 rather than an outer reference. So nothing
+		// here takes the new name.
 		return
 	}
 	if stmt.ParenSource != nil {
+		// A parenthesized query's own output binds in the ORDER BY after it,
+		// where a name it only passes through is still the outer one:
+		// measured, `((SELECT 1 AS z) ORDER BY z LIMIT 1)` keeps its z while
+		// `((SELECT z) ORDER BY z LIMIT 1)` takes the new name in both
+		// places. The shadowed names are read before the query is walked.
+		inner := renamed
+		if leaf := ast.LeftmostQueryLeaf(stmt.ParenSource); leaf != nil {
+			inner = withoutShadowed(renamed, leaf)
+		}
 		renameRefsInQuery(stmt.ParenSource, renamed)
-		renameRefsInItems(stmt.OrderBy, renamed)
+		renameRefsInItems(stmt.OrderBy, inner)
 		return
 	}
 	// The shadowed names are read before anything is renamed, an output

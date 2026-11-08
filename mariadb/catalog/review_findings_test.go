@@ -5461,6 +5461,18 @@ func TestReview_WidestSetDefault(t *testing.T) {
 // binds in and keeps its own name there. An output the server named after a
 // reference it passes through declares nothing, so
 // `HAVING (SELECT z HAVING z = 1) > 0` takes the new name in both places.
+//
+// A set operation is the one place where even a passthrough shadows: its
+// ORDER BY binds to its output columns, the leftmost operand's, and a name
+// that is none of them is 1054 rather than an outer reference, so nothing
+// there is renamed.
+//
+// A parenthesized query keeps the passthrough rule — measured,
+// `((SELECT 1 AS z) ORDER BY z LIMIT 1)` keeps its own z where
+// `((SELECT z) ORDER BY z LIMIT 1)` takes the new name in both places — and
+// no case here holds it, because such a query runs into a neighbour of its
+// own: the server folds that ORDER BY into the query it follows, where omni
+// keeps the two apart. That is reported as its own gap.
 func TestReview_CorrelatedAliasReference(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -5495,6 +5507,13 @@ func TestReview_CorrelatedAliasReference(t *testing.T) {
 			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 GROUP BY z) > 0"},
 		{"shadowed_in_a_nested_order_by", " (x)",
 			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 ORDER BY z LIMIT 1) > 0"},
+		// A set operation's own ORDER BY binds to its output columns alone.
+		{"a_set_operations_own_ordering", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 AS z UNION SELECT 2 ORDER BY z DESC LIMIT 1) > 0"},
+		{"a_set_operations_ordering_on_a_position", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 AS z UNION SELECT 2 ORDER BY 1 LIMIT 1) > 0"},
+		{"a_set_operations_ordering_over_an_expression", " (x)",
+			"SELECT a AS z FROM t HAVING (SELECT 1 AS z FROM t t2 UNION SELECT 2 ORDER BY z + 0 LIMIT 1) > 0"},
 		// A CTE's column list goes through the same rename.
 		{"a_cte_column_list", "",
 			"WITH c(x) AS (SELECT a AS z FROM t HAVING (SELECT z) > 0) SELECT c.x FROM c"},
