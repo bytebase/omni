@@ -100,9 +100,10 @@ func writeRestCorpus(t *testing.T, header []string, cases []restCorpusCase) {
 
 // restCorpusSample returns the indices the live engine test measures. With no
 // TIDB_CORPUS_N, with an -update run, or with a cap at or above the row count,
-// that is every row. Otherwise it is an evenly strided subset of n rows, chosen
-// deterministically so the sample spans the whole file and a rerun measures the
-// same rows.
+// that is every row. Otherwise it is an evenly spread subset of n rows, chosen
+// deterministically so the sample spans the whole file -- the corpus groups
+// statements by source, so a sample that stopped short would never measure the
+// later families -- and a rerun measures the same rows.
 func restCorpusSample(t *testing.T, total int) []int {
 	all := make([]int, total)
 	for i := range all {
@@ -122,12 +123,15 @@ func restCorpusSample(t *testing.T, total int) []int {
 	if n >= total {
 		return all
 	}
-	stride := total / n
+	// i*total/n, not i*(total/n): dividing first truncates the stride to a whole
+	// number and packs the sample into the first rows, dropping the tail. Because
+	// total > n here, the gap total/n exceeds 1, so the indices are strictly
+	// increasing and span 0 .. total-total/n with no repeats.
 	idx := make([]int, 0, n)
 	for i := 0; i < n; i++ {
-		idx = append(idx, i*stride)
+		idx = append(idx, i*total/n)
 	}
-	t.Logf("%s=%d: measuring %d of %d rows (stride %d)", restCorpusSampleEnv, n, len(idx), total, stride)
+	t.Logf("%s=%d: measuring %d of %d rows", restCorpusSampleEnv, n, len(idx), total)
 	return idx
 }
 
