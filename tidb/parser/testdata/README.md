@@ -212,6 +212,52 @@ plain (non-`-update`) run measures live, so CI stays bounded as the later §3.4
 samples land; the omni-verdict pass always reads every row. Re-extracting after a
 pingcap bump means rerunning the extraction above at the new tag and re-recording.
 
+## `tidb_integrationtest_corpus.tsv` — TiDB's integration tests
+
+The second sample of the design's §3.4 real-SQL corpora. Where the two files
+above are grammar forms — tested one at a time, then combined the way pingcap's
+own parser tests combine them — this one is SQL people wrote to exercise the TiDB
+*server*: the statements of TiDB's `tests/integrationtest/t/**/*.test` files, the
+closest public stand-in for user SQL. It leans heavily on the DML and query
+shapes the other two under-sample.
+
+`integrationtest_corpus_oracle_test.go` is its only reader. The columns, the
+`accept`/`reject` verdicts, the `#` header, and the `PREPARE` engine harness are
+the pingcap corpus's (three fields: omni verdict, engine verdict, statement). A
+gap is `reject`/`accept`; an over-acceptance is `accept`/`reject` and is a bug.
+It is far larger than the other samples, so the live engine test measures only a
+`TIDB_CORPUS_N` sample on a plain run (every row under `-update`), while the
+omni-verdict test reads every row.
+
+### Provenance
+
+Extracted from `tests/integrationtest/t/**/*.test` in `github.com/pingcap/tidb`
+at tag `v8.5.5` (commit `1fa258b833ff113883beeba40bc130be7ce66610`, 239 files),
+by a throwaway tool (not checked in, like sample 1's). For each file it drops the
+mysqltest directive/comment lines (a leading `--` or `#`) and the bare mysqltest
+control lines (`connection`, `connect`, `disconnect`, `let`, `echo`, …, which
+often lack a trailing `;` and would otherwise merge into the next statement),
+runs `tidb/parser.Split` on what remains, and keeps each non-empty segment.
+Deduplicated within this corpus and against `pingcap_parser_corpus.tsv` and
+`pingcap_parser_rest_corpus.tsv`. Only single-line statements are kept, as the
+other corpora are: of 47,322 non-empty segments, 1,236 with an embedded newline
+or tab (multi-line `CREATE`/`INSERT`, compound `BEGIN`/`END` blocks) and 243
+carrying a mysqltest `$variable` are excluded, 18,515 are duplicates within this
+corpus and 82 already appear in the other two, leaving 27,246 rows. The
+Apache-2.0 attribution above covers this file too.
+
+### Regenerating
+
+The engine column is sampled on a normal run and measured whole under `-update`.
+From `<repo root>`:
+
+```bash
+go test ./tidb/parser/ -run '^TestTiDBIntegrationtestCorpusEngineVerdicts$' -count=1 -update
+```
+
+rewrites both columns from a live server. Re-extracting after a pingcap bump
+means rerunning the extraction above at the new tag and re-recording.
+
 ## `bytebase_tidb_corpus.tsv` — Bytebase's own TiDB test files
 
 The third sample of the design's §3.4 real-SQL corpora: the SQL Bytebase already
