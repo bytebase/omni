@@ -1138,9 +1138,21 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		switch family {
 		case familyExpression:
 			// A column that holds its default as an expression keeps the
-			// literal as written, a number included: measured on
-			// mariadb:11.8.8, `TEXT DEFAULT (1e2)` comes back DEFAULT 1e2
-			// where a VARCHAR column converts it.
+			// literal rather than the value it spells, but as the server
+			// re-prints it: an exact number loses its leading zeros, a
+			// leading plus and a zero's sign, and keeps every digit of its
+			// fraction. Measured on mariadb:11.8.8, `TEXT DEFAULT (007)`
+			// comes back 7, (+1) 1, (-0) 0, (-0.000) 0.000, (0.10) 0.10 and
+			// (00.100) 0.100.
+			//
+			// One written with an exponent is kept as it stands, where a
+			// value column would convert it: (1e2) stays 1e2, and (-0e0)
+			// keeps the sign a value column drops.
+			if isNumberLiteral(val) && !isApproximateLiteral(val) {
+				if digits, ok := normalizeNumberText(val); ok {
+					return dropNegativeZero(digits), true
+				}
+			}
 			return val, true
 		case familyBit:
 			if n, ok := bitNumberOf(val); ok {
@@ -1344,7 +1356,12 @@ func numberStringForm(val string) (string, bool) {
 		// (0000000000000000000001) is '1', (00.100) is '0.100',
 		// (0.000000000000000000001) keeps all twenty-one decimals and a
 		// thirty-digit whole number keeps all thirty.
-		return digits, true
+		//
+		// A zero's sign is the one thing a value column drops, where its
+		// digits stay: measured, VARCHAR(12) DEFAULT (-0) is '0' and (-0.0)
+		// is '0.0', keeping the fraction it was written with, while (-0.5)
+		// keeps the sign.
+		return dropNegativeZero(digits), true
 	}
 	// An approximate literal is a double, so the value is the double's and not
 	// the digits the literal was written with: measured,
@@ -1355,7 +1372,9 @@ func numberStringForm(val string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	return doubleText(f), true
+	// The double keeps a zero's sign where the column does not: measured,
+	// VARCHAR(12) DEFAULT (-0e0) and (-0.0e0) are both '0'.
+	return dropNegativeZero(doubleText(f)), true
 }
 
 // doubleText writes a double the way the server writes one: the shortest

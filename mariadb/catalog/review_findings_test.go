@@ -5591,3 +5591,87 @@ func TestReview_ApproximateEnumNumberDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_NegativeZeroStringDefault covers a negative zero written as a
+// default on a column that stores a value. The sign goes and the digits stay,
+// where omni kept the sign: `VARCHAR(12) DEFAULT (-0)` came out '-0', which
+// stores a character the original does not, and the VARBINARY form came out
+// as the bytes of that.
+//
+// Measured on mariadb:11.8.8, with the stored bytes read back on both sides.
+// Only a zero loses its sign — (-0.5) keeps it — and only the sign goes,
+// (-0.0) keeping the fraction it was written with.
+//
+// A column that holds its default as an expression keeps the literal rather
+// than the value, but as the server re-prints it, and the TEXT cases hold that
+// too: an exact number there loses its leading zeros, a leading plus and a
+// zero's sign — (007) is 7, (+1) is 1, (-0) is 0 — and keeps every digit of
+// its fraction, while one written with an exponent is kept as it stands and
+// (-0e0) keeps the sign a value column drops. omni had kept all of it as
+// written.
+func TestReview_NegativeZeroStringDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		{"a_whole_negative_zero", "VARCHAR(12)", "-0"},
+		{"a_negative_zero_with_a_decimal", "VARCHAR(12)", "-0.0"},
+		{"a_negative_zero_with_two_decimals", "VARCHAR(12)", "-0.00"},
+		{"a_negative_zero_with_leading_zeros", "VARCHAR(12)", "-00"},
+		{"an_approximate_negative_zero", "VARCHAR(12)", "-0e0"},
+		{"an_approximate_negative_zero_with_a_decimal", "VARCHAR(12)", "-0.0e0"},
+		{"a_positive_zero", "VARCHAR(12)", "+0"},
+		{"a_real_negative", "VARCHAR(12)", "-0.5"},
+		{"an_approximate_real_negative", "VARCHAR(12)", "-0.5e0"},
+		{"a_negative_one", "VARCHAR(12)", "-1"},
+		{"a_negative_zero_as_bytes", "VARBINARY(12)", "-0"},
+		{"a_negative_zero_with_a_decimal_as_bytes", "VARBINARY(12)", "-0.0"},
+		{"an_approximate_negative_zero_as_bytes", "VARBINARY(12)", "-0e0"},
+		{"a_negative_zero_padded", "BINARY(4)", "-0"},
+		// A column holding its default as an expression keeps the literal,
+		// but as the server re-prints it.
+		{"a_negative_zero_as_an_expression", "TEXT", "-0"},
+		{"a_negative_zero_with_a_decimal_as_an_expression", "TEXT", "-0.0"},
+		{"a_negative_zero_with_three_decimals_as_an_expression", "TEXT", "-0.000"},
+		{"an_approximate_negative_zero_as_an_expression", "TEXT", "-0e0"},
+		{"leading_zeros_as_an_expression", "TEXT", "007"},
+		{"leading_zeros_before_a_fraction_as_an_expression", "TEXT", "00.100"},
+		{"a_leading_plus_as_an_expression", "TEXT", "+1"},
+		{"a_positive_zero_as_an_expression", "TEXT", "+0"},
+		{"a_trailing_zero_as_an_expression", "TEXT", "0.10"},
+		{"a_long_fraction_as_an_expression", "TEXT", "1.0000000000000000001"},
+		{"an_exponent_as_an_expression", "TEXT", "1e2"},
+		{"an_approximate_zero_as_an_expression", "TEXT", "0e0"},
+		{"hex_as_an_expression", "TEXT", "0x41"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
