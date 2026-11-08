@@ -2804,3 +2804,139 @@ func TestReview_GeneratedColumnDependencyNondeterminism(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ReplacingAGeneratedDependency covers the other side of the
+// dependency rule: replacing a column's expression can make a materialized
+// column that reads it invalid. Only the replacement's own materialization was
+// checked, so a MODIFY could leave behind a table the catalog's own CREATE
+// TABLE validation refuses.
+//
+// Measured on mariadb:11.8.8, message included. A refusal leaves the table as
+// it was, which each refused case checks.
+func TestReview_ReplacingAGeneratedDependency(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		alter   string
+		accepts bool
+	}{
+		{
+			name:  "a_stored_column_reads_it",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			alter: "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:  "a_keyed_virtual_column_reads_it",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) VIRTUAL, KEY (b))",
+			alter: "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name: "two_hops_from_the_column_replaced",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) VIRTUAL," +
+				" c DOUBLE AS (b) STORED)",
+			alter: "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:  "the_replacement_is_itself_materialized",
+			setup: "CREATE TABLE t (a DOUBLE AS (1) STORED)",
+			alter: "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) STORED",
+		},
+		// An unmaterialized dependent may read it, a deterministic
+		// replacement keeps everything valid, and a column nothing reads is
+		// its own business.
+		{
+			name:    "only_an_unmaterialized_column_reads_it",
+			setup:   "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) VIRTUAL)",
+			alter:   "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+			accepts: true,
+		},
+		{
+			name:    "the_replacement_stays_deterministic",
+			setup:   "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			alter:   "ALTER TABLE t MODIFY a DOUBLE AS (2) VIRTUAL",
+			accepts: true,
+		},
+		{
+			name:    "nothing_reads_it",
+			setup:   "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL)",
+			alter:   "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+			accepts: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+			before := c.ShowCreateTable("testdb", "t")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.alter)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.alter, oracleErr, tc.accepts)
+			}
+
+			results, err := c.Exec(tc.alter+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: %q gave %v, want accepted=%v", tc.alter, omniErr, tc.accepts)
+			}
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+			if tc.accepts {
+				return
+			}
+			// A refused ALTER leaves the table as it was.
+			if after := c.ShowCreateTable("testdb", "t"); after != before {
+				t.Errorf("the refused ALTER changed the table\n--- before ---\n%s\n--- after ---\n%s",
+					before, after)
+			}
+			if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+			}
+		})
+	}
+}
+
+// TestReview_ChangingAGeneratedDependencyName covers the same replacement
+// under CHANGE, which renames the column its dependents read. The server
+// rewrites those references and reports the name as it now stands: measured on
+// mariadb:11.8.8, `ALTER TABLE t CHANGE a z DOUBLE AS (RAND()) VIRTUAL` with
+// `b DOUBLE AS (a) STORED` in place answers 1901 naming z.
+func TestReview_ChangingAGeneratedDependencyName(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED);")
+
+	const alter = "ALTER TABLE t CHANGE a z DOUBLE AS (RAND()) VIRTUAL"
+	_, oracleErr := mc.db.ExecContext(mc.ctx, alter)
+	if oracleErr == nil {
+		t.Fatalf("oracle: expected %q to be refused", alter)
+	}
+
+	results, err := c.Exec(alter+";", nil)
+	omniErr := err
+	for _, r := range results {
+		if r.Error != nil {
+			omniErr = r.Error
+		}
+	}
+	if omniErr == nil {
+		t.Fatalf("omni: accepted %q, which the server refuses with %v", alter, oracleErr)
+	}
+	if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+		t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+	}
+}

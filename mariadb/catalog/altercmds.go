@@ -800,6 +800,25 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 	}
+	// So are the columns that read this one: replacing an expression can make
+	// a materialized dependent invalid, and the table would then hold a schema
+	// the server refuses. Measured on mariadb:11.8.8 with
+	// `b DOUBLE AS (a) STORED` in place, `ALTER TABLE t MODIFY a DOUBLE AS
+	// (RAND()) VIRTUAL` answers 1901 naming a, and so does the same table with
+	// b VIRTUAL under a key, while an unmaterialized b takes it.
+	//
+	// The question is about the table as it would stand, so the column goes in
+	// for the length of the check and comes back out. Nothing else has been
+	// touched yet, so a refusal leaves the table as it was.
+	if col.Generated != nil {
+		prev := tbl.Columns[idx]
+		tbl.Columns[idx] = col
+		depErr := validateMaterializedGeneratedColumns(tbl, indexed)
+		tbl.Columns[idx] = prev
+		if depErr != nil {
+			return depErr
+		}
+	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
 

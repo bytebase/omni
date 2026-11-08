@@ -447,7 +447,12 @@ func nondeterministicDependency(tbl *Table, col *Column, seen map[string]bool) s
 		}
 		if dep.Generated.Nondeterministic != "" ||
 			nondeterministicDependency(tbl, dep, seen) != "" {
-			return ref
+			// The column's own name, not the text of the reference: a CHANGE
+			// renames the column the reference was written against, and the
+			// server names it as it now stands. Measured on mariadb:11.8.8,
+			// `ALTER TABLE t CHANGE a z DOUBLE AS (RAND()) VIRTUAL` with
+			// `b DOUBLE AS (a) STORED` in place answers 1901 naming z.
+			return dep.Name
 		}
 	}
 	return ""
