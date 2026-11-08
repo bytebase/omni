@@ -481,6 +481,10 @@ func TestTiDBIntervalValueStaysUnread(t *testing.T) {
 		// is the INTERVAL function to TiDB.
 		"SELECT a + INTERVAL +(1 + 2) DAY FROM t",
 		"SELECT a + INTERVAL -(1 + 2) DAY FROM t",
+		// A suffix that binds tighter than the sign (COLLATE) is not folded into
+		// the literal, so this is narrowed too, not read as `interval (1 collate
+		// binary) day`.
+		"SELECT a + INTERVAL +1 COLLATE binary DAY FROM t",
 		"SELECT a + INTERVAL EXISTS (SELECT 1) DAY FROM t",
 		// This one deparses to `interval 1 day`, the operator gone, which the
 		// engine does parse and means something else.

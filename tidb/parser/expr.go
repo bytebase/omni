@@ -2361,9 +2361,15 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		// A sign directly on a numeric literal is part of the value: TiDB v8.5.5
 		// runs INTERVAL -1 DAY and INTERVAL -2.2 MINUTE_MICROSECOND. A signed
 		// literal deparses without parentheses (`-2.2`, or `1` for a dropped unary
-		// plus), so it stays the interval literal. A sign on any other expression
-		// stays narrowed: deparse drops a unary plus, and `INTERVAL +(1 + 2) DAY`
-		// would come back as `interval (1 + 2) day`, the INTERVAL function to TiDB.
+		// plus), so it stays the interval literal. A sign on anything else stays
+		// narrowed: deparse drops a unary plus and parenthesises the rest, and
+		// `interval (1 + 2) day` / `interval (1 collate binary) day` is the
+		// INTERVAL function to TiDB.
+		//
+		// The operand is read with parsePrimaryExpr, not parseUnaryExpr, so a
+		// suffix that binds tighter than the sign (COLLATE) is not folded into it:
+		// `INTERVAL +1 COLLATE binary DAY` leaves COLLATE for the unit, which
+		// refuses it.
 		if nt := p.peekNext().Type; nt != tokICONST && nt != tokFCONST {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -2371,7 +2377,13 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		if p.cur.Type == '+' {
 			op = nodes.UnaryPlus
 		}
-		val, err = p.parseUnaryExpr(op)
+		opStart := p.pos()
+		p.advance() // consume the sign
+		var operand nodes.ExprNode
+		operand, err = p.parsePrimaryExpr()
+		if err == nil {
+			val = &nodes.UnaryExpr{Loc: nodes.Loc{Start: opStart, End: p.prev.End}, Op: op, Operand: operand}
+		}
 	default:
 		val, err = p.parsePrimaryExpr()
 	}
