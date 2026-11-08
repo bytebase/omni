@@ -80,6 +80,9 @@ var nestingShapes = []struct {
 		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")
 	}},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON 1)") }},
+	// A conditionless join absorbs its right operand, so a long chain of them
+	// right-nests through parseJoinChain and must be bounded, not overflow.
+	{"conditionless join chain", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }},
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
