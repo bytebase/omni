@@ -3899,3 +3899,74 @@ func TestReview_ApproximateIntegerDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ExponentDefaultOutsideThePlainRange covers a numeric default on a
+// string column whose exponent reaches past what a plain decimal holds. The
+// value is still the double's, written as the double's own shortest form —
+// mantissa and exponent with nothing spare — where echoing the literal's
+// spelling kept whatever it was written as: (0001e15) came out '0001e15'
+// instead of '1e15'.
+//
+// Measured on mariadb:11.8.8, with the stored characters read back from a row
+// so a difference in spelling fails as a difference in value.
+func TestReview_ExponentDefaultOutsideThePlainRange(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, literal string }{
+		// Every one of these is the same double, and comes back '1e15'.
+		{"leading_zeros", "0001e15"},
+		{"canonical", "1e15"},
+		{"upper_case_e", "1E15"},
+		{"signed_exponent", "1e+15"},
+		{"zero_padded_exponent", "1e015"},
+		{"trailing_fraction_zero", "1.0e15"},
+		{"mantissa_above_ten", "10e14"},
+		{"mantissa_below_one", "0.1e16"},
+		// A mantissa of its own is kept, normalized.
+		{"with_a_mantissa", "1.5e15"},
+		{"mantissa_padded", "1.50e15"},
+		// Further out, in both directions.
+		{"just_past", "1e16"},
+		{"far_out", "1e20"},
+		{"very_far_out", "1e100"},
+		{"the_largest", "1e308"},
+		{"small", "1e-16"},
+		{"small_with_leading_zeros", "0001e-16"},
+		{"small_with_a_mantissa", "1.5e-16"},
+		{"very_small", "1e-100"},
+		// A literal written without an exponent keeps its digits however many
+		// there are.
+		{"eighteen_digits", "123456789012345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a VARCHAR(60) DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT a FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT a FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %q became %q\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
