@@ -147,6 +147,15 @@ const (
 type GeneratedColumnInfo struct {
 	Expr   string
 	Stored bool
+	// Nondeterministic names the non-deterministic function the expression
+	// calls, spelled as MariaDB spells it in its 1901 message, or "" where it
+	// calls none. It is recorded when the column is defined, while the
+	// expression is still an AST, because a key added later materializes a
+	// VIRTUAL column's value and the server then refuses the expression:
+	// measured on mariadb:11.8.8, `CREATE INDEX idx ON t(a)` over
+	// `a DOUBLE AS (RAND()) VIRTUAL` answers 1901 just as declaring the key
+	// with the table does.
+	Nondeterministic string
 	// RowBound is "ROW START" / "ROW END" for a system-versioning period
 	// column (GENERATED ALWAYS AS ROW START/END), else "".
 	RowBound string

@@ -1625,9 +1625,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-			Stored:   colDef.Generated.Stored,
-			RowBound: rowBoundSQL(colDef.Generated.RowBound),
+			Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Stored:           colDef.Generated.Stored,
+			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
+			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
 		}
 	}
 	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)

@@ -116,8 +116,9 @@ func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexC
 	col.Name = hiddenName
 	col.Nullable = true
 	col.Generated = &GeneratedColumnInfo{
-		Expr:   idxCol.Expr,
-		Stored: false,
+		Expr:             idxCol.Expr,
+		Stored:           false,
+		Nondeterministic: nondeterministicFuncIn(idxCol.ExprNode),
 	}
 	col.Hidden = ColumnHiddenSystem
 	return col

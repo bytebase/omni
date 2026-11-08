@@ -318,9 +318,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-				Stored:   colDef.Generated.Stored,
-				RowBound: rowBoundSQL(colDef.Generated.RowBound),
+				Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Stored:           colDef.Generated.Stored,
+				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
+				Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
 			}
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
@@ -2052,6 +2053,17 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		if col == nil {
 			continue
 		}
+		// A key over a VIRTUAL generated column materializes its value, and
+		// the server then refuses a non-deterministic expression for it —
+		// when the key arrives later as much as when the column is declared
+		// with one. Measured on mariadb:11.8.8 against
+		// `CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)`: 1901 for
+		// `CREATE INDEX idx ON t(a)`, `ALTER TABLE t ADD INDEX idx(a)`,
+		// `ADD UNIQUE idx(a)` and for an index that covers the column
+		// second, and 1901 before the key-length 1170 where both apply.
+		if col.Generated != nil && col.Generated.Nondeterministic != "" {
+			return errNondeterministicGeneratedColumn(col.Generated.Nondeterministic, col.Name)
+		}
 		if spatial {
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
@@ -3326,9 +3338,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:     srcCol.Generated.Expr,
-				Stored:   srcCol.Generated.Stored,
-				RowBound: srcCol.Generated.RowBound,
+				Expr:             srcCol.Generated.Expr,
+				Stored:           srcCol.Generated.Stored,
+				RowBound:         srcCol.Generated.RowBound,
+				Nondeterministic: srcCol.Generated.Nondeterministic,
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)

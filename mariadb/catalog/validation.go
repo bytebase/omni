@@ -186,8 +186,8 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode, stored bool) err
 			// 'rand()' cannot be used in the GENERATED ALWAYS AS clause of
 			// `a`", for a STORED column and for a VIRTUAL one with a key over
 			// it. Measured on mariadb:11.8.8. MySQL 8.0 refuses it everywhere.
-			if stored && isNondeterministicFunc(x.Name) && badFunc == "" {
-				badFunc = strings.ToLower(x.Name)
+			if stored && badFunc == "" {
+				badFunc = nondeterministicFuncName(x.Name)
 			}
 		}
 		return !invalid
@@ -373,14 +373,46 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 }
 
 func isNondeterministicFunc(name string) bool {
-	switch strings.ToLower(name) {
-	case "now", "current_timestamp", "localtime", "localtimestamp", "sysdate",
-		"utc_timestamp", "curtime", "current_time", "utc_time", "curdate",
-		"current_date", "utc_date", "rand", "uuid", "uuid_short", "connection_id":
-		return true
-	default:
-		return false
+	return nondeterministicFuncName(name) != ""
+}
+
+// nondeterministicFuncName returns the name MariaDB reports for a
+// non-deterministic function in its 1901 message, or "" for a deterministic
+// one. The server reports the name it folded the call to rather than the one
+// written: measured on mariadb:11.8.8, NOW() and CURRENT_TIMESTAMP are both
+// 'current_timestamp()', CURRENT_TIME and LOCALTIME() are both 'curtime()',
+// CURRENT_DATE is 'curdate()', and LOCALTIMESTAMP() and SYSDATE() keep their
+// own names.
+func nondeterministicFuncName(name string) string {
+	lower := strings.ToLower(name)
+	switch lower {
+	case "now", "current_timestamp":
+		return "current_timestamp"
+	case "curtime", "current_time", "localtime":
+		return "curtime"
+	case "curdate", "current_date":
+		return "curdate"
+	case "localtimestamp", "sysdate", "utc_timestamp", "utc_time", "utc_date",
+		"rand", "uuid", "uuid_short", "connection_id":
+		return lower
 	}
+	return ""
+}
+
+// nondeterministicFuncIn returns the name of the first non-deterministic
+// function an expression calls, spelled as MariaDB spells it, or "".
+func nondeterministicFuncIn(expr nodes.ExprNode) string {
+	found := ""
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found != "" {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok {
+			found = nondeterministicFuncName(fn.Name)
+		}
+		return found == ""
+	})
+	return found
 }
 
 func firstIntArg(fn *nodes.FuncCallExpr) (int, bool) {

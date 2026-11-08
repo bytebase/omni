@@ -598,6 +598,13 @@ func formatLiteralValue(val string, col *Column) string {
 		// stands, which at least parses.
 		return val
 	}
+	// A BIT column's default is never quoted either: a quoted string there is
+	// read as the bytes it holds rather than as the text, so quoting one would
+	// change the value. What the family rule above could not read is written
+	// back as it stands.
+	if columnDefaultFamily(col.DataType) == familyBit {
+		return val
+	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
@@ -1103,6 +1110,13 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 	}
 	kind, raw, ok := literalDefaultBytes(val)
 	if !ok {
+		// A BIT column's default may be written as a plain number as well,
+		// which is the value itself.
+		if family == familyBit {
+			if n, ok := bitNumberOf(val); ok {
+				return bitLiteralOf(n), true
+			}
+		}
 		return "", false
 	}
 	// A column whose default is held as an expression keeps the literal as it
@@ -1139,8 +1153,57 @@ func formatBinaryDefault(val string, col *Column) (string, bool) {
 		return quoteStringDefault(raw), true
 	case familyNumber:
 		return numberDefaultOf(kind, raw, col)
+	case familyBit:
+		// Every notation is read as bytes here, a quoted string included:
+		// measured, BIT(8) DEFAULT 'A' is b'1000001' where INT DEFAULT 'A'
+		// is refused, so the bytes are the value and not the text.
+		n, ok := uintOfBytes(raw)
+		if !ok {
+			return "", false
+		}
+		return bitLiteralOf(n), true
 	}
 	return "", false
+}
+
+// bitLiteralOf writes a BIT column's default the way MariaDB does: a bit
+// literal of exactly the value's own digits, b'0' for zero.
+func bitLiteralOf(n uint64) string {
+	return "b'" + strconv.FormatUint(n, 2) + "'"
+}
+
+// uintOfBytes reads a literal's bytes as one big-endian number, and reports
+// false for more bytes than the widest BIT column could hold.
+func uintOfBytes(raw []byte) (uint64, bool) {
+	if len(raw) > 8 {
+		return 0, false
+	}
+	var n uint64
+	for _, c := range raw {
+		n = n<<8 | uint64(c)
+	}
+	return n, true
+}
+
+// bitNumberOf reads a BIT column's default written as a plain number, which is
+// the value itself, rounded to a whole number the way the integer types round:
+// measured on mariadb:11.8.8, BIT(8) DEFAULT 65 is b'1000001', 1.7 is b'10',
+// 007 is b'111' and 1e2 is b'1100100'. A negative one the server refuses
+// outright with 1067, so there is no value to write it as.
+func bitNumberOf(text string) (uint64, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return 0, false
+	}
+	whole := roundDecimalText(digits, 0)
+	if strings.HasPrefix(whole, "-") {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(whole, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 // columnDefaultFamily groups the column types by how a literal default is
@@ -1165,6 +1228,11 @@ const (
 	// familyNumber reads the bytes as a number: INT DEFAULT 0xFF is 255,
 	// DECIMAL(5,2) DEFAULT 0x41 is 65.00, YEAR DEFAULT 0x07D0 is 2000.
 	familyNumber
+	// familyBit reads the value as a number too, and writes it as a bit
+	// literal of exactly its own digits: BIT(8) DEFAULT X'41', 0x41, 'A',
+	// b'1000001' and 65 all come back b'1000001', and BIT(16) DEFAULT X'41'
+	// too, where BINARY(2) would have padded it.
+	familyBit
 )
 
 func columnDefaultFamily(dt string) defaultFamily {
@@ -1181,6 +1249,8 @@ func columnDefaultFamily(dt string) defaultFamily {
 	case "tinyint", "smallint", "mediumint", "int", "bigint",
 		"decimal", "float", "double", "year":
 		return familyNumber
+	case "bit":
+		return familyBit
 	}
 	return familyOther
 }
@@ -1226,12 +1296,9 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 	case literalString, literalIntroduced:
 		digits = string(raw)
 	default:
-		if len(raw) > 8 {
+		n, ok := uintOfBytes(raw)
+		if !ok {
 			return "", false // wider than a number the column could hold
-		}
-		var n uint64
-		for _, c := range raw {
-			n = n<<8 | uint64(c)
 		}
 		digits = strconv.FormatUint(n, 10)
 	}

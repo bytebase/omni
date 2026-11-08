@@ -1657,3 +1657,216 @@ func TestReview_ColumnCheckIsNotDroppableByName(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_BitColumnDefault covers a BIT column's default. BIT holds a
+// number and writes it as a bit literal of exactly its own digits, so every
+// notation a default can be written in — hex, bit, a quoted string, an
+// introduced one, a plain number — is read as that number and comes back as
+// b'...'. The type was in no family at all, so a hex default came back wrapped
+// in string quotes, with its own quotes still inside, which does not parse.
+//
+// All of it measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+func TestReview_BitColumnDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// The hex, bit and string notations, all of them the same value.
+		{"hex_upper", "CREATE TABLE t (a BIT(8) DEFAULT X'41')"},
+		{"hex_lower", "CREATE TABLE t (a BIT(8) DEFAULT x'41')"},
+		{"hex_0x", "CREATE TABLE t (a BIT(8) DEFAULT 0x41)"},
+		{"hex_leading_zeros", "CREATE TABLE t (a BIT(8) DEFAULT X'0041')"},
+		{"bits", "CREATE TABLE t (a BIT(8) DEFAULT b'1000001')"},
+		{"bits_upper", "CREATE TABLE t (a BIT(8) DEFAULT B'1000001')"},
+		{"string_is_bytes", "CREATE TABLE t (a BIT(8) DEFAULT 'A')"},
+		{"string_two_bytes", "CREATE TABLE t (a BIT(16) DEFAULT 'AB')"},
+		{"introduced", "CREATE TABLE t (a BIT(8) DEFAULT _utf8mb4'A')"},
+		{"parenthesized", "CREATE TABLE t (a BIT(8) DEFAULT (X'41'))"},
+
+		// A plain number is the value itself.
+		{"number", "CREATE TABLE t (a BIT(8) DEFAULT 65)"},
+		{"number_parenthesized", "CREATE TABLE t (a BIT(8) DEFAULT (65))"},
+		{"number_signed", "CREATE TABLE t (a BIT(8) DEFAULT +65)"},
+		{"number_leading_zeros", "CREATE TABLE t (a BIT(8) DEFAULT 007)"},
+		{"number_rounds_up", "CREATE TABLE t (a BIT(8) DEFAULT 1.7)"},
+		{"number_rounds_down", "CREATE TABLE t (a BIT(8) DEFAULT 1.2)"},
+		{"number_exponent", "CREATE TABLE t (a BIT(8) DEFAULT 1e2)"},
+		{"number_max", "CREATE TABLE t (a BIT(8) DEFAULT 255)"},
+
+		// Zero and the widths around it.
+		{"zero", "CREATE TABLE t (a BIT(8) DEFAULT 0)"},
+		{"empty_bits", "CREATE TABLE t (a BIT(8) DEFAULT b'')"},
+		{"empty_hex", "CREATE TABLE t (a BIT(8) DEFAULT X'')"},
+		{"one_bit", "CREATE TABLE t (a BIT(1) DEFAULT 1)"},
+		{"one_bit_literal", "CREATE TABLE t (a BIT(1) DEFAULT b'1')"},
+		{"no_width", "CREATE TABLE t (a BIT DEFAULT b'1')"},
+		{"wider_column_does_not_pad", "CREATE TABLE t (a BIT(16) DEFAULT X'41')"},
+		{"widest", "CREATE TABLE t (a BIT(64) DEFAULT X'FFFFFFFFFFFFFFFF')"},
+		{"null", "CREATE TABLE t (a BIT(8) DEFAULT NULL)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_BitDefaultStaysParseable covers the BIT defaults the server
+// refuses outright with 1067 — a value wider than the column, a negative one,
+// a string whose bytes are too wide. omni does not check that yet, so what it
+// writes has to be a statement that still parses.
+func TestReview_BitDefaultStaysParseable(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"too_wide_hex", "CREATE TABLE t (a BIT(4) DEFAULT X'41')"},
+		{"too_wide_number", "CREATE TABLE t (a BIT(8) DEFAULT 256)"},
+		{"too_wide_bits", "CREATE TABLE t (a BIT(8) DEFAULT b'100000011')"},
+		{"too_wide_string", "CREATE TABLE t (a BIT(8) DEFAULT 'AB')"},
+		{"digits_in_a_string", "CREATE TABLE t (a BIT(8) DEFAULT '65')"},
+		{"negative", "CREATE TABLE t (a BIT(8) DEFAULT -1)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			if _, err := mc.db.ExecContext(mc.ctx, tc.ddl); err == nil {
+				t.Fatalf("oracle: expected %q to be refused", tc.ddl)
+			}
+
+			c := scenarioNewCatalog(t)
+			results, err := c.Exec(tc.ddl+";", nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					return // omni refused it too, which is the server's answer
+				}
+			}
+			create := c.ShowCreateTable("testdb", "t")
+			again := scenarioNewCatalog(t)
+			results, err = again.Exec(create+";", nil)
+			if err != nil {
+				t.Fatalf("omni wrote a default it cannot read back: %v\n%s", err, create)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatalf("omni wrote a default it cannot read back: %v\n%s", r.Error, create)
+				}
+			}
+		})
+	}
+}
+
+// TestReview_IndexOnNondeterministicGeneratedColumn covers a key added over a
+// VIRTUAL generated column after the fact. The key materializes the column's
+// value, and the server then refuses a non-deterministic expression for it
+// with 1901, exactly as it refuses the key declared with the table. Only the
+// column's own definition was checked, so CREATE INDEX and ALTER ... ADD INDEX
+// let it through.
+//
+// Measured on mariadb:11.8.8, including the message, which names the function
+// as the server folded it: NOW() is reported as current_timestamp().
+func TestReview_IndexOnNondeterministicGeneratedColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		setup   string
+		add     string
+		accepts bool
+	}{
+		{
+			name:  "create_index",
+			setup: "CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			add:   "CREATE INDEX idx ON t(a)",
+		},
+		{
+			name:  "alter_add_index",
+			setup: "CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			add:   "ALTER TABLE t ADD INDEX idx(a)",
+		},
+		{
+			name:  "alter_add_unique",
+			setup: "CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			add:   "ALTER TABLE t ADD UNIQUE idx(a)",
+		},
+		{
+			name:  "covered_second",
+			setup: "CREATE TABLE t (b INT, a DOUBLE AS (RAND()) VIRTUAL)",
+			add:   "CREATE INDEX idx ON t(b,a)",
+		},
+		{
+			name:  "now_is_reported_as_current_timestamp",
+			setup: "CREATE TABLE t (a DATETIME AS (NOW()) VIRTUAL)",
+			add:   "CREATE INDEX idx ON t(a)",
+		},
+		{
+			name:  "uuid",
+			setup: "CREATE TABLE t (a CHAR(36) AS (UUID()) VIRTUAL)",
+			add:   "CREATE INDEX idx ON t(a)",
+		},
+		{
+			name:  "text_column_before_the_key_length",
+			setup: "CREATE TABLE t (a TEXT AS (UUID()) VIRTUAL)",
+			add:   "CREATE INDEX idx ON t(a)",
+		},
+		{
+			name:    "deterministic_is_fine",
+			setup:   "CREATE TABLE t (b INT, a INT AS (b + 1) VIRTUAL)",
+			add:     "CREATE INDEX idx ON t(a)",
+			accepts: true,
+		},
+		{
+			name:    "an_ordinary_column_is_fine",
+			setup:   "CREATE TABLE t (a INT)",
+			add:     "CREATE INDEX idx ON t(a)",
+			accepts: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.add)
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: %q gave %v, want accepted=%v", tc.add, oracleErr, tc.accepts)
+			}
+
+			results, err := c.Exec(tc.add+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: %q gave %v, want accepted=%v", tc.add, omniErr, tc.accepts)
+			}
+			if tc.accepts {
+				want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+				if got := c.ShowCreateTable("testdb", "t"); got != want {
+					t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+				}
+				return
+			}
+			if want := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), want) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", want, omniErr)
+			}
+		})
+	}
+}
+
+// messageTailOf strips the leading code and SQL state from a server error, so
+// that the message itself can be compared with the catalog's.
+func messageTailOf(err error) string {
+	msg := err.Error()
+	if i := strings.Index(msg, "): "); i >= 0 {
+		return msg[i+3:]
+	}
+	return msg
+}
