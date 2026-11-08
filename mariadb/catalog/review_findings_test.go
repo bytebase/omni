@@ -4176,3 +4176,94 @@ func TestReview_EveryPrimaryKeyDropSpelling(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_NumericDefaultIsTheColumnsOwnFloat covers a default on a numeric
+// column, where the value written is the column's own rather than the digits
+// the literal was written with. An exponent makes the literal a double, so a
+// DECIMAL rounds the double's decimal and not the literal's: DECIMAL(20,0)
+// DEFAULT (9007199254740993e0) came out with all seventeen digits where the
+// server keeps the double's sixteen. A scaleless float column holds a float of
+// its own either way, so a DOUBLE writes its value in the double's notation
+// whether or not the literal carried an exponent, and a FLOAT writes the
+// float32 it holds to six significant digits.
+//
+// Measured on mariadb:11.8.8, with the stored value read back on both sides.
+func TestReview_NumericDefaultIsTheColumnsOwnFloat(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		// A DECIMAL rounds the double an exponent makes of the literal.
+		{"decimal_past_a_double", "DECIMAL(20,0)", "9007199254740993e0"},
+		{"decimal_exact_twin", "DECIMAL(20,0)", "9007199254740993"},
+		{"decimal_tie_as_a_double", "DECIMAL(5,2)", "2.675e0"},
+		{"decimal_tie_exact", "DECIMAL(5,2)", "2.675"},
+		{"decimal_scale_past_the_double", "DECIMAL(30,20)", "0.1e0"},
+		{"decimal_long_as_a_double", "DECIMAL(30,10)", "123456789012345.123456789e0"},
+		{"decimal_long_exact", "DECIMAL(30,10)", "123456789012345.123456789"},
+		{"decimal_from_an_exponent", "DECIMAL(20,0)", "1e15"},
+		{"decimal_from_a_big_exponent", "DECIMAL(40,0)", "1e30"},
+		// A scaleless DOUBLE writes the double, in the double's notation.
+		{"double_past_a_double", "DOUBLE", "9007199254740993e0"},
+		{"double_exact_twin", "DOUBLE", "9007199254740993"},
+		{"double_tenth", "DOUBLE", "0.1e0"},
+		{"double_tie_exact", "DOUBLE", "2.675"},
+		{"double_long_exact", "DOUBLE", "123456789012345.123456789"},
+		{"double_at_the_exponent_edge", "DOUBLE", "1e15"},
+		{"double_past_the_edge", "DOUBLE", "1e20"},
+		{"double_trailing_zeros", "DOUBLE", "7.000"},
+		{"double_small_exponent", "DOUBLE", "1e-16"},
+		{"double_largest", "DOUBLE", "1e308"},
+		{"double_with_a_scale", "DOUBLE(10,2)", "2.675e0"},
+		// A scaleless FLOAT writes its float32, to six significant digits.
+		{"float_more_digits_than_it_holds", "FLOAT", "0.123456789"},
+		{"float_seven_whole_digits", "FLOAT", "1234567"},
+		{"float_eight_whole_digits", "FLOAT", "12345678"},
+		{"float_past_its_integers", "FLOAT", "16777217"},
+		{"float_just_past_one", "FLOAT", "1.0000001"},
+		{"float_a_third", "FLOAT", "0.3333333333"},
+		{"float_pi", "FLOAT", "3.14159265358979"},
+		{"float_small_plain", "FLOAT", "1e-7"},
+		{"float_largest", "FLOAT", "1e38"},
+		{"float_at_the_exponent_edge", "FLOAT", "1e15"},
+		{"float_long_exact", "FLOAT", "123456789012345.123456789"},
+		{"float_rounds_up_a_place", "FLOAT", "999999.5"},
+		{"float_smallest_subnormal", "FLOAT", "1e-45"},
+		{"float_short_enough_to_keep", "FLOAT", "2.675"},
+		{"float_negative", "FLOAT", "-0.123456789"},
+		{"float_with_a_scale", "FLOAT(10,2)", "2.675e0"},
+		// An integer column takes the double too, where the literal is one.
+		{"bigint_past_a_double", "BIGINT", "9007199254740993e0"},
+		{"bigint_exact_twin", "BIGINT", "9007199254740993"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}

@@ -1341,15 +1341,55 @@ func numberStringForm(val string) (string, bool) {
 func doubleText(f float64) string {
 	// FormatFloat's 'e' gives the shortest mantissa and the exponent, which
 	// is where both the digit count and the point's position come from.
-	sci := strconv.FormatFloat(f, 'e', -1, 64)
+	return scientificText(strconv.FormatFloat(f, 'e', -1, 64))
+}
+
+// singleText writes a single-precision float the way the server writes one:
+// the float32 the column holds, shown to the six significant digits a float
+// is shown to, in the notation a double is written in.
+//
+// Measured on mariadb:11.8.8 through a scaleless FLOAT column's default.
+// FLOAT DEFAULT (0.123456789) comes back 0.123457, (1234567) comes back
+// 1234570, (16777217) comes back 16777200 and (1.0000001) comes back 1, where
+// a DOUBLE of the same digits keeps them; (0.3333333333) comes back 0.333333
+// and the smallest subnormal (1e-45) comes back 1.4013e-45, six digits with
+// the trailing zero gone. The notation window is the double's: (1e-7) is
+// 0.0000001 and (123456789012345.123456789) is 123457000000000, while (1e15)
+// is 1e15 and (1e38) is 1e38.
+func singleText(f float64) string {
+	g := float64(float32(f))
+	if math.IsInf(g, 0) || math.IsNaN(g) {
+		// Past what a float32 holds there is no float32 form to write. The
+		// server refuses such a default, so this only guards the text.
+		return doubleText(f)
+	}
+	return scientificText(strconv.FormatFloat(g, 'e', 5, 64))
+}
+
+// scientificText writes the value an 'e' form carries the way the server
+// writes a float default, taking the digit count and the point's position
+// from the mantissa and the exponent.
+func scientificText(sci string) string {
 	mantissa, exp, _ := strings.Cut(sci, "e")
 	decExp, err := strconv.Atoi(exp)
 	if err != nil {
 		return sci
 	}
+	if strings.Contains(mantissa, ".") {
+		// Rounding to a digit count pads with zeros the server does not
+		// write: 2.675 as a float is 2.67500e0 and comes back 2.675.
+		mantissa = strings.TrimSuffix(strings.TrimRight(mantissa, "0"), ".")
+	}
 	digits := len(strings.TrimPrefix(strings.Replace(mantissa, ".", "", 1), "-"))
 	point := decExp + 1
 	if point >= -14 && (point <= 15 || digits > point) {
+		// The plain form of those same digits. A decimal this short reads
+		// back as one float64 and no other, so formatting the float64 it
+		// reads as writes the digits again.
+		f, err := strconv.ParseFloat(mantissa+"e"+strconv.Itoa(decExp), 64)
+		if err != nil {
+			return sci
+		}
 		return strconv.FormatFloat(f, 'f', -1, 64)
 	}
 	// The exponent form is written without a plus or a padded exponent, which
@@ -1570,8 +1610,22 @@ func scaleNumberDefault(text string, col *Column) (string, bool) {
 		return "", false
 	}
 	scale, declared := declaredScaleOf(col.ColumnType)
-	switch normalizedTypeName(col.DataType) {
+	typeName := normalizedTypeName(col.DataType)
+	switch typeName {
 	case "decimal":
+		if isApproximateLiteral(text) {
+			// An exponent makes the literal a double, so what the column
+			// rounds is the double's own decimal rather than the digits
+			// written: measured, DECIMAL(20,0) DEFAULT (9007199254740993e0)
+			// comes back 9007199254740992, where the same digits without the
+			// exponent keep all seventeen. It is the double's shortest
+			// decimal, not its exact expansion: DECIMAL(5,2) DEFAULT
+			// (2.675e0) comes back 2.68 like the exact 2.675, where the
+			// expansion 2.67499999... would give 2.67.
+			if f, err := strconv.ParseFloat(digits, 64); err == nil {
+				digits = strconv.FormatFloat(f, 'f', -1, 64)
+			}
+		}
 		// DECIMAL is decimal arithmetic, so a tie rounds away from zero:
 		// measured, DECIMAL(5,2) DEFAULT 7.125 comes back 7.13, 0.005 0.01
 		// and 9.999 10.00. A DECIMAL that declares no scale has scale 0, so
@@ -1579,10 +1633,17 @@ func scaleNumberDefault(text string, col *Column) (string, bool) {
 		return dropNegativeZero(roundDecimalText(digits, scale)), true
 	case "float", "double":
 		if !declared {
-			// A scaleless float prints as the double it holds, so a trailing
-			// run of zeros in the fraction is notation rather than value:
-			// measured, DOUBLE DEFAULT 7.000 comes back 7 and 7.10 comes
-			// back 7.1.
+			// A scaleless float prints as the float it holds, whether or not
+			// the literal carried an exponent: measured, DOUBLE DEFAULT
+			// (9007199254740993) comes back 9.007199254740992e15, 7.000 comes
+			// back 7 and (1e15) stays 1e15. A FLOAT holds a float32, which
+			// singleText writes.
+			if f, err := strconv.ParseFloat(digits, 64); err == nil {
+				if typeName == "float" {
+					return dropNegativeZero(singleText(f)), true
+				}
+				return dropNegativeZero(doubleText(f)), true
+			}
 			return dropNegativeZero(trimFractionZeros(digits)), true
 		}
 		// A float that declares a scale is shown to it, but rounded as the
