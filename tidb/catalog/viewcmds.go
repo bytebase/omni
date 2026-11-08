@@ -102,17 +102,40 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
-// marker, at any depth including nested subqueries.
+// marker, at any depth including nested subqueries. It also inspects the rows
+// of INSERT ... VALUES and of a VALUES statement, which nodes.Inspect's walker
+// skips, so a marker in a stored routine or trigger body cannot slip past.
 func containsParamMarker(n nodes.Node) bool {
 	found := false
 	nodes.Inspect(n, func(x nodes.Node) bool {
-		if _, ok := x.(*nodes.ParamMarkerExpr); ok {
-			found = true
+		if found {
 			return false
+		}
+		switch e := x.(type) {
+		case *nodes.ParamMarkerExpr:
+			found = true
+		case *nodes.InsertStmt:
+			found = rowsHaveParamMarker(e.Values)
+		case *nodes.ValuesStmt:
+			found = rowsHaveParamMarker(e.Rows)
 		}
 		return !found
 	})
 	return found
+}
+
+// rowsHaveParamMarker reports whether any expression in the rows of an
+// INSERT ... VALUES or a VALUES statement holds a `?` marker. Those rows are
+// not reached by nodes.Inspect, so containsParamMarker checks them here.
+func rowsHaveParamMarker(rows [][]nodes.ExprNode) bool {
+	for _, row := range rows {
+		for _, v := range row {
+			if v != nil && containsParamMarker(v) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {

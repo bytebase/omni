@@ -47,10 +47,18 @@ func TestLimitParamMarkerTree(t *testing.T) {
 		}
 	}
 
-	// A `?` is a LIMIT operand only, not a general expression.
-	if _, err := Parse("SELECT ?"); err == nil {
-		t.Errorf("SELECT ? should still be rejected")
+	// A `?` is a simple_expr alternative, so it also parses as a bare
+	// select-list operand into a ParamMarkerExpr. The analyzer boundary, not
+	// the parser, refuses an unbound marker.
+	list, err := Parse("SELECT ?")
+	if err != nil {
+		t.Fatalf(`Parse("SELECT ?"): %v`, err)
 	}
+	targets := list.Items[0].(*ast.SelectStmt).TargetList
+	if len(targets) != 1 {
+		t.Fatalf(`"SELECT ?": %d targets, want 1`, len(targets))
+	}
+	spansOneQuestionMark("SELECT ?", targets[0])
 }
 
 // TestGroupByDirectionTree checks that GROUP BY items carry an optional

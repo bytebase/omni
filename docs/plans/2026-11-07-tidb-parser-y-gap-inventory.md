@@ -14,10 +14,10 @@ high-precedence `NOT` (`NotSym#2`, `SimpleExpr#16`, need `HIGH_NOT_PRECEDENCE`)
 — leaving 2,943. The shortest statement exercising each was measured against
 omni and against TiDB v8.5.5 via `PREPARE`:
 
-| | first | after #725 | after #730 | after #731 | after #733 | after #736 | now |
+| | first | after #725 | after #731 | after #733 | after #736 | after #737 | now |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| both accept | 2,670 | 2,782 | 2,790 | 2,799 | 2,805 | 2,810 | 2,814 |
-| gap: TiDB accepts, omni rejects | 152 | 40 | 32 | 23 | 17 | 12 | 8 |
+| both accept | 2,670 | 2,782 | 2,799 | 2,805 | 2,810 | 2,814 | 2,818 |
+| gap: TiDB accepts, omni rejects | 152 | 40 | 23 | 17 | 12 | 8 | 4 |
 | over-acceptance: TiDB rejects, omni accepts | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | both reject | 121 | 121 | 121 | 121 | 121 | 121 | 121 |
 | no verdict | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -55,7 +55,7 @@ MariaDB and OceanBase answer 1064 to both. All four take `CONVERT(... USING
 BINARY)` and the WEIGHT_STRING AS clause, but only TiDB takes its zero length
 (`AS CHAR(0)`).
 
-The **now** column is after the LOAD DATA / OUTFILE field-option cluster closed
+The **after #737** column is after the LOAD DATA / OUTFILE field-option cluster closed
 (`fix(tidb,mysql,mariadb,oceanbase): accept CHARACTER SET on LOAD DATA and
 DEFINED NULL BY / repeated OPTIONALLY ENCLOSED field options`): 4 rows flipped
 from gap to both-accept, zero new over-acceptances. LOAD DATA's `CHARACTER SET`
@@ -69,6 +69,22 @@ answer 1064 to DEFINED NULL BY. The `CHARACTER SET` fix was ported to the three
 forks, each measured to take `CHARACTER SET BINARY` on LOAD DATA; OceanBase
 diverges on the short `CHARSET` spelling, which it answers 1064 to where MySQL
 and MariaDB take it, so that arm stays a plain identifier there.
+
+The **now** column is after the `?`-parameter-marker-in-expression cluster
+closed (`fix(tidb,mysql,mariadb,oceanbase): accept ? parameter marker as
+operand, LEAD/LAG offset and window-frame bound`): 4 rows flipped from gap to
+both-accept, zero new over-acceptances. The existing leaf `ParamMarkerExpr`
+node — wired into the LIMIT operand by #725 — became a `SimpleExpr` alternative
+(`parsePrimaryExpr` learned `?`, parser.y:7886), so a `?` is now a valid operand
+anywhere an expression is: a bare `DO ?`, the LEAD/LAG offset (`OptLeadLagInfo`,
+parser.y:9827) and a window-frame bound (`WindowFrameStart`/`WindowFrameBound`,
+parser.y:9700, 9729) all go through that leaf. The analyzer boundary still
+refuses a standalone marker, so `?` cannot reach catalog Exec. The fix was ported
+to the three forks, each measured against its live engine: MySQL and OceanBase
+accept `?` in all three positions; MariaDB accepts it as an operand and LEAD/LAG
+offset but answers 1064 to a `?` frame bound (its bound is a numeric literal or
+INTERVAL), so `mariadb`'s `parseFrameBound` keeps the marker out of that one
+position alone.
 
 ## The gaps, by theme
 
@@ -98,8 +114,9 @@ LIMIT/FETCH operand, not yet general expression position — and GROUP BY items
 learned the optional ASC/DESC direction (`ByItem: Expression Order`), which moved
 `SelectStmt.GroupBy` to `[]*OrderByItem` so a direction can ride on each item.
 The general `?`-in-expression rows (`SimpleExpr`, `WindowFrameStart/Bound`,
-`OptLeadLagInfo`) stay gaps: they are a separate param-marker-as-expression
-cluster.
+`OptLeadLagInfo`) were a separate param-marker-as-expression cluster, since
+**closed** when `parsePrimaryExpr` made the same `ParamMarkerExpr` leaf a
+`SimpleExpr` alternative (see the **now** column above).
 
 The stored-procedure cluster (8 rows: `procedurceElseIfs`,
 `ProcedureProcStmt1s`, `ProcedureIf`, `ProcedureIfstmt`, `ProcedureProcStmt`)
@@ -141,12 +158,10 @@ The import-job and `AFFINITY` forms are TiDB-only (`mysql`, `mariadb`,
 engines accept it, and the one-line `CHAR SET` arm ported to each, measured,
 zero new over-acceptances.
 
-The 8 that remain are unrelated to usernames, LIMIT, procedures, statistics,
-SHOW, collation/convert/weight_string, or LOAD DATA / OUTFILE field options:
+The 4 that remain are unrelated to usernames, LIMIT, procedures, statistics,
+SHOW, collation/convert/weight_string, LOAD DATA / OUTFILE field options, or the
+`?` parameter marker:
 
-- **Window frames (~3 rows).** `WindowFrameStart`, `WindowFrameBound`,
-  `OptLeadLagInfo`.
-- **Expressions (~1 row).** `SimpleExpr` param marker as an operand (`DO ?`).
 - **CREATE SEQUENCE options and ALTER IGNORE TABLE (~4 rows).**
   `TableOption`/`PartDefOption` on `CREATE SEQUENCE`, `IgnoreOptional`.
 
@@ -163,8 +178,4 @@ One example statement per rule; `n` is how many of the rule's alternatives gap.
 |---|---:|---|
 | `PartDefOption` | 2 | CREATE SEQUENCE ident NODEGROUP 1 |
 | `IgnoreOptional` | 1 | ALTER IGNORE TABLE ident |
-| `OptLeadLagInfo` | 1 | DO LEAD(ident, ?) OVER ident |
-| `SimpleExpr` | 1 | DO ? |
 | `TableOption` | 1 | CREATE SEQUENCE ident AFFINITY 's' |
-| `WindowFrameBound` | 1 | DO ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING) |
-| `WindowFrameStart` | 1 | DO ROW_NUMBER() OVER(ROWS ? PRECEDING) |

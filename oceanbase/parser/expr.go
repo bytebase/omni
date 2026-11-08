@@ -552,6 +552,16 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
 
+	// A `?` parameter marker is a simple_expr alternative in OceanBase's MySQL
+	// mode (shared with MySQL), so it is a valid operand anywhere an expression
+	// is: a bare `DO ?`, the offset of LEAD/LAG (read as an ordinary argument),
+	// and a window-frame bound (read through parseFrameBound's expr). The engine
+	// accepts `?` only under PREPARE; the catalog analyzer boundary rejects any
+	// statement carrying an unbound marker.
+	case '?':
+		tok := p.advance()
+		return &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+
 	case '(':
 		return p.parseParenExpr()
 
