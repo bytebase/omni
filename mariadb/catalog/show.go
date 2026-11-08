@@ -566,10 +566,21 @@ func formatLiteralValue(val string, col *Column) string {
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		return val
 	}
-	// A numeric column's default is unquoted, and loses the quotes it was
-	// written with.
+	// A numeric column holds the number the literal spells, not the text, so
+	// the default is written from that number: the quotes go, and so does
+	// everything else the text carried around the digits.
 	if isNumericColumnType(col.DataType) {
-		return scaleNumberDefault(strings.Trim(val, "'"), col)
+		text := val
+		if raw, ok := unquoteStringLiteral(val); ok {
+			text = string(raw)
+		}
+		if out, ok := scaleNumberDefault(text, col); ok {
+			return out
+		}
+		// The text spells no number, which the server refuses outright with
+		// 1067, so there is no value to write it as. It is written back as it
+		// stands, which at least parses.
+		return val
 	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
@@ -1208,40 +1219,157 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 		}
 		digits = strconv.FormatUint(n, 10)
 	}
-	return scaleNumberDefault(digits, col), true
+	return scaleNumberDefault(digits, col)
 }
 
-// scaleNumberDefault writes a number default the way the column carries it. A
-// DECIMAL is shown to its declared scale however the default was written:
-// DECIMAL(5,2) DEFAULT 7, '7', 7.5 and 0x41 come back 7.00, 7.00, 7.50 and
-// 65.00, while DECIMAL(5,0) DEFAULT 7 stays 7. Measured on mariadb:11.8.8.
+// scaleNumberDefault writes the number a default's text spells the way the
+// column carries it. A DECIMAL is shown to its declared scale however the
+// default was written: DECIMAL(5,2) DEFAULT 7, '7', 7.5 and 0x41 come back
+// 7.00, 7.00, 7.50 and 65.00, while DECIMAL(5,0) DEFAULT 7 stays 7. Measured
+// on mariadb:11.8.8.
 //
-// A default carrying more fraction digits than the scale is left as written:
-// rounding it is the server's to do, and this has not been measured.
-func scaleNumberDefault(digits string, col *Column) string {
-	// A number default is written as a plain decimal, so exponent notation is
-	// worked out rather than carried: measured on mariadb:11.8.8,
-	// `DECIMAL(5,2) DEFAULT 1e2` comes back 100.00, `DECIMAL(6,2) DEFAULT
-	// 1.5e2` 150.00, `DECIMAL(5,2) DEFAULT 1e-1` 0.10, and on a column with
-	// no scale, `INT DEFAULT 1e2` and `DOUBLE DEFAULT 1e2` both come back 100.
-	if plain, ok := expandExponent(digits); ok {
-		digits = plain
+// It reports false where the text spells no number, as `INT DEFAULT 'abc'`
+// does. The server refuses such a default outright with 1067, so there is no
+// value for it to be written as; omni does not check that yet.
+//
+// YEAR is the one numeric type whose value is more than its digits: measured,
+// `YEAR DEFAULT '99'` comes back 1999 and `YEAR DEFAULT '0'` 2000, while
+// unquoted 0 stays 0000. That expansion is not done here.
+func scaleNumberDefault(text string, col *Column) (string, bool) {
+	digits, ok := normalizeNumberText(text)
+	if !ok {
+		return "", false
 	}
-	if normalizedTypeName(col.DataType) != "decimal" {
-		return digits
+	scale, declared := declaredScaleOf(col.ColumnType)
+	switch normalizedTypeName(col.DataType) {
+	case "decimal":
+		// DECIMAL is decimal arithmetic, so a tie rounds away from zero:
+		// measured, DECIMAL(5,2) DEFAULT 7.125 comes back 7.13, 0.005 0.01
+		// and 9.999 10.00. A DECIMAL that declares no scale has scale 0, so
+		// DECIMAL DEFAULT 7.9 comes back 8.
+		return dropNegativeZero(roundDecimalText(digits, scale)), true
+	case "float", "double":
+		if !declared {
+			// A scaleless float prints as the double it holds, so a trailing
+			// run of zeros in the fraction is notation rather than value:
+			// measured, DOUBLE DEFAULT 7.000 comes back 7 and 7.10 comes
+			// back 7.1.
+			return dropNegativeZero(trimFractionZeros(digits)), true
+		}
+		// A float that declares a scale is shown to it, but rounded as the
+		// binary double it holds rather than as decimal digits: measured,
+		// DOUBLE(10,2) DEFAULT 0.125 comes back 0.12 where DECIMAL(10,2)
+		// DEFAULT 0.125 comes back 0.13. That is what FormatFloat does.
+		if f, err := strconv.ParseFloat(digits, 64); err == nil {
+			return dropNegativeZero(strconv.FormatFloat(f, 'f', scale, 64)), true
+		}
+		return digits, true
+	default:
+		// The integer types hold no fraction at all, and round away from zero
+		// the same way: measured, INT DEFAULT 7.9 comes back 8, 7.5 comes
+		// back 8 and -7.5 comes back -8.
+		return dropNegativeZero(roundDecimalText(digits, 0)), true
 	}
-	scale := declaredTypeScale(col.ColumnType)
-	if scale <= 0 {
-		return digits
+}
+
+// normalizeNumberText reads the number a default's text spells and writes it
+// as plain signed digits. Surrounding whitespace, a leading plus, leading
+// zeros, a bare point and exponent notation are all notation rather than
+// value, so the server keeps none of them: measured on mariadb:11.8.8,
+// `DECIMAL(5,2) DEFAULT ' 7 '` comes back 7.00, `INT DEFAULT '007.00'` 7,
+// `DECIMAL(5,2) DEFAULT '.7'` 0.70 and `DECIMAL(5,2) DEFAULT '7.'` 7.00.
+//
+// A number default is written as a plain decimal, so exponent notation is
+// worked out rather than carried: measured, `DECIMAL(5,2) DEFAULT 1e2` comes
+// back 100.00, `DECIMAL(6,2) DEFAULT 1.5e2` 150.00, `DECIMAL(5,2) DEFAULT
+// 1e-1` 0.10, and on a column with no scale, `INT DEFAULT 1e2` and `DOUBLE
+// DEFAULT 1e2` both come back 100. A double large enough that the server
+// prints it back in exponent notation, as DOUBLE DEFAULT 1e15 does, is
+// expanded here instead.
+func normalizeNumberText(text string) (string, bool) {
+	text = strings.Trim(text, " \t\n\r\v\f")
+	sign := ""
+	if text != "" && (text[0] == '+' || text[0] == '-') {
+		if text[0] == '-' {
+			sign = "-"
+		}
+		text = text[1:]
 	}
-	whole, fraction, hasPoint := strings.Cut(digits, ".")
+	if plain, ok := expandExponent(text); ok {
+		text = plain
+	}
+	whole, fraction, hasPoint := strings.Cut(text, ".")
+	if whole+fraction == "" || !allDigits(whole) || !allDigits(fraction) {
+		return "", false
+	}
+	if whole = strings.TrimLeft(whole, "0"); whole == "" {
+		whole = "0"
+	}
+	if hasPoint && fraction != "" {
+		return sign + whole + "." + fraction, true
+	}
+	return sign + whole, true
+}
+
+// roundDecimalText writes signed plain digits to the given scale, padding the
+// fraction with zeros or rounding it away from zero at the first digit the
+// scale cannot hold.
+func roundDecimalText(digits string, scale int) string {
+	sign := ""
+	if strings.HasPrefix(digits, "-") {
+		sign, digits = "-", digits[1:]
+	}
+	whole, fraction, _ := strings.Cut(digits, ".")
 	if len(fraction) > scale {
+		roundUp := fraction[scale] >= '5'
+		fraction = fraction[:scale]
+		if roundUp {
+			whole, fraction = carryOne(whole, fraction)
+		}
+	}
+	fraction += strings.Repeat("0", scale-len(fraction))
+	if scale == 0 {
+		return sign + whole
+	}
+	return sign + whole + "." + fraction
+}
+
+// carryOne adds one to the last digit of a number held as a whole part and a
+// fraction of fixed width, carrying into the whole part and widening it where
+// every digit was a nine.
+func carryOne(whole, fraction string) (string, string) {
+	digits := []byte(whole + fraction)
+	i := len(digits) - 1
+	for ; i >= 0; i-- {
+		if digits[i] != '9' {
+			digits[i]++
+			break
+		}
+		digits[i] = '0'
+	}
+	if i < 0 {
+		digits = append([]byte{'1'}, digits...)
+	}
+	return string(digits[:len(digits)-len(fraction)]), string(digits[len(digits)-len(fraction):])
+}
+
+// trimFractionZeros drops a fraction's trailing zeros, and the point with them
+// where nothing of the fraction is left.
+func trimFractionZeros(digits string) string {
+	if !strings.Contains(digits, ".") {
 		return digits
 	}
-	if !hasPoint {
-		fraction = ""
+	return strings.TrimSuffix(strings.TrimRight(digits, "0"), ".")
+}
+
+// dropNegativeZero drops the sign from a value that came out zero, as a
+// rounded one can: measured on mariadb:11.8.8, DECIMAL(5,2) DEFAULT '-0.001'
+// comes back 0.00 and DOUBLE DEFAULT '-0.0' comes back 0.
+func dropNegativeZero(digits string) string {
+	if strings.HasPrefix(digits, "-") && strings.Trim(digits[1:], "0.") == "" {
+		return digits[1:]
 	}
-	return whole + "." + fraction + strings.Repeat("0", scale-len(fraction))
+	return digits
 }
 
 // literalKind is the notation a literal default was written in.
@@ -1306,27 +1434,30 @@ func unquoteStringLiteral(val string) ([]byte, bool) {
 	return []byte(strings.ReplaceAll(inner, "''", "'")), true
 }
 
-// declaredTypeScale reads the scale out of a column type, as the 2 of
-// decimal(5,2), or 0 where the type carries none.
-func declaredTypeScale(columnType string) int {
+// declaredScaleOf reads the scale out of a column type, as the 2 of
+// decimal(5,2), and reports whether the type declares one at all: decimal(5),
+// decimal and double do not, and a double that declares no scale is written
+// back differently from one that declares 0.
+func declaredScaleOf(columnType string) (int, bool) {
 	open := strings.IndexByte(columnType, '(')
 	if open < 0 {
-		return 0
+		return 0, false
 	}
 	rest := columnType[open+1:]
 	comma := strings.IndexByte(rest, ',')
 	closing := strings.IndexByte(rest, ')')
 	if comma < 0 || closing < 0 || comma > closing {
-		return 0
+		return 0, false
+	}
+	scale := strings.TrimSpace(rest[comma+1 : closing])
+	if scale == "" || !allDigits(scale) {
+		return 0, false
 	}
 	n := 0
-	for _, c := range rest[comma+1 : closing] {
-		if c < '0' || c > '9' {
-			return 0
-		}
-		n = n*10 + int(c-'0')
+	for i := 0; i < len(scale); i++ {
+		n = n*10 + int(scale[i]-'0')
 	}
-	return n
+	return n, true
 }
 
 // decodeHex reads an even-length run of hex digits.

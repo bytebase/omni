@@ -1353,3 +1353,135 @@ func TestReview_ExplicitJSONValidCheckIsAnalyzed(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_NumberDefaultIsCoerced covers the number a numeric column's
+// default spells, against the text it was written as. The server holds the
+// value, so whitespace, a sign, leading zeros, a bare point, exponent
+// notation and a fraction the type cannot hold are all notation it drops.
+// Writing the text back with only its quotes removed had left whitespace
+// inside the number, so DECIMAL(5,2) DEFAULT '7 ' came out 7 .00, which does
+// not parse.
+func TestReview_NumberDefaultIsCoerced(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// Whitespace around a quoted number.
+		{"decimal_trailing_space", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7 ')"},
+		{"decimal_leading_space", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT ' 7')"},
+		{"decimal_both_sides", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT ' 7 ')"},
+		{"decimal_tab_and_newline", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '\t7\n')"},
+		{"decimal_fraction_space", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7.5 ')"},
+		{"int_trailing_space", "CREATE TABLE t (a INT DEFAULT '7 ')"},
+		{"int_both_sides", "CREATE TABLE t (a INT DEFAULT ' 7 ')"},
+		{"bigint_spaces_and_sign", "CREATE TABLE t (a BIGINT DEFAULT '  -12  ')"},
+		{"float_spaces", "CREATE TABLE t (a FLOAT DEFAULT ' 3.14 ')"},
+		{"double_exponent_spaces", "CREATE TABLE t (a DOUBLE DEFAULT ' 1e2 ')"},
+		{"parenthesized", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT ('7 '))"},
+		{"introduced", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT _utf8mb4'7 ')"},
+
+		// A sign, leading zeros and a bare point.
+		{"decimal_plus", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '+7')"},
+		{"int_plus", "CREATE TABLE t (a INT DEFAULT ' +7')"},
+		{"decimal_leading_zeros", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '0007.00')"},
+		{"int_leading_zeros", "CREATE TABLE t (a INT DEFAULT '007')"},
+		{"int_minus_zero", "CREATE TABLE t (a INT DEFAULT '-0')"},
+		{"decimal_negative", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '-7')"},
+		{"decimal_trailing_point", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7.')"},
+		{"decimal_leading_point", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '  .7  ')"},
+		{"double_leading_zeros", "CREATE TABLE t (a DOUBLE DEFAULT '007.5')"},
+		{"float_plus", "CREATE TABLE t (a FLOAT DEFAULT '+3.5')"},
+
+		// A fraction the type cannot hold, rounded away from zero.
+		{"decimal_rounds_up", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7.125')"},
+		{"decimal_rounds_unquoted", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 7.125)"},
+		{"decimal_rounds_negative", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT -7.125)"},
+		{"decimal_rounds_long", "CREATE TABLE t (a DECIMAL(5,4) DEFAULT '7.12345')"},
+		{"decimal_carries", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '9.999')"},
+		{"decimal_carries_whole", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '7.999')"},
+		{"decimal_rounds_to_zero", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '-0.001')"},
+		{"decimal_tiny_rounds_up", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT 0.005)"},
+		{"decimal_no_scale_rounds", "CREATE TABLE t (a DECIMAL DEFAULT 7.9)"},
+		{"decimal_zero_scale_rounds", "CREATE TABLE t (a DECIMAL(5,0) DEFAULT '7.9')"},
+		{"int_rounds_up", "CREATE TABLE t (a INT DEFAULT '7.9')"},
+		{"int_rounds_tie", "CREATE TABLE t (a INT DEFAULT 7.5)"},
+		{"int_rounds_tie_negative", "CREATE TABLE t (a INT DEFAULT '-7.5')"},
+		{"int_rounds_down", "CREATE TABLE t (a INT DEFAULT 7.4)"},
+		{"int_rounds_to_zero", "CREATE TABLE t (a INT DEFAULT '-0.4')"},
+		{"tinyint_rounds", "CREATE TABLE t (a TINYINT DEFAULT '1.7')"},
+		{"boolean_rounds", "CREATE TABLE t (a BOOLEAN DEFAULT '1.7')"},
+
+		// A float's fraction: a scaleless one prints as the double it holds,
+		// where a declared scale rounds as a binary double rather than as
+		// decimal digits.
+		{"double_trailing_zeros", "CREATE TABLE t (a DOUBLE DEFAULT 7.000)"},
+		{"float_trailing_zeros", "CREATE TABLE t (a FLOAT DEFAULT '7.000')"},
+		{"double_fraction_zero", "CREATE TABLE t (a DOUBLE DEFAULT 7.10)"},
+		{"double_scaled_pads", "CREATE TABLE t (a DOUBLE(10,2) DEFAULT 7)"},
+		{"double_scaled_tie_down", "CREATE TABLE t (a DOUBLE(10,2) DEFAULT 0.125)"},
+		{"double_scaled_tie_up", "CREATE TABLE t (a DOUBLE(10,2) DEFAULT 0.375)"},
+		{"float_scaled_space", "CREATE TABLE t (a FLOAT(10,2) DEFAULT '7 ')"},
+
+		// The aliases, which are the same type.
+		{"numeric_alias", "CREATE TABLE t (a NUMERIC(5,2) DEFAULT '7 ')"},
+		{"dec_alias", "CREATE TABLE t (a DEC(5,2) DEFAULT '7 ')"},
+		{"fixed_alias", "CREATE TABLE t (a FIXED(5,2) DEFAULT '7 ')"},
+		{"decimal_unsigned", "CREATE TABLE t (a DECIMAL(5,2) UNSIGNED DEFAULT '7 ')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+		})
+	}
+}
+
+// TestReview_NonNumberDefaultStaysParseable covers a numeric column given a
+// default that spells no number. The server refuses it outright with 1067 and
+// omni does not check that yet, so what omni writes has to be a statement
+// that still parses rather than bare text where a number belongs.
+func TestReview_NonNumberDefaultStaysParseable(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"word", "CREATE TABLE t (a INT DEFAULT 'abc')"},
+		{"trailing_word", "CREATE TABLE t (a INT DEFAULT '7abc')"},
+		{"empty", "CREATE TABLE t (a INT DEFAULT '')"},
+		{"only_space", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT ' ')"},
+		{"bare_point", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '.')"},
+		{"bare_sign", "CREATE TABLE t (a INT DEFAULT '-')"},
+		{"bare_exponent", "CREATE TABLE t (a DECIMAL(5,2) DEFAULT '1e')"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			if _, err := mc.db.ExecContext(mc.ctx, tc.ddl); err == nil {
+				t.Fatalf("oracle: expected %q to be refused", tc.ddl)
+			}
+
+			c := scenarioNewCatalog(t)
+			results, err := c.Exec(tc.ddl+";", nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					return // omni refused it too, which is the server's answer
+				}
+			}
+			// Whatever omni wrote has to go back in.
+			create := c.ShowCreateTable("testdb", "t")
+			again := scenarioNewCatalog(t)
+			results, err = again.Exec(create+";", nil)
+			if err != nil {
+				t.Fatalf("omni wrote a default it cannot read back: %v\n%s", err, create)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatalf("omni wrote a default it cannot read back: %v\n%s", r.Error, create)
+				}
+			}
+		})
+	}
+}
