@@ -2265,3 +2265,82 @@ func TestReview_AddColumnCheck(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_CTENameIsWrittenBare is the finding that was not a bug, with the
+// measurement that settles it. MariaDB writes a CTE's declared name bare in
+// the stored view body whatever it is called — a name with a space, a reserved
+// word, a backtick inside — while the references to it keep their backticks.
+// So the server's own stored text does not parse, and the view it just created
+// is unusable: measured on mariadb:11.8.8, a view selecting from a CTE named
+// "my cte" is created without complaint, and then both SELECT * FROM it and
+// SHOW CREATE VIEW of it answer 1064, while information_schema.VIEWS reports
+// the body as "with my cte as (...)".
+//
+// Quoting the name in the catalog would make omni's body differ from the one
+// the server holds, and would make omni's view work where the server's is
+// dead. The engine's output is reproduced instead, and this is what pins it.
+//
+// The queries here keep to one FROM item and no subquery, because two
+// differences of their own sit there and are not this test's to cover: the
+// server writes a comma join without the parentheses it puts around an
+// explicit JOIN — "from t1 join t2" against "from (t1 join t2)", both with
+// their names backticked — where the catalog parenthesizes both, and inside a
+// scalar subquery it qualifies a column the catalog writes bare.
+func TestReview_CTENameIsWrittenBare(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	for i, tc := range []struct {
+		name     string
+		query    string
+		readable bool
+	}{
+		{"plain", "WITH cte AS (SELECT 1 AS x) SELECT x FROM cte", true},
+		{"mixed_case", "WITH MyCte AS (SELECT 1 AS x) SELECT x FROM MyCte", true},
+		{"quoted_but_plain", "WITH `MyCte` AS (SELECT 1 AS x) SELECT x FROM `MyCte`", true},
+		{"unreserved_keyword", "WITH `comment` AS (SELECT 1 AS x) SELECT x FROM `comment`", true},
+		{"with_space", "WITH `my cte` AS (SELECT 1 AS x) SELECT x FROM `my cte`", false},
+		{"reserved_word", "WITH `select` AS (SELECT 1 AS x) SELECT x FROM `select`", false},
+		// A name the lexer still takes bare: `1cte` needs its backticks in
+		// the statement but reads back without them.
+		{"leading_digit", "WITH `1cte` AS (SELECT 1 AS x) SELECT x FROM `1cte`", true},
+		{"with_dot", "WITH `a.b` AS (SELECT 1 AS x) SELECT x FROM `a.b`", false},
+		{"with_dash", "WITH `a-b` AS (SELECT 1 AS x) SELECT x FROM `a-b`", false},
+		{"with_backtick", "WITH `a``b` AS (SELECT 1 AS x) SELECT x FROM `a``b`", false},
+		{"column_list", "WITH `my cte`(`x`) AS (SELECT 1) SELECT x FROM `my cte`", false},
+		{"two_ctes", "WITH `my cte` AS (SELECT 1 AS x), plain AS (SELECT 2 AS y)" +
+			" SELECT x FROM `my cte`", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			view := fmt.Sprintf("cv%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.query+";")
+
+			// The body the server holds, read from information_schema, since
+			// SHOW CREATE VIEW cannot print the broken ones at all.
+			want := oracleViewDefinition(t, mc, view)
+			if got := extractSelectBody(c.ShowCreateView("testdb", view)); got != want {
+				t.Errorf("view body mismatch\n  oracle: %s\n  omni:   %s", want, got)
+			}
+
+			_, selectErr := mc.db.ExecContext(mc.ctx, "SELECT * FROM "+view)
+			_, showErr := mc.db.ExecContext(mc.ctx, "SHOW CREATE VIEW "+view)
+			if tc.readable {
+				if selectErr != nil || showErr != nil {
+					t.Errorf("oracle: expected the view to be usable, got %v / %v",
+						selectErr, showErr)
+				}
+				return
+			}
+			// The name needs quoting, so what the server stored does not
+			// parse and the view it created cannot be read or printed.
+			if selectErr == nil {
+				t.Errorf("oracle: expected SELECT * FROM %s to fail on the stored body", view)
+			}
+			if showErr == nil {
+				t.Errorf("oracle: expected SHOW CREATE VIEW %s to fail on the stored body", view)
+			}
+		})
+	}
+}
