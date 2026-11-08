@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -1315,7 +1316,14 @@ func wholeNumberOf(text string) (uint64, bool) {
 	}
 	whole, fraction, _ := strings.Cut(digits, ".")
 	if strings.Trim(fraction, "0") != "" {
-		return 0, false
+		// An exact fraction the server refuses outright, measured: YEAR
+		// DEFAULT 99.7 answers 1067. An approximate one is a double and
+		// rounds like any other: YEAR DEFAULT (2.5e0) comes back 2002.
+		if !isApproximateLiteral(text) {
+			return 0, false
+		}
+		digits = roundWholeNumber(digits, true)
+		whole, _, _ = strings.Cut(digits, ".")
 	}
 	// A negative zero is still zero, which `'-0'` relies on; anything else
 	// negative has no year to write.
@@ -1356,7 +1364,7 @@ func bitNumberOf(text string) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	whole := roundDecimalText(digits, 0)
+	whole := roundWholeNumber(digits, isApproximateLiteral(text))
 	if strings.HasPrefix(whole, "-") {
 		return 0, false
 	}
@@ -1533,10 +1541,10 @@ func scaleNumberDefault(text string, col *Column) (string, bool) {
 		}
 		return digits, true
 	default:
-		// The integer types hold no fraction at all, and round away from zero
-		// the same way: measured, INT DEFAULT 7.9 comes back 8, 7.5 comes
-		// back 8 and -7.5 comes back -8.
-		return dropNegativeZero(roundDecimalText(digits, 0)), true
+		// The integer types hold no fraction at all: measured, INT DEFAULT 7.9
+		// comes back 8, 7.5 comes back 8 and -7.5 comes back -8. A tie rounds
+		// by the literal's own kind, which roundWholeNumber decides.
+		return dropNegativeZero(roundWholeNumber(digits, isApproximateLiteral(text))), true
 	}
 }
 
@@ -1577,6 +1585,33 @@ func normalizeNumberText(text string) (string, bool) {
 		return sign + whole + "." + fraction, true
 	}
 	return sign + whole, true
+}
+
+// isApproximateLiteral reports whether a literal's text is read as a double
+// rather than as an exact decimal, which is what carrying an exponent makes
+// it.
+func isApproximateLiteral(text string) bool {
+	_, exponent, found := cutAnyFold(strings.TrimSpace(text), "e")
+	return found && exponent != ""
+}
+
+// roundWholeNumber writes the whole number a literal becomes. A tie rounds by
+// the literal's own kind: an exact decimal rounds away from zero, where an
+// approximate one is a double and rounds to its even neighbour, which is what
+// rint does. Measured on mariadb:11.8.8: INT DEFAULT (2.5) is 3 and (-2.5) is
+// -3, where (2.5e0) is 2, (-2.5e0) is -2, (1.5e0) is 2, (3.5e0) is 4 and
+// (0.5e0) is 0, and BIT(8) DEFAULT (2.5e0) is b'10'. A DECIMAL column rounds
+// away from zero either way — (2.5e0) and (2.5) both come back 3 — so it does
+// not come through here.
+func roundWholeNumber(digits string, approximate bool) string {
+	if !approximate {
+		return roundDecimalText(digits, 0)
+	}
+	f, err := strconv.ParseFloat(digits, 64)
+	if err != nil {
+		return roundDecimalText(digits, 0)
+	}
+	return strconv.FormatFloat(math.RoundToEven(f), 'f', 0, 64)
 }
 
 // roundDecimalText writes signed plain digits to the given scale, padding the

@@ -71,6 +71,21 @@ func orderByTargetAlias(stmt *ast.SelectStmt, expr ast.ExprNode) (ast.ExprNode, 
 	return nil, false
 }
 
+// namesColumn reports whether an unqualified reference names a column of the
+// FROM clause, which is what a GROUP BY item is resolved against before the
+// target list is consulted.
+func (sc *fromScope) namesColumn(expr ast.ExprNode) bool {
+	cr, ok := expr.(*ast.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" {
+		return false
+	}
+	if _, ok := sc.coalesced[strings.ToLower(cr.Column)]; ok {
+		return true
+	}
+	_, ok = sc.FirstWithColumn(cr.Column)
+	return ok
+}
+
 // orderedConstant guards the one substitution that would change what an
 // ORDER BY or GROUP BY means. An integer is read as an output position there,
 // so MariaDB writes an empty string in place of a whole-number constant the
@@ -255,12 +270,17 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Where = r.resolveExpr(stmt.Where, sc)
 	}
 
-	// Resolve GROUP BY, which takes a target-list alias the same way ORDER BY
-	// does: measured on mariadb:11.8.8, `SELECT a AS z FROM t GROUP BY z`
-	// comes back `group by `t`.`a`` and `SELECT 2 AS z FROM t GROUP BY z`
-	// comes back `group by ''`.
+	// Resolve GROUP BY, which takes a target-list alias as ORDER BY does but
+	// only where the FROM clause has no column of that name: the source
+	// column wins there, where in ORDER BY the alias does. Measured on
+	// mariadb:11.8.8 over a table holding a and b:
+	// `SELECT a AS z, COUNT(*) FROM t GROUP BY z` groups by `t`.`a` and
+	// `SELECT 2 AS z FROM t GROUP BY z` by '', while
+	// `SELECT a AS b, COUNT(*) FROM t GROUP BY b` groups by `t`.`b` — two
+	// rows where the alias would have given one — and the same query ordered
+	// by b orders by `t`.`a`.
 	for _, item := range stmt.GroupBy {
-		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok {
+		if expr, ok := orderByTargetAlias(stmt, item.Expr); ok && !sc.namesColumn(item.Expr) {
 			item.Expr = orderedConstant(expr)
 			continue
 		}

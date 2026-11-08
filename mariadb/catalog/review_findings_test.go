@@ -3782,3 +3782,120 @@ func TestReview_NumericDefaultOnAStringColumn(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_GroupByPrefersTheSourceColumn covers an alias that collides with
+// a column of the FROM clause. GROUP BY resolves against the FROM clause
+// first and takes the column, where ORDER BY takes the alias — so the
+// substitution added for ORDER BY had to be held back here, having changed
+// which rows a view groups.
+//
+// Measured on mariadb:11.8.8 over a table holding both a and b, with the rows
+// read back so a changed grouping fails as a changed answer.
+func TestReview_GroupByPrefersTheSourceColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+	runOnBoth(t, mc, c, "CREATE TABLE t (a INT, b INT);")
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,10),(1,20)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+
+	for i, query := range []string{
+		// The alias collides with a column, so GROUP BY takes the column.
+		"SELECT a AS b, COUNT(*) AS n FROM t GROUP BY b",
+		"SELECT a AS b, COUNT(*) AS n FROM t GROUP BY b ORDER BY b",
+		"SELECT 2 AS b, COUNT(*) AS n FROM t GROUP BY b",
+		"SELECT a + 1 AS b, COUNT(*) AS n FROM t GROUP BY b",
+		"SELECT a AS b, COUNT(*) AS n FROM t GROUP BY t.b",
+		// No collision, so the alias is taken as before.
+		"SELECT a AS z, COUNT(*) AS n FROM t GROUP BY z",
+		"SELECT a + 1 AS z, COUNT(*) AS n FROM t GROUP BY z",
+		"SELECT 2 AS z, COUNT(*) AS n FROM t GROUP BY z",
+		// ORDER BY takes the alias either way.
+		"SELECT a AS b FROM t ORDER BY b",
+		"SELECT 2 AS b FROM t ORDER BY b",
+	} {
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
+			view := fmt.Sprintf("gc%d", i)
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+query+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			// The rows the server gives for its own body, against the rows it
+			// gives for the catalog's.
+			want := oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1")
+			body := extractSelectBody(c.ShowCreateView("testdb", view))
+			got := oracleRows(t, mc, "SELECT * FROM ("+body+") AS q ORDER BY 1")
+			if fmt.Sprint(got) != fmt.Sprint(want) {
+				t.Errorf("replaying what omni wrote changed the rows: %v became %v\n  %s",
+					want, got, body)
+			}
+		})
+	}
+}
+
+// TestReview_ApproximateIntegerDefault covers a default written with an
+// exponent, which is read as a double: a tie then rounds to its even
+// neighbour, where an exact decimal rounds away from zero. Rounding the
+// normalized text one way for both made `INT DEFAULT (2.5e0)` 3 where the
+// server stores 2.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+func TestReview_ApproximateIntegerDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		// An approximate literal rounds to even.
+		{"int_two_and_a_half", "CREATE TABLE t (a INT DEFAULT (2.5e0))"},
+		{"int_minus_two_and_a_half", "CREATE TABLE t (a INT DEFAULT (-2.5e0))"},
+		{"int_three_and_a_half", "CREATE TABLE t (a INT DEFAULT (3.5e0))"},
+		{"int_one_and_a_half", "CREATE TABLE t (a INT DEFAULT (1.5e0))"},
+		{"int_half", "CREATE TABLE t (a INT DEFAULT (0.5e0))"},
+		{"int_unparenthesized", "CREATE TABLE t (a INT DEFAULT 2.5e0)"},
+		{"int_below_the_tie", "CREATE TABLE t (a INT DEFAULT (2.4e0))"},
+		{"int_above_the_tie", "CREATE TABLE t (a INT DEFAULT (2.6e0))"},
+		{"bigint", "CREATE TABLE t (a BIGINT DEFAULT (4.5e0))"},
+		{"tinyint", "CREATE TABLE t (a TINYINT DEFAULT (2.5e0))"},
+		{"bit", "CREATE TABLE t (a BIT(8) DEFAULT (2.5e0))"},
+		{"year", "CREATE TABLE t (a YEAR DEFAULT (2.5e0))"},
+		// An exact one rounds away from zero.
+		{"int_exact_two_and_a_half", "CREATE TABLE t (a INT DEFAULT (2.5))"},
+		{"int_exact_minus", "CREATE TABLE t (a INT DEFAULT (-2.5))"},
+		{"int_exact_three_and_a_half", "CREATE TABLE t (a INT DEFAULT (3.5))"},
+		// A DECIMAL column rounds away from zero either way.
+		{"decimal_approximate", "CREATE TABLE t (a DECIMAL(5,0) DEFAULT (2.5e0))"},
+		{"decimal_exact", "CREATE TABLE t (a DECIMAL(5,0) DEFAULT (2.5))"},
+		{"decimal_scaled_approximate", "CREATE TABLE t (a DECIMAL(5,1) DEFAULT (2.25e0))"},
+		{"decimal_scaled_exact", "CREATE TABLE t (a DECIMAL(5,1) DEFAULT (2.25))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT a + 0 FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT a + 0 FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
