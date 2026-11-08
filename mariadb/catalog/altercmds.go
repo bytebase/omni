@@ -1824,11 +1824,16 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		if col.Generated == nil {
 			continue
 		}
+		// A fresh slice rather than a write through this one, which a
+		// snapshot of the table may still be sharing.
+		refs := make([]string, len(col.Generated.Refs))
 		for i, ref := range col.Generated.Refs {
 			if toLower(ref) == oldKey {
-				col.Generated.Refs[i] = newName
+				ref = newName
 			}
+			refs[i] = ref
 		}
+		col.Generated.Refs = refs
 	}
 }
 

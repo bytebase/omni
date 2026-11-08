@@ -3108,3 +3108,94 @@ func TestReview_RenamedColumnKeepsItsDependents(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_RejectedAlterLeavesDependenciesAlone covers what a rejected
+// multi-clause ALTER leaves behind. One clause renames a column and a later
+// one fails, so the statement is refused and the table is restored — and the
+// record of what each generated expression reads has to be restored with it,
+// or a later statement is accepted that the server refuses. The snapshot was
+// sharing that record with the table it was taken from, so a rename written
+// before the failure survived the rollback.
+//
+// Measured on mariadb:11.8.8, message included. The server leaves the table as
+// it was, which each case checks before going on.
+func TestReview_RejectedAlterLeavesDependenciesAlone(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name   string
+		setup  string
+		failed string
+		then   string
+	}{
+		{
+			name:   "rename_first",
+			setup:  "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			failed: "ALTER TABLE t RENAME COLUMN a TO z, ADD COLUMN b INT",
+			then:   "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:   "rename_second",
+			setup:  "CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED)",
+			failed: "ALTER TABLE t ADD COLUMN b INT, RENAME COLUMN a TO z",
+			then:   "ALTER TABLE t MODIFY a DOUBLE AS (RAND()) VIRTUAL",
+		},
+		{
+			name:   "then_an_index",
+			setup:  "CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL, b DOUBLE AS (a) VIRTUAL)",
+			failed: "ALTER TABLE t RENAME COLUMN a TO z, ADD COLUMN b INT",
+			then:   "CREATE INDEX i ON t(b)",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.setup+";")
+			before := c.ShowCreateTable("testdb", "t")
+
+			// The ALTER both sides refuse, which must leave the table alone.
+			if _, err := mc.db.ExecContext(mc.ctx, tc.failed); err == nil {
+				t.Fatalf("oracle: expected %q to be refused", tc.failed)
+			}
+			results, err := c.Exec(tc.failed+";", nil)
+			omniErr := err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if omniErr == nil {
+				t.Fatalf("omni: accepted %q, which the server refuses", tc.failed)
+			}
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Fatalf("after the refused ALTER\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+			if after := c.ShowCreateTable("testdb", "t"); after != before {
+				t.Errorf("the refused ALTER changed the table\n--- before ---\n%s\n--- after ---\n%s",
+					before, after)
+			}
+
+			// And the dependency is still seen, which is what the restored
+			// record decides.
+			_, oracleErr := mc.db.ExecContext(mc.ctx, tc.then)
+			if oracleErr == nil {
+				t.Fatalf("oracle: expected %q to be refused", tc.then)
+			}
+			results, err = c.Exec(tc.then+";", nil)
+			omniErr = err
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+				}
+			}
+			if omniErr == nil {
+				t.Fatalf("omni: accepted %q, which the server refuses with %v", tc.then, oracleErr)
+			}
+			if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+			}
+		})
+	}
+}

@@ -262,6 +262,12 @@ func cloneTable(src *Table) Table {
 		}
 		if sc.Generated != nil {
 			gen := *sc.Generated
+			// Refs is a slice, so the struct copy would leave the clone
+			// writing through to it: a rejected ALTER restores this snapshot,
+			// and a rename it had already applied would survive in the
+			// restored table and leave the dependency pointing at a name no
+			// column has.
+			gen.Refs = append([]string(nil), sc.Generated.Refs...)
 			col.Generated = &gen
 		}
 		dst.Columns[i] = &col
