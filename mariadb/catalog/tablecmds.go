@@ -833,8 +833,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
-	// Process deferred FK backing indexes now that all explicit indexes are in place.
+	// Process deferred FK backing indexes now that all explicit indexes are in
+	// place. The index a foreign key brings with it materializes a VIRTUAL
+	// generated column as any other key does, so the column is held to the
+	// same rule: measured on mariadb:11.8.8, a table declaring both
+	// `a DOUBLE AS (RAND()) VIRTUAL` and a foreign key over a answers 1901.
 	for _, fk := range pendingFKs {
+		if err := validateIndexColumns(tbl, fk.idxCols, false, false); err != nil {
+			return err
+		}
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
@@ -2739,8 +2746,16 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	}
 }
 
+// nodeToSQL writes an expression the way the server stores it. The resolver
+// rewrites are not a view's own: measured on mariadb:11.8.8, a CHECK, a DEFAULT
+// and a generated column all come back with the same ones a view body gets —
+// `(2=1) SOUNDS LIKE '0'` is soundex(2 = 1) = soundex('0'), `NOT (a = 1)` is
+// `a` <> 1, `NOT (a BETWEEN 1 AND 2)` is `a` not between 1 and 2, and
+// `a AND b` over integer columns is `a` <> 0 and `b` <> 0, while
+// `DEFAULT (1 AND 2)` keeps its literals and a bare column in a CHECK stays
+// bare.
 func nodeToSQL(node nodes.ExprNode) string {
-	return deparse.Deparse(node)
+	return deparse.Deparse(deparse.RewriteExpr(node))
 }
 
 func binaryOpToString(op nodes.BinaryOp) string {

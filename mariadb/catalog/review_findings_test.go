@@ -3333,3 +3333,229 @@ func TestReview_XQuotedNonNumberIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// TestReview_ForeignKeyIndexOverAGeneratedColumn covers the index a foreign
+// key brings with it, which materializes a VIRTUAL generated column as any
+// other key does. Every explicit index path checked that; the implicit one did
+// not, so a foreign key could leave an index over RAND() behind.
+//
+// Measured on mariadb:11.8.8, message included.
+func TestReview_ForeignKeyIndexOverAGeneratedColumn(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name    string
+		stmts   []string
+		accepts bool
+	}{
+		{"added_by_alter", []string{
+			"CREATE TABLE p (a DOUBLE PRIMARY KEY)",
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL)",
+			"ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)",
+		}, false},
+		{"declared_with_the_table", []string{
+			"CREATE TABLE p (a DOUBLE PRIMARY KEY)",
+			"CREATE TABLE t (a DOUBLE AS (RAND()) VIRTUAL," +
+				" CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a))",
+		}, false},
+		{"over_a_column_reading_a_rand_one", []string{
+			"CREATE TABLE p (a DOUBLE PRIMARY KEY)",
+			"CREATE TABLE t (r DOUBLE AS (RAND()) VIRTUAL, a DOUBLE AS (r) VIRTUAL)",
+			"ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)",
+		}, false},
+		{"deterministic_is_fine", []string{
+			"CREATE TABLE p (a DOUBLE PRIMARY KEY)",
+			"CREATE TABLE t (x DOUBLE, a DOUBLE AS (x) VIRTUAL)",
+			"ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)",
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+
+			var oracleErr, omniErr error
+			for _, stmt := range tc.stmts {
+				if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil && oracleErr == nil {
+					oracleErr = err
+				}
+				results, err := c.Exec(stmt+";", nil)
+				if err != nil && omniErr == nil {
+					omniErr = err
+				}
+				for _, r := range results {
+					if r.Error != nil && omniErr == nil {
+						omniErr = r.Error
+					}
+				}
+			}
+			if tc.accepts != (oracleErr == nil) {
+				t.Fatalf("oracle: gave %v, want accepted=%v", oracleErr, tc.accepts)
+			}
+			if tc.accepts != (omniErr == nil) {
+				t.Fatalf("omni: gave %v, want accepted=%v", omniErr, tc.accepts)
+			}
+			if tc.accepts {
+				want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+				if got := c.ShowCreateTable("testdb", "t"); got != want {
+					t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+				}
+				return
+			}
+			if msg := messageTailOf(oracleErr); !strings.Contains(omniErr.Error(), msg) {
+				t.Errorf("message mismatch\n  oracle: %s\n  omni:   %s", msg, omniErr)
+			}
+		})
+	}
+}
+
+// TestReview_ResolverRewritesOutsideViews covers the rewrites the server
+// applies to a stored expression, which are not a view's own: a CHECK, a
+// DEFAULT and a generated column come back with the same ones a view body
+// gets. Only the view path applied them, so a CHECK or DEFAULT kept an
+// operator the server does not store — and SOUNDS LIKE, kept at comparison
+// precedence, lost the parentheses its left operand needed and changed the
+// expression's value.
+//
+// Measured on mariadb:11.8.8 through SHOW CREATE TABLE.
+//
+// A generated column's expression is written by a second writer of its own,
+// which none of these rewrites reach, and it is left out here: measured, the
+// server stores `b INT AS ((2=1) SOUNDS LIKE '0')` as
+// soundex(2 = 1) = soundex('0'), `AS (a AND c)` as `a` <> 0 and `c` <> 0 and
+// `AS (NOT (a = 1))` as `a` <> 1, where that writer keeps the operator and
+// doubles the parentheses around it.
+func TestReview_ResolverRewritesOutsideViews(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, ddl string }{
+		{"check_sounds_like", "CREATE TABLE t (a INT, CHECK ((2=1) SOUNDS LIKE '0'))"},
+		{"default_sounds_like", "CREATE TABLE t (a INT DEFAULT ((2=1) SOUNDS LIKE '0'))"},
+		{"sounds_like_plain", "CREATE TABLE t (a INT, CHECK (a SOUNDS LIKE '1'))"},
+		{"check_not_comparison", "CREATE TABLE t (a INT, CHECK (NOT (a = 1)))"},
+		{"check_not_between", "CREATE TABLE t (a INT, CHECK (NOT (a BETWEEN 1 AND 2)))"},
+		{"check_and_of_columns", "CREATE TABLE t (a INT, b INT, CHECK (a AND b))"},
+		{"check_or_of_columns", "CREATE TABLE t (a INT, b INT, CHECK (a OR b))"},
+		{"check_bare_column", "CREATE TABLE t (a INT, CHECK (a))"},
+		{"default_not_comparison", "CREATE TABLE t (a INT DEFAULT (NOT (2 = 1)))"},
+		{"default_and_of_literals", "CREATE TABLE t (a INT DEFAULT (1 AND 2))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, tc.ddl+";")
+
+			want := oracleShow(t, mc, "SHOW CREATE TABLE t")
+			if got := c.ShowCreateTable("testdb", "t"); got != want {
+				t.Errorf("table mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+
+			// And what omni wrote goes back in, which the dropped
+			// parentheses did not.
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := oracleShow(t, mc, "SHOW CREATE TABLE t"); got != want {
+				t.Errorf("replaying what omni wrote changed the table\n--- was ---\n%s\n--- now ---\n%s",
+					want, got)
+			}
+		})
+	}
+}
+
+// TestReview_TriggerOrderingLeavesTheBodyReadable covers the text left behind
+// when the ordering clause is cut out of a trigger's source. The clause goes
+// with the whitespace after it and the text before it is kept as written: a
+// line comment ending right before the clause needs its newline, or the body
+// ends up inside the comment.
+//
+// Measured on mariadb:11.8.8. The server drops a comment altogether — a
+// difference of its own, so the cases carrying one compare what omni wrote by
+// reading it back rather than against the server's text.
+func TestReview_TriggerOrderingLeavesTheBodyReadable(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		name     string
+		ddl      string
+		comments bool
+	}{
+		{"line_comment_before_follows",
+			"CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW -- keep order\nFOLLOWS tr1 SET NEW.a = 2",
+			true},
+		{"hash_comment_before_follows",
+			"CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW # keep order\nFOLLOWS tr1 SET NEW.a = 2",
+			true},
+		{"line_comment_before_precedes",
+			"CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW -- keep order\nPRECEDES tr1 SET NEW.a = 2",
+			true},
+		{"newline_before_follows",
+			"CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW\nFOLLOWS tr1\nSET NEW.a = 2",
+			false},
+		{"spaces_before_follows",
+			"CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS tr1 SET NEW.a = 2",
+			false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			runOnBoth(t, mc, c, "CREATE TABLE t (a INT);")
+			runOnBoth(t, mc, c, "CREATE TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;")
+			runOnBoth(t, mc, c, tc.ddl+";")
+
+			got := c.ShowCreateTrigger("testdb", "tr2")
+			if got == "" {
+				t.Fatalf("omni wrote no trigger DDL")
+			}
+			if strings.Contains(strings.ToUpper(got), "FOLLOWS") ||
+				strings.Contains(strings.ToUpper(got), "PRECEDES") {
+				t.Errorf("the ordering clause survived: %s", got)
+			}
+			if !strings.Contains(got, "SET NEW.a = 2") {
+				t.Errorf("the body is gone: %s", got)
+			}
+
+			// What omni wrote has to go back in: a comment that lost its
+			// newline swallowed the body, and the statement then did nothing
+			// a trigger body can do.
+			again := scenarioNewCatalog(t)
+			if _, err := again.Exec("CREATE TABLE t (a INT);", nil); err != nil {
+				t.Fatalf("omni setup: %v", err)
+			}
+			results, err := again.Exec(got+";", nil)
+			if err != nil {
+				t.Fatalf("omni wrote a trigger it cannot read back: %v\n%s", err, got)
+			}
+			for _, r := range results {
+				if r.Error != nil {
+					t.Fatalf("omni wrote a trigger it cannot read back: %v\n%s", r.Error, got)
+				}
+			}
+			if tc.comments {
+				return
+			}
+			// With no comment in the way, the text is the server's own.
+			want := oracleShowTrigger(t, mc, "tr2")
+			if got != want {
+				t.Errorf("trigger mismatch\n--- oracle ---\n%s\n--- omni ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// oracleShowTrigger returns the CREATE TRIGGER statement the server stored,
+// which SHOW CREATE TRIGGER reports in its third column.
+func oracleShowTrigger(t *testing.T, mc *mariadbContainer, name string) string {
+	t.Helper()
+	ddl, err := mc.showCreateTrigger(name)
+	if err != nil {
+		t.Fatalf("oracle SHOW CREATE TRIGGER %s: %v", name, err)
+	}
+	return ddl
+}

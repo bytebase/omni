@@ -1110,9 +1110,20 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return err
 			}
 		}
+		// The backing index a foreign key brings with it materializes a
+		// VIRTUAL generated column as any other key does, so the column is
+		// held to the same rule: measured on mariadb:11.8.8,
+		// `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)`
+		// over `a DOUBLE AS (RAND()) VIRTUAL` answers 1901, and over a column
+		// reading one it names that column. Checked before the constraint
+		// goes in, so a refusal leaves the table as it was.
+		fkIdxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, fkName(con), cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkName(con), cols, fkIdxCols)
 
 	case nodes.ConstrCheck:
 		conName := con.Name

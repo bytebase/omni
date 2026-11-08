@@ -118,12 +118,30 @@ func triggerSourceDDL(stmt *nodes.CreateTriggerStmt, source string) string {
 	if from < kw || from >= to || to > len(text) {
 		return strings.TrimSpace(text[kw:])
 	}
-	before := strings.TrimSpace(text[kw:from])
-	after := strings.TrimSpace(text[to:])
+	// The text before the clause is kept as it was written, whitespace and
+	// all: trimming it would take the newline that ends a line comment with
+	// it and comment out the body. What goes is the clause and the whitespace
+	// after it, which is what the server drops: measured on mariadb:11.8.8,
+	// `FOR EACH ROW\nFOLLOWS tr1\nSET NEW.a = 2` comes back as
+	// `FOR EACH ROW\nSET NEW.a = 2`.
+	before := text[kw:from]
+	after := strings.TrimLeft(text[to:], " \t\r\n")
 	if after == "" {
-		return before
+		return strings.TrimSpace(before)
 	}
-	return before + " " + after
+	if n := len(before); n > 0 && !isSpaceByte(before[n-1]) {
+		before += " "
+	}
+	return strings.TrimSpace(before + after)
+}
+
+// isSpaceByte reports whether c is one of the bytes that separate SQL tokens.
+func isSpaceByte(c byte) bool {
+	switch c {
+	case ' ', '\t', '\r', '\n', '\v', '\f':
+		return true
+	}
+	return false
 }
 
 // triggerKeywordOffset returns the offset of the TRIGGER keyword in a CREATE
