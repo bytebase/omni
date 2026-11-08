@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -2238,9 +2239,10 @@ func stripAllOuterParens(expr string) string {
 // maxTimeNumber is the widest TIME a number spells, 838:59:59, and
 // maxDateTimeNumber the widest date and time one does.
 const (
-	maxTimeNumber     = 8385959
-	maxDateTimeNumber = 99991231235959
-	minDateTimeDigits = 10000000000
+	maxTimeNumber        = 8385959
+	maxDateTimeNumber    = 99991231235959
+	minDateTimeDigits    = 10000000000
+	maxFractionalSeconds = 6
 )
 
 // temporalNumberDefault writes a default written as a number on a temporal
@@ -2258,6 +2260,18 @@ func temporalNumberDefault(text string, col *Column) (string, bool) {
 	digits, ok := normalizeNumberText(text)
 	if !ok {
 		return "", false
+	}
+	if isApproximateLiteral(text) {
+		// An exponent makes the literal a double, so the value the column
+		// converts is the double's and not the digits written: measured on
+		// mariadb:11.8.8, DATETIME(6) DEFAULT (20200101123456.123456e0) is
+		// '2020-01-01 12:34:56.125000', where the same digits without the
+		// exponent keep every one of them.
+		converted, ok := exactDoubleText(digits, declaredTypeLength(col.ColumnType))
+		if !ok {
+			return "", false
+		}
+		digits = converted
 	}
 	whole, fraction, _ := strings.Cut(digits, ".")
 	negative := strings.HasPrefix(whole, "-")
@@ -2420,11 +2434,56 @@ func fractionText(fraction string, fsp int) string {
 	if fsp <= 0 {
 		return ""
 	}
-	if fsp > 6 {
-		fsp = 6
+	if fsp > maxFractionalSeconds {
+		fsp = maxFractionalSeconds
 	}
 	if len(fraction) > fsp {
 		fraction = fraction[:fsp]
 	}
 	return "." + fraction + strings.Repeat("0", fsp-len(fraction))
+}
+
+// exactDoubleText writes the value a double holds, with its fraction cut to
+// the places a column keeps. The value is the double's own rather than the
+// digits the literal spelled, and it is the double's exact value rather than
+// its shortest decimal: measured on mariadb:11.8.8, DATETIME(6) DEFAULT
+// (20200101123456.1e0) comes back '2020-01-01 12:34:56.101562', the double
+// 20200101123456.1015625 cut at six places, where the shortest decimal that
+// reads back as that double is ...56.102. The places it does not keep are cut
+// and not rounded, which is what TIME(6) DEFAULT (8385959.999999e0), coming
+// back '838:59:59.999998', shows.
+//
+// The cut is exact, through the rational the double is, so no digit of the
+// value turns on how many were asked for.
+func exactDoubleText(digits string, places int) (string, bool) {
+	f, err := strconv.ParseFloat(digits, 64)
+	if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+		return "", false
+	}
+	value := new(big.Rat).SetFloat64(f)
+	if value == nil {
+		return "", false
+	}
+	if places < 0 {
+		places = 0
+	}
+	if places > maxFractionalSeconds {
+		places = maxFractionalSeconds
+	}
+	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(places)), nil)
+	value.Mul(value, new(big.Rat).SetInt(scale))
+	// Quo truncates toward zero, which is the cut the column makes.
+	scaled := new(big.Int).Quo(value.Num(), value.Denom())
+	text := scaled.String()
+	if places == 0 {
+		return text, true
+	}
+	sign := ""
+	if strings.HasPrefix(text, "-") {
+		sign, text = "-", text[1:]
+	}
+	for len(text) <= places {
+		text = "0" + text
+	}
+	return sign + text[:len(text)-places] + "." + text[len(text)-places:], true
 }

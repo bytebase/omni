@@ -577,13 +577,17 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt.SetOp != ast.SetOpNone {
 		RewriteSelectStmt(stmt.Left)
 		RewriteSelectStmt(stmt.Right)
+		// The ORDER BY over the whole set operation belongs to neither side,
+		// and the server rewrites it as it does any other: measured on
+		// mariadb:11.8.8, `SELECT 2 AS a UNION SELECT 3 ORDER BY ((a=2)
+		// SOUNDS LIKE '0'), a DESC` is stored as
+		// order by soundex(`a` = 2) = soundex('0'),`a` desc.
+		rewriteOrderBy(stmt.OrderBy)
 		return
 	}
 	if stmt.ParenSource != nil {
 		RewriteSelectStmt(stmt.ParenSource)
-		for _, item := range stmt.OrderBy {
-			item.Expr = RewriteExpr(item.Expr)
-		}
+		rewriteOrderBy(stmt.OrderBy)
 		return
 	}
 	for i, target := range stmt.TargetList {
@@ -605,7 +609,5 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt.Having != nil {
 		stmt.Having = RewriteExpr(stmt.Having)
 	}
-	for _, item := range stmt.OrderBy {
-		item.Expr = RewriteExpr(item.Expr)
-	}
+	rewriteOrderBy(stmt.OrderBy)
 }

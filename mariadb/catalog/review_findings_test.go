@@ -4659,3 +4659,117 @@ func TestReview_InlineReferenceBackingIndexName(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_ApproximateTemporalDefault covers a temporal default written with
+// an exponent. The literal is a double, so the value the column converts is
+// the double's: DATETIME(6) DEFAULT (20200101123456.123456e0) is
+// '2020-01-01 12:34:56.125000', where omni expanded the digits as written and
+// kept .123456, a value no double holds.
+//
+// Measured on mariadb:11.8.8. The value read is the double's exact one and not
+// its shortest decimal — (20200101123456.1e0) is '...56.101562', the double
+// 20200101123456.1015625 cut at six places, where the shortest decimal that
+// reads back as that double is ...56.102 — and the places the column does not
+// keep are cut rather than rounded, which TIME(6) DEFAULT (8385959.999999e0)
+// coming back '838:59:59.999998' shows.
+func TestReview_ApproximateTemporalDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, typ, literal string }{
+		{"datetime_fsp6_past_a_double", "DATETIME(6)", "20200101123456.123456e0"},
+		{"datetime_fsp6_exact_twin", "DATETIME(6)", "20200101123456.123456"},
+		{"datetime_fsp3_past_a_double", "DATETIME(3)", "20200101123456.123e0"},
+		{"datetime_fsp6_one_place", "DATETIME(6)", "20200101123456.1e0"},
+		{"datetime_from_a_mantissa", "DATETIME", "2.0200101123456e13"},
+		{"datetime_whole_exponent", "DATETIME", "20200101123456e0"},
+		{"date_from_a_mantissa", "DATE", "2.0200101e7"},
+		{"date_whole_exponent", "DATE", "20200101e0"},
+		{"time_fsp6_past_a_double", "TIME(6)", "123456.123456e0"},
+		{"time_fsp6_exact_twin", "TIME(6)", "123456.123456"},
+		{"time_from_a_mantissa", "TIME", "1.005e2"},
+		{"time_fsp3_half", "TIME(3)", "100.5e0"},
+		{"time_fsp3_negative", "TIME(3)", "-100.5e0"},
+		{"time_fsp6_widest", "TIME(6)", "8385959.999999e0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scenarioReset(t, mc)
+			c := scenarioNewCatalog(t)
+			ddl := "CREATE TABLE t (a " + tc.typ + " DEFAULT (" + tc.literal + "))"
+			runOnBoth(t, mc, c, ddl+";")
+			assertDefaultMatches(t, mc, c)
+
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert: %v", err)
+			}
+			var want string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &want)
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateTable("testdb", "t")
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+				t.Fatalf("oracle insert after replay: %v", err)
+			}
+			var got string
+			oracleScan(t, mc, "SELECT CAST(a AS CHAR) FROM t", &got)
+			if got != want {
+				t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
+
+// TestReview_SetOperationOrderByIsRewritten covers the ORDER BY over a whole
+// set operation, which belongs to neither side of it. The rewrite walked both
+// operands and returned, so that list was left as written and a SOUNDS LIKE
+// ordered by lost the parentheses its left operand needs.
+//
+// Measured on mariadb:11.8.8, where such a list is rewritten like any other.
+//
+// The same list over a parenthesized query is rewritten too, and is left out
+// here for a neighbour it runs into: the server folds it into that query and
+// qualifies its columns — `(SELECT a FROM t) ORDER BY ((a=2) SOUNDS LIKE '0')`
+// is stored as `(select `t`.`a` AS `a` from `t` order by soundex(`t`.`a` = 2)
+// = soundex('0'))` — where omni keeps the outer shape and the bare name. That
+// is its own gap, reported.
+func TestReview_SetOperationOrderByIsRewritten(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+	scenarioReset(t, mc)
+	c := scenarioNewCatalog(t)
+
+	runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);`)
+	if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES (1,2),(2,1)"); err != nil {
+		t.Fatalf("oracle insert: %v", err)
+	}
+	for i, tc := range []struct{ name, body string }{
+		{"union_sounds_like", "SELECT 2 AS a UNION SELECT 3 ORDER BY ((a=2) SOUNDS LIKE '0'), a DESC"},
+		{"union_not", "SELECT 2 AS a UNION SELECT 3 ORDER BY NOT (a > 2)"},
+		{"union_over_tables", "SELECT a FROM t UNION SELECT b FROM t ORDER BY ((a=2) SOUNDS LIKE '0')"},
+		{"union_all_with_a_limit", "SELECT a FROM t UNION ALL SELECT b FROM t ORDER BY NOT (a > 2) LIMIT 5"},
+	} {
+		view := fmt.Sprintf("v_so%d", i)
+		t.Run(tc.name, func(t *testing.T) {
+			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
+			assertViewBodyMatches(t, mc, c, view)
+
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
+				t.Fatalf("oracle drop: %v", err)
+			}
+			replay := c.ShowCreateView("testdb", view)
+			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+			}
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
+					want, got, replay)
+			}
+		})
+	}
+}
