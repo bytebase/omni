@@ -2294,6 +2294,15 @@ func (l *Lexer) nextToken() Token {
 		return l.scanBacktickIdent()
 	}
 
+	// `\N` -- backslash then an uppercase N -- is the NULL literal: TiDB v8.5.5
+	// reads `SELECT \N` as SELECT NULL. It is case-sensitive (`\n` and `\M` are
+	// 1064) and exactly two bytes, so `\Nx` is NULL aliased x.
+	if ch == '\\' && l.pos+1 < len(l.input) && l.input[l.pos+1] == 'N' {
+		start := l.pos
+		l.pos += 2
+		return Token{Type: kwNULL, Str: `\N`, Loc: start}
+	}
+
 	// String literals (single or double quoted)
 	if ch == '\'' {
 		return l.scanString('\'')

@@ -131,7 +131,7 @@ A shift or other binary expression in the value needs the full `Expression` *and
 a deparse that does not parenthesise it (else it becomes the INTERVAL function on
 TiDB) — the tradeoff `parseIntervalExpr` documents. Left for its own change.
 
-### C. `\N` as the `NULL` literal — 3 rows
+### C. `\N` as the `NULL` literal — 3 rows — ✅ CLOSED
 
 ```
 select \N
@@ -139,7 +139,12 @@ select \N from test
 select (\N) from test
 ```
 
-MySQL and TiDB lex `\N` as a synonym for `NULL`. omni's lexer does not.
+**Closed** by `fix(tidb): lex \N as the NULL literal`. TiDB v8.5.5 lexes `\N` --
+backslash then an uppercase N, exactly two bytes -- as `NULL`; it is
+case-sensitive (`\n` and `\M` are 1064) and stands alone, so `\Nx` is NULL
+aliased x. The lexer now emits the NULL token for it, which deparses to `NULL`
+and round-trips. tidb-only here (the corpus is TiDB's); the forks share the
+construct and can take the same fix when measured.
 
 ### D. `DEFAULT(qualified.column)` — 1 row
 

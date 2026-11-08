@@ -7074,13 +7074,13 @@ accept	accept	show privileges
 accept	accept	show table status
 accept	accept	drop database test_show
 accept	accept	use executor__executor
-reject	accept	select \N
+accept	accept	select \N
 accept	accept	select "\N"
 accept	accept	create table test (`\N` int)
 accept	accept	insert into test values (1)
 accept	accept	select * from test
-reject	accept	select \N from test
-reject	accept	select (\N) from test
+accept	accept	select \N from test
+accept	accept	select (\N) from test
 accept	accept	select `\N` from test
 accept	accept	select (`\N`) from test
 accept	accept	select '\N' from test
