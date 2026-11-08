@@ -1321,22 +1321,23 @@ func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {
 		restoreGroupConcat(b, n)
 		return
 	case "WEIGHT_STRING":
-		// weight_string(expr [AS CHAR(n) | AS BINARY(n)]) — the AS clause is
-		// weight_string's own grammar, not a general cast (parser.y:8374,8381).
-		restoreFuncName(b, n, name)
-		b.WriteByte('(')
-		if len(n.Args) == 1 {
-			restoreExpr(b, n.Args[0])
-		}
+		// weight_string(expr AS CHAR(n) | AS BINARY(n)) — the AS clause is
+		// weight_string's own grammar, not a general cast (parser.y:8374,8381),
+		// and only the bare builtin parses it (WeightAs set). A schema-qualified
+		// or quoted name (db.weight_string(1, 2)) uses the ordinary call grammar
+		// and keeps its argument list, so it falls through to the generic path.
 		if n.WeightAs != "" {
+			restoreFuncName(b, n, name)
+			b.WriteByte('(')
+			restoreExpr(b, n.Args[0])
 			b.kw(" AS ")
 			b.kw(n.WeightAs)
 			b.WriteByte('(')
 			b.WriteString(strconv.FormatUint(n.WeightAsLen, 10))
 			b.WriteByte(')')
+			b.WriteByte(')')
+			return
 		}
-		b.WriteByte(')')
-		return
 	}
 
 	restoreFuncName(b, n, name)
