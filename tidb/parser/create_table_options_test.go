@@ -166,6 +166,11 @@ var createTableOptionsAccepted = []string{
 	`CREATE SEQUENCE s STORAGE MEMORY`,
 	`CREATE SEQUENCE s ENGINE 'innodb' NODEGROUP 1 AFFINITY 's'`,
 	`CREATE SEQUENCE s START 1 STORAGE ENGINE 'innodb', AFFINITY 's'`,
+	// StringName's Identifier takes a backquoted name, a backquoted reserved
+	// word among them, so these parse where the bare reserved word below does
+	// not.
+	"CREATE SEQUENCE s AFFINITY `select`",
+	"CREATE TABLE t (a int) STORAGE ENGINE `select`",
 }
 
 var createTableOptionsRejected = []string{
@@ -310,6 +315,11 @@ var createTableOptionsRejected = []string{
 	`CREATE SEQUENCE s STORAGE ENGINE`,
 	`CREATE SEQUENCE s AFFINITY`,
 	`CREATE SEQUENCE s NODEGROUP`,
+	// StringName's Identifier excludes reserved words, so a bare SELECT is a
+	// 1064 (a backquoted one, in the accepted list, is a name).
+	`CREATE SEQUENCE s AFFINITY SELECT`,
+	`CREATE TABLE t (a int) STORAGE ENGINE SELECT`,
+	`CREATE SEQUENCE s AFFINITY = SELECT`,
 }
 
 func TestCreateTableOptionsAccepted(t *testing.T) {

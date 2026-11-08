@@ -1981,25 +1981,23 @@ func (p *Parser) consumeOptionValue() (string, error) {
 	}
 }
 
-// consumeStringNameOptionValue reads a StringName option value: a quoted
-// string or an identifier (including an unreserved keyword), the way STORAGE
-// ENGINE and AFFINITY take it. A bare number is a 1064.
+// consumeStringNameOptionValue reads a StringName option value, the way STORAGE
+// ENGINE and AFFINITY take it: a quoted string or an Identifier. Identifier is a
+// plain or backquoted name or an unreserved keyword, so a bare number and a
+// reserved word (`SELECT`) are each a 1064.
 //
-// Ref: StringName in TiDB v8.5.5 pkg/parser/parser.y.
+// Ref: `StringName: stringLit | Identifier` in TiDB v8.5.5 pkg/parser/parser.y.
 func (p *Parser) consumeStringNameOptionValue() (string, error) {
 	if p.cur.Type == tokSCONST {
 		val := p.cur.Str
 		p.advance()
 		return val, nil
 	}
-	if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-		name, _, err := p.parseKeywordOrIdent()
-		if err != nil {
-			return "", err
-		}
-		return name, nil
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
 	}
-	return "", p.syntaxErrorAtCur()
+	return name, nil
 }
 
 // consumeIntegerOptionValue reads an option value that must be an integer.
