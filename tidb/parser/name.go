@@ -1269,14 +1269,9 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 	if p.cur.Type == tokIDENT && len(p.cur.Str) >= 1 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
-		// A bare `@` directly followed by a quoted string is a quoted variable
-		// name (@'foo', @"foo"), which TiDB reads as the variable foo. omni does
-		// not support that name yet (the lexer must not swallow the `@'host'` of
-		// a username), so reject it rather than read `@` as the unnamed variable
-		// and the string as its alias.
-		if tok.Str == "@" && p.cur.Type == tokSCONST && p.cur.Loc == tok.End {
-			return nil, p.syntaxErrorAtCur()
-		}
+		// A quoted name (@'foo', @"foo", "@`foo`") arrives folded into this token
+		// by the lexer, with the quotes stripped, so it needs nothing here: Str
+		// is "@foo" and the variable is foo.
 		ref := &nodes.VariableRef{
 			Loc:  nodes.Loc{Start: tok.Loc},
 			Name: tok.Str[1:],
@@ -1304,6 +1299,14 @@ func (p *Parser) parseSysVarName() (string, int, error) {
 	// anywhere in it ends the token: `SELECT @@ a` and `SELECT @@a . b` are 1064s.
 	if p.cur.Loc != p.prev.End {
 		return "", 0, p.syntaxErrorAtCur()
+	}
+	// A string-literal name (@@'c', @@session.'c', @@local."c") is the whole
+	// name, like a backquoted one: TiDB runs those and answers 1064 to a further
+	// `.part` after it (@@session."a"."b"). The lexer did not fold it into the @@
+	// token, so it arrives as a separate string token here.
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
 	}
 	quoted := strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
 	name, loc, err := p.parseKeywordOrIdent()

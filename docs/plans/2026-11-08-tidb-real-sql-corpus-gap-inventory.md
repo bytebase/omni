@@ -13,15 +13,15 @@ extraction skipped, or the statement an `ast/*_test.go` restore case parses
 (a fragment inside a full-statement template). Each was measured against omni and
 against TiDB v8.5.5 via `PREPARE`.
 
-| | first | after FK fix |
-|---|---:|---:|
-| both accept | 869 | 874 |
-| gap: TiDB accepts, omni rejects | 11 | 6 |
-| **over-acceptance: TiDB rejects, omni accepts** | **0** | **0** |
-| both reject | 5 | 5 |
-| no verdict | 0 | 0 |
+| | first | after FK fix | after var fix |
+|---|---:|---:|---:|
+| both accept | 869 | 874 | 879 |
+| gap: TiDB accepts, omni rejects | 11 | 6 | 1 |
+| **over-acceptance: TiDB rejects, omni accepts** | **0** | **0** | **0** |
+| both reject | 5 | 5 | 5 |
+| no verdict | 0 | 0 | 0 |
 
-omni parses **874 of the 880 statements TiDB accepts — 99.3%** (was 869/880,
+omni parses **879 of the 880 statements TiDB accepts — 99.9%** (was 869/880,
 98.8%, at first measurement), with **zero over-acceptances**. The 5 both-reject
 rows are statements the server itself refuses (`AFFINITY 1` with a non-string, an
 unterminated `/*` comment, a resource group option with a bad value); they are
@@ -47,11 +47,15 @@ CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id(2),
 CREATE TABLE child (id INT, parent_id INT, CONSTRAINT FOREIGN KEY (parent_id) REFERENCES parent((id+1)) ON DELETE CASCADE ON UPDATE RESTRICT)
 ```
 
-### B. User- and system-variable names as quoted strings — 5 rows — open
+### B. User- and system-variable names as quoted strings — 5 rows — ✅ CLOSED
 
-A user variable `@name` and a system variable `@@scope.name` take a quoted
-string or quoted identifier as the name, not only a bare word. omni accepts only
-the bare-word form.
+**Closed** by `fix(tidb): read quoted user- and system-variable names`. A user
+variable `@name` and a system variable `@@scope.name` take a quoted string or
+quoted identifier as the name, not only a bare word. The lexer now folds a
+single/double/backtick-quoted user-variable name into one token (TiDB's
+`singleAtIdentifier`, which the `@'host'` of a username also uses), and
+`parseSysVarName` reads a quoted system-variable name component. It also closed
+`SET @' ' = 1` in the single-form pingcap corpus.
 
 ```
 select @'a':=1
@@ -61,7 +65,7 @@ select @@session.'C'
 select @@local."aBc"
 ```
 
-### C. `OPTIMIZE TABLES` plural — 1 row — open
+### C. `OPTIMIZE TABLES` plural — 1 row — open (the last gap)
 
 ```
 optimize tables t1, t2
@@ -72,7 +76,8 @@ engines mysql/mariadb/oceanbase and port in one PR where they agree.)
 
 ## Next
 
-Clusters B and C remain (6 rows). Close each as §3.2's rows were closed — a small
-PR with §3.5's tree checks, zero new over-acceptances — then re-record this corpus
-with `-update` and read the diff. Samples 2 (TiDB integrationtest) and 3
-(Bytebase's own TiDB test files) are later sessions and will extend this list.
+Only cluster C remains (1 row, `OPTIMIZE TABLES`). Close it as §3.2's rows were
+closed — a small PR with §3.5's tree checks, zero new over-acceptances — then
+re-record this corpus with `-update` and read the diff. Samples 2 (TiDB
+integrationtest) and 3 (Bytebase's own TiDB test files) are later sessions and
+will extend this list.

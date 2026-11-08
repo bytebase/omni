@@ -238,10 +238,11 @@ At these sizes a live run of every row on every test run is expensive:
 `rest_corpus_oracle_test.go`, which share the pingcap corpus's `PREPARE` harness
 and add the `TIDB_CORPUS_N` sample knob (wired in CI, so the larger samples stay
 bounded). First measurement: 869 both-accept, 11 gaps, **0 over-acceptances**, 5
-both-reject — omni parses 98.8% of what TiDB accepts. The foreign-key
-reference-list cluster (5) is since closed (`fix(tidb): read index-part lists in
-a REFERENCES column list`), leaving 874 both-accept and 6 gaps (quoted variable
-names, `OPTIMIZE TABLES`); the work list is
+both-reject — omni parses 98.8% of what TiDB accepts. Two clusters are since
+closed: the foreign-key reference-list (5, `fix(tidb): read index-part lists in a
+REFERENCES column list`) and quoted user/system-variable names (5, `fix(tidb):
+read quoted user- and system-variable names`). That leaves 879 both-accept and 1
+gap (`OPTIMIZE TABLES`); the work list is
 `docs/plans/2026-11-08-tidb-real-sql-corpus-gap-inventory.md`. Samples 2 (TiDB
 integrationtest) and 3 (Bytebase's own TiDB test files) are still to land.
 
