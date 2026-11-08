@@ -3970,3 +3970,70 @@ func TestReview_ExponentDefaultOutsideThePlainRange(t *testing.T) {
 		})
 	}
 }
+
+// TestReview_LongExactNumericDefault covers an exact numeric default longer
+// than a double holds. It is not a double, so every digit it was written with
+// is kept — only the leading zeros and a leading plus go. Taking the 15
+// positions that bound the exponent expansion as a limit on conversion
+// altogether had left the literal's own spelling quoted, leading zeros and
+// all: (000123456789012345678.50) came out '000123456789012345678.50'.
+//
+// Measured on mariadb:11.8.8, with the stored characters read back on both
+// sides.
+//
+// Every literal here carries a fraction or fits an int64, because a whole
+// number wider than that is clamped by the parser before the writer sees it:
+// `DEFAULT (123456789012345678901)` arrives as 9223372036854775807, which no
+// formatting can undo.
+func TestReview_LongExactNumericDefault(t *testing.T) {
+	mc, cleanup := scenarioContainer(t)
+	defer cleanup()
+
+	for _, tc := range []struct{ name, literal string }{
+		{"leading_zeros_and_a_fraction", "000123456789012345678.50"},
+		{"no_leading_zeros", "123456789012345678.50"},
+		{"zeros_down_to_one", "0000000000000000000001"},
+		{"a_leading_plus", "+000123456789012345678.50"},
+		{"negative_with_leading_zeros", "-000123456789012345678.50"},
+		{"thirty_digits_with_a_fraction", "00123456789012345678901234567890.5"},
+		{"twenty_one_decimals", "0.000000000000000000001"},
+		{"a_long_fraction", "0.123456789012345678901"},
+		{"zeros_before_a_fraction", "00.100"},
+	} {
+		for _, typ := range []string{"VARCHAR(60)", "VARBINARY(60)"} {
+			name := tc.name
+			if strings.HasPrefix(typ, "VARBINARY") {
+				name += "_as_bytes"
+			}
+			t.Run(name, func(t *testing.T) {
+				scenarioReset(t, mc)
+				c := scenarioNewCatalog(t)
+				ddl := "CREATE TABLE t (a " + typ + " DEFAULT (" + tc.literal + "))"
+				runOnBoth(t, mc, c, ddl+";")
+				assertDefaultMatches(t, mc, c)
+
+				if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+					t.Fatalf("oracle insert: %v", err)
+				}
+				var want string
+				oracleScan(t, mc, "SELECT HEX(a) FROM t", &want)
+				if _, err := mc.db.ExecContext(mc.ctx, "DROP TABLE t"); err != nil {
+					t.Fatalf("oracle drop: %v", err)
+				}
+				replay := c.ShowCreateTable("testdb", "t")
+				if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
+					t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
+				}
+				if _, err := mc.db.ExecContext(mc.ctx, "INSERT INTO t VALUES ()"); err != nil {
+					t.Fatalf("oracle insert after replay: %v", err)
+				}
+				var got string
+				oracleScan(t, mc, "SELECT HEX(a) FROM t", &got)
+				if got != want {
+					t.Errorf("replaying what omni wrote changed the default: %s became %s\n%s",
+						want, got, replay)
+				}
+			})
+		}
+	}
+}

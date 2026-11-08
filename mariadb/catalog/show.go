@@ -1284,12 +1284,15 @@ func yearLiteralOf(n uint64, numberZero bool) string {
 // where it has one — (1.5) is '1.5' and (0.10) keeps its trailing zero — while
 // a leading plus and leading zeros go and an exponent is worked out.
 //
-// An exponent is worked out into a plain decimal as far as the server does,
-// which is the 15 positions a double holds: measured on mariadb:11.8.8,
-// `VARCHAR(40) DEFAULT (1e14)` is '100000000000000' and (1e-15) is
-// '0.000000000000001', where (1e15) is '1e15' and (1e-16) is '1e-16'. Past
-// that the exponent form is written, but as the double's own and not as the
-// literal was spelled.
+// An exponent makes the literal a double, and is worked out into a plain
+// decimal as far as the server does, which is the 15 positions a double
+// holds: measured on mariadb:11.8.8, `VARCHAR(40) DEFAULT (1e14)` is
+// '100000000000000' and (1e-15) is '0.000000000000001', where (1e15) is
+// '1e15' and (1e-16) is '1e-16'. Past that the exponent form is written, but
+// as the double's own and not as the literal was spelled.
+//
+// The 15 positions bound only that expansion. An exact literal has no double
+// in it and keeps every digit it was written with.
 func numberStringForm(val string) (string, bool) {
 	if !isNumberLiteral(val) {
 		return "", false
@@ -1298,15 +1301,19 @@ func numberStringForm(val string) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	if !isApproximateLiteral(val) {
+		// An exact literal keeps its digits and its fraction as written,
+		// however long: only the leading zeros and a leading plus go, which
+		// is what normalizing has already done. Measured,
+		// (000123456789012345678.50) is '123456789012345678.50',
+		// (0000000000000000000001) is '1', (00.100) is '0.100',
+		// (0.000000000000000000001) keeps all twenty-one decimals and a
+		// thirty-digit whole number keeps all thirty.
+		return digits, true
+	}
 	whole, fraction, _ := strings.Cut(strings.TrimPrefix(digits, "-"), ".")
 	if len(whole) <= 15 && len(fraction) <= 15 {
 		return digits, true
-	}
-	if !isApproximateLiteral(val) {
-		// A literal written without an exponent keeps its digits, however
-		// many: measured, (123456789012345678) and a twenty-five digit one
-		// are stored as they stand.
-		return "", false
 	}
 	// Past what a plain decimal holds, the value is written as the double's
 	// own shortest form, which is a mantissa and an exponent with nothing
