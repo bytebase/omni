@@ -304,16 +304,16 @@ accept	accept	select a,b,a+b from t into outfile '/tmp/result.txt' fields termin
 accept	accept	SELECT * from t1, t2, t3
 accept	accept	select * from t1 join t2 left join t3 on t2.id = t3.id
 accept	accept	select * from t1 right join t2 on t1.id = t2.id left join t3 on t3.id = t2.id
-accept	reject	select * from t1 right join t2 on t1.id = t2.id left join t3
+reject	reject	select * from t1 right join t2 on t1.id = t2.id left join t3
 accept	accept	select * from t1 join t2 left join t3 using (id)
 accept	accept	select * from t1 right join t2 using (id) left join t3 using (id)
-accept	reject	select * from t1 right join t2 using (id) left join t3
+reject	reject	select * from t1 right join t2 using (id) left join t3
 accept	accept	select * from t1 natural join t2
 accept	accept	select * from t1 natural right join t2
 accept	accept	select * from t1 natural left outer join t2
 reject	reject	select * from t1 natural inner join t2
 reject	reject	select * from t1 natural cross join t2
-reject	accept	select * from t3 join t1 join t2 on t1.a=t2.a on t3.b=t2.b
+accept	accept	select * from t3 join t1 join t2 on t1.a=t2.a on t3.b=t2.b
 accept	accept	select * from t1 straight_join t2 on t1.id = t2.id
 accept	accept	select straight_join * from t1 join t2 on t1.id = t2.id
 accept	accept	select straight_join * from t1 left join t2 on t1.id = t2.id

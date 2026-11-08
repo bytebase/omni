@@ -927,7 +927,23 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Parse joins
+	return p.parseJoinChain(left, true)
+}
+
+// parseJoinChain extends a table reference with the joins that follow it.
+//
+// MySQL's join grammar is ambiguous and yacc resolves it by precedence (parser.y
+// JoinTable, at <repo root>/tidb/parser/cmd/grammarcorpus/testdata/parser.y): a
+// conditionless plain/cross/inner JOIN and an outer (LEFT/RIGHT) JOIN let their
+// right operand absorb the joins that follow, so `a JOIN b JOIN c ON x ON y`
+// nests as `a JOIN (b JOIN c ON x) ON y`; STRAIGHT_JOIN and NATURAL joins reduce
+// at the join-keyword level and bind left-deep. allowChain is false in the right
+// operand of a non-absorbing join, where no further join may attach.
+// Container-verified against TiDB v8.5.5.
+func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.TableExpr, error) {
+	if !allowChain {
+		return left, nil
+	}
 	for {
 		jt, ok, err := p.matchJoinType()
 		if err != nil {
@@ -945,7 +961,11 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		right, err := p.parseTableFactor()
+		rightFactor, err := p.parseTableFactor()
+		if err != nil {
+			return nil, err
+		}
+		right, err := p.parseJoinChain(rightFactor, joinAbsorbsRight(jt))
 		if err != nil {
 			return nil, err
 		}
@@ -956,55 +976,8 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			Left:  left,
 			Right: right,
 		}
-
-		// ON or USING condition
-		condStart := p.pos()
-		if _, ok := p.match(kwON); ok {
-			// Completion: after ON keyword, offer columnref candidates for join condition.
-			p.checkCursor()
-			if p.collectMode() {
-				p.addRuleCandidate("columnref")
-				return nil, &ParseError{Message: "collecting"}
-			}
-			condStart = p.pos()
-			cond, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if cond == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			join.Condition = &nodes.OnCondition{
-				Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
-				Expr: cond,
-			}
-		} else if _, ok := p.match(kwUSING); ok {
-			// For USING, we manually consume '(' so we can add a completion checkpoint inside.
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			// Completion: after USING (, offer columnref candidates for shared columns.
-			p.checkCursor()
-			if p.collectMode() {
-				p.addRuleCandidate("columnref")
-				return nil, &ParseError{Message: "collecting"}
-			}
-			var cols []string
-			for {
-				name, _, err := p.parseIdent()
-				if err != nil {
-					return nil, err
-				}
-				cols = append(cols, name)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
+		if err := p.parseJoinCondition(join); err != nil {
+			return nil, err
 		}
 
 		join.Loc.End = p.prev.End
@@ -1012,6 +985,91 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 	}
 
 	return left, nil
+}
+
+// joinAbsorbsRight reports whether a join's right operand may absorb the joins
+// that follow it. A plain/cross/inner JOIN and an outer (LEFT/RIGHT) JOIN do;
+// STRAIGHT_JOIN and NATURAL joins bind left-deep. See parseJoinChain for the
+// grammar; container-verified against TiDB v8.5.5.
+func joinAbsorbsRight(jt nodes.JoinType) bool {
+	switch jt {
+	case nodes.JoinInner, nodes.JoinCross, nodes.JoinLeft, nodes.JoinRight:
+		return true
+	default: // JoinStraight, JoinNatural, JoinNaturalLeft, JoinNaturalRight
+		return false
+	}
+}
+
+// parseJoinCondition reads the ON or USING clause for a join and records it on
+// the node. An outer (LEFT/RIGHT) join requires one, a NATURAL join forbids one,
+// and the others take either or none. Container-verified against TiDB v8.5.5.
+func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
+	switch join.Type {
+	case nodes.JoinNatural, nodes.JoinNaturalLeft, nodes.JoinNaturalRight:
+		// A NATURAL join names no condition; an ON/USING that follows is a
+		// syntax error, left where it sits for the caller to report.
+		return nil
+	}
+
+	condStart := p.pos()
+	if _, ok := p.match(kwON); ok {
+		// Completion: after ON keyword, offer columnref candidates for join condition.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return &ParseError{Message: "collecting"}
+		}
+		condStart = p.pos()
+		cond, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if cond == nil {
+			return p.syntaxErrorAtCur()
+		}
+		join.Condition = &nodes.OnCondition{
+			Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
+			Expr: cond,
+		}
+		return nil
+	}
+	if _, ok := p.match(kwUSING); ok {
+		// For USING, we manually consume '(' so we can add a completion checkpoint inside.
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		// Completion: after USING (, offer columnref candidates for shared columns.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return &ParseError{Message: "collecting"}
+		}
+		var cols []string
+		for {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return err
+			}
+			cols = append(cols, name)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+		join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
+		return nil
+	}
+
+	// No ON/USING. An outer join requires one; TiDB has no bare LEFT/RIGHT JOIN
+	// production. Completion stays lenient so a half-typed join still offers
+	// candidates.
+	if (join.Type == nodes.JoinLeft || join.Type == nodes.JoinRight) && !p.collectMode() {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // matchJoinType checks for a join keyword combination and returns the join type.
