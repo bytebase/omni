@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -2711,6 +2712,13 @@ func (l *Lexer) scanNumber() Token {
 
 	s := l.input[start:l.pos]
 	if isFloat {
+		// A float literal that overflows the double it denotes is a syntax error
+		// (TiDB v8.5.5 answers 1064 to `1e400` and `4556414e723532`). Underflow to
+		// zero is not: ParseFloat reports both with ErrRange, so the result being
+		// infinite is what distinguishes the overflow.
+		if f, err := strconv.ParseFloat(s, 64); err != nil && math.IsInf(f, 0) {
+			l.setError("floating point value is out of range", start)
+		}
 		return Token{Type: tokFCONST, Str: s, Loc: start}
 	}
 

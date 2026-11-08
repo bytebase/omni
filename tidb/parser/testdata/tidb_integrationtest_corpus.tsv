@@ -6545,7 +6545,7 @@ accept	accept	select id from (select * from select_limit limit 1) k where id != 
 accept	accept	select * from select_limit limit 18446744073709551615 offset 0
 accept	accept	select * from select_limit limit 18446744073709551615 offset 1
 accept	accept	select * from select_limit limit 18446744073709551615 offset 3
-accept	reject	select * from select_limit limit 18446744073709551616 offset 3
+reject	reject	select * from select_limit limit 18446744073709551616 offset 3
 accept	accept	drop table if exists select_order_test
 accept	accept	create table select_order_test(id int not null default 1, name varchar(255), PRIMARY KEY(id))
 accept	accept	insert INTO select_order_test VALUES (1, "hello")
@@ -8964,7 +8964,7 @@ accept	accept	insert into tt1 values(8912345678901234567890123456789012345678901
 accept	accept	insert ignore into tt1 values(89123456789012345678901234567890123456789012345678901234567890123456789012345678900000000)
 accept	accept	select c1 from tt1
 accept	accept	update tt1 set c1 = 89123456789012345678901234567890123456789012345678901234567890123456789012345678900000000
-accept	reject	insert into tt1 values(4556414e723532)
+reject	reject	insert into tt1 values(4556414e723532)
 accept	accept	select 888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 accept	accept	create table t (id smallint auto_increment primary key)
 accept	accept	alter table t add column c1 int default 1
@@ -12868,7 +12868,7 @@ accept	accept	ALTER USER CURRENT_USER() IDENTIFIED BY 'yyy'
 accept	accept	ALTER USER CURRENT_USER IDENTIFIED BY 'zzz'
 accept	accept	ALTER USER 'issue17247'@'%' IDENTIFIED BY 'kkk'
 accept	accept	ALTER USER 'issue17247'@'%' IDENTIFIED BY PASSWORD '*B50FBDB37F1256824274912F2A1CE648082C3F1F'
-accept	reject	ALTER USER USER() IDENTIFIED BY PASSWORD '*B50FBDB37F1256824274912F2A1CE648082C3F1F'
+reject	reject	ALTER USER USER() IDENTIFIED BY PASSWORD '*B50FBDB37F1256824274912F2A1CE648082C3F1F'
 accept	accept	do 1, @a:=1
 accept	accept	select @a
 accept	accept	do @a := (select * from t where i = 1)
@@ -26881,17 +26881,17 @@ accept	accept	set sql_mode='high_not_precedence'
 accept	accept	CREATE TABLE COUNT (a bigint)
 accept	accept	DROP TABLE COUNT
 accept	accept	CREATE TABLE `COUNT` (a bigint)
-accept	reject	CREATE TABLE COUNT(a bigint)
+reject	reject	CREATE TABLE COUNT(a bigint)
 accept	accept	CREATE TABLE types__const.COUNT(a bigint)
 accept	accept	CREATE TABLE BIT_AND (a bigint)
 accept	accept	DROP TABLE BIT_AND
 accept	accept	CREATE TABLE `BIT_AND` (a bigint)
-accept	reject	CREATE TABLE BIT_AND(a bigint)
+reject	reject	CREATE TABLE BIT_AND(a bigint)
 accept	accept	CREATE TABLE types__const.BIT_AND(a bigint)
 accept	accept	CREATE TABLE NOW (a bigint)
 accept	accept	DROP TABLE NOW
 accept	accept	CREATE TABLE `NOW` (a bigint)
-accept	reject	CREATE TABLE NOW(a bigint)
+reject	reject	CREATE TABLE NOW(a bigint)
 accept	accept	CREATE TABLE types__const.NOW(a bigint)
 accept	accept	set sql_mode='IGNORE_SPACE'
 accept	accept	SELECT '\\'

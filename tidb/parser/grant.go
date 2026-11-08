@@ -1309,9 +1309,20 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 		// user_func_auth_option: IDENTIFIED BY 'auth_string' [REPLACE ...] [RETAIN ...] | DISCARD OLD PASSWORD
 		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: userStart}, Name: "USER()"}
 		if p.cur.Type == kwIDENTIFIED {
-			if err := p.parseUserAuthOption(userSpec); err != nil {
+			// ALTER USER USER() takes only `IDENTIFIED BY AuthString`, a plain
+			// string (parser.y:13745): the general AuthOption's `BY PASSWORD`,
+			// `WITH plugin` and `BY RANDOM PASSWORD` do not reach the USER() form,
+			// so TiDB v8.5.5 answers 1064 to
+			// `ALTER USER USER() IDENTIFIED BY PASSWORD '...'`.
+			p.advance() // consume IDENTIFIED
+			if _, err := p.expect(kwBY); err != nil {
 				return nil, err
 			}
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			userSpec.Password = p.cur.Str
+			p.advance()
 		}
 		// [REPLACE 'current_auth_string']
 		if p.cur.Type == kwREPLACE {

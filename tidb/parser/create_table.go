@@ -48,6 +48,15 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// A function-name keyword immediately followed by `(` is a function call, not
+	// a table name: TiDB v8.5.5 answers 1064 to `CREATE TABLE COUNT(a int)` while
+	// `CREATE TABLE COUNT (a int)` (a space before the paren) names a table. The
+	// lexer does not fold `name(` into one token the way TiDB's does, so the
+	// adjacency is checked here, over the set measured against v8.5.5.
+	if isFuncNameConflictKeyword(p.cur.Type) && p.peekNext().Type == '(' && p.peekNext().Loc == p.cur.End {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	// Table name
 	ref, err := p.parseTableRef()
 	if err != nil {

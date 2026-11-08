@@ -1535,6 +1535,12 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 // 1064.
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
+		// LIMIT and OFFSET take a LengthNum, a uint64: TiDB v8.5.5 answers 1064 to
+		// a value past 18446744073709551615, though a bare integer literal that
+		// large is read as a decimal elsewhere.
+		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+			return nil, &ParseError{Message: "LIMIT value is out of range", Position: p.cur.Loc}
+		}
 		return p.parsePrimaryExpr()
 	}
 	if p.cur.Type == '?' {

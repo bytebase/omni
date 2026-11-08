@@ -1334,6 +1334,22 @@ func (p *Parser) parseSysVarName() (string, int, error) {
 	return name, loc, nil
 }
 
+// isFuncNameConflictKeyword reports whether t is a function-name keyword that
+// TiDB reads as a function call when immediately followed by `(`, so it cannot
+// be a table name there. The set is the aggregate and temporal-scalar function
+// names that are otherwise usable as identifiers, measured against v8.5.5:
+// `CREATE TABLE COUNT(a int)` is a 1064, `CREATE TABLE COUNT (a int)` is not.
+func isFuncNameConflictKeyword(t int) bool {
+	switch t {
+	case kwNOW, kwCURDATE, kwCURTIME, kwSYSDATE, kwDATE_ADD, kwDATE_SUB,
+		kwMID, kwSUBSTR, kwSTD, kwSTDDEV, kwSTDDEV_POP, kwSTDDEV_SAMP,
+		kwBIT_AND, kwBIT_OR, kwBIT_XOR, kwVAR_POP, kwVAR_SAMP, kwVARIANCE,
+		kwCOUNT, kwSUM, kwMIN, kwMAX, kwGROUP_CONCAT, kwSUBSTRING, kwTRIM, kwPOSITION:
+		return true
+	}
+	return false
+}
+
 // isIdentToken returns true if the current token can be used as an identifier.
 func (p *Parser) isIdentToken() bool {
 	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && !isReserved(p.cur.Type))
