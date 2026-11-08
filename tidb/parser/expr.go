@@ -2354,9 +2354,21 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	// read a parenthesized value as the literal.
 	var val nodes.ExprNode
 	var err error
-	if p.cur.Type == kwINTERVAL {
+	switch p.cur.Type {
+	case kwINTERVAL:
 		val, err = p.parseIntervalExpr()
-	} else {
+	case '-', '+':
+		// A leading sign is part of the value: TiDB v8.5.5 runs INTERVAL -1 DAY
+		// and INTERVAL -2.2 MINUTE_MICROSECOND. parseUnaryExpr binds the operand
+		// at unary precedence (not `-1 << 37`, which is the still-open binary
+		// case), and deparse emits `-1` without parentheses, so it stays the
+		// literal rather than becoming the INTERVAL function.
+		op := nodes.UnaryMinus
+		if p.cur.Type == '+' {
+			op = nodes.UnaryPlus
+		}
+		val, err = p.parseUnaryExpr(op)
+	default:
 		val, err = p.parsePrimaryExpr()
 	}
 	if err != nil {

@@ -459,13 +459,15 @@ func targetExpr(item nodes.ExprNode) nodes.ExprNode {
 	return item
 }
 
-// TestTiDBIntervalValueStaysUnread records the one deliberate narrowing in
-// this reader. The engine takes a whole expression for an interval literal's
-// value and parses every statement below, storing the value unparenthesized
-// (INTERVAL NOT `n` DAY, INTERVAL -1 DAY). omni's deparse parenthesizes a NOT,
-// a CASE or an operator, as mysql/deparse does, and `interval (not(`n`)) day`
-// is the INTERVAL function to this grammar — TiDB v8.5.5 answers 1582 for it —
-// so reading one of these would deparse to a statement the engine rejects.
+// TestTiDBIntervalValueStaysUnread records the narrowing that remains in this
+// reader. The engine takes a whole expression for an interval literal's value
+// and stores it unparenthesized. omni's deparse parenthesizes a NOT, a CASE, an
+// operator or an EXISTS (and drops a BINARY), as mysql/deparse does, and
+// `interval (not(`n`)) day` is the INTERVAL function to this grammar — TiDB
+// v8.5.5 answers 1582 for it — so reading one of these would deparse to a
+// statement the engine rejects or reads differently. A signed value is read now
+// (`INTERVAL -1 DAY` deparses as `-1`, no parentheses — see
+// TestIntervalSignedValue); the forms below are not.
 //
 // Accepting any of them means making its deparse round-trip first;
 // TestTiDBFunctionArgumentDeparseRoundTrip is what catches the omission.
@@ -473,7 +475,6 @@ func TestTiDBIntervalValueStaysUnread(t *testing.T) {
 	for _, sql := range []string{
 		"SELECT a + INTERVAL NOT c1 DAY FROM t",
 		"SELECT a + INTERVAL CASE WHEN 1 THEN 1 END DAY FROM t",
-		"SELECT a + INTERVAL -1 DAY FROM t",
 		"SELECT a + INTERVAL 1 + 2 DAY FROM t",
 		"SELECT a + INTERVAL EXISTS (SELECT 1) DAY FROM t",
 		// This one deparses to `interval 1 day`, the operator gone, which the
