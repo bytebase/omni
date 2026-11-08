@@ -14,16 +14,16 @@ run on the rest, single-line only, deduplicated within this corpus and against
 the two existing corpora. Each row was measured against omni and against TiDB
 v8.5.5 via `PREPARE`.
 
-| | first | after OA fix | after DESC fix |
-|---|---:|---:|---:|
-| both accept | 26,941 | 26,941 | 27,152 |
-| gap: TiDB accepts, omni rejects | 268 | 268 | 57 |
-| **over-acceptance: TiDB rejects, omni accepts** | **6** | **0** | **0** |
-| both reject | 31 | 37 | 37 |
-| no verdict | 0 | 0 | 0 |
+| | first | after OA fix | after DESC fix | after INTERVAL fix |
+|---|---:|---:|---:|---:|
+| both accept | 26,941 | 26,941 | 27,152 | 27,189 |
+| gap: TiDB accepts, omni rejects | 268 | 268 | 57 | 20 |
+| **over-acceptance: TiDB rejects, omni accepts** | **6** | **0** | **0** | **0** |
+| both reject | 31 | 37 | 37 | 37 |
+| no verdict | 0 | 0 | 0 | 0 |
 
-omni parses **27,152 of the 27,209 statements TiDB accepts — 99.8%** (was 99.0%),
-with **zero over-acceptances**. The both-reject rows are statements the
+omni parses **27,189 of the 27,209 statements TiDB accepts — 99.9%**, with **zero
+over-acceptances**. The both-reject rows are statements the
 server itself refuses (`load stats` with no path, `foreign key … reference`
 misspelled, `require ssl ssl`, a `clustered` column attribute in the wrong place,
 a `case` expression missing a space); they are not work.
@@ -102,22 +102,34 @@ now shares its body instead of short-circuiting `DESC`/`DESCRIBE` to the table
 form. The table form (`DESC tbl [col]`) still parses. tidb-only: MySQL and the
 forks take `DESC`/`DESCRIBE` only as the table form (a TiDB dialect delta).
 
-### B. `INTERVAL expr unit` with a signed, decimal or operator quantity — 51 rows
+### B. `INTERVAL expr unit` with a signed, decimal or operator quantity — 51 rows — 37 ✅ CLOSED, 14 open
+
+The **signed value** half (37 rows, every compound unit among them) is **closed**
+by `fix(tidb): read a signed INTERVAL value`:
+
+```
+SELECT DATE_ADD('2007-03-28 22:08:28', INTERVAL -2.2 MINUTE_MICROSECOND)
+SELECT * FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
+SELECT "1000-01-01 00:00:00" + INTERVAL -9223372036854775809 YEAR
+```
+
+TiDB's interval quantity is a full `Expression` (`INTERVAL Expression TimeUnit`);
+omni-tidb read it as an unsigned primary, deliberately, because its deparse
+parenthesises some values and a parenthesised value is the INTERVAL *function* to
+TiDB. A leading sign is safe there — `parseUnaryExpr` binds the operand at unary
+precedence and deparse emits `-2.2`/`-1` without parentheses — so the value now
+takes a leading `-`/`+`. tidb-only: the fork parsers already take the whole
+interval expression (their engines read a parenthesised value as the literal).
+
+**Still open — the binary-operator value, 14 rows:**
 
 ```
 SELECT "1900-01-01 00:00:00" + INTERVAL 1 << 37 SECOND
-SELECT DATE_ADD('2007-03-28 22:08:28', INTERVAL -2.2 MINUTE_MICROSECOND)
-SELECT * FROM t WHERE date_add(ts, interval -20 minute) = '2025-03-30 02:40:00'
-insert into t2 values('-9223372036854775809', "1000-01-01 00:00:00" + INTERVAL -9223372036854775809 YEAR)
 ```
 
-TiDB's interval quantity is a full `Expression` (`INTERVAL Expression TimeUnit`),
-so a shift (`1 << 37`), a signed or decimal literal (`-2.2`, `-9223372036854775809`)
-and any other expression are all legal, with every compound unit
-(`MINUTE_MICROSECOND`, `DAY_SECOND`, `YEAR_MONTH`, …). omni reads a narrower
-expression in the interval position. This is the one family with sibling reach:
-the same construct appears in mysql/mariadb/oceanbase — port it across the forks
-in one PR where they agree.
+A shift or other binary expression in the value needs the full `Expression` *and*
+a deparse that does not parenthesise it (else it becomes the INTERVAL function on
+TiDB) — the tradeoff `parseIntervalExpr` documents. Left for its own change.
 
 ### C. `\N` as the `NULL` literal — 3 rows
 
