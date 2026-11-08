@@ -14,16 +14,16 @@ run on the rest, single-line only, deduplicated within this corpus and against
 the two existing corpora. Each row was measured against omni and against TiDB
 v8.5.5 via `PREPARE`.
 
-| | first | after OA fix |
-|---|---:|---:|
-| both accept | 26,941 | 26,941 |
-| gap: TiDB accepts, omni rejects | 268 | 268 |
-| **over-acceptance: TiDB rejects, omni accepts** | **6** | **0** |
-| both reject | 31 | 37 |
-| no verdict | 0 | 0 |
+| | first | after OA fix | after DESC fix |
+|---|---:|---:|---:|
+| both accept | 26,941 | 26,941 | 27,152 |
+| gap: TiDB accepts, omni rejects | 268 | 268 | 57 |
+| **over-acceptance: TiDB rejects, omni accepts** | **6** | **0** | **0** |
+| both reject | 31 | 37 | 37 |
+| no verdict | 0 | 0 | 0 |
 
-omni parses **26,941 of the 27,209 statements TiDB accepts — 99.0%**, now with
-**zero over-acceptances** (was 6, 0.02%). The both-reject rows are statements the
+omni parses **27,152 of the 27,209 statements TiDB accepts — 99.8%** (was 99.0%),
+with **zero over-acceptances**. The both-reject rows are statements the
 server itself refuses (`load stats` with no path, `foreign key … reference`
 misspelled, `require ssl ssl`, a `clustered` column attribute in the wrong place,
 a `case` expression missing a space); they are not work.
@@ -82,7 +82,7 @@ float literal that overflows the double to infinity (underflow to zero is kept).
 
 ## The gaps, grouped — 268 rows
 
-### A. `DESC`/`DESCRIBE` as an `EXPLAIN` synonym — 211 rows — the big one
+### A. `DESC`/`DESCRIBE` as an `EXPLAIN` synonym — 211 rows — ✅ CLOSED
 
 ```
 desc select * from t
@@ -92,14 +92,15 @@ desc update t set a = 1
 desc with cte as (select 1) select * from cte
 ```
 
-omni reads `DESC`/`DESCRIBE` only as the describe-a-table form (`DESC tbl
-[col]`); the code says so at `tidb/parser/set_show.go:1850`. TiDB takes all three
-of `EXPLAIN`/`DESCRIBE`/`DESC` as the full `ExplainStmt`: `DESC [ANALYZE]
-[FORMAT = fmt] explainable_stmt`, where the statement is a `SELECT`, `UPDATE`,
-`DELETE`, `WITH`, `INSERT`, etc. omni already parses that whole grammar after
-`EXPLAIN`; the gap is reaching it from `DESC`/`DESCRIBE` too, after the table
-form fails to apply. (MySQL and the forks take `DESC`/`DESCRIBE` only as the
-table form, so this is a TiDB dialect delta — check before porting.)
+**Closed** by `fix(tidb): read DESC/DESCRIBE as full EXPLAIN synonyms`. omni read
+`DESC`/`DESCRIBE` only as the describe-a-table form; TiDB takes all three of
+`EXPLAIN`/`DESCRIBE`/`DESC` as the full `ExplainStmt` (`DESC [ANALYZE] [FORMAT =
+fmt] explainable_stmt` over `SELECT`/`UPDATE`/`DELETE`/`WITH`/`INSERT`/`TABLE`/
+`ALTER TABLE`, plus `FOR CONNECTION`). They are the one `ExplainSym` in parser.y,
+and measured on v8.5.5 all three take exactly the same forms, so `parseExplainStmt`
+now shares its body instead of short-circuiting `DESC`/`DESCRIBE` to the table
+form. The table form (`DESC tbl [col]`) still parses. tidb-only: MySQL and the
+forks take `DESC`/`DESCRIBE` only as the table form (a TiDB dialect delta).
 
 ### B. `INTERVAL expr unit` with a signed, decimal or operator quantity — 51 rows
 

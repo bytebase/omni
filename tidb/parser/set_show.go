@@ -1847,42 +1847,15 @@ func (p *Parser) parseExplainFormatName() (string, error) {
 // EXPLAIN ANALYZE ALTER TABLE makes it, which is why review's walk follows the
 // statement ANALYZE carries.
 //
-// DESC and DESCRIBE read only the table form here. TiDB takes them as full
-// EXPLAIN synonyms -- DESC FORMAT = 'row' SELECT 1 parses on v8.5.5 -- which is
-// a gap this file records rather than closes.
+// DESC and DESCRIBE are full EXPLAIN synonyms: they are the one ExplainSym in
+// parser.y, and v8.5.5 takes exactly the same forms for all three (measured --
+// `DESC FORMAT = 'row' SELECT 1` and `DESCRIBE ANALYZE UPDATE t SET a = 1` among
+// them), so they share this body rather than reading only the table form.
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
-	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
 	p.advance() // consume EXPLAIN, DESCRIBE, or DESC
 
 	stmt := &nodes.ExplainStmt{Loc: nodes.Loc{Start: start}}
-
-	if isDescribe {
-		// Completion: after DESCRIBE/DESC, offer table_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("table_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		// DESCRIBE tbl_name [col_name]
-		ref, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		// Wrap as a ShowStmt for DESCRIBE (which is equivalent to SHOW COLUMNS FROM tbl)
-		showStmt := &nodes.ShowStmt{
-			Loc:  nodes.Loc{Start: start},
-			Type: "COLUMNS",
-			From: ref,
-		}
-		if err := p.parseExplainColumn(showStmt); err != nil {
-			return nil, err
-		}
-		showStmt.Loc.End = p.prev.End
-		stmt.Stmt = showStmt
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 
 	if p.cur.Type == kwANALYZE {
 		stmt.Analyze = true
