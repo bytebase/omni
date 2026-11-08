@@ -2139,7 +2139,13 @@ func writeIntervalValue(b *strings.Builder, node ast.ExprNode, parentPrec int) {
 			writeExpr(b, node)
 		}
 	case *ast.ParenExpr:
-		writeIntervalValue(b, n.Expr, parentPrec)
+		// Keep the parentheses: the value may hold a predicate the input grouped
+		// (`1 + (a IN (SELECT 1))`), which binds looser than a bit operator and
+		// writeExpr writes without its own parentheses, so dropping them would
+		// not reparse. A redundant pair here is harmless and reparses the same.
+		b.WriteString("(")
+		writeIntervalValue(b, n.Expr, intervalValueBottom)
+		b.WriteString(")")
 	case *ast.CollateExpr:
 		// COLLATE binds tighter than every bit operator, so it never needs
 		// parentheses here; writeCollateExpr would add them.

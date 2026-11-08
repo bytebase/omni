@@ -26,6 +26,9 @@ func TestIntervalValueBareDeparse(t *testing.T) {
 		{"shift_chain", "d + INTERVAL 1 << 2 << 3 SECOND", "(`d` + interval 1 << 2 << 3 second)"},
 		{"bit_or_shift", "d + INTERVAL 1 | 2 << 3 DAY", "(`d` + interval 1 | 2 << 3 day)"},
 		{"inner_parens_kept", "d + INTERVAL 1 * (2 + 3) DAY", "(`d` + interval 1 * (2 + 3) day)"},
+		// A grouped predicate keeps its parentheses, which it needs to reparse:
+		// IN binds looser than +, and writeExpr writes it without its own pair.
+		{"grouped_predicate", "d + INTERVAL 1 + (a IN (SELECT 1)) DAY", "(`d` + interval 1 + (`a` in (select 1)) day)"},
 		{"column_value", "d + INTERVAL a << 2 SECOND", "(`d` + interval `a` << 2 second)"},
 		{"signed_literal", "d + INTERVAL -1 DAY", "(`d` + interval -1 day)"},
 		{"plain_literal", "d + INTERVAL 1 DAY", "(`d` + interval 1 day)"},
