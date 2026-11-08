@@ -2358,11 +2358,15 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	case kwINTERVAL:
 		val, err = p.parseIntervalExpr()
 	case '-', '+':
-		// A leading sign is part of the value: TiDB v8.5.5 runs INTERVAL -1 DAY
-		// and INTERVAL -2.2 MINUTE_MICROSECOND. parseUnaryExpr binds the operand
-		// at unary precedence (not `-1 << 37`, which is the still-open binary
-		// case), and deparse emits `-1` without parentheses, so it stays the
-		// literal rather than becoming the INTERVAL function.
+		// A sign directly on a numeric literal is part of the value: TiDB v8.5.5
+		// runs INTERVAL -1 DAY and INTERVAL -2.2 MINUTE_MICROSECOND. A signed
+		// literal deparses without parentheses (`-2.2`, or `1` for a dropped unary
+		// plus), so it stays the interval literal. A sign on any other expression
+		// stays narrowed: deparse drops a unary plus, and `INTERVAL +(1 + 2) DAY`
+		// would come back as `interval (1 + 2) day`, the INTERVAL function to TiDB.
+		if nt := p.peekNext().Type; nt != tokICONST && nt != tokFCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
 		op := nodes.UnaryMinus
 		if p.cur.Type == '+' {
 			op = nodes.UnaryPlus
