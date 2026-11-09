@@ -296,6 +296,12 @@ var grantFormCases = []grantFormCase{
 	{"CREATE USER u1@localhost DEFAULT ROLE current_user", false},
 	{"ALTER USER u1@localhost DEFAULT ROLE current_user", false},
 
+	// ALTER USER USER() is the current-user function spec, `"USER" '(' ')'`
+	// (parser.y:13745): both parens are required, so the close paren cannot be
+	// dropped. The complete form stays valid.
+	{"ALTER USER USER() IDENTIFIED BY 'notarealpw'", true},
+	{"ALTER USER USER(IDENTIFIED BY 'notarealpw'", false},
+
 	// --- IF [NOT] EXISTS and RENAME USER's TO are required where they appear ---
 	// CREATE USER takes IfNotExists (`/* empty */ | "IF" NotSym "EXISTS"`),
 	// DROP/ALTER USER take IfExists (`/* empty */ | "IF" "EXISTS"`), and

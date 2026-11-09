@@ -607,6 +607,10 @@ var keywordCategories = map[int]keywordCategory{
 	kwEND_TIME:          kwCatUnambiguous,
 	kwFLASHBACK:         kwCatUnambiguous,
 
+	// DEFINED is NotKeywordToken (parser.y:7226): not reserved, usable as an
+	// Identifier, but not the bare identifier RoleNameString wants.
+	kwDEFINED: kwCatUnambiguous,
+
 	// Unreserved on MySQL and in ReservedKeyword on TiDB, parser.y:79, 85 and 289. Each is
 	// a 1064 as a bare name on v8.5.5.
 	kwARRAY: kwCatReserved,

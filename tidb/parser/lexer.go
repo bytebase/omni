@@ -1032,6 +1032,15 @@ const (
 	// upstream too, but the FLASHBACK grammar is the only place either one
 	// is read, so both are read as bare words rather than registered here.
 	kwFLASHBACK
+	// DEFINED is a NotKeywordToken upstream (parser.y:7226) and so reaches the
+	// grammar as a keyword token, never the bare `identifier` that RoleNameString
+	// (parser.y:11135) and ExtendedPriv (parser.y:14501) require: `SET ROLE
+	// DEFINED` and `CREATE ROLE defined` are 1064 on v8.5.5. It stays a valid
+	// Identifier (parser.y:6777 takes NotKeywordToken), so a table or column
+	// named defined is fine, and LOAD DATA's `DEFINED NULL BY` reads it as a
+	// keyword through isBareWord. Its sibling NotKeywordTokens (CAST, EXTRACT,
+	// ADDDATE, DURATION) are already registered; this one was missed.
+	kwDEFINED
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1312,6 +1321,7 @@ var keywords = map[string]int{
 	"out":                 kwOUT,
 	"inout":               kwINOUT,
 	"at":                  kwAT,
+	"defined":             kwDEFINED,
 	"definer":             kwDEFINER,
 	"invoker":             kwINVOKER,
 	"security":            kwSECURITY,

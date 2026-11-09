@@ -479,6 +479,20 @@ func (p *Parser) requireRoles(elems []privOrRole, at int) error {
 
 // parsePrivOrRoleElem parses one RoleOrPrivElem (parser.y:14759).
 func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
+	// A leading '@variable' is a user/system variable token, not a
+	// RoleOrPrivElem: a role is a stringLit, an identifier, or name@host
+	// (Rolename, parser.y:11159) and a privilege is a keyword or a run of
+	// identifiers (PrivElem/ExtendedPriv, parser.y:14501), so v8.5.5 answers
+	// 1064 for `GRANT @v TO u` and `REVOKE @v FROM u`. The lexer folds `@v`
+	// into one tokIDENT whose Str starts with '@'; a backquoted `@v` is an
+	// ordinary name and atAtIdent lets it through.
+	if p.atAtIdent() {
+		return privOrRole{}, &ParseError{
+			Message:  "expected privilege or role name",
+			Position: p.cur.Loc,
+		}
+	}
+
 	// A string literal is a role name, and may carry its own @host.
 	if p.cur.Type == tokSCONST {
 		name := p.cur.Str
@@ -1303,7 +1317,12 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 		userStart := p.pos()
 		p.advance() // consume USER
 		p.advance() // consume (
-		p.match(')')
+		// The current-user function spec is `"USER" '(' ')'` and the closing
+		// paren is required (parser.y:13745), so TiDB v8.5.5 answers 1064 for
+		// `ALTER USER USER( IDENTIFIED BY 's'`.
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		// Check for registration_option: {2|3} FACTOR ...
 		if p.cur.Type == tokICONST && (p.cur.Str == "2" || p.cur.Str == "3") {
