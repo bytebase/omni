@@ -255,8 +255,14 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 //
 //	RENAME TABLE tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
 func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error) {
-	// Already consumed RENAME
-	p.match(kwTABLE)
+	// Already consumed RENAME. TABLE is mandatory here: the dispatcher routes
+	// RENAME USER elsewhere, and bare `RENAME ident TO ident` is invalid.
+	//
+	// Ref: RenameTableStmt in TiDB v8.5.5 pkg/parser/parser.y is only
+	// `"RENAME" "TABLE" TableToTableList`.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after RENAME TABLE, offer table_ref.
 	p.checkCursor()

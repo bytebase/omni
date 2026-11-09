@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      299
-# Rules with no citation:     391
+# Rules with a citation:      307
+# Rules with no citation:     383
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -32,7 +32,6 @@ KeyOrIndexOpt
 ColumnPosition
 AlterTableSpecList
 PartitionNameList
-TableToTableList
 TableToTable
 UserToUserList
 UserToUser
@@ -40,7 +39,6 @@ AllColumnsOrPredicateColumnsOpt
 AnalyzeOptionListOpt
 AnalyzeOptionList
 AssignmentList
-BinlogStmt
 ColumnNameListOpt
 IdentListWithParenOpt
 IdentList
@@ -118,7 +116,6 @@ RegexpSym
 LikeOrIlikeEscapeOpt
 FieldAsName
 FieldList
-WithRollupClause
 GroupByClause
 HavingClause
 AsOfClauseOpt
@@ -172,10 +169,7 @@ TableNameOptWild
 TableAliasRefList
 OptWild
 QuickOptional
-PreparedStmt
-PrepareSQL
 UserVariableList
-DeallocateSym
 HelpStmt
 SelectStmtBasic
 SelectStmtFromDualTable
@@ -259,8 +253,6 @@ VariableAssignment
 VariableAssignmentList
 Variable
 SystemVariable
-UserVariable
-Username
 UsernameList
 PasswordOpt
 AuthString

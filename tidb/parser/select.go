@@ -580,12 +580,16 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// WITH ROLLUP
+		// WITH ROLLUP — a trailing WITH must be followed by ROLLUP.
+		//
+		// Ref: WithRollupClause in TiDB v8.5.5 pkg/parser/parser.y is only
+		// empty or `"WITH" "ROLLUP"`.
 		if p.cur.Type == kwWITH {
 			p.advance()
-			if _, ok := p.match(kwROLLUP); ok {
-				stmt.WithRollup = true
+			if _, err := p.expect(kwROLLUP); err != nil {
+				return nil, err
 			}
+			stmt.WithRollup = true
 		}
 
 		// Reject duplicate GROUP BY

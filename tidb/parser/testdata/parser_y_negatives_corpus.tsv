@@ -671,7 +671,7 @@ reject	reject	ConstraintKeywordOpt#3/truncate	ALTER TABLE ident ADD CONSTRAINT
 reject	reject	ConstraintKeywordOpt#3/insert	ALTER TABLE ident ADD CONSTRAINT ident zzz FULLTEXT(ident)
 reject	reject	ConstraintKeywordOpt#3/swap	ALTER TABLE ident ADD CONSTRAINTS ident FULLTEXT(ident)
 reject	reject	RenameTableStmt#1/drop-1	TABLE ident TO ident
-accept	reject	RenameTableStmt#1/drop-2	RENAME ident TO ident
+reject	reject	RenameTableStmt#1/drop-2	RENAME ident TO ident
 reject	reject	RenameTableStmt#1/drop-3	RENAME TABLE TO ident
 reject	reject	RenameTableStmt#1/drop-4	RENAME TABLE ident ident
 reject	reject	RenameTableStmt#1/drop-5	RENAME TABLE ident TO
@@ -1006,7 +1006,7 @@ reject	reject	BeginTransactionStmt#9/drop-7	START TRANSACTION READ ONLY AS OF TI
 reject	reject	BeginTransactionStmt#9/insert	START TRANSACTION READ ONLY AS OF TIMESTAMP ident zzz
 reject	reject	BeginTransactionStmt#9/swap	STARTING TRANSACTION READ ONLY AS OF TIMESTAMP ident
 reject	reject	BinlogStmt#1/drop-1	's'
-accept	reject	BinlogStmt#1/drop-2	BINLOG
+reject	reject	BinlogStmt#1/drop-2	BINLOG
 reject	reject	BinlogStmt#1/insert	BINLOG 's' zzz
 reject	reject	BinlogStmt#1/swap	BIT 's'
 reject	reject	ColumnDef#1/swap	ALTER TABLE ident ADD ident JSON_ARRAYAGG
@@ -1839,7 +1839,7 @@ reject	reject	ViewAlgorithm#4/drop-2	CREATE ALGORITHM TEMPTABLE VIEW ident AS SE
 reject	reject	ViewAlgorithm#4/insert	CREATE ALGORITHM = TEMPTABLE zzz VIEW ident AS SELECT *
 reject	reject	ViewAlgorithm#4/swap	CREATE ALL = TEMPTABLE VIEW ident AS SELECT *
 reject	reject	ViewDefiner#2/drop-1	CREATE = CURRENT_USER VIEW ident AS SELECT *
-accept	reject	ViewDefiner#2/drop-2	CREATE DEFINER CURRENT_USER VIEW ident AS SELECT *
+reject	reject	ViewDefiner#2/drop-2	CREATE DEFINER CURRENT_USER VIEW ident AS SELECT *
 reject	reject	ViewDefiner#2/drop-3	CREATE DEFINER = VIEW ident AS SELECT *
 reject	reject	ViewDefiner#2/truncate	CREATE DEFINER =
 reject	reject	ViewDefiner#2/insert	CREATE DEFINER = CURRENT_USER zzz VIEW ident AS SELECT *
@@ -2594,7 +2594,7 @@ reject	reject	FieldList#2/drop-3	SELECT *,
 reject	reject	FieldList#2/insert	SELECT *, * zzz
 reject	reject	WithRollupClause#1/insert	SELECT * GROUP BY ident zzz
 reject	reject	WithRollupClause#2/drop-1	SELECT * GROUP BY ident ROLLUP
-accept	reject	WithRollupClause#2/drop-2	SELECT * GROUP BY ident WITH
+reject	reject	WithRollupClause#2/drop-2	SELECT * GROUP BY ident WITH
 reject	reject	WithRollupClause#2/insert	SELECT * GROUP BY ident WITH ROLLUP zzz
 reject	reject	WithRollupClause#2/swap	SELECT * GROUP BY ident WITHOUT ROLLUP
 reject	reject	GroupByClause#1/drop-1	SELECT * BY ident
@@ -4380,7 +4380,7 @@ reject	reject	QuickOptional#2/swap	DELETE RANGE FROM ident
 reject	reject	PreparedStmt#1/drop-1	ident FROM 's'
 reject	reject	PreparedStmt#1/drop-2	PREPARE FROM 's'
 reject	reject	PreparedStmt#1/drop-3	PREPARE ident 's'
-accept	reject	PreparedStmt#1/drop-4	PREPARE ident FROM
+reject	reject	PreparedStmt#1/drop-4	PREPARE ident FROM
 reject	reject	PreparedStmt#1/insert	PREPARE ident FROM 's' zzz
 reject	reject	PreparedStmt#1/swap	PRESERVE ident FROM 's'
 reject	reject	PrepareSQL#2/insert	PREPARE ident FROM @v zzz
@@ -4398,7 +4398,7 @@ reject	reject	UserVariableList#2/drop-2	EXECUTE ident USING @v @v
 reject	reject	UserVariableList#2/drop-3	EXECUTE ident USING @v,
 reject	reject	UserVariableList#2/insert	EXECUTE ident USING @v, @v zzz
 reject	reject	DeallocateStmt#1/drop-1	PREPARE ident
-accept	reject	DeallocateStmt#1/drop-2	DEALLOCATE ident
+reject	reject	DeallocateStmt#1/drop-2	DEALLOCATE ident
 reject	reject	DeallocateStmt#1/drop-3	DEALLOCATE PREPARE
 reject	reject	DeallocateStmt#1/insert	DEALLOCATE PREPARE ident zzz
 reject	reject	DeallocateStmt#1/swap	DECIMAL PREPARE ident
@@ -7838,7 +7838,7 @@ reject	reject	ProcedureCursorSelectStmt#4/insert	CREATE PROCEDURE ident() BEGIN 
 reject	reject	ProcedureCursorSelectStmt#4/swap	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SEND_CREDENTIALS_TO_TIKV * UNION SELECT *; END
 reject	reject	ProcedureUnlabeledBlock#1/drop-1	CREATE PROCEDURE ident() END
 reject	reject	ProcedureUnlabeledBlock#1/drop-2	CREATE PROCEDURE ident() BEGIN
-accept	reject	ProcedureUnlabeledBlock#1/insert	CREATE PROCEDURE ident() BEGIN END zzz
+reject	reject	ProcedureUnlabeledBlock#1/insert	CREATE PROCEDURE ident() BEGIN END zzz
 reject	reject	ProcedureUnlabeledBlock#1/swap	CREATE PROCEDURE ident() BERNOULLI END
 reject	reject	ProcedureDeclIdents#1/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE JSON; END
 reject	reject	ProcedureDeclIdents#1/truncate	CREATE PROCEDURE ident() BEGIN DECLARE
@@ -7886,7 +7886,7 @@ reject	reject	ProcedureHcondList#2/truncate	CREATE PROCEDURE ident() BEGIN DECLA
 reject	reject	ProcedureHcondList#2/insert	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, SQLWARNING zzz COMMIT; END
 reject	reject	ProcedureHcondList#2/swap	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR SQL_BIG_RESULT, SQLWARNING COMMIT; END
 reject	reject	ProcedureHcond#1/insert	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR 1 zzz COMMIT; END
-accept	reject	ProcedureHcond#3/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR FOUND COMMIT; END
+reject	reject	ProcedureHcond#3/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR FOUND COMMIT; END
 reject	reject	ProcedureHcond#3/drop-2	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR NOT COMMIT; END
 reject	reject	ProcedureHcond#3/truncate	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR NOT
 reject	reject	ProcedureHcond#3/insert	CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR NOT FOUND zzz COMMIT; END
@@ -7913,7 +7913,7 @@ reject	reject	ProcedureCloseCur#1/drop-2	CREATE PROCEDURE ident() CLOSE
 reject	reject	ProcedureCloseCur#1/insert	CREATE PROCEDURE ident() CLOSE ident zzz
 reject	reject	ProcedureCloseCur#1/swap	CREATE PROCEDURE ident() CLUSTER ident
 reject	reject	ProcedureOptFetchNo#1/insert	CREATE PROCEDURE ident() FETCH zzz ident INTO ident
-accept	reject	ProcedureOptFetchNo#2/drop-2	CREATE PROCEDURE ident() FETCH NEXT ident INTO ident
+reject	reject	ProcedureOptFetchNo#2/drop-2	CREATE PROCEDURE ident() FETCH NEXT ident INTO ident
 reject	reject	ProcedureOptFetchNo#2/truncate	CREATE PROCEDURE ident() FETCH NEXT
 reject	reject	ProcedureOptFetchNo#2/insert	CREATE PROCEDURE ident() FETCH NEXT FROM zzz ident INTO ident
 reject	reject	ProcedureOptFetchNo#2/swap	CREATE PROCEDURE ident() FETCH NEXTVAL FROM ident INTO ident
@@ -8042,7 +8042,7 @@ reject	reject	ProcedureUnlabelLoopBlock#1/drop-4	CREATE PROCEDURE ident() WHILE 
 reject	reject	ProcedureUnlabelLoopBlock#1/drop-5	CREATE PROCEDURE ident() WHILE ident DO COMMIT END WHILE
 reject	reject	ProcedureUnlabelLoopBlock#1/drop-6	CREATE PROCEDURE ident() WHILE ident DO COMMIT; WHILE
 reject	reject	ProcedureUnlabelLoopBlock#1/drop-7	CREATE PROCEDURE ident() WHILE ident DO COMMIT; END
-accept	reject	ProcedureUnlabelLoopBlock#1/insert	CREATE PROCEDURE ident() WHILE ident DO COMMIT; END WHILE zzz
+reject	reject	ProcedureUnlabelLoopBlock#1/insert	CREATE PROCEDURE ident() WHILE ident DO COMMIT; END WHILE zzz
 reject	reject	ProcedureUnlabelLoopBlock#1/swap	CREATE PROCEDURE ident() WIDTH ident DO COMMIT; END WHILE
 reject	reject	ProcedureUnlabelLoopStmt#2/drop-1	CREATE PROCEDURE ident() COMMIT; UNTIL ident END REPEAT
 reject	reject	ProcedureUnlabelLoopStmt#2/drop-2	CREATE PROCEDURE ident() REPEAT; UNTIL ident END REPEAT
@@ -8051,7 +8051,7 @@ reject	reject	ProcedureUnlabelLoopStmt#2/drop-4	CREATE PROCEDURE ident() REPEAT 
 reject	reject	ProcedureUnlabelLoopStmt#2/drop-5	CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL END REPEAT
 reject	reject	ProcedureUnlabelLoopStmt#2/drop-6	CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL ident REPEAT
 reject	reject	ProcedureUnlabelLoopStmt#2/drop-7	CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL ident END
-accept	reject	ProcedureUnlabelLoopStmt#2/insert	CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL ident END REPEAT zzz
+reject	reject	ProcedureUnlabelLoopStmt#2/insert	CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL ident END REPEAT zzz
 reject	reject	ProcedureUnlabelLoopStmt#2/swap	CREATE PROCEDURE ident() REPEATABLE COMMIT; UNTIL ident END REPEAT
 reject	reject	ProcedureLabeledBlock#1/drop-1	CREATE PROCEDURE ident() : BEGIN END
 reject	reject	ProcedureLabeledBlock#1/drop-2	CREATE PROCEDURE ident() ident BEGIN END

@@ -44,8 +44,12 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		return nil, err
 	}
 
-	// Optional end_label
-	if p.isLabelIdentToken() && p.cur.Type != tokEOF {
+	// Optional end_label — only a labeled block takes one. TiDB v8.5.5
+	// parser.y:16318 attaches ProcedurceLabelOpt to ProcedureLabeledBlock
+	// (identifier ':' ProcedureBlockContent ProcedurceLabelOpt); the unlabeled
+	// ProcedureBlockContent (:16162) ends at END, so a trailing token there
+	// (e.g. "BEGIN END zzz") is 1064.
+	if labelName != "" && p.isLabelIdentToken() && p.cur.Type != tokEOF {
 		stmt.EndLabel = p.cur.Str
 		p.advance()
 	}
@@ -365,13 +369,17 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 
 // parseHandlerConditionValue parses a handler condition value.
 //
+// TiDB v8.5.5 parser.y:16025 (ProcedureHcond) takes only these forms — there
+// is no condition_name alternative, because TiDB has no DECLARE ... CONDITION:
+//
 //	condition_value:
-//	    mysql_error_code
-//	  | SQLSTATE [VALUE] sqlstate_value
-//	  | condition_name
+//	    mysql_error_code                 (ProcedurceCond: NUM)
+//	  | SQLSTATE [VALUE] sqlstate_value  (ProcedurceCond)
 //	  | SQLWARNING
 //	  | NOT FOUND
 //	  | SQLEXCEPTION
+//
+// So a bare keyword or identifier (e.g. "FOUND" without NOT) is 1064.
 func (p *Parser) parseHandlerConditionValue() (string, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
 	if p.cur.Type == kwSQLSTATE {
@@ -419,12 +427,8 @@ func (p *Parser) parseHandlerConditionValue() (string, error) {
 		return val, nil
 	}
 
-	// condition_name (identifier)
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return "", err
-	}
-	return name, nil
+	// No condition_name alternative in TiDB; anything else is a syntax error.
+	return "", p.syntaxErrorAtCur()
 }
 
 // isCompoundTerminator checks if the current token is a keyword that terminates
@@ -680,9 +684,12 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 		return nil, err
 	}
 
-	// Optional end_label
+	// Optional end_label — only a labeled loop takes one. TiDB v8.5.5
+	// parser.y:16342 attaches ProcedurceLabelOpt to ProcedurelabeledLoopStmt;
+	// the unlabeled ProcedureUnlabelLoopStmt (:16302) ends at END WHILE, so a
+	// trailing token there (e.g. "END WHILE zzz") is 1064.
 	var endLabel string
-	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+	if labelName != "" && p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		endLabel = p.cur.Str
 		p.advance()
 	}
@@ -737,9 +744,12 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 		return nil, err
 	}
 
-	// Optional end_label
+	// Optional end_label — only a labeled loop takes one. TiDB v8.5.5
+	// parser.y:16342 attaches ProcedurceLabelOpt to ProcedurelabeledLoopStmt;
+	// the unlabeled ProcedureUnlabelLoopStmt (:16302) ends at END REPEAT, so a
+	// trailing token there (e.g. "END REPEAT zzz") is 1064.
 	var endLabel string
-	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+	if labelName != "" && p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		endLabel = p.cur.Str
 		p.advance()
 	}
@@ -779,9 +789,11 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 		return nil, err
 	}
 
-	// Optional end_label
+	// Optional end_label — only a labeled loop takes one (see parseWhileStmt).
+	// TiDB v8.5.5 has no LOOP in procedures, so this path is unreachable, but
+	// the guard keeps the unlabeled form from accepting a trailing end label.
 	var endLabel string
-	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+	if labelName != "" && p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		endLabel = p.cur.Str
 		p.advance()
 	}
@@ -876,13 +888,15 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
 
-	// Optional NEXT
+	// ProcedureOptFetchNo — TiDB v8.5.5 parser.y:16098 allows only the empty
+	// prefix, "NEXT FROM", or "FROM"; there is no bare "NEXT". So once NEXT is
+	// seen, FROM is required (e.g. "FETCH NEXT ident INTO ..." is 1064).
 	if p.cur.Type == kwNEXT {
 		p.advance()
-	}
-
-	// Optional FROM
-	if p.cur.Type == kwFROM {
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+	} else if p.cur.Type == kwFROM {
 		p.advance()
 	}
 
