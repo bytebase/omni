@@ -1,5 +1,12 @@
 # TiDB reject-fuzz known over-acceptances (baseline). family<TAB>sql.
 # Each is a real omni-accept/TiDB-reject; to be minimised into
 # parser_y_negatives_corpus.tsv and fixed across the forks (PR e), then dropped here.
+#
+# `select count ( * )`: with a space before '(', TiDB lexes `count` as a plain
+# identifier, so `count ( * )` is a generic function call whose argument `*` is no
+# Expression (1064); only builtinCount's own `'(' '*' ')'` production takes `*`.
+# omni treats the aggregate keyword as COUNT regardless of the space and accepts.
+# A space-before-paren lexing issue, separate from the * / INTERVAL placement work;
+# surfaced as the minimal once `select ( * )` was fixed.
 dup	create view v as select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' , max ( 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' )
-drop	select ( * )
+drop	select count ( * )

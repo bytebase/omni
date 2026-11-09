@@ -4,4 +4,4 @@
 # or, if intended, move the family<TAB>sql line into known-mismatches.txt.
 
 dup	create view v as select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' , max ( 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' )
-drop	select ( * )
+drop	select count ( * )
