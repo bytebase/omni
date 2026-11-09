@@ -795,10 +795,18 @@ type FuncCallExpr struct {
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
-	OrderBy    []*OrderByItem
-	Over       *WindowDef // OVER clause for window functions
-	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
-	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// SpacedParen marks a generic call whose name is an adjacency-gated builtin
+	// (an aggregate or scalar keyword, see spacedFuncWords in mariadb/parser)
+	// written with a space before '(' — `max (a, a)`, `count ()`. The space is
+	// why it is a generic call and not the builtin, so a deparse that drops it
+	// would re-lex as the builtin and change meaning or fail to parse. Set only by
+	// parsing such text; engine-synced SQL is always adjacent, so it is never set
+	// there.
+	SpacedParen bool
+	OrderBy     []*OrderByItem
+	Over        *WindowDef // OVER clause for window functions
+	Separator   ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Using       string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 	// WEIGHT_STRING(expr AS CHAR(n)) / AS BINARY(n): the AS clause of
 	// weight_string's own grammar. WeightAs is "" when no AS clause is
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).

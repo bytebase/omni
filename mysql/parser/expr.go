@@ -850,17 +850,22 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// answers 1064 for `count`(*), `trim`(LEADING 'x' FROM b),
 	// test.substring(b FROM 1), `sum`(a) OVER () and the other special forms
 	// under a quoted or qualified name. p.prev is the name's token.
-	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !p.temporalWordIsName(strings.ToUpper(name))
+	// spacedGeneric records that a gated builtin keyword became a generic call
+	// only because a space sits before its '(' (see spacedFuncWords); deparse
+	// keeps the space so the call does not re-lex as the builtin.
+	spacedGeneric := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && p.spacedFuncWordIsName(strings.ToUpper(name))
+	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !spacedGeneric
 	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
 		return nil, err
 	}
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
-		Loc:       nodes.Loc{Start: start},
-		Schema:    schema,
-		Name:      strings.ToUpper(name),
-		HasParens: true,
+		Loc:         nodes.Loc{Start: start},
+		Schema:      schema,
+		Name:        strings.ToUpper(name),
+		HasParens:   true,
+		SpacedParen: spacedGeneric,
 	}
 
 	// Handle special function forms

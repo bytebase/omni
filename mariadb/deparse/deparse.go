@@ -2318,8 +2318,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	// GROUP_CONCAT has special formatting
-	if name == "GROUP_CONCAT" {
+	// GROUP_CONCAT has special formatting, but only as the builtin: a spaced
+	// `group_concat (a)` is a plain generic call and takes the generic path.
+	if name == "GROUP_CONCAT" && !n.SpacedParen {
 		writeGroupConcat(b, n)
 		return
 	}
@@ -2346,6 +2347,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			canonical = strings.ToLower(n.Name)
 		}
 		b.WriteString(canonical)
+	}
+	if n.SpacedParen {
+		// A gated builtin keyword written with a space before '(' is a generic
+		// call; keep the space so it does not re-lex as the builtin.
+		b.WriteByte(' ')
 	}
 	switch {
 	case len(n.Args) == 0 && !n.Star:
