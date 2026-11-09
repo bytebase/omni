@@ -5848,6 +5848,45 @@ func TestParseWindowFrameGroups(t *testing.T) {
 	}
 }
 
+// TestWindowFrameBoundStrictness pins the WindowFrameStart / WindowFrameBound
+// grammar: CURRENT ROW requires ROW, and the offset is exactly a NumLiteral, a
+// paramMarker, or INTERVAL Expression TimeUnit — never an arbitrary expression
+// (parser.y:9691-9734). All verdicts measured against pingcap/tidb v8.5.5.
+func TestWindowFrameBoundStrictness(t *testing.T) {
+	accept := []string{
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS CURRENT ROW) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS UNBOUNDED PRECEDING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS 5 PRECEDING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS 5 FOLLOWING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS ? PRECEDING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a RANGE INTERVAL 5 DAY PRECEDING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a RANGE INTERVAL '5' DAY FOLLOWING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t",
+		"SELECT ROW_NUMBER() OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t",
+	}
+	for _, sql := range accept {
+		t.Run("accept/"+sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+
+	// §3.6 negatives corpus rows WindowFrameStart#5/drop-2,
+	// WindowFrameExtent#1/swap, WindowFrameBound#1/swap, WindowFrameBound#2/swap
+	// (all engine=reject on v8.5.5): `ROWS CURRENT` lacks ROW, and a bare keyword
+	// offset is not a NumLiteral/paramMarker/INTERVAL form.
+	reject := []string{
+		"DO ROW_NUMBER() OVER(ROWS CURRENT)",
+		"DO ROW_NUMBER() OVER(ROWS UNCOMMITTED PRECEDING)",
+		"DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED PRECEDING AND UNBOUNDED PRECEDING)",
+		"DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED FOLLOWING AND UNBOUNDED PRECEDING)",
+	}
+	for _, sql := range reject {
+		t.Run("reject/"+sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
+}
+
 func TestParseWindowPartitionOrderBy(t *testing.T) {
 	tests := []string{
 		"SELECT COUNT(*) OVER (PARTITION BY dept) FROM t",

@@ -1496,8 +1496,12 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 	bound := &nodes.WindowFrameBound{Loc: nodes.Loc{Start: start}}
 
 	if p.cur.Type == kwCURRENT {
+		// CURRENT ROW: ROW is mandatory, so `ROWS CURRENT` is a 1064
+		// (parser.y:9709-9712, `"CURRENT" "ROW"`).
 		p.advance()
-		p.match(kwROW)
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
+		}
 		bound.Type = nodes.BoundCurrentRow
 	} else if p.cur.Type == kwUNBOUNDED {
 		p.advance()
@@ -1512,15 +1516,32 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 			}
 		}
 	} else {
-		// expr PRECEDING | expr FOLLOWING
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if expr == nil {
+		// The offset is exactly a NumLiteral (intLit | floatLit | decLit), a
+		// paramMarker, or INTERVAL Expression TimeUnit — never an arbitrary
+		// expression, so a bare keyword/identifier offset like `UNCOMMITTED
+		// PRECEDING` is a 1064 (parser.y:9691-9707 WindowFrameStart,
+		// 9719-9734 WindowFrameBound). omni's lexer has no separate decimal
+		// token: a decimal lexes as tokFCONST and an integer (oversized ones
+		// included) as tokICONST, so those two cover NumLiteral.
+		switch p.cur.Type {
+		case kwINTERVAL:
+			expr, err := p.parseIntervalExpr()
+			if err != nil {
+				return nil, err
+			}
+			bound.Offset = expr
+		case tokICONST:
+			tok := p.advance()
+			bound.Offset = &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
+		case tokFCONST:
+			tok := p.advance()
+			bound.Offset = &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
+		case '?':
+			tok := p.advance()
+			bound.Offset = &nodes.ParamMarkerExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}
+		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		bound.Offset = expr
 		if _, ok := p.match(kwPRECEDING); ok {
 			bound.Type = nodes.BoundPreceding
 		} else if _, ok := p.match(kwFOLLOWING); ok {
