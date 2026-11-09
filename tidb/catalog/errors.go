@@ -49,6 +49,10 @@ const (
 	ErrWrongArguments                    = 1210
 	ErrUnknownCharacterSet               = 1115
 	ErrBlobCantHaveDefault               = 1101
+	// ErrBlobKeyWithoutLength is 1170, which TiDB answers for a key part over a
+	// BLOB or TEXT column that names no prefix length (read on 2026-11-09). A
+	// FULLTEXT index is exempt; a JSON column gives 3152, not this.
+	ErrBlobKeyWithoutLength = 1170
 	// ErrUnsupportedDDL is TiDB's 8200, for DDL it parses and does not run.
 	ErrUnsupportedDDL           = 8200
 	ErrUnknownCollation         = 1273
@@ -107,6 +111,7 @@ var sqlStateMap = map[int]string{
 	ErrWrongArguments:                    "HY000",
 	ErrUnknownCharacterSet:               "42000",
 	ErrBlobCantHaveDefault:               "42000",
+	ErrBlobKeyWithoutLength:              "42000",
 	ErrUnknownCollation:                  "HY000",
 	ErrCollationCharsetMismatch:          "42000",
 	ErrPlacementPolicyExists:             "HY000",
@@ -318,4 +323,9 @@ func checkLiteralDefaultAllowed(col *Column) error {
 			Message: fmt.Sprintf("BLOB/TEXT/JSON column '%s' can't have a default value", col.Name)}
 	}
 	return nil
+}
+
+func errBlobKeyWithoutLength(column string) error {
+	return &Error{Code: ErrBlobKeyWithoutLength, SQLState: sqlState(ErrBlobKeyWithoutLength),
+		Message: fmt.Sprintf("BLOB/TEXT column '%s' used in key specification without a key length", column)}
 }

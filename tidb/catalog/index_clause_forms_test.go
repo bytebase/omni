@@ -94,11 +94,14 @@ func TestIndexTypeReachesTheCatalog(t *testing.T) {
 			want:  "BTREE",
 		},
 		{
-			name:  "TYPE HASH on an engine that has HASH indexes",
+			// TiDB has no hash index and ignores ENGINE=MEMORY (stored InnoDB),
+			// so TYPE HASH is coerced to BTREE, which is what STATISTICS reports
+			// (read against pingcap/tidb:v8.5.5 on 2026-11-09).
+			name:  "TYPE HASH is coerced to BTREE",
 			ddl:   []string{"CREATE TABLE mt (a INT) ENGINE=MEMORY", "CREATE INDEX i ON mt (a) TYPE HASH"},
 			table: "mt",
 			index: "i",
-			want:  "HASH",
+			want:  "BTREE",
 		},
 		{
 			// CREATE INDEX itself refuses HNSW on an index that is no vector index: its

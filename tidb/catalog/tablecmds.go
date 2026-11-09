@@ -428,6 +428,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+				return err
+			}
 			pkIdx := &Index{
 				Name:      "PRIMARY",
 				Table:     tbl,
@@ -459,6 +462,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+				return err
+			}
 			uqIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -538,6 +544,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+				return err
+			}
 			keyIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -1107,6 +1116,13 @@ func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
 				declared = strings.ToUpper(s.Value)
 			}
 		}
+	}
+	// TiDB has no hash index: it coerces USING HASH to a BTREE index, which is
+	// what INFORMATION_SCHEMA.STATISTICS then reports (BTREE), the same value a
+	// synced schema loads back. SHOW CREATE TABLE writes no USING clause either
+	// way (read against pingcap/tidb:v8.5.5 on 2026-11-09).
+	if declared == "HASH" {
+		declared = "BTREE"
 	}
 	return declared
 }

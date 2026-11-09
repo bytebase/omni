@@ -5,13 +5,11 @@ import (
 	"testing"
 )
 
-// TestScenario_C7 covers section C7 (Index defaults) from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
-// both real MySQL 8.0 and the omni catalog agree on default index
-// behaviour for a given DDL input.
-//
-// Failures in omni assertions are NOT proof failures — they are
-// recorded in mysql/catalog/scenarios_bug_queue/c7.md.
+// TestScenario_C7 covers section C7 (Index defaults). Each subtest asserts that
+// live TiDB v8.5.5 and the omni catalog agree on default index behaviour for a
+// given DDL input. Forked from mysql/catalog; subtests that assumed MySQL 8.0
+// semantics (USING BTREE rendering, FULLTEXT retention, GEOMETRY/SPATIAL) were
+// re-baselined to TiDB v8.5.5 behaviour measured against the container.
 func TestScenario_C7(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -114,47 +112,41 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		}
 	})
 
-	// --- 7.4 USING BTREE explicit vs implicit rendering -----------------
-	t.Run("7_4_using_explicit_vs_implicit", func(t *testing.T) {
+	// --- 7.4 USING BTREE is not rendered (TiDB) -------------------------
+	t.Run("7_4_using_btree_not_rendered", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, KEY (a));
 CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 
+		// TiDB has no hash index and writes no USING clause for a BTREE index,
+		// so an explicit USING BTREE renders the same as the default — neither
+		// table carries USING BTREE in SHOW CREATE (read against
+		// pingcap/tidb:v8.5.5 on 2026-11-09).
 		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
 		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
-		// t1 should NOT contain USING BTREE in the KEY line
 		if strings.Contains(ct1, "USING BTREE") {
 			t.Errorf("oracle: t1 unexpectedly contains USING BTREE: %s", ct1)
 		}
-		// t2 SHOULD contain USING BTREE
-		if !strings.Contains(ct2, "USING BTREE") {
-			t.Errorf("oracle: t2 missing USING BTREE: %s", ct2)
+		if strings.Contains(ct2, "USING BTREE") {
+			t.Errorf("oracle: t2 unexpectedly contains USING BTREE: %s", ct2)
 		}
 
-		// omni: both tables exist; presence of explicit-flag distinction
-		// is an open omni gap. We assert both indexes parse and exist.
-		tbl1 := c.GetDatabase("testdb").GetTable("t1")
-		tbl2 := c.GetDatabase("testdb").GetTable("t2")
-		if tbl1 == nil || tbl2 == nil {
-			t.Errorf("omni: t1=%v t2=%v missing", tbl1, tbl2)
-			return
-		}
+		// omni matches: its SHOW CREATE writes no USING clause for either table.
 		idx1 := c7findIndex(c, "t1", "a")
 		idx2 := c7findIndex(c, "t2", "a")
 		if idx1 == nil || idx2 == nil {
 			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
 			return
 		}
-		// omni gap: the catalog has no IndexTypeExplicit field, so it
-		// cannot distinguish the two. We assert the distinction here so
-		// that the test fails until omni grows the bit.
-		t1Explicit := strings.EqualFold(idx1.IndexType, "BTREE")
-		t2Explicit := strings.EqualFold(idx2.IndexType, "BTREE")
-		if t1Explicit == t2Explicit {
-			t.Errorf("omni: cannot distinguish explicit BTREE from default: t1=%q t2=%q",
-				idx1.IndexType, idx2.IndexType)
+		omni1 := c.ShowCreateTable("testdb", "t1")
+		omni2 := c.ShowCreateTable("testdb", "t2")
+		if strings.Contains(omni1, "USING BTREE") {
+			t.Errorf("omni: t1 unexpectedly contains USING BTREE: %s", omni1)
+		}
+		if strings.Contains(omni2, "USING BTREE") {
+			t.Errorf("omni: t2 unexpectedly contains USING BTREE: %s", omni2)
 		}
 	})
 
@@ -289,107 +281,84 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 			assertIntEq(t, "omni: prefix length", idx.Columns[0].Length, 100)
 		}
 
-		// Form 3: FULLTEXT exempt from prefix requirement.
+		// Form 3: a FULLTEXT key is exempt from the prefix rule — TiDB accepts
+		// the statement — but TiDB reads it in CREATE TABLE and keeps nothing:
+		// SHOW CREATE lists no index and STATISTICS has no row (read against
+		// pingcap/tidb:v8.5.5 on 2026-11-09). omni keeps no index either.
 		runOnBoth(t, mc, c, `CREATE TABLE t_ft (a TEXT, FULLTEXT KEY (a));`)
-		var idxType string
-		oracleScan(t, mc,
-			`SELECT INDEX_TYPE FROM information_schema.STATISTICS
-             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t_ft' AND INDEX_NAME='a'`,
-			&idxType)
-		assertStringEq(t, "oracle FULLTEXT index type", idxType, "FULLTEXT")
+		rows := oracleRows(t, mc,
+			`SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t_ft'`)
+		if len(rows) != 0 {
+			t.Errorf("oracle: expected no index on t_ft, got %v", rows)
+		}
+		if idx := c7findIndex(c, "t_ft", "a"); idx != nil {
+			t.Errorf("omni: expected no index on t_ft, got %+v", idx)
+		}
 	})
 
-	// --- 7.8 FULLTEXT WITH PARSER optionality ---------------------------
-	t.Run("7_8_fulltext_parser_optional", func(t *testing.T) {
+	// --- 7.8 FULLTEXT (with or without parser) dropped in CREATE TABLE ---
+	t.Run("7_8_fulltext_dropped_in_create_table", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a));
 CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 
+		// TiDB accepts a FULLTEXT key in CREATE TABLE and keeps nothing, parser
+		// clause and all: neither SHOW CREATE carries FULLTEXT or WITH PARSER
+		// (read against pingcap/tidb:v8.5.5 on 2026-11-09).
 		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
 		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
-		if strings.Contains(ct1, "WITH PARSER") {
-			t.Errorf("oracle: t1 (no parser) unexpectedly contains WITH PARSER: %s", ct1)
+		if strings.Contains(ct1, "FULLTEXT") {
+			t.Errorf("oracle: t1 unexpectedly carries a FULLTEXT index: %s", ct1)
 		}
-		if !strings.Contains(ct2, "WITH PARSER") {
-			t.Errorf("oracle: t2 missing WITH PARSER ngram: %s", ct2)
+		if strings.Contains(ct2, "FULLTEXT") || strings.Contains(ct2, "WITH PARSER") {
+			t.Errorf("oracle: t2 unexpectedly carries FULLTEXT/WITH PARSER: %s", ct2)
 		}
 
-		// omni: catalog Index has no ParserName field — gap. We assert
-		// only that both tables and FULLTEXT indexes exist.
-		idx1 := c7findIndex(c, "t1", "a")
-		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
-			return
+		// omni keeps no FULLTEXT index from CREATE TABLE either.
+		if idx := c7findIndex(c, "t1", "a"); idx != nil {
+			t.Errorf("omni: t1 expected no index, got %+v", idx)
 		}
-		assertBoolEq(t, "omni t1 fulltext", idx1.Fulltext, true)
-		assertBoolEq(t, "omni t2 fulltext", idx2.Fulltext, true)
-		// Distinction (parser name) is omni gap — flag for bug queue.
-		// We can't read ParserName since the field doesn't exist, so log.
-		t.Logf("omni: ParserName field not present on Index; cannot distinguish t1 vs t2 (expected gap)")
+		if idx := c7findIndex(c, "t2", "a"); idx != nil {
+			t.Errorf("omni: t2 expected no index, got %+v", idx)
+		}
 	})
 
-	// --- 7.9 SPATIAL requires NOT NULL ----------------------------------
-	t.Run("7_9_spatial_not_null", func(t *testing.T) {
+	// --- 7.9 GEOMETRY type and SPATIAL index unsupported (TiDB) ----------
+	t.Run("7_9_geometry_spatial_unsupported", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// OK case: NOT NULL geometry with SRID.
-		runOnBoth(t, mc, c, `CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g));`)
+		// TiDB v8.5.5 has no GEOMETRY type and no SPATIAL index: the type is a
+		// parse error (1064), not the MySQL spatial-column semantics (1252/3500).
+		// omni refuses the type at parse time as well (read against
+		// pingcap/tidb:v8.5.5 on 2026-11-09).
+		for _, ddl := range []string{
+			`CREATE TABLE t_ok (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g))`,
+			`CREATE TABLE t_null (g GEOMETRY, SPATIAL KEY (g))`,
+			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`,
+		} {
+			_, mysqlErr := mc.db.ExecContext(mc.ctx, ddl)
+			if mysqlErr == nil {
+				t.Errorf("oracle: expected rejection of GEOMETRY/SPATIAL, got nil for %q", ddl)
+			} else if !strings.Contains(mysqlErr.Error(), "1064") {
+				t.Errorf("oracle: expected 1064 for %q, got %v", ddl, mysqlErr)
+			}
 
-		// Error case 1: nullable geometry — ER_SPATIAL_CANT_HAVE_NULL 1252.
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_null (g GEOMETRY, SPATIAL KEY (g))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_SPATIAL_CANT_HAVE_NULL, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1252") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "all parts of a spatial index") {
-			t.Errorf("oracle: expected 1252, got %v", mysqlErr)
-		}
-		results, err := c.Exec(`CREATE TABLE t_null (g GEOMETRY, SPATIAL KEY (g));`, nil)
-		omniErrored := err != nil
-		if !omniErrored {
-			for _, r := range results {
-				if r.Error != nil {
-					omniErrored = true
-					break
+			results, err := c.Exec(ddl+";", nil)
+			omniErrored := err != nil
+			if !omniErrored {
+				for _, r := range results {
+					if r.Error != nil {
+						omniErrored = true
+						break
+					}
 				}
 			}
+			assertBoolEq(t, "omni: rejects GEOMETRY/SPATIAL for "+ddl, omniErrored, true)
 		}
-		assertBoolEq(t, "omni: rejects nullable SPATIAL", omniErrored, true)
-
-		// Error case 2: SPATIAL with USING BTREE — ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX 3500.
-		_, mysqlErr2 := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`)
-		if mysqlErr2 == nil {
-			t.Errorf("oracle: expected rejection of SPATIAL USING BTREE, got nil")
-		} else {
-			// MySQL 8.0 parser rejects `USING BTREE` on a SPATIAL index at parse
-			// time with a plain syntax error (1064) rather than the semantic
-			// ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX (3500). Accept either
-			// so the scenario is version-robust.
-			msg := strings.ToLower(mysqlErr2.Error())
-			if !strings.Contains(mysqlErr2.Error(), "3500") &&
-				!strings.Contains(mysqlErr2.Error(), "1064") &&
-				!strings.Contains(msg, "not supported") &&
-				!strings.Contains(msg, "syntax") {
-				t.Errorf("oracle: expected 3500 or 1064/syntax, got %v", mysqlErr2)
-			}
-		}
-		results2, err2 := c.Exec(
-			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE);`, nil)
-		omniErrored2 := err2 != nil
-		if !omniErrored2 {
-			for _, r := range results2 {
-				if r.Error != nil {
-					omniErrored2 = true
-					break
-				}
-			}
-		}
-		assertBoolEq(t, "omni: rejects SPATIAL USING BTREE", omniErrored2, true)
 	})
 
 	// --- 7.10 PK + UNIQUE coexistence on same column --------------------
