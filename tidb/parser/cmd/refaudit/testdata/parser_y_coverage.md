@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      296
-# Rules with no citation:     394
+# Rules with a citation:      297
+# Rules with no citation:     393
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -318,7 +318,6 @@ TextStringList
 UpdateStmtNoWith
 WhereClause
 CreateRoleStmt
-InstanceOption
 UserSpecList
 ConnectionOptions
 ConnectionOptionList

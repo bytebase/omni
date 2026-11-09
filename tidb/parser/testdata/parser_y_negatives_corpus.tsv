@@ -6015,9 +6015,9 @@ reject	reject	Statement#5/insert	ALTER USER CURRENT_USER zzz
 reject	reject	Statement#5/swap	ALWAYS USER CURRENT_USER
 reject	reject	Statement#6/drop-1	INSTANCE RELOAD TLS
 reject	reject	Statement#6/drop-2	ALTER RELOAD TLS
-accept	reject	Statement#6/drop-3	ALTER INSTANCE TLS
-accept	reject	Statement#6/drop-4	ALTER INSTANCE RELOAD
-accept	reject	Statement#6/insert	ALTER INSTANCE RELOAD TLS zzz
+reject	reject	Statement#6/drop-3	ALTER INSTANCE TLS
+reject	reject	Statement#6/drop-4	ALTER INSTANCE RELOAD
+reject	reject	Statement#6/insert	ALTER INSTANCE RELOAD TLS zzz
 reject	reject	Statement#6/swap	ALWAYS INSTANCE RELOAD TLS
 reject	reject	Statement#7/drop-1	RANGE ident PLACEMENT POLICY 's'
 reject	reject	Statement#7/drop-2	ALTER ident PLACEMENT POLICY 's'
@@ -6835,15 +6835,15 @@ reject	reject	AlterUserStmt#2/drop-7	ALTER USER USER() IDENTIFIED 's'
 reject	reject	AlterUserStmt#2/drop-8	ALTER USER USER() IDENTIFIED BY
 reject	reject	AlterUserStmt#2/insert	ALTER USER USER() IDENTIFIED BY 's' zzz
 reject	reject	AlterUserStmt#2/swap	ALWAYS USER USER() IDENTIFIED BY 's'
-accept	reject	InstanceOption#1/swap	ALTER INSTANCE REMOVE TLS
-accept	reject	InstanceOption#2/drop-1	ALTER INSTANCE TLS NO ROLLBACK ON ERROR
-accept	reject	InstanceOption#2/drop-2	ALTER INSTANCE RELOAD NO ROLLBACK ON ERROR
-accept	reject	InstanceOption#2/drop-3	ALTER INSTANCE RELOAD TLS ROLLBACK ON ERROR
-accept	reject	InstanceOption#2/drop-4	ALTER INSTANCE RELOAD TLS NO ON ERROR
-accept	reject	InstanceOption#2/drop-5	ALTER INSTANCE RELOAD TLS NO ROLLBACK ERROR
-accept	reject	InstanceOption#2/drop-6	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON
-accept	reject	InstanceOption#2/insert	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR zzz
-accept	reject	InstanceOption#2/swap	ALTER INSTANCE REMOVE TLS NO ROLLBACK ON ERROR
+reject	reject	InstanceOption#1/swap	ALTER INSTANCE REMOVE TLS
+reject	reject	InstanceOption#2/drop-1	ALTER INSTANCE TLS NO ROLLBACK ON ERROR
+reject	reject	InstanceOption#2/drop-2	ALTER INSTANCE RELOAD NO ROLLBACK ON ERROR
+reject	reject	InstanceOption#2/drop-3	ALTER INSTANCE RELOAD TLS ROLLBACK ON ERROR
+reject	reject	InstanceOption#2/drop-4	ALTER INSTANCE RELOAD TLS NO ON ERROR
+reject	reject	InstanceOption#2/drop-5	ALTER INSTANCE RELOAD TLS NO ROLLBACK ERROR
+reject	reject	InstanceOption#2/drop-6	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON
+reject	reject	InstanceOption#2/insert	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR zzz
+reject	reject	InstanceOption#2/swap	ALTER INSTANCE REMOVE TLS NO ROLLBACK ON ERROR
 reject	reject	UserSpec#1/swap	CREATE USER CURSOR
 reject	reject	UserSpecList#2/drop-1	CREATE USER, CURRENT_USER
 reject	reject	UserSpecList#2/drop-2	CREATE USER CURRENT_USER CURRENT_USER

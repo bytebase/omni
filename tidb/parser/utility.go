@@ -1091,18 +1091,13 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 // parseAlterInstanceStmt parses an ALTER INSTANCE statement.
 // ALTER already consumed. p.cur is INSTANCE.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-instance.html
+// TiDB's only instance action is RELOAD TLS, optionally with NO ROLLBACK ON
+// ERROR. MySQL's ALTER INSTANCE has more (ENABLE/DISABLE INNODB REDO_LOG, ROTATE
+// ... MASTER KEY, FOR CHANNEL, RELOAD KEYRING); TiDB v8.5.5 has just this one.
 //
-//	ALTER INSTANCE instance_action
+// Ref: AlterInstanceStmt and InstanceOption in TiDB v8.5.5 parser.y:13758-13784.
 //
-//	instance_action: {
-//	    ENABLE INNODB REDO_LOG
-//	  | DISABLE INNODB REDO_LOG
-//	  | ROTATE INNODB MASTER KEY
-//	  | ROTATE BINLOG MASTER KEY
-//	  | RELOAD TLS [FOR CHANNEL {mysql_main | mysql_admin}] [NO ROLLBACK ON ERROR]
-//	  | RELOAD KEYRING
-//	}
+//	ALTER INSTANCE RELOAD TLS [NO ROLLBACK ON ERROR]
 func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, error) {
 	p.advance() // consume INSTANCE
 
@@ -1110,40 +1105,27 @@ func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, er
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Collect action words until end of statement or special clauses
-	var words []string
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		// Check for FOR CHANNEL
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
-			p.advance() // consume CHANNEL (identifier)
-			name, _, _ := p.parseIdentifier()
-			stmt.Channel = name
-			continue
-		}
-		// Check for NO ROLLBACK ON ERROR
-		if p.cur.Type == kwNO {
-			p.advance() // consume NO
-			p.advance() // consume ROLLBACK (identifier)
-			p.advance() // consume ON
-			p.advance() // consume ERROR (identifier)
-			stmt.NoRollbackOnError = true
-			continue
-		}
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			name, _, _ := p.parseKeywordOrIdent()
-			words = append(words, name)
-		} else {
-			break
-		}
+	if _, err := p.expect(kwRELOAD); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(kwTLS); err != nil {
+		return nil, err
+	}
+	stmt.Action = "RELOAD TLS"
 
-	stmt.Action = ""
-	for i, w := range words {
-		if i > 0 {
-			stmt.Action += " "
+	// Optional NO ROLLBACK ON ERROR: the whole phrase, or none of it.
+	if p.cur.Type == kwNO {
+		p.advance() // consume NO
+		if _, err := p.expect(kwROLLBACK); err != nil {
+			return nil, err
 		}
-		stmt.Action += w
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwERROR_KW); err != nil {
+			return nil, err
+		}
+		stmt.NoRollbackOnError = true
 	}
 
 	stmt.Loc.End = p.prev.End

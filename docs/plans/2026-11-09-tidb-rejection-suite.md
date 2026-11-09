@@ -115,3 +115,19 @@ here — noted, never fixed by widening `Parse`.
   no-verdict), no new gaps, positive corpora unregressed; oceanbase grant/user
   container tests pass. (SET PASSWORD `=` / `PASSWORD()` forms are a separate
   later cluster.)
+
+### (c) close over-acceptances — cluster 4: ALTER INSTANCE
+
+- **Cluster: ALTER INSTANCE.** `parseAlterInstanceStmt` collected arbitrary
+  action words and blindly consumed the NO ROLLBACK ON ERROR tokens, so omni
+  accepted `ALTER INSTANCE TLS`, `RELOAD`, `REMOVE TLS`, `RELOAD TLS zzz`, every
+  partial NO-ROLLBACK phrase, and even MySQL-only actions.
+- TiDB-only: TiDB's InstanceOption is just `RELOAD TLS` and `RELOAD TLS NO
+  ROLLBACK ON ERROR` (parser.y:13758-13784); the forks' richer MySQL ALTER
+  INSTANCE grammar makes the other actions valid there, so this fix is tidb-only.
+  Rewrote the parser to accept exactly those two forms.
+- Measured live: over-acceptances **118 → 106** (12 rows to reject/reject, 0
+  no-verdict), no new gaps, positive corpora unregressed.
+- Note: the forks' loose word-collector also over-accepts trailing junk relative
+  to MySQL's grammar (`RELOAD TLS zzz`, malformed NO clause); fixing them to
+  MySQL's full instance_action is separate, measured against MySQL.
