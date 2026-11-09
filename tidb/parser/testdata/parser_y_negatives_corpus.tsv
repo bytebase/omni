@@ -4780,7 +4780,7 @@ reject	reject	PartitionNameListOpt#2/drop-1	DELETE FROM ident(ident)
 reject	reject	PartitionNameListOpt#2/drop-2	DELETE FROM ident PARTITION ident)
 reject	reject	PartitionNameListOpt#2/drop-3	DELETE FROM ident PARTITION()
 reject	reject	PartitionNameListOpt#2/drop-4	DELETE FROM ident PARTITION(ident
-reject	accept	PartitionNameListOpt#2/insert	DELETE FROM ident PARTITION(ident) zzz
+accept	accept	PartitionNameListOpt#2/insert	DELETE FROM ident PARTITION(ident) zzz
 reject	reject	PartitionNameListOpt#2/swap	DELETE FROM ident PARTITIONING(ident)
 reject	reject	TableAsNameOpt#2/insert	DELETE FROM ident ident zzz
 reject	reject	TableAsName#2/drop-2	DELETE FROM ident AS
