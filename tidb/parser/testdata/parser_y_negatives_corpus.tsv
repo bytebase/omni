@@ -6211,7 +6211,7 @@ reject	reject	Statement#91/swap	UNSET TABLES
 reject	reject	Statement#92/drop-1	TABLES ident READ
 reject	reject	Statement#92/drop-2	LOCK ident READ
 reject	reject	Statement#92/drop-3	LOCK TABLES READ
-accept	reject	Statement#92/drop-4	LOCK TABLES ident
+reject	reject	Statement#92/drop-4	LOCK TABLES ident
 reject	reject	Statement#92/insert	LOCK TABLES ident READ zzz
 reject	reject	Statement#92/swap	LOCKED TABLES ident READ
 reject	reject	Statement#95/drop-1	INDEX SHOW
@@ -7482,18 +7482,18 @@ reject	reject	ImportFromSelectStmt#4/swap	IMPORT INTO ident FROM(SEND_CREDENTIAL
 reject	reject	TablesTerminalSym#1/swap	UNLOCK TABLESAMPLE
 reject	reject	TablesTerminalSym#2/insert	UNLOCK TABLE zzz
 reject	reject	TableLock#1/swap	LOCK TABLES ident REAL
-accept	reject	LockType#2/drop-1	LOCK TABLES ident LOCAL
+reject	reject	LockType#2/drop-1	LOCK TABLES ident LOCAL
 reject	reject	LockType#2/insert	LOCK TABLES ident READ LOCAL zzz
 reject	reject	LockType#2/swap	LOCK TABLES ident REAL LOCAL
 reject	reject	LockType#3/insert	LOCK TABLES ident WRITE zzz
-accept	reject	LockType#3/swap	LOCK TABLES ident X509
+reject	reject	LockType#3/swap	LOCK TABLES ident X509
 reject	reject	LockType#4/insert	LOCK TABLES ident WRITE LOCAL zzz
 reject	reject	LockType#4/swap	LOCK TABLES ident X509 LOCAL
 reject	reject	TableLockList#2/drop-1	LOCK TABLES READ, ident READ
-accept	reject	TableLockList#2/drop-2	LOCK TABLES ident, ident READ
+reject	reject	TableLockList#2/drop-2	LOCK TABLES ident, ident READ
 reject	reject	TableLockList#2/drop-3	LOCK TABLES ident READ ident READ
 reject	reject	TableLockList#2/drop-4	LOCK TABLES ident READ, READ
-accept	reject	TableLockList#2/drop-5	LOCK TABLES ident READ, ident
+reject	reject	TableLockList#2/drop-5	LOCK TABLES ident READ, ident
 reject	reject	TableLockList#2/insert	LOCK TABLES ident READ, ident READ zzz
 reject	reject	TableLockList#2/swap	LOCK TABLES ident REAL, ident READ
 reject	reject	ShardableStmt#1/swap	BATCH LIMIT 1 DENSE_RANK FROM ident

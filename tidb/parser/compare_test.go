@@ -2650,6 +2650,24 @@ func TestParseLockTables(t *testing.T) {
 			t.Errorf("table[1] LockType = %s, want WRITE", stmt.Tables[1].LockType)
 		}
 	})
+
+	// Every table in the list needs a lock type, and WRITE is required after
+	// LOW_PRIORITY. TiDB v8.5.5 answers 1064 for each of these (a bare word
+	// after the table is read as its alias, which still leaves no lock type).
+	t.Run("rejections", func(t *testing.T) {
+		for _, sql := range []string{
+			"LOCK TABLES t",
+			"LOCK TABLES t LOCAL",
+			"LOCK TABLES t X509",
+			"LOCK TABLES t1, t2 READ",
+			"LOCK TABLES t1 READ, t2",
+			"LOCK TABLES t LOW_PRIORITY",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("omni accepts %q, TiDB v8.5.5 rejects it", sql)
+			}
+		}
+	})
 }
 
 // ============================================================================
