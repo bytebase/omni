@@ -83,3 +83,18 @@ here — noted, never fixed by widening `Parse`.
   (both-accept unchanged at 153); tidb positive corpora show no regression.
 - Remaining 137 over-acceptances are later (c) clusters (trailing stray tokens in
   other productions, dropped required keywords, etc.).
+
+### (c) close over-acceptances — cluster 2: foreign-key reference action
+
+- **Cluster: the ON DELETE / ON UPDATE reference action.** `parseReferenceAction`
+  returned `RefActNone` with no error for a bare `SET` (no NULL/DEFAULT), a bare
+  `NO` (no ACTION), or any non-action token, so omni accepted `ON DELETE SET`,
+  `ON DELETE NO`, `ON DELETE NULL`, `ON DELETE` with nothing, and `ON DELETE ON
+  UPDATE …`. ReferOpt is always complete and required after ON DELETE/ON UPDATE
+  (parser.y:4017-4037, 3983-3990).
+- Fixed in all four engines: `parseReferenceAction` now returns an error for an
+  incomplete/missing action; both FK caller sites (inline column REFERENCES and
+  table-level FOREIGN KEY) propagate it. Cited to TiDB parser.y / MySQL
+  sql_yacc.yy `delete_option`.
+- Measured live: over-acceptances **137 → 128** (9 rows to reject/reject, 0
+  no-verdict), no new gaps (both-accept 153), positive corpora unregressed.

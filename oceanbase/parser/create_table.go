@@ -686,9 +686,17 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 	for p.cur.Type == kwON {
 		p.advance()
 		if _, ok := p.match(kwDELETE); ok {
-			constr.OnDelete = p.parseReferenceAction()
+			act, err := p.parseReferenceAction()
+			if err != nil {
+				return nil, err
+			}
+			constr.OnDelete = act
 		} else if _, ok := p.match(kwUPDATE); ok {
-			constr.OnUpdate = p.parseReferenceAction()
+			act, err := p.parseReferenceAction()
+			if err != nil {
+				return nil, err
+			}
+			constr.OnUpdate = act
 		} else {
 			break
 		}
@@ -698,34 +706,39 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 	return constr, nil
 }
 
-// parseReferenceAction parses a foreign key action.
+// parseReferenceAction parses a foreign key reference action. The action is
+// required after ON DELETE / ON UPDATE and must be complete: a bare SET, a bare
+// NO, or any other token is not an action.
 //
 //	RESTRICT | CASCADE | SET NULL | SET DEFAULT | NO ACTION
-func (p *Parser) parseReferenceAction() nodes.ReferenceAction {
+//
+// Ref: delete_option (RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT)
+// in MySQL 8.0.46 sql/sql_yacc.yy.
+func (p *Parser) parseReferenceAction() (nodes.ReferenceAction, error) {
 	switch p.cur.Type {
 	case kwRESTRICT:
 		p.advance()
-		return nodes.RefActRestrict
+		return nodes.RefActRestrict, nil
 	case kwCASCADE:
 		p.advance()
-		return nodes.RefActCascade
+		return nodes.RefActCascade, nil
 	case kwSET:
 		p.advance()
 		if _, ok := p.match(kwNULL); ok {
-			return nodes.RefActSetNull
+			return nodes.RefActSetNull, nil
 		}
 		if _, ok := p.match(kwDEFAULT); ok {
-			return nodes.RefActSetDefault
+			return nodes.RefActSetDefault, nil
 		}
-		return nodes.RefActNone
+		return nodes.RefActNone, p.syntaxErrorAtCur()
 	case kwNO:
 		p.advance()
-		if p.cur.Type == kwACTION {
-			p.advance()
+		if _, ok := p.match(kwACTION); ok {
+			return nodes.RefActNoAction, nil
 		}
-		return nodes.RefActNoAction
+		return nodes.RefActNone, p.syntaxErrorAtCur()
 	}
-	return nodes.RefActNone
+	return nodes.RefActNone, p.syntaxErrorAtCur()
 }
 
 // parseGeneratedColumn parses a GENERATED ALWAYS AS (expr) [VIRTUAL|STORED].
@@ -939,9 +952,17 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			for p.cur.Type == kwON {
 				p.advance()
 				if _, ok := p.match(kwDELETE); ok {
-					constr.OnDelete = p.parseReferenceAction()
+					act, err := p.parseReferenceAction()
+					if err != nil {
+						return nil, err
+					}
+					constr.OnDelete = act
 				} else if _, ok := p.match(kwUPDATE); ok {
-					constr.OnUpdate = p.parseReferenceAction()
+					act, err := p.parseReferenceAction()
+					if err != nil {
+						return nil, err
+					}
+					constr.OnUpdate = act
 				} else {
 					break
 				}

@@ -1217,38 +1217,38 @@ reject	reject	Match#3/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident M
 reject	reject	Match#3/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident MAX SIMPLE
 reject	reject	OnDelete#1/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident DELETE RESTRICT
 reject	reject	OnDelete#1/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON RESTRICT
-accept	reject	OnDelete#1/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE
+reject	reject	OnDelete#1/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE
 reject	reject	OnDelete#1/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT zzz
 reject	reject	OnDelete#1/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ONLINE DELETE RESTRICT
 reject	reject	OnUpdate#1/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident UPDATE RESTRICT
-accept	reject	OnUpdate#1/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE
+reject	reject	OnUpdate#1/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE
 reject	reject	OnUpdate#1/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT zzz
 reject	reject	OnUpdate#1/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ONLINE UPDATE RESTRICT
 reject	reject	OnDeleteUpdateOpt#4/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident DELETE RESTRICT ON UPDATE RESTRICT
 reject	reject	OnDeleteUpdateOpt#4/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON RESTRICT ON UPDATE RESTRICT
-accept	reject	OnDeleteUpdateOpt#4/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE ON UPDATE RESTRICT
+reject	reject	OnDeleteUpdateOpt#4/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE ON UPDATE RESTRICT
 reject	reject	OnDeleteUpdateOpt#4/drop-4	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT UPDATE RESTRICT
 reject	reject	OnDeleteUpdateOpt#4/drop-5	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT ON RESTRICT
-accept	reject	OnDeleteUpdateOpt#4/drop-6	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT ON UPDATE
+reject	reject	OnDeleteUpdateOpt#4/drop-6	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT ON UPDATE
 reject	reject	OnDeleteUpdateOpt#4/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESTRICT ON UPDATE RESTRICT zzz
 reject	reject	OnDeleteUpdateOpt#4/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ONLINE DELETE RESTRICT ON UPDATE RESTRICT
 reject	reject	OnDeleteUpdateOpt#5/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident UPDATE RESTRICT ON DELETE RESTRICT
 reject	reject	OnDeleteUpdateOpt#5/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON RESTRICT ON DELETE RESTRICT
-accept	reject	OnDeleteUpdateOpt#5/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE ON DELETE RESTRICT
+reject	reject	OnDeleteUpdateOpt#5/drop-3	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE ON DELETE RESTRICT
 reject	reject	OnDeleteUpdateOpt#5/drop-4	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT DELETE RESTRICT
 reject	reject	OnDeleteUpdateOpt#5/drop-5	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT ON RESTRICT
-accept	reject	OnDeleteUpdateOpt#5/drop-6	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT ON DELETE
+reject	reject	OnDeleteUpdateOpt#5/drop-6	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT ON DELETE
 reject	reject	OnDeleteUpdateOpt#5/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON UPDATE RESTRICT ON DELETE RESTRICT zzz
 reject	reject	OnDeleteUpdateOpt#5/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ONLINE UPDATE RESTRICT ON DELETE RESTRICT
 reject	reject	ReferOpt#1/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE RESUME
 reject	reject	ReferOpt#2/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE CASCADE zzz
 reject	reject	ReferOpt#2/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE CASCADED
-accept	reject	ReferOpt#3/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NULL
-accept	reject	ReferOpt#3/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE SET
+reject	reject	ReferOpt#3/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NULL
+reject	reject	ReferOpt#3/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE SET
 reject	reject	ReferOpt#3/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE SET NULL zzz
 reject	reject	ReferOpt#3/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE SETVAL NULL
 reject	reject	ReferOpt#4/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE ACTION
-accept	reject	ReferOpt#4/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NO
+reject	reject	ReferOpt#4/drop-2	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NO
 reject	reject	ReferOpt#4/insert	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NO ACTION zzz
 reject	reject	ReferOpt#4/swap	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE NOCACHE ACTION
 reject	reject	ReferOpt#5/drop-1	ALTER TABLE ident ADD ident JSON REFERENCES ident ON DELETE DEFAULT
