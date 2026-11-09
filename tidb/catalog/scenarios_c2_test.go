@@ -337,18 +337,19 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (a NATIONAL CHAR(10), b NCHAR(10))`)
 
+		// TiDB maps NATIONAL CHAR / NCHAR to utf8mb4, not utf8mb3 (MySQL).
 		assertStringEq(t, "oracle a COLUMN_TYPE", oracleColumnType(t, "a"), "char(10)")
 		assertStringEq(t, "oracle b COLUMN_TYPE", oracleColumnType(t, "b"), "char(10)")
-		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb3")
-		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb3")
+		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb4")
+		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb4")
 
 		if col := omniCol(t, c, "a"); col != nil {
 			assertStringEq(t, "omni a ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 		if col := omniCol(t, c, "b"); col != nil {
 			assertStringEq(t, "omni b ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 	})
 
@@ -364,13 +365,14 @@ func TestScenario_C2(t *testing.T) {
   e NCHAR VARYING(10)
 )`)
 
+		// TiDB maps the NVARCHAR/NATIONAL family to utf8mb4, not utf8mb3.
 		for _, name := range []string{"a", "b", "cc", "d", "e"} {
 			assertStringEq(t, "oracle "+name+" COLUMN_TYPE", oracleColumnType(t, name), "varchar(10)")
-			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb3")
+			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb4")
 
 			if col := omniCol(t, c, name); col != nil {
 				assertStringEq(t, "omni "+name+" ColumnType", strings.ToLower(col.ColumnType), "varchar(10)")
-				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb3")
+				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb4")
 			}
 		}
 	})
@@ -485,10 +487,12 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c YEAR(4))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year")
+		// TiDB preserves the YEAR(4) display width rather than normalizing it
+		// to bare YEAR as MySQL 8.0 does.
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year(4)")
 
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year(4)")
 		}
 	})
 

@@ -29,9 +29,10 @@ CREATE TABLE child (
 );`
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle
+		// Oracle. TiDB auto-names the unnamed CREATE-path FK fk_<ordinal>
+		// (here fk_2), not child_ibfk_1 as MySQL does.
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
+		want := []string{"child_ibfk_5", "fk_2"}
 		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
 
 		// omni
@@ -57,8 +58,10 @@ CREATE TABLE child (
 ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		runOnBoth(t, mc, c, ddl)
 
+		// TiDB names the ALTER-added unnamed FK fk_<ordinal> (fk_2), not
+		// child_ibfk_21 (MySQL's max+1 over generated names).
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
+		want := []string{"child_ibfk_20", "fk_2"}
 		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
 
 		tbl := c.GetDatabase("testdb").GetTable("child")

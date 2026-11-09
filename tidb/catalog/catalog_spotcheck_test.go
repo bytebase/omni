@@ -130,39 +130,26 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rowsB {
 			namesB = append(namesB, asString(row[0]))
 		}
+		// TiDB auto-names the ALTER-added unnamed FK fk_<ordinal> (fk_2); it
+		// does not follow MySQL's max+1 rule over the user-named child2_ibfk_5.
 		has5 := false
-		has6 := false
+		hasFK2 := false
 		for _, n := range namesB {
 			if n == "child2_ibfk_5" {
 				has5 = true
 			}
-			if n == "child2_ibfk_6" {
-				has6 = true
+			if n == "fk_2" {
+				hasFK2 = true
 			}
 		}
-		if !has5 || !has6 || len(namesB) != 2 {
-			t.Errorf("CATALOG MISMATCH C1.1 (phase B, ALTER TABLE max+1): expected [child2_ibfk_5, child2_ibfk_6], got %v", namesB)
+		if !has5 || !hasFK2 || len(namesB) != 2 {
+			t.Errorf("CATALOG MISMATCH C1.1 (phase B, ALTER TABLE): expected [child2_ibfk_5, fk_2], got %v", namesB)
 		} else {
-			t.Logf("OK C1.1 phase B verified (ALTER TABLE honors max+1): %v", namesB)
+			t.Logf("OK C1.1 phase B verified (TiDB names ALTER-added FK fk_2): %v", namesB)
 		}
 
-		// Report phase A as observation (may differ from phase B if CREATE uses count-based).
-		if len(namesA) == 2 {
-			hasA5, hasA6 := false, false
-			for _, n := range namesA {
-				if n == "child_ibfk_5" {
-					hasA5 = true
-				}
-				if n == "child_ibfk_6" {
-					hasA6 = true
-				}
-			}
-			if hasA5 && hasA6 {
-				t.Logf("OK C1.1 phase A: CREATE TABLE also follows max+1: %v", namesA)
-			} else {
-				t.Logf("NOTE C1.1 phase A: CREATE TABLE does NOT follow max+1 (catalog may need clarification): %v", namesA)
-			}
-		}
+		// Report phase A as observation (TiDB uses fk_<ordinal> for unnamed FKs).
+		t.Logf("NOTE C1.1 phase A (CREATE TABLE) names: %v", namesA)
 	})
 
 	// ---------------------------------------------------------------
@@ -200,20 +187,12 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// Catalog claim: ts1 gets DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	// ts2 does NOT.
 	// ---------------------------------------------------------------
-	t.Run("C3_1_timestamp_first_only_promotion", func(t *testing.T) {
+	t.Run("C3_1_timestamp_no_legacy_promotion", func(t *testing.T) {
 		reset(t)
-		// We need explicit_defaults_for_timestamp=OFF to see the promotion,
-		// and we must relax STRICT mode because a second TIMESTAMP NOT NULL
-		// with no default receives the zero-date default which STRICT rejects.
-		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION explicit_defaults_for_timestamp=OFF"); err != nil {
-			t.Fatalf("set sql var: %v", err)
-		}
-		defer mc.db.ExecContext(mc.ctx, "SET SESSION explicit_defaults_for_timestamp=ON")
-		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=''"); err != nil {
-			t.Fatalf("set sql_mode: %v", err)
-		}
-		defer mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=DEFAULT")
-
+		// explicit_defaults_for_timestamp is a read-only variable in TiDB
+		// v8.5.5 (fixed ON), so the deprecated legacy promotion path never
+		// fires: no TIMESTAMP column gets DEFAULT CURRENT_TIMESTAMP or
+		// ON UPDATE CURRENT_TIMESTAMP.
 		rows := spotCheckQuery(t, mc, `
 			CREATE TABLE ts (
 				ts1 TIMESTAMP NOT NULL,
@@ -232,20 +211,21 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		ts2Default := asString(rows[1][1])
 		ts2Extra := asString(rows[1][2])
 
-		ts1Promoted := strings.Contains(strings.ToUpper(ts1Default), "CURRENT_TIMESTAMP") &&
+		ts1Promoted := strings.Contains(strings.ToUpper(ts1Default), "CURRENT_TIMESTAMP") ||
 			strings.Contains(strings.ToUpper(ts1Extra), "ON UPDATE")
-		ts2Promoted := strings.Contains(strings.ToUpper(ts2Default), "CURRENT_TIMESTAMP")
+		ts2Promoted := strings.Contains(strings.ToUpper(ts2Default), "CURRENT_TIMESTAMP") ||
+			strings.Contains(strings.ToUpper(ts2Extra), "ON UPDATE")
 
-		if !ts1Promoted {
-			t.Errorf("CATALOG MISMATCH C3.1: expected ts1 promoted; got default=%q extra=%q",
+		if ts1Promoted {
+			t.Errorf("CATALOG MISMATCH C3.1: TiDB should NOT promote ts1; got default=%q extra=%q",
 				ts1Default, ts1Extra)
 		}
 		if ts2Promoted {
-			t.Errorf("CATALOG MISMATCH C3.1: ts2 should NOT be promoted; got default=%q extra=%q",
+			t.Errorf("CATALOG MISMATCH C3.1: TiDB should NOT promote ts2; got default=%q extra=%q",
 				ts2Default, ts2Extra)
 		}
-		if ts1Promoted && !ts2Promoted {
-			t.Logf("OK C3.1 verified: ts1 default=%q extra=%q; ts2 default=%q extra=%q",
+		if !ts1Promoted && !ts2Promoted {
+			t.Logf("OK C3.1 verified: no legacy promotion; ts1 default=%q extra=%q; ts2 default=%q extra=%q",
 				ts1Default, ts1Extra, ts2Default, ts2Extra)
 		}
 	})
@@ -280,7 +260,10 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, "DROP DATABASE IF EXISTS sc_cs"); err != nil {
 			t.Fatalf("drop: %v", err)
 		}
-		if _, err := mc.db.ExecContext(mc.ctx, "CREATE DATABASE sc_cs CHARACTER SET latin1 COLLATE latin1_swedish_ci"); err != nil {
+		// latin1_swedish_ci is unsupported under TiDB's new collation
+		// framework; latin1_bin is the supported latin1 collation and the
+		// one a table inherits from a latin1 database.
+		if _, err := mc.db.ExecContext(mc.ctx, "CREATE DATABASE sc_cs CHARACTER SET latin1 COLLATE latin1_bin"); err != nil {
 			t.Fatalf("create db: %v", err)
 		}
 		defer mc.db.ExecContext(mc.ctx, "DROP DATABASE IF EXISTS sc_cs")
@@ -295,8 +278,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			t.Fatalf("expected 1 row, got %d", len(rows))
 		}
 		coll := asString(rows[0][0])
-		if coll != "latin1_swedish_ci" {
-			t.Errorf("CATALOG MISMATCH C4.1: expected latin1_swedish_ci, got %q", coll)
+		if coll != "latin1_bin" {
+			t.Errorf("CATALOG MISMATCH C4.1: expected latin1_bin, got %q", coll)
 		} else {
 			t.Logf("OK C4.1 verified: TABLE_COLLATION=%q", coll)
 		}
@@ -458,19 +441,13 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			names = append(names, asString(row[0]))
 		}
 		t.Logf("PS1 CREATE observed: %v", names)
-		has1, has5 := false, false
-		for _, n := range names {
-			if n == "tchk_chk_1" {
-				has1 = true
-			}
-			if n == "tchk_chk_5" {
-				has5 = true
-			}
-		}
-		if !has1 || !has5 || len(names) != 2 {
-			t.Errorf("CATALOG MISMATCH PS1 CREATE: expected [tchk_chk_1, tchk_chk_5], got %v", names)
+		// tidb_enable_check_constraint is OFF by default in TiDB v8.5.5, so
+		// both the named (tchk_chk_5) and the unnamed CHECK are parsed and
+		// discarded — no CHECK constraints are retained or counter-allocated.
+		if len(names) != 0 {
+			t.Errorf("CATALOG MISMATCH PS1 CREATE: expected no CHECK constraints (discarded under TiDB default), got %v", names)
 		} else {
-			t.Logf("OK PS1 CREATE verified (fresh counter from 0): %v", names)
+			t.Logf("OK PS1 CREATE verified (CHECK constraints discarded under TiDB default)")
 		}
 	})
 
@@ -797,9 +774,12 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	})
 
 	// ---------------------------------------------------------------
-	// C6.2: Subpartitions auto-gen. PARTITIONS 2 SUBPARTITIONS 3 → 6 rows.
+	// C6.2: TiDB accepts SUBPARTITION BY syntax for compatibility but does
+	// not create subpartitions. PARTITIONS 2 SUBPARTITIONS 3 therefore
+	// yields only the 2 top-level RANGE partitions, each with a NULL
+	// SUBPARTITION_NAME (MySQL would report 6 subpartition rows).
 	// ---------------------------------------------------------------
-	t.Run("C6_2_Subpartition_count", func(t *testing.T) {
+	t.Run("C6_2_Subpartition_ignored", func(t *testing.T) {
 		reset(t)
 		_, err := mc.db.ExecContext(mc.ctx, `
 			CREATE TABLE psp (id INT, d INT)
@@ -818,14 +798,17 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='psp'
 			ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
 		`)
-		if len(rows) != 6 {
-			t.Errorf("CATALOG MISMATCH C6.2: expected 6 sub-part rows, got %d: %v", len(rows), rows)
+		if len(rows) != 2 {
+			t.Errorf("CATALOG MISMATCH C6.2: expected 2 partition rows (TiDB ignores subpartitions), got %d: %v", len(rows), rows)
 		} else {
-			var subs []string
 			for _, r := range rows {
-				subs = append(subs, asString(r[1]))
+				// A NULL SUBPARTITION_NAME scans as a nil any (rendered
+				// "<nil>" by asString); anything else is a real subpartition.
+				if sub := asString(r[1]); sub != "" && sub != "<nil>" {
+					t.Errorf("CATALOG MISMATCH C6.2: expected NULL SUBPARTITION_NAME, got %q", sub)
+				}
 			}
-			t.Logf("OK C6.2 verified: 6 subparts, names=%v", subs)
+			t.Logf("OK C6.2 verified: TiDB created 2 partitions and no subpartitions")
 		}
 	})
 

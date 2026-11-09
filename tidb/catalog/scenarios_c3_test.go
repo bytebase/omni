@@ -16,55 +16,32 @@ func TestScenario_C3(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// --- 3.1 First TIMESTAMP NOT NULL auto-promotes (legacy mode) -------
-	t.Run("3_1_first_timestamp_promotion", func(t *testing.T) {
+	// --- 3.1 First TIMESTAMP NOT NULL is NOT auto-promoted under TiDB -------
+	t.Run("3_1_first_timestamp_no_promotion", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Force legacy mode on the container so the first-TS promotion fires.
-		// Also clear sql_mode so MySQL accepts the implicit '0000-00-00' zero
-		// default for the second TIMESTAMP column. omni does not track these
-		// session vars; we still verify omni's static behavior.
-		setLegacyTimestampMode(t, mc)
-		defer restoreTimestampMode(t, mc)
-
+		// TiDB fixes explicit_defaults_for_timestamp=ON (it is a read-only
+		// variable in v8.5.5), so the legacy first-TIMESTAMP promotion path
+		// never fires: neither column gets DEFAULT CURRENT_TIMESTAMP or
+		// ON UPDATE CURRENT_TIMESTAMP.
 		ddl := `CREATE TABLE t (
     ts1 TIMESTAMP NOT NULL,
     ts2 TIMESTAMP NOT NULL
 )`
-		// Run on container directly — runOnBoth would split sql_mode.
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
-			t.Errorf("oracle CREATE TABLE failed: %v", err)
-		}
-		results, err := c.Exec(ddl+";", nil)
-		if err != nil {
-			t.Errorf("omni parse error: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni exec error: %v", r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: SHOW CREATE TABLE on container.
+		// Oracle: SHOW CREATE TABLE on container — no promotion on either column.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		lo := strings.ToLower(create)
-		if !strings.Contains(lo, "ts1") ||
-			!strings.Contains(lo, "default current_timestamp") ||
-			!strings.Contains(lo, "on update current_timestamp") {
-			t.Errorf("oracle: expected ts1 promoted to CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n%s", create)
+		if strings.Contains(lo, "default current_timestamp") {
+			t.Errorf("oracle: TiDB should NOT promote any TIMESTAMP to DEFAULT CURRENT_TIMESTAMP\n%s", create)
 		}
-		// ts2 should NOT carry an ON UPDATE CURRENT_TIMESTAMP — only one occurrence overall.
-		if strings.Count(lo, "on update current_timestamp") != 1 {
-			t.Errorf("oracle: expected exactly one ON UPDATE CURRENT_TIMESTAMP (ts1 only)\n%s", create)
+		if strings.Contains(lo, "on update current_timestamp") {
+			t.Errorf("oracle: TiDB should NOT add ON UPDATE CURRENT_TIMESTAMP\n%s", create)
 		}
 
-		// omni: this is omni's "static" view. omni does not track
-		// explicit_defaults_for_timestamp, so the expectation here documents
-		// what omni *currently* does. We accept either:
-		//   (a) omni promotes the first TIMESTAMP NOT NULL  (matches legacy)
-		//   (b) omni leaves both ts1 and ts2 alone        (matches default mode)
-		// Anything else is a bug. Document the asymmetry rather than failing.
+		// omni mirrors TiDB's default mode: no promotion on either column.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
@@ -76,16 +53,13 @@ func TestScenario_C3(t *testing.T) {
 			t.Errorf("omni: ts1/ts2 columns missing")
 			return
 		}
-		// Expected omni (default-mode behavior): no promotion.
-		if ts1.Default != nil && strings.Contains(strings.ToLower(*ts1.Default), "current_timestamp") {
-			// Acceptable: omni mirrors legacy mode.
-			t.Logf("omni: ts1 has CURRENT_TIMESTAMP default — promotion happens unconditionally")
-		}
-		if ts2.Default != nil && strings.Contains(strings.ToLower(*ts2.Default), "current_timestamp") {
-			t.Errorf("omni: ts2 should NEVER auto-promote to CURRENT_TIMESTAMP, got %q", *ts2.Default)
-		}
-		if ts2.OnUpdate != "" && strings.Contains(strings.ToLower(ts2.OnUpdate), "current_timestamp") {
-			t.Errorf("omni: ts2 should NEVER auto-promote ON UPDATE, got %q", ts2.OnUpdate)
+		for name, col := range map[string]*Column{"ts1": ts1, "ts2": ts2} {
+			if col.Default != nil && strings.Contains(strings.ToLower(*col.Default), "current_timestamp") {
+				t.Errorf("omni: %s should NOT auto-promote to CURRENT_TIMESTAMP, got %q", name, *col.Default)
+			}
+			if col.OnUpdate != "" && strings.Contains(strings.ToLower(col.OnUpdate), "current_timestamp") {
+				t.Errorf("omni: %s should NOT auto-promote ON UPDATE, got %q", name, col.OnUpdate)
+			}
 		}
 	})
 
@@ -278,48 +252,35 @@ func TestScenario_C3(t *testing.T) {
 			col.Nullable, false)
 	})
 
-	// --- 3.8 Second TIMESTAMP under explicit_defaults_for_timestamp=OFF -----
-	t.Run("3_8_second_timestamp_legacy_mode", func(t *testing.T) {
+	// --- 3.8 Bare TIMESTAMP columns under TiDB (explicit_defaults=ON) -------
+	t.Run("3_8_bare_timestamp_nullable_default_null", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Container side: legacy mode + permissive sql_mode.
-		setLegacyTimestampMode(t, mc)
-		defer restoreTimestampMode(t, mc)
-
+		// explicit_defaults_for_timestamp is fixed ON in TiDB, so a bare
+		// TIMESTAMP column (no NULL/NOT NULL, no default) becomes
+		// `timestamp NULL DEFAULT NULL` on both columns — no legacy promotion
+		// and no implicit '0000-00-00' zero default.
 		ddl := "CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP)"
-		// Run on container.
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
-			t.Errorf("oracle CREATE TABLE failed: %v", err)
-		}
-		// Run on omni separately — omni does not track the session var so
-		// its observed state is whatever omni's default branch produces.
-		results, err := c.Exec(ddl+";", nil)
-		if err != nil {
-			t.Errorf("omni parse error: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni exec error: %v", r.Error)
-			}
-		}
+		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: ts1 promoted, ts2 NOT NULL DEFAULT zero literal.
+		// Oracle: both columns nullable with DEFAULT NULL; no promotion.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		lo := strings.ToLower(create)
-		if !strings.Contains(lo, "default current_timestamp") {
-			t.Errorf("oracle: legacy-mode ts1 should have DEFAULT CURRENT_TIMESTAMP\n%s", create)
+		if strings.Contains(lo, "default current_timestamp") {
+			t.Errorf("oracle: TiDB should NOT promote a bare TIMESTAMP to DEFAULT CURRENT_TIMESTAMP\n%s", create)
 		}
-		if !strings.Contains(lo, "0000-00-00 00:00:00") {
-			t.Errorf("oracle: legacy-mode ts2 should have DEFAULT '0000-00-00 00:00:00'\n%s", create)
+		if strings.Contains(lo, "0000-00-00 00:00:00") {
+			t.Errorf("oracle: TiDB should NOT apply a '0000-00-00 00:00:00' default\n%s", create)
+		}
+		if strings.Count(lo, "timestamp null default null") != 2 {
+			t.Errorf("oracle: expected both columns rendered `timestamp NULL DEFAULT NULL`\n%s", create)
 		}
 
-		// omni asymmetry: omni does not track explicit_defaults_for_timestamp,
-		// so we cannot expect it to mirror the legacy transform. Document
-		// what omni does for posterity. Anything goes here EXCEPT crashing.
+		// omni mirrors TiDB: both columns nullable, no CURRENT_TIMESTAMP default.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
-			t.Errorf("omni: table t missing after legacy-mode CREATE TABLE")
+			t.Errorf("omni: table t missing")
 			return
 		}
 		ts1 := tbl.GetColumn("ts1")
@@ -328,45 +289,11 @@ func TestScenario_C3(t *testing.T) {
 			t.Errorf("omni: ts1/ts2 columns missing")
 			return
 		}
-		t.Logf("omni asymmetry (no session var tracking): ts1.Nullable=%v ts1.Default=%v ts2.Nullable=%v ts2.Default=%v",
-			ts1.Nullable, derefStr(ts1.Default), ts2.Nullable, derefStr(ts2.Default))
-	})
-}
-
-func derefStr(p *string) string {
-	if p == nil {
-		return "<nil>"
-	}
-	return *p
-}
-
-// setLegacyTimestampMode flips the container into the deprecated
-// pre-5.6 TIMESTAMP semantics (explicit_defaults_for_timestamp=OFF) and
-// drops the strict-zero-date sql_mode flags so '0000-00-00 00:00:00'
-// defaults are accepted. This is required for C3.1 and C3.8 which exercise
-// the legacy TIMESTAMP promotion path inside `promote_first_timestamp_column`.
-func setLegacyTimestampMode(t *testing.T, mc *mysqlContainer) {
-	t.Helper()
-	stmts := []string{
-		"SET SESSION explicit_defaults_for_timestamp=0",
-		"SET SESSION sql_mode=''",
-	}
-	for _, s := range stmts {
-		if _, err := mc.db.ExecContext(mc.ctx, s); err != nil {
-			t.Fatalf("setLegacyTimestampMode %q: %v", s, err)
+		for name, col := range map[string]*Column{"ts1": ts1, "ts2": ts2} {
+			assertBoolEq(t, "omni "+name+" Nullable", col.Nullable, true)
+			if col.Default != nil && strings.Contains(strings.ToLower(*col.Default), "current_timestamp") {
+				t.Errorf("omni: %s should NOT auto-promote to CURRENT_TIMESTAMP, got %q", name, *col.Default)
+			}
 		}
-	}
-}
-
-// restoreTimestampMode reverts the session vars touched by
-// setLegacyTimestampMode back to MySQL 8.0 defaults.
-func restoreTimestampMode(t *testing.T, mc *mysqlContainer) {
-	t.Helper()
-	stmts := []string{
-		"SET SESSION explicit_defaults_for_timestamp=1",
-		"SET SESSION sql_mode=DEFAULT",
-	}
-	for _, s := range stmts {
-		_, _ = mc.db.ExecContext(mc.ctx, s)
-	}
+	})
 }

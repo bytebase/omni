@@ -95,7 +95,9 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES parent(id)
         )`)
 
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
+		// TiDB auto-names the unnamed CREATE-path FK fk_<ordinal> (fk_2),
+		// not child_ibfk_1 as MySQL does.
+		want := []string{"child_ibfk_5", "fk_2"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -130,7 +132,9 @@ func TestScenario_PS(t *testing.T) {
 		runOnBoth(t, mc, c,
 			`ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)`)
 
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
+		// TiDB names the ALTER-added unnamed FK fk_<ordinal> (fk_2), not
+		// child_ibfk_21 (MySQL's max+1 over generated names).
+		want := []string{"child_ibfk_20", "fk_2"}
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -241,10 +245,11 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.7 FK name collision — user-named t_ibfk_1 collides with the
-	// generator's implicit first unnamed FK name. MySQL errors with
-	// ER_FK_DUP_NAME (1826). omni silently succeeds → HIGH severity bug.
-	t.Run("PS_7_FK_name_collision_errors", func(t *testing.T) {
+	// PS.7 FK name collision — user-named c_ibfk_1 does NOT collide with the
+	// generator's name under TiDB: the unnamed FK is auto-named fk_<ordinal>
+	// (fk_2), so there is no duplicate. MySQL rejects with ER_FK_DUP_NAME
+	// (1826); TiDB and omni both accept the statement.
+	t.Run("PS_7_FK_name_collision_allowed", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -258,12 +263,8 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES p(id)
         )`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.7 oracle: expected ER_FK_DUP_NAME (1826), got success")
-		} else if !strings.Contains(oracleErr.Error(), "1826") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.7 oracle: unexpected error text: %v", oracleErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, ddl); oracleErr != nil {
+			t.Errorf("PS.7 oracle: expected success (TiDB auto-names the unnamed FK fk_2, no collision), got %v", oracleErr)
 		}
 
 		var omniErr error
@@ -278,8 +279,8 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.7 omni: KNOWN BUG — expected ER_FK_DUP_NAME, got success (see mysql/catalog/scenarios_bug_queue/ps.md)")
+		if omniErr != nil {
+			t.Errorf("PS.7 omni: expected success (no FK name collision under TiDB naming), got %v", omniErr)
 		}
 	})
 
