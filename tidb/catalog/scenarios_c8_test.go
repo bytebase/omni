@@ -88,8 +88,9 @@ func TestScenario_C8(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT)`)
 
+		// TiDB reports ROW_FORMAT as Compact, not Dynamic (MySQL/InnoDB).
 		got := c8OracleStr(t, "ROW_FORMAT", "t")
-		assertStringEq(t, "oracle ROW_FORMAT", strings.ToLower(got), "dynamic")
+		assertStringEq(t, "oracle ROW_FORMAT", strings.ToLower(got), "compact")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -146,10 +147,10 @@ func TestScenario_C8(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a VARCHAR(10))`)
 
-		// Oracle: information_schema.TABLES.TABLE_COLLATION should be
-		// latin1_swedish_ci (the default collation of latin1).
+		// Under TiDB's new collation framework the default collation of latin1
+		// is latin1_bin, not latin1_swedish_ci (MySQL).
 		got := c8OracleStr(t, "TABLE_COLLATION", "t")
-		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_swedish_ci")
+		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_bin")
 
 		// Oracle: column a charset is latin1.
 		var colCS string
@@ -174,11 +175,14 @@ func TestScenario_C8(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT) COLLATE=latin1_german2_ci`)
+		// latin1_german2_ci is rejected under TiDB's new collation framework,
+		// so this uses latin1_bin, which TiDB supports. COLLATE alone still
+		// derives the charset (latin1).
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT) COLLATE=latin1_bin`)
 
-		// Oracle: TABLE_COLLATION should be latin1_german2_ci.
+		// Oracle: TABLE_COLLATION should be latin1_bin.
 		got := c8OracleStr(t, "TABLE_COLLATION", "t")
-		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_german2_ci")
+		assertStringEq(t, "oracle TABLE_COLLATION", strings.ToLower(got), "latin1_bin")
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -188,7 +192,7 @@ func TestScenario_C8(t *testing.T) {
 		assertStringEq(t, "omni table Charset",
 			strings.ToLower(tbl.Charset), "latin1")
 		assertStringEq(t, "omni table Collation",
-			strings.ToLower(tbl.Collation), "latin1_german2_ci")
+			strings.ToLower(tbl.Collation), "latin1_bin")
 	})
 
 	// --- 8.6 KEY_BLOCK_SIZE defaults to 0 and elided in SHOW -------------
@@ -327,17 +331,8 @@ func TestScenario_C8(t *testing.T) {
 		if strings.Contains(strings.ToUpper(show), "TABLESPACE=") {
 			t.Errorf("oracle SHOW CREATE TABLE should omit TABLESPACE=; got:\n%s", show)
 		}
-		// Oracle: information_schema.INNODB_TABLES has a row for the
-		// table, and its SPACE column is non-zero (each
-		// file_per_table tablespace has its own id).
-		var space int64
-		oracleScan(t, mc,
-			`SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES
-            WHERE NAME='testdb/t'`,
-			&space)
-		if space == 0 {
-			t.Errorf("oracle INNODB_TABLES.SPACE for testdb/t: got 0, want non-zero (file_per_table)")
-		}
+		// TiDB has no information_schema.INNODB_TABLES (it is not InnoDB), so
+		// the file-per-table tablespace probe that MySQL allows does not apply.
 
 		// Omni gap: no Tablespace field. Verify parser accepts an
 		// explicit TABLESPACE clause without crashing.
