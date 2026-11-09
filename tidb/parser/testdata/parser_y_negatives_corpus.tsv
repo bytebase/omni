@@ -4964,7 +4964,7 @@ reject	reject	SelectStmtOptsList#1/swap	SELECT ALTER ALL *
 reject	reject	SelectStmtSQLCache#2/insert	SELECT SQL_NO_CACHE zzz *
 reject	reject	SelectStmtIntoOption#2/drop-1	SELECT * OUTFILE 's'
 reject	reject	SelectStmtIntoOption#2/drop-2	SELECT * INTO 's'
-accept	reject	SelectStmtIntoOption#2/drop-3	SELECT * INTO OUTFILE
+reject	reject	SelectStmtIntoOption#2/drop-3	SELECT * INTO OUTFILE
 reject	reject	SelectStmtIntoOption#2/insert	SELECT * INTO OUTFILE 's' zzz
 reject	reject	SelectStmtIntoOption#2/swap	SELECT * INVISIBLE OUTFILE 's'
 reject	reject	SubSelect#1/drop-1	SELECT *)
@@ -7407,12 +7407,12 @@ reject	reject	FieldTerminator#3/insert	SELECT * INTO OUTFILE 's' FIELDS OPTIONAL
 reject	reject	Lines#2/insert	SELECT * INTO OUTFILE 's' LINES zzz
 reject	reject	Lines#2/swap	SELECT * INTO OUTFILE 's' LIST
 reject	reject	Starting#2/drop-1	SELECT * INTO OUTFILE 's' LINES BY 's'
-accept	reject	Starting#2/drop-2	SELECT * INTO OUTFILE 's' LINES STARTING 's'
-accept	reject	Starting#2/drop-3	SELECT * INTO OUTFILE 's' LINES STARTING BY
+reject	reject	Starting#2/drop-2	SELECT * INTO OUTFILE 's' LINES STARTING 's'
+reject	reject	Starting#2/drop-3	SELECT * INTO OUTFILE 's' LINES STARTING BY
 reject	reject	Starting#2/insert	SELECT * INTO OUTFILE 's' LINES STARTING BY 's' zzz
 reject	reject	Starting#2/swap	SELECT * INTO OUTFILE 's' LINES START_TIME BY 's'
-accept	reject	LinesTerminated#2/drop-2	SELECT * INTO OUTFILE 's' LINES TERMINATED 's'
-accept	reject	LinesTerminated#2/drop-3	SELECT * INTO OUTFILE 's' LINES TERMINATED BY
+reject	reject	LinesTerminated#2/drop-2	SELECT * INTO OUTFILE 's' LINES TERMINATED 's'
+reject	reject	LinesTerminated#2/drop-3	SELECT * INTO OUTFILE 's' LINES TERMINATED BY
 reject	reject	LinesTerminated#2/insert	SELECT * INTO OUTFILE 's' LINES TERMINATED BY 's' zzz
 reject	reject	LinesTerminated#2/swap	SELECT * INTO OUTFILE 's' LINES TEXT BY 's'
 reject	reject	LoadDataSetSpecOpt#2/drop-1	IMPORT INTO ident ident = DEFAULT FROM 's'
