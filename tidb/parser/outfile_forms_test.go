@@ -43,6 +43,22 @@ var outfileFieldsFormCases = []loadDataFormCase{
 	{"select * into outfile '/x' fields defined null by 'a' optionally", false},
 	// Every word of DEFINED NULL BY is a word, not a name.
 	{"select * into outfile '/x' fields `defined` null by 'a'", false},
+
+	// --- the file name is required, and so is each present LINES item's
+	// `BY 'string'` (measured against pingcap/tidb:v8.5.5 on 2026-11-09) ---
+	// OUTFILE with no file name after it.
+	{"select * into outfile", false},
+	// LINES STARTING / TERMINATED each need BY and a terminator value.
+	{"select * into outfile 's' lines starting 's'", false},
+	{"select * into outfile 's' lines starting by", false},
+	{"select * into outfile 's' lines terminated 's'", false},
+	{"select * into outfile 's' lines terminated by", false},
+	// The valid LINES forms still parse: a bare LINES, and STARTING and
+	// TERMINATED with their values, STARTING before TERMINATED.
+	{"select * into outfile 's' lines", true},
+	{"select * into outfile 's' lines starting by 'a'", true},
+	{"select * into outfile 's' lines terminated by 'b'", true},
+	{"select * into outfile 's' lines starting by 'a' terminated by 'b'", true},
 }
 
 // TestOutfileFieldsForms holds this parser to the verdicts above.

@@ -1998,10 +1998,17 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	switch p.cur.Type {
 	case kwOUTFILE:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			into.Outfile = p.cur.Str
-			p.advance()
+		// The file name is a string literal and not optional: v8.5.5 answers
+		// 1064 for `SELECT * INTO OUTFILE` with nothing after OUTFILE, as the
+		// SelectStmtIntoOption rule's `INTO OUTFILE stringLit` carries no empty
+		// alternative (measured 2026-11-09).
+		//
+		// Ref: SelectStmtIntoOption in TiDB v8.5.5 pkg/parser/parser.y.
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		into.Outfile = p.cur.Str
+		p.advance()
 
 		// [CHARACTER SET charset_name]
 		if p.cur.Type == kwCHARACTER {
@@ -2051,24 +2058,38 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			p.advance()
 			into.HasLinesClause = true
 
-			// [STARTING BY 'string']
+			// [STARTING BY 'string'] and [TERMINATED BY 'string'] read the
+			// same Lines rule LOAD DATA does: when STARTING or TERMINATED is
+			// present, BY and its terminator value are both required. v8.5.5
+			// answers 1064 for `LINES STARTING 's'` (no BY) and for `LINES
+			// STARTING BY` (no value), and the same for TERMINATED (measured
+			// 2026-11-09). parseFieldTerminator is the engine's shared
+			// FieldTerminator rule (a string, hex or bit literal).
+			//
+			// Ref: Lines and FieldTerminator in TiDB v8.5.5
+			// pkg/parser/parser.y.
 			if p.cur.Type == kwSTARTING {
 				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesStartingBy = p.cur.Str
-					p.advance()
+				if _, err := p.expect(kwBY); err != nil {
+					return nil, err
 				}
+				v, err := p.parseFieldTerminator()
+				if err != nil {
+					return nil, err
+				}
+				into.LinesStartingBy = v
 			}
 
-			// [TERMINATED BY 'string']
 			if p.cur.Type == kwTERMINATED {
 				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesTerminatedBy = p.cur.Str
-					p.advance()
+				if _, err := p.expect(kwBY); err != nil {
+					return nil, err
 				}
+				v, err := p.parseFieldTerminator()
+				if err != nil {
+					return nil, err
+				}
+				into.LinesTerminatedBy = v
 			}
 		}
 
