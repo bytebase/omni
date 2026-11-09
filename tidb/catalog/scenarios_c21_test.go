@@ -9,9 +9,9 @@ import (
 )
 
 // TestScenario_C21 covers section C21 (Parser-level implicit defaults) from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
-// MySQL 8.0 and the omni AST / catalog agree on the default value that the
-// grammar fills in when the user omits a clause.
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
+// real TiDB v8.5.5 and the omni AST / catalog agree on the default value that
+// the grammar fills in when the user omits a clause.
 //
 // Some of these scenarios are inherently parser-AST-level (JOIN type, ORDER
 // direction, LIMIT offset, INSERT column list) so they assert against the
@@ -19,7 +19,8 @@ import (
 // (DEFAULT NULL, FK actions, CREATE INDEX USING, CREATE VIEW ALGORITHM, ENGINE)
 // assert against both the container oracle and omni's catalog.
 //
-// Failures are recorded in mysql/catalog/scenarios_bug_queue/c21.md.
+// Forked from MySQL; the FK-action, ORDER-direction and ENGINE subtests are
+// re-baselined to TiDB v8.5.5's measured behavior (see the per-subtest notes).
 func TestScenario_C21(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -151,22 +152,25 @@ CREATE TABLE t2 (c INT);`
 			}
 		}
 
-		// omni AST: omni's OrderByItem has a single Desc bool, which cannot
-		// distinguish ORDER_NOT_RELEVANT from ORDER_ASC — both parse to
-		// Desc=false. Capture this as an asymmetry the catalog doc notes.
+		// omni AST: OrderByItem has a single Desc bool, so bare ORDER BY and
+		// explicit ASC both parse to Desc=false and explicit DESC to Desc=true.
+		// The missing tri-state (ORDER_NOT_RELEVANT vs ASC) is a representational
+		// asymmetry, not a parity divergence: TiDB v8.5.5 exposes no observable
+		// difference between `ORDER BY a` and `ORDER BY a ASC` (both accepted,
+		// both ascending, no information_schema/SHOW surface distinguishes them —
+		// confirmed against the container), and omni deparses both as `ORDER BY
+		// a`, matching TiDB's restore. A tri-state field would touch the AST
+		// node, parser, generated walker and every consumer with no
+		// oracle-measurable benefit, so it is documented and deferred.
 		bare := c21FirstOrderByItem(t, "SELECT * FROM t ORDER BY a")
 		asc := c21FirstOrderByItem(t, "SELECT * FROM t ORDER BY a ASC")
-		if bare == nil || asc == nil {
+		desc := c21FirstOrderByItem(t, "SELECT * FROM t ORDER BY a DESC")
+		if bare == nil || asc == nil || desc == nil {
 			return
 		}
-		// Bug: omni cannot represent ORDER_NOT_RELEVANT distinctly. Both yield
-		// Desc=false. We assert MySQL's grammar distinction is *not* preserved
-		// so the bug surfaces in the queue.
 		assertBoolEq(t, "omni bare ORDER BY Desc", bare.Desc, false)
 		assertBoolEq(t, "omni ORDER BY ASC Desc", asc.Desc, false)
-		// Known omni gap: no tri-state direction field. Document in bug queue.
-		t.Errorf("omni: OrderByItem has no tri-state direction — " +
-			"ORDER BY a and ORDER BY a ASC are indistinguishable in AST")
+		assertBoolEq(t, "omni ORDER BY DESC Desc", desc.Desc, true)
 	})
 
 	// --- 21.4 LIMIT N without OFFSET -> opt_offset NULL -------------------
@@ -238,10 +242,21 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			t.Errorf("omni: FK constraint missing on child")
 			return
 		}
-		// Omni maps UNDEF -> "NO ACTION" which matches the info_schema
-		// rendering. Any value distinct from NO ACTION is a bug.
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		// omni's internal model holds "" for an unspecified action, which is the
+		// TiDB-correct representation. Measured against the container: TiDB's
+		// SHOW CREATE emits ON DELETE/ON UPDATE only for an explicit
+		// NO ACTION/RESTRICT/CASCADE, never for an unspecified action, so the ""
+		// sentinel is what keeps omni's SHOW CREATE from emitting the clause (it
+		// matches TiDB exactly). TiDB's REFERENTIAL_CONSTRAINTS.DELETE_RULE does
+		// report "NO ACTION" (asserted on the oracle above), but omni has no
+		// information_schema query engine to surface, so there is nothing to map.
+		// Accept the default set (empty / NO ACTION / RESTRICT), as C5 does.
+		if !c5IsFKDefault(fk.OnDelete) {
+			t.Errorf("omni FK OnDelete: got %q, want default (empty/NO ACTION/RESTRICT)", fk.OnDelete)
+		}
+		if !c5IsFKDefault(fk.OnUpdate) {
+			t.Errorf("omni FK OnUpdate: got %q, want default (empty/NO ACTION/RESTRICT)", fk.OnUpdate)
+		}
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -278,8 +293,14 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			t.Errorf("omni: FK constraint missing")
 			return
 		}
+		// The explicit ON DELETE CASCADE is retained; the omitted ON UPDATE stays
+		// at omni's default representation (see 21.5) rather than being inherited
+		// from ON DELETE — TiDB reports UPDATE_RULE "NO ACTION" independently
+		// (asserted on the oracle above).
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		if !c5IsFKDefault(fk.OnUpdate) {
+			t.Errorf("omni FK OnUpdate: got %q, want default (empty/NO ACTION/RESTRICT)", fk.OnUpdate)
+		}
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------
@@ -426,21 +447,20 @@ CREATE TABLE t_b (a INT, KEY kb (a) USING BTREE);`
 		assertStringEq(t, "oracle t_noeng engine", e1, "InnoDB")
 		assertStringEq(t, "oracle t_eng engine", e2, "InnoDB")
 
-		// omni: parser must leave Table.Engine empty when no ENGINE clause.
-		// Post-parse fill (from a session variable) is a catalog-layer job and
-		// omni may or may not do it. We assert the distinction: t_noeng should
-		// NOT silently default to "InnoDB" at parse time.
+		// omni's catalog resolves the session-default engine (InnoDB) for a
+		// table with no ENGINE clause. That matches TiDB v8.5.5, where
+		// information_schema.TABLES.ENGINE and SHOW CREATE both report InnoDB for
+		// t_noeng and t_eng alike (measured above). The MySQL-parser notion of a
+		// NULL engine at parse time is not observable in TiDB, so omni holding
+		// "InnoDB" is parity-correct, not a premature fill.
 		tNo := c.GetDatabase("testdb").GetTable("t_noeng")
 		tEx := c.GetDatabase("testdb").GetTable("t_eng")
 		if tNo == nil || tEx == nil {
 			t.Errorf("omni: missing t_noeng or t_eng")
 			return
 		}
-		// The spec says parser should leave engine NULL. If omni fills
-		// "InnoDB" at parse time, that's a parser-vs-catalog-layer mix-up.
-		if strings.EqualFold(tNo.Engine, "InnoDB") {
-			t.Errorf("omni: t_noeng Engine is prematurely filled with InnoDB " +
-				"(parser should leave it empty; session-var fill is a post-parse step)")
+		if !strings.EqualFold(tNo.Engine, "InnoDB") {
+			t.Errorf("omni: t_noeng Engine = %q, want InnoDB (session default, TiDB-matching)", tNo.Engine)
 		}
 		if !strings.EqualFold(tEx.Engine, "InnoDB") {
 			t.Errorf("omni: t_eng Engine = %q, want InnoDB (explicit)", tEx.Engine)
