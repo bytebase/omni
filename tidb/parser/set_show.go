@@ -1791,6 +1791,13 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// DBName is an Identifier (parser.y:4440), which admits no reserved keyword.
+	// TIDB_CURRENT_TSO is reserved on v8.5.5 but omni's lexer scans it as a bare
+	// identifier, so reject it here; `USE TIDB_CURRENT_TSO` is a 1064.
+	if p.curIsReservedBareWord() {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err

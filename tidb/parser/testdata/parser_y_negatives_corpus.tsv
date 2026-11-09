@@ -3217,7 +3217,7 @@ reject	reject	TiDBKeyword#30/insert	USE STATS_META zzz
 reject	reject	TiDBKeyword#31/insert	USE STATS_TOPN zzz
 reject	reject	TiDBKeyword#32/insert	USE HISTOGRAMS_IN_FLIGHT zzz
 reject	reject	TiDBKeyword#33/insert	USE TIDB zzz
-accept	reject	TiDBKeyword#33/swap	USE TIDB_CURRENT_TSO
+reject	reject	TiDBKeyword#33/swap	USE TIDB_CURRENT_TSO
 reject	reject	TiDBKeyword#34/insert	USE TIFLASH zzz
 reject	reject	TiDBKeyword#35/insert	USE TOPN zzz
 reject	reject	TiDBKeyword#36/insert	USE SPLIT zzz
@@ -7256,7 +7256,7 @@ reject	reject	PrivType#12/swap	GRANT INDEXES TO CURRENT_USER
 reject	reject	PrivType#13/insert	GRANT INSERT zzz TO CURRENT_USER
 reject	reject	PrivType#13/swap	GRANT INSERT_METHOD TO CURRENT_USER
 reject	reject	PrivType#14/insert	GRANT SELECT zzz TO CURRENT_USER
-accept	reject	PrivType#14/swap	GRANT SEND_CREDENTIALS_TO_TIKV TO CURRENT_USER
+reject	reject	PrivType#14/swap	GRANT SEND_CREDENTIALS_TO_TIKV TO CURRENT_USER
 reject	reject	PrivType#15/insert	GRANT SUPER zzz TO CURRENT_USER
 reject	reject	PrivType#15/swap	GRANT SURVIVAL_PREFERENCES TO CURRENT_USER
 reject	reject	PrivType#16/drop-1	GRANT DATABASES TO CURRENT_USER
