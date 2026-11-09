@@ -81,6 +81,13 @@ func TestColumnOptionTailRequired(t *testing.T) {
 		"ALTER TABLE ident ADD ident TIMESTAMP DEFAULT (NOW())",
 		"ALTER TABLE ident ADD ident INT DEFAULT NEXT VALUE FOR ident",
 		"ALTER TABLE ident ADD ident INT DEFAULT NEXTVAL(ident)",
+		// A backtick-quoted name is an ordinary BuiltinFunction identifier call,
+		// not the reserved keyword, so TiDB v8.5.5 accepts these even though the
+		// bare keyword forms above are 1064s.
+		"ALTER TABLE ident ADD ident JSON DEFAULT `CURRENT_USER`()",
+		"ALTER TABLE ident ADD ident JSON DEFAULT `CURRENT_ROLE`()",
+		"ALTER TABLE ident ADD ident JSON DEFAULT (`CURRENT_USER`())",
+		"ALTER TABLE ident ADD ident JSON DEFAULT my_func()",
 	}
 	for _, sql := range accept {
 		t.Run("accept/"+sql, func(t *testing.T) {
