@@ -165,13 +165,14 @@ CREATE TABLE t3 (id INT NOT NULL);`
 	})
 
 	t.Run("drop_database_cascade", func(t *testing.T) {
-		// Scenario 7: DROP DATABASE cascade — all tables, views, routines removed.
+		// Scenario 7: DROP DATABASE cascade — all tables and views removed.
+		// TiDB has no stored routines (CREATE PROCEDURE is 8108 at Exec), so
+		// none is created here.
 		c := wtSetup(t)
 
 		// Create various objects.
 		wtExec(t, c, "CREATE TABLE t1 (id INT NOT NULL, val INT)")
 		wtExec(t, c, "CREATE VIEW v1 AS SELECT id FROM t1")
-		wtExec(t, c, "CREATE PROCEDURE p1() BEGIN SELECT 1; END")
 
 		// Verify objects exist.
 		db := c.GetDatabase("testdb")
@@ -183,9 +184,6 @@ CREATE TABLE t3 (id INT NOT NULL);`
 		}
 		if db.Views[toLower("v1")] == nil {
 			t.Fatal("v1 should exist before DROP DATABASE")
-		}
-		if db.Procedures[toLower("p1")] == nil {
-			t.Fatal("p1 should exist before DROP DATABASE")
 		}
 
 		// DROP DATABASE removes everything.

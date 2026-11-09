@@ -4130,96 +4130,47 @@ func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// 4.2.2: CREATE PROCEDURE — store metadata
-	t.Run("create_procedure", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_greet")
-		createSQL := "CREATE PROCEDURE sp_greet(IN name VARCHAR(100)) BEGIN SELECT CONCAT('Hello, ', name); END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_greet")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
-		}
+	// TiDB v8.5.5 compiles CREATE PROCEDURE and DROP PROCEDURE for MySQL
+	// compatibility but will not run a stored routine: it answers 8108 at
+	// execution, for the IF EXISTS drop of a missing routine too. omni's
+	// catalog parses the same statements and rejects them at Exec with the
+	// same code. (MySQL runs stored routines, so the mysql/mariadb forks keep
+	// accepting these — this rejection is TiDB-only.)
+	//
+	// CREATE/DROP/ALTER FUNCTION and ALTER PROCEDURE are not covered here:
+	// both engines' parsers refuse them (1064), so they never reach the
+	// catalog. refused_forms pins the parse-level rejection.
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{"create_procedure", "CREATE PROCEDURE sp_greet(IN name VARCHAR(100)) BEGIN SELECT CONCAT('Hello, ', name); END"},
+		{"create_procedure_empty_body", "CREATE PROCEDURE sp_noop() BEGIN SELECT 1; END"},
+		{"drop_procedure", "DROP PROCEDURE sp_greet"},
+		{"drop_procedure_if_exists", "DROP PROCEDURE IF EXISTS sp_absent"},
+	}
 
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_greet")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if code := mysqlErrorCode(ctr.execSQLDirect(tc.sql)); code != ErrStoredRoutineUnsupported {
+				t.Errorf("container %q: got error code %d, want %d", tc.sql, code, ErrStoredRoutineUnsupported)
+			}
 
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
-	})
-
-	// 4.2.3: DROP PROCEDURE
-	t.Run("drop_procedure", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_drop_test")
-		ctr.execSQLDirect("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END", nil)
-
-		// Drop on container
-		if err := ctr.execSQL("DROP PROCEDURE sp_drop_test"); err != nil {
-			t.Fatalf("container DROP PROCEDURE: %v", err)
-		}
-		// Drop on omni
-		results, _ := c.Exec("DROP PROCEDURE sp_drop_test", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni DROP PROCEDURE error: %v", results[0].Error)
-		}
-
-		_, ctrErr := ctr.showCreateProcedure("sp_drop_test")
-		omniDDL := c.ShowCreateProcedure("test", "sp_drop_test")
-
-		if ctrErr == nil {
-			t.Error("expected container error after DROP PROCEDURE")
-		}
-		if omniDDL != "" {
-			t.Error("expected empty omni DDL after DROP PROCEDURE")
-		}
-	})
-
-	// 4.2.8: SHOW CREATE PROCEDURE output
-	t.Run("show_create_procedure_output", func(t *testing.T) {
-		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_show_test")
-		createSQL := "CREATE PROCEDURE sp_show_test(IN id INT, OUT result VARCHAR(100)) BEGIN SET result = CONCAT('id=', id); END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_show_test")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
-		}
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_show_test")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
-	})
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			results, parseErr := c.Exec(tc.sql, nil)
+			if parseErr != nil {
+				t.Fatalf("omni parse error: %v", parseErr)
+			}
+			if len(results) != 1 {
+				t.Fatalf("omni: expected 1 result, got %d", len(results))
+			}
+			if code := mysqlErrorCode(results[0].Error); code != ErrStoredRoutineUnsupported {
+				t.Errorf("omni %q: got error code %d (%v), want %d", tc.sql, code, results[0].Error, ErrStoredRoutineUnsupported)
+			}
+		})
+	}
 }
 
 // extractViewPreamble extracts the CREATE VIEW preamble up to and including " AS ".

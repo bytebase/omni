@@ -201,12 +201,13 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.truncateTable(s)
 	case *nodes.UseStmt:
 		return c.useDatabase(s)
-	case *nodes.CreateFunctionStmt:
-		return c.createRoutine(s)
-	case *nodes.DropRoutineStmt:
-		return c.dropRoutine(s)
-	case *nodes.AlterRoutineStmt:
-		return c.alterRoutine(s)
+	case *nodes.CreateFunctionStmt, *nodes.DropRoutineStmt, *nodes.AlterRoutineStmt:
+		// TiDB parses CREATE/DROP PROCEDURE but rejects stored routines at
+		// execution (8108); the catalog keeps a routine model for the Define*
+		// loader path, but Exec matches TiDB and refuses. The parser already
+		// refuses the FUNCTION and ALTER forms (1064), so a procedure is all
+		// that reaches here.
+		return errStoredRoutineUnsupported()
 	case *nodes.CreateTriggerStmt:
 		return c.createTrigger(s)
 	case *nodes.DropTriggerStmt:

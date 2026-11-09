@@ -103,13 +103,14 @@ func TestDDLParamMarkerRejected(t *testing.T) {
 
 // TestRoutineBodyParamMarkerRejected checks that a `?` marker inside the rows of
 // an INSERT ... VALUES or a VALUES statement — which nodes.Inspect's walker
-// skips — is still refused when it rides in a stored routine, trigger, or view
-// body, so no unbound definition enters the catalog.
+// skips — is still refused when it rides in a trigger or view body, so no
+// unbound definition enters the catalog. (A stored procedure body is not
+// covered: TiDB rejects CREATE PROCEDURE wholesale at Exec with 8108, before a
+// body marker could matter.)
 func TestRoutineBodyParamMarkerRejected(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT)")
 	for _, sql := range []string{
-		"CREATE PROCEDURE p() INSERT INTO t VALUES (?)",
 		"CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW INSERT INTO t VALUES (?)",
 		"CREATE VIEW v AS SELECT * FROM (VALUES ROW(?)) AS x",
 	} {

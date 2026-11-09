@@ -74,66 +74,10 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	return nil
 }
 
-func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
-	db, err := c.resolveDatabase(stmt.Name.Schema)
-	if err != nil {
-		if stmt.IfExists {
-			return nil
-		}
-		return err
-	}
-
-	name := stmt.Name.Name
-	key := toLower(name)
-
-	routineMap := db.Functions
-	if stmt.IsProcedure {
-		routineMap = db.Procedures
-	}
-
-	if _, exists := routineMap[key]; !exists {
-		if stmt.IfExists {
-			return nil
-		}
-		if stmt.IsProcedure {
-			return errNoSuchProcedure(db.Name, name)
-		}
-		return errNoSuchFunction(name)
-	}
-
-	delete(routineMap, key)
-	return nil
-}
-
-func (c *Catalog) alterRoutine(stmt *nodes.AlterRoutineStmt) error {
-	db, err := c.resolveDatabase(stmt.Name.Schema)
-	if err != nil {
-		return err
-	}
-
-	name := stmt.Name.Name
-	key := toLower(name)
-
-	routineMap := db.Functions
-	if stmt.IsProcedure {
-		routineMap = db.Procedures
-	}
-
-	routine, exists := routineMap[key]
-	if !exists {
-		if stmt.IsProcedure {
-			return errNoSuchProcedure(db.Name, name)
-		}
-		return errNoSuchFunction(name)
-	}
-
-	// Update characteristics.
-	for _, ch := range stmt.Characteristics {
-		routine.Characteristics[ch.Name] = ch.Value
-	}
-
-	return nil
-}
+// DROP PROCEDURE and ALTER PROCEDURE/FUNCTION are not applied: TiDB rejects
+// DROP PROCEDURE at execution (8108) and its parser refuses the ALTER forms
+// (1064), so Exec handles both without touching the routine model. See
+// exec.go and errStoredRoutineUnsupported.
 
 // formatDataType formats a DataType node into a display string for routine parameters/returns.
 func formatDataType(dt *nodes.DataType) string {

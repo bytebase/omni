@@ -324,8 +324,8 @@ CREATE TABLE t2 (
 	}
 }
 
-// TestWalkThrough_4_1_MysqldumpStyle tests a mysqldump-style output with SET vars,
-// DELIMITER, procedures, and tables.
+// TestWalkThrough_4_1_MysqldumpStyle tests a mysqldump-style output with SET vars
+// and tables. A TiDB dump carries no stored routine (8108 at execution).
 func TestWalkThrough_4_1_MysqldumpStyle(t *testing.T) {
 	c := New()
 
@@ -358,15 +358,6 @@ CREATE TABLE orders (
     KEY idx_user_id (user_id),
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-DELIMITER ;;
-
-CREATE PROCEDURE get_user_orders(IN p_user_id INT)
-BEGIN
-    SELECT * FROM orders WHERE user_id = p_user_id;
-END;;
-
-DELIMITER ;
 
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT;
@@ -421,11 +412,9 @@ SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION;
 		t.Errorf("FK OnDelete: expected 'CASCADE', got %q", fk.OnDelete)
 	}
 
-	// Verify procedure.
-	proc := db.Procedures[toLower("get_user_orders")]
-	if proc == nil {
-		t.Fatal("procedure 'get_user_orders' not found")
-	}
+	// A mysqldump stored routine (CREATE PROCEDURE) is left out of this
+	// fixture: TiDB rejects stored routines at execution (8108), so a TiDB
+	// dump carries none.
 
 	// Verify FK checks were re-enabled at the end.
 	// The last SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS uses a variable reference,

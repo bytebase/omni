@@ -54,7 +54,12 @@ const (
 	// FULLTEXT index is exempt; a JSON column gives 3152, not this.
 	ErrBlobKeyWithoutLength = 1170
 	// ErrUnsupportedDDL is TiDB's 8200, for DDL it parses and does not run.
-	ErrUnsupportedDDL           = 8200
+	ErrUnsupportedDDL = 8200
+	// ErrStoredRoutineUnsupported is TiDB's 8108. TiDB compiles CREATE and
+	// DROP PROCEDURE for MySQL compatibility but will not run a stored
+	// routine, rejecting it at execution. (CREATE/DROP/ALTER FUNCTION and
+	// ALTER PROCEDURE never reach here: the parser refuses them, 1064.)
+	ErrStoredRoutineUnsupported = 8108
 	ErrUnknownCollation         = 1273
 	ErrCollationCharsetMismatch = 1253
 	// ErrCantAggregate2Collations, 3 and N are "Illegal mix of collations",
@@ -107,6 +112,7 @@ var sqlStateMap = map[int]string{
 	ErrNoSuchEvent:                       "HY000",
 	ErrDupEvent:                          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
+	ErrStoredRoutineUnsupported:          "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrUnknownCharacterSet:               "42000",
@@ -259,16 +265,6 @@ func errDupProcedure(name string) error {
 		Message: fmt.Sprintf("PROCEDURE %s already exists", name)}
 }
 
-func errNoSuchFunction(name string) error {
-	return &Error{Code: ErrNoSuchFunction, SQLState: sqlState(ErrNoSuchFunction),
-		Message: fmt.Sprintf("FUNCTION %s does not exist", name)}
-}
-
-func errNoSuchProcedure(db, name string) error {
-	return &Error{Code: ErrNoSuchProcedure, SQLState: sqlState(ErrNoSuchProcedure),
-		Message: fmt.Sprintf("PROCEDURE %s.%s does not exist", db, name)}
-}
-
 func errDupTrigger(name string) error {
 	return &Error{Code: ErrDupTrigger, SQLState: sqlState(ErrDupTrigger),
 		Message: fmt.Sprintf("Trigger already exists")}
@@ -292,6 +288,16 @@ func errNoSuchEvent(db, name string) error {
 func errUnsupportedGeneratedStorageChange(col, table string) error {
 	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
 		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
+}
+
+// errStoredRoutineUnsupported is TiDB v8.5.5's rejection of a stored-routine
+// statement it parses but will not run. CREATE PROCEDURE and DROP PROCEDURE
+// (including DROP PROCEDURE IF EXISTS of a routine that does not exist) all
+// answer this at execution; the message is TiDB's own (read 2026-11-09).
+// MySQL runs stored routines, so this rejection is TiDB-only.
+func errStoredRoutineUnsupported() error {
+	return &Error{Code: ErrStoredRoutineUnsupported, SQLState: sqlState(ErrStoredRoutineUnsupported),
+		Message: "Unsupported type *resolve.NodeW"}
 }
 
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
