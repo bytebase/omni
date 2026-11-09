@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      290
-# Rules with no citation:     400
+# Rules with a citation:      292
+# Rules with no citation:     398
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -121,8 +121,6 @@ AnyOrAll
 PredicateExpr
 RegexpSym
 LikeOrIlikeEscapeOpt
-Field
-FieldAsNameOpt
 FieldAsName
 FieldList
 WithRollupClause

@@ -980,6 +980,21 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
 	}
 
+	// A wildcard field takes no alias: the bare `*`, `tbl.*` and `db.tbl.*` are
+	// their own select-item forms with no select_alias, unlike `expr
+	// select_alias`. The server answers 1064 for `SELECT * x` and `SELECT t.* x`.
+	//
+	// Ref: the '*' arm of select_item_list, table_wild, and `expr select_alias`
+	// of select_item in MySQL 8.0 sql/sql_yacc.yy.
+	switch e := expr.(type) {
+	case *nodes.StarExpr:
+		return e, nil
+	case *nodes.ColumnRef:
+		if e.Star {
+			return e, nil
+		}
+	}
+
 	// Check for AS alias or implicit alias
 	var alias string
 	if _, ok := p.match(kwAS); ok {
