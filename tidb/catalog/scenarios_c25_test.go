@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 
@@ -162,6 +162,9 @@ func TestScenario_C25(t *testing.T) {
 		)`)
 
 		// Oracle: NUMERIC reported as decimal; precision=10, scale=2 for all.
+		// TiDB v8.5.5's information_schema.COLUMNS.COLUMN_TYPE drops ZEROFILL
+		// (it survives only in SHOW CREATE TABLE), so d2 reads the same as the
+		// plain UNSIGNED column here — MySQL keeps zerofill, TiDB does not.
 		rows := oracleRows(t, mc,
 			`SELECT COLUMN_NAME, COLUMN_TYPE, DATA_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE
 			 FROM information_schema.COLUMNS
@@ -169,7 +172,7 @@ func TestScenario_C25(t *testing.T) {
 			 ORDER BY ORDINAL_POSITION`)
 		want := map[string]string{
 			"d1": "decimal(10,2) unsigned",
-			"d2": "decimal(10,2) unsigned zerofill",
+			"d2": "decimal(10,2) unsigned",
 			"d3": "decimal(10,2) unsigned",
 		}
 		for _, r := range rows {
