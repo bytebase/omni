@@ -1,6 +1,44 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/tidb/ast"
+import (
+	"strings"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
+
+// isBlobOrTextKeyType reports whether a column of the given normalized data
+// type needs a prefix length to appear in a key. TiDB answers 1170 for a key
+// part over one without a length; a JSON column is 3152 instead, so it is not
+// listed here.
+func isBlobOrTextKeyType(dataType string) bool {
+	switch strings.ToLower(dataType) {
+	case "tinyblob", "blob", "mediumblob", "longblob",
+		"tinytext", "text", "mediumtext", "longtext":
+		return true
+	}
+	return false
+}
+
+// validateKeyColumnLengths rejects a key part over a BLOB or TEXT column that
+// names no prefix length, which TiDB answers 1170 for (read against
+// pingcap/tidb:v8.5.5 on 2026-11-09). It covers PRIMARY KEY, UNIQUE and plain
+// KEY alike; FULLTEXT indexes index the whole column and never reach here, and
+// a functional key part (an expression, so no column name) is exempt.
+func validateKeyColumnLengths(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic.Name == "" || ic.Length > 0 {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil {
+			continue
+		}
+		if isBlobOrTextKeyType(col.DataType) {
+			return errBlobKeyWithoutLength(ic.Name)
+		}
+	}
+	return nil
+}
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
@@ -50,6 +88,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			col.Expr = nodeToSQL(ic.Expr)
 		}
 		idxCols = append(idxCols, col)
+	}
+
+	// A plain or unique key over a BLOB/TEXT column needs a prefix length;
+	// FULLTEXT and SPATIAL were already refused above, so every key that
+	// reaches here is held to the rule.
+	if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+		return err
 	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
