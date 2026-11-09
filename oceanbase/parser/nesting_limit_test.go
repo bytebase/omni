@@ -212,6 +212,9 @@ var chainShapes = []struct {
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1", n) }},
+	// A conditionless join chain collapses left-deep in a loop, so it is bounded
+	// by the tree height like any other chain, not by the nesting depth.
+	{"conditionless joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }},
 	{"parenthesized table list", func(n int) string { return "SELECT * FROM (" + strings.Repeat("t, ", n) + "t)" }},
 	{"INSERT VALUES", func(n int) string { return "INSERT INTO t VALUES (" + strings.Repeat("1+", n) + "1)" }},
 	{"VALUES", func(n int) string { return "VALUES ROW(" + strings.Repeat("1+", n) + "1)" }},
