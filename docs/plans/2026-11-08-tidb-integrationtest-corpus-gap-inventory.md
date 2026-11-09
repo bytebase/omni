@@ -153,7 +153,7 @@ select default(t1.a) from t1, t2
 ```
 
 The `DEFAULT(col)` function takes a qualified column reference (`t1.a`), not only
-a bare column name.
+a bare column name. **Closed**: `fix(tidb): read a qualified column in DEFAULT()`.
 
 ### E. CREATE/ALTER table-option combinations — 2 rows
 
@@ -165,7 +165,10 @@ create table ttt4(a varchar(123) default null collate utf8mb4_unicode_ci)engine=
 Two option combinations omni rejects: `TTL_ENABLE = …` followed by `REMOVE TTL`
 in one `ALTER`, and a column `DEFAULT NULL COLLATE …` next to table-level
 `ENGINE` / `DEFAULT CHARSET` / `COLLATE` with no space before `)engine`. Each
-needs its own look before it is counted a single family.
+needs its own look before it is counted a single family. **Closed**: REMOVE TTL
+is now an AlterTableSpecSingleOpt tail (which also drops the `TTL_ENABLE='OFF',
+REMOVE TTL` over-acceptance), and a column DEFAULT value parses as a signed
+literal so a following COLLATE is its own option.
 
 ## Next
 

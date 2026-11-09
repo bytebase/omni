@@ -3012,6 +3012,12 @@ func writeConvertExpr(sb *strings.Builder, n *ConvertExpr) {
 func writeDefaultExpr(sb *strings.Builder, n *DefaultExpr) {
 	sb.WriteString("{DEFAULT")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Schema != "" {
+		fmt.Fprintf(sb, " :schema %s", n.Schema)
+	}
+	if n.Table != "" {
+		fmt.Fprintf(sb, " :table %s", n.Table)
+	}
 	if n.Column != "" {
 		fmt.Fprintf(sb, " :col %s", n.Column)
 	}

@@ -1452,7 +1452,14 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	case *ast.DefaultExpr:
 		b.WriteString("default")
 		if n.Column != "" {
-			b.WriteString("(" + quoteIdent(n.Column) + ")")
+			b.WriteString("(")
+			if n.Schema != "" {
+				b.WriteString(quoteIdent(n.Schema) + ".")
+			}
+			if n.Table != "" {
+				b.WriteString(quoteIdent(n.Table) + ".")
+			}
+			b.WriteString(quoteIdent(n.Column) + ")")
 		}
 	default:
 		fmt.Fprintf(b, "/* unsupported: %T */", node)

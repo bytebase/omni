@@ -124,6 +124,11 @@ func TestRestoreExpr(t *testing.T) {
 		{"@@global.b = 'foo'", "@@GLOBAL.`b`=_UTF8MB4'foo'"},
 		{"@@session.C", "@@SESSION.`c`"},
 		{"@@local.autocommit", "@@SESSION.`autocommit`"},
+		// DEFAULT(col) keeps its schema and table qualifiers through restore,
+		// as a view body must: the catalog stores the view through this path.
+		{"default(a)", "DEFAULT(`a`)"},
+		{"default(t1.a)", "DEFAULT(`t1`.`a`)"},
+		{"default(db.t1.a)", "DEFAULT(`db`.`t1`.`a`)"},
 	}
 	for _, tc := range cases {
 		stmts, err := parser.Parse("SELECT " + tc.in + " FROM t")

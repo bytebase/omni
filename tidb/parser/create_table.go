@@ -824,7 +824,12 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		}
 		return paren, nil
 	}
-	expr, err := p.parseExpr()
+	// TiDB's DefaultValueExpr is a signed literal or a function, not a full
+	// expression, so parse a prefix expression and leave an infix operator for
+	// the next column option: `DEFAULT NULL COLLATE utf8mb4_bin` is DEFAULT NULL
+	// followed by the COLLATE option, which v8.5.5 runs, and `DEFAULT 1+1` is a
+	// 1064. validColumnDefault below rejects what the prefix parse still over-reads.
+	expr, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
 	}

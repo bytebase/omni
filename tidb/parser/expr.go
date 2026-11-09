@@ -2793,14 +2793,27 @@ func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
 
 	de := &nodes.DefaultExpr{Loc: nodes.Loc{Start: start}}
 
-	// Check for DEFAULT(col_name) form
+	// Check for DEFAULT(col_name) form. The name may be qualified — TiDB v8.5.5
+	// runs DEFAULT(t1.a) and DEFAULT(db.t1.a) — so read up to schema.table.column.
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		col, _, err := p.parseIdentifier()
+		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		de.Column = col
+		de.Column = name
+		for i := 0; i < 2 && p.cur.Type == '.'; i++ {
+			p.advance() // consume '.'
+			next, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			de.Schema, de.Table, de.Column = de.Table, de.Column, next
+		}
+		if p.cur.Type == '.' {
+			// A fourth part is one qualifier too many.
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

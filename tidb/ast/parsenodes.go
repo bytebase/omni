@@ -2932,6 +2932,8 @@ func (e *ConvertExpr) exprNode() {}
 // DefaultExpr represents the DEFAULT keyword or DEFAULT(col_name) function used as an expression.
 type DefaultExpr struct {
 	Loc    Loc
+	Schema string // optional qualifier for DEFAULT(schema.table.col)
+	Table  string // optional qualifier for DEFAULT(table.col)
 	Column string // column name for DEFAULT(col_name) form; empty for bare DEFAULT
 }
 
