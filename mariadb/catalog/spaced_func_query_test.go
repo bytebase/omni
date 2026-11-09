@@ -39,3 +39,28 @@ func TestSpacedFuncQueryRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// TestSpacedFuncViewUpdatable pins that a spaced generic call does not make a
+// view non-updatable: `count (a)` is a generic scalar stored-function call, not
+// the COUNT aggregate, so a view selecting a real column beside it stays
+// updatable, where the adjacent aggregate makes the view non-updatable. (The
+// engine would reject such a view at creation because `count` has no function,
+// so this holds omni's inference consistent with its catalog analysis rather
+// than to an oracle.)
+func TestSpacedFuncViewUpdatable(t *testing.T) {
+	c := New()
+	mustExec(t, c, `CREATE DATABASE testdb; USE testdb;
+		CREATE TABLE t (a INT);
+		CREATE VIEW v_spaced AS SELECT a, count (a) AS x FROM t;
+		CREATE VIEW v_agg AS SELECT a, count(*) AS x FROM t;`)
+	db := c.GetDatabase("testdb")
+	if db == nil {
+		t.Fatal("testdb not found")
+	}
+	if v := db.Views["v_spaced"]; v == nil || !v.IsUpdatable {
+		t.Errorf("v_spaced IsUpdatable: got %v, want true (spaced generic call is not an aggregate)", v != nil && v.IsUpdatable)
+	}
+	if v := db.Views["v_agg"]; v == nil || v.IsUpdatable {
+		t.Errorf("v_agg IsUpdatable: got %v, want false (count(*) is the aggregate)", v != nil && v.IsUpdatable)
+	}
+}
