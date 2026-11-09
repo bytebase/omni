@@ -95,25 +95,26 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		assertStringEq(t, "omni partition names", strings.Join(omniNames, ","), strings.Join(want, ","))
 	})
 
-	// --- 1.4 CHECK constraint auto-name (t_chk_1) ------------------------
-	t.Run("1_4_check_auto_name", func(t *testing.T) {
+	// --- 1.4 CHECK constraint discarded under TiDB default ----------------
+	t.Run("1_4_check_discarded_under_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, CHECK (a > 0));`)
 
-		var got string
-		oracleScan(t, mc, `SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb'`, &got)
-		assertStringEq(t, "oracle CHECK name", got, "t_chk_1")
+		// tidb_enable_check_constraint is OFF by default in v8.5.5, so the
+		// CHECK is discarded — not auto-named or retained on either engine.
+		var n int
+		oracleScan(t, mc, `SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA='testdb'`, &n)
+		assertIntEq(t, "oracle CHECK_CONSTRAINTS rows", n, 0)
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
 			return
 		}
-		omniChecks := omniCheckNames(tbl)
-		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "t_chk_1")
+		assertIntEq(t, "omni CHECK count", len(omniCheckNames(tbl)), 0)
 	})
 
 	// --- 1.5 UNIQUE KEY auto-name uses field name ------------------------
@@ -379,25 +380,22 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		assertBoolEq(t, "omni has hidden functional col", hasHidden, true)
 	})
 
-	// --- 1.13 CHECK constraint name is schema-scoped ---------------------
-	t.Run("1_13_check_name_schema_scoped", func(t *testing.T) {
+	// --- 1.13 CHECK name discarded, so no cross-table dup-name error ------
+	t.Run("1_13_check_name_discarded_under_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// First table with named check: both should accept.
+		// First table with named check: both accept.
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, CONSTRAINT mychk CHECK (a > 0));`)
 
-		// Second table with duplicate named check: MySQL errors with 3822.
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "duplicate check constraint") {
-			t.Errorf("oracle: expected 3822 Duplicate check constraint name, got %v", mysqlErr)
+		// MySQL rejects the duplicate named CHECK on t2 (3822). Under the
+		// default OFF setting the CHECK is discarded, so the name is never
+		// registered and both engines accept the second table.
+		if _, oracleErr := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100))`); oracleErr != nil {
+			t.Errorf("oracle: expected success (CHECK discarded), got %v", oracleErr)
 		}
 
-		// omni: should also error.
 		results, err := c.Exec(
 			`CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100));`, nil)
 		omniErrored := err != nil
@@ -409,7 +407,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects cross-table duplicate CHECK name", omniErrored, true)
+		assertBoolEq(t, "omni accepts cross-table duplicate CHECK name (discarded)", omniErrored, false)
 	})
 }
 
