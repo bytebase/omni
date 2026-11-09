@@ -1137,12 +1137,16 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	//
+	// The IF/NOT/EXISTS run must be complete: TiDB v8.5.5 parser.y IfNotExists
+	// reads `/* empty */ | "IF" NotSym "EXISTS"`, so `CREATE USER IF EXISTS u`
+	// and `CREATE USER IF NOT u` are 1064. parseIfNotExists no-ops when p.cur
+	// is not IF, so `CREATE USER u` is unchanged.
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// user_spec [, user_spec] ...
 	for {
@@ -1251,11 +1255,14 @@ func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	//
+	// EXISTS is required after IF: TiDB v8.5.5 parser.y IfExists reads
+	// `/* empty */ | "IF" "EXISTS"`, so `DROP USER IF u` is 1064.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// user [, user] ...
 	users, err := p.parseUserList()
@@ -1281,11 +1288,14 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	//
+	// EXISTS is required after IF: TiDB v8.5.5 parser.y IfExists reads
+	// `/* empty */ | "IF" "EXISTS"`, so `ALTER USER IF u` is 1064.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Check for ALTER USER USER() ... (user_func_auth_option or registration_option)
 	if p.cur.Type == kwUSER && p.peekNext().Type == '(' {
@@ -2015,7 +2025,14 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		}
 
 		// TO
-		p.match(kwTO)
+		//
+		// TO is required in every pair: TiDB v8.5.5 parser.y UserToUserList reads
+		// `UserToUser | UserToUserList ',' UserToUser` and UserToUser is
+		// `Username "TO" Username`, so `RENAME USER a b` and a list with any
+		// pair missing TO are 1064.
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 
 		// new_user
 		pair.NewUser, pair.NewHost, err = p.parseRenameUserPart()

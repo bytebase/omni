@@ -690,17 +690,17 @@ reject	reject	TableToTableList#2/swap	RENAME TABLE ident TOKEN_ISSUER ident, ide
 reject	reject	RenameUserStmt#1/drop-1	USER CURRENT_USER TO CURRENT_USER
 reject	reject	RenameUserStmt#1/drop-2	RENAME CURRENT_USER TO CURRENT_USER
 reject	reject	RenameUserStmt#1/drop-3	RENAME USER TO CURRENT_USER
-accept	reject	RenameUserStmt#1/drop-4	RENAME USER CURRENT_USER CURRENT_USER
+reject	reject	RenameUserStmt#1/drop-4	RENAME USER CURRENT_USER CURRENT_USER
 reject	reject	RenameUserStmt#1/drop-5	RENAME USER CURRENT_USER TO
 reject	reject	RenameUserStmt#1/insert	RENAME USER CURRENT_USER TO CURRENT_USER zzz
 reject	reject	RenameUserStmt#1/swap	REORGANIZE USER CURRENT_USER TO CURRENT_USER
 reject	reject	UserToUserList#1/swap	RENAME USER CURSOR TO CURRENT_USER
 reject	reject	UserToUserList#2/drop-1	RENAME USER TO CURRENT_USER, CURRENT_USER TO CURRENT_USER
-accept	reject	UserToUserList#2/drop-2	RENAME USER CURRENT_USER CURRENT_USER, CURRENT_USER TO CURRENT_USER
+reject	reject	UserToUserList#2/drop-2	RENAME USER CURRENT_USER CURRENT_USER, CURRENT_USER TO CURRENT_USER
 reject	reject	UserToUserList#2/drop-3	RENAME USER CURRENT_USER TO, CURRENT_USER TO CURRENT_USER
 reject	reject	UserToUserList#2/drop-4	RENAME USER CURRENT_USER TO CURRENT_USER CURRENT_USER TO CURRENT_USER
 reject	reject	UserToUserList#2/drop-5	RENAME USER CURRENT_USER TO CURRENT_USER, TO CURRENT_USER
-accept	reject	UserToUserList#2/drop-6	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER CURRENT_USER
+reject	reject	UserToUserList#2/drop-6	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER CURRENT_USER
 reject	reject	UserToUserList#2/drop-7	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER TO
 reject	reject	UserToUserList#2/insert	RENAME USER CURRENT_USER TO CURRENT_USER, CURRENT_USER TO CURRENT_USER zzz
 reject	reject	UserToUserList#2/swap	RENAME USER CURSOR TO CURRENT_USER, CURRENT_USER TO CURRENT_USER
@@ -1973,7 +1973,7 @@ reject	reject	DropUserStmt#1/swap	DRY USER CURRENT_USER
 reject	reject	DropUserStmt#2/drop-1	USER IF EXISTS CURRENT_USER
 reject	reject	DropUserStmt#2/drop-2	DROP IF EXISTS CURRENT_USER
 reject	reject	DropUserStmt#2/drop-3	DROP USER EXISTS CURRENT_USER
-accept	reject	DropUserStmt#2/drop-4	DROP USER IF CURRENT_USER
+reject	reject	DropUserStmt#2/drop-4	DROP USER IF CURRENT_USER
 reject	reject	DropUserStmt#2/drop-5	DROP USER IF EXISTS
 reject	reject	DropUserStmt#2/insert	DROP USER IF EXISTS CURRENT_USER zzz
 reject	reject	DropUserStmt#2/swap	DRY USER IF EXISTS CURRENT_USER
@@ -2613,14 +2613,14 @@ reject	reject	AsOfClauseOpt#2/swap	DELETE ident FROM ident AS OF TIMESTAMPADD id
 reject	reject	AsOfClause#1/swap	START TRANSACTION READ ONLY AS OF TIMESTAMPADD ident
 reject	reject	IfExists#1/insert	ALTER USER zzz CURRENT_USER
 reject	reject	IfExists#2/drop-1	ALTER USER EXISTS CURRENT_USER
-accept	reject	IfExists#2/drop-2	ALTER USER IF CURRENT_USER
+reject	reject	IfExists#2/drop-2	ALTER USER IF CURRENT_USER
 reject	reject	IfExists#2/truncate	ALTER USER IF
 reject	reject	IfExists#2/insert	ALTER USER IF EXISTS zzz CURRENT_USER
 reject	reject	IfExists#2/swap	ALTER USER IGNORE EXISTS CURRENT_USER
 reject	reject	IfNotExists#1/insert	CREATE USER zzz CURRENT_USER
 reject	reject	IfNotExists#2/drop-1	CREATE USER NOT EXISTS CURRENT_USER
-accept	reject	IfNotExists#2/drop-2	CREATE USER IF EXISTS CURRENT_USER
-accept	reject	IfNotExists#2/drop-3	CREATE USER IF NOT CURRENT_USER
+reject	reject	IfNotExists#2/drop-2	CREATE USER IF EXISTS CURRENT_USER
+reject	reject	IfNotExists#2/drop-3	CREATE USER IF NOT CURRENT_USER
 reject	reject	IfNotExists#2/truncate	CREATE USER IF NOT
 reject	reject	IfNotExists#2/insert	CREATE USER IF NOT EXISTS zzz CURRENT_USER
 reject	reject	IfNotExists#2/swap	CREATE USER IGNORE NOT EXISTS CURRENT_USER
