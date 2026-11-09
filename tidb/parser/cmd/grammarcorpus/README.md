@@ -1,8 +1,15 @@
 # grammarcorpus
 
-Builds the parser.y completeness corpus,
-`tidb/parser/testdata/parser_y_corpus.tsv`: for every alternative of every rule
-in TiDB's grammar, the shortest statement that exercises it.
+Builds two corpora from TiDB's grammar:
+
+- `-mode positives` (default) → `tidb/parser/testdata/parser_y_corpus.tsv`: for
+  every alternative of every rule, the shortest statement that exercises it (the
+  completeness corpus).
+- `-mode negatives` → `tidb/parser/testdata/parser_y_negatives_corpus.tsv`: for
+  each of those alternatives, near-misses that break the production in one place
+  — drop a required token, truncate it, insert a stray token, or swap a keyword
+  for its neighbour (the §3.6 grammar-guided rejection corpus). Expected verdict
+  reject/reject; an omni-accept/engine-reject row is an over-acceptance bug.
 
 It is a plain root-module command, like each engine's `genwalker`: `go test
 ./...` compiles it but never runs it. It imports nothing from pingcap or omni:
