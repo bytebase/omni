@@ -2342,9 +2342,15 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(".")
 		b.WriteString(quoteIdent(routine))
 	} else {
-		canonical, ok := funcNameRewrites[name]
-		if !ok {
-			canonical = strings.ToLower(n.Name)
+		// A spaced generic call names a routine of that literal name, not the
+		// builtin, so its name keeps its own spelling: substring (1) stays
+		// substring (1) and stddev (a) stays stddev (a), never the builtin's
+		// substr or std.
+		canonical := strings.ToLower(n.Name)
+		if !n.SpacedParen {
+			if rewrite, ok := funcNameRewrites[name]; ok {
+				canonical = rewrite
+			}
 		}
 		b.WriteString(canonical)
 	}

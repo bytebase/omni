@@ -128,6 +128,15 @@ var spacedFuncWordCases = []struct {
 	{"select abc ( a )", true},
 	{"select abc ( * )", false},
 	{"select foo (x)", true},
+
+	// --- a spaced gated keyword is a generic stored-function call, which a
+	//     partition expression forbids like a qualified or quoted one, even
+	//     though the adjacent builtin is allowed there ---
+	{"create table t (a int) partition by hash(sum(a))", true},
+	{"create table t (a int) partition by hash(sum (a))", false},
+	{"create table t (a int) partition by hash(max (a))", false},
+	{"create table t (a int) partition by hash(bit_and (a))", false},
+	{"create table t (a int) partition by hash(`sum`(a))", false},
 }
 
 func TestMariaDBSpacedFuncWords(t *testing.T) {
@@ -140,10 +149,11 @@ func TestMariaDBSpacedFuncWords(t *testing.T) {
 }
 
 // TestMariaDBSpacedFuncWordsRoundTrip pins that a spaced generic call whose name
-// is a gated builtin keyword survives deparse and parses again. Without the
-// SpacedParen marker the renderer would drop the space and the output would
-// re-lex as the builtin: max(a, a), count(a, a), count() and the special-form
-// arities are all 1064s. The parser sets SpacedParen on exactly these calls.
+// is a gated builtin keyword survives deparse unchanged: it parses again, keeps
+// its SpacedParen marker, and keeps its own name. Without the marker the renderer
+// would drop the space (max(a, a), count() re-lex as the builtin, a 1064) and
+// apply funcNameRewrites (substring (1) -> substr (1), stddev (a) -> std (a), a
+// different routine).
 func TestMariaDBSpacedFuncWordsRoundTrip(t *testing.T) {
 	for _, sql := range []string{
 		"select count (a)",
@@ -155,6 +165,8 @@ func TestMariaDBSpacedFuncWordsRoundTrip(t *testing.T) {
 		"select group_concat (a, a)",
 		"select position (a)",
 		"select substring (a)",
+		"select stddev (a)",
+		"select stddev_pop (a)",
 		"select json_objectagg (a)",
 	} {
 		fc := firstFuncCall(t, sql)
@@ -164,6 +176,14 @@ func TestMariaDBSpacedFuncWordsRoundTrip(t *testing.T) {
 		out := deparse.Deparse(fc)
 		if _, err := Parse("select " + out); err != nil {
 			t.Errorf("%q: deparse produced %q, which does not re-parse: %v", sql, out, err)
+			continue
+		}
+		rt := firstFuncCall(t, "select "+out)
+		if rt.Name != fc.Name {
+			t.Errorf("%q: deparse produced %q, renaming %s to %s", sql, out, fc.Name, rt.Name)
+		}
+		if !rt.SpacedParen {
+			t.Errorf("%q: deparse produced %q, which lost the spaced-paren marker", sql, out)
 		}
 	}
 }

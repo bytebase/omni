@@ -855,7 +855,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// keeps the space so the call does not re-lex as the builtin.
 	spacedGeneric := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && p.spacedFuncWordIsName(strings.ToUpper(name))
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !spacedGeneric
-	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
+	// A spaced gated keyword is a generic stored-function call, which a partition
+	// expression forbids like any qualified or quoted one: mysql:8.0 accepts
+	// HASH(sum(a)) but rejects HASH(sum (a)) and HASH(`sum`(a)).
+	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema) || spacedGeneric, start); err != nil {
 		return nil, err
 	}
 	p.advance() // consume '('

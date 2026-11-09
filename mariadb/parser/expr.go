@@ -849,7 +849,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return nil, err
 		}
 	}
-	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
+	// A spaced gated keyword is a generic stored-function call, which a partition
+	// expression forbids like any qualified or quoted one: mariadb:11.8.8 accepts
+	// HASH(sum(a)) but rejects HASH(sum (a)) and HASH(`sum`(a)).
+	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema) || spacedGeneric, start); err != nil {
 		return nil, err
 	}
 	p.advance() // consume '('
