@@ -108,6 +108,20 @@ var databaseOptionCases = []databaseOptionCase{
 	{"ALTER DATABASE d CHARSET = 'utf8', COLLATE = 'utf8_bin'", false},
 	{"ALTER DATABASE d, CHARSET = 'utf8'", false},
 	{"CREATE DATABASE d CHARSET = 'utf8', COLLATE = 'utf8_bin'", false},
+	// A completed option is not followed by a bare token: no DatabaseOption
+	// begins with an identifier, so a trailing word after a valid collation
+	// name is a 1064. omni and the engine agree here.
+	//
+	// The one exception is a string naming a collation the server does not know:
+	// `ALTER DATABASE COLLATE 's' zzz` is accepted by TiDB v8.5.5 (and recorded
+	// as a gap at parser_y_negatives_corpus.tsv CollationName#1/insert). The
+	// CollationName action calls GetCollationByName, and on an unknown name it
+	// returns 1, which fires the grammar's error recovery and swallows the
+	// trailing tokens; a known name parses strictly and rejects them. omni is a
+	// syntactic parser with no collation catalog, so it cannot accept the
+	// unknown-name form without also accepting the known-name form the engine
+	// rejects -- that is why the string case is not pinned here as agreement.
+	{"ALTER DATABASE COLLATE binary zzz", false},
 	// ALTER DATABASE needs one option; CREATE DATABASE is the one that does not.
 	{"ALTER DATABASE", false},
 	{"ALTER DATABASE d", false},

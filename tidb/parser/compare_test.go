@@ -8890,6 +8890,46 @@ func TestParseDeleteTableAlias(t *testing.T) {
 	}
 }
 
+// TestParseDeletePartitionAlias pins the single-table DELETE clause order
+// PartitionNameListOpt TableAsNameOpt (parser.y:5232, v8.5.5): the partition
+// list precedes the optional table alias, so `DELETE FROM t PARTITION(p) a`
+// names alias a, while `DELETE FROM t a PARTITION(p)` is a 1064.
+func TestParseDeletePartitionAlias(t *testing.T) {
+	t.Run("alias after partition", func(t *testing.T) {
+		stmt := parseDelete(t, "DELETE FROM t1 PARTITION (p0) a")
+		tr, ok := stmt.Tables[0].(*ast.TableRef)
+		if !ok {
+			t.Fatalf("Tables[0] = %T, want *ast.TableRef", stmt.Tables[0])
+		}
+		if tr.Alias != "a" {
+			t.Errorf("alias = %q, want a", tr.Alias)
+		}
+		if len(tr.Partitions) != 1 || tr.Partitions[0] != "p0" {
+			t.Errorf("partitions = %v, want [p0]", tr.Partitions)
+		}
+	})
+
+	t.Run("AS alias after partition with WHERE", func(t *testing.T) {
+		stmt := parseDelete(t, "DELETE FROM t1 PARTITION (p0) AS a WHERE a.id = 1")
+		tr := stmt.Tables[0].(*ast.TableRef)
+		if tr.Alias != "a" {
+			t.Errorf("alias = %q, want a", tr.Alias)
+		}
+		if len(tr.Partitions) != 1 {
+			t.Errorf("partitions = %v, want [p0]", tr.Partitions)
+		}
+		if stmt.Where == nil {
+			t.Error("expected WHERE clause")
+		}
+	})
+
+	t.Run("alias before partition rejected", func(t *testing.T) {
+		if _, err := Parse("DELETE FROM t1 a PARTITION (p0)"); err == nil {
+			t.Error("Parse accepted an alias before PARTITION; TiDB v8.5.5 answers 1064")
+		}
+	})
+}
+
 func TestParseWithUpdate(t *testing.T) {
 	tests := []string{
 		"WITH cte AS (SELECT id, val FROM t2) UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val",

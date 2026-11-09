@@ -195,10 +195,23 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 		}
 		stmt.Tables = tables
 
-		// Single-table: optional [AS] alias and PARTITION
+		// Single-table: PartitionNameListOpt, then TableAsNameOpt, then
+		// IndexHintListOpt, in that order (parser.y:5232, v8.5.5). The partition
+		// list precedes the alias: `DELETE FROM t PARTITION(p) a` is the accepted
+		// form, and `DELETE FROM t a PARTITION(p)` is a 1064.
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
-				// Optional [AS] alias
+				// Optional PARTITION (p0, p1, ...)
+				if p.cur.Type == kwPARTITION {
+					p.advance()
+					parts, err := p.parseParenIdentList()
+					if err != nil {
+						return nil, err
+					}
+					tblRef.Partitions = parts
+					tblRef.Loc.End = p.prev.End
+				}
+				// Optional [AS] alias (TableAsNameOpt, parser.y:5232).
 				if _, ok := p.match(kwAS); ok {
 					alias, _, err := p.parseIdent()
 					if err != nil {
@@ -217,16 +230,6 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 						return nil, err
 					}
 					tblRef.Alias = alias
-					tblRef.Loc.End = p.prev.End
-				}
-				// Optional PARTITION (p0, p1, ...)
-				if p.cur.Type == kwPARTITION {
-					p.advance()
-					parts, err := p.parseParenIdentList()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Partitions = parts
 					tblRef.Loc.End = p.prev.End
 				}
 				// Optional index hints (IndexHintListOpt, parser.y:5232):
