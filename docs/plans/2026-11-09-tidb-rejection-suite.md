@@ -131,3 +131,15 @@ here — noted, never fixed by widening `Parse`.
 - Note: the forks' loose word-collector also over-accepts trailing junk relative
   to MySQL's grammar (`RELOAD TLS zzz`, malformed NO clause); fixing them to
   MySQL's full instance_action is separate, measured against MySQL.
+
+### (c) close over-acceptances — cluster 5: ALTER TABLE spec required keywords
+
+- **Cluster: ALTER TABLE spec trailing keywords.** The alter-spec parser used
+  `p.match` (optional) where the grammar requires a keyword, so omni accepted
+  `ALTER TABLE t ENABLE` / `DISABLE` (no KEYS), `WITH` / `WITHOUT` (no VALIDATION,
+  incl. EXCHANGE PARTITION … WITH/WITHOUT), and `ORDER c` (no BY).
+- Shared across all four engines (MySQL-family). Changed each `p.match` to
+  `p.expect` for KEYS, VALIDATION, and BY in tidb/mysql/mariadb/oceanbase.
+- Measured live: over-acceptances **106 → 99** (7 rows to reject/reject, 0
+  no-verdict), no new gaps, positive corpora unregressed; broad parse unit tests
+  pass on all four engines.

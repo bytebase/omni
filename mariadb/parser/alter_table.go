@@ -441,7 +441,9 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwORDER:
 		// ORDER BY col_name [ASC | DESC] [, ...]
 		p.advance()
-		p.match(kwBY)
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATOrderBy
 		items, err := p.parseOrderByList()
 		if err != nil {
@@ -454,7 +456,9 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwENABLE:
 		// ENABLE KEYS
 		p.advance()
-		p.match(kwKEYS)
+		if _, err := p.expect(kwKEYS); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATEnableKeys
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -462,7 +466,9 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwDISABLE:
 		// DISABLE KEYS
 		p.advance()
-		p.match(kwKEYS)
+		if _, err := p.expect(kwKEYS); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDisableKeys
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -470,7 +476,9 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwWITH:
 		// WITH VALIDATION
 		p.advance()
-		p.match(kwVALIDATION)
+		if _, err := p.expect(kwVALIDATION); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATWithValidation
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -478,7 +486,9 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwWITHOUT:
 		// WITHOUT VALIDATION
 		p.advance()
-		p.match(kwVALIDATION)
+		if _, err := p.expect(kwVALIDATION); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATWithoutValidation
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -1345,12 +1355,16 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 	// Optional [{WITH | WITHOUT} VALIDATION]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		p.match(kwVALIDATION)
+		if _, err := p.expect(kwVALIDATION); err != nil {
+			return nil, err
+		}
 		v := true
 		cmd.WithValidation = &v
 	} else if p.cur.Type == kwWITHOUT {
 		p.advance()
-		p.match(kwVALIDATION)
+		if _, err := p.expect(kwVALIDATION); err != nil {
+			return nil, err
+		}
 		v := false
 		cmd.WithValidation = &v
 	}
