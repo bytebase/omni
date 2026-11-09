@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      305
-# Rules with no citation:     385
+# Rules with a citation:      307
+# Rules with no citation:     383
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -50,8 +50,6 @@ PrimaryOpt
 EnforcedOrNotOpt
 AutoRandomOpt
 StorageMedia
-ColumnFormat
-GeneratedAlways
 VirtualOrStored
 ColumnOptionList
 ColumnOptionListOpt

@@ -754,7 +754,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "DEFAULT"
 			p.advance()
 		default:
-			return false, nil
+			// ColumnFormat is required: DEFAULT, FIXED or DYNAMIC. A bare
+			// COLUMN_FORMAT is a 1064 on TiDB v8.5.5.
+			// Ref: `"COLUMN_FORMAT" ColumnFormat` and the ColumnFormat rule
+			// (DEFAULT|FIXED|DYNAMIC) in TiDB v8.5.5 pkg/parser/parser.y.
+			return false, p.syntaxErrorAtCur()
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -819,7 +823,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 			return nil, err
 		}
 		paren := &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}
-		if !validColumnDefault(paren) {
+		if !p.validColumnDefault(paren) {
 			return nil, &ParseError{Message: "Invalid default value", Position: start}
 		}
 		return paren, nil
@@ -836,7 +840,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if !validColumnDefault(expr) {
+	if !p.validColumnDefault(expr) {
 		return nil, &ParseError{Message: "Invalid default value", Position: start}
 	}
 	return expr, nil
@@ -848,12 +852,13 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 // function call wrapped in parentheses. A parenthesized literal, column or
 // arithmetic is not one: `DEFAULT (0)`, `(b)`, `(1+1)` and `DEFAULT 1+1` are
 // 1064s on v8.5.5, while `DEFAULT 0`, `-1`, `now()` and `(now())` parse.
-func validColumnDefault(expr nodes.ExprNode) bool {
+func (p *Parser) validColumnDefault(expr nodes.ExprNode) bool {
 	switch n := expr.(type) {
 	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.HexLit,
-		*nodes.BitLit, *nodes.NullLit, *nodes.BoolLit, *nodes.TemporalLit,
-		*nodes.FuncCallExpr:
+		*nodes.BitLit, *nodes.NullLit, *nodes.BoolLit, *nodes.TemporalLit:
 		return true
+	case *nodes.FuncCallExpr:
+		return p.defaultFuncAllowed(n)
 	case *nodes.UnaryExpr:
 		// SignedLiteral: a numeric literal with a leading + or -.
 		if n.Op != nodes.UnaryPlus && n.Op != nodes.UnaryMinus {
@@ -874,10 +879,34 @@ func validColumnDefault(expr nodes.ExprNode) bool {
 			}
 			inner = pe.Expr
 		}
-		_, ok := inner.(*nodes.FuncCallExpr)
-		return ok
+		fc, ok := inner.(*nodes.FuncCallExpr)
+		return ok && p.defaultFuncAllowed(fc)
 	}
 	return false
+}
+
+// defaultFuncAllowed reports whether a function-call DEFAULT is one of
+// DefaultValueExpr's function forms (parser.y:4052, v8.5.5): a NowSym/CurdateSym
+// value, NEXT VALUE FOR / NEXTVAL, or a BuiltinFunction `identifier '(' ... ')'`.
+// Bare CURRENT_USER and CURRENT_ROLE are reserved Username/Rolename keywords, not
+// an `identifier`, and appear in none of those alternatives, so `DEFAULT
+// CURRENT_USER`, `DEFAULT CURRENT_USER()` and `DEFAULT CURRENT_ROLE()` are 1064s
+// on TiDB v8.5.5. (CURRENT_ROLE is reserved in TiDB though this lexer lacks the
+// keyword, so it reaches here as an ordinary call and must be named out.)
+//
+// A backtick-quoted or schema-qualified name is an ordinary identifier call, not
+// the reserved keyword, which BuiltinFunction's `identifier '(' ... ')'` accepts:
+// `DEFAULT `CURRENT_USER`()` parses on v8.5.5. parseFuncCall uppercases both
+// quoted and unquoted names, so the quoting is read back from the name token.
+func (p *Parser) defaultFuncAllowed(fc *nodes.FuncCallExpr) bool {
+	if fc.Schema != "" || p.backtickQuotedAt(fc.Loc.Start) {
+		return true
+	}
+	switch fc.Name {
+	case "CURRENT_USER", "CURRENT_ROLE":
+		return false
+	}
+	return true
 }
 
 // parseReferenceDefinition parses a REFERENCES clause.
@@ -990,9 +1019,13 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// Optional ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// ALWAYS is required after GENERATED: the rule is
+	// `GeneratedAlways "AS" '(' Expression ')'` where GeneratedAlways is empty
+	// (the AS shorthand) or the pair "GENERATED" "ALWAYS". So `GENERATED AS
+	// (expr)` without ALWAYS is a 1064 on TiDB v8.5.5.
+	// Ref: GeneratedAlways in TiDB v8.5.5 pkg/parser/parser.y.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
 
 	// AS
@@ -2716,12 +2749,22 @@ func (p *Parser) parseColumnCheckConstraint(start int) (*nodes.ColumnConstraint,
 		Type: nodes.ColConstrCheck,
 		Expr: expr,
 	}
-	// [[NOT] ENFORCED]
+	// EnforcedOrNotOrNotNullOpt: empty, ENFORCED, NOT ENFORCED, or NOT NULL. A
+	// trailing NOT must begin NOT ENFORCED here, or NOT NULL — which the outer
+	// column-option loop reads as a separate option, so we leave it in place. A
+	// bare NOT followed by neither is a 1064 on TiDB v8.5.5.
+	// Ref: EnforcedOrNotOrNotNullOpt in TiDB v8.5.5 pkg/parser/parser.y.
 	if p.cur.Type == kwNOT {
-		p.advance()
-		if p.cur.Type == kwENFORCED {
-			p.advance()
+		switch p.peekNext().Type {
+		case kwENFORCED:
+			p.advance() // NOT
+			p.advance() // ENFORCED
 			cc.NotEnforced = true
+		case kwNULL:
+			// NOT NULL: a separate column option. Leave it for the loop.
+		default:
+			p.advance() // consume NOT so the error points at what follows
+			return nil, p.syntaxErrorAtCur()
 		}
 	} else if p.cur.Type == kwENFORCED {
 		p.advance()
