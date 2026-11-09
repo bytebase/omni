@@ -5783,21 +5783,21 @@ reject	reject	ShowProfileTypesOpt#2/insert	SHOW PROFILE CPU zzz
 reject	reject	ShowProfileTypesOpt#2/swap	SHOW PROFILE CREATE
 reject	reject	ShowProfileTypes#2/drop-1	SHOW PROFILE, CPU
 reject	reject	ShowProfileTypes#2/drop-2	SHOW PROFILE CPU CPU
-accept	reject	ShowProfileTypes#2/drop-3	SHOW PROFILE CPU,
+reject	reject	ShowProfileTypes#2/drop-3	SHOW PROFILE CPU,
 reject	reject	ShowProfileTypes#2/insert	SHOW PROFILE CPU, CPU zzz
 reject	reject	ShowProfileTypes#2/swap	SHOW PROFILE CREATE, CPU
 reject	reject	ShowProfileType#2/insert	SHOW PROFILE MEMORY zzz
 reject	reject	ShowProfileType#2/swap	SHOW PROFILE MERGE
 reject	reject	ShowProfileType#3/drop-1	SHOW PROFILE IO
-accept	reject	ShowProfileType#3/drop-2	SHOW PROFILE BLOCK
+reject	reject	ShowProfileType#3/drop-2	SHOW PROFILE BLOCK
 reject	reject	ShowProfileType#3/insert	SHOW PROFILE BLOCK IO zzz
 reject	reject	ShowProfileType#3/swap	SHOW PROFILE BOOL IO
 reject	reject	ShowProfileType#4/drop-1	SHOW PROFILE SWITCHES
-accept	reject	ShowProfileType#4/drop-2	SHOW PROFILE CONTEXT
+reject	reject	ShowProfileType#4/drop-2	SHOW PROFILE CONTEXT
 reject	reject	ShowProfileType#4/insert	SHOW PROFILE CONTEXT SWITCHES zzz
 reject	reject	ShowProfileType#4/swap	SHOW PROFILE CONTINUE SWITCHES
 reject	reject	ShowProfileType#5/drop-1	SHOW PROFILE FAULTS
-accept	reject	ShowProfileType#5/drop-2	SHOW PROFILE PAGE
+reject	reject	ShowProfileType#5/drop-2	SHOW PROFILE PAGE
 reject	reject	ShowProfileType#5/insert	SHOW PROFILE PAGE FAULTS zzz
 reject	reject	ShowProfileType#5/swap	SHOW PROFILE PARSER FAULTS
 reject	reject	ShowProfileType#6/insert	SHOW PROFILE IPC zzz

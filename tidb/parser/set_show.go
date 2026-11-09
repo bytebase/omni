@@ -1606,17 +1606,26 @@ func (p *Parser) parseShowFromLikeOrWhere(stmt *nodes.ShowStmt) error {
 //	  | SWAPS
 //	}
 func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
-	// Parse optional profile type list
-	for {
-		pt := p.parseShowProfileType()
-		if pt == "" {
-			break
-		}
+	// Parse optional profile type list. The list is `type [, type] ...`
+	// (parser.y:11763-11772, ShowProfileTypes), so every comma is followed by
+	// a type and a trailing comma is a syntax error.
+	pt, err := p.parseShowProfileType()
+	if err != nil {
+		return err
+	}
+	for pt != "" {
 		stmt.ProfileTypes = append(stmt.ProfileTypes, pt)
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ','
+		pt, err = p.parseShowProfileType()
+		if err != nil {
+			return err
+		}
+		if pt == "" {
+			return p.syntaxErrorAtCur()
+		}
 	}
 
 	// Optional FOR QUERY n
@@ -1677,56 +1686,61 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 	return nil
 }
 
-// parseShowProfileType tries to parse a single SHOW PROFILE type keyword.
-// Returns "" if the current token is not a valid profile type.
-func (p *Parser) parseShowProfileType() string {
+// parseShowProfileType tries to parse a single SHOW PROFILE type
+// (parser.y:11775-11817, ShowProfileType). It returns ("", nil) when the
+// current token begins no profile type, which ends an optional list; a matched
+// type's canonical name; or ("", err) when a two-word type's first word is
+// present but its required second word is missing. The three two-word types --
+// BLOCK IO, CONTEXT SWITCHES and PAGE FAULTS -- are each a pair of required
+// terminals upstream, so the second word is not optional.
+func (p *Parser) parseShowProfileType() (string, error) {
 	if p.cur.Type == kwALL {
 		p.advance()
-		return "ALL"
+		return "ALL", nil
 	}
 	// Handle profile types (now registered as keyword tokens)
 	if p.cur.Type == kwCPU {
 		p.advance()
-		return "CPU"
+		return "CPU", nil
 	}
 	if p.cur.Type == kwIPC {
 		p.advance()
-		return "IPC"
+		return "IPC", nil
 	}
 	if p.cur.Type == kwMEMORY {
 		p.advance()
-		return "MEMORY"
+		return "MEMORY", nil
 	}
 	if p.cur.Type == kwSOURCE {
 		p.advance()
-		return "SOURCE"
+		return "SOURCE", nil
 	}
 	if p.cur.Type == kwSWAPS {
 		p.advance()
-		return "SWAPS"
+		return "SWAPS", nil
 	}
 	if p.cur.Type == kwBLOCK {
 		p.advance() // consume BLOCK
-		if p.cur.Type == kwIO {
-			p.advance()
+		if _, err := p.expect(kwIO); err != nil {
+			return "", err
 		}
-		return "BLOCK_IO"
+		return "BLOCK_IO", nil
 	}
 	if p.cur.Type == kwCONTEXT {
 		p.advance() // consume CONTEXT
-		if p.cur.Type == kwSWITCHES {
-			p.advance()
+		if _, err := p.expect(kwSWITCHES); err != nil {
+			return "", err
 		}
-		return "CONTEXT_SWITCHES"
+		return "CONTEXT_SWITCHES", nil
 	}
 	if p.cur.Type == kwPAGE {
 		p.advance() // consume PAGE
-		if p.cur.Type == kwFAULTS {
-			p.advance()
+		if _, err := p.expect(kwFAULTS); err != nil {
+			return "", err
 		}
-		return "PAGE_FAULTS"
+		return "PAGE_FAULTS", nil
 	}
-	return ""
+	return "", nil
 }
 
 // isIdentLike checks if the current token is an identifier (or unreserved keyword)
