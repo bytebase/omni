@@ -919,7 +919,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// the name's token.
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc)
 	if builtin {
-		ordinary, err := p.checkSpacedTemporalWord(strings.ToUpper(name))
+		ordinary, err := p.checkSpacedFuncWord(strings.ToUpper(name))
 		if err != nil {
 			return nil, err
 		}
