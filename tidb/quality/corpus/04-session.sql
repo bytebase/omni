@@ -173,10 +173,10 @@ ANALYZE TABLE employees
 -- @source: MySQL 8.0 Reference Manual
 OPTIMIZE TABLE employees
 
--- @name: check table
+-- @name: admin check table
 -- @valid: true
--- @source: MySQL 8.0 Reference Manual
-CHECK TABLE employees
+-- @source: TiDB ADMIN statement (parser.y:11235; TiDB has no bare CHECK TABLE)
+ADMIN CHECK TABLE employees
 
 -- @name: repair table
 -- @valid: true
