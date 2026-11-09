@@ -64,3 +64,38 @@ func TestSpacedFuncViewUpdatable(t *testing.T) {
 		t.Errorf("v_agg IsUpdatable: got %v, want false (count(*) is the aggregate)", v != nil && v.IsUpdatable)
 	}
 }
+
+// TestSpacedFuncGeneratedExprRejected pins that a spaced generic call — a generic
+// stored-function call — is refused in a generated-column expression and a check
+// constraint, matching mysql:8.0 (3763 and 3814). Admitting it would also store
+// the space-dropped, invalid builtin form (`position(a)`). A deterministic scalar
+// builtin is still allowed.
+func TestSpacedFuncGeneratedExprRejected(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		reject bool
+	}{
+		{"CREATE TABLE t (a INT, b INT AS (abs(a)))", false},
+		{"CREATE TABLE t (a INT, b INT AS (position (a)))", true},
+		{"CREATE TABLE t (a INT, b INT AS (sum (a)))", true},
+		{"CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (position (a)))", true},
+		{"CREATE TABLE t (a INT, b INT, CHECK (sum (a) > 0))", true},
+		{"CREATE TABLE t (a INT, b INT CHECK (position (a) > 0))", true},
+	} {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d;")
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("parse %q: %v", tc.sql, err)
+		}
+		var execErr error
+		for _, r := range results {
+			if r.Error != nil {
+				execErr = r.Error
+			}
+		}
+		if (execErr != nil) != tc.reject {
+			t.Errorf("Exec(%q) error = %v, want reject = %v", tc.sql, execErr, tc.reject)
+		}
+	}
+}
