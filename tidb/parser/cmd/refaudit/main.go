@@ -74,11 +74,11 @@ func audit(grammarPath, tree string) (Audit, error) {
 	if err != nil {
 		return Audit{}, fmt.Errorf("parse %s: %w", filepath.Base(grammarPath), err)
 	}
-	cits, err := scanTree(tree)
+	cits, named, err := scanTree(tree)
 	if err != nil {
 		return Audit{}, fmt.Errorf("scan %s: %w", tree, err)
 	}
-	return runAudit(rules, cits), nil
+	return runAudit(rules, cits, named), nil
 }
 
 func fail(err error) {

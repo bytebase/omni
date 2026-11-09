@@ -68,12 +68,11 @@ func parseGrammarRules(src string) (rules []Rule, secStart, secEnd int, err erro
 // sources, with the file and line it was written on so a broken one can be
 // found.
 type Citation struct {
-	File      string
-	Line      int
-	Start     int // first parser.y line of the range
-	End       int // last; equals Start for a single-line citation
-	RawRange  string
-	RuleNames []string // CamelCase rule-like words named in the same comment
+	File     string
+	Line     int
+	Start    int // first parser.y line of the range
+	End      int // last; equals Start for a single-line citation
+	RawRange string
 }
 
 // citationRange matches one "N" or "N-N" range after a "parser.y:" anchor.
@@ -89,14 +88,13 @@ const parserYAnchor = "parser.y:"
 // source line. A citation is a comment that mentions Ref: and carries a
 // "parser.y:" anchor followed by one or more comma-separated N or N-N ranges,
 // each optionally trailed by a "(annotation)". Multiple ranges under one anchor
-// (parser.y:13764-13769, 2068-2084) are all returned; so are the rule-like
-// words named anywhere in the comment, for coverage crediting.
+// (parser.y:13764-13769, 2068-2084) are all returned. Name-only references,
+// which carry no numeric range, are not citations here; refNames collects those
+// for coverage crediting.
 func extractCitations(file string, lineNo int, text string) []Citation {
 	if !strings.Contains(text, "Ref:") || !strings.Contains(text, parserYAnchor) {
 		return nil
 	}
-	names := ruleWord.FindAllString(text, -1)
-
 	var out []Citation
 	rest := text
 	for {
@@ -118,7 +116,7 @@ func extractCitations(file string, lineNo int, text string) []Citation {
 				end, _ = strconv.Atoi(m[2])
 			}
 			out = append(out, Citation{
-				File: file, Line: lineNo, Start: start, End: end, RawRange: m[0], RuleNames: names,
+				File: file, Line: lineNo, Start: start, End: end, RawRange: m[0],
 			})
 			rest = rest[len(m[0]):]
 			// Skip a trailing " (annotation)" before looking for a comma.
@@ -141,12 +139,25 @@ func extractCitations(file string, lineNo int, text string) []Citation {
 	return out
 }
 
+// refNames returns the CamelCase rule-like words named on a Ref comment line.
+// A Ref comment names the rule(s) a production implements, whether or not it
+// also gives a parser.y:N line range (many name the rule and end "parser.y.",
+// with no number). Intersected with the real rule names in runAudit, these
+// credit coverage that the line-range citations alone would miss.
+func refNames(text string) []string {
+	if !strings.Contains(text, "Ref:") {
+		return nil
+	}
+	return ruleWord.FindAllString(text, -1)
+}
+
 // scanTree walks the Go sources under root (excluding _test.go files, which are
-// not productions) and returns every line-anchored parser.y citation in them.
-// Paths in the returned citations are relative to root.
-func scanTree(root string) ([]Citation, error) {
-	var cits []Citation
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+// not productions) and returns every line-anchored parser.y citation and the
+// set of rule-like names mentioned on any Ref comment line. Paths in the
+// returned citations are relative to root.
+func scanTree(root string) (cits []Citation, named map[string]bool, err error) {
+	named = map[string]bool{}
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -167,13 +178,16 @@ func scanTree(root string) ([]Citation, error) {
 		}
 		for i, line := range strings.Split(string(b), "\n") {
 			cits = append(cits, extractCitations(rel, i+1, line)...)
+			for _, n := range refNames(line) {
+				named[n] = true
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return cits, nil
+	return cits, named, nil
 }
 
 // An Audit is the result of resolving every citation against the grammar: which
@@ -210,12 +224,13 @@ func resolveLine(rules []Rule, line int) *Rule {
 	return nil
 }
 
-// runAudit resolves citations against the grammar rules. A citation credits
-// every rule its range intersects. A citation whose start line is outside the
-// grammar section or lands between rules is broken. A rule named by a citation
-// that carries no usable line range is credited too, so a name-only Ref does not
-// read as an uncovered rule.
-func runAudit(rules []Rule, cits []Citation) Audit {
+// runAudit resolves citations against the grammar rules. A line-range citation
+// credits every rule its range intersects; one whose start line is outside the
+// grammar section or lands between rules is broken. A rule named outright by any
+// Ref comment is credited too (named), so a name-only Ref — common for the Opt
+// sub-rules, which cite "AttributesOpt in ... parser.y." with no line — does not
+// read as uncovered.
+func runAudit(rules []Rule, cits []Citation, named map[string]bool) Audit {
 	byName := make(map[string]*Rule, len(rules))
 	for i := range rules {
 		byName[rules[i].Name] = &rules[i]
@@ -243,12 +258,11 @@ func runAudit(rules []Rule, cits []Citation) Audit {
 			}
 		}
 	}
-	// Credit rules named outright by any Ref comment, line range or not.
-	for _, c := range cits {
-		for _, n := range c.RuleNames {
-			if _, ok := byName[n]; ok {
-				a.Cited[n] = true
-			}
+	// Credit rules named outright by a Ref comment, whether or not it also gives
+	// a line range.
+	for n := range named {
+		if _, ok := byName[n]; ok {
+			a.Cited[n] = true
 		}
 	}
 	return a

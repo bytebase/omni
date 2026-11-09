@@ -134,6 +134,32 @@ func TestExtractCitations(t *testing.T) {
 	}
 }
 
+// TestNameOnlyReferenceCredited pins that a rule cited only by name — "Ref:
+// AnalyzeOption in ... parser.y." with no line number — counts as cited. Before
+// the fix these were dropped, so the coverage report listed them as uncovered.
+func TestNameOnlyReferenceCredited(t *testing.T) {
+	rules := []Rule{{Name: "AnalyzeOption", Start: 10, End: 12}, {Name: "Lonely", Start: 13, End: 15}}
+	named := map[string]bool{}
+	for _, n := range refNames("// Ref: AnalyzeOption in pingcap/tidb pkg/parser/parser.y.") {
+		named[n] = true
+	}
+	a := runAudit(rules, nil, named)
+	if !a.Cited["AnalyzeOption"] {
+		t.Errorf("AnalyzeOption not credited by its name-only reference")
+	}
+	if a.Cited["Lonely"] {
+		t.Errorf("Lonely credited though nothing references it")
+	}
+
+	// End to end: the four rules Codex named must leave the uncited list.
+	full := mustAudit(t)
+	for _, name := range []string{"AnalyzeOption", "AttributesOpt", "StatsOptionsOpt", "PartitionIntervalOpt"} {
+		if !full.Cited[name] {
+			t.Errorf("%s still reads as uncited after name crediting", name)
+		}
+	}
+}
+
 // TestReportPathExists guards against a refactor that moves the report out from
 // under the test's relative path.
 func TestReportPathExists(t *testing.T) {

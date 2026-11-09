@@ -33,6 +33,10 @@ here — noted, never fixed by widening `Parse`.
   written against master, not the vendored tag. Corrected in `ast/parsenodes.go`
   and `parser/resource_control.go` to the real rule heads: CalibrateResourceStmt
   16445, AddQueryWatchStmt 16543, DropQueryWatchStmt 16631.
-- Baseline coverage: 114/690 rules cited. Coarse by design (per-group citations;
+- Baseline coverage: 209/690 rules cited. Coarse by design (per-group citations;
   option sub-rules handled inline). Uncited list is a lead set for (b)/grammar
   work, not a gap list.
+- Codex review (PR #755) caught that name-only references ("Ref: AnalyzeOption
+  in ... parser.y." with no line number) were dropped before coverage crediting,
+  so cited rules read as uncited. Fixed: rule names on any Ref line now credit
+  coverage independently of numeric ranges (114 → 209 cited).
