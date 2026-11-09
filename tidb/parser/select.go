@@ -746,6 +746,22 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
 	}
 
+	// A wildcard field takes no alias: `*`, `tbl.*` and `db.tbl.*` are their own
+	// Field alternatives with no FieldAsNameOpt, unlike `Expression
+	// FieldAsNameOpt`. TiDB answers 1064 for `SELECT * x` and `SELECT t.* x`.
+	//
+	// Ref: Field in TiDB v8.5.5 parser.y:6463-6483: the '*', 'tbl.*' and
+	// 'db.tbl.*' arms (6464, 6468, 6473) carry no FieldAsNameOpt, unlike
+	// Expression FieldAsNameOpt (6478).
+	switch e := expr.(type) {
+	case *nodes.StarExpr:
+		return e, nil
+	case *nodes.ColumnRef:
+		if e.Star {
+			return e, nil
+		}
+	}
+
 	// Check for AS alias or implicit alias
 	var alias string
 	if _, ok := p.match(kwAS); ok {

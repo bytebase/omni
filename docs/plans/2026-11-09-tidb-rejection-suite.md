@@ -66,3 +66,20 @@ here — noted, never fixed by widening `Parse`.
 - The 2 gaps (out of scope §3.6, for §3.3): `DELETE FROM t PARTITION(p) zzz` and
   `ALTER DATABASE COLLATE 's' zzz` — TiDB accepts a trailing identifier omni
   rejects. Noted, not fixed; do not widen `Parse`.
+
+### (c) close over-acceptances — cluster 1: wildcard-field alias
+
+- **Cluster: an alias after a `*` / `tbl.*` select field.** omni's
+  `parseSelectExpr` parsed an alias after any expression, but in the grammar the
+  bare `*`, `tbl.*` and `db.tbl.*` are their own alias-less `Field` alternatives
+  (parser.y:6464/6468/6473); only `Expression FieldAsNameOpt` (6478) takes one.
+  TiDB answers 1064 for `SELECT * x`, `SELECT t.* x`, `SELECT * AS x`.
+- Fixed in all four engines (tidb, mysql, mariadb, oceanbase) — identical early
+  return for a StarExpr or a `ColumnRef{Star:true}` before alias parsing, each
+  cited to its own grammar (TiDB parser.y; MySQL sql_yacc.yy select_item /
+  table_wild for the forks).
+- Measured: negatives corpus over-acceptances **201 → 137** (64 rows flipped to
+  reject/reject, live-confirmed on TiDB v8.5.5, 0 no-verdict). No new gaps
+  (both-accept unchanged at 153); tidb positive corpora show no regression.
+- Remaining 137 over-acceptances are later (c) clusters (trailing stray tokens in
+  other productions, dropped required keywords, etc.).

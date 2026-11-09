@@ -1754,11 +1754,11 @@ reject	reject	CreateTableSelectOpt#2/drop-2	CREATE TABLE ident SELECT UNION SELE
 reject	reject	CreateTableSelectOpt#2/drop-3	CREATE TABLE ident SELECT * SELECT *
 reject	reject	CreateTableSelectOpt#2/drop-4	CREATE TABLE ident SELECT * UNION *
 reject	reject	CreateTableSelectOpt#2/drop-5	CREATE TABLE ident SELECT * UNION SELECT
-accept	reject	CreateTableSelectOpt#2/insert	CREATE TABLE ident SELECT * UNION SELECT * zzz
+reject	reject	CreateTableSelectOpt#2/insert	CREATE TABLE ident SELECT * UNION SELECT * zzz
 reject	reject	CreateTableSelectOpt#2/swap	CREATE TABLE ident SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	CreateTableSelectOpt#3/drop-1	CREATE TABLE ident *
 reject	reject	CreateTableSelectOpt#3/drop-2	CREATE TABLE ident SELECT
-accept	reject	CreateTableSelectOpt#3/insert	CREATE TABLE ident SELECT * zzz
+reject	reject	CreateTableSelectOpt#3/insert	CREATE TABLE ident SELECT * zzz
 reject	reject	CreateTableSelectOpt#3/swap	CREATE TABLE ident SEND_CREDENTIALS_TO_TIKV *
 reject	reject	CreateTableSelectOpt#4/drop-1	CREATE TABLE ident ident AS(SELECT *) SELECT *
 reject	reject	CreateTableSelectOpt#4/drop-2	CREATE TABLE ident WITH AS(SELECT *) SELECT *
@@ -1769,7 +1769,7 @@ reject	reject	CreateTableSelectOpt#4/drop-6	CREATE TABLE ident WITH ident AS(SEL
 reject	reject	CreateTableSelectOpt#4/drop-7	CREATE TABLE ident WITH ident AS(SELECT * SELECT *
 reject	reject	CreateTableSelectOpt#4/drop-8	CREATE TABLE ident WITH ident AS(SELECT *) *
 reject	reject	CreateTableSelectOpt#4/drop-9	CREATE TABLE ident WITH ident AS(SELECT *) SELECT
-accept	reject	CreateTableSelectOpt#4/insert	CREATE TABLE ident WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	CreateTableSelectOpt#4/insert	CREATE TABLE ident WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	CreateTableSelectOpt#4/swap	CREATE TABLE ident WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	CreateTableSelectOpt#5/drop-1	CREATE TABLE ident SELECT *)
 reject	reject	CreateTableSelectOpt#5/drop-2	CREATE TABLE ident(*)
@@ -1782,11 +1782,11 @@ reject	reject	CreateViewSelectOpt#1/drop-2	CREATE VIEW ident AS SELECT UNION SEL
 reject	reject	CreateViewSelectOpt#1/drop-3	CREATE VIEW ident AS SELECT * SELECT *
 reject	reject	CreateViewSelectOpt#1/drop-4	CREATE VIEW ident AS SELECT * UNION *
 reject	reject	CreateViewSelectOpt#1/drop-5	CREATE VIEW ident AS SELECT * UNION SELECT
-accept	reject	CreateViewSelectOpt#1/insert	CREATE VIEW ident AS SELECT * UNION SELECT * zzz
+reject	reject	CreateViewSelectOpt#1/insert	CREATE VIEW ident AS SELECT * UNION SELECT * zzz
 reject	reject	CreateViewSelectOpt#1/swap	CREATE VIEW ident AS SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	CreateViewSelectOpt#2/drop-1	CREATE VIEW ident AS *
 reject	reject	CreateViewSelectOpt#2/drop-2	CREATE VIEW ident AS SELECT
-accept	reject	CreateViewSelectOpt#2/insert	CREATE VIEW ident AS SELECT * zzz
+reject	reject	CreateViewSelectOpt#2/insert	CREATE VIEW ident AS SELECT * zzz
 reject	reject	CreateViewSelectOpt#2/swap	CREATE VIEW ident AS SEND_CREDENTIALS_TO_TIKV *
 reject	reject	CreateViewSelectOpt#3/drop-1	CREATE VIEW ident AS ident AS(SELECT *) SELECT *
 reject	reject	CreateViewSelectOpt#3/drop-2	CREATE VIEW ident AS WITH AS(SELECT *) SELECT *
@@ -1797,7 +1797,7 @@ reject	reject	CreateViewSelectOpt#3/drop-6	CREATE VIEW ident AS WITH ident AS(SE
 reject	reject	CreateViewSelectOpt#3/drop-7	CREATE VIEW ident AS WITH ident AS(SELECT * SELECT *
 reject	reject	CreateViewSelectOpt#3/drop-8	CREATE VIEW ident AS WITH ident AS(SELECT *) *
 reject	reject	CreateViewSelectOpt#3/drop-9	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT
-accept	reject	CreateViewSelectOpt#3/insert	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	CreateViewSelectOpt#3/insert	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	CreateViewSelectOpt#3/swap	CREATE VIEW ident AS WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	CreateViewSelectOpt#4/drop-1	CREATE VIEW ident AS SELECT *)
 reject	reject	CreateViewSelectOpt#4/drop-2	CREATE VIEW ident AS(*)
@@ -2049,7 +2049,7 @@ reject	reject	ExplainStmt#2/drop-1	ident ident
 reject	reject	ExplainStmt#2/swap	EXPR_PUSHDOWN_BLACKLIST ident ident
 reject	reject	ExplainStmt#3/drop-2	EXPLAIN *
 reject	reject	ExplainStmt#3/drop-3	EXPLAIN SELECT
-accept	reject	ExplainStmt#3/insert	EXPLAIN SELECT * zzz
+reject	reject	ExplainStmt#3/insert	EXPLAIN SELECT * zzz
 reject	reject	ExplainStmt#3/swap	EXPR_PUSHDOWN_BLACKLIST SELECT *
 reject	reject	ExplainStmt#4/drop-1	FOR CONNECTION 1
 reject	reject	ExplainStmt#4/drop-2	EXPLAIN CONNECTION 1
@@ -2072,7 +2072,7 @@ reject	reject	ExplainStmt#6/drop-3	EXPLAIN FORMAT 's' SELECT *
 reject	reject	ExplainStmt#6/drop-4	EXPLAIN FORMAT = SELECT *
 reject	reject	ExplainStmt#6/drop-5	EXPLAIN FORMAT = 's' *
 reject	reject	ExplainStmt#6/drop-6	EXPLAIN FORMAT = 's' SELECT
-accept	reject	ExplainStmt#6/insert	EXPLAIN FORMAT = 's' SELECT * zzz
+reject	reject	ExplainStmt#6/insert	EXPLAIN FORMAT = 's' SELECT * zzz
 reject	reject	ExplainStmt#6/swap	EXPR_PUSHDOWN_BLACKLIST FORMAT = 's' SELECT *
 reject	reject	ExplainStmt#7/drop-1	FORMAT = TRADITIONAL FOR CONNECTION 1
 reject	reject	ExplainStmt#7/drop-2	EXPLAIN = TRADITIONAL FOR CONNECTION 1
@@ -2087,12 +2087,12 @@ reject	reject	ExplainStmt#8/drop-2	EXPLAIN = TRADITIONAL SELECT *
 reject	reject	ExplainStmt#8/drop-3	EXPLAIN FORMAT TRADITIONAL SELECT *
 reject	reject	ExplainStmt#8/drop-5	EXPLAIN FORMAT = TRADITIONAL *
 reject	reject	ExplainStmt#8/drop-6	EXPLAIN FORMAT = TRADITIONAL SELECT
-accept	reject	ExplainStmt#8/insert	EXPLAIN FORMAT = TRADITIONAL SELECT * zzz
+reject	reject	ExplainStmt#8/insert	EXPLAIN FORMAT = TRADITIONAL SELECT * zzz
 reject	reject	ExplainStmt#8/swap	EXPR_PUSHDOWN_BLACKLIST FORMAT = TRADITIONAL SELECT *
 reject	reject	ExplainStmt#9/drop-1	ANALYZE SELECT *
 reject	reject	ExplainStmt#9/drop-3	EXPLAIN ANALYZE *
 reject	reject	ExplainStmt#9/drop-4	EXPLAIN ANALYZE SELECT
-accept	reject	ExplainStmt#9/insert	EXPLAIN ANALYZE SELECT * zzz
+reject	reject	ExplainStmt#9/insert	EXPLAIN ANALYZE SELECT * zzz
 reject	reject	ExplainStmt#9/swap	EXPR_PUSHDOWN_BLACKLIST ANALYZE SELECT *
 reject	reject	ExplainStmt#10/drop-1	ANALYZE FORMAT = TRADITIONAL SELECT *
 reject	reject	ExplainStmt#10/drop-3	EXPLAIN ANALYZE = TRADITIONAL SELECT *
@@ -2100,14 +2100,14 @@ reject	reject	ExplainStmt#10/drop-4	EXPLAIN ANALYZE FORMAT TRADITIONAL SELECT *
 reject	reject	ExplainStmt#10/drop-5	EXPLAIN ANALYZE FORMAT = SELECT *
 reject	reject	ExplainStmt#10/drop-6	EXPLAIN ANALYZE FORMAT = TRADITIONAL *
 reject	reject	ExplainStmt#10/drop-7	EXPLAIN ANALYZE FORMAT = TRADITIONAL SELECT
-accept	reject	ExplainStmt#10/insert	EXPLAIN ANALYZE FORMAT = TRADITIONAL SELECT * zzz
+reject	reject	ExplainStmt#10/insert	EXPLAIN ANALYZE FORMAT = TRADITIONAL SELECT * zzz
 reject	reject	ExplainStmt#10/swap	EXPR_PUSHDOWN_BLACKLIST ANALYZE FORMAT = TRADITIONAL SELECT *
 reject	reject	ExplainStmt#11/drop-1	ANALYZE FORMAT = 's' SELECT *
 reject	reject	ExplainStmt#11/drop-3	EXPLAIN ANALYZE = 's' SELECT *
 reject	reject	ExplainStmt#11/drop-4	EXPLAIN ANALYZE FORMAT 's' SELECT *
 reject	reject	ExplainStmt#11/drop-6	EXPLAIN ANALYZE FORMAT = 's' *
 reject	reject	ExplainStmt#11/drop-7	EXPLAIN ANALYZE FORMAT = 's' SELECT
-accept	reject	ExplainStmt#11/insert	EXPLAIN ANALYZE FORMAT = 's' SELECT * zzz
+reject	reject	ExplainStmt#11/insert	EXPLAIN ANALYZE FORMAT = 's' SELECT * zzz
 reject	reject	ExplainStmt#11/swap	EXPR_PUSHDOWN_BLACKLIST ANALYZE FORMAT = 's' SELECT *
 reject	reject	ExplainFormatType#1/truncate	EXPLAIN FORMAT =
 reject	reject	ExplainFormatType#1/insert	EXPLAIN FORMAT = TRADITIONAL zzz SELECT *
@@ -2569,17 +2569,17 @@ reject	reject	LikeOrIlikeEscapeOpt#2/drop-2	DO ident LIKE ident ESCAPE
 reject	reject	LikeOrIlikeEscapeOpt#2/insert	DO ident LIKE ident ESCAPE 's' zzz
 reject	reject	LikeOrIlikeEscapeOpt#2/swap	DO ident LIKE ident ESCAPED 's'
 reject	reject	Field#1/drop-1	SELECT
-accept	reject	Field#1/insert	SELECT * zzz
+reject	reject	Field#1/insert	SELECT * zzz
 reject	reject	Field#2/drop-1	SELECT.*
 reject	reject	Field#2/drop-2	SELECT ident *
 reject	reject	Field#2/drop-3	SELECT ident.
-accept	reject	Field#2/insert	SELECT ident.* zzz
+reject	reject	Field#2/insert	SELECT ident.* zzz
 reject	reject	Field#3/drop-1	SELECT.ident.*
 reject	reject	Field#3/drop-2	SELECT ident ident.*
 reject	reject	Field#3/drop-3	SELECT ident..*
 reject	reject	Field#3/drop-4	SELECT ident.ident *
 reject	reject	Field#3/drop-5	SELECT ident.ident.
-accept	reject	Field#3/insert	SELECT ident.ident.* zzz
+reject	reject	Field#3/insert	SELECT ident.ident.* zzz
 accept	accept	Field#4/insert	SELECT ident zzz
 reject	reject	FieldAsNameOpt#2/insert	SELECT ident 's' zzz
 reject	reject	FieldAsName#1/insert	SELECT ident ident zzz
@@ -2591,7 +2591,7 @@ reject	reject	FieldAsName#4/swap	SELECT ident ASC 's'
 reject	reject	FieldList#2/drop-1	SELECT, *
 reject	reject	FieldList#2/drop-2	SELECT * *
 reject	reject	FieldList#2/drop-3	SELECT *,
-accept	reject	FieldList#2/insert	SELECT *, * zzz
+reject	reject	FieldList#2/insert	SELECT *, * zzz
 reject	reject	WithRollupClause#1/insert	SELECT * GROUP BY ident zzz
 reject	reject	WithRollupClause#2/drop-1	SELECT * GROUP BY ident ROLLUP
 accept	reject	WithRollupClause#2/drop-2	SELECT * GROUP BY ident WITH
@@ -2601,7 +2601,7 @@ reject	reject	GroupByClause#1/drop-1	SELECT * BY ident
 reject	reject	GroupByClause#1/drop-2	SELECT * GROUP ident
 reject	reject	GroupByClause#1/drop-3	SELECT * GROUP BY
 reject	reject	GroupByClause#1/swap	SELECT * GROUPS BY ident
-accept	reject	HavingClause#2/drop-1	SELECT * ident
+reject	reject	HavingClause#2/drop-1	SELECT * ident
 reject	reject	HavingClause#2/drop-2	SELECT * HAVING
 reject	reject	HavingClause#2/insert	SELECT * HAVING ident zzz
 reject	reject	HavingClause#2/swap	SELECT * HELP ident
@@ -3400,7 +3400,7 @@ reject	reject	InsertIntoStmt#1/drop-1	ident SELECT *
 reject	reject	InsertIntoStmt#1/drop-2	INSERT SELECT *
 reject	reject	InsertIntoStmt#1/drop-3	INSERT ident *
 reject	reject	InsertIntoStmt#1/drop-4	INSERT ident SELECT
-accept	reject	InsertIntoStmt#1/insert	INSERT ident SELECT * zzz
+reject	reject	InsertIntoStmt#1/insert	INSERT ident SELECT * zzz
 reject	reject	InsertIntoStmt#1/swap	INSERT_METHOD ident SELECT *
 reject	reject	IntoOpt#1/insert	INSERT zzz ident SELECT *
 reject	reject	IntoOpt#2/truncate	INSERT
@@ -3420,13 +3420,13 @@ reject	reject	InsertValues#2/drop-4	INSERT ident() SELECT UNION SELECT *
 reject	reject	InsertValues#2/drop-5	INSERT ident() SELECT * SELECT *
 reject	reject	InsertValues#2/drop-6	INSERT ident() SELECT * UNION *
 reject	reject	InsertValues#2/drop-7	INSERT ident() SELECT * UNION SELECT
-accept	reject	InsertValues#2/insert	INSERT ident() SELECT * UNION SELECT * zzz
+reject	reject	InsertValues#2/insert	INSERT ident() SELECT * UNION SELECT * zzz
 reject	reject	InsertValues#2/swap	INSERT ident() SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	InsertValues#3/drop-1	INSERT ident) SELECT *
 reject	reject	InsertValues#3/drop-2	INSERT ident(SELECT *
 reject	reject	InsertValues#3/drop-3	INSERT ident() *
 reject	reject	InsertValues#3/drop-4	INSERT ident() SELECT
-accept	reject	InsertValues#3/insert	INSERT ident() SELECT * zzz
+reject	reject	InsertValues#3/insert	INSERT ident() SELECT * zzz
 reject	reject	InsertValues#3/swap	INSERT ident() SEND_CREDENTIALS_TO_TIKV *
 reject	reject	InsertValues#4/drop-1	INSERT ident) WITH ident AS(SELECT *) SELECT *
 reject	reject	InsertValues#4/drop-2	INSERT ident(WITH ident AS(SELECT *) SELECT *
@@ -3439,7 +3439,7 @@ reject	reject	InsertValues#4/drop-8	INSERT ident() WITH ident AS(SELECT) SELECT 
 reject	reject	InsertValues#4/drop-9	INSERT ident() WITH ident AS(SELECT * SELECT *
 reject	reject	InsertValues#4/drop-10	INSERT ident() WITH ident AS(SELECT *) *
 reject	reject	InsertValues#4/drop-11	INSERT ident() WITH ident AS(SELECT *) SELECT
-accept	reject	InsertValues#4/insert	INSERT ident() WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	InsertValues#4/insert	INSERT ident() WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	InsertValues#4/swap	INSERT ident() WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	InsertValues#5/drop-1	INSERT ident)(SELECT *)
 reject	reject	InsertValues#5/drop-2	INSERT ident((SELECT *)
@@ -3458,7 +3458,7 @@ reject	reject	InsertValues#7/drop-2	INSERT ident SELECT UNION SELECT *
 reject	reject	InsertValues#7/drop-3	INSERT ident SELECT * SELECT *
 reject	reject	InsertValues#7/drop-4	INSERT ident SELECT * UNION *
 reject	reject	InsertValues#7/drop-5	INSERT ident SELECT * UNION SELECT
-accept	reject	InsertValues#7/insert	INSERT ident SELECT * UNION SELECT * zzz
+reject	reject	InsertValues#7/insert	INSERT ident SELECT * UNION SELECT * zzz
 reject	reject	InsertValues#7/swap	INSERT ident SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	InsertValues#8/swap	INSERT ident SEND_CREDENTIALS_TO_TIKV *
 reject	reject	InsertValues#9/drop-1	INSERT ident ident AS(SELECT *) SELECT *
@@ -3470,7 +3470,7 @@ reject	reject	InsertValues#9/drop-6	INSERT ident WITH ident AS(SELECT) SELECT *
 reject	reject	InsertValues#9/drop-7	INSERT ident WITH ident AS(SELECT * SELECT *
 reject	reject	InsertValues#9/drop-8	INSERT ident WITH ident AS(SELECT *) *
 reject	reject	InsertValues#9/drop-9	INSERT ident WITH ident AS(SELECT *) SELECT
-accept	reject	InsertValues#9/insert	INSERT ident WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	InsertValues#9/insert	INSERT ident WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	InsertValues#9/swap	INSERT ident WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	InsertValues#10/drop-1	INSERT ident SELECT *)
 reject	reject	InsertValues#10/drop-2	INSERT ident(*)
@@ -3531,7 +3531,7 @@ reject	reject	OnDuplicateKeyUpdate#2/swap	INSERT ident SELECT * ONLINE DUPLICATE
 reject	reject	ReplaceIntoStmt#1/drop-2	REPLACE SELECT *
 reject	reject	ReplaceIntoStmt#1/drop-3	REPLACE ident *
 reject	reject	ReplaceIntoStmt#1/drop-4	REPLACE ident SELECT
-accept	reject	ReplaceIntoStmt#1/insert	REPLACE ident SELECT * zzz
+reject	reject	ReplaceIntoStmt#1/insert	REPLACE ident SELECT * zzz
 reject	reject	ReplaceIntoStmt#1/swap	REPLAYER ident SELECT *
 reject	reject	Literal#1/insert	DO FALSE zzz
 accept	accept	Literal#1/swap	DO FAULTS
@@ -4508,7 +4508,7 @@ reject	reject	SelectStmtWithClause#1/drop-6	WITH ident AS(SELECT) SELECT *
 reject	reject	SelectStmtWithClause#1/drop-7	WITH ident AS(SELECT * SELECT *
 reject	reject	SelectStmtWithClause#1/drop-8	WITH ident AS(SELECT *) *
 reject	reject	SelectStmtWithClause#1/drop-9	WITH ident AS(SELECT *) SELECT
-accept	reject	SelectStmtWithClause#1/insert	WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	SelectStmtWithClause#1/insert	WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	SelectStmtWithClause#1/swap	WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	SelectStmtWithClause#2/drop-1	ident AS(SELECT *)(SELECT *)
 reject	reject	SelectStmtWithClause#2/drop-2	WITH AS(SELECT *)(SELECT *)
@@ -5004,7 +5004,7 @@ reject	reject	SelectLockOpt#2/drop-1	SELECT * UPDATE
 reject	reject	SelectLockOpt#2/drop-2	SELECT * FOR
 reject	reject	SelectLockOpt#2/insert	SELECT * FOR UPDATE zzz
 reject	reject	SelectLockOpt#2/swap	SELECT * FORCE UPDATE
-accept	reject	SelectLockOpt#3/drop-1	SELECT * SHARE
+reject	reject	SelectLockOpt#3/drop-1	SELECT * SHARE
 reject	reject	SelectLockOpt#3/insert	SELECT * FOR SHARE zzz
 reject	reject	SelectLockOpt#3/swap	SELECT * FORCE SHARE
 reject	reject	SelectLockOpt#4/drop-1	SELECT * UPDATE NOWAIT
@@ -5046,7 +5046,7 @@ reject	reject	SetOprStmt#1/drop-2	SELECT UNION SELECT *
 reject	reject	SetOprStmt#1/drop-3	SELECT * SELECT *
 reject	reject	SetOprStmt#1/drop-4	SELECT * UNION *
 reject	reject	SetOprStmt#1/drop-5	SELECT * UNION SELECT
-accept	reject	SetOprStmt#1/insert	SELECT * UNION SELECT * zzz
+reject	reject	SetOprStmt#1/insert	SELECT * UNION SELECT * zzz
 reject	reject	SetOprStmt#1/swap	SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	SetOprStmt#2/drop-1	SELECT *) LIMIT ?
 reject	reject	SetOprStmt#2/drop-2	(*) LIMIT ?
@@ -5083,7 +5083,7 @@ reject	reject	SetOprStmt#4/drop-9	WITH ident AS(SELECT *) SELECT UNION SELECT *
 reject	reject	SetOprStmt#4/drop-10	WITH ident AS(SELECT *) SELECT * SELECT *
 reject	reject	SetOprStmt#4/drop-11	WITH ident AS(SELECT *) SELECT * UNION *
 reject	reject	SetOprStmt#4/drop-12	WITH ident AS(SELECT *) SELECT * UNION SELECT
-accept	reject	SetOprStmt#4/insert	WITH ident AS(SELECT *) SELECT * UNION SELECT * zzz
+reject	reject	SetOprStmt#4/insert	WITH ident AS(SELECT *) SELECT * UNION SELECT * zzz
 reject	reject	SetOprStmt#4/swap	WITHOUT ident AS(SELECT *) SELECT * UNION SELECT *
 reject	reject	SetOprStmtWoutLimitOrderBy#2/drop-1	* UNION(SELECT *)
 reject	reject	SetOprStmtWoutLimitOrderBy#2/drop-2	SELECT UNION(SELECT *)
@@ -5150,13 +5150,13 @@ reject	reject	SetOprStmtWithLimitOrderBy#6/drop-8	(SELECT *) ORDER BY ident ?
 reject	reject	SetOprStmtWithLimitOrderBy#6/drop-9	(SELECT *) ORDER BY ident LIMIT
 reject	reject	SetOprStmtWithLimitOrderBy#6/insert	(SELECT *) ORDER BY ident LIMIT ? zzz
 reject	reject	SetOprStmtWithLimitOrderBy#6/swap	(SEND_CREDENTIALS_TO_TIKV *) ORDER BY ident LIMIT ?
-accept	reject	SetOprClauseList#1/insert	SELECT * zzz UNION SELECT *
+reject	reject	SetOprClauseList#1/insert	SELECT * zzz UNION SELECT *
 reject	reject	SetOprClauseList#2/drop-1	* UNION SELECT * UNION SELECT *
 reject	reject	SetOprClauseList#2/drop-2	SELECT UNION SELECT * UNION SELECT *
 reject	reject	SetOprClauseList#2/drop-3	SELECT * SELECT * UNION SELECT *
 reject	reject	SetOprClauseList#2/drop-4	SELECT * UNION * UNION SELECT *
 reject	reject	SetOprClauseList#2/drop-5	SELECT * UNION SELECT UNION SELECT *
-accept	reject	SetOprClauseList#2/insert	SELECT * UNION SELECT * zzz UNION SELECT *
+reject	reject	SetOprClauseList#2/insert	SELECT * UNION SELECT * zzz UNION SELECT *
 reject	reject	SetOprClauseList#2/swap	SEND_CREDENTIALS_TO_TIKV * UNION SELECT * UNION SELECT *
 reject	reject	SetOprClause#2/drop-1	SELECT *) UNION SELECT *
 reject	reject	SetOprClause#2/drop-2	(*) UNION SELECT *
@@ -6065,7 +6065,7 @@ reject	reject	Statement#28/drop-2	CREATE USING SELECT *
 reject	reject	Statement#28/drop-3	CREATE BINDING SELECT *
 reject	reject	Statement#28/drop-4	CREATE BINDING USING *
 reject	reject	Statement#28/drop-5	CREATE BINDING USING SELECT
-accept	reject	Statement#28/insert	CREATE BINDING USING SELECT * zzz
+reject	reject	Statement#28/insert	CREATE BINDING USING SELECT * zzz
 reject	reject	Statement#28/swap	CROSS BINDING USING SELECT *
 reject	reject	Statement#29/drop-2	CREATE POLICY ident PRIMARY_REGION 's'
 reject	reject	Statement#29/drop-3	CREATE PLACEMENT ident PRIMARY_REGION 's'
@@ -6117,7 +6117,7 @@ reject	reject	Statement#50/drop-2	DROP FOR SELECT *
 reject	reject	Statement#50/drop-3	DROP BINDING SELECT *
 reject	reject	Statement#50/drop-4	DROP BINDING FOR *
 reject	reject	Statement#50/drop-5	DROP BINDING FOR SELECT
-accept	reject	Statement#50/insert	DROP BINDING FOR SELECT * zzz
+reject	reject	Statement#50/insert	DROP BINDING FOR SELECT * zzz
 reject	reject	Statement#50/swap	DRY BINDING FOR SELECT *
 reject	reject	Statement#55/drop-1	's' ON * TO CURRENT_USER
 reject	reject	Statement#55/drop-2	GRANT ON * TO CURRENT_USER
@@ -6196,7 +6196,7 @@ reject	reject	Statement#82/drop-2	SET ENABLED FOR SELECT *
 reject	reject	Statement#82/drop-4	SET BINDING ENABLED SELECT *
 reject	reject	Statement#82/drop-5	SET BINDING ENABLED FOR *
 reject	reject	Statement#82/drop-6	SET BINDING ENABLED FOR SELECT
-accept	reject	Statement#82/insert	SET BINDING ENABLED FOR SELECT * zzz
+reject	reject	Statement#82/insert	SET BINDING ENABLED FOR SELECT * zzz
 reject	reject	Statement#82/swap	SETVAL BINDING ENABLED FOR SELECT *
 reject	reject	Statement#88/swap	TSO ident
 reject	reject	Statement#89/drop-1	ident SET ident = DEFAULT
@@ -6246,23 +6246,23 @@ reject	reject	TraceableStmt#3/drop-1	TRACE ident SELECT *
 reject	reject	TraceableStmt#3/drop-2	TRACE INSERT SELECT *
 reject	reject	TraceableStmt#3/drop-3	TRACE INSERT ident *
 reject	reject	TraceableStmt#3/drop-4	TRACE INSERT ident SELECT
-accept	reject	TraceableStmt#3/insert	TRACE INSERT ident SELECT * zzz
+reject	reject	TraceableStmt#3/insert	TRACE INSERT ident SELECT * zzz
 reject	reject	TraceableStmt#3/swap	TRACE INSERT_METHOD ident SELECT *
 reject	reject	TraceableStmt#4/drop-2	TRACE REPLACE SELECT *
 reject	reject	TraceableStmt#4/drop-3	TRACE REPLACE ident *
 reject	reject	TraceableStmt#4/drop-4	TRACE REPLACE ident SELECT
-accept	reject	TraceableStmt#4/insert	TRACE REPLACE ident SELECT * zzz
+reject	reject	TraceableStmt#4/insert	TRACE REPLACE ident SELECT * zzz
 reject	reject	TraceableStmt#4/swap	TRACE REPLAYER ident SELECT *
 reject	reject	TraceableStmt#5/drop-1	TRACE * UNION SELECT *
 reject	reject	TraceableStmt#5/drop-2	TRACE SELECT UNION SELECT *
 reject	reject	TraceableStmt#5/drop-3	TRACE SELECT * SELECT *
 reject	reject	TraceableStmt#5/drop-4	TRACE SELECT * UNION *
 reject	reject	TraceableStmt#5/drop-5	TRACE SELECT * UNION SELECT
-accept	reject	TraceableStmt#5/insert	TRACE SELECT * UNION SELECT * zzz
+reject	reject	TraceableStmt#5/insert	TRACE SELECT * UNION SELECT * zzz
 reject	reject	TraceableStmt#5/swap	TRACE SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	TraceableStmt#6/drop-1	TRACE *
 reject	reject	TraceableStmt#6/drop-2	TRACE SELECT
-accept	reject	TraceableStmt#6/insert	TRACE SELECT * zzz
+reject	reject	TraceableStmt#6/insert	TRACE SELECT * zzz
 reject	reject	TraceableStmt#6/swap	TRACE SEND_CREDENTIALS_TO_TIKV *
 reject	reject	TraceableStmt#7/drop-1	TRACE ident AS(SELECT *) SELECT *
 reject	reject	TraceableStmt#7/drop-2	TRACE WITH AS(SELECT *) SELECT *
@@ -6273,7 +6273,7 @@ reject	reject	TraceableStmt#7/drop-6	TRACE WITH ident AS(SELECT) SELECT *
 reject	reject	TraceableStmt#7/drop-7	TRACE WITH ident AS(SELECT * SELECT *
 reject	reject	TraceableStmt#7/drop-8	TRACE WITH ident AS(SELECT *) *
 reject	reject	TraceableStmt#7/drop-9	TRACE WITH ident AS(SELECT *) SELECT
-accept	reject	TraceableStmt#7/insert	TRACE WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	TraceableStmt#7/insert	TRACE WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	TraceableStmt#7/swap	TRACE WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	TraceableStmt#8/drop-1	TRACE SELECT *)
 reject	reject	TraceableStmt#8/drop-2	TRACE(*)
@@ -6330,19 +6330,19 @@ reject	reject	ExplainableStmt#3/drop-1	EXPLAIN ident SELECT *
 reject	reject	ExplainableStmt#3/drop-2	EXPLAIN INSERT SELECT *
 reject	reject	ExplainableStmt#3/drop-3	EXPLAIN INSERT ident *
 reject	reject	ExplainableStmt#3/drop-4	EXPLAIN INSERT ident SELECT
-accept	reject	ExplainableStmt#3/insert	EXPLAIN INSERT ident SELECT * zzz
+reject	reject	ExplainableStmt#3/insert	EXPLAIN INSERT ident SELECT * zzz
 reject	reject	ExplainableStmt#3/swap	EXPLAIN INSERT_METHOD ident SELECT *
 reject	reject	ExplainableStmt#4/drop-2	EXPLAIN REPLACE SELECT *
 reject	reject	ExplainableStmt#4/drop-3	EXPLAIN REPLACE ident *
 reject	reject	ExplainableStmt#4/drop-4	EXPLAIN REPLACE ident SELECT
-accept	reject	ExplainableStmt#4/insert	EXPLAIN REPLACE ident SELECT * zzz
+reject	reject	ExplainableStmt#4/insert	EXPLAIN REPLACE ident SELECT * zzz
 reject	reject	ExplainableStmt#4/swap	EXPLAIN REPLAYER ident SELECT *
 reject	reject	ExplainableStmt#5/drop-1	EXPLAIN * UNION SELECT *
 reject	reject	ExplainableStmt#5/drop-2	EXPLAIN SELECT UNION SELECT *
 reject	reject	ExplainableStmt#5/drop-3	EXPLAIN SELECT * SELECT *
 reject	reject	ExplainableStmt#5/drop-4	EXPLAIN SELECT * UNION *
 reject	reject	ExplainableStmt#5/drop-5	EXPLAIN SELECT * UNION SELECT
-accept	reject	ExplainableStmt#5/insert	EXPLAIN SELECT * UNION SELECT * zzz
+reject	reject	ExplainableStmt#5/insert	EXPLAIN SELECT * UNION SELECT * zzz
 reject	reject	ExplainableStmt#5/swap	EXPLAIN SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	ExplainableStmt#6/swap	EXPLAIN SEND_CREDENTIALS_TO_TIKV *
 reject	reject	ExplainableStmt#7/drop-1	EXPLAIN ident AS(SELECT *) SELECT *
@@ -6354,7 +6354,7 @@ reject	reject	ExplainableStmt#7/drop-6	EXPLAIN WITH ident AS(SELECT) SELECT *
 reject	reject	ExplainableStmt#7/drop-7	EXPLAIN WITH ident AS(SELECT * SELECT *
 reject	reject	ExplainableStmt#7/drop-8	EXPLAIN WITH ident AS(SELECT *) *
 reject	reject	ExplainableStmt#7/drop-9	EXPLAIN WITH ident AS(SELECT *) SELECT
-accept	reject	ExplainableStmt#7/insert	EXPLAIN WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	ExplainableStmt#7/insert	EXPLAIN WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	ExplainableStmt#7/swap	EXPLAIN WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	ExplainableStmt#8/drop-1	EXPLAIN SELECT *)
 reject	reject	ExplainableStmt#8/drop-2	EXPLAIN(*)
@@ -7025,7 +7025,7 @@ reject	reject	BindableStmt#1/drop-2	CREATE BINDING USING SELECT UNION SELECT *
 reject	reject	BindableStmt#1/drop-3	CREATE BINDING USING SELECT * SELECT *
 reject	reject	BindableStmt#1/drop-4	CREATE BINDING USING SELECT * UNION *
 reject	reject	BindableStmt#1/drop-5	CREATE BINDING USING SELECT * UNION SELECT
-accept	reject	BindableStmt#1/insert	CREATE BINDING USING SELECT * UNION SELECT * zzz
+reject	reject	BindableStmt#1/insert	CREATE BINDING USING SELECT * UNION SELECT * zzz
 reject	reject	BindableStmt#1/swap	CREATE BINDING USING SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	BindableStmt#2/swap	CREATE BINDING USING SEND_CREDENTIALS_TO_TIKV *
 reject	reject	BindableStmt#3/drop-1	CREATE BINDING USING ident AS(SELECT *) SELECT *
@@ -7037,7 +7037,7 @@ reject	reject	BindableStmt#3/drop-6	CREATE BINDING USING WITH ident AS(SELECT) S
 reject	reject	BindableStmt#3/drop-7	CREATE BINDING USING WITH ident AS(SELECT * SELECT *
 reject	reject	BindableStmt#3/drop-8	CREATE BINDING USING WITH ident AS(SELECT *) *
 reject	reject	BindableStmt#3/drop-9	CREATE BINDING USING WITH ident AS(SELECT *) SELECT
-accept	reject	BindableStmt#3/insert	CREATE BINDING USING WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	BindableStmt#3/insert	CREATE BINDING USING WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	BindableStmt#3/swap	CREATE BINDING USING WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	BindableStmt#4/drop-1	CREATE BINDING USING SELECT *)
 reject	reject	BindableStmt#4/drop-2	CREATE BINDING USING(*)
@@ -7062,12 +7062,12 @@ reject	reject	BindableStmt#7/drop-1	CREATE BINDING USING ident SELECT *
 reject	reject	BindableStmt#7/drop-2	CREATE BINDING USING INSERT SELECT *
 reject	reject	BindableStmt#7/drop-3	CREATE BINDING USING INSERT ident *
 reject	reject	BindableStmt#7/drop-4	CREATE BINDING USING INSERT ident SELECT
-accept	reject	BindableStmt#7/insert	CREATE BINDING USING INSERT ident SELECT * zzz
+reject	reject	BindableStmt#7/insert	CREATE BINDING USING INSERT ident SELECT * zzz
 reject	reject	BindableStmt#7/swap	CREATE BINDING USING INSERT_METHOD ident SELECT *
 reject	reject	BindableStmt#8/drop-2	CREATE BINDING USING REPLACE SELECT *
 reject	reject	BindableStmt#8/drop-3	CREATE BINDING USING REPLACE ident *
 reject	reject	BindableStmt#8/drop-4	CREATE BINDING USING REPLACE ident SELECT
-accept	reject	BindableStmt#8/insert	CREATE BINDING USING REPLACE ident SELECT * zzz
+reject	reject	BindableStmt#8/insert	CREATE BINDING USING REPLACE ident SELECT * zzz
 reject	reject	BindableStmt#8/swap	CREATE BINDING USING REPLAYER ident SELECT *
 reject	reject	CreateBindingStmt#1/drop-1	BINDING FOR SELECT * USING SELECT *
 reject	reject	CreateBindingStmt#1/drop-2	CREATE FOR SELECT * USING SELECT *
@@ -7077,7 +7077,7 @@ reject	reject	CreateBindingStmt#1/drop-5	CREATE BINDING FOR SELECT USING SELECT 
 reject	reject	CreateBindingStmt#1/drop-6	CREATE BINDING FOR SELECT * SELECT *
 reject	reject	CreateBindingStmt#1/drop-7	CREATE BINDING FOR SELECT * USING *
 reject	reject	CreateBindingStmt#1/drop-8	CREATE BINDING FOR SELECT * USING SELECT
-accept	reject	CreateBindingStmt#1/insert	CREATE BINDING FOR SELECT * USING SELECT * zzz
+reject	reject	CreateBindingStmt#1/insert	CREATE BINDING FOR SELECT * USING SELECT * zzz
 reject	reject	CreateBindingStmt#1/swap	CROSS BINDING FOR SELECT * USING SELECT *
 reject	reject	CreateBindingStmt#3/drop-1	BINDING FROM HISTORY USING PLAN DIGEST 's'
 reject	reject	CreateBindingStmt#3/drop-2	CREATE FROM HISTORY USING PLAN DIGEST 's'
@@ -7103,7 +7103,7 @@ reject	reject	DropBindingStmt#2/drop-5	DROP BINDING FOR SELECT USING SELECT *
 reject	reject	DropBindingStmt#2/drop-6	DROP BINDING FOR SELECT * SELECT *
 reject	reject	DropBindingStmt#2/drop-7	DROP BINDING FOR SELECT * USING *
 reject	reject	DropBindingStmt#2/drop-8	DROP BINDING FOR SELECT * USING SELECT
-accept	reject	DropBindingStmt#2/insert	DROP BINDING FOR SELECT * USING SELECT * zzz
+reject	reject	DropBindingStmt#2/insert	DROP BINDING FOR SELECT * USING SELECT * zzz
 reject	reject	DropBindingStmt#2/swap	DRY BINDING FOR SELECT * USING SELECT *
 reject	reject	DropBindingStmt#3/drop-1	BINDING FOR SQL DIGEST 's'
 reject	reject	DropBindingStmt#3/drop-2	DROP FOR SQL DIGEST 's'
@@ -7120,7 +7120,7 @@ reject	reject	SetBindingStmt#2/drop-6	SET BINDING ENABLED FOR SELECT USING SELEC
 reject	reject	SetBindingStmt#2/drop-7	SET BINDING ENABLED FOR SELECT * SELECT *
 reject	reject	SetBindingStmt#2/drop-8	SET BINDING ENABLED FOR SELECT * USING *
 reject	reject	SetBindingStmt#2/drop-9	SET BINDING ENABLED FOR SELECT * USING SELECT
-accept	reject	SetBindingStmt#2/insert	SET BINDING ENABLED FOR SELECT * USING SELECT * zzz
+reject	reject	SetBindingStmt#2/insert	SET BINDING ENABLED FOR SELECT * USING SELECT * zzz
 reject	reject	SetBindingStmt#2/swap	SETVAL BINDING ENABLED FOR SELECT * USING SELECT *
 reject	reject	SetBindingStmt#3/drop-1	BINDING ENABLED FOR SQL DIGEST 's'
 reject	reject	SetBindingStmt#3/drop-2	SET ENABLED FOR SQL DIGEST 's'
@@ -7452,7 +7452,7 @@ reject	reject	ImportIntoStmt#2/drop-3	IMPORT INTO FROM SELECT *
 reject	reject	ImportIntoStmt#2/drop-4	IMPORT INTO ident SELECT *
 reject	reject	ImportIntoStmt#2/drop-5	IMPORT INTO ident FROM *
 reject	reject	ImportIntoStmt#2/drop-6	IMPORT INTO ident FROM SELECT
-accept	reject	ImportIntoStmt#2/insert	IMPORT INTO ident FROM SELECT * zzz
+reject	reject	ImportIntoStmt#2/insert	IMPORT INTO ident FROM SELECT * zzz
 reject	reject	ImportIntoStmt#2/swap	IMPORTS INTO ident FROM SELECT *
 reject	reject	ImportFromSelectStmt#1/swap	IMPORT INTO ident FROM SEND_CREDENTIALS_TO_TIKV *
 reject	reject	ImportFromSelectStmt#2/drop-1	IMPORT INTO ident FROM * UNION SELECT *
@@ -7460,7 +7460,7 @@ reject	reject	ImportFromSelectStmt#2/drop-2	IMPORT INTO ident FROM SELECT UNION 
 reject	reject	ImportFromSelectStmt#2/drop-3	IMPORT INTO ident FROM SELECT * SELECT *
 reject	reject	ImportFromSelectStmt#2/drop-4	IMPORT INTO ident FROM SELECT * UNION *
 reject	reject	ImportFromSelectStmt#2/drop-5	IMPORT INTO ident FROM SELECT * UNION SELECT
-accept	reject	ImportFromSelectStmt#2/insert	IMPORT INTO ident FROM SELECT * UNION SELECT * zzz
+reject	reject	ImportFromSelectStmt#2/insert	IMPORT INTO ident FROM SELECT * UNION SELECT * zzz
 reject	reject	ImportFromSelectStmt#2/swap	IMPORT INTO ident FROM SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	ImportFromSelectStmt#3/drop-1	IMPORT INTO ident FROM ident AS(SELECT *) SELECT *
 reject	reject	ImportFromSelectStmt#3/drop-2	IMPORT INTO ident FROM WITH AS(SELECT *) SELECT *
@@ -7471,7 +7471,7 @@ reject	reject	ImportFromSelectStmt#3/drop-6	IMPORT INTO ident FROM WITH ident AS
 reject	reject	ImportFromSelectStmt#3/drop-7	IMPORT INTO ident FROM WITH ident AS(SELECT * SELECT *
 reject	reject	ImportFromSelectStmt#3/drop-8	IMPORT INTO ident FROM WITH ident AS(SELECT *) *
 reject	reject	ImportFromSelectStmt#3/drop-9	IMPORT INTO ident FROM WITH ident AS(SELECT *) SELECT
-accept	reject	ImportFromSelectStmt#3/insert	IMPORT INTO ident FROM WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	ImportFromSelectStmt#3/insert	IMPORT INTO ident FROM WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	ImportFromSelectStmt#3/swap	IMPORT INTO ident FROM WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	ImportFromSelectStmt#4/drop-1	IMPORT INTO ident FROM SELECT *)
 reject	reject	ImportFromSelectStmt#4/drop-2	IMPORT INTO ident FROM(*)
@@ -7509,12 +7509,12 @@ reject	reject	ShardableStmt#3/drop-1	BATCH LIMIT 1 ident SELECT *
 reject	reject	ShardableStmt#3/drop-2	BATCH LIMIT 1 INSERT SELECT *
 reject	reject	ShardableStmt#3/drop-3	BATCH LIMIT 1 INSERT ident *
 reject	reject	ShardableStmt#3/drop-4	BATCH LIMIT 1 INSERT ident SELECT
-accept	reject	ShardableStmt#3/insert	BATCH LIMIT 1 INSERT ident SELECT * zzz
+reject	reject	ShardableStmt#3/insert	BATCH LIMIT 1 INSERT ident SELECT * zzz
 reject	reject	ShardableStmt#3/swap	BATCH LIMIT 1 INSERT_METHOD ident SELECT *
 reject	reject	ShardableStmt#4/drop-2	BATCH LIMIT 1 REPLACE SELECT *
 reject	reject	ShardableStmt#4/drop-3	BATCH LIMIT 1 REPLACE ident *
 reject	reject	ShardableStmt#4/drop-4	BATCH LIMIT 1 REPLACE ident SELECT
-accept	reject	ShardableStmt#4/insert	BATCH LIMIT 1 REPLACE ident SELECT * zzz
+reject	reject	ShardableStmt#4/insert	BATCH LIMIT 1 REPLACE ident SELECT * zzz
 reject	reject	ShardableStmt#4/swap	BATCH LIMIT 1 REPLAYER ident SELECT *
 reject	reject	DryRunOptions#1/insert	BATCH LIMIT 1 zzz DELETE FROM ident
 reject	reject	DryRunOptions#2/drop-1	BATCH LIMIT 1 RUN DELETE FROM ident
@@ -7646,7 +7646,7 @@ reject	reject	PlanReplayerStmt#1/drop-3	PLAN REPLAYER EXPLAIN SELECT *
 reject	reject	PlanReplayerStmt#1/drop-4	PLAN REPLAYER DUMP SELECT *
 reject	reject	PlanReplayerStmt#1/drop-5	PLAN REPLAYER DUMP EXPLAIN *
 reject	reject	PlanReplayerStmt#1/drop-6	PLAN REPLAYER DUMP EXPLAIN SELECT
-accept	reject	PlanReplayerStmt#1/insert	PLAN REPLAYER DUMP EXPLAIN SELECT * zzz
+reject	reject	PlanReplayerStmt#1/insert	PLAN REPLAYER DUMP EXPLAIN SELECT * zzz
 reject	reject	PlanReplayerStmt#1/swap	PLAN_CACHE REPLAYER DUMP EXPLAIN SELECT *
 reject	reject	PlanReplayerStmt#2/drop-1	REPLAYER DUMP EXPLAIN ANALYZE SELECT *
 reject	reject	PlanReplayerStmt#2/drop-2	PLAN DUMP EXPLAIN ANALYZE SELECT *
@@ -7654,7 +7654,7 @@ reject	reject	PlanReplayerStmt#2/drop-3	PLAN REPLAYER EXPLAIN ANALYZE SELECT *
 reject	reject	PlanReplayerStmt#2/drop-4	PLAN REPLAYER DUMP ANALYZE SELECT *
 reject	reject	PlanReplayerStmt#2/drop-6	PLAN REPLAYER DUMP EXPLAIN ANALYZE *
 reject	reject	PlanReplayerStmt#2/drop-7	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT
-accept	reject	PlanReplayerStmt#2/insert	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT * zzz
+reject	reject	PlanReplayerStmt#2/insert	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT * zzz
 reject	reject	PlanReplayerStmt#2/swap	PLAN_CACHE REPLAYER DUMP EXPLAIN ANALYZE SELECT *
 reject	reject	PlanReplayerStmt#3/drop-1	REPLAYER DUMP EXPLAIN SLOW QUERY
 reject	reject	PlanReplayerStmt#3/drop-2	PLAN DUMP EXPLAIN SLOW QUERY
@@ -7731,7 +7731,7 @@ reject	reject	SpOptInout#4/insert	CREATE PROCEDURE ident(INOUT zzz ident JSON) C
 reject	reject	SpOptInout#4/swap	CREATE PROCEDURE ident(INPLACE ident JSON) COMMIT
 reject	reject	ProcedureStatementStmt#1/drop-1	CREATE PROCEDURE ident() *
 reject	reject	ProcedureStatementStmt#1/drop-2	CREATE PROCEDURE ident() SELECT
-accept	reject	ProcedureStatementStmt#1/insert	CREATE PROCEDURE ident() SELECT * zzz
+reject	reject	ProcedureStatementStmt#1/insert	CREATE PROCEDURE ident() SELECT * zzz
 reject	reject	ProcedureStatementStmt#1/swap	CREATE PROCEDURE ident() SEND_CREDENTIALS_TO_TIKV *
 reject	reject	ProcedureStatementStmt#2/drop-1	CREATE PROCEDURE ident() ident AS(SELECT *) SELECT *
 reject	reject	ProcedureStatementStmt#2/drop-2	CREATE PROCEDURE ident() WITH AS(SELECT *) SELECT *
@@ -7742,7 +7742,7 @@ reject	reject	ProcedureStatementStmt#2/drop-6	CREATE PROCEDURE ident() WITH iden
 reject	reject	ProcedureStatementStmt#2/drop-7	CREATE PROCEDURE ident() WITH ident AS(SELECT * SELECT *
 reject	reject	ProcedureStatementStmt#2/drop-8	CREATE PROCEDURE ident() WITH ident AS(SELECT *) *
 reject	reject	ProcedureStatementStmt#2/drop-9	CREATE PROCEDURE ident() WITH ident AS(SELECT *) SELECT
-accept	reject	ProcedureStatementStmt#2/insert	CREATE PROCEDURE ident() WITH ident AS(SELECT *) SELECT * zzz
+reject	reject	ProcedureStatementStmt#2/insert	CREATE PROCEDURE ident() WITH ident AS(SELECT *) SELECT * zzz
 reject	reject	ProcedureStatementStmt#2/swap	CREATE PROCEDURE ident() WITHOUT ident AS(SELECT *) SELECT *
 reject	reject	ProcedureStatementStmt#3/drop-1	CREATE PROCEDURE ident() SELECT *)
 reject	reject	ProcedureStatementStmt#3/drop-2	CREATE PROCEDURE ident()(*)
@@ -7771,12 +7771,12 @@ reject	reject	ProcedureStatementStmt#7/drop-1	CREATE PROCEDURE ident() ident SEL
 reject	reject	ProcedureStatementStmt#7/drop-2	CREATE PROCEDURE ident() INSERT SELECT *
 reject	reject	ProcedureStatementStmt#7/drop-3	CREATE PROCEDURE ident() INSERT ident *
 reject	reject	ProcedureStatementStmt#7/drop-4	CREATE PROCEDURE ident() INSERT ident SELECT
-accept	reject	ProcedureStatementStmt#7/insert	CREATE PROCEDURE ident() INSERT ident SELECT * zzz
+reject	reject	ProcedureStatementStmt#7/insert	CREATE PROCEDURE ident() INSERT ident SELECT * zzz
 reject	reject	ProcedureStatementStmt#7/swap	CREATE PROCEDURE ident() INSERT_METHOD ident SELECT *
 reject	reject	ProcedureStatementStmt#8/drop-2	CREATE PROCEDURE ident() REPLACE SELECT *
 reject	reject	ProcedureStatementStmt#8/drop-3	CREATE PROCEDURE ident() REPLACE ident *
 reject	reject	ProcedureStatementStmt#8/drop-4	CREATE PROCEDURE ident() REPLACE ident SELECT
-accept	reject	ProcedureStatementStmt#8/insert	CREATE PROCEDURE ident() REPLACE ident SELECT * zzz
+reject	reject	ProcedureStatementStmt#8/insert	CREATE PROCEDURE ident() REPLACE ident SELECT * zzz
 reject	reject	ProcedureStatementStmt#8/swap	CREATE PROCEDURE ident() REPLAYER ident SELECT *
 reject	reject	ProcedureStatementStmt#9/swap	CREATE PROCEDURE ident() COMMITTED
 reject	reject	ProcedureStatementStmt#10/insert	CREATE PROCEDURE ident() ROLLBACK zzz
@@ -7789,7 +7789,7 @@ reject	reject	ProcedureStatementStmt#12/drop-2	CREATE PROCEDURE ident() SELECT U
 reject	reject	ProcedureStatementStmt#12/drop-3	CREATE PROCEDURE ident() SELECT * SELECT *
 reject	reject	ProcedureStatementStmt#12/drop-4	CREATE PROCEDURE ident() SELECT * UNION *
 reject	reject	ProcedureStatementStmt#12/drop-5	CREATE PROCEDURE ident() SELECT * UNION SELECT
-accept	reject	ProcedureStatementStmt#12/insert	CREATE PROCEDURE ident() SELECT * UNION SELECT * zzz
+reject	reject	ProcedureStatementStmt#12/insert	CREATE PROCEDURE ident() SELECT * UNION SELECT * zzz
 reject	reject	ProcedureStatementStmt#12/swap	CREATE PROCEDURE ident() SEND_CREDENTIALS_TO_TIKV * UNION SELECT *
 reject	reject	ProcedureStatementStmt#13/drop-1	CREATE PROCEDURE ident() FROM ident
 reject	reject	ProcedureStatementStmt#13/drop-2	CREATE PROCEDURE ident() DELETE ident
@@ -7807,7 +7807,7 @@ reject	reject	ProcedureStatementStmt#15/swap	CREATE PROCEDURE ident() TSO ident
 reject	reject	ProcedureCursorSelectStmt#1/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR *; END
 reject	reject	ProcedureCursorSelectStmt#1/drop-2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT; END
 reject	reject	ProcedureCursorSelectStmt#1/truncate	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT
-accept	reject	ProcedureCursorSelectStmt#1/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * zzz; END
+reject	reject	ProcedureCursorSelectStmt#1/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * zzz; END
 reject	reject	ProcedureCursorSelectStmt#1/swap	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SEND_CREDENTIALS_TO_TIKV *; END
 reject	reject	ProcedureCursorSelectStmt#2/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR ident AS(SELECT *) SELECT *; END
 reject	reject	ProcedureCursorSelectStmt#2/drop-2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH AS(SELECT *) SELECT *; END
@@ -7819,7 +7819,7 @@ reject	reject	ProcedureCursorSelectStmt#2/drop-7	CREATE PROCEDURE ident() BEGIN 
 reject	reject	ProcedureCursorSelectStmt#2/drop-8	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) *; END
 reject	reject	ProcedureCursorSelectStmt#2/drop-9	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) SELECT; END
 reject	reject	ProcedureCursorSelectStmt#2/truncate	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) SELECT
-accept	reject	ProcedureCursorSelectStmt#2/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) SELECT * zzz; END
+reject	reject	ProcedureCursorSelectStmt#2/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITH ident AS(SELECT *) SELECT * zzz; END
 reject	reject	ProcedureCursorSelectStmt#2/swap	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR WITHOUT ident AS(SELECT *) SELECT *; END
 reject	reject	ProcedureCursorSelectStmt#3/drop-1	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT *); END
 reject	reject	ProcedureCursorSelectStmt#3/drop-2	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR(*); END
@@ -7834,7 +7834,7 @@ reject	reject	ProcedureCursorSelectStmt#4/drop-3	CREATE PROCEDURE ident() BEGIN 
 reject	reject	ProcedureCursorSelectStmt#4/drop-4	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION *; END
 reject	reject	ProcedureCursorSelectStmt#4/drop-5	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION SELECT; END
 reject	reject	ProcedureCursorSelectStmt#4/truncate	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION SELECT
-accept	reject	ProcedureCursorSelectStmt#4/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION SELECT * zzz; END
+reject	reject	ProcedureCursorSelectStmt#4/insert	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SELECT * UNION SELECT * zzz; END
 reject	reject	ProcedureCursorSelectStmt#4/swap	CREATE PROCEDURE ident() BEGIN DECLARE ident CURSOR FOR SEND_CREDENTIALS_TO_TIKV * UNION SELECT *; END
 reject	reject	ProcedureUnlabeledBlock#1/drop-1	CREATE PROCEDURE ident() END
 reject	reject	ProcedureUnlabeledBlock#1/drop-2	CREATE PROCEDURE ident() BEGIN
