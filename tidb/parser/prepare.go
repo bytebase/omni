@@ -27,7 +27,11 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		return nil, err
 	}
 
-	// SQL string or variable
+	// SQL string or variable — mandatory.
+	//
+	// Ref: PreparedStmt in TiDB v8.5.5 pkg/parser/parser.y is
+	// `"PREPARE" Identifier "FROM" PrepareSQL`, and PrepareSQL is only
+	// `stringLit | UserVariable`; FROM with no value is invalid.
 	if p.cur.Type == tokSCONST {
 		stmt.Stmt = p.cur.Str
 		p.advance()
@@ -37,6 +41,8 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = "@" + vref.Name
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -93,8 +99,13 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 	start := p.pos()
 	p.advance() // consume DEALLOCATE
 
-	// PREPARE
-	p.match(kwPREPARE)
+	// PREPARE is mandatory.
+	//
+	// Ref: DeallocateStmt in TiDB v8.5.5 pkg/parser/parser.y is
+	// `DeallocateSym "PREPARE" Identifier`.
+	if _, err := p.expect(kwPREPARE); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.DeallocateStmt{Loc: nodes.Loc{Start: start}}
 
