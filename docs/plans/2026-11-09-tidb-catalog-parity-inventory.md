@@ -94,7 +94,17 @@ Flagged for careful handling; these change what omni accepts or stores:
 - **C3** — catalog accepts invalid partition expressions (non-integer, misplaced `MAXVALUE`, bare `TIMESTAMP`) TiDB rejects. Over-acceptance. Locus: [partition_interval.go](../../tidb/catalog/partition_interval.go) / [partition_key_coverage.go](../../tidb/catalog/partition_key_coverage.go).
 - **C6 subset** — catalog accepts `DEFAULT (<disallowed function>)` TiDB 3770-rejects. Over-acceptance. Locus: default-value validation.
 
+Reclassified into this list by wave 2 (PR #792) — the triage had marked them "test-shape / omni matches TiDB", but measuring omni directly showed real over-acceptance:
+
+- **C8 DROP semantics (`Section_2_2`, `Section_2_3`, `TestScenario_AX`)** — catalog accepts `ALTER TABLE ... DROP COLUMN` covered by a composite index/PK, and `DROP PRIMARY KEY` on a clustered-index PK; TiDB v8.5.5 rejects both (8200). Over-acceptance.
+- **C6 stored routines (`Section_4_2`)** — catalog accepts `CREATE PROCEDURE`; TiDB 8108-rejects stored routines entirely. Over-acceptance.
+- **C7 index deltas (`TestScenario_C7` 7.3/7.7)** — catalog accepts prefix-less `TEXT KEY` (TiDB 1170-rejects) and keeps `IndexType="HASH"` for `KEY ... USING HASH` (TiDB coerces to BTREE). Over-acceptance.
+- **C3 INT NULL PK (`TestScenario_C3` 3.4)** — catalog accepts `INT NULL PRIMARY KEY`; TiDB 1171-rejects. Over-acceptance.
+- **C24 GIPK / C21** — architectural, not a point fix: GIPK has no omni session-var state; C21 needs the FK unspecified-action `NO ACTION` model plus the AST tri-state `ORDER BY` gap. Defer.
+
 Reclassified out (omni already matches TiDB v8.5.5 — do **not** "fix" these or you reintroduce MySQL output):
+
+- **C4 CHECK constraints** — TiDB v8.5.5 default (`tidb_enable_check_constraint` OFF) parses then silently discards every CHECK: no `CHECK_CONSTRAINTS`/`TABLE_CONSTRAINTS` row (TABLE_CONSTRAINTS has no `ENFORCED` column), SHOW CREATE omits it, predicate never evaluated, "forbidden" constructs and dup names accepted. omni's catalog discards CHECK identically. Test re-baseline (this wave): `TestScenario_C14` cleared; the CHECK subtests of `TestScenario_C1`/`C5`/`PS` cleared (those three stay red on unrelated non-CHECK subtests). Latent divergence, not test-exercised: omni discards CHECK unconditionally, so if a user sets `tidb_enable_check_constraint=ON` omni would under-retain — architectural follow-up, not a default-session failure.
 
 - **C5 FK naming/action** — `fk_N` naming and omitted-vs-explicit referential action are deliberate TiDB behavior ([wt_3_3_test.go](../../tidb/catalog/wt_3_3_test.go), [show.go:483](../../tidb/catalog/show.go)). Test re-baseline. Sole open item: the `INFORMATION_SCHEMA` `DELETE_RULE/UPDATE_RULE = "NO ACTION"` mapping noted in C5 above.
 - **C18 `ROW_FORMAT` elision** — omni omits `ROW_FORMAT` as TiDB v8.5.5 does ([wt_13_2_test.go](../../tidb/catalog/wt_13_2_test.go)); the C18 subtest asserting retention is the stale side. Test re-baseline, not a C9 renderer change.
@@ -106,7 +116,7 @@ Cheapest / highest-coverage first; the real-code gaps (higher risk) last.
 1. **C1 — collation/charset metadata re-baseline** (test-only, mechanical). The renderer already emits TiDB values; only the `want` literals and `utf8`/`utf8mb3` naming need updating. Clears ~4 tests and the single largest assertion block.
 2. **C9 — deparse/SHOW CREATE formatting** (omni, focused). Function-name casing (`YEAR`), `ROW_FORMAT`, generated-column/error-context rendering. One renderer fix clears ~7 tests and retires the casing half of C3.
 3. **C5 + C8 + C7 + C6 — test re-baseline** (mechanical, parallelizable per file): re-baseline FK naming/action expectations to TiDB, adopt TiDB's DDL semantics, guard/remove MySQL-only `SET`s, drop MySQL-only fixtures (spatial, FULLTEXT/SPATIAL, stored routines). Also the C18 `ROW_FORMAT` subtest. ~14 tests; split across sessions by file.
-4. **C4 — CHECK-constraint semantics**: confirm TiDB's retention/dup-name behavior (`tidb_enable_check_constraint`) once, then re-baseline. ~4 tests.
+4. **C4 — CHECK-constraint semantics** — DONE (this wave). Confirmed TiDB v8.5.5 default `tidb_enable_check_constraint=OFF` discards CHECK; omni matches. Re-baselined; cleared `TestScenario_C14`. The CHECK subtests of C1/C5/PS also re-baselined but those tests remain red on non-CHECK subtests (FK naming, index naming, datetime fsp — other clusters / real-bugs phase).
 5. **C2 — numeric-bound validation** (omni, higher risk): add `DECIMAL(p,s)` bound and `zerofill` handling. ~3 tests.
 6. **C3 — partition-expr validation** (omni, highest risk): add partition-expression rejection (non-integer, misplaced `MAXVALUE`, bare `TIMESTAMP`). ~2 tests; do last, with oracle confirmation per form.
 

@@ -55,7 +55,7 @@ var sharedTiDB sync.Mutex
 //
 // QUARANTINE: every test that goes through here is a differential test forked
 // from mysql/catalog, and its expectations are still MySQL-shaped. Against
-// TiDB v8.5.5, 31 top-level tests fail (mostly MySQL-shaped assertions where
+// TiDB v8.5.5, 30 top-level tests fail (mostly MySQL-shaped assertions where
 // omni already matches TiDB, plus a few real renderer/behavior gaps); they are
 // being cleared cluster by cluster (see
 // docs/plans/2026-11-09-tidb-catalog-parity-inventory.md). They are skipped

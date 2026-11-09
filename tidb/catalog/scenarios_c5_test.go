@@ -293,8 +293,8 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol", omniErrored, true)
 	})
 
-	// --- 5.8 CHECK defaults to ENFORCED ------------------------------------
-	t.Run("5_8_check_enforced_default", func(t *testing.T) {
+	// --- 5.8 CHECK discarded under TiDB default ----------------------------
+	t.Run("5_8_check_discarded_under_default", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -303,15 +303,17 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             CONSTRAINT chk_pos CHECK (a > 0)
         );`)
 
-		var enforced string
-		oracleScan(t, mc, `SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND CONSTRAINT_NAME='chk_pos'`,
-			&enforced)
-		assertStringEq(t, "oracle CHECK ENFORCED", enforced, "YES")
+		// tidb_enable_check_constraint is OFF by default in v8.5.5: the CHECK
+		// is discarded, so there is no CHECK_CONSTRAINTS row and SHOW CREATE
+		// omits it on both engines.
+		var n int
+		oracleScan(t, mc, `SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME='chk_pos'`, &n)
+		assertIntEq(t, "oracle CHECK_CONSTRAINTS rows", n, 0)
 
 		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(create), "NOT ENFORCED") {
-			t.Errorf("oracle: SHOW CREATE should not contain NOT ENFORCED: %s", create)
+		if strings.Contains(strings.ToUpper(create), "CHECK") {
+			t.Errorf("oracle: SHOW CREATE should not retain CHECK under default: %s", create)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -319,53 +321,31 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 			t.Errorf("omni: table t missing")
 			return
 		}
-		var found *Constraint
-		for _, con := range tbl.Constraints {
-			if con.Type == ConCheck && strings.EqualFold(con.Name, "chk_pos") {
-				found = con
-				break
-			}
-		}
-		if found == nil {
-			t.Errorf("omni: CHECK constraint chk_pos missing")
-			return
-		}
-		assertBoolEq(t, "omni CHECK NotEnforced is false", found.NotEnforced, false)
+		assertIntEq(t, "omni CHECK count", len(omniCheckNames(tbl)), 0)
 
 		omniCreate := c5OmniShowCreate(t, c, "t")
-		if strings.Contains(strings.ToUpper(omniCreate), "NOT ENFORCED") {
-			t.Errorf("omni: deparse should not contain NOT ENFORCED: %s", omniCreate)
+		if strings.Contains(strings.ToUpper(omniCreate), "CHECK") {
+			t.Errorf("omni: deparse should not retain CHECK under default: %s", omniCreate)
 		}
 	})
 
-	// --- 5.9 column-level vs table-level CHECK equivalence -----------------
-	t.Run("5_9_check_column_vs_table_level", func(t *testing.T) {
+	// --- 5.9 column-level and table-level CHECK both discarded -------------
+	t.Run("5_9_check_column_and_table_level_discarded", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT CHECK (a > 0));
 CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 
-		// Each table should have a single CHECK constraint with auto name.
+		// Neither the column-level nor the table-level CHECK is retained.
 		rows1 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't1_chk_%'`)
 		rows2 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't2_chk_%'`)
-		if len(rows1) != 1 {
-			t.Errorf("oracle: expected 1 CHECK on t1, got %d", len(rows1))
-		}
-		if len(rows2) != 1 {
-			t.Errorf("oracle: expected 1 CHECK on t2, got %d", len(rows2))
-		}
-		if len(rows1) == 1 && len(rows2) == 1 {
-			expr1 := asString(rows1[0][1])
-			expr2 := asString(rows2[0][1])
-			if expr1 != expr2 {
-				t.Errorf("oracle: CHECK_CLAUSE differs: t1=%q t2=%q", expr1, expr2)
-			}
-		}
+		assertIntEq(t, "oracle t1 CHECK rows", len(rows1), 0)
+		assertIntEq(t, "oracle t2 CHECK rows", len(rows2), 0)
 
 		t1 := c.GetDatabase("testdb").GetTable("t1")
 		t2 := c.GetDatabase("testdb").GetTable("t2")
@@ -373,42 +353,21 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 			t.Errorf("omni: t1 or t2 missing")
 			return
 		}
-		c1 := omniCheckNames(t1)
-		c2 := omniCheckNames(t2)
-		assertIntEq(t, "omni t1 check count", len(c1), 1)
-		assertIntEq(t, "omni t2 check count", len(c2), 1)
-
-		// Compare normalized expressions (both should serialize to the same form).
-		var e1, e2 string
-		for _, con := range t1.Constraints {
-			if con.Type == ConCheck {
-				e1 = c5NormalizeCheckExpr(con.CheckExpr)
-				break
-			}
-		}
-		for _, con := range t2.Constraints {
-			if con.Type == ConCheck {
-				e2 = c5NormalizeCheckExpr(con.CheckExpr)
-				break
-			}
-		}
-		if e1 != e2 {
-			t.Errorf("omni: column-level vs table-level CHECK exprs differ: %q vs %q", e1, e2)
-		}
+		assertIntEq(t, "omni t1 check count", len(omniCheckNames(t1)), 0)
+		assertIntEq(t, "omni t2 check count", len(omniCheckNames(t2)), 0)
 	})
 
-	// --- 5.10 column-level CHECK with cross-column ref rejected ------------
-	t.Run("5_10_column_check_cross_ref_rejected", func(t *testing.T) {
+	// --- 5.10 column-level CHECK with cross-column ref discarded -----------
+	t.Run("5_10_column_check_cross_ref_discarded", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
+		// MySQL rejects a column-level CHECK referencing another column
+		// (ER_CHECK_CONSTRAINT_REFERS, 3823). Under the default OFF setting
+		// the CHECK is discarded without validation, so both engines accept.
 		bad := `CREATE TABLE t (a INT CHECK (a > b), b INT)`
-		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_CHECK_CONSTRAINT_REFERS (3823), got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3823") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "check constraint") {
-			t.Errorf("oracle: expected 3823, got %v", mysqlErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, bad); oracleErr != nil {
+			t.Errorf("oracle: expected success (CHECK discarded), got %v", oracleErr)
 		}
 
 		results, err := c.Exec(bad+";", nil)
@@ -421,9 +380,9 @@ CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 				}
 			}
 		}
-		assertBoolEq(t, "omni rejects column-level CHECK referencing other column", omniErrored, true)
+		assertBoolEq(t, "omni accepts column-level CHECK referencing other column (discarded)", omniErrored, false)
 
-		// Sanity: same expression as TABLE-level CHECK should succeed in MySQL.
+		// A table-level CHECK with the same expression is likewise accepted.
 		scenarioReset(t, mc)
 		c2 := scenarioNewCatalog(t)
 		good := `CREATE TABLE t (a INT, b INT, CHECK (a > b));`
@@ -455,15 +414,4 @@ func c5IsFKDefault(action string) bool {
 func c5OmniShowCreate(t *testing.T, c *Catalog, table string) string {
 	t.Helper()
 	return c.ShowCreateTable("testdb", table)
-}
-
-// c5NormalizeCheckExpr strips parentheses and whitespace so column-level vs
-// table-level CHECKs (which may have different paren counts) compare equal.
-func c5NormalizeCheckExpr(s string) string {
-	s = strings.ReplaceAll(s, " ", "")
-	s = strings.ReplaceAll(s, "`", "")
-	for strings.HasPrefix(s, "(") && strings.HasSuffix(s, ")") {
-		s = s[1 : len(s)-1]
-	}
-	return s
 }

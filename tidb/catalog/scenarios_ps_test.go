@@ -16,9 +16,10 @@ func TestScenario_PS(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// PS.1 CHECK constraint counter — CREATE path (fresh counter).
-	// User-named t_chk_5 is NOT seeded into the generated counter; the
-	// single unnamed CHECK receives t_chk_1.
+	// PS.1 CHECK constraint counter — discarded under TiDB default.
+	// tidb_enable_check_constraint is OFF by default in v8.5.5, so both the
+	// named (t_chk_5) and the unnamed CHECK are parsed and discarded: no
+	// CHECK names are retained or counter-allocated on either engine.
 	t.Run("PS_1_Check_counter_CREATE_fresh", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -30,7 +31,7 @@ func TestScenario_PS(t *testing.T) {
             CHECK (b < 100)
         )`)
 
-		want := []string{"t_chk_1", "t_chk_5"}
+		var want []string
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -50,9 +51,9 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.2 CHECK constraint counter — ALTER path (max+1).
-	// The user-named t_chk_20 IS seeded on the ALTER path; new unnamed
-	// CHECK gets t_chk_21.
+	// PS.2 CHECK constraint counter — discarded on the ALTER path too.
+	// Both the CREATE-time named CHECK and the ALTER ADD CHECK are parsed
+	// and discarded under the default OFF setting, so nothing is retained.
 	t.Run("PS_2_Check_counter_ALTER_maxplus1", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -61,7 +62,7 @@ func TestScenario_PS(t *testing.T) {
 			`CREATE TABLE t (a INT, b INT, CONSTRAINT t_chk_20 CHECK (a>0))`)
 		runOnBoth(t, mc, c, `ALTER TABLE t ADD CHECK (b>0)`)
 
-		want := []string{"t_chk_20", "t_chk_21"}
+		var want []string
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -282,11 +283,11 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.8 CHECK constraint duplicate name in schema — must error.
-	// CHECK constraint names are schema-scoped in MySQL; the second
-	// CREATE TABLE with the same check name fails with
-	// ER_CHECK_CONSTRAINT_DUP_NAME (3822). omni does not enforce schema
-	// scoping → MED severity bug.
+	// PS.8 CHECK constraint duplicate name — discarded, so no dup-name error.
+	// MySQL scopes CHECK names per schema and rejects the second table with
+	// ER_CHECK_CONSTRAINT_DUP_NAME (3822). Under the default OFF setting the
+	// CHECK is discarded, so the "duplicate" is a no-op and both engines
+	// accept the second CREATE TABLE.
 	t.Run("PS_8_Check_dup_name_schema_scope", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -297,12 +298,8 @@ func TestScenario_PS(t *testing.T) {
 
 		ddl2 := `CREATE TABLE t2 (b INT, CONSTRAINT my_rule CHECK (b > 0))`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl2)
-		if oracleErr == nil {
-			t.Errorf("PS.8 oracle: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
-		} else if !strings.Contains(oracleErr.Error(), "3822") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.8 oracle: unexpected error text: %v", oracleErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, ddl2); oracleErr != nil {
+			t.Errorf("PS.8 oracle: expected success (CHECK discarded), got %v", oracleErr)
 		}
 
 		var omniErr error
@@ -317,8 +314,8 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.8 omni: KNOWN BUG — expected ER_CHECK_CONSTRAINT_DUP_NAME, got success (see mysql/catalog/scenarios_bug_queue/ps.md)")
+		if omniErr != nil {
+			t.Errorf("PS.8 omni: expected success (CHECK discarded), got %v", omniErr)
 		}
 	})
 }
