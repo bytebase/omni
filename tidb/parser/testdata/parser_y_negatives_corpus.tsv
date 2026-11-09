@@ -458,20 +458,20 @@ reject	reject	AlterTableSpec#26/insert	ALTER TABLE ident REPAIR PARTITION ALL zz
 reject	reject	AlterTableSpec#26/swap	ALTER TABLE ident REPEAT PARTITION ALL
 reject	reject	AlterTableSpec#27/drop-1	ALTER TABLE ident PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#27/drop-2	ALTER TABLE ident IMPORT ALL TABLESPACE
-accept	reject	AlterTableSpec#27/drop-3	ALTER TABLE ident IMPORT PARTITION TABLESPACE
-accept	reject	AlterTableSpec#27/drop-4	ALTER TABLE ident IMPORT PARTITION ALL
+reject	reject	AlterTableSpec#27/drop-3	ALTER TABLE ident IMPORT PARTITION TABLESPACE
+reject	reject	AlterTableSpec#27/drop-4	ALTER TABLE ident IMPORT PARTITION ALL
 reject	reject	AlterTableSpec#27/insert	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE zzz
 reject	reject	AlterTableSpec#27/swap	ALTER TABLE ident IMPORTS PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#28/drop-2	ALTER TABLE ident DISCARD ALL TABLESPACE
-accept	reject	AlterTableSpec#28/drop-3	ALTER TABLE ident DISCARD PARTITION TABLESPACE
-accept	reject	AlterTableSpec#28/drop-4	ALTER TABLE ident DISCARD PARTITION ALL
+reject	reject	AlterTableSpec#28/drop-3	ALTER TABLE ident DISCARD PARTITION TABLESPACE
+reject	reject	AlterTableSpec#28/drop-4	ALTER TABLE ident DISCARD PARTITION ALL
 reject	reject	AlterTableSpec#28/insert	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE zzz
 reject	reject	AlterTableSpec#28/swap	ALTER TABLE ident DISK PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#29/drop-1	ALTER TABLE ident TABLESPACE
-accept	reject	AlterTableSpec#29/drop-2	ALTER TABLE ident IMPORT
+reject	reject	AlterTableSpec#29/drop-2	ALTER TABLE ident IMPORT
 reject	reject	AlterTableSpec#29/insert	ALTER TABLE ident IMPORT TABLESPACE zzz
 reject	reject	AlterTableSpec#29/swap	ALTER TABLE ident IMPORTS TABLESPACE
-accept	reject	AlterTableSpec#30/drop-2	ALTER TABLE ident DISCARD
+reject	reject	AlterTableSpec#30/drop-2	ALTER TABLE ident DISCARD
 reject	reject	AlterTableSpec#30/insert	ALTER TABLE ident DISCARD TABLESPACE zzz
 reject	reject	AlterTableSpec#30/swap	ALTER TABLE ident DISK TABLESPACE
 reject	reject	AlterTableSpec#31/drop-2	ALTER TABLE ident REBUILD ALL
