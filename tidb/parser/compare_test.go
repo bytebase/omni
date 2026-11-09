@@ -5203,6 +5203,29 @@ func TestParseCreateProcedure(t *testing.T) {
 			t.Errorf("BodyText = %q, want %q", stmt.BodyText, body)
 		}
 	})
+
+	// §3.6 negatives-corpus rows, all engine=reject on pingcap/tidb v8.5.5.
+	// The unlabeled compound/loop forms end at END / END WHILE / END REPEAT
+	// (ProcedureBlockContent parser.y:16162, ProcedureUnlabelLoopStmt :16302),
+	// so a trailing token is 1064; ProcedureHcond (:16025) has no condition_name
+	// alternative, so bare FOUND is 1064; and ProcedureOptFetchNo (:16098)
+	// requires FROM after NEXT.
+	t.Run("rejections", func(t *testing.T) {
+		rejects := []string{
+			"CREATE PROCEDURE ident() BEGIN END zzz",                                        // ProcedureUnlabeledBlock#1/insert
+			"CREATE PROCEDURE ident() WHILE ident DO COMMIT; END WHILE zzz",                 // ProcedureUnlabelLoopBlock#1/insert
+			"CREATE PROCEDURE ident() REPEAT COMMIT; UNTIL ident END REPEAT zzz",            // ProcedureUnlabelLoopStmt#2/insert
+			"CREATE PROCEDURE ident() BEGIN DECLARE CONTINUE HANDLER FOR FOUND COMMIT; END", // ProcedureHcond#3/drop-1
+			"CREATE PROCEDURE ident() FETCH NEXT ident INTO ident",                          // ProcedureOptFetchNo#2/drop-2
+		}
+		for _, sql := range rejects {
+			t.Run(sql, func(t *testing.T) {
+				if _, err := Parse(sql); err == nil {
+					t.Errorf("Parse(%q) = nil error, want a parse error (TiDB v8.5.5 rejects it)", sql)
+				}
+			})
+		}
+	})
 }
 
 // ============================================================================
