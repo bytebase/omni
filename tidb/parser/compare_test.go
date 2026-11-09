@@ -7891,12 +7891,37 @@ func TestParseSetPassword(t *testing.T) {
 	tests := []string{
 		"SET PASSWORD = 'newpass'",
 		"SET PASSWORD = PASSWORD('newpass')",
+		"SET PASSWORD FOR 'u'@'h' = 'newpass'",
+		"SET PASSWORD FOR u = PASSWORD('newpass')",
+		"SET PASSWORD TO RANDOM",
+		"SET PASSWORD = 'newpass' REPLACE 'oldpass'",
+		"SET PASSWORD = 'newpass' RETAIN CURRENT PASSWORD",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+
+	// Rejections measured against pingcap/tidb v8.5.5: SetPwdStmt (parser.y:10750,
+	// 10754) requires EqOrAssignmentEq before PasswordOpt, and PasswordOpt
+	// (parser.y:11125) spells PASSWORD as '(' AuthString ')' with all three present.
+	t.Run("rejections", func(t *testing.T) {
+		rejects := []string{
+			"SET PASSWORD 's'",                  // SetStmt#2/drop-3: no '='
+			"SET PASSWORD FOR CURRENT_USER 's'", // SetStmt#3/drop-5: no '='
+			"SET PASSWORD = PASSWORD 's')",      // PasswordOpt#2/drop-2: no '('
+			"SET PASSWORD = PASSWORD()",         // PasswordOpt#2/drop-3: no inner string
+			"SET PASSWORD = PASSWORD('s'",       // PasswordOpt#2/drop-4: no ')'
+		}
+		for _, sql := range rejects {
+			t.Run(sql, func(t *testing.T) {
+				if _, err := Parse(sql); err == nil {
+					t.Errorf("Parse(%q) = nil error, want a parse error (TiDB v8.5.5 rejects it)", sql)
+				}
+			})
+		}
+	})
 }
 
 func TestParseSetPasswordForUser(t *testing.T) {

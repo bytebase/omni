@@ -5175,7 +5175,7 @@ reject	reject	SetStmt#1/insert	SET NAMES DEFAULT zzz
 reject	reject	SetStmt#1/swap	SETVAL NAMES DEFAULT
 reject	reject	SetStmt#2/drop-1	PASSWORD = 's'
 reject	reject	SetStmt#2/drop-2	SET = 's'
-accept	reject	SetStmt#2/drop-3	SET PASSWORD 's'
+reject	reject	SetStmt#2/drop-3	SET PASSWORD 's'
 reject	reject	SetStmt#2/drop-4	SET PASSWORD =
 reject	reject	SetStmt#2/insert	SET PASSWORD = 's' zzz
 reject	reject	SetStmt#2/swap	SETVAL PASSWORD = 's'
@@ -5183,7 +5183,7 @@ reject	reject	SetStmt#3/drop-1	PASSWORD FOR CURRENT_USER = 's'
 reject	reject	SetStmt#3/drop-2	SET FOR CURRENT_USER = 's'
 reject	reject	SetStmt#3/drop-3	SET PASSWORD CURRENT_USER = 's'
 reject	reject	SetStmt#3/drop-4	SET PASSWORD FOR = 's'
-accept	reject	SetStmt#3/drop-5	SET PASSWORD FOR CURRENT_USER 's'
+reject	reject	SetStmt#3/drop-5	SET PASSWORD FOR CURRENT_USER 's'
 reject	reject	SetStmt#3/drop-6	SET PASSWORD FOR CURRENT_USER =
 reject	reject	SetStmt#3/insert	SET PASSWORD FOR CURRENT_USER = 's' zzz
 reject	reject	SetStmt#3/swap	SETVAL PASSWORD FOR CURRENT_USER = 's'
@@ -5383,9 +5383,9 @@ reject	reject	UsernameList#2/drop-3	DROP USER CURRENT_USER,
 reject	reject	UsernameList#2/insert	DROP USER CURRENT_USER, CURRENT_USER zzz
 reject	reject	UsernameList#2/swap	DROP USER CURSOR, CURRENT_USER
 reject	reject	PasswordOpt#2/drop-1	SET PASSWORD =('s')
-accept	reject	PasswordOpt#2/drop-2	SET PASSWORD = PASSWORD 's')
-accept	reject	PasswordOpt#2/drop-3	SET PASSWORD = PASSWORD()
-accept	reject	PasswordOpt#2/drop-4	SET PASSWORD = PASSWORD('s'
+reject	reject	PasswordOpt#2/drop-2	SET PASSWORD = PASSWORD 's')
+reject	reject	PasswordOpt#2/drop-3	SET PASSWORD = PASSWORD()
+reject	reject	PasswordOpt#2/drop-4	SET PASSWORD = PASSWORD('s'
 reject	reject	PasswordOpt#2/insert	SET PASSWORD = PASSWORD('s') zzz
 reject	reject	PasswordOpt#2/swap	SET PASSWORD = PASSWORD_LOCK_TIME('s')
 reject	reject	AuthString#1/drop-1	CREATE USER CURRENT_USER IDENTIFIED BY
