@@ -1077,7 +1077,7 @@ reject	reject	EnforcedOrNotOpt#1/insert	ALTER TABLE ident ADD CHECK(ident) zzz
 reject	reject	EnforcedOrNotOpt#2/insert	ALTER TABLE ident ADD CHECK(ident) ENFORCED zzz
 reject	reject	EnforcedOrNotOpt#2/swap	ALTER TABLE ident ADD CHECK(ident) ENGINE
 accept	accept	EnforcedOrNotOrNotNullOpt#1/drop-1	ALTER TABLE ident ADD ident JSON CHECK(ident) NULL
-accept	reject	EnforcedOrNotOrNotNullOpt#1/drop-2	ALTER TABLE ident ADD ident JSON CHECK(ident) NOT
+reject	reject	EnforcedOrNotOrNotNullOpt#1/drop-2	ALTER TABLE ident ADD ident JSON CHECK(ident) NOT
 reject	reject	EnforcedOrNotOrNotNullOpt#1/insert	ALTER TABLE ident ADD ident JSON CHECK(ident) NOT NULL zzz
 reject	reject	EnforcedOrNotOrNotNullOpt#1/swap	ALTER TABLE ident ADD ident JSON CHECK(ident) NOW NULL
 reject	reject	EnforcedOrNotOrNotNullOpt#2/insert	ALTER TABLE ident ADD ident JSON CHECK(ident) zzz
@@ -1135,7 +1135,7 @@ reject	reject	ColumnOption#17/drop-1	ALTER TABLE ident ADD ident JSON BINARY
 reject	reject	ColumnOption#17/drop-2	ALTER TABLE ident ADD ident JSON COLLATE
 reject	reject	ColumnOption#17/insert	ALTER TABLE ident ADD ident JSON COLLATE BINARY zzz
 reject	reject	ColumnOption#17/swap	ALTER TABLE ident ADD ident JSON COLLATION BINARY
-accept	reject	ColumnOption#18/drop-2	ALTER TABLE ident ADD ident JSON COLUMN_FORMAT
+reject	reject	ColumnOption#18/drop-2	ALTER TABLE ident ADD ident JSON COLUMN_FORMAT
 reject	reject	ColumnOption#18/insert	ALTER TABLE ident ADD ident JSON COLUMN_FORMAT DEFAULT zzz
 reject	reject	ColumnOption#18/swap	ALTER TABLE ident ADD ident JSON COLUMN_STATS_USAGE DEFAULT
 reject	reject	ColumnOption#19/drop-2	ALTER TABLE ident ADD ident JSON STORAGE
@@ -1165,7 +1165,7 @@ reject	reject	ColumnFormat#3/insert	ALTER TABLE ident ADD ident JSON COLUMN_FORM
 reject	reject	ColumnFormat#3/swap	ALTER TABLE ident ADD ident JSON COLUMN_FORMAT ELSE
 reject	reject	GeneratedAlways#1/insert	ALTER TABLE ident ADD ident JSON zzz AS(ident)
 reject	reject	GeneratedAlways#2/drop-1	ALTER TABLE ident ADD ident JSON ALWAYS AS(ident)
-accept	reject	GeneratedAlways#2/drop-2	ALTER TABLE ident ADD ident JSON GENERATED AS(ident)
+reject	reject	GeneratedAlways#2/drop-2	ALTER TABLE ident ADD ident JSON GENERATED AS(ident)
 reject	reject	GeneratedAlways#2/truncate	ALTER TABLE ident ADD ident JSON GENERATED
 reject	reject	GeneratedAlways#2/insert	ALTER TABLE ident ADD ident JSON GENERATED ALWAYS zzz AS(ident)
 reject	reject	GeneratedAlways#2/swap	ALTER TABLE ident ADD ident JSON GET_FORMAT ALWAYS AS(ident)
@@ -1290,11 +1290,11 @@ reject	reject	NowSymOptionFractionParentheses#1/drop-3	ALTER TABLE ident ADD ide
 reject	reject	NowSymOptionFractionParentheses#1/insert	ALTER TABLE ident ADD ident JSON DEFAULT(CURRENT_DATE) zzz
 reject	reject	NowSymOptionFractionParentheses#1/swap	ALTER TABLE ident ADD ident JSON DEFAULT(CURRENT_ROLE)
 reject	reject	NowSymOptionFraction#1/insert	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP zzz
-accept	reject	NowSymOptionFraction#1/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_USER
+reject	reject	NowSymOptionFraction#1/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_USER
 reject	reject	NowSymOptionFraction#2/drop-2	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP)
 reject	reject	NowSymOptionFraction#2/drop-3	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP(
 reject	reject	NowSymOptionFraction#2/insert	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP() zzz
-accept	reject	NowSymOptionFraction#2/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_USER()
+reject	reject	NowSymOptionFraction#2/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_USER()
 reject	reject	NowSymOptionFraction#3/drop-1	ALTER TABLE ident ADD ident JSON DEFAULT(1)
 reject	reject	NowSymOptionFraction#3/drop-2	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP 1)
 reject	reject	NowSymOptionFraction#3/drop-4	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_TIMESTAMP(1
@@ -1334,7 +1334,7 @@ reject	reject	NowSym#3/insert	ALTER TABLE ident ADD ident JSON DEFAULT LOCALTIME
 reject	reject	NowSym#3/swap	ALTER TABLE ident ADD ident JSON DEFAULT LOCATION
 reject	reject	CurdateSym#1/insert	ALTER TABLE ident ADD ident JSON DEFAULT CURDATE zzz()
 reject	reject	CurdateSym#2/insert	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_DATE zzz()
-accept	reject	CurdateSym#2/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_ROLE()
+reject	reject	CurdateSym#2/swap	ALTER TABLE ident ADD ident JSON DEFAULT CURRENT_ROLE()
 reject	reject	SignedLiteral#1/drop-1	ADMIN ALTER DDL JOBS 1 ident =
 reject	reject	SignedLiteral#1/insert	ADMIN ALTER DDL JOBS 1 ident = FALSE zzz
 reject	reject	SignedLiteral#1/swap	ADMIN ALTER DDL JOBS 1 ident = FAULTS
