@@ -835,8 +835,16 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// exception is below: a qualified TRIM or SUBSTRING. p.prev is the name's
 	// token, the one after the dot when the name is qualified.
 	nameQuoted := p.backtickQuotedAt(p.prev.Loc)
-	builtin := schema == "" && !nameQuoted && !p.temporalWordIsName(strings.ToUpper(name))
-	if err := p.refuseStoredExprFunction(strings.ToUpper(name), schema != "", start); err != nil {
+	// spacedGeneric records that a gated builtin keyword became a generic call
+	// only because a space sits before its '(' (see spacedFuncWords); deparse
+	// keeps the space so the call does not re-lex as the builtin.
+	spacedGeneric := schema == "" && !nameQuoted && p.spacedFuncWordIsName(strings.ToUpper(name))
+	builtin := schema == "" && !nameQuoted && !spacedGeneric
+	// A spaced gated keyword is a generic stored-function call, which a stored
+	// expression (a generated column, a column CHECK or DEFAULT) forbids like a
+	// qualified one: mariadb:11.8.8 rejects b INT AS (position (a)) where the
+	// adjacent builtin is allowed.
+	if err := p.refuseStoredExprFunction(strings.ToUpper(name), schema != "" || spacedGeneric, start); err != nil {
 		return nil, err
 	}
 	// A stored function's database is held to check_db_name as its call parses.
@@ -845,17 +853,21 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return nil, err
 		}
 	}
-	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
+	// A spaced gated keyword is a generic stored-function call, which a partition
+	// expression forbids like any qualified or quoted one: mariadb:11.8.8 accepts
+	// HASH(sum(a)) but rejects HASH(sum (a)) and HASH(`sum`(a)).
+	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema) || spacedGeneric, start); err != nil {
 		return nil, err
 	}
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
-		Loc:       nodes.Loc{Start: start},
-		Schema:    schema,
-		Name:      strings.ToUpper(name),
-		RawName:   name,
-		HasParens: true,
+		Loc:         nodes.Loc{Start: start},
+		Schema:      schema,
+		Name:        strings.ToUpper(name),
+		RawName:     name,
+		HasParens:   true,
+		SpacedParen: spacedGeneric,
 	}
 
 	// Handle special function forms

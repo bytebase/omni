@@ -105,10 +105,13 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		return &CoalesceExprQ{Args: args}, nil
 	}
 	result := &FuncCallExprQ{
-		Name:        lower,
-		Args:        args,
-		IsAggregate: isAggregateFunc(fc.Name),
+		Name: lower,
+		Args: args,
+		// A spaced gated keyword is a generic call, not the builtin, so it is
+		// never the aggregate: `count (a)` is a stored-function call, not COUNT.
+		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
+		SpacedParen: fc.SpacedParen,
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)

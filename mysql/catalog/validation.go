@@ -98,7 +98,46 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			}
 		}
 	}
+	// A spaced gated keyword is a generic stored-function call, which an
+	// expression default forbids: mysql:8.0 answers 3770 for
+	// `DEFAULT (position (1))`. (Other disallowed functions in a general default
+	// expression are not validated here yet.)
+	for _, expr := range columnDefDefaultExprs(colDef) {
+		if exprHasSpacedFuncCall(expr) {
+			return &Error{Code: 3770, SQLState: "HY000",
+				Message: "Default value expression of column '" + colDef.Name + "' contains a disallowed function."}
+		}
+	}
 	return nil
+}
+
+// columnDefDefaultExprs returns the column's default expressions, from the field
+// and from any DEFAULT column constraint.
+func columnDefDefaultExprs(colDef *nodes.ColumnDef) []nodes.ExprNode {
+	exprs := []nodes.ExprNode{colDef.DefaultValue}
+	for _, cc := range colDef.Constraints {
+		if cc.Type == nodes.ColConstrDefault {
+			exprs = append(exprs, cc.Expr)
+		}
+	}
+	return exprs
+}
+
+// exprHasSpacedFuncCall reports whether expr holds a function call written with a
+// space before its '(' — a generic stored-function call (see SpacedParen).
+func exprHasSpacedFuncCall(expr nodes.ExprNode) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && fn.SpacedParen {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {
@@ -152,7 +191,12 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
 		case *nodes.VariableRef:
 			invalid = true
 		case *nodes.FuncCallExpr:
-			if isNondeterministicFunc(x.Name) {
+			// A spaced gated keyword is a generic stored-function call, which a
+			// generated expression forbids: mysql:8.0 answers 3763 for
+			// `b INT AS (position (a))`, where the adjacent builtin is a syntax
+			// error at parse. Admitting it would also store the space-dropped
+			// `position(a)`, an invalid builtin call.
+			if isNondeterministicFunc(x.Name) || x.SpacedParen {
 				invalid = true
 			}
 		}
@@ -309,7 +353,10 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 		case *nodes.VariableRef:
 			invalid = true
 		case *nodes.FuncCallExpr:
-			if isNondeterministicFunc(x.Name) {
+			// A spaced gated keyword is a generic stored-function call, which a
+			// check constraint forbids: mysql:8.0 answers 3814 for
+			// `CHECK (sum (a) > 0)`.
+			if isNondeterministicFunc(x.Name) || x.SpacedParen {
 				invalid = true
 			}
 		}

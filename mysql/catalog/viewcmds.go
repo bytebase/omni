@@ -672,7 +672,9 @@ func inferViewUpdatable(sel *nodes.SelectStmt, algorithm string) bool {
 		if hasAgg {
 			return false
 		}
-		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) {
+		// A spaced gated keyword is a generic scalar call, not the aggregate, so
+		// it does not make the view non-updatable (see analyzeFuncCall).
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) && !fn.SpacedParen {
 			hasAgg = true
 			return false
 		}

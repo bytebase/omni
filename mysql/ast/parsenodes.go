@@ -701,10 +701,18 @@ type FuncCallExpr struct {
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
-	OrderBy    []*OrderByItem
-	Over       *WindowDef        // OVER clause for window functions
-	Separator  ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
-	JSONValue  *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
+	// SpacedParen marks a generic call whose name is an adjacency-gated builtin
+	// (an aggregate or scalar keyword, see spacedFuncWords in mysql/parser)
+	// written with a space before '(' — `max (a, a)`, `count ()`. The space is
+	// why it is a generic call and not the builtin, so a deparse that drops it
+	// would re-lex as the builtin and change meaning or fail to parse. Set only by
+	// parsing such text; engine-synced SQL is always adjacent, so it is never set
+	// there.
+	SpacedParen bool
+	OrderBy     []*OrderByItem
+	Over        *WindowDef        // OVER clause for window functions
+	Separator   ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	JSONValue   *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
 	// JSONValueArm marks a call read through JSON_VALUE's own arm of the grammar, which has a
 	// stored form of its own even with no clause written. Quoted or qualified, the name is an
 	// ordinary call to whatever function has that name.

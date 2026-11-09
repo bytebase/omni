@@ -35,10 +35,39 @@ var spacedTemporalWords = map[string]bool{
 	"DATE_SUB": true, "NOW": true, "SUBDATE": true, "SYSDATE": true,
 }
 
-// temporalWordIsName reports whether the function word just consumed is an
-// identifier here. p.prev is the word and p.cur its '('.
-func (p *Parser) temporalWordIsName(upperName string) bool {
-	return spacedTemporalWords[upperName] && p.prev.End != p.cur.Loc
+// spacedFuncWords are the aggregate and scalar builtins whose special argument
+// syntax (COUNT(*), the DISTINCT/ALL quantifier, GROUP_CONCAT's SEPARATOR,
+// SUBSTRING/TRIM's FROM, POSITION's IN) the lexer reaches only through a token it
+// folds out of `name(` when the '(' sits directly after the name (SYM_FN in
+// lex.h). With a space or a comment first the word is a plain identifier, so the
+// call is an ordinary generic one: it takes expression arguments and none of
+// those special forms. mysql:8.0 parses sum (a), count (a, a) and max ( ), and
+// answers 1064 for sum (*), max (distinct a), count (*), group_concat (a
+// separator ','), substring (a from 1), trim (leading 'x' from a) and
+// position ('a' in b). Every one is held to the engine by
+// TestSpacedFuncWordsMatchEngine.
+//
+// AVG, CHAR, JSON_VALUE, WEIGHT_STRING, GET_FORMAT, TIMESTAMPDIFF and
+// TIMESTAMPADD are reserved-keyword productions, not SYM_FN-folded tokens, so a
+// space before the '(' changes nothing and they keep their special forms:
+// avg (distinct a) and substring's cousin char (a using utf8) still run.
+var spacedFuncWords = map[string]bool{
+	"COUNT": true,
+	"SUM":   true, "MIN": true, "MAX": true, "GROUP_CONCAT": true,
+	"STD": true, "STDDEV": true, "STDDEV_POP": true, "STDDEV_SAMP": true,
+	"VAR_POP": true, "VAR_SAMP": true, "VARIANCE": true,
+	"BIT_AND": true, "BIT_OR": true, "BIT_XOR": true,
+	"JSON_ARRAYAGG": true, "JSON_OBJECTAGG": true,
+	"SUBSTR": true, "SUBSTRING": true, "TRIM": true, "POSITION": true,
+}
+
+// spacedFuncWordIsName reports whether the function word just consumed is a plain
+// identifier here, so the call is an ordinary generic one rather than the
+// builtin's special form. p.prev is the word and p.cur its '('. Both maps gate
+// their word the same way: only a word directly before '(' takes its folded
+// token (misc.go, SYM_FN).
+func (p *Parser) spacedFuncWordIsName(upperName string) bool {
+	return (spacedTemporalWords[upperName] || spacedFuncWords[upperName]) && p.prev.End != p.cur.Loc
 }
 
 // maxPrecisionLiteral is the largest literal func_datetime_precision reads. The
