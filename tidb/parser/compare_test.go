@@ -7551,32 +7551,40 @@ func TestParseStopGroupReplication(t *testing.T) {
 // ============================================================================
 
 func TestParseAlterInstanceRotateKey(t *testing.T) {
-	ParseAndCheck(t, "ALTER INSTANCE ROTATE INNODB MASTER KEY")
+	// MySQL-only: TiDB v8.5.5's ALTER INSTANCE has only RELOAD TLS, so it answers
+	// 1064 for ROTATE ... MASTER KEY (parser.y:13758-13784, measured live).
+	ParseExpectError(t, "ALTER INSTANCE ROTATE INNODB MASTER KEY")
 }
 
 func TestParseAlterInstanceRedoLog(t *testing.T) {
+	// MySQL-only: ENABLE/DISABLE INNODB REDO_LOG is not in TiDB's ALTER INSTANCE
+	// grammar (only RELOAD TLS), so TiDB answers 1064 (measured live).
 	tests := []string{
 		"ALTER INSTANCE ENABLE INNODB REDO_LOG",
 		"ALTER INSTANCE DISABLE INNODB REDO_LOG",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
 
 func TestParseAlterInstanceReloadTLS(t *testing.T) {
-	tests := []string{
+	// TiDB's only ALTER INSTANCE action is RELOAD TLS, optionally with NO
+	// ROLLBACK ON ERROR (parser.y:13771-13784). FOR CHANNEL is MySQL-only and
+	// rejected (measured live).
+	for _, sql := range []string{
 		"ALTER INSTANCE RELOAD TLS",
 		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
-		"ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	t.Run("ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main", func(t *testing.T) {
+		ParseExpectError(t, "ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main")
+	})
 }
 
 func TestParseLockInstance(t *testing.T) {
@@ -9371,17 +9379,25 @@ func TestParseIndexHints(t *testing.T) {
 }
 
 func TestParseAlterInstance(t *testing.T) {
-	tests := []string{
+	// TiDB v8.5.5 accepts only RELOAD TLS [NO ROLLBACK ON ERROR]
+	// (parser.y:13758-13784); the other MySQL instance actions are rejected
+	// (measured live).
+	for _, sql := range []string{
+		"ALTER INSTANCE RELOAD TLS",
+		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	for _, sql := range []string{
 		"ALTER INSTANCE ROTATE INNODB MASTER KEY",
 		"ALTER INSTANCE ENABLE INNODB REDO_LOG",
 		"ALTER INSTANCE DISABLE INNODB REDO_LOG",
-		"ALTER INSTANCE RELOAD TLS",
-		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
 		"ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
