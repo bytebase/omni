@@ -98,3 +98,20 @@ here — noted, never fixed by widening `Parse`.
   sql_yacc.yy `delete_option`.
 - Measured live: over-acceptances **137 → 128** (9 rows to reject/reject, 0
   no-verdict), no new gaps (both-accept 153), positive corpora unregressed.
+
+### (c) close over-acceptances — cluster 3: CREATE/ALTER USER password options
+
+- **Cluster: PasswordOrLockOption operand requirements.** `parseUserAccountOptions`
+  accepted incomplete options: `PASSWORD HISTORY` (no n/DEFAULT), `PASSWORD REUSE`
+  without INTERVAL / without DAY, `PASSWORD REQUIRE DEFAULT` / `REQUIRE CURRENT`
+  (TiDB's only form is CURRENT DEFAULT), and bare `ACCOUNT`.
+- Divergence found: `mysql` and `mariadb` were **already strict** here; only
+  `tidb` and `oceanbase` were loose. Fixed those two. tidb uses TiDB's stricter
+  REQUIRE (CURRENT DEFAULT, measured on live TiDB); oceanbase matches the
+  already-correct mysql/mariadb (REQUIRE CURRENT [DEFAULT|OPTIONAL]). Measured a
+  throwaway set of password forms on live TiDB first to pin each verdict.
+- Cited to TiDB parser.y:13993-14082 / MySQL sql_yacc.yy password_option.
+- Measured live: over-acceptances **128 → 118** (10 rows to reject/reject, 0
+  no-verdict), no new gaps, positive corpora unregressed; oceanbase grant/user
+  container tests pass. (SET PASSWORD `=` / `PASSWORD()` forms are a separate
+  later cluster.)

@@ -2203,6 +2203,10 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 //	    ACCOUNT LOCK
 //	  | ACCOUNT UNLOCK
 //	}
+//
+// Ref: PasswordOrLockOption in TiDB v8.5.5 parser.y:13993-14082. Each option
+// requires its full operand: HISTORY {n|DEFAULT}, REUSE INTERVAL {n DAY|DEFAULT},
+// REQUIRE CURRENT DEFAULT (the only REQUIRE form), ACCOUNT {LOCK|UNLOCK}.
 func (p *Parser) parseUserAccountOptions(
 	passwordExpire, passwordHistory, passwordReuseInterval, passwordRequireCurrent *string,
 	failedLoginAttempts *int, hasFailedLogin *bool,
@@ -2248,13 +2252,15 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					*passwordHistory = strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREUSE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REUSE
-				// INTERVAL
-				if p.cur.Type == kwINTERVAL {
-					p.advance()
+				// INTERVAL is required, then DEFAULT or a count with DAY.
+				if _, err := p.expect(kwINTERVAL); err != nil {
+					return err
 				}
 				if p.cur.Type == kwDEFAULT {
 					*passwordReuseInterval = "DEFAULT"
@@ -2262,30 +2268,25 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					n := strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
-					if p.cur.Type == kwDAY {
-						p.advance()
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordReuseInterval = n + " DAY"
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREQUIRE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REQUIRE
-				if p.cur.Type == kwDEFAULT {
-					*passwordRequireCurrent = "DEFAULT"
-					p.advance()
-				} else if p.cur.Type == kwCURRENT {
-					p.advance() // consume CURRENT
-					// Check for DEFAULT or OPTIONAL after CURRENT
-					if p.cur.Type == kwDEFAULT {
-						*passwordRequireCurrent = "DEFAULT"
-						p.advance()
-					} else if p.cur.Type == kwOPTIONAL {
-						*passwordRequireCurrent = "OPTIONAL"
-						p.advance()
-					} else {
-						*passwordRequireCurrent = "CURRENT"
-					}
+				// The only form is REQUIRE CURRENT DEFAULT; TiDB answers 1064 for
+				// REQUIRE DEFAULT, REQUIRE CURRENT, and REQUIRE CURRENT OPTIONAL.
+				if _, err := p.expect(kwCURRENT); err != nil {
+					return err
 				}
+				if _, err := p.expect(kwDEFAULT); err != nil {
+					return err
+				}
+				*passwordRequireCurrent = "DEFAULT"
 			default:
 				return nil
 			}
@@ -2324,6 +2325,8 @@ func (p *Parser) parseUserAccountOptions(
 			} else if p.cur.Type == kwUNLOCK {
 				*accountUnlock = true
 				p.advance()
+			} else {
+				return p.syntaxErrorAtCur()
 			}
 
 		// COMMENT and ATTRIBUTE take a quoted string; the server answers 1064
