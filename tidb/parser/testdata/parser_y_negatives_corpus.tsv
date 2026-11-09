@@ -6923,13 +6923,13 @@ reject	reject	ResourceGroupNameOption#2/drop-3	CREATE USER CURRENT_USER RESOURCE
 reject	reject	ResourceGroupNameOption#2/insert	CREATE USER CURRENT_USER RESOURCE GROUP DEFAULT zzz
 reject	reject	ResourceGroupNameOption#2/swap	CREATE USER CURRENT_USER RESPECT GROUP DEFAULT
 reject	reject	PasswordOrLockOptions#2/drop-1	CREATE USER CURRENT_USER UNLOCK
-accept	reject	PasswordOrLockOptions#2/drop-2	CREATE USER CURRENT_USER ACCOUNT
+reject	reject	PasswordOrLockOptions#2/drop-2	CREATE USER CURRENT_USER ACCOUNT
 reject	reject	PasswordOrLockOptions#2/insert	CREATE USER CURRENT_USER ACCOUNT UNLOCK zzz
 reject	reject	PasswordOrLockOptions#2/swap	CREATE USER CURRENT_USER ACTION UNLOCK
 reject	reject	PasswordOrLockOptionList#2/drop-1	CREATE USER CURRENT_USER UNLOCK ACCOUNT UNLOCK
-accept	reject	PasswordOrLockOptionList#2/drop-2	CREATE USER CURRENT_USER ACCOUNT ACCOUNT UNLOCK
+reject	reject	PasswordOrLockOptionList#2/drop-2	CREATE USER CURRENT_USER ACCOUNT ACCOUNT UNLOCK
 reject	reject	PasswordOrLockOptionList#2/drop-3	CREATE USER CURRENT_USER ACCOUNT UNLOCK UNLOCK
-accept	reject	PasswordOrLockOptionList#2/drop-4	CREATE USER CURRENT_USER ACCOUNT UNLOCK ACCOUNT
+reject	reject	PasswordOrLockOptionList#2/drop-4	CREATE USER CURRENT_USER ACCOUNT UNLOCK ACCOUNT
 reject	reject	PasswordOrLockOptionList#2/insert	CREATE USER CURRENT_USER ACCOUNT UNLOCK ACCOUNT UNLOCK zzz
 reject	reject	PasswordOrLockOptionList#2/swap	CREATE USER CURRENT_USER ACTION UNLOCK ACCOUNT UNLOCK
 reject	reject	PasswordOrLockOption#2/drop-1	CREATE USER CURRENT_USER LOCK
@@ -6937,7 +6937,7 @@ reject	reject	PasswordOrLockOption#2/insert	CREATE USER CURRENT_USER ACCOUNT LOC
 reject	reject	PasswordOrLockOption#2/swap	CREATE USER CURRENT_USER ACTION LOCK
 reject	reject	PasswordOrLockOption#3/drop-1	CREATE USER CURRENT_USER HISTORY DEFAULT
 reject	reject	PasswordOrLockOption#3/drop-2	CREATE USER CURRENT_USER PASSWORD DEFAULT
-accept	reject	PasswordOrLockOption#3/drop-3	CREATE USER CURRENT_USER PASSWORD HISTORY
+reject	reject	PasswordOrLockOption#3/drop-3	CREATE USER CURRENT_USER PASSWORD HISTORY
 reject	reject	PasswordOrLockOption#3/insert	CREATE USER CURRENT_USER PASSWORD HISTORY DEFAULT zzz
 reject	reject	PasswordOrLockOption#3/swap	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME HISTORY DEFAULT
 reject	reject	PasswordOrLockOption#4/drop-1	CREATE USER CURRENT_USER HISTORY 1
@@ -6946,15 +6946,15 @@ reject	reject	PasswordOrLockOption#4/insert	CREATE USER CURRENT_USER PASSWORD HI
 reject	reject	PasswordOrLockOption#4/swap	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME HISTORY 1
 reject	reject	PasswordOrLockOption#5/drop-1	CREATE USER CURRENT_USER REUSE INTERVAL DEFAULT
 reject	reject	PasswordOrLockOption#5/drop-2	CREATE USER CURRENT_USER PASSWORD INTERVAL DEFAULT
-accept	reject	PasswordOrLockOption#5/drop-3	CREATE USER CURRENT_USER PASSWORD REUSE DEFAULT
-accept	reject	PasswordOrLockOption#5/drop-4	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL
+reject	reject	PasswordOrLockOption#5/drop-3	CREATE USER CURRENT_USER PASSWORD REUSE DEFAULT
+reject	reject	PasswordOrLockOption#5/drop-4	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL
 reject	reject	PasswordOrLockOption#5/insert	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL DEFAULT zzz
 reject	reject	PasswordOrLockOption#5/swap	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME REUSE INTERVAL DEFAULT
 reject	reject	PasswordOrLockOption#6/drop-1	CREATE USER CURRENT_USER REUSE INTERVAL 1 DAY
 reject	reject	PasswordOrLockOption#6/drop-2	CREATE USER CURRENT_USER PASSWORD INTERVAL 1 DAY
-accept	reject	PasswordOrLockOption#6/drop-3	CREATE USER CURRENT_USER PASSWORD REUSE 1 DAY
+reject	reject	PasswordOrLockOption#6/drop-3	CREATE USER CURRENT_USER PASSWORD REUSE 1 DAY
 reject	reject	PasswordOrLockOption#6/drop-4	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL DAY
-accept	reject	PasswordOrLockOption#6/drop-5	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL 1
+reject	reject	PasswordOrLockOption#6/drop-5	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL 1
 reject	reject	PasswordOrLockOption#6/insert	CREATE USER CURRENT_USER PASSWORD REUSE INTERVAL 1 DAY zzz
 reject	reject	PasswordOrLockOption#6/swap	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME REUSE INTERVAL 1 DAY
 reject	reject	PasswordOrLockOption#7/drop-1	CREATE USER CURRENT_USER EXPIRE
@@ -6986,8 +6986,8 @@ reject	reject	PasswordOrLockOption#13/insert	CREATE USER CURRENT_USER PASSWORD_L
 reject	reject	PasswordOrLockOption#13/swap	CREATE USER CURRENT_USER PAUSE UNBOUNDED
 reject	reject	PasswordOrLockOption#14/drop-1	CREATE USER CURRENT_USER REQUIRE CURRENT DEFAULT
 reject	reject	PasswordOrLockOption#14/drop-2	CREATE USER CURRENT_USER PASSWORD CURRENT DEFAULT
-accept	reject	PasswordOrLockOption#14/drop-3	CREATE USER CURRENT_USER PASSWORD REQUIRE DEFAULT
-accept	reject	PasswordOrLockOption#14/drop-4	CREATE USER CURRENT_USER PASSWORD REQUIRE CURRENT
+reject	reject	PasswordOrLockOption#14/drop-3	CREATE USER CURRENT_USER PASSWORD REQUIRE DEFAULT
+reject	reject	PasswordOrLockOption#14/drop-4	CREATE USER CURRENT_USER PASSWORD REQUIRE CURRENT
 reject	reject	PasswordOrLockOption#14/insert	CREATE USER CURRENT_USER PASSWORD REQUIRE CURRENT DEFAULT zzz
 reject	reject	PasswordOrLockOption#14/swap	CREATE USER CURRENT_USER PASSWORD_LOCK_TIME REQUIRE CURRENT DEFAULT
 reject	reject	AuthOption#2/drop-1	CREATE USER CURRENT_USER BY 's'
