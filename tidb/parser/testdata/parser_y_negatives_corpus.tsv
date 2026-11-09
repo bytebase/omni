@@ -1175,7 +1175,7 @@ reject	reject	VirtualOrStored#3/insert	ALTER TABLE ident ADD ident JSON AS(ident
 reject	reject	VirtualOrStored#3/swap	ALTER TABLE ident ADD ident JSON AS(ident) STRAIGHT_JOIN
 reject	reject	ColumnOptionList#2/insert	ALTER TABLE ident ADD ident JSON NULL NULL zzz
 reject	reject	ColumnOptionList#2/swap	ALTER TABLE ident ADD ident JSON NULLS NULL
-accept	reject	ConstraintElem#1/drop-2	ALTER TABLE ident ADD PRIMARY(ident)
+reject	reject	ConstraintElem#1/drop-2	ALTER TABLE ident ADD PRIMARY(ident)
 reject	reject	ConstraintElem#1/drop-3	ALTER TABLE ident ADD PRIMARY KEY ident)
 reject	reject	ConstraintElem#1/drop-4	ALTER TABLE ident ADD PRIMARY KEY()
 reject	reject	ConstraintElem#1/drop-5	ALTER TABLE ident ADD PRIMARY KEY(ident
@@ -1193,7 +1193,7 @@ reject	reject	ConstraintElem#4/drop-4	ALTER TABLE ident ADD UNIQUE(ident
 reject	reject	ConstraintElem#4/insert	ALTER TABLE ident ADD UNIQUE(ident) zzz
 reject	reject	ConstraintElem#4/swap	ALTER TABLE ident ADD UNKNOWN(ident)
 reject	reject	ConstraintElem#5/drop-1	ALTER TABLE ident ADD KEY(ident) REFERENCES ident
-accept	reject	ConstraintElem#5/drop-2	ALTER TABLE ident ADD FOREIGN(ident) REFERENCES ident
+reject	reject	ConstraintElem#5/drop-2	ALTER TABLE ident ADD FOREIGN(ident) REFERENCES ident
 reject	reject	ConstraintElem#5/drop-3	ALTER TABLE ident ADD FOREIGN KEY ident) REFERENCES ident
 reject	reject	ConstraintElem#5/drop-4	ALTER TABLE ident ADD FOREIGN KEY() REFERENCES ident
 reject	reject	ConstraintElem#5/drop-5	ALTER TABLE ident ADD FOREIGN KEY(ident REFERENCES ident

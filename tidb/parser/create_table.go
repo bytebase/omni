@@ -1105,7 +1105,12 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance()
-		p.match(kwKEY)
+		// KEY is a required terminal: the table constraint is `PRIMARY KEY
+		// (key_part,...)` (ConstraintKeywordOpt/Constraint in TiDB v8.5.5
+		// pkg/parser/parser.y). TiDB rejects `PRIMARY (col)` without KEY.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrPrimaryKey
 		// Optional index name (undocumented but accepted by MySQL 8.0, silently ignored)
 		if p.isIdentToken() && p.cur.Type != '(' {
@@ -1157,7 +1162,12 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	case kwFOREIGN:
 		p.advance()
-		p.match(kwKEY)
+		// KEY is a required terminal: the table constraint is `FOREIGN KEY
+		// [index_name] (col,...) reference_definition` (Constraint in TiDB
+		// v8.5.5 pkg/parser/parser.y). TiDB rejects `FOREIGN (col)` without KEY.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		ine, err := p.parseIfNotExists()
 		if err != nil {
