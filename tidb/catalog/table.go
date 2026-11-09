@@ -15,7 +15,11 @@ type Table struct {
 	Temporary     bool
 	RowFormat     string
 	KeyBlockSize  int
-	Partitioning  *PartitionInfo
+	// Compression is the table's COMPRESSION option value (e.g. "ZLIB", "LZ4",
+	// "NONE"), empty when unset. TiDB keeps it in SHOW CREATE TABLE, unlike
+	// ROW_FORMAT or KEY_BLOCK_SIZE, which it reads and drops.
+	Compression  string
+	Partitioning *PartitionInfo
 
 	// GlobalTemporary marks a table CREATE GLOBAL TEMPORARY TABLE made, and
 	// OnCommit the ON COMMIT clause it carries ("DELETE ROWS" or "PRESERVE

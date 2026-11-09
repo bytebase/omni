@@ -2447,16 +2447,16 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db == nil {
 			t.Fatal("omni: database not found after CREATE DATABASE")
 		}
-		// Verify charset/collation defaults match ctr.
-		// Oracle returns something like: CREATE DATABASE `db_create1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+		// Verify charset/collation defaults match ctr. TiDB v8.5.5's default
+		// collation for utf8mb4 is utf8mb4_bin, not MySQL's utf8mb4_0900_ai_ci.
 		if !strings.Contains(ctrDDL, "utf8mb4") {
 			t.Logf("container DDL: %s", ctrDDL)
 		}
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_bin" {
+			t.Errorf("omni collation mismatch: got %q, want utf8mb4_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
@@ -2504,9 +2504,10 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "latin1" {
 			t.Errorf("omni charset: got %q, want latin1", db.Charset)
 		}
-		// Default collation for latin1 is latin1_swedish_ci
-		if db.Collation != "latin1_swedish_ci" {
-			t.Errorf("omni collation: got %q, want latin1_swedish_ci", db.Collation)
+		// TiDB v8.5.5's default collation for latin1 is latin1_bin (it rejects
+		// MySQL's latin1_swedish_ci with error 1273 under the new collation).
+		if db.Collation != "latin1_bin" {
+			t.Errorf("omni collation: got %q, want latin1_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_cs")
 	})
@@ -2603,8 +2604,9 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		// TiDB v8.5.5's default collation for utf8mb4 is utf8mb4_bin.
+		if db.Collation != "utf8mb4_bin" {
+			t.Errorf("omni collation: got %q, want utf8mb4_bin", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})

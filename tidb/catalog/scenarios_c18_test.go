@@ -7,9 +7,11 @@ import (
 
 // TestScenario_C18 covers Section C18 "SHOW CREATE TABLE elision rules" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs the
-// scenario's DDL on both the MySQL 8.0 container and the omni catalog, then
+// scenario's DDL on both the TiDB v8.5.5 container and the omni catalog, then
 // asserts that omni's ShowCreateTable output matches the oracle on the
-// specific elision rule under test.
+// specific elision rule under test. Expectations are TiDB's, which elides
+// more options than MySQL (ROW_FORMAT, KEY_BLOCK_SIZE, STATS_*, MIN/MAX_ROWS,
+// AVG_ROW_LENGTH, TABLESPACE, index USING) and keeps COMPRESSION.
 //
 // Critical section: every mismatch here breaks SDL round-trip. Failures are
 // recorded as t.Error (not t.Fatal) so all 15 scenarios run in one pass, and
@@ -136,17 +138,19 @@ func TestScenario_C18(t *testing.T) {
 		mysqlCreate := oracleShow(t, mc, "SHOW CREATE TABLE tnocs")
 		omniCreate := c.ShowCreateTable("testdb", "tnocs")
 
+		// TiDB v8.5.5's default collation for utf8mb4 is utf8mb4_bin, not
+		// MySQL's utf8mb4_0900_ai_ci, and it renders it on the table.
 		if !strings.Contains(mysqlCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("oracle: DEFAULT CHARSET=utf8mb4 missing; got %q", mysqlCreate)
 		}
-		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("oracle: COLLATE=utf8mb4_0900_ai_ci missing; got %q", mysqlCreate)
+		if !strings.Contains(mysqlCreate, "COLLATE=utf8mb4_bin") {
+			t.Errorf("oracle: COLLATE=utf8mb4_bin missing; got %q", mysqlCreate)
 		}
 		if !strings.Contains(omniCreate, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("omni: DEFAULT CHARSET=utf8mb4 missing; got %q", omniCreate)
 		}
-		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("omni: COLLATE=utf8mb4_0900_ai_ci missing; got %q", omniCreate)
+		if !strings.Contains(omniCreate, "COLLATE=utf8mb4_bin") {
+			t.Errorf("omni: COLLATE=utf8mb4_bin missing; got %q", omniCreate)
 		}
 	})
 
@@ -165,17 +169,19 @@ func TestScenario_C18(t *testing.T) {
 		omniT := c.ShowCreateTable("testdb", "t")
 		omniT2 := c.ShowCreateTable("testdb", "t2")
 
+		// TiDB v8.5.5 reads ROW_FORMAT and drops it, both when implicit and
+		// when explicitly given, so it never appears in SHOW CREATE TABLE.
 		if strings.Contains(mysqlT, "ROW_FORMAT=") {
 			t.Errorf("oracle: implicit ROW_FORMAT should be elided; got %q", mysqlT)
 		}
-		if !strings.Contains(mysqlT2, "ROW_FORMAT=DYNAMIC") {
-			t.Errorf("oracle: explicit ROW_FORMAT=DYNAMIC missing; got %q", mysqlT2)
+		if strings.Contains(mysqlT2, "ROW_FORMAT=") {
+			t.Errorf("oracle: explicit ROW_FORMAT should be elided too; got %q", mysqlT2)
 		}
 		if strings.Contains(omniT, "ROW_FORMAT=") {
 			t.Errorf("omni: implicit ROW_FORMAT should be elided; got %q", omniT)
 		}
-		if !strings.Contains(omniT2, "ROW_FORMAT=DYNAMIC") {
-			t.Errorf("omni: explicit ROW_FORMAT=DYNAMIC missing; got %q", omniT2)
+		if strings.Contains(omniT2, "ROW_FORMAT=") {
+			t.Errorf("omni: explicit ROW_FORMAT should be elided too; got %q", omniT2)
 		}
 	})
 
@@ -197,15 +203,17 @@ func TestScenario_C18(t *testing.T) {
 		omniNonPrim := c.ShowCreateTable("testdb", "t_nonprim")
 		omni0900 := c.ShowCreateTable("testdb", "t_0900")
 
-		// t_prim: DEFAULT CHARSET=latin1, NO COLLATE=.
+		// t_prim: DEFAULT CHARSET=latin1 COLLATE=latin1_bin. TiDB v8.5.5
+		// renders the charset's default collation (latin1_bin), rather than
+		// eliding it the way MySQL does for a primary collation.
 		if !strings.Contains(mysqlPrim, "DEFAULT CHARSET=latin1") {
 			t.Errorf("oracle t_prim: missing DEFAULT CHARSET=latin1; got %q", mysqlPrim)
 		}
-		if strings.Contains(mysqlPrim, "COLLATE=") {
-			t.Errorf("oracle t_prim: COLLATE= should be elided; got %q", mysqlPrim)
+		if !strings.Contains(mysqlPrim, "COLLATE=latin1_bin") {
+			t.Errorf("oracle t_prim: missing COLLATE=latin1_bin; got %q", mysqlPrim)
 		}
-		if strings.Contains(omniPrim, "COLLATE=") {
-			t.Errorf("omni t_prim: COLLATE= should be elided; got %q", omniPrim)
+		if !strings.Contains(omniPrim, "COLLATE=latin1_bin") {
+			t.Errorf("omni t_prim: missing COLLATE=latin1_bin; got %q", omniPrim)
 		}
 		// t_nonprim: COLLATE=latin1_bin.
 		if !strings.Contains(mysqlNonPrim, "COLLATE=latin1_bin") {
@@ -238,17 +246,19 @@ func TestScenario_C18(t *testing.T) {
 		omniNo := c.ShowCreateTable("testdb", "t_nokbs")
 		omniYes := c.ShowCreateTable("testdb", "t_kbs")
 
+		// TiDB v8.5.5 reads KEY_BLOCK_SIZE and drops it, even when given, so it
+		// never appears in SHOW CREATE TABLE.
 		if strings.Contains(mysqlNo, "KEY_BLOCK_SIZE=") {
 			t.Errorf("oracle t_nokbs: KEY_BLOCK_SIZE should be elided; got %q", mysqlNo)
 		}
-		if !strings.Contains(mysqlYes, "KEY_BLOCK_SIZE=4") {
-			t.Errorf("oracle t_kbs: missing KEY_BLOCK_SIZE=4; got %q", mysqlYes)
+		if strings.Contains(mysqlYes, "KEY_BLOCK_SIZE=") {
+			t.Errorf("oracle t_kbs: explicit KEY_BLOCK_SIZE should be elided too; got %q", mysqlYes)
 		}
 		if strings.Contains(omniNo, "KEY_BLOCK_SIZE=") {
 			t.Errorf("omni t_nokbs: KEY_BLOCK_SIZE should be elided; got %q", omniNo)
 		}
-		if !strings.Contains(omniYes, "KEY_BLOCK_SIZE=4") {
-			t.Errorf("omni t_kbs: missing KEY_BLOCK_SIZE=4; got %q", omniYes)
+		if strings.Contains(omniYes, "KEY_BLOCK_SIZE=") {
+			t.Errorf("omni t_kbs: explicit KEY_BLOCK_SIZE should be elided too; got %q", omniYes)
 		}
 	})
 
@@ -296,6 +306,8 @@ func TestScenario_C18(t *testing.T) {
 		omniNo := c.ShowCreateTable("testdb", "t_nostats")
 		omniYes := c.ShowCreateTable("testdb", "t_stats")
 
+		// TiDB v8.5.5 reads the STATS_* options and drops them, whether or not
+		// they are given, so none appears in SHOW CREATE TABLE.
 		for _, clause := range []string{"STATS_PERSISTENT=", "STATS_AUTO_RECALC=", "STATS_SAMPLE_PAGES="} {
 			if strings.Contains(mysqlNo, clause) {
 				t.Errorf("oracle t_nostats: %s should be elided; got %q", clause, mysqlNo)
@@ -303,13 +315,11 @@ func TestScenario_C18(t *testing.T) {
 			if strings.Contains(omniNo, clause) {
 				t.Errorf("omni t_nostats: %s should be elided; got %q", clause, omniNo)
 			}
-		}
-		for _, want := range []string{"STATS_PERSISTENT=1", "STATS_AUTO_RECALC=0", "STATS_SAMPLE_PAGES=32"} {
-			if !strings.Contains(mysqlYes, want) {
-				t.Errorf("oracle t_stats: missing %s; got %q", want, mysqlYes)
+			if strings.Contains(mysqlYes, clause) {
+				t.Errorf("oracle t_stats: explicit %s should be elided too; got %q", clause, mysqlYes)
 			}
-			if !strings.Contains(omniYes, want) {
-				t.Errorf("omni t_stats: missing %s; got %q", want, omniYes)
+			if strings.Contains(omniYes, clause) {
+				t.Errorf("omni t_stats: explicit %s should be elided too; got %q", clause, omniYes)
 			}
 		}
 	})
@@ -329,6 +339,8 @@ func TestScenario_C18(t *testing.T) {
 		omniNo := c.ShowCreateTable("testdb", "t_nominmax")
 		omniYes := c.ShowCreateTable("testdb", "t_minmax")
 
+		// TiDB v8.5.5 reads MIN_ROWS / MAX_ROWS / AVG_ROW_LENGTH and drops them,
+		// whether or not they are given, so none appears in SHOW CREATE TABLE.
 		for _, clause := range []string{"MIN_ROWS=", "MAX_ROWS=", "AVG_ROW_LENGTH="} {
 			if strings.Contains(mysqlNo, clause) {
 				t.Errorf("oracle t_nominmax: %s should be elided; got %q", clause, mysqlNo)
@@ -336,13 +348,11 @@ func TestScenario_C18(t *testing.T) {
 			if strings.Contains(omniNo, clause) {
 				t.Errorf("omni t_nominmax: %s should be elided; got %q", clause, omniNo)
 			}
-		}
-		for _, want := range []string{"MIN_ROWS=10", "MAX_ROWS=1000", "AVG_ROW_LENGTH=256"} {
-			if !strings.Contains(mysqlYes, want) {
-				t.Errorf("oracle t_minmax: missing %s; got %q", want, mysqlYes)
+			if strings.Contains(mysqlYes, clause) {
+				t.Errorf("oracle t_minmax: explicit %s should be elided too; got %q", clause, mysqlYes)
 			}
-			if !strings.Contains(omniYes, want) {
-				t.Errorf("omni t_minmax: missing %s; got %q", want, omniYes)
+			if strings.Contains(omniYes, clause) {
+				t.Errorf("omni t_minmax: explicit %s should be elided too; got %q", clause, omniYes)
 			}
 		}
 	})
@@ -363,17 +373,19 @@ func TestScenario_C18(t *testing.T) {
 		omniNo := c.ShowCreateTable("testdb", "t_default")
 		omniYes := c.ShowCreateTable("testdb", "t_gts")
 
+		// TiDB v8.5.5 reads a TABLESPACE clause and drops it, so it never
+		// appears in SHOW CREATE TABLE.
 		if strings.Contains(mysqlNo, "TABLESPACE") {
 			t.Errorf("oracle t_default: TABLESPACE should be elided; got %q", mysqlNo)
 		}
-		if !strings.Contains(mysqlYes, "TABLESPACE") {
-			t.Errorf("oracle t_gts: missing TABLESPACE clause; got %q", mysqlYes)
+		if strings.Contains(mysqlYes, "TABLESPACE") {
+			t.Errorf("oracle t_gts: explicit TABLESPACE should be elided too; got %q", mysqlYes)
 		}
 		if strings.Contains(omniNo, "TABLESPACE") {
 			t.Errorf("omni t_default: TABLESPACE should be elided; got %q", omniNo)
 		}
-		if !strings.Contains(omniYes, "TABLESPACE") {
-			t.Errorf("omni t_gts: missing TABLESPACE clause; got %q", omniYes)
+		if strings.Contains(omniYes, "TABLESPACE") {
+			t.Errorf("omni t_gts: explicit TABLESPACE should be elided too; got %q", omniYes)
 		}
 	})
 
@@ -451,12 +463,13 @@ func TestScenario_C18(t *testing.T) {
 		if !strings.Contains(cmtOmni, "COMMENT 'hello'") {
 			t.Errorf("omni ix_cmt: missing COMMENT 'hello'; got %q", cmtOmni)
 		}
-		// Table-level KEY_BLOCK_SIZE=4 present.
-		if !strings.Contains(mysqlCreate, "KEY_BLOCK_SIZE=4") {
-			t.Errorf("oracle: missing table-level KEY_BLOCK_SIZE=4; got %q", mysqlCreate)
+		// Table-level KEY_BLOCK_SIZE=4 is read and dropped by TiDB v8.5.5, so it
+		// never appears in SHOW CREATE TABLE (the per-index COMMENT above is kept).
+		if strings.Contains(mysqlCreate, "KEY_BLOCK_SIZE=") {
+			t.Errorf("oracle: table-level KEY_BLOCK_SIZE should be elided; got %q", mysqlCreate)
 		}
-		if !strings.Contains(omniCreate, "KEY_BLOCK_SIZE=4") {
-			t.Errorf("omni: missing table-level KEY_BLOCK_SIZE=4; got %q", omniCreate)
+		if strings.Contains(omniCreate, "KEY_BLOCK_SIZE=") {
+			t.Errorf("omni: table-level KEY_BLOCK_SIZE should be elided; got %q", omniCreate)
 		}
 	})
 
@@ -489,14 +502,15 @@ func TestScenario_C18(t *testing.T) {
 		if strings.Contains(defaultOmni, "USING") {
 			t.Errorf("omni ix_default: should not have USING clause; got %q", defaultOmni)
 		}
-		// ix_btree: has USING clause.
+		// ix_btree: TiDB v8.5.5 drops an explicit USING BTREE/HASH on a key, so
+		// no USING clause is rendered even when the DDL gave one.
 		btreeMy := aLine(mysqlCreate, "ix_btree")
 		btreeOmni := aLine(omniCreate, "ix_btree")
-		if !strings.Contains(btreeMy, "USING") {
-			t.Errorf("oracle ix_btree: missing USING clause; got %q", btreeMy)
+		if strings.Contains(btreeMy, "USING") {
+			t.Errorf("oracle ix_btree: explicit USING should be elided; got %q", btreeMy)
 		}
-		if !strings.Contains(btreeOmni, "USING") {
-			t.Errorf("omni ix_btree: missing USING clause; got %q", btreeOmni)
+		if strings.Contains(btreeOmni, "USING") {
+			t.Errorf("omni ix_btree: explicit USING should be elided; got %q", btreeOmni)
 		}
 		// ix_hash: oracle may or may not render USING (InnoDB rewrites HASH→BTREE).
 		// Contract: if oracle renders USING, omni must too.

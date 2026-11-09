@@ -529,6 +529,12 @@ func showTableOptions(tbl *Table, charset, collate string) string {
 	} else {
 		fmt.Fprintf(&b, " DEFAULT CHARSET=%s COLLATE=%s", charset, collate)
 	}
+	// COMPRESSION is kept by TiDB's SHOW CREATE TABLE (read on 2026-11-09),
+	// written right after the collation and before AUTO_INCREMENT, with the
+	// value as given: COMPRESSION='ZLIB'.
+	if tbl.Compression != "" {
+		fmt.Fprintf(&b, " COMPRESSION='%s'", outputFormat(tbl.Compression))
+	}
 	if tbl.AutoIncrement > 1 {
 		for _, col := range tbl.Columns {
 			if col.AutoIncrement {
