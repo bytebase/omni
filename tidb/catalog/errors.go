@@ -229,6 +229,28 @@ func errCantDropKey(name string) error {
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
 }
 
+// errDropColumnCovered is TiDB v8.5.5's 8200 for DROP COLUMN of a column that
+// participates in a composite (multi-column) index or in the primary key (any
+// primary key except the single integer row handle, which has its own message).
+func errDropColumnCovered(col string) error {
+	return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+		Message: fmt.Sprintf("can't drop column %s with composite index covered or Primary Key covered now", col)}
+}
+
+// errDropIntegerPrimaryKey is TiDB v8.5.5's 8200 for DROP COLUMN of the single
+// integer, clustered primary key column (pkIsHandle).
+func errDropIntegerPrimaryKey() error {
+	return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+		Message: "Unsupported drop integer primary key"}
+}
+
+// errDropClusteredPrimaryKey is TiDB v8.5.5's 8200 for DROP PRIMARY KEY (or
+// DROP INDEX `PRIMARY`) when the table clusters by that primary key.
+func errDropClusteredPrimaryKey() error {
+	return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+		Message: "Unsupported drop primary key when the table is using clustered index"}
+}
+
 func errFKNoRefTable(table string) error {
 	return &Error{Code: ErrFKNoRefTable, SQLState: sqlState(ErrFKNoRefTable),
 		Message: fmt.Sprintf("Failed to open the referenced table '%s'", table)}

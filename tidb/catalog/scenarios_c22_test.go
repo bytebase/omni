@@ -328,27 +328,34 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// PK rebuild + ALGORITHM=INSTANT → MySQL rejects with
-		// ER_ALTER_OPERATION_NOT_SUPPORTED_REASON.
+		// PK rebuild + ALGORITHM=INSTANT: TiDB v8.5.5 rejects. The table
+		// clusters by its single-integer PK, so the DROP PRIMARY KEY in the
+		// rebuild is unsupported (8200) even with a re-add in the same ALTER;
+		// TiDB surfaces the ALGORITHM=INSTANT error (1846) first. MySQL rejects
+		// for the INSTANT reason. Either way the statement must error.
 		_, oracleErr := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT")
 		if oracleErr == nil {
 			t.Errorf("oracle: expected error for PK rebuild ALGORITHM=INSTANT, got nil")
-		} else if !strings.Contains(oracleErr.Error(), "ALGORITHM") &&
-			!strings.Contains(oracleErr.Error(), "not supported") {
-			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
 
-		// omni: parser must accept; catalog applies PK swap regardless.
+		// omni: the parser accepts the statement, and the catalog rejects it on
+		// the clustered-PK DROP (8200) — matching TiDB's rejection. omni does
+		// not model ALGORITHM; the clustered-PK drop is what both reject.
 		results, err := c.Exec(
 			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;", nil)
 		if err != nil {
 			t.Errorf("omni: parse error on PK rebuild + ALGORITHM=INSTANT: %v", err)
 		}
+		omniRejected := false
 		for _, r := range results {
 			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
+				omniRejected = true
+				break
 			}
+		}
+		if !omniRejected {
+			t.Errorf("omni: expected rejection for clustered-PK drop in PK rebuild, got success")
 		}
 	})
 

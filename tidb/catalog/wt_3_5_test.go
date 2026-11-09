@@ -230,7 +230,10 @@ func TestWalkThrough_3_5_DropIndex(t *testing.T) {
 
 func TestWalkThrough_3_5_DropPrimaryKey(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
+	// TiDB v8.5.5 rejects DROP PRIMARY KEY on a clustered PK (8200); a
+	// single-integer PK from CREATE TABLE is the clustered row handle. Use a
+	// NONCLUSTERED PK so the drop is valid and the removal path is exercised.
+	wtExec(t, c, "CREATE TABLE t (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id) NONCLUSTERED)")
 	wtExec(t, c, "ALTER TABLE t DROP PRIMARY KEY")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
