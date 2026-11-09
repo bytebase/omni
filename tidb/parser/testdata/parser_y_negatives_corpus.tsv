@@ -3742,7 +3742,7 @@ reject	reject	SimpleExpr#28/drop-2	DO DEFAULT ident)
 reject	reject	SimpleExpr#28/drop-3	DO DEFAULT()
 reject	reject	SimpleExpr#28/drop-4	DO DEFAULT(ident
 reject	reject	SimpleExpr#28/insert	DO DEFAULT(ident) zzz
-accept	reject	SimpleExpr#28/swap	DO DEFINED(ident)
+reject	reject	SimpleExpr#28/swap	DO DEFINED(ident)
 reject	reject	SimpleExpr#29/drop-2	DO VALUES ident)
 reject	reject	SimpleExpr#29/drop-3	DO VALUES()
 reject	reject	SimpleExpr#29/drop-4	DO VALUES(ident
@@ -5252,7 +5252,7 @@ reject	reject	SetRoleOpt#1/drop-3	SET ROLE ALL EXCEPT
 reject	reject	SetRoleOpt#1/insert	SET ROLE ALL EXCEPT 's' zzz
 reject	reject	SetRoleOpt#1/swap	SET ROLE ALTER EXCEPT 's'
 reject	reject	SetRoleOpt#3/insert	SET ROLE DEFAULT zzz
-accept	reject	SetRoleOpt#3/swap	SET ROLE DEFINED
+reject	reject	SetRoleOpt#3/swap	SET ROLE DEFINED
 reject	reject	TransactionChars#1/swap	SET TRANSACTION REAL WRITE
 reject	reject	TransactionChars#2/drop-1	SET TRANSACTION WRITE, READ WRITE
 reject	reject	TransactionChars#2/drop-2	SET TRANSACTION READ, READ WRITE
@@ -5400,7 +5400,7 @@ reject	reject	RolenameComposed#2/insert	DROP ROLE 's' @v zzz
 reject	reject	RolenameWithoutIdent#1/drop-1	GRANT TO CURRENT_USER
 reject	reject	RolenameWithoutIdent#1/truncate	GRANT
 reject	reject	RolenameWithoutIdent#1/insert	GRANT 's' zzz TO CURRENT_USER
-accept	reject	RolenameWithoutIdent#2/drop-1	GRANT @v TO CURRENT_USER
+reject	reject	RolenameWithoutIdent#2/drop-1	GRANT @v TO CURRENT_USER
 reject	reject	RolenameWithoutIdent#2/truncate	GRANT 's'
 reject	reject	RolenameWithoutIdent#2/insert	GRANT 's' @v zzz TO CURRENT_USER
 reject	reject	RolenameList#2/drop-1	DROP ROLE, 's'
@@ -6829,7 +6829,7 @@ reject	reject	WhereClause#1/swap	SELECT * WHILE ident
 reject	reject	AlterUserStmt#2/drop-1	USER USER() IDENTIFIED BY 's'
 reject	reject	AlterUserStmt#2/drop-2	ALTER USER() IDENTIFIED BY 's'
 reject	reject	AlterUserStmt#2/drop-4	ALTER USER USER) IDENTIFIED BY 's'
-accept	reject	AlterUserStmt#2/drop-5	ALTER USER USER(IDENTIFIED BY 's'
+reject	reject	AlterUserStmt#2/drop-5	ALTER USER USER(IDENTIFIED BY 's'
 reject	reject	AlterUserStmt#2/drop-6	ALTER USER USER() BY 's'
 reject	reject	AlterUserStmt#2/drop-7	ALTER USER USER() IDENTIFIED 's'
 reject	reject	AlterUserStmt#2/drop-8	ALTER USER USER() IDENTIFIED BY

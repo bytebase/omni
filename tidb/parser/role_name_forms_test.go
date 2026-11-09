@@ -164,6 +164,11 @@ var roleNameCases = []tableSampleCase{
 	{"drop role loop", true},
 	{"drop role transaction", false},
 	{"drop role transaction@h", true},
+	// A leading '@variable' is a user-variable token, never a RoleOrPrivElem:
+	// a role is a stringLit/identifier/name@host and a privilege is a keyword
+	// or identifier run, so `@v` is a 1064 in the grant/revoke list.
+	{"grant @v to current_user", false},
+	{"revoke @v from u", false},
 	{"grant 'loop' to u", true},
 	{"grant Create View on *.* to u", true},
 	{"grant LOOP to u", true},
@@ -345,6 +350,11 @@ var roleNameCases = []tableSampleCase{
 	{"set role all except loop", true},
 	{"set role all except transaction", false},
 	{"set role default", true},
+	// DEFINED is a NotKeywordToken, so it reaches the grammar as a keyword,
+	// never the bare identifier RoleNameString wants: `SET ROLE DEFINED` is a
+	// 1064, as `SET ROLE EXTRACT` and `SET ROLE CAST` already are.
+	{"set role defined", false},
+	{"set role cast", false},
 	{"set role loop", true},
 	{"set role loop, a", true},
 	{"set role none", true},
