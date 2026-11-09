@@ -326,11 +326,12 @@ func TestTiDBRejectFuzz(t *testing.T) {
 	size := rejectFuzzSize()
 
 	var (
-		findings  []fuzzFinding
-		byFamily  = map[string]int{}
-		gaps      int // omni rejects, TiDB accepts (§3.3, logged not gated)
-		noVerdict int
-		seenSQL   = map[string]bool{}
+		findings   []fuzzFinding
+		byFamily   = map[string]int{}
+		gaps       int // omni rejects, TiDB accepts (§3.3, logged not gated)
+		noVerdict  int
+		unanswered []string // mutants TiDB never gave a verdict for
+		seenSQL    = map[string]bool{}
 	)
 	for i := 0; i < size; i++ {
 		seed := seeds[rng.Intn(len(seeds))]
@@ -344,8 +345,13 @@ func TestTiDBRejectFuzz(t *testing.T) {
 		engineAccepts, _, err := tc.syntaxVerdict(t, mutant, seed)
 		if err != nil {
 			noVerdict++
+			unanswered = append(unanswered, fmt.Sprintf("%q: %v", mutant, err))
 			if tc.lost() {
 				t.Errorf("no server left after %d mutants", i)
+				break
+			}
+			if len(unanswered) > 10 {
+				t.Errorf("gave up after %d mutants with no verdict", len(unanswered))
 				break
 			}
 			continue
@@ -379,6 +385,14 @@ func TestTiDBRejectFuzz(t *testing.T) {
 			break
 		}
 		t.Logf("  over-accept[%s]: %q", f.family, f.sql)
+	}
+
+	// An unmeasured mutant fails the run independently of the mismatch gate and
+	// of defer mode: a sweep that could not get a verdict for every mutant is
+	// not a clean run, and must not read as success just because the findings it
+	// did measure match the baseline. This mirrors TestTiDBNegativesCorpusEngineVerdicts.
+	for _, u := range unanswered {
+		t.Errorf("reject-fuzz: no verdict: %s", u)
 	}
 
 	// Known-mismatches gate: strict set-equality, like pg's paren fuzz.
