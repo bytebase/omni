@@ -55,6 +55,19 @@ unlimited until utilization_limit validation value variables vector view visible
 voter_constraints voters wait warnings watch without workload x509
 `)
 
+// tidbKeywordTokensNotFunctionNames are words TiDB's lexer turns into a keyword token
+// (they are all in tidbLexerWords) that have no function-call production, yet this
+// parser's forked lexer scans as plain identifiers. refusesFunctionName's keyword branch
+// below keys on this parser's keyword tokens, so it never sees them, and the generic
+// `identifier '(' ... ')'` path would take them: `DO queries()` and `DO last_backup(x)`
+// are 1064s on TiDB v8.5.5 where `DO foo()` parses. Measured against v8.5.5; none has an
+// `'(' ... ')'` arm in pkg/parser/parser.y (FunctionNameConflict, FunctionCallKeyword,
+// FunctionCallNonKeyword, SumExpr, FunctionNameSequence), so refusing the call can never
+// reject valid SQL. A quoted name is an identifier whatever it spells, so it is excluded.
+var tidbKeywordTokensNotFunctionNames = wordSet(`
+defined last_backup queries replayer tso
+`)
+
 func wordSet(words string) map[string]bool {
 	set := make(map[string]bool)
 	for _, word := range strings.Fields(words) {
@@ -67,5 +80,15 @@ func wordSet(words string) map[string]bool {
 // take as the name of the call that follows it. A quoted name lexes as an identifier
 // whatever it spells, so it never comes here.
 func (p *Parser) refusesFunctionName() bool {
-	return p.cur.Type != tokIDENT && p.peekNext().Type == '(' && keywordsNotFunctionNames[strings.ToLower(p.cur.Str)]
+	if p.peekNext().Type != '(' {
+		return false
+	}
+	word := strings.ToLower(p.cur.Str)
+	if p.cur.Type != tokIDENT {
+		return keywordsNotFunctionNames[word]
+	}
+	// The word reaches here as a plain identifier in this parser's lexer, but TiDB
+	// may lex it as a keyword token with no function-call production. A quoted name
+	// is always an identifier, so it still takes the generic call.
+	return !p.backtickQuotedAt(p.cur.Loc) && tidbKeywordTokensNotFunctionNames[word]
 }

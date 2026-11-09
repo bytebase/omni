@@ -21,9 +21,9 @@ import (
 // part, MODIFY, CHANGE, ALTER, DROP, AFTER and REFERENCES all read. RENAME COLUMN reads a bare name.
 // What a qualifier must match is not the parser's to say: the catalog holds that.
 //
-// Not in this table, because omni still disagrees: `SELECT next(1)`, `SELECT lastval(a, 1)` and
-// `SELECT nextval(a) OVER ()`, which it accepts, because it lets any unreserved word be called and
-// reads OVER after any call. `ALTER TABLE t ALTER t.a SET NOT NULL` and `ALTER TABLE t ALTER a
+// Not in this table, because omni still disagrees: `SELECT next(1)` and `SELECT nextval(a) OVER ()`,
+// which it accepts, because it lets any unreserved word be called and reads OVER after any call.
+// LASTVAL's own arity, including `SELECT lastval(a, b)`, is pinned in do_funcname_arity_forms_test.go. `ALTER TABLE t ALTER t.a SET NOT NULL` and `ALTER TABLE t ALTER a
 // SET INVISIBLE`, which omni once accepted, are in alter_column_forms_oracle_test.go and
 // view_visibility_forms_oracle_test.go.
 

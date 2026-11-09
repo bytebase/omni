@@ -730,9 +730,10 @@ func (p *Parser) atNationalString() bool {
 	return next.Type == tokSCONST && next.Loc == p.cur.End && p.lexer.inputAt(next.Loc) == '\''
 }
 
-// isNextValCall reports whether a call has the one argument NEXTVAL takes, TableName: one name,
-// or two with a dot. `NEXTVAL(1)`, `NEXTVAL('a')` and `NEXTVAL(a.b.c)` are 1064s.
-func isNextValCall(call nodes.ExprNode) bool {
+// isSequenceNameArg reports whether a call has the one TableName argument that NEXTVAL
+// and LASTVAL each take (FunctionNameSequence, parser.y:8437): one name, or two with a
+// dot. `NEXTVAL(1)`, `LASTVAL()`, `LASTVAL(a, b)` and `NEXTVAL(a.b.c)` are 1064s.
+func isSequenceNameArg(call nodes.ExprNode) bool {
 	fn, ok := call.(*nodes.FuncCallExpr)
 	if !ok || len(fn.Args) != 1 {
 		return false
@@ -797,9 +798,11 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		// A quoted name is an ordinary call, which takes any arguments: `nextval`(1) parses.
-		if strings.EqualFold(name, "nextval") && !p.backtickQuotedAt(start) && !isNextValCall(call) {
-			return nil, &ParseError{Message: "NEXTVAL takes a sequence name", Position: start}
+		// A quoted name is an ordinary call, which takes any arguments: `nextval`(1) and
+		// `lastval`() parse. NEXTVAL and LASTVAL both take one TableName (parser.y:8437).
+		if (strings.EqualFold(name, "nextval") || strings.EqualFold(name, "lastval")) &&
+			!p.backtickQuotedAt(start) && !isSequenceNameArg(call) {
+			return nil, &ParseError{Message: "sequence function takes a sequence name", Position: start}
 		}
 		return call, nil
 	}
@@ -1078,6 +1081,18 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 // the call's Loc. A quoted or schema-qualified name is a stored function and
 // takes no window, which is what builtin says.
 func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.ExprNode, error) {
+	// A builtin whose dedicated production fixes a minimum argument count is a 1064
+	// below it: APPROX_COUNT_DISTINCT and APPROX_PERCENTILE take ExpressionList, which
+	// is never empty (parser.y:8470,8474), so a zero-argument call is rejected on TiDB
+	// v8.5.5. A quoted or schema-qualified name is an ordinary call (builtin false),
+	// which carries no such floor. Reached through the generic argument path, so
+	// unlike windowFuncArity this covers only the empty-list case.
+	if builtin {
+		if min, ok := builtinMinArgs[fc.Name]; ok && len(fc.Args) < min {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// OVER clause for window functions
 	//
 	// Ref: https://dev.mysql.com/doc/refman/8.0/en/window-functions-usage.html
@@ -1200,6 +1215,17 @@ var nullTreatmentFuncs = map[string]bool{
 // OptLeadLagInfo adds `, NumLiteral` and then `, Expression`). TiDB v8.5.5
 // answers 1064 for a call outside these bounds, e.g. NTILE(), NTILE(a, b),
 // LEAD() and FIRST_VALUE().
+// builtinMinArgs is the minimum argument count a non-window builtin's dedicated
+// production requires, for the ones reached through the generic argument path (the
+// window functions are in windowFuncArity and the aggregates have their own readers).
+// Each takes ExpressionList, never empty (parser.y SumExpr), so finishFuncCall rejects
+// a zero-argument call. TiDB v8.5.5 answers 1064 for APPROX_COUNT_DISTINCT() and
+// APPROX_PERCENTILE().
+var builtinMinArgs = map[string]int{
+	"APPROX_COUNT_DISTINCT": 1,
+	"APPROX_PERCENTILE":     1,
+}
+
 var windowFuncArity = map[string][2]int{
 	"ROW_NUMBER":   {0, 0},
 	"RANK":         {0, 0},

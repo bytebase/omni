@@ -3812,11 +3812,11 @@ reject	reject	FunctionNameConflict#17/swap	DO NOWAIT()
 reject	reject	FunctionNameConflict#18/insert	DO POINT zzz()
 reject	reject	FunctionNameConflict#18/swap	DO POLICY()
 reject	reject	FunctionNameConflict#19/insert	DO QUARTER zzz()
-accept	reject	FunctionNameConflict#19/swap	DO QUERIES()
+reject	reject	FunctionNameConflict#19/swap	DO QUERIES()
 reject	reject	FunctionNameConflict#20/insert	DO REPEAT zzz()
 reject	reject	FunctionNameConflict#20/swap	DO REPEATABLE()
 reject	reject	FunctionNameConflict#21/insert	DO REPLACE zzz()
-accept	reject	FunctionNameConflict#21/swap	DO REPLAYER()
+reject	reject	FunctionNameConflict#21/swap	DO REPLAYER()
 reject	reject	FunctionNameConflict#22/insert	DO REVERSE zzz()
 reject	reject	FunctionNameConflict#22/swap	DO REVOKE()
 reject	reject	FunctionNameConflict#23/insert	DO RIGHT zzz()
@@ -3830,7 +3830,7 @@ reject	reject	FunctionNameConflict#26/swap	DO TIMEOUT()
 reject	reject	FunctionNameConflict#27/insert	DO TIMESTAMP zzz()
 reject	reject	FunctionNameConflict#27/swap	DO TIMESTAMPADD()
 reject	reject	FunctionNameConflict#28/insert	DO TRUNCATE zzz()
-accept	reject	FunctionNameConflict#28/swap	DO TSO()
+reject	reject	FunctionNameConflict#28/swap	DO TSO()
 reject	reject	FunctionNameConflict#29/insert	DO USER zzz()
 reject	reject	FunctionNameConflict#29/swap	DO USING()
 reject	reject	FunctionNameConflict#30/insert	DO WEEK zzz()
@@ -4054,10 +4054,10 @@ reject	reject	FunctionCallNonKeyword#21/drop-8	DO WEIGHT_STRING(ident AS BINARY(
 reject	reject	FunctionCallNonKeyword#21/insert	DO WEIGHT_STRING(ident AS BINARY(1)) zzz
 reject	reject	FunctionCallNonKeyword#21/swap	DO WHEN(ident AS BINARY(1))
 reject	reject	FunctionCallNonKeyword#22/drop-2	DO LASTVAL ident)
-accept	reject	FunctionCallNonKeyword#22/drop-3	DO LASTVAL()
+reject	reject	FunctionCallNonKeyword#22/drop-3	DO LASTVAL()
 reject	reject	FunctionCallNonKeyword#22/drop-4	DO LASTVAL(ident
 reject	reject	FunctionCallNonKeyword#22/insert	DO LASTVAL(ident) zzz
-accept	reject	FunctionCallNonKeyword#22/swap	DO LAST_BACKUP(ident)
+reject	reject	FunctionCallNonKeyword#22/swap	DO LAST_BACKUP(ident)
 reject	reject	FunctionCallNonKeyword#23/drop-2	DO TRANSLATE ident, ident, ident)
 reject	reject	FunctionCallNonKeyword#23/drop-3	DO TRANSLATE(, ident, ident)
 reject	reject	FunctionCallNonKeyword#23/drop-4	DO TRANSLATE(ident ident, ident)
@@ -4102,11 +4102,11 @@ reject	reject	SumExpr#1/drop-4	DO AVG(ident
 reject	reject	SumExpr#1/insert	DO AVG(ident) zzz
 reject	reject	SumExpr#1/swap	DO AVG_ROW_LENGTH(ident)
 reject	reject	SumExpr#2/drop-2	DO APPROX_COUNT_DISTINCT ident)
-accept	reject	SumExpr#2/drop-3	DO APPROX_COUNT_DISTINCT()
+reject	reject	SumExpr#2/drop-3	DO APPROX_COUNT_DISTINCT()
 reject	reject	SumExpr#2/drop-4	DO APPROX_COUNT_DISTINCT(ident
 reject	reject	SumExpr#2/insert	DO APPROX_COUNT_DISTINCT(ident) zzz
 reject	reject	SumExpr#3/drop-2	DO APPROX_PERCENTILE ident)
-accept	reject	SumExpr#3/drop-3	DO APPROX_PERCENTILE()
+reject	reject	SumExpr#3/drop-3	DO APPROX_PERCENTILE()
 reject	reject	SumExpr#3/drop-4	DO APPROX_PERCENTILE(ident
 reject	reject	SumExpr#3/insert	DO APPROX_PERCENTILE(ident) zzz
 reject	reject	SumExpr#3/swap	DO ARRAY(ident)
