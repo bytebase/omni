@@ -87,6 +87,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			tbl.RowFormat = opt.Value
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
+		case "compression":
+			tbl.Compression = opt.Value
 		// TiDB-specific table options.
 		case "shard_row_id_bits":
 			fmt.Sscanf(opt.Value, "%d", &tbl.ShardRowIDBits)
@@ -1276,7 +1278,7 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		for _, a := range n.Args {
 			args = append(args, nodeToSQLGenerated(a, charset))
 		}
-		return funcName + "(" + strings.Join(args, ",") + ")"
+		return funcName + "(" + strings.Join(args, ", ") + ")"
 	case *nodes.NullLit:
 		return "NULL"
 	case *nodes.BoolLit:
@@ -1311,9 +1313,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// MySQL rewrites JSON operators to function calls in generated column expressions.
 		switch n.Op {
 		case nodes.BinOpJsonExtract:
-			return "json_extract(" + left + "," + right + ")"
+			return "json_extract(" + left + ", " + right + ")"
 		case nodes.BinOpJsonUnquote:
-			return "json_unquote(json_extract(" + left + "," + right + "))"
+			return "json_unquote(json_extract(" + left + ", " + right + "))"
 		}
 		op := binaryOpToString(n.Op)
 		return "(" + left + " " + op + " " + right + ")"

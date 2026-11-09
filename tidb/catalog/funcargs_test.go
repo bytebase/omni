@@ -92,7 +92,7 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 	want := map[string]string{
 		"p": "position(_utf8mb4'x' in `s`)",
 		"e": "extract(day_hour from `a`)",
-		"i": "interval(`c1`,1,2)",
+		"i": "interval(`c1`, 1, 2)",
 	}
 	for _, col := range tbl.Columns {
 		w, ok := want[col.Name]

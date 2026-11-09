@@ -55,11 +55,12 @@ var sharedTiDB sync.Mutex
 //
 // QUARANTINE: every test that goes through here is a differential test forked
 // from mysql/catalog, and its expectations are still MySQL-shaped. Against
-// TiDB v8.5.5, 93 of them fail (SHOW CREATE TABLE and view-body mismatches);
-// against the mysql:8.0 container this helper used to boot, 59 failed. They
-// are skipped unless TIDB_CATALOG_PARITY=1 so CI stays green; run with it set
-// when working on parity. Fixing the family and deleting this skip is the
-// follow-up.
+// TiDB v8.5.5, 34 top-level tests fail (mostly MySQL-shaped assertions where
+// omni already matches TiDB, plus a few real renderer/behavior gaps); they are
+// being cleared cluster by cluster (see
+// docs/plans/2026-11-09-tidb-catalog-parity-inventory.md). They are skipped
+// unless TIDB_CATALOG_PARITY=1 so CI stays green; run with it set when working
+// on parity. Deleting this skip once the count reaches zero is the follow-up.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	if os.Getenv("TIDB_CATALOG_PARITY") == "" {
