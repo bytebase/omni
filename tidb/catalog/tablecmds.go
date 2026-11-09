@@ -672,6 +672,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// Process partition clause. v8.5.5 runs SYSTEM_TIME partitioning and leaves the table with
 	// none, whatever its keys cover.
 	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
+		if err := validatePartitionExpr(tbl, stmt.Partitions); err != nil {
+			return err
+		}
 		if err := validateCreateTableUniqueKeys(tbl, stmt.Partitions); err != nil {
 			return err
 		}
