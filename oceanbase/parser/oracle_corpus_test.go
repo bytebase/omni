@@ -157,6 +157,12 @@ func TestOracleCorpus(t *testing.T) {
 			{"ROW_NUMBER arg rejected", "SELECT ROW_NUMBER(id) OVER (ORDER BY id) FROM t"},
 			{"OVER on scalar builtin rejected", "SELECT ABS(val) OVER (ORDER BY id) FROM t"},
 			{"OVER on quoted builtin rejected", "SELECT `sum`(val) OVER (ORDER BY id) FROM t"},
+			// OceanBase lexes OVER as unreserved, so a bare `over` after an
+			// ineligible call is an implicit column alias, not a window clause:
+			// these parse, while the window-spec forms above do not.
+			{"bare OVER implicit alias", "SELECT abs(1) over"},
+			{"bare OVER after INTERVAL alias", "SELECT INTERVAL(1, 2) over"},
+			{"bare OVER after quoted call alias", "SELECT `abs`(1) over"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {

@@ -1038,15 +1038,15 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 			}
 		}
 	}
-	// OVER is grammatical only on a dedicated window function or an aggregate
-	// (overEligible). On any other builtin, including INTERVAL, or a
-	// stored/quoted call (builtin is false), OVER is a 1064: OceanBase 4.3.5
-	// rejects `abs(c1) over ()`, `interval(c1) over ()` and
-	// `` `sum`(a) over () ``.
-	if p.cur.Type == kwOVER {
-		if !builtin || !overEligible(fc.Name) {
-			return nil, p.syntaxErrorAtCur()
-		}
+	// A window clause follows only a dedicated window function or an aggregate
+	// (overEligible). On any other builtin, or a stored/quoted call (builtin is
+	// false), OVER is not consumed here: OceanBase lexes OVER as an unreserved
+	// word, so a bare `over` after such a call is an implicit column alias
+	// (`SELECT abs(1) over`, `SELECT interval(1, 2) over`, `` SELECT `abs`(1)
+	// over ``), which OceanBase accepts. Leaving the token to the caller keeps
+	// that alias and still rejects `abs(c1) over ()`: the alias parser reads
+	// `over` and then the stray `(` is a 1064, as on the engine.
+	if p.cur.Type == kwOVER && builtin && overEligible(fc.Name) {
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {

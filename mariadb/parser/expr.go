@@ -1125,11 +1125,18 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	// A dedicated window function takes a fixed argument count in its
 	// WindowFuncCall arm (MariaDB window_func grammar), so a call outside those
 	// bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
-	// LEAD() and FIRST_VALUE() are all rejected on mariadb:11.8.8.
+	// LEAD() and FIRST_VALUE() are all rejected on mariadb:11.8.8, with or
+	// without OVER, since MariaDB has no scalar function of those names. The one
+	// exception is LAST_VALUE, which MariaDB also exposes as a variadic scalar
+	// function (`LAST_VALUE(expr,...)` returns its last argument), so its window
+	// arity binds only in window position: `SELECT LAST_VALUE(1, 2)` is the
+	// valid scalar form, while `LAST_VALUE(1, 2) OVER (...)` is a 1064.
 	if builtin {
 		if bounds, ok := windowFuncArity[fc.Name]; ok {
-			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
-				return nil, p.syntaxErrorAtCur()
+			if fc.Name != "LAST_VALUE" || p.cur.Type == kwOVER {
+				if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 		}
 	}

@@ -205,6 +205,12 @@ var categoryCaseSQLs = []string{
 	"SELECT ROW_NUMBER(id) OVER (ORDER BY id) FROM t",
 	"SELECT ABS(val) OVER (ORDER BY id) FROM t",
 	"SELECT `sum`(val) OVER (ORDER BY id) FROM t",
+	// LAST_VALUE is a variadic scalar function in MariaDB as well as a window
+	// function: the multi-arg scalar form is accepted without OVER, but the
+	// window form fixes the arity at one, so these both assert agreement (the
+	// window-arity gate must not reject the scalar form).
+	"SELECT LAST_VALUE(1, 2) FROM t",
+	"SELECT LAST_VALUE(1, 2) OVER (ORDER BY id) FROM t",
 	// interval expressions
 	"SELECT NOW() + INTERVAL 1 DAY",
 	"SELECT NOW() - INTERVAL 2 HOUR",
