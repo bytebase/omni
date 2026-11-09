@@ -1700,13 +1700,25 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE ENGINE", Value: val}, true, nil
 		}
-		p.advance()
-		p.match('=')
-		val, err := p.consumeOptionValue()
-		if err != nil {
-			return nil, false, err
+		// STORAGE {MEMORY | DISK} is the storage-media table option. It takes a
+		// bare keyword, with no EqOpt and no value, and only those two words:
+		// v8.5.5 answers 1064 for `STORAGE 's'`, `STORAGE = DISK`, `STORAGE
+		// DEFAULT` and a bare STORAGE.
+		//
+		// Ref: `"STORAGE" "MEMORY"` / `"STORAGE" "DISK"` (TableOption) in TiDB
+		// v8.5.5 pkg/parser/parser.y.
+		p.advance() // consume STORAGE
+		var media string
+		switch p.cur.Type {
+		case kwMEMORY:
+			media = "MEMORY"
+		case kwDISK:
+			media = "DISK"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE", Value: val}, true, nil
+		p.advance()
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE", Value: media}, true, nil
 
 	case kwSTART:
 		// START TRANSACTION (used for versioned tables)
@@ -1905,11 +1917,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PLACEMENT POLICY", Value: val}, true, nil
 
 	case kwTTL:
-		// TTL = expr (e.g., created_at + INTERVAL 1 YEAR, or DATE_ADD(col, INTERVAL 1 DAY))
-		// Parse as a full expression to handle function calls, parens, string literals correctly.
-		// Store raw source text in Value for round-trip fidelity.
+		// TTL [=] column_name + INTERVAL expr time_unit (e.g., created_at +
+		// INTERVAL 1 YEAR). The grammar's value begins with a column
+		// Identifier, so a value that leads with an operator or literal — such
+		// as `TTL + INTERVAL ...`, which has no column — is a 1064. Require an
+		// identifier here, then parse the remainder as an expression for
+		// round-trip fidelity; the expression parse and the trailing-token
+		// check reject the other malformed shapes.
+		//
+		// Ref: `"TTL" EqOpt Identifier '+' "INTERVAL" Literal TimeUnit`
+		// (TableOption) in TiDB v8.5.5 pkg/parser/parser.y.
 		p.advance()
 		p.match('=')
+		if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		exprStart := p.cur.Loc
 		_, err := p.parseExpr()
 		if err != nil {
@@ -2012,7 +2034,25 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NODEGROUP", Value: val}, true, nil
 
-	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
+	case kwSTATS_PERSISTENT:
+		// STATS_PERSISTENT [=] {DEFAULT | integer}. The value is a
+		// StatsPersistentVal — the DEFAULT keyword or a LengthNum — so a
+		// string and a bare identifier are each a 1064: v8.5.5 answers 1064
+		// for `STATS_PERSISTENT 's'` and `STATS_PERSISTENT DEFINED`.
+		//
+		// Ref: `"STATS_PERSISTENT" EqOpt StatsPersistentVal` and
+		// `StatsPersistentVal: "DEFAULT" | LengthNum` in TiDB v8.5.5
+		// pkg/parser/parser.y.
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStatsPersistentVal()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwKEY_BLOCK_SIZE,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
 		kwAUTOEXTEND_SIZE:
@@ -2075,6 +2115,20 @@ func (p *Parser) consumeStringNameOptionValue() (string, error) {
 		return "", err
 	}
 	return name, nil
+}
+
+// consumeStatsPersistentVal reads a StatsPersistentVal option value: the
+// DEFAULT keyword or an unsigned integer (LengthNum). A string, a decimal, a
+// bare identifier and a leading sign are each a 1064.
+//
+// Ref: `StatsPersistentVal: "DEFAULT" | LengthNum` in TiDB v8.5.5
+// pkg/parser/parser.y.
+func (p *Parser) consumeStatsPersistentVal() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		return "DEFAULT", nil
+	}
+	return p.consumeIntegerOptionValue()
 }
 
 // consumeIntegerOptionValue reads an option value that must be an integer.

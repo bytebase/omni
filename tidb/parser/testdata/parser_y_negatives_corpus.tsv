@@ -278,7 +278,7 @@ reject	reject	StatsOptionsOpt#1/drop-2	ALTER TABLE ident STATS_OPTIONS
 reject	reject	StatsOptionsOpt#1/insert	ALTER TABLE ident STATS_OPTIONS DEFAULT zzz
 accept	accept	StatsOptionsOpt#1/swap	ALTER TABLE ident STATS_PERSISTENT DEFAULT
 reject	reject	StatsOptionsOpt#2/insert	ALTER TABLE ident STATS_OPTIONS 's' zzz
-accept	reject	StatsOptionsOpt#2/swap	ALTER TABLE ident STATS_PERSISTENT 's'
+reject	reject	StatsOptionsOpt#2/swap	ALTER TABLE ident STATS_PERSISTENT 's'
 reject	reject	AlterTableSpecSingleOpt#2/drop-1	ALTER TABLE ident PARTITIONING
 reject	reject	AlterTableSpecSingleOpt#2/drop-2	ALTER TABLE ident REMOVE
 reject	reject	AlterTableSpecSingleOpt#2/insert	ALTER TABLE ident REMOVE PARTITIONING zzz
@@ -1678,7 +1678,7 @@ reject	reject	PartDefOption#1/swap	CREATE SEQUENCE ident COMMIT 's'
 reject	reject	PartDefOption#2/drop-2	CREATE SEQUENCE ident ENGINE
 reject	reject	PartDefOption#2/insert	CREATE SEQUENCE ident ENGINE 's' zzz
 reject	reject	PartDefOption#2/swap	CREATE SEQUENCE ident ENGINES 's'
-accept	reject	PartDefOption#3/drop-2	CREATE SEQUENCE ident STORAGE 's'
+reject	reject	PartDefOption#3/drop-2	CREATE SEQUENCE ident STORAGE 's'
 reject	reject	PartDefOption#3/drop-3	CREATE SEQUENCE ident STORAGE ENGINE
 reject	reject	PartDefOption#3/insert	CREATE SEQUENCE ident STORAGE ENGINE 's' zzz
 reject	reject	PartDefOption#3/swap	CREATE SEQUENCE ident STORED ENGINE 's'
@@ -6505,7 +6505,7 @@ reject	reject	TableOption#34/drop-2	CREATE SEQUENCE ident ENCRYPTION
 reject	reject	TableOption#34/insert	CREATE SEQUENCE ident ENCRYPTION 's' zzz
 reject	reject	TableOption#34/swap	CREATE SEQUENCE ident ENCRYPTION_KEYFILE 's'
 reject	reject	TableOption#35/drop-1	CREATE SEQUENCE ident ident + INTERVAL FALSE SECOND_MICROSECOND
-accept	reject	TableOption#35/drop-2	CREATE SEQUENCE ident TTL + INTERVAL FALSE SECOND_MICROSECOND
+reject	reject	TableOption#35/drop-2	CREATE SEQUENCE ident TTL + INTERVAL FALSE SECOND_MICROSECOND
 reject	reject	TableOption#35/drop-3	CREATE SEQUENCE ident TTL ident INTERVAL FALSE SECOND_MICROSECOND
 reject	reject	TableOption#35/drop-4	CREATE SEQUENCE ident TTL ident + FALSE SECOND_MICROSECOND
 reject	reject	TableOption#35/drop-5	CREATE SEQUENCE ident TTL ident + INTERVAL SECOND_MICROSECOND
@@ -6523,7 +6523,7 @@ reject	reject	TableOption#38/swap	CREATE SEQUENCE ident AFTER 's'
 reject	reject	ForceOpt#1/insert	CREATE SEQUENCE ident zzz AUTO_INCREMENT 1
 reject	reject	ForceOpt#2/insert	CREATE SEQUENCE ident FORCE zzz AUTO_INCREMENT 1
 reject	reject	ForceOpt#2/swap	CREATE SEQUENCE ident FOREIGN AUTO_INCREMENT 1
-accept	reject	StatsPersistentVal#1/swap	CREATE SEQUENCE ident STATS_PERSISTENT DEFINED
+reject	reject	StatsPersistentVal#1/swap	CREATE SEQUENCE ident STATS_PERSISTENT DEFINED
 reject	reject	StatsPersistentVal#2/insert	CREATE SEQUENCE ident STATS_PERSISTENT 1 zzz
 reject	reject	TableOptionList#2/drop-1	CREATE SEQUENCE ident BINARY COLLATE BINARY
 reject	reject	TableOptionList#2/drop-2	CREATE SEQUENCE ident COLLATE COLLATE BINARY

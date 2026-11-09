@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      307
-# Rules with no citation:     383
+# Rules with a citation:      309
+# Rules with no citation:     381
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -157,7 +157,6 @@ FunctionNameSequence
 SumExpr
 OptGConcatSeparator
 FuncDatetimePrec
-TimeUnit
 ExpressionOpt
 WhenClauseList
 WhenClause
@@ -276,7 +275,6 @@ Statement
 ConstraintWithVectorIndex
 TableElement
 TableElementListOpt
-StatsPersistentVal
 CreateTableOptionListOpt
 TableOptionList
 OptTable
