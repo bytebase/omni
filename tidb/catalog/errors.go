@@ -74,6 +74,15 @@ const (
 	ErrPlacementPolicyExists  = 8239
 	ErrPlacementPolicyInUse   = 8240
 	ErrPlacementPolicyMissing = 8241
+	// Column type / default validation (measured on TiDB v8.5.5, 2026-11-09).
+	// 1171 rejects a PRIMARY KEY part declared explicitly NULL; 1425/1426/1427
+	// bound a DECIMAL's scale/precision; 3770 rejects a DEFAULT expression whose
+	// function is not on TiDB's allow list.
+	ErrPrimaryCantHaveNull    = 1171
+	ErrTooBigScale            = 1425
+	ErrTooBigPrecision        = 1426
+	ErrMBiggerThanD           = 1427
+	ErrDefValFunctionNotAllow = 3770
 )
 
 var sqlStateMap = map[int]string{
@@ -113,6 +122,11 @@ var sqlStateMap = map[int]string{
 	ErrPlacementPolicyInUse:              "HY000",
 	ErrUnknownError:                      "HY000",
 	ErrPlacementPolicyMissing:            "HY000",
+	ErrPrimaryCantHaveNull:               "42000",
+	ErrTooBigScale:                       "42000",
+	ErrTooBigPrecision:                   "42000",
+	ErrMBiggerThanD:                      "42000",
+	ErrDefValFunctionNotAllow:            "HY000",
 }
 
 func sqlState(code int) string {

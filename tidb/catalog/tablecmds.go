@@ -300,6 +300,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				if hasPK {
 					return errMultiplePriKey()
 				}
+				// TiDB v8.5.5 rejects a PRIMARY KEY column declared explicitly
+				// NULL (1171); an implicitly nullable one is silently NOT NULL.
+				if columnDefExplicitlyNull(colDef) {
+					return errPrimaryKeyCantHaveNull()
+				}
 				hasPK = true
 				col.Nullable = false
 				// Add PK index and constraint after all columns are processed.
@@ -350,6 +355,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 		}
 
+		if err := checkDecimalBounds(colDef.Name, colDef.TypeName); err != nil {
+			return err
+		}
+		if err := checkDefaultExprFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
+			return err
+		}
 		if err := checkLiteralDefaultAllowed(col); err != nil {
 			return err
 		}
@@ -418,6 +429,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
 				return errMultiplePriKey()
+			}
+			// TiDB v8.5.5 rejects a PRIMARY KEY whose column was declared
+			// explicitly NULL (1171), even in a table-level PRIMARY KEY(...).
+			for _, colName := range cols {
+				if cd := findColumnDef(stmt.Columns, colName); cd != nil && columnDefExplicitlyNull(cd) {
+					return errPrimaryKeyCantHaveNull()
+				}
 			}
 			hasPK = true
 			// Mark PK columns as NOT NULL.
