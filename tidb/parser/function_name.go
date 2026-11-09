@@ -20,7 +20,7 @@ batch begin bernoulli binding binding_cache bindings binlog bit block bool boole
 buckets builtins burstable byte cache calibrate cascaded chain checksum cipher client
 close clustered column_format column_stats_usage columns comment commit committed
 compact compressed compression config connection consistent constraints context cooldown
-cpu current cycle data datetime deallocate declare definer delay_key_write digest
+cpu current cycle data datetime deallocate declare defined definer delay_key_write digest
 directory disable disabled discard disk distribute distribution distributions do dry
 dryrun duplicate duration dynamic enable enabled encryption end end_time enforced engine
 engines enum error errors escape event events exact exchange exec_elapsed execute

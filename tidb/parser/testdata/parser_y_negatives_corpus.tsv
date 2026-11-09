@@ -3742,7 +3742,7 @@ reject	reject	SimpleExpr#28/drop-2	DO DEFAULT ident)
 reject	reject	SimpleExpr#28/drop-3	DO DEFAULT()
 reject	reject	SimpleExpr#28/drop-4	DO DEFAULT(ident
 reject	reject	SimpleExpr#28/insert	DO DEFAULT(ident) zzz
-accept	reject	SimpleExpr#28/swap	DO DEFINED(ident)
+reject	reject	SimpleExpr#28/swap	DO DEFINED(ident)
 reject	reject	SimpleExpr#29/drop-2	DO VALUES ident)
 reject	reject	SimpleExpr#29/drop-3	DO VALUES()
 reject	reject	SimpleExpr#29/drop-4	DO VALUES(ident
