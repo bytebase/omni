@@ -1,6 +1,11 @@
 package parser
 
-import "testing"
+import (
+	"testing"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/deparse"
+)
 
 // ============================================================================
 // A space before a builtin's '(' (see checkSpacedFuncWord in temporal.go).
@@ -129,6 +134,39 @@ func TestTiDBSpacedFuncWords(t *testing.T) {
 		_, err := Parse(c.sql)
 		if (err == nil) != c.accept {
 			t.Errorf("Parse(%q) err = %v, want accept = %v", c.sql, err, c.accept)
+		}
+	}
+}
+
+// TestTiDBSpacedFuncWordsRoundTrip pins that a spaced generic call whose name is
+// a gated builtin keyword survives deparse and parses again. Without the
+// SpacedParen marker both renderers would drop the space and the output would
+// re-lex as the builtin: COUNT(a, a) and COUNT() are 1064s, sysdate(b) wants a
+// precision. Adjacent builtin calls carry no marker and are unchanged.
+func TestTiDBSpacedFuncWordsRoundTrip(t *testing.T) {
+	for _, sql := range []string{
+		"select count (a)",
+		"select count (a, a)",
+		"select count ()",
+		"select count ( a, a )",
+		"select sysdate (b)",
+	} {
+		expr := firstExpr(t, sql)
+		if expr == nil {
+			t.Errorf("%q: parser rejected a form it should accept", sql)
+			continue
+		}
+		fc, ok := expr.(*nodes.FuncCallExpr)
+		if !ok || !fc.SpacedParen {
+			t.Errorf("%q: want a FuncCallExpr with SpacedParen set, got %T", sql, expr)
+		}
+		for name, out := range map[string]string{
+			"Restore": deparse.Restore(expr),
+			"Deparse": deparse.Deparse(expr),
+		} {
+			if _, err := Parse("select " + out); err != nil {
+				t.Errorf("%q: %s produced %q, which does not re-parse: %v", sql, name, out, err)
+			}
 		}
 	}
 }

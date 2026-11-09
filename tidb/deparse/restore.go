@@ -1349,6 +1349,11 @@ func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {
 	}
 
 	restoreFuncName(b, n, name)
+	if n.SpacedParen {
+		// A gated builtin keyword written with a space before '(' is a generic
+		// call; keep the space so it does not re-lex as the builtin.
+		b.WriteByte(' ')
+	}
 	b.WriteByte('(')
 	if n.Quantifier.RemovesDuplicates() {
 		b.kw("DISTINCT ")
