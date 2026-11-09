@@ -5447,7 +5447,7 @@ reject	reject	AdminStmt#4/drop-3	ADMIN SHOW NEXT_ROW_ID
 reject	reject	AdminStmt#4/drop-4	ADMIN SHOW ident
 reject	reject	AdminStmt#4/insert	ADMIN SHOW ident NEXT_ROW_ID zzz
 reject	reject	AdminStmt#4/swap	ADVISE SHOW ident NEXT_ROW_ID
-accept	reject	AdminStmt#5/drop-1	CHECK TABLE ident
+reject	reject	AdminStmt#5/drop-1	CHECK TABLE ident
 reject	reject	AdminStmt#5/drop-2	ADMIN TABLE ident
 reject	reject	AdminStmt#5/drop-3	ADMIN CHECK ident
 reject	reject	AdminStmt#5/drop-4	ADMIN CHECK TABLE
@@ -5480,7 +5480,7 @@ reject	reject	AdminStmt#9/drop-9	ADMIN CHECK INDEX ident ident(1,)
 reject	reject	AdminStmt#9/drop-10	ADMIN CHECK INDEX ident ident(1, 1
 reject	reject	AdminStmt#9/insert	ADMIN CHECK INDEX ident ident(1, 1) zzz
 reject	reject	AdminStmt#9/swap	ADVISE CHECK INDEX ident ident(1, 1)
-accept	reject	AdminStmt#10/drop-1	CHECKSUM TABLE ident
+reject	reject	AdminStmt#10/drop-1	CHECKSUM TABLE ident
 reject	reject	AdminStmt#10/drop-3	ADMIN CHECKSUM ident
 reject	reject	AdminStmt#10/drop-4	ADMIN CHECKSUM TABLE
 reject	reject	AdminStmt#10/insert	ADMIN CHECKSUM TABLE ident zzz

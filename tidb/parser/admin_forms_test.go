@@ -157,6 +157,13 @@ var adminFormCases = []adminFormCase{
 	{"ADMIN CHECKSUM t1", false},
 	{"ADMIN CHECKSUM TABLE t1 QUICK", false},
 
+	// The ADMIN prefix is mandatory: TiDB has no bare CHECK TABLE /
+	// CHECKSUM TABLE statement the way MySQL does (parser.y:11235, 11275
+	// give only the ADMIN-prefixed productions), so the ADMIN-less forms
+	// are rejected.
+	{"CHECK TABLE t1", false},
+	{"CHECKSUM TABLE t1", false},
+
 	// CHECK, RECOVER and CLEANUP INDEX each take a table and an index
 	// name, and only CHECK INDEX takes handle ranges after them.
 	{"ADMIN CHECK INDEX t idx", true},

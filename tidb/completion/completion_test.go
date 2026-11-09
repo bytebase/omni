@@ -2257,13 +2257,8 @@ func TestComplete_6_3_TransactionLockMaintenance(t *testing.T) {
 		}
 	})
 
-	// Scenario 12: CHECK TABLE | → table_ref
-	t.Run("check_table_ref", func(t *testing.T) {
-		candidates := Complete("CHECK TABLE ", 12, cat)
-		if !containsCandidate(candidates, "users", CandidateTable) {
-			t.Errorf("missing table 'users'; got %v", candidates)
-		}
-	})
+	// TiDB has no bare CHECK TABLE statement (parser.y:11235 is ADMIN-only),
+	// so there is no CHECK TABLE table_ref completion.
 
 	// Scenario 13: REPAIR TABLE | → table_ref
 	t.Run("repair_table_ref", func(t *testing.T) {

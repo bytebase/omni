@@ -54,64 +54,6 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 	return stmt, nil
 }
 
-// parseCheckTableStmt parses a CHECK TABLE statement.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/check-table.html
-//
-//	CHECK TABLE tbl_name [, tbl_name] ... [option] ...
-func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
-	start := p.pos()
-	p.advance() // consume CHECK
-
-	p.match(kwTABLE)
-
-	// Completion: after CHECK TABLE, offer table_ref.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addRuleCandidate("table_ref")
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.CheckTableStmt{Loc: nodes.Loc{Start: start}}
-
-	for {
-		ref, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Tables = append(stmt.Tables, ref)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-
-	// Optional check options: FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED, CHANGED
-	for {
-		if p.cur.Type == kwFOR {
-			p.advance()
-			if p.cur.Type == kwUPGRADE {
-				stmt.Options = append(stmt.Options, "FOR UPGRADE")
-				p.advance()
-			}
-		} else if p.cur.Type == kwQUICK {
-			stmt.Options = append(stmt.Options, "QUICK")
-			p.advance()
-		} else if p.cur.Type == kwEXTENDED {
-			stmt.Options = append(stmt.Options, "EXTENDED")
-			p.advance()
-		} else if p.cur.Type == kwFAST || p.cur.Type == kwMEDIUM || p.cur.Type == kwCHANGED {
-			stmt.Options = append(stmt.Options, strings.ToUpper(p.cur.Str))
-			p.advance()
-		} else {
-			break
-		}
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseRepairTableStmt parses a REPAIR TABLE statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/repair-table.html
@@ -718,44 +660,6 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 		if p.cur.Type != ',' {
 			break
 		}
-		p.advance()
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseChecksumTableStmt parses a CHECKSUM TABLE statement.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/checksum-table.html
-//
-//	CHECKSUM TABLE tbl_name [, tbl_name] ... [QUICK | EXTENDED]
-func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
-	start := p.pos()
-	p.advance() // consume CHECKSUM
-
-	p.match(kwTABLE)
-
-	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
-
-	for {
-		ref, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Tables = append(stmt.Tables, ref)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-
-	// Optional QUICK | EXTENDED
-	if p.cur.Type == kwQUICK {
-		stmt.Quick = true
-		p.advance()
-	} else if p.cur.Type == kwEXTENDED {
-		stmt.Extended = true
 		p.advance()
 	}
 
