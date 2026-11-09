@@ -1124,8 +1124,24 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 		if err := p.parseWindowFuncOpts(fc); err != nil {
 			return nil, err
 		}
+		// A dedicated window function takes a fixed argument count in its
+		// WindowFuncCall arm (parser.y:9761-9813), so a call outside those
+		// bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
+		// LEAD() and FIRST_VALUE() are all rejected on TiDB v8.5.5.
+		if bounds, ok := windowFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 	}
-	if builtin && fc.Name != "INTERVAL" && p.cur.Type == kwOVER {
+	// OVER is grammatical only on a dedicated window function or an aggregate
+	// (overEligible). On any other builtin, or a stored/quoted call (builtin is
+	// false), OVER is a 1064: TiDB v8.5.5 rejects `rate_limit() over w`,
+	// `interval(c1) over ()` and `` `sum`(a) over () ``.
+	if p.cur.Type == kwOVER {
+		if !builtin || !overEligible(fc.Name) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
@@ -1175,6 +1191,43 @@ func (p *Parser) parseMemberOfExpr(value nodes.ExprNode, start int) (nodes.ExprN
 // FIRST/LAST is NTH_VALUE's alone.
 var nullTreatmentFuncs = map[string]bool{
 	"LEAD": true, "LAG": true, "FIRST_VALUE": true, "LAST_VALUE": true, "NTH_VALUE": true,
+}
+
+// windowFuncArity is the inclusive [min, max] argument count each dedicated
+// window function takes in its WindowFuncCall arm (parser.y:9761-9813, tag
+// v8.5.5): the rank family takes none, NTILE/FIRST_VALUE/LAST_VALUE one,
+// NTH_VALUE two, and LEAD/LAG one to three (Expression OptLeadLagInfo, where
+// OptLeadLagInfo adds `, NumLiteral` and then `, Expression`). TiDB v8.5.5
+// answers 1064 for a call outside these bounds, e.g. NTILE(), NTILE(a, b),
+// LEAD() and FIRST_VALUE().
+var windowFuncArity = map[string][2]int{
+	"ROW_NUMBER":   {0, 0},
+	"RANK":         {0, 0},
+	"DENSE_RANK":   {0, 0},
+	"CUME_DIST":    {0, 0},
+	"PERCENT_RANK": {0, 0},
+	"NTILE":        {1, 1},
+	"LEAD":         {1, 3},
+	"LAG":          {1, 3},
+	"FIRST_VALUE":  {1, 1},
+	"LAST_VALUE":   {1, 1},
+	"NTH_VALUE":    {2, 2},
+}
+
+// overEligible reports whether an OVER clause may follow a builtin call. Only
+// the dedicated window functions (WindowFuncCall, parser.y:9761) and the
+// aggregate functions (SumExpr: every arm ends in OptWindowingClause,
+// parser.y:8461) carry a windowing clause. Any other builtin with OVER —
+// INTERVAL, GROUPING, a generic builtin — is a 1064 on TiDB v8.5.5, e.g.
+// `rate_limit() over w` and `interval(c1) over ()`.
+func overEligible(name string) bool {
+	if _, ok := windowFuncArity[name]; ok {
+		return true
+	}
+	if _, ok := aggArgSpecs[name]; ok {
+		return true
+	}
+	return name == "COUNT"
 }
 
 // parseWindowFuncOpts reads a window value function's FROM FIRST/LAST (NTH_VALUE
