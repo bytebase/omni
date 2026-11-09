@@ -139,8 +139,12 @@ func TestExtractCitations(t *testing.T) {
 // the fix these were dropped, so the coverage report listed them as uncovered.
 func TestNameOnlyReferenceCredited(t *testing.T) {
 	rules := []Rule{{Name: "AnalyzeOption", Start: 10, End: 12}, {Name: "Lonely", Start: 13, End: 15}}
+	cits, names := scanFile("f.go", "package p\n// Ref: AnalyzeOption in pingcap/tidb pkg/parser/parser.y.\n")
+	if len(cits) != 0 {
+		t.Errorf("name-only reference yielded %d line citations, want 0", len(cits))
+	}
 	named := map[string]bool{}
-	for _, n := range refNames("// Ref: AnalyzeOption in pingcap/tidb pkg/parser/parser.y.") {
+	for _, n := range names {
 		named[n] = true
 	}
 	a := runAudit(rules, nil, named)
@@ -157,6 +161,44 @@ func TestNameOnlyReferenceCredited(t *testing.T) {
 		if !full.Cited[name] {
 			t.Errorf("%s still reads as uncited after name crediting", name)
 		}
+	}
+}
+
+// TestScanFileMultilineBlock pins that a Ref comment wrapping across several //
+// lines is read whole: a range or anchor on a continuation line (no "Ref:" of
+// its own) still takes part in validation and coverage. Before the fix these
+// were dropped, so a stale continuation range slipped the gate and a rule cited
+// only on a continuation line read as uncited.
+func TestScanFileMultilineBlock(t *testing.T) {
+	// A continuation range under an earlier anchor, separated by a comma and by
+	// "and", each range attributed to the line it appears on.
+	src := "package p\n" +
+		"// Ref: TiDB v8.5.5 parser.y:15733 (CREATE), 15743 (ALTER),\n" + // line 2
+		"// 16445 (CALIBRATE), 16543 and 16631 (QUERY WATCH)\n" + // line 3
+		"func f() {}\n" +
+		"// Ref: parser.y:5903-5916 (A),\n" + // line 5
+		"// parser.y:8768-8836 (B).\n" + // line 6 — anchor on a continuation line
+		"func g() {}\n"
+	cits, named := scanFile("f.go", src)
+
+	wantStarts := map[int]int{15733: 2, 15743: 2, 16445: 3, 16543: 3, 16631: 3, 5903: 5, 8768: 6}
+	if len(cits) != len(wantStarts) {
+		t.Fatalf("got %d citations, want %d: %+v", len(cits), len(wantStarts), cits)
+	}
+	for _, c := range cits {
+		if ln, ok := wantStarts[c.Start]; !ok || c.Line != ln {
+			t.Errorf("citation %d-%d on line %d, want start on line %d", c.Start, c.End, c.Line, wantStarts[c.Start])
+		}
+	}
+	// Rule-like words from across the block are collected for coverage.
+	hasQueryWatch := false
+	for _, n := range named {
+		if n == "CREATE" {
+			hasQueryWatch = true
+		}
+	}
+	if !hasQueryWatch {
+		t.Errorf("named words not collected from the block: %v", named)
 	}
 }
 
