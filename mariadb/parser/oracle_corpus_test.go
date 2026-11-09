@@ -190,6 +190,27 @@ var categoryCaseSQLs = []string{
 	"SELECT NTH_VALUE(val, 3) OVER (ORDER BY id) FROM t",
 	"SELECT SUM(val) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t",
 	"SELECT DENSE_RANK() OVER (ORDER BY score), PERCENT_RANK() OVER (ORDER BY score) FROM t",
+	"SELECT NTILE(4) OVER (ORDER BY id) FROM t",
+	"SELECT FIRST_VALUE(val) OVER (ORDER BY id) FROM t",
+	"SELECT COUNT(*) OVER (ORDER BY id) FROM t",
+	// MEDIAN takes a bare OVER in MariaDB (no MySQL equivalent): both accept, so
+	// the ineligible-OVER gate must keep MEDIAN eligible — this probe pins that.
+	"SELECT MEDIAN(val) OVER (PARTITION BY dept) FROM t",
+	// Ineligible-OVER / window-func arity: MariaDB answers 1064 and omni now
+	// matches, so these assert agreement rather than pin a divergence.
+	"SELECT NTILE() OVER (ORDER BY id) FROM t",
+	"SELECT NTILE(2, 3) OVER (ORDER BY id) FROM t",
+	"SELECT LEAD() OVER (ORDER BY id) FROM t",
+	"SELECT FIRST_VALUE() OVER (ORDER BY id) FROM t",
+	"SELECT ROW_NUMBER(id) OVER (ORDER BY id) FROM t",
+	"SELECT ABS(val) OVER (ORDER BY id) FROM t",
+	"SELECT `sum`(val) OVER (ORDER BY id) FROM t",
+	// LAST_VALUE is a variadic scalar function in MariaDB as well as a window
+	// function: the multi-arg scalar form is accepted without OVER, but the
+	// window form fixes the arity at one, so these both assert agreement (the
+	// window-arity gate must not reject the scalar form).
+	"SELECT LAST_VALUE(1, 2) FROM t",
+	"SELECT LAST_VALUE(1, 2) OVER (ORDER BY id) FROM t",
 	// interval expressions
 	"SELECT NOW() + INTERVAL 1 DAY",
 	"SELECT NOW() - INTERVAL 2 HOUR",

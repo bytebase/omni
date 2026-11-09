@@ -1043,10 +1043,25 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
-	// The INTERVAL function is the one builtin reached here whose production
-	// carries no windowing clause, so a window after it is a syntax error:
-	// mysql:8.0 answers 1064 for `interval(c1) over ()`.
-	if builtin && fc.Name != "INTERVAL" && p.cur.Type == kwOVER {
+	// A dedicated window function takes a fixed argument count in its
+	// WindowFuncCall arm (sql_yacc.yy window_func_call), so a call outside
+	// those bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
+	// LEAD() and FIRST_VALUE() are all rejected on mysql:8.0.
+	if builtin {
+		if bounds, ok := windowFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+	}
+	// OVER is grammatical only on a dedicated window function or an aggregate
+	// (overEligible). On any other builtin, including INTERVAL, or a
+	// stored/quoted call (builtin is false), OVER is a 1064: mysql:8.0 rejects
+	// `abs(c1) over ()`, `interval(c1) over ()` and `` `sum`(a) over () ``.
+	if p.cur.Type == kwOVER {
+		if !builtin || !overEligible(fc.Name) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
@@ -1057,6 +1072,41 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 
 	fc.Loc.End = p.prev.End
 	return fc, nil
+}
+
+// windowFuncArity is the inclusive [min, max] argument count each dedicated
+// window function takes in its window_func_call arm (MySQL 8.0 sql_yacc.yy):
+// the rank family takes none, NTILE/FIRST_VALUE/LAST_VALUE one, NTH_VALUE two,
+// and LEAD/LAG one to three (expr opt_lead_lag_info, where opt_lead_lag_info
+// adds `, NUM_literal` and then `, expr`). mysql:8.0 answers 1064 for a call
+// outside these bounds, e.g. NTILE(), NTILE(a, b), LEAD() and FIRST_VALUE().
+var windowFuncArity = map[string][2]int{
+	"ROW_NUMBER":   {0, 0},
+	"RANK":         {0, 0},
+	"DENSE_RANK":   {0, 0},
+	"CUME_DIST":    {0, 0},
+	"PERCENT_RANK": {0, 0},
+	"NTILE":        {1, 1},
+	"LEAD":         {1, 3},
+	"LAG":          {1, 3},
+	"FIRST_VALUE":  {1, 1},
+	"LAST_VALUE":   {1, 1},
+	"NTH_VALUE":    {2, 2},
+}
+
+// overEligible reports whether an OVER clause may follow a builtin call. Only
+// the dedicated window functions (window_func_call) and the aggregate
+// functions (sum_expr: each ends in opt_windowing_clause) carry a windowing
+// clause. Any other builtin with OVER — INTERVAL, GROUPING, a generic builtin —
+// is a 1064 on mysql:8.0, e.g. `abs(c1) over ()` and `interval(c1) over ()`.
+func overEligible(name string) bool {
+	if _, ok := windowFuncArity[name]; ok {
+		return true
+	}
+	if _, ok := aggArgSpecs[name]; ok {
+		return true
+	}
+	return name == "COUNT"
 }
 
 // parseTrimFunc parses TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str).

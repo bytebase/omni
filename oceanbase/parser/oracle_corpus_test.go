@@ -143,6 +143,26 @@ func TestOracleCorpus(t *testing.T) {
 			{"NTH_VALUE", "SELECT NTH_VALUE(val, 3) OVER (ORDER BY id) FROM t"},
 			{"SUM window frame", "SELECT SUM(val) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t"},
 			{"multiple window funcs", "SELECT DENSE_RANK() OVER (ORDER BY score), PERCENT_RANK() OVER (ORDER BY score) FROM t"},
+			{"NTILE one arg", "SELECT NTILE(4) OVER (ORDER BY id) FROM t"},
+			{"FIRST_VALUE one arg", "SELECT FIRST_VALUE(val) OVER (ORDER BY id) FROM t"},
+			{"COUNT star window", "SELECT COUNT(*) OVER (ORDER BY id) FROM t"},
+			{"COUNT expr window", "SELECT COUNT(val) OVER (ORDER BY id) FROM t"},
+			// Over-acceptances the ineligible-OVER / arity gate now rejects: the
+			// engine answers 1064, and omni must match.
+			{"NTILE no args rejected", "SELECT NTILE() OVER (ORDER BY id) FROM t"},
+			{"NTILE two args rejected", "SELECT NTILE(2, 3) OVER (ORDER BY id) FROM t"},
+			{"LEAD no args rejected", "SELECT LEAD() OVER (ORDER BY id) FROM t"},
+			{"FIRST_VALUE no args rejected", "SELECT FIRST_VALUE() OVER (ORDER BY id) FROM t"},
+			{"NTH_VALUE one arg rejected", "SELECT NTH_VALUE(val) OVER (ORDER BY id) FROM t"},
+			{"ROW_NUMBER arg rejected", "SELECT ROW_NUMBER(id) OVER (ORDER BY id) FROM t"},
+			{"OVER on scalar builtin rejected", "SELECT ABS(val) OVER (ORDER BY id) FROM t"},
+			{"OVER on quoted builtin rejected", "SELECT `sum`(val) OVER (ORDER BY id) FROM t"},
+			// OceanBase lexes OVER as unreserved, so a bare `over` after an
+			// ineligible call is an implicit column alias, not a window clause:
+			// these parse, while the window-spec forms above do not.
+			{"bare OVER implicit alias", "SELECT abs(1) over"},
+			{"bare OVER after INTERVAL alias", "SELECT INTERVAL(1, 2) over"},
+			{"bare OVER after quoted call alias", "SELECT `abs`(1) over"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
