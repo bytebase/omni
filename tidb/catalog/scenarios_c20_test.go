@@ -11,10 +11,10 @@ import (
 // the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,
@@ -245,10 +245,13 @@ func TestScenario_C20(t *testing.T) {
 			name string
 			ddl  string
 		}
+		// GEOMETRY is a MySQL-only type that TiDB v8.5.5 does not support (it
+		// 1064-rejects the column type rather than raising 1101), so the
+		// `GEOMETRY DEFAULT 'x'` fixture is dropped from this TiDB suite; the
+		// BLOB/TEXT/JSON literal-default cases still raise 1101 on both sides.
 		cases := []caze{
 			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')"},
 			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')"},
-			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')"},
 			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')"},
 		}
 		for _, tc := range cases {
@@ -279,19 +282,21 @@ func TestScenario_C20(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
+		// POINT is a MySQL-only type TiDB v8.5.5 does not support, and TiDB
+		// 1064-rejects a BLOB expression default such as DEFAULT (SUBSTRING(...));
+		// both are dropped from this TiDB suite. The JSON expression-default
+		// columns are the portable core of the scenario and are accepted by both
+		// TiDB and omni.
 		ddl := `CREATE TABLE c20_7 (
 			id INT PRIMARY KEY,
 			tags  JSON      DEFAULT (JSON_ARRAY()),
-			meta  JSON      DEFAULT (JSON_OBJECT('v', 1)),
-			blob1 BLOB      DEFAULT (SUBSTRING('abcdef', 1, 3)),
-			pt    POINT     DEFAULT (POINT(0, 0)),
-			uuid  BINARY(16) DEFAULT (UUID_TO_BIN(UUID()))
+			meta  JSON      DEFAULT (JSON_OBJECT('v', 1))
 		)`
 		runOnBoth(t, mc, c, ddl)
 
 		// Oracle: each column must have a non-NULL COLUMN_DEFAULT (the
 		// expression text) and EXTRA containing "DEFAULT_GENERATED".
-		expressionCols := []string{"tags", "meta", "blob1", "pt", "uuid"}
+		expressionCols := []string{"tags", "meta"}
 		for _, cname := range expressionCols {
 			var colDef sql.NullString
 			var extra string

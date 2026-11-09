@@ -1845,72 +1845,64 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 	})
 
-	// Scenario 3: CREATE FULLTEXT INDEX
+	// Scenario 3: CREATE FULLTEXT INDEX — TiDB v8.5.5 does not support FULLTEXT
+	// indexes and rejects with 8200 ("FULLTEXT and SPATIAL index is not
+	// supported"); omni's catalog rejects it too. (MySQL 8.0 accepts it on
+	// InnoDB; this is a TiDB≠MySQL delta, re-baselined to both-reject.)
 	t.Run("create_fulltext_index", func(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci3")
 		ctr.execSQL("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)")
-		if err := ctr.execSQL("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)"); err != nil {
-			t.Fatalf("container CREATE FULLTEXT INDEX error: %v", err)
+		ctrErr := ctr.execSQL("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)")
+		if ctrErr == nil {
+			t.Fatal("container: expected TiDB to reject CREATE FULLTEXT INDEX")
 		}
-		ctrDDL, _ := ctr.showCreateTable("t_ci3")
+		t.Logf("container correctly rejects FULLTEXT index: %v", ctrErr)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		c.Exec("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)", nil)
-		results, _ := c.Exec("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni CREATE FULLTEXT INDEX error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_ci3")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
+		results, execErr := c.Exec("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)", nil)
+		if !execErrored(execErr, results) {
+			t.Error("omni: expected rejection of CREATE FULLTEXT INDEX")
 		}
 	})
 
-	// Scenario 4: CREATE SPATIAL INDEX
+	// Scenario 4: CREATE SPATIAL INDEX — TiDB v8.5.5 does not support the
+	// GEOMETRY type (nor SPATIAL indexes), so the setup CREATE TABLE and the
+	// CREATE SPATIAL INDEX are both rejected; omni rejects GEOMETRY at parse
+	// time too. (MySQL 8.0 accepts both; TiDB≠MySQL delta, re-baselined to
+	// both-reject.)
 	t.Run("create_spatial_index", func(t *testing.T) {
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci4")
-		ctr.execSQL("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)")
-		if err := ctr.execSQL("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)"); err != nil {
-			t.Fatalf("container CREATE SPATIAL INDEX error: %v", err)
+		ctrErr := ctr.execSQL("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)")
+		if ctrErr == nil {
+			t.Fatal("container: expected TiDB to reject a GEOMETRY column")
 		}
-		ctrDDL, _ := ctr.showCreateTable("t_ci4")
+		t.Logf("container correctly rejects GEOMETRY type: %v", ctrErr)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)", nil)
-		results, _ := c.Exec("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni CREATE SPATIAL INDEX error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_ci4")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
+		results, execErr := c.Exec("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)", nil)
+		if !execErrored(execErr, results) {
+			t.Error("omni: expected rejection of GEOMETRY column")
 		}
 	})
 
-	// Scenario 5: CREATE INDEX IF NOT EXISTS
-	// Note: MySQL 8.0 does NOT support IF NOT EXISTS on CREATE INDEX (syntax error).
-	// Our parser accepts it, and the catalog handles it gracefully (no-op on duplicate).
-	// This is marked [~] partial — omni is more permissive than MySQL 8.0 here.
+	// Scenario 5: CREATE INDEX IF NOT EXISTS — TiDB v8.5.5 accepts IF NOT
+	// EXISTS on CREATE INDEX (a no-op when the index already exists); omni
+	// accepts it too, and SHOW CREATE TABLE matches. (MySQL 8.0 rejects the
+	// syntax; TiDB≠MySQL delta, re-baselined to both-accept.)
 	t.Run("create_index_if_not_exists", func(t *testing.T) {
-		// Verify MySQL 8.0 rejects this syntax.
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
 		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
 		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
-		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if ctrErr == nil {
-			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Fatalf("container: expected TiDB to accept CREATE INDEX IF NOT EXISTS, got %v", err)
 		}
-		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
+		ctrDDL, _ := ctr.showCreateTable("t_ci5")
 
-		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
@@ -1920,7 +1912,11 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		if results[0].Error != nil {
 			t.Errorf("omni: unexpected error for IF NOT EXISTS: %v", results[0].Error)
 		}
-		// This is a known divergence from MySQL 8.0 behavior.
+		omniDDL := c.ShowCreateTable("test", "t_ci5")
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
+		}
 	})
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061

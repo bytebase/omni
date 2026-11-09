@@ -278,14 +278,14 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("omni: column a type got %q want bigint", col.DataType)
 		}
 
-		// 22.6b: MODIFY + ALGORITHM=INPLACE → MySQL rejects.
+		// 22.6b: MODIFY + ALGORITHM=INPLACE. MySQL 8.0 rejects (INPLACE is not
+		// supported for a type change); TiDB v8.5.5 does not validate the
+		// ALGORITHM clause and accepts the statement. omni is algorithm-oblivious
+		// and accepts it too. (TiDB≠MySQL delta, re-baselined to both-accept.)
 		_, oracleErr := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE")
-		if oracleErr == nil {
-			t.Errorf("oracle: expected error for MODIFY ... ALGORITHM=INPLACE, got nil")
-		} else if !strings.Contains(oracleErr.Error(), "ALGORITHM") &&
-			!strings.Contains(oracleErr.Error(), "not supported") {
-			t.Errorf("oracle: unexpected error form: %v", oracleErr)
+		if oracleErr != nil {
+			t.Errorf("oracle: TiDB should accept MODIFY ... ALGORITHM=INPLACE, got %v", oracleErr)
 		}
 		// omni must at least parse and (per catalog contract) apply the change.
 		results, err := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;", nil)
@@ -298,15 +298,14 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.6c: MODIFY with a genuine type change + LOCK=NONE → MySQL
-		// rejects. Column `a` is currently bigint (from 22.6a); changing it
-		// to INT UNSIGNED is a real type change, which forces COPY, which is
-		// incompatible with LOCK=NONE. (A no-op MODIFY to the same type is
-		// silently optimized away and would not error.)
+		// 22.6c: MODIFY with a genuine type change + LOCK=NONE. MySQL rejects
+		// (a type change forces COPY, incompatible with LOCK=NONE); TiDB v8.5.5
+		// does not validate the LOCK clause and accepts it. (TiDB≠MySQL delta,
+		// re-baselined to both-accept.)
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("oracle: TiDB should accept MODIFY <typechange> ... LOCK=NONE, got %v", oracleErr2)
 		}
 		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
 		if err2 != nil {
@@ -363,13 +362,14 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// 22.8a: COPY-only operation + LOCK=NONE → hard error. CHANGE COLUMN
-		// with a real type change forces COPY, and COPY cannot honor
-		// LOCK=NONE.
+		// 22.8a: COPY-only operation + LOCK=NONE. MySQL rejects (CHANGE COLUMN
+		// with a real type change forces COPY, which cannot honor LOCK=NONE);
+		// TiDB v8.5.5 does not validate the LOCK clause and accepts it.
+		// (TiDB≠MySQL delta, re-baselined to both-accept.)
 		_, oracleErr := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
-		if oracleErr == nil {
-			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
+		if oracleErr != nil {
+			t.Errorf("oracle 22.8a: TiDB should accept COPY op + LOCK=NONE, got %v", oracleErr)
 		}
 		results, _ := c.Exec(
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
@@ -379,12 +379,15 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
-		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
+		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE. MySQL rejects
+		// ("Only LOCK=DEFAULT is permitted for operations using
+		// ALGORITHM=INSTANT"); TiDB v8.5.5 does not validate the ALGORITHM/LOCK
+		// clauses and accepts it. (TiDB≠MySQL delta, re-baselined to
+		// both-accept.)
 		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle 22.8b: expected error for INSTANT + LOCK=NONE, got nil")
+		if oracleErr2 != nil {
+			t.Errorf("oracle 22.8b: TiDB should accept INSTANT + LOCK=NONE, got %v", oracleErr2)
 		}
 		results2, err2 := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)

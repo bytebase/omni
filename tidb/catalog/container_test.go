@@ -55,7 +55,7 @@ var sharedTiDB sync.Mutex
 //
 // QUARANTINE: every test that goes through here is a differential test forked
 // from mysql/catalog, and its expectations are still MySQL-shaped. Against
-// TiDB v8.5.5, 34 top-level tests fail (mostly MySQL-shaped assertions where
+// TiDB v8.5.5, 31 top-level tests fail (mostly MySQL-shaped assertions where
 // omni already matches TiDB, plus a few real renderer/behavior gaps); they are
 // being cleared cluster by cluster (see
 // docs/plans/2026-11-09-tidb-catalog-parity-inventory.md). They are skipped
@@ -457,6 +457,20 @@ func assertCreateTableMatches(t *testing.T, ctr *mysqlContainer, sql, table stri
 	if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 		t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 	}
+}
+
+// execErrored reports whether a catalog Exec reported an error, either as the
+// top-level error or on any statement result.
+func execErrored(execErr error, results []ExecResult) bool {
+	if execErr != nil {
+		return true
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // normalizeWhitespace collapses runs of whitespace to a single space and trims.
