@@ -140,9 +140,35 @@ func dynamicPartitionPolicyCases() []obOptionCase {
 	)
 }
 
+// storageAndStatsOptionCases holds the STORAGE and STATS_PERSISTENT table
+// options to the value each takes, measured against OceanBase CE 4.3.5.
+// Unlike the mysql and mariadb forks, OceanBase has no STORAGE table option at
+// all: `STORAGE DISK` and `STORAGE MEMORY` are a 1064 here, as is every other
+// value, so every STORAGE row rejects. STATS_PERSISTENT is `[=] {DEFAULT |
+// number}`, so a string and a bare identifier are each a 1064. The out-of-[0,1]
+// STATS_PERSISTENT numbers the mysql fork rejects are left out: this change
+// only closes the string/identifier hole and still takes any integer, so it
+// asserts no bound it has not measured.
+var storageAndStatsOptionCases = []obOptionCase{
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE DISK", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE MEMORY", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE = DISK", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE 's'", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE foo", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE = 1", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STORAGE DEFAULT", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT = DEFAULT", true},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT = 0", true},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT 1", true},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT = 's'", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT DEFINED", false},
+	{"CREATE TABLE t (a INT PRIMARY KEY) STATS_PERSISTENT = foo", false},
+}
+
 func allTableOptionCases() []obOptionCase {
 	cases := tableOptionValueCases()
 	cases = append(cases, organizationCases...)
+	cases = append(cases, storageAndStatsOptionCases...)
 	return append(cases, dynamicPartitionPolicyCases()...)
 }
 
