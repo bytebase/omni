@@ -39,6 +39,29 @@ constraints, returns `*_bin` collations), and the test still asserts MySQL. A
 minority are genuine omni catalog gaps — those are flagged below and are the
 higher-risk work.
 
+## Omni-side scope: what this unblocks in dropping pingcap/tidb
+
+This parity work is one of a handful of omni-side deliverables that let Bytebase
+drop `github.com/pingcap/tidb`. In `bytebase/bytebase@main` only 18 files still
+import pingcap, all under `pkg/parser`/`pkg/types` (no planner/executor), behind
+an omni-first / pingcap-fallback dispatcher
+(`backend/plugin/parser/tidb/dispatcher.go`). The omni-side prerequisites, and
+which Bytebase consumer each one unblocks:
+
+| Omni deliverable | Package | Unblocks (Bytebase) | Status |
+|---|---|---|---|
+| **Catalog + walk-through parity** | `tidb/catalog`, `tidb/review/walk`, `metadata` | `schema/tidb/get_database_metadata.go`, `walk_through.go` (today fully pingcap: `parser.New()` + pingcap AST/format/mysql/types) | **this doc — 37 failures** |
+| Parser acceptance completeness | `tidb/parser` | the dispatcher fallback — delete it once omni never falls back | rejection side (§3.6) closed; acceptance tracked by §3.3/§3.4 gap inventories |
+| AST read-coverage | `tidb/ast` (257 nodes), `tidb/scope` | query-span extraction (`query.go`/`query_span_extractor.go`/`query_type.go`/`util.go`), `resource_change.go`, `statement_type.go` | ast already imported 57× by Bytebase; gaps surface when the (not-yet-started) TiDB query-span omni migration begins |
+| Deparse / Restore | `tidb/deparse` | `parser/tidb/limit.go` (LIMIT rewrite, replacing pingcap `format.RestoreCtx` + `NewValueExpr`) | present; confirm coverage during that migration |
+| Constraint AST nodes | `tidb/ast` | shared `parser/tokenizer/tokenizer.go` (pingcap `Constraint*` types) | present; mechanical swap |
+
+Only the **first row is this phase's work** and the critical-path blocker; the
+rest are prerequisites that are largely in place or are Bytebase-side rewrites
+gated on omni capabilities that already exist. The largest un-started Bytebase
+piece — TiDB query-span omni migration (peers exist for mssql/oracle/mysql/pg,
+none for tidb) — needs no new omni package, only AST read-coverage above.
+
 ## Clusters
 
 Count = failing top-level tests whose primary cause is this cluster (each test
