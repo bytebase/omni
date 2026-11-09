@@ -1373,14 +1373,12 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
-	case kwSTORAGE:
-		p.advance()
-		p.match('=')
-		val, err := p.consumeOptionValue()
-		if err != nil {
-			return nil, false, err
-		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE", Value: val}, true, nil
+	// STORAGE is deliberately not a table option here. Unlike the mysql and
+	// mariadb forks, OceanBase CE 4.3.5 answers 1064 for `STORAGE DISK`,
+	// `STORAGE MEMORY` and every other STORAGE value in the table-option
+	// position (measured), so it is left unmatched and the statement fails on
+	// the unexpected keyword. (STORAGE stays valid as a column option and
+	// inside a TABLESPACE clause, which are handled elsewhere.)
 
 	case kwSTART:
 		// START TRANSACTION (used for versioned tables)
@@ -1609,7 +1607,22 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 
-	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
+	case kwSTATS_PERSISTENT:
+		// STATS_PERSISTENT [=] {DEFAULT | integer}: the value is DEFAULT or a
+		// number, so a string and a bare identifier are each a 1064, matching
+		// the mysql and mariadb forks. (Those bound the number to 0 or 1; an
+		// out-of-range number is left to a separate measured change here, so
+		// this only closes the string/identifier hole.)
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOrDefaultOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwKEY_BLOCK_SIZE,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
 		kwAUTOEXTEND_SIZE:
