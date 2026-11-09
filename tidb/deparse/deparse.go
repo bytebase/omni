@@ -2245,6 +2245,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(canonical)
+	if n.SpacedParen {
+		// A gated builtin keyword written with a space before '(' is a generic
+		// call; keep the space so it does not re-lex as the builtin.
+		b.WriteByte(' ')
+	}
 	switch {
 	case len(n.Args) == 0 && !n.Star:
 		// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens

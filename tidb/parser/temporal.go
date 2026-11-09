@@ -31,28 +31,54 @@ import (
 // keyword. The grammar took the text, so Parse does too. Every row is held to the
 // engine by TestTiDBTemporalFormsMatchEngine, which tells those two 1064s apart.
 
-// checkSpacedTemporalWord applies the lexer's rule for a function word with a
-// space or a comment before its '(' (misc.go, isTokenIdentifier), where only a
-// word followed directly by '(' takes its btFuncTokenMap token. p.prev is the word
-// and p.cur its '('. It reports whether the call is an ordinary one.
+// checkSpacedFuncWord applies the lexer's rule for a function word with a space
+// or a comment before its '(' (misc.go, isTokenIdentifier), where only a word
+// followed directly by '(' takes its btFuncTokenMap token. p.prev is the word and
+// p.cur its '('. It reports whether the call is an ordinary generic one.
 //
-// NOW, CURDATE, CURTIME, DATE_ADD and DATE_SUB are also in tokenMap, under tokens
-// that can name a column, and the name of an ordinary call is the plain identifier
-// token (FunctionCallGeneric, parser.y:8684). So spaced they are a syntax error
-// whatever follows: TiDB v8.5.5 answers 1064 for now (), curdate (1) and
-// date_add (a, 10), with a position. SYSDATE is in no other map, so it is an
-// identifier and the call an ordinary one: sysdate (b) answers 1054. ADDDATE and
-// SUBDATE are only in tokenMap, under the tokens the grammar reads, so spacing changes
-// nothing for them.
-func (p *Parser) checkSpacedTemporalWord(upperName string) (ordinary bool, err error) {
+// The aggregate and datetime builtins reach the grammar as a per-name token the
+// lexer folds out of `name(` (SumExpr's builtinCount/builtinSum/..., parser.y:8461;
+// builtinCount '(' '*' ')', parser.y:8546; the temporal productions listed above).
+// With a space the word is no longer that token, so none of those special forms
+// (the '*' and DISTINCT/ALL quantifiers, the FROM/SEPARATOR/INTERVAL clauses, a
+// precision) is reachable, and how the spaced word then reads splits in two:
+//
+//   - A word that is also a column-nameable keyword reverts to that keyword, and
+//     FunctionCallGeneric (identifier '(' ExpressionListOpt ')', parser.y:8684)
+//     does not take a keyword as the name, so spaced it is a syntax error whatever
+//     follows. TiDB v8.5.5 answers 1064 for now (), date_add (a, 10), sum ( a ),
+//     max ( distinct a ), group_concat ( a ), bit_and ( a ), substring ( a from 1 )
+//     and trim ( leading 'x' from a ) — the ordinary arguments included.
+//   - A word that is only the builtin token (not a keyword) reverts to a plain
+//     identifier, so spaced it is an ordinary generic call. TiDB runs count ( a ),
+//     count ( a, a ), mid ( a ) and sysdate (b), and answers 1064 for count ( * )
+//     and count ( distinct a ) because '*' and the quantifiers are no Expression
+//     in a generic argument list.
+//
+// AVG and JSON_ARRAYAGG/JSON_OBJECTAGG are keyword literals in SumExpr
+// ("AVG" '(' ..., parser.y:8462), not btFuncTokenMap tokens, so a space before the
+// '(' changes nothing and they stay aggregate calls: avg ( distinct a ) runs. MID
+// has no builtin production in omni, so it is already an ordinary call either way;
+// ADDDATE and SUBDATE are only in tokenMap, so spacing changes nothing for them.
+func (p *Parser) checkSpacedFuncWord(upperName string) (ordinary bool, err error) {
 	if p.prev.End == p.cur.Loc {
 		return false, nil
 	}
 	switch upperName {
-	case "NOW", "CURDATE", "CURTIME", "DATE_ADD", "DATE_SUB":
-		return false, p.syntaxErrorAtCur()
-	case "SYSDATE":
+	// Only the builtin token, so spaced the word is a plain identifier and the
+	// call an ordinary generic one.
+	case "COUNT", "SYSDATE":
 		return true, nil
+	// Also a column-nameable keyword, so spaced the word cannot name a generic
+	// call: a syntax error whatever follows.
+	case "NOW", "CURDATE", "CURTIME", "DATE_ADD", "DATE_SUB",
+		"SUM", "MIN", "MAX", "GROUP_CONCAT",
+		"STD", "STDDEV", "STDDEV_POP", "STDDEV_SAMP",
+		"VAR_POP", "VAR_SAMP", "VARIANCE",
+		"BIT_AND", "BIT_OR", "BIT_XOR",
+		"APPROX_COUNT_DISTINCT", "APPROX_PERCENTILE",
+		"SUBSTR", "SUBSTRING", "TRIM", "POSITION":
+		return false, p.syntaxErrorAtCur()
 	}
 	return false, nil
 }

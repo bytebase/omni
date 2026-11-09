@@ -908,12 +908,19 @@ type FuncCallExpr struct {
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
-	OrderBy    []*OrderByItem
-	Over       *WindowDef // OVER clause for window functions
-	IgnoreNull bool       // IGNORE NULLS (LEAD/LAG/FIRST_VALUE/LAST_VALUE/NTH_VALUE), vs the default RESPECT NULLS
-	FromLast   bool       // NTH_VALUE ... FROM LAST, vs the default FROM FIRST
-	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
-	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// SpacedParen marks a generic call whose name is an adjacency-gated builtin
+	// keyword (COUNT, SYSDATE) written with a space before '(' — `count (a, a)`.
+	// The space is why it is a generic call and not the builtin, so a deparse
+	// that drops it would re-lex as the builtin and change meaning or fail to
+	// parse. Set only by parsing such text; engine-synced SQL is always adjacent,
+	// so it is never set there (see checkSpacedFuncWord in tidb/parser).
+	SpacedParen bool
+	OrderBy     []*OrderByItem
+	Over        *WindowDef // OVER clause for window functions
+	IgnoreNull  bool       // IGNORE NULLS (LEAD/LAG/FIRST_VALUE/LAST_VALUE/NTH_VALUE), vs the default RESPECT NULLS
+	FromLast    bool       // NTH_VALUE ... FROM LAST, vs the default FROM FIRST
+	Separator   ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Using       string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 	// WEIGHT_STRING(expr AS CHAR(n)) / AS BINARY(n): the AS clause of
 	// weight_string's own grammar (FunctionCallNonKeyword, parser.y:8374,8381).
 	// WeightAs is "" when no AS clause is written, else "CHAR" or "BINARY";
