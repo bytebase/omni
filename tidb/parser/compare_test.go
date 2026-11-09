@@ -8078,11 +8078,16 @@ func TestParseAlterUserPasswordExpire(t *testing.T) {
 	t.Run("password reuse interval default", func(t *testing.T) {
 		ParseAndCheck(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REUSE INTERVAL DEFAULT")
 	})
-	t.Run("password require current", func(t *testing.T) {
-		ParseAndCheck(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REQUIRE CURRENT")
+	t.Run("password require current default", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REQUIRE CURRENT DEFAULT")
 	})
-	t.Run("password require current optional", func(t *testing.T) {
-		ParseAndCheck(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REQUIRE CURRENT OPTIONAL")
+	// TiDB's only PASSWORD REQUIRE form is CURRENT DEFAULT; it answers 1064 for
+	// bare CURRENT and for CURRENT OPTIONAL (parser.y:14077).
+	t.Run("password require current without default is rejected", func(t *testing.T) {
+		ParseExpectError(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REQUIRE CURRENT")
+	})
+	t.Run("password require current optional is rejected", func(t *testing.T) {
+		ParseExpectError(t, "ALTER USER 'jeffrey'@'localhost' PASSWORD REQUIRE CURRENT OPTIONAL")
 	})
 }
 

@@ -83,3 +83,35 @@ here — noted, never fixed by widening `Parse`.
   (both-accept unchanged at 153); tidb positive corpora show no regression.
 - Remaining 137 over-acceptances are later (c) clusters (trailing stray tokens in
   other productions, dropped required keywords, etc.).
+
+### (c) close over-acceptances — cluster 2: foreign-key reference action
+
+- **Cluster: the ON DELETE / ON UPDATE reference action.** `parseReferenceAction`
+  returned `RefActNone` with no error for a bare `SET` (no NULL/DEFAULT), a bare
+  `NO` (no ACTION), or any non-action token, so omni accepted `ON DELETE SET`,
+  `ON DELETE NO`, `ON DELETE NULL`, `ON DELETE` with nothing, and `ON DELETE ON
+  UPDATE …`. ReferOpt is always complete and required after ON DELETE/ON UPDATE
+  (parser.y:4017-4037, 3983-3990).
+- Fixed in all four engines: `parseReferenceAction` now returns an error for an
+  incomplete/missing action; both FK caller sites (inline column REFERENCES and
+  table-level FOREIGN KEY) propagate it. Cited to TiDB parser.y / MySQL
+  sql_yacc.yy `delete_option`.
+- Measured live: over-acceptances **137 → 128** (9 rows to reject/reject, 0
+  no-verdict), no new gaps (both-accept 153), positive corpora unregressed.
+
+### (c) close over-acceptances — cluster 3: CREATE/ALTER USER password options
+
+- **Cluster: PasswordOrLockOption operand requirements.** `parseUserAccountOptions`
+  accepted incomplete options: `PASSWORD HISTORY` (no n/DEFAULT), `PASSWORD REUSE`
+  without INTERVAL / without DAY, `PASSWORD REQUIRE DEFAULT` / `REQUIRE CURRENT`
+  (TiDB's only form is CURRENT DEFAULT), and bare `ACCOUNT`.
+- Divergence found: `mysql` and `mariadb` were **already strict** here; only
+  `tidb` and `oceanbase` were loose. Fixed those two. tidb uses TiDB's stricter
+  REQUIRE (CURRENT DEFAULT, measured on live TiDB); oceanbase matches the
+  already-correct mysql/mariadb (REQUIRE CURRENT [DEFAULT|OPTIONAL]). Measured a
+  throwaway set of password forms on live TiDB first to pin each verdict.
+- Cited to TiDB parser.y:13993-14082 / MySQL sql_yacc.yy password_option.
+- Measured live: over-acceptances **128 → 118** (10 rows to reject/reject, 0
+  no-verdict), no new gaps, positive corpora unregressed; oceanbase grant/user
+  container tests pass. (SET PASSWORD `=` / `PASSWORD()` forms are a separate
+  later cluster.)
