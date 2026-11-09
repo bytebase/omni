@@ -160,6 +160,11 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 	}
 
 	b.WriteString(f.Name)
+	if f.SpacedParen {
+		// A gated builtin keyword written with a space before '(' is a generic
+		// call; keep the space so it does not re-lex as the builtin.
+		b.WriteByte(' ')
+	}
 	b.WriteByte('(')
 
 	if f.Distinct {

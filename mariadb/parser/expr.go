@@ -840,7 +840,11 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// keeps the space so the call does not re-lex as the builtin.
 	spacedGeneric := schema == "" && !nameQuoted && p.spacedFuncWordIsName(strings.ToUpper(name))
 	builtin := schema == "" && !nameQuoted && !spacedGeneric
-	if err := p.refuseStoredExprFunction(strings.ToUpper(name), schema != "", start); err != nil {
+	// A spaced gated keyword is a generic stored-function call, which a stored
+	// expression (a generated column, a column CHECK or DEFAULT) forbids like a
+	// qualified one: mariadb:11.8.8 rejects b INT AS (position (a)) where the
+	// adjacent builtin is allowed.
+	if err := p.refuseStoredExprFunction(strings.ToUpper(name), schema != "" || spacedGeneric, start); err != nil {
 		return nil, err
 	}
 	// A stored function's database is held to check_db_name as its call parses.

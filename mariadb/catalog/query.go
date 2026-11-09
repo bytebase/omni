@@ -742,6 +742,13 @@ type FuncCallExprQ struct {
 	// Always false for non-aggregate functions.
 	Distinct bool
 
+	// SpacedParen marks a generic call whose name is an adjacency-gated builtin
+	// keyword written with a space before '(' — `count (a)`, `max (1, 2)`. The
+	// space is why it is a generic call and not the builtin, so it is never an
+	// aggregate here and its deparse keeps the space (and its own name) rather
+	// than rendering the builtin form.
+	SpacedParen bool
+
 	// Over is the analyzed OVER clause for window functions; nil for plain
 	// scalar / aggregate calls. The analyzer sets Over for any call followed
 	// by an OVER clause in the source. Window functions are detected by

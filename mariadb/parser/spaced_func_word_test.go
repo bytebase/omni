@@ -137,6 +137,13 @@ var spacedFuncWordCases = []struct {
 	{"create table t (a int) partition by hash(max (a))", false},
 	{"create table t (a int) partition by hash(bit_and (a))", false},
 	{"create table t (a int) partition by hash(`sum`(a))", false},
+
+	// --- a stored expression (generated column, column CHECK, DEFAULT) forbids
+	//     the spaced generic call the same way; a table CHECK reads past it ---
+	{"create table t (a int, b int generated always as (sum (a)))", false},
+	{"create table t (a int, b int check (sum (a) > 0))", false},
+	{"create table t (a int, b int, check (sum (a) > 0))", true},
+	{"create table t (a int, b int default (sum (a)))", false},
 }
 
 func TestMariaDBSpacedFuncWords(t *testing.T) {
