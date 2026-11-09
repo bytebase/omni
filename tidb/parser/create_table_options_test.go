@@ -320,6 +320,18 @@ var createTableOptionsRejected = []string{
 	`CREATE SEQUENCE s AFFINITY SELECT`,
 	`CREATE TABLE t (a int) STORAGE ENGINE SELECT`,
 	`CREATE SEQUENCE s AFFINITY = SELECT`,
+
+	// The STORAGE media table option is `"STORAGE" {"MEMORY" | "DISK"}`, with
+	// no EqOpt and no value token, so a string is a 1064. STATS_PERSISTENT is
+	// `EqOpt StatsPersistentVal` where StatsPersistentVal is DEFAULT or a
+	// LengthNum, so a string and a bare identifier are each a 1064. TTL is
+	// `EqOpt Identifier '+' "INTERVAL" Literal TimeUnit`, so a value with no
+	// leading column identifier is a 1064. (parser.y:12708, 12637, 12798,
+	// 12753 in TiDB v8.5.5.)
+	`CREATE SEQUENCE s STORAGE 's'`,
+	`CREATE SEQUENCE s TTL + INTERVAL FALSE SECOND_MICROSECOND`,
+	`CREATE SEQUENCE s STATS_PERSISTENT DEFINED`,
+	`ALTER TABLE t STATS_PERSISTENT 's'`,
 }
 
 func TestCreateTableOptionsAccepted(t *testing.T) {
