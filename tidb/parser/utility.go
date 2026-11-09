@@ -1166,10 +1166,14 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == tokSCONST {
-		stmt.Str = p.cur.Str
-		p.advance()
+	// The string literal is mandatory.
+	//
+	// Ref: BinlogStmt in TiDB v8.5.5 pkg/parser/parser.y is `"BINLOG" stringLit`.
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Str = p.cur.Str
+	p.advance()
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

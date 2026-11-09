@@ -40,7 +40,11 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 
 	// DEFINER = user
 	if p.cur.Type == kwDEFINER {
-		stmt.Definer = p.parseDefinerValue()
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Definer = definer
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

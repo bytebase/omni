@@ -557,3 +557,53 @@ func TestParseError_InvalidIntervalUnit(t *testing.T) {
 		})
 	}
 }
+
+// TestParseError_RequiredKeywordsSingleToken pins the §3.6 negatives-corpus
+// over-acceptances where a single mandatory token was optional. Each rejected
+// form is paired with its valid counterpart to guard against a completeness gap.
+//
+// Refs (TiDB v8.5.5 pkg/parser/parser.y): RenameTableStmt, DeallocateStmt,
+// PreparedStmt/PrepareSQL, BinlogStmt, ViewDefiner, WithRollupClause.
+func TestParseError_RequiredKeywordsSingleToken(t *testing.T) {
+	reject := []struct {
+		name string
+		sql  string
+	}{
+		{"rename_missing_table", "RENAME t TO u"},
+		{"deallocate_missing_prepare", "DEALLOCATE s"},
+		{"prepare_from_missing_value", "PREPARE s FROM"},
+		{"binlog_missing_string", "BINLOG"},
+		{"definer_missing_eq", "CREATE DEFINER CURRENT_USER VIEW v AS SELECT *"},
+		{"group_by_with_missing_rollup", "SELECT * GROUP BY c WITH"},
+	}
+	for _, tc := range reject {
+		t.Run("reject/"+tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err == nil {
+				t.Errorf("expected error for %q, got nil", tc.sql)
+			}
+		})
+	}
+
+	accept := []struct {
+		name string
+		sql  string
+	}{
+		{"rename_table", "RENAME TABLE t TO u"},
+		{"rename_user", "RENAME USER a TO b"},
+		{"deallocate_prepare", "DEALLOCATE PREPARE s"},
+		{"drop_prepare", "DROP PREPARE s"},
+		{"prepare_from_string", "PREPARE s FROM 'SELECT 1'"},
+		{"prepare_from_var", "PREPARE s FROM @v"},
+		{"binlog_string", "BINLOG 'abc'"},
+		{"definer_eq_view", "CREATE DEFINER = CURRENT_USER VIEW v AS SELECT *"},
+		{"group_by_with_rollup", "SELECT * GROUP BY c WITH ROLLUP"},
+		{"group_by_plain", "SELECT * GROUP BY c"},
+	}
+	for _, tc := range accept {
+		t.Run("accept/"+tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err != nil {
+				t.Errorf("expected %q to parse, got error: %v", tc.sql, err)
+			}
+		})
+	}
+}
