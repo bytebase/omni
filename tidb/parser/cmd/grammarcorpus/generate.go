@@ -52,10 +52,32 @@ func altModeGated(alt []Symbol) bool {
 	return false
 }
 
-// generate returns one Row per reachable alternative, and the labels of the
-// alternatives it could not reach, terminate, or exercise in the measured SQL
-// mode, which need a hand-written sentence instead.
-func (g *Grammar) generate() (rows []Row, uncovered []string) {
+// A builtAlt is one reachable alternative with the tokens that reach it from the
+// start symbol (prefix, suffix) kept apart from the alternative's own shortest
+// tokens (body). A negative mutation targets the body — the production the row
+// is about — so the break lands in that production and not in the context that
+// merely carries it there.
+type builtAlt struct {
+	label  string
+	prefix []string
+	body   []string
+	suffix []string
+}
+
+// full renders the whole statement: the context around the body, as it reaches
+// the server.
+func (a builtAlt) full() string {
+	toks := make([]string, 0, len(a.prefix)+len(a.body)+len(a.suffix))
+	toks = append(toks, a.prefix...)
+	toks = append(toks, a.body...)
+	toks = append(toks, a.suffix...)
+	return spaceJoin(toks)
+}
+
+// buildAlts returns one builtAlt per reachable alternative, and the labels of
+// the alternatives it could not reach, terminate, or exercise in the measured
+// SQL mode, which need a hand-written sentence instead.
+func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 	sd := g.shortestDerivations()
 	cx := g.shortestContexts(sd)
 
@@ -68,12 +90,18 @@ func (g *Grammar) generate() (rows []Row, uncovered []string) {
 				uncovered = append(uncovered, label)
 				continue
 			}
-			toks := make([]string, 0, len(cxN.prefix)+len(body)+len(cxN.suffix))
-			toks = append(toks, cxN.prefix...)
-			toks = append(toks, body...)
-			toks = append(toks, cxN.suffix...)
-			rows = append(rows, Row{label: label, stmt: spaceJoin(toks)})
+			alts = append(alts, builtAlt{label: label, prefix: cxN.prefix, body: body, suffix: cxN.suffix})
 		}
+	}
+	return alts, uncovered
+}
+
+// generate returns one Row per reachable alternative, and the labels of the
+// alternatives that need a hand-written sentence instead.
+func (g *Grammar) generate() (rows []Row, uncovered []string) {
+	alts, uncovered := g.buildAlts()
+	for _, a := range alts {
+		rows = append(rows, Row{label: a.label, stmt: a.full()})
 	}
 	return rows, uncovered
 }

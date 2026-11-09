@@ -17,6 +17,7 @@ here — noted, never fixed by widening `Parse`.
   alternative, near-misses that break the production in one place; emit to
   `testdata/parser_y_negatives_corpus.tsv` with omni/engine verdict columns, an
   oracle test with `-update`, measured against live TiDB. Expected reject/reject.
+  **Done (baseline landed).**
 - **(c) Close over-acceptances (b) surfaces**, one cluster per PR, across forks.
 - **(d) Differential mutation fuzz sweep (gate).** Mutate §3.3 corpus and §3.4
   samples at token/byte level; `TIDB_REJECT_FUZZ_N`-sized, seeded, wired into CI
@@ -48,3 +49,20 @@ here — noted, never fixed by widening `Parse`.
   citations in resource_control.go (16882/16980/17068 at the file-level doc
   block, 16938 for DURATION); corrected to 16445/16543/16631 and 16501. Now 144
   citations, 290 cited, 0 broken.
+
+### (b) grammar-guided negatives — PR pending
+
+- `grammarcorpus -mode negatives` mutates each reachable alternative's shortest
+  valid sentence: drop each body token, truncate, insert a stray identifier,
+  swap the first keyword for its neighbour. Deduplicated by statement; mutations
+  that reproduce a valid sentence are dropped. 8151 rows.
+- Baseline measured live against TiDB v8.5.5 (0 no-verdict): 7795 both-reject,
+  153 both-accept (valid near-misses), **201 over-acceptances** (omni accepts,
+  TiDB rejects), 2 gaps (omni rejects, TiDB accepts).
+- The 201 over-acceptances are the PR (c) work list. They cluster by shared
+  root-cause sub-productions (alias-after-`*`; trailing stray token; dropped
+  required keyword such as `IF NOT EXISTS` → `IF EXISTS`, `RENAME USER ... TO`,
+  `PRIMARY KEY` → `PRIMARY`), not one-per-rule, so a cluster fix flips many rows.
+- The 2 gaps (out of scope §3.6, for §3.3): `DELETE FROM t PARTITION(p) zzz` and
+  `ALTER DATABASE COLLATE 's' zzz` — TiDB accepts a trailing identifier omni
+  rejects. Noted, not fixed; do not widen `Parse`.
