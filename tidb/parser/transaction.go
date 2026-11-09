@@ -364,7 +364,15 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// Lock type
+		// Lock type, required for every table in the list, and WRITE required
+		// after LOW_PRIORITY. v8.5.5 answers 1064 for `LOCK TABLES t` with no
+		// lock type and for a list where any table lacks one (`LOCK TABLES t1,
+		// t2 READ`); a bare word after the table (LOCAL, X509) is read as the
+		// table's alias, which still leaves no lock type.
+		//
+		//	lock_type: READ [LOCAL] | [LOW_PRIORITY] WRITE
+		//
+		// Ref: lock_type in MySQL 8.0 sql/sql_yacc.yy.
 		if _, ok := p.match(kwREAD); ok {
 			if _, ok := p.match(kwLOCAL); ok {
 				lt.LockType = "READ LOCAL"
@@ -372,7 +380,9 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 				lt.LockType = "READ"
 			}
 		} else if _, ok := p.match(kwLOW_PRIORITY); ok {
-			p.match(kwWRITE)
+			if _, err := p.expect(kwWRITE); err != nil {
+				return nil, err
+			}
 			lt.LockType = "LOW_PRIORITY WRITE"
 		} else if _, ok := p.match(kwWRITE); ok {
 			if _, ok := p.match(kwLOCAL); ok {
@@ -380,6 +390,8 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 			} else {
 				lt.LockType = "WRITE"
 			}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		lt.Loc.End = p.prev.End
