@@ -106,9 +106,10 @@ func checkPartitionExprType(tbl *Table, expr nodes.ExprNode) error {
 		return bad
 	}
 	// A lone column reference carries the column's type straight into the
-	// partitioning function, so a non-integer column answers 1659.
+	// partitioning function, so a column of a type the engine does not allow
+	// there answers 1659.
 	if ref := bareColumnRef(expr); ref != nil {
-		if col := tbl.GetColumn(ref.Column); col != nil && !isIntegerType(strings.ToLower(col.DataType)) {
+		if col := tbl.GetColumn(ref.Column); col != nil && !isPartitionColumnType(strings.ToLower(col.DataType)) {
 			return &Error{
 				Code:     1659,
 				SQLState: "HY000",
@@ -117,6 +118,20 @@ func checkPartitionExprType(tbl *Table, expr nodes.ExprNode) error {
 		}
 	}
 	return nil
+}
+
+// isPartitionColumnType reports whether a column of this type may stand alone in
+// a non-COLUMNS partitioning function. TiDB v8.5.5 allows the integer types plus
+// BIT, YEAR and BOOL (a tinyint(1)), and rejects every other type (DECIMAL,
+// DOUBLE, ENUM, SET, the string types and the bare temporal types) with 1659,
+// read from the engine on 2026-11-09. It is wider than isIntegerType, the
+// storage-type helper, which BIT and YEAR are not.
+func isPartitionColumnType(dt string) bool {
+	switch dt {
+	case "bit", "year":
+		return true
+	}
+	return isIntegerType(dt)
 }
 
 // bareColumnRef returns the column reference an expression is, through any
