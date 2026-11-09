@@ -3542,7 +3542,7 @@ func (o *CalibrateResourceOption) nodeTag() {}
 
 // CalibrateResourceStmt represents a CALIBRATE RESOURCE statement.
 //
-// Ref: TiDB v8.5.5 parser.y:16882
+// Ref: TiDB v8.5.5 parser.y:16445
 //
 //	CALIBRATE RESOURCE [WORKLOAD workload | option [[,] option] ...]
 //
@@ -3583,7 +3583,7 @@ func (o *QueryWatchOption) nodeTag() {}
 
 // AddQueryWatchStmt represents a QUERY WATCH ADD statement.
 //
-// Ref: TiDB v8.5.5 parser.y:16980
+// Ref: TiDB v8.5.5 parser.y:16543
 //
 //	QUERY WATCH ADD option [[,] option] ...
 type AddQueryWatchStmt struct {
@@ -3596,7 +3596,7 @@ func (s *AddQueryWatchStmt) stmtNode() {}
 
 // DropQueryWatchStmt represents a QUERY WATCH REMOVE statement.
 //
-// Ref: TiDB v8.5.5 parser.y:17068
+// Ref: TiDB v8.5.5 parser.y:16631
 //
 //	QUERY WATCH REMOVE watch_id
 //
