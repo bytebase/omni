@@ -1798,9 +1798,15 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PRE_SPLIT_REGIONS", Value: val}, true, nil
 
 	case kwAUTO_ID_CACHE:
+		// AUTO_ID_CACHE [=] number. The value is a LengthNum — an unsigned
+		// integer, not a string or a keyword. TiDB v8.5.5 answers 1064 for
+		// `AUTO_ID_CACHE DEFAULT` and `AUTO_ID_CACHE 's'`.
+		//
+		// Ref: `"AUTO_ID_CACHE" EqOpt LengthNum` (TableOption) in TiDB v8.5.5
+		// pkg/parser/parser.y:12593.
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
 		}

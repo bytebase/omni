@@ -270,10 +270,10 @@ reject	reject	PlacementPolicyOption#4/swap	ALTER DATABASE PLAN POLICY SET DEFAUL
 reject	reject	AttributesOpt#1/drop-1	ALTER TABLE ident DEFAULT
 reject	reject	AttributesOpt#1/drop-2	ALTER TABLE ident ATTRIBUTES
 reject	reject	AttributesOpt#1/insert	ALTER TABLE ident ATTRIBUTES DEFAULT zzz
-accept	reject	AttributesOpt#1/swap	ALTER TABLE ident AUTO_ID_CACHE DEFAULT
+reject	reject	AttributesOpt#1/swap	ALTER TABLE ident AUTO_ID_CACHE DEFAULT
 reject	reject	AttributesOpt#2/drop-1	ALTER TABLE ident 's'
 reject	reject	AttributesOpt#2/insert	ALTER TABLE ident ATTRIBUTES 's' zzz
-accept	reject	AttributesOpt#2/swap	ALTER TABLE ident AUTO_ID_CACHE 's'
+reject	reject	AttributesOpt#2/swap	ALTER TABLE ident AUTO_ID_CACHE 's'
 reject	reject	StatsOptionsOpt#1/drop-2	ALTER TABLE ident STATS_OPTIONS
 reject	reject	StatsOptionsOpt#1/insert	ALTER TABLE ident STATS_OPTIONS DEFAULT zzz
 accept	accept	StatsOptionsOpt#1/swap	ALTER TABLE ident STATS_PERSISTENT DEFAULT
