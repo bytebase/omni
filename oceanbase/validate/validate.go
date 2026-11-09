@@ -355,6 +355,7 @@ func (v *validator) walkBeginEnd(b *nodes.BeginEndBlock) {
 	// BEGIN ... END's label is visible to siblings/parents, not to the body's
 	// own declarations.
 	v.registerLabel(b.Label, labelBlock, b.Loc.Start)
+	v.checkEndLabel(b.Label, b.EndLabel, b.Loc.Start)
 	v.push(scopeBlock)
 	for _, s := range b.Stmts {
 		v.walk(s)
@@ -383,8 +384,19 @@ func (v *validator) registerLabel(name string, kind labelKind, pos int) {
 	v.scope.labels[key] = labelInfo{kind: kind, pos: pos}
 }
 
+// checkEndLabel reports an end label that names another label than the block
+// or loop begins with. OceanBase's parser takes the pair and its resolver
+// refuses it with 1308 "no matching label" (see oceanbase/parser's
+// checkLabelMatch); an end label with no begin label is a parse error.
+func (v *validator) checkEndLabel(begin, end string, pos int) {
+	if begin != "" && end != "" && !strings.EqualFold(begin, end) {
+		v.emit("label_mismatch", "no matching label: "+end, pos)
+	}
+}
+
 func (v *validator) walkWhileStmt(s *nodes.WhileStmt) {
 	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.checkEndLabel(s.Label, s.EndLabel, s.Loc.Start)
 	v.push(scopeBlock)
 	for _, st := range s.Stmts {
 		v.walk(st)
@@ -394,6 +406,7 @@ func (v *validator) walkWhileStmt(s *nodes.WhileStmt) {
 
 func (v *validator) walkRepeatStmt(s *nodes.RepeatStmt) {
 	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.checkEndLabel(s.Label, s.EndLabel, s.Loc.Start)
 	v.push(scopeBlock)
 	for _, st := range s.Stmts {
 		v.walk(st)
@@ -403,6 +416,7 @@ func (v *validator) walkRepeatStmt(s *nodes.RepeatStmt) {
 
 func (v *validator) walkLoopStmt(s *nodes.LoopStmt) {
 	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.checkEndLabel(s.Label, s.EndLabel, s.Loc.Start)
 	v.push(scopeBlock)
 	for _, st := range s.Stmts {
 		v.walk(st)

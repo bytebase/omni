@@ -8,8 +8,9 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// alterDropCodeCase is a statement and the error MySQL raises while parsing
-// it: 0 when it parses, else the server error number.
+// alterDropCodeCase is a statement and what OceanBase's PREPARE answers: 0, or
+// the server error number. 1064 is a parse error; OceanBase's PREPARE also
+// resolves the statement, so any other code was raised after parsing.
 type alterDropCodeCase struct {
 	sql  string
 	code uint16
@@ -42,7 +43,9 @@ var alterDropFormsOracleCases = []alterDropCodeCase{
 	// KEY is required after PRIMARY and FOREIGN.
 	{"ALTER TABLE t DROP PRIMARY KEY", 0},
 	{"ALTER TABLE t DROP FOREIGN KEY f", 0},
-	{"ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY f", 0},
+	// OceanBase parses it and its resolver refuses it: with "@@@ (((" after it the
+	// answer is 1064 (5.7.25-OceanBase_CE-v4.3.5.6, 2026-11-05).
+	{"ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY f", 1235},
 	{"ALTER TABLE t DROP PRIMARY", 1064},
 	{"ALTER TABLE t DROP PRIMARY, ADD PRIMARY KEY (id)", 1064},
 	{"ALTER TABLE t DROP PRIMARY INDEX", 1064},
@@ -60,16 +63,17 @@ var alterDropFormsOracleCases = []alterDropCodeCase{
 	{"ALTER TABLE pt DROP PARTITION IF EXISTS p0", 1064},
 }
 
-// TestAlterTableDropFormsOracle asserts omni agrees with a live mysql:8.0 on
-// the ALTER TABLE ... DROP forms in alterDropFormsOracleCases (container
-// test). MySQL's verdict comes from PREPARE, which parses without running the
-// statement. The expected code pins the engine, so an image upgrade that
-// changes a verdict fails here instead of passing silently.
+// TestAlterTableDropFormsOracle asserts omni agrees with a live OceanBase on
+// the ALTER TABLE ... DROP forms in alterDropFormsOracleCases. The verdict
+// comes from PREPARE, which does not run the statement. The expected code pins
+// the engine, so an image upgrade that changes a verdict fails here instead of
+// passing silently.
 func TestAlterTableDropFormsOracle(t *testing.T) {
 	o := startParserOracle(t)
 	for _, ddl := range []string{
 		"CREATE TABLE p (id INT PRIMARY KEY)",
-		"CREATE TABLE t (id INT PRIMARY KEY, n INT, m INT, k INT, pid INT, CONSTRAINT ck_n CHECK (n > 0), INDEX i (n), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))",
+		// OceanBase's PREPARE resolves names, so the quoted columns must exist.
+		"CREATE TABLE t (id INT PRIMARY KEY, n INT, m INT, k INT, pid INT, `restrict` INT, `cascade` INT, CONSTRAINT ck_n CHECK (n > 0), INDEX i (n), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))",
 		"CREATE TABLE pt (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)",
 	} {
 		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
@@ -88,12 +92,12 @@ func TestAlterTableDropFormsOracle(t *testing.T) {
 			code = myErr.Number
 		}
 		if code != tc.code {
-			t.Errorf("MySQL code %d, want %d for %q: %v", code, tc.code, tc.sql, err)
+			t.Errorf("OceanBase code %d, want %d for %q: %v", code, tc.code, tc.sql, err)
 			continue
 		}
 		_, perr := Parse(tc.sql)
-		if omniAccepts := perr == nil; omniAccepts != (code == 0) {
-			t.Errorf("DIVERGENCE omni accepts=%v, MySQL code %d for %q: %v", omniAccepts, code, tc.sql, perr)
+		if omniAccepts := perr == nil; omniAccepts != (code != 1064) {
+			t.Errorf("DIVERGENCE omni accepts=%v, OceanBase code %d for %q: %v", omniAccepts, code, tc.sql, perr)
 		}
 	}
 }

@@ -6,12 +6,13 @@ import (
 )
 
 // TestParenthesizedViewDefinitionOracle replays the BYT-10316 report against a
-// live MySQL 8.0: the report's statements and the definitions the server
-// stores for its views must all parse. MySQL stores a compound join ON
-// condition with redundant parens — `on(((a = b) and (c = d)))` — and Bytebase
-// parses a stored view definition to analyze any query that reads the view, so
-// a definition omni rejects blocks every query on that view and on the views
-// built over it (r5 over r4 in the report).
+// live OceanBase: the report's statements and the definitions the server
+// stores for its views must all parse. The report was MySQL's, which stores a
+// compound join ON condition with redundant parens, `on(((a = b) and (c =
+// d)))`; OceanBase stores it as a chain of parenthesized comparisons, `on (a =
+// b) and (c = d)`. Bytebase parses a stored view definition to analyze any
+// query that reads the view, so a definition omni rejects blocks every query on
+// that view and on the views built over it (r5 over r4 in the report).
 func TestParenthesizedViewDefinitionOracle(t *testing.T) {
 	o := startParserOracle(t)
 	for _, ddl := range []string{
@@ -36,7 +37,7 @@ func TestParenthesizedViewDefinitionOracle(t *testing.T) {
 		"SELECT count(*) FROM a t1 JOIN b t2 ON (((t1.id = t2.id) AND (t1.k = t2.k)))",
 	} {
 		if _, err := o.db.ExecContext(o.ctx, sql); err != nil {
-			t.Errorf("mysql rejects %q: %v", sql, err)
+			t.Errorf("OceanBase rejects %q: %v", sql, err)
 		}
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
@@ -63,9 +64,9 @@ func TestParenthesizedViewDefinitionOracle(t *testing.T) {
 		}
 	}
 
-	// The case is covered only while the server still stores the redundant
-	// parens the report hit.
-	if !strings.Contains(definitions["r4"], "on(((") {
-		t.Errorf("r4 is stored without the redundant ON parens: %s", definitions["r4"])
+	// The case is covered only while the server still stores the ON condition as
+	// parenthesized comparisons, as 4.3.5.6 does (2026-11-05).
+	if !strings.Contains(definitions["r4"], " on (") || !strings.Contains(definitions["r4"], ") and (") {
+		t.Errorf("r4 is stored without the parenthesized ON comparisons: %s", definitions["r4"])
 	}
 }

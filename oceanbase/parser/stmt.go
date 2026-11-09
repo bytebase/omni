@@ -517,32 +517,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateViewStmt(start, false)
 
 	case kwDEFINER:
-		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
+		// CREATE DEFINER=... {FUNCTION|PROCEDURE|TRIGGER|EVENT}. A view's DEFINER
+		// follows ALGORITHM on OceanBase, so here DEFINER heads a stored program,
+		// which takes no SQL SECURITY before its keyword: 4.3.5.6 answers 1064 at
+		// VIEW for CREATE DEFINER = u VIEW v AS SELECT 1, and at SQL for CREATE
+		// DEFINER = u SQL SECURITY INVOKER VIEW (or PROCEDURE). See
+		// parseCreateViewStmt.
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
 		}
-		// Now dispatch on the object keyword
 		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(start, false)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
 		case kwFUNCTION:
 			stmt, err := p.parseCreateFunctionStmt(start, false)
 			if err != nil {
@@ -592,16 +577,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 }
 
 // parseCreateOrReplace parses CREATE OR REPLACE. CREATE is consumed and p.cur
-// is OR. MySQL 8.0 takes OR REPLACE only before a view and before SPATIAL
-// REFERENCE SYSTEM; on any other object, and before TEMPORARY, the statement
-// fails at the keyword that follows OR REPLACE.
+// is OR. OceanBase takes OR REPLACE only before a view; on any other object,
+// and before TEMPORARY, the statement fails at the keyword that follows OR
+// REPLACE.
 //
-// Ref: mysql-server 8.0 sql/sql_yacc.yy — view_replace_or_algorithm (the view
-// head: OR REPLACE [ALGORITHM = ...] [DEFINER = ...] [SQL SECURITY ...] VIEW)
-// and the CREATE OR_SYM REPLACE_SYM SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM
-// branch of create, which takes no IF NOT EXISTS.
-// https://dev.mysql.com/doc/refman/8.0/en/create-view.html
-// https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html
+// Ref: create_view_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9717): create_with_opt_hint opt_replace opt_algorithm
+// opt_definer opt_sql_security VIEW. The engine answers 1064 at DEFINER unless
+// ALGORITHM comes first (see parseCreateViewStmt), and has no CREATE OR REPLACE
+// SPATIAL REFERENCE SYSTEM, which MySQL 8.0 has.
 func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 	p.advance() // consume OR
 	if p.cur.Type != kwREPLACE {
@@ -610,17 +594,14 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 	p.advance() // consume REPLACE
 
 	switch p.cur.Type {
-	case kwVIEW, kwALGORITHM, kwDEFINER, kwSQL:
+	case kwVIEW, kwALGORITHM, kwSQL:
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
 		// that order and fails at whatever stands where VIEW belongs.
 		return p.parseCreateViewStmt(start, true)
-	case kwSPATIAL:
-		p.advance() // consume SPATIAL
-		if p.cur.Type != kwREFERENCE {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateSpatialRefSysStmt(start, true)
 	default:
+		// DEFINER, which OceanBase takes on a view only after ALGORITHM, and
+		// SPATIAL, since OceanBase has no SPATIAL REFERENCE SYSTEM, fail here like
+		// every other object: 4.3.5.6 answers 1064 at the word after OR REPLACE.
 		return nil, p.syntaxErrorAtCur()
 	}
 }
@@ -676,31 +657,14 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterViewStmt(start)
 
 	case kwDEFINER:
-		// ALTER DEFINER = user {VIEW|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
+		// ALTER DEFINER = user EVENT. A view's DEFINER follows ALGORITHM on
+		// OceanBase: 4.3.5.6 answers 1064 at VIEW for ALTER DEFINER = u VIEW v AS
+		// SELECT 1, and at SQL when SQL SECURITY follows the definer.
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
 		}
 		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt(start)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
 		case kwEVENT:
 			stmt, err := p.parseAlterEventStmt(start)
 			if err != nil {
@@ -830,19 +794,22 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	}
 }
 
-// parseDefinerValue parses the DEFINER = user[@host] clause and returns the
-// definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
-// The current token must be DEFINER; on return, the current token is the one
-// after the definer clause.
-func (p *Parser) parseDefinerValue() string {
+// parseDefinerValue parses DEFINER = user, where the = and the user are both
+// required, as is the ) of CURRENT_USER(): 5.7.25-OceanBase_CE-v4.3.5.6 answers
+// 1064 for DEFINER root, DEFINER = followed by the object keyword, and
+// DEFINER = CURRENT_USER( (measured 2026-11-06). It takes user@ with no host,
+// as the server does.
+func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
-	p.match('=')
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return ""
+		return "", &ParseError{Message: "collecting"}
 	}
 
 	// Parse user part: identifier, string literal, or CURRENT_USER
@@ -855,16 +822,21 @@ func (p *Parser) parseDefinerValue() string {
 		user = "CURRENT_USER"
 		p.advance()
 	} else if p.isIdentToken() {
-		user, _, _ = p.parseIdentifier()
+		var err error
+		if user, _, err = p.parseIdentifier(); err != nil {
+			return "", err
+		}
 	} else {
-		return ""
+		return "", p.syntaxErrorAtCur()
 	}
 
 	// Handle CURRENT_USER()
 	if isCurUser && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
-		return "CURRENT_USER()"
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return "CURRENT_USER()", nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
@@ -880,14 +852,17 @@ func (p *Parser) parseDefinerValue() string {
 				host = "'" + p.cur.Str + "'"
 				p.advance()
 			} else if p.isIdentToken() {
-				host, _, _ = p.parseIdentifier()
+				var err error
+				if host, _, err = p.parseIdentifier(); err != nil {
+					return "", err
+				}
 			}
-			return user + "@" + host
+			return user + "@" + host, nil
 		}
 		// @host as single token: strip @ prefix
 		host := atHost[1:]
-		return user + "@" + host
+		return user + "@" + host, nil
 	}
 
-	return user
+	return user, nil
 }

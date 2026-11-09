@@ -409,11 +409,12 @@ func TestScenario_C4(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (
   a NCHAR(10),
   b NATIONAL CHARACTER(10),
-  cc NATIONAL VARCHAR(10),
-  d NCHAR VARYING(10)
+  cc NATIONAL VARCHAR(10)
 )`)
+		// OceanBase has no NCHAR VARYING, which MySQL has (see oceanbase/parser's
+		// parseDataType).
 
-		for _, name := range []string{"a", "b", "cc", "d"} {
+		for _, name := range []string{"a", "b", "cc"} {
 			assertStringEq(t, "oracle "+name+" charset",
 				c4OracleColCharset(t, "t", name), "utf8mb3")
 			assertStringEq(t, "oracle "+name+" collation",
@@ -425,7 +426,7 @@ func TestScenario_C4(t *testing.T) {
 			t.Error("omni: table t not found")
 			return
 		}
-		for _, name := range []string{"a", "b", "cc", "d"} {
+		for _, name := range []string{"a", "b", "cc"} {
 			col := tbl.GetColumn(name)
 			if col == nil {
 				t.Errorf("omni: column %s not found", name)

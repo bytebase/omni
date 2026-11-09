@@ -18,7 +18,7 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-// oracleDatabase is this process's database on the package's MySQL 8.0,
+// oracleDatabase is this process's database on the package's OceanBase,
 // created by the first test that asks for it.
 var oracleDatabase struct {
 	once sync.Once
@@ -27,16 +27,17 @@ var oracleDatabase struct {
 }
 
 // startParserOracle returns the oracle with its database empty and selected, as a
-// server of its own would be. A statement it runs can change nothing outside that
-// database: see testcontainer.
+// server of its own would be. It connects as root, so a case it runs must not
+// change the server under the tests that follow: no SET GLOBAL, account
+// statement, or KILL.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	ctx := context.Background()
 	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = testcontainer.MySQL80.Database(ctx, "oceanbase_parser")
+		oracleDatabase.db, oracleDatabase.err = testcontainer.OceanBase.Database(ctx, "oceanbase_parser")
 	})
 	if oracleDatabase.err != nil {
-		t.Fatalf("MySQL 8.0 oracle: %v", oracleDatabase.err)
+		t.Fatalf("OceanBase oracle: %v", oracleDatabase.err)
 	}
 	if err := oracleDatabase.db.Reset(ctx); err != nil {
 		t.Fatalf("reset the oracle's database: %v", err)
@@ -49,7 +50,6 @@ func TestMain(m *testing.M) {
 	if oracleDatabase.db != nil {
 		oracleDatabase.db.Close(context.Background())
 	}
-	testcontainer.MySQL80.Terminate()
 	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }

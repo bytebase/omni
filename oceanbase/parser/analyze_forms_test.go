@@ -15,8 +15,9 @@ import "testing"
 // optional, and omni used to match it leniently, so that parsed here as an
 // ANALYZE of t where the server answers 1064.
 //
-// Every case below was measured against this package's pinned server through
-// PREPARE on 2026-11-04. TestAnalyzeFormsOracle is what keeps it a
+// Every case below was measured against 5.7.25-OceanBase_CE-v4.3.5.6 on
+// 2026-11-05 (until then the package's oracle was MySQL 8.0, which takes LOCAL,
+// NO_WRITE_TO_BINLOG and USING DATA). TestAnalyzeFormsOracle is what keeps it a
 // recording: an image upgrade that changes an answer fails there rather than
 // leaving a stale expectation behind.
 
@@ -30,8 +31,9 @@ var analyzeFormCases = []analyzeFormCase{
 	// TABLE is required.
 	{"ANALYZE TABLE t", true},
 	{"ANALYZE TABLE t1, t2", true},
-	{"ANALYZE LOCAL TABLE t", true},
-	{"ANALYZE NO_WRITE_TO_BINLOG TABLE t", true},
+	// MySQL's NO_WRITE_TO_BINLOG and LOCAL are not OceanBase's.
+	{"ANALYZE LOCAL TABLE t", false},
+	{"ANALYZE NO_WRITE_TO_BINLOG TABLE t", false},
 	{"ANALYZE t", false},
 	{"ANALYZE LOCAL t", false},
 	{"ANALYZE NO_WRITE_TO_BINLOG t", false},
@@ -53,11 +55,11 @@ var analyzeFormCases = []analyzeFormCase{
 	{"LOAD STATS '/tmp/stats.json'", false},
 	{"CREATE STATISTICS s1 (CARDINALITY) ON t(a)", false},
 	{"DROP STATISTICS s1", false},
-	// MySQL 8.0's histogram arms, which this engine has. TOPN is no unit of
-	// MySQL's WITH, which takes BUCKETS alone.
+	// MySQL 8.0's histogram arms, which this engine has but for USING DATA. TOPN
+	// is no unit of the WITH, which takes BUCKETS alone.
 	{"ANALYZE TABLE t UPDATE HISTOGRAM ON b", true},
 	{"ANALYZE TABLE t UPDATE HISTOGRAM ON b WITH 4 BUCKETS", true},
-	{"ANALYZE TABLE t UPDATE HISTOGRAM ON b USING DATA '{}'", true},
+	{"ANALYZE TABLE t UPDATE HISTOGRAM ON b USING DATA '{}'", false},
 	{"ANALYZE TABLE t DROP HISTOGRAM ON b", true},
 	{"ANALYZE TABLE t UPDATE HISTOGRAM ON b WITH 4 TOPN", false},
 }

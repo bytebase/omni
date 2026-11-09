@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
@@ -130,24 +129,18 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 	return nil
 }
 
-// checkLabelMatch enforces MySQL's end-label matching rule: when an end label
-// is present, a matching begin label must also be present and the two names
-// must be equal case-insensitively. MySQL surfaces ERR 1310 ("End-label X
-// without match"); omni uses its own wording.
+// checkLabelMatch enforces the end-label rule OceanBase's parser holds: an end
+// label needs a begin label. OceanBase's PL grammar reads either label as a bare
+// opt_sp_label and never compares them (sp_labeled_block and the loop rules in
+// src/pl/parser/pl_parser_mysql_mode.y, v4.3.5_CE_BP6, line 1772), so 4.3.5.6
+// answers 1064 for `BEGIN ... END lbl` and `WHILE ... END WHILE lbl`, but 1308
+// from its resolver for `a: BEGIN ... END b` (measured 2026-11-06). That
+// mismatch is oceanbase/validate's to report, where MySQL raises it while
+// parsing (1310).
 func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
-	if endLabel == "" {
-		// No end label: always fine.
-		return nil
-	}
-	if beginLabel == "" {
+	if endLabel != "" && beginLabel == "" {
 		return &ParseError{
 			Message:  fmt.Sprintf("end label %q without matching begin label", endLabel),
-			Position: endLabelPos,
-		}
-	}
-	if !strings.EqualFold(beginLabel, endLabel) {
-		return &ParseError{
-			Message:  fmt.Sprintf("end label %q does not match begin label %q", endLabel, beginLabel),
 			Position: endLabelPos,
 		}
 	}
@@ -965,6 +958,11 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 // parseFetchCursorStmt parses a FETCH cursor statement.
 //
 //	FETCH [[NEXT] FROM] cursor_name INTO var_name [, var_name] ...
+//
+// A target is a local variable or parameter, never a user variable: OceanBase's
+// into_clause raises a syntax error for MySQL's FETCH ... INTO @var
+// (src/pl/parser/pl_parser_mysql_mode.y, v4.3.5_CE_BP6, line 1935), and 4.3.5.6
+// answers 1064 for it even on a declared cursor (measured 2026-11-06).
 func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
@@ -993,6 +991,10 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	// var_name [, var_name] ... — lvalue context (assignment target)
 	var vars []string
 	for {
+		// Token positions are absolute; the lexer's input is the segment alone.
+		if i := p.cur.Loc - p.lexer.baseOffset; p.cur.Type == tokIDENT && i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '@' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		v, _, err := p.parseLvalueIdent()
 		if err != nil {
 			return nil, err
