@@ -305,6 +305,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				if columnDefExplicitlyNull(colDef) {
 					return errPrimaryKeyCantHaveNull()
 				}
+				// TiDB v8.5.5 rejects a VIRTUAL generated column as a primary
+				// key (3106); a STORED generated column is allowed.
+				if col.Generated != nil && !col.Generated.Stored {
+					return errVirtualGeneratedColumnPrimaryKey()
+				}
 				hasPK = true
 				col.Nullable = false
 				// Add PK index and constraint after all columns are processed.
@@ -358,11 +363,22 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := checkDecimalBounds(colDef.Name, colDef.TypeName); err != nil {
 			return err
 		}
+		if err := checkTemporalFspBounds(colDef.Name, colDef.TypeName); err != nil {
+			return err
+		}
+		if err := checkTemporalDefaultFsp(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+			return err
+		}
 		if err := checkDefaultExprFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
 			return err
 		}
 		if err := checkLiteralDefaultAllowed(col); err != nil {
 			return err
+		}
+		if colDef.Generated != nil {
+			if err := checkGeneratedColumnFunctions(col.Name, colDef.Generated.Expr); err != nil {
+				return err
+			}
 		}
 
 		tbl.Columns = append(tbl.Columns, col)
@@ -437,6 +453,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errPrimaryKeyCantHaveNull()
 				}
 			}
+			// TiDB v8.5.5 rejects a VIRTUAL generated column as a primary key
+			// (3106), including in a table-level PRIMARY KEY(...).
+			for _, colName := range cols {
+				if pc := tbl.GetColumn(colName); pc != nil && pc.Generated != nil && !pc.Generated.Stored {
+					return errVirtualGeneratedColumnPrimaryKey()
+				}
+			}
 			hasPK = true
 			// Mark PK columns as NOT NULL.
 			for _, colName := range cols {
@@ -475,6 +498,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 
 		case nodes.ConstrUnique:
+			if err := checkIndexName(con.Name); err != nil {
+				return err
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -557,6 +583,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 
 		case nodes.ConstrIndex:
+			if err := checkIndexName(con.Name); err != nil {
+				return err
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -890,6 +919,25 @@ func (c *Catalog) validateForeignKeys(db *Database, tbl *Table) error {
 
 // validateSingleFK validates a single FK constraint against its referenced table.
 func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) error {
+	// TiDB v8.5.5 refuses a foreign key whose referencing column is a VIRTUAL
+	// generated column (3733); a STORED generated column is allowed. It also
+	// refuses ON DELETE/UPDATE SET NULL referencing a NOT NULL column (1830).
+	// Both are properties of the referencing table alone, checked before the
+	// referenced table is resolved.
+	setNull := con.OnDelete == "SET NULL" || con.OnUpdate == "SET NULL"
+	for _, colName := range con.Columns {
+		col := tbl.GetColumn(colName)
+		if col == nil {
+			continue
+		}
+		if col.Generated != nil && !col.Generated.Stored {
+			return errFKCannotUseVirtualColumn(con.Name, colName)
+		}
+		if setNull && !col.Nullable {
+			return errFKColumnCannotBeNull(colName, con.Name)
+		}
+	}
+
 	// Resolve the referenced table.
 	refDBName := con.RefDatabase
 	var refDB *Database
