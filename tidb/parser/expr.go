@@ -497,6 +497,17 @@ func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 		return nil, err
 	}
 
+	// A prefix operator takes a SimpleExpr (parser.y:7892-7965: `'!' SimpleExpr`,
+	// `'~' SimpleExpr`, `'-' SimpleExpr`, `'+' SimpleExpr`, `"BINARY" SimpleExpr`,
+	// all %prec neg), and a bare INTERVAL literal is no SimpleExpr — it is only an
+	// operand of the binary +/- date-arithmetic productions (parser.y:7793, 7804,
+	// 7815). TiDB v8.5.5 answers 1064 for `DO - INTERVAL 1 DAY` and
+	// `DO + INTERVAL 1 DAY`, and parses `DO - INTERVAL 1 DAY + d`, where the
+	// INTERVAL is the right operand of the binary minus, not the unary one.
+	if isBareInterval(operand) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	return &nodes.UnaryExpr{
 		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		Op:      op,
@@ -1881,6 +1892,13 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return row, nil
 	}
 
+	// A parenthesized expression is `'(' Expression ')'` (parser.y:7917); a bare
+	// `*` or `t.*` is a Field wildcard (parser.y:6464-6473), never an Expression,
+	// so TiDB v8.5.5 answers 1064 for `DO (*)` and `DO (t.*)`.
+	if err := checkNotStar(expr); err != nil {
+		return nil, err
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -2186,6 +2204,13 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 		}
 		if val == nil {
 			return nil, p.syntaxErrorAtCur()
+		}
+		// The value list is an ExpressionList (parser.y:6385, `BitExpr InOrNotOp
+		// '(' ExpressionList ')'`); a bare `*` or `t.*` is a Field wildcard
+		// (parser.y:6464-6473), not an Expression, so TiDB v8.5.5 answers 1064 for
+		// `a IN (*)`.
+		if err := checkNotStar(val); err != nil {
+			return nil, err
 		}
 		inExpr.List = append(inExpr.List, val)
 		if p.cur.Type != ',' {
@@ -2851,6 +2876,13 @@ func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
 func checkRowItem(e nodes.ExprNode, start int) error {
 	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
 		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	// A row element is an Expression (parser.y:7918, `'(' ExpressionList ','
+	// Expression ')'`), and a bare INTERVAL literal is no Expression — it is only
+	// an operand of the binary +/- date-arithmetic productions. TiDB v8.5.5
+	// answers 1064 for `DO (d, INTERVAL 1 DAY)` and parses `DO (d, d + INTERVAL 1 DAY)`.
+	if isBareInterval(e) {
+		return &ParseError{Message: `syntax error at or near "INTERVAL"`, Position: start}
 	}
 	return checkNotStar(e)
 }

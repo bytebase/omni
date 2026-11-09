@@ -2538,7 +2538,7 @@ reject	reject	PredicateExpr#1/insert	DO ident IN(ident) zzz
 reject	reject	PredicateExpr#2/drop-1	DO IN(SELECT *)
 reject	reject	PredicateExpr#2/drop-2	DO ident(SELECT *)
 reject	reject	PredicateExpr#2/drop-3	DO ident IN SELECT *)
-accept	reject	PredicateExpr#2/drop-4	DO ident IN(*)
+reject	reject	PredicateExpr#2/drop-4	DO ident IN(*)
 reject	reject	PredicateExpr#2/drop-5	DO ident IN(SELECT)
 reject	reject	PredicateExpr#2/drop-6	DO ident IN(SELECT *
 reject	reject	PredicateExpr#2/insert	DO ident IN(SELECT *) zzz
@@ -3587,14 +3587,14 @@ reject	reject	BitExpr#5/drop-3	DO ident +
 reject	reject	BitExpr#5/insert	DO ident + ident zzz
 reject	reject	BitExpr#6/drop-3	DO ident -
 reject	reject	BitExpr#6/insert	DO ident - ident zzz
-accept	reject	BitExpr#7/drop-1	DO + INTERVAL ident SECOND_MICROSECOND
+reject	reject	BitExpr#7/drop-1	DO + INTERVAL ident SECOND_MICROSECOND
 reject	reject	BitExpr#7/drop-2	DO ident INTERVAL ident SECOND_MICROSECOND
 reject	reject	BitExpr#7/drop-3	DO ident + ident SECOND_MICROSECOND
 reject	reject	BitExpr#7/drop-4	DO ident + INTERVAL SECOND_MICROSECOND
 reject	reject	BitExpr#7/drop-5	DO ident + INTERVAL ident
 reject	reject	BitExpr#7/insert	DO ident + INTERVAL ident SECOND_MICROSECOND zzz
 reject	reject	BitExpr#7/swap	DO ident + INTO ident SECOND_MICROSECOND
-accept	reject	BitExpr#8/drop-1	DO - INTERVAL ident SECOND_MICROSECOND
+reject	reject	BitExpr#8/drop-1	DO - INTERVAL ident SECOND_MICROSECOND
 reject	reject	BitExpr#8/drop-3	DO ident - ident SECOND_MICROSECOND
 reject	reject	BitExpr#8/drop-4	DO ident - INTERVAL SECOND_MICROSECOND
 reject	reject	BitExpr#8/drop-5	DO ident - INTERVAL ident
@@ -3659,7 +3659,7 @@ reject	reject	SimpleExpr#6/insert	DO ROW_NUMBER() OVER ident zzz
 reject	reject	SimpleExpr#6/swap	DO RTREE() OVER ident
 reject	reject	SimpleExpr#8/insert	DO ? zzz
 reject	reject	SimpleExpr#9/insert	DO @@v zzz
-accept	reject	SimpleExpr#10/drop-1	DO(*)
+reject	reject	SimpleExpr#10/drop-1	DO(*)
 reject	reject	SimpleExpr#10/drop-2	DO COUNT *)
 reject	reject	SimpleExpr#10/drop-3	DO COUNT()
 reject	reject	SimpleExpr#10/drop-4	DO COUNT(*
@@ -3910,7 +3910,7 @@ reject	reject	FunctionCallNonKeyword#3/drop-5	DO ADDDATE(ident,)
 reject	reject	FunctionCallNonKeyword#3/drop-6	DO ADDDATE(ident, ident
 reject	reject	FunctionCallNonKeyword#3/insert	DO ADDDATE(ident, ident) zzz
 reject	reject	FunctionCallNonKeyword#3/swap	DO ADMIN(ident, ident)
-accept	reject	FunctionCallNonKeyword#4/drop-1	DO(ident, INTERVAL ident SECOND_MICROSECOND)
+reject	reject	FunctionCallNonKeyword#4/drop-1	DO(ident, INTERVAL ident SECOND_MICROSECOND)
 reject	reject	FunctionCallNonKeyword#4/drop-2	DO ADDDATE ident, INTERVAL ident SECOND_MICROSECOND)
 reject	reject	FunctionCallNonKeyword#4/drop-3	DO ADDDATE(, INTERVAL ident SECOND_MICROSECOND)
 reject	reject	FunctionCallNonKeyword#4/drop-4	DO ADDDATE(ident INTERVAL ident SECOND_MICROSECOND)
