@@ -60,6 +60,9 @@ var optionValueCases = []optionValueCase{
 	{"CREATE TABLE t (a INT) SHARD_ROW_ID_BITS =", 1064, ""},
 	{"CREATE TABLE t (a INT) PRE_SPLIT_REGIONS =", 1064, ""},
 	{"CREATE TABLE t (a INT) AUTO_ID_CACHE", 1064, ""},
+	// AUTO_ID_CACHE takes a LengthNum: DEFAULT and a string are each a 1064.
+	{"ALTER TABLE ta AUTO_ID_CACHE DEFAULT", 1064, "DEFAULT"},
+	{"ALTER TABLE ta AUTO_ID_CACHE 's'", 1064, "'s'"},
 	{"CREATE TABLE t (a INT) AUTO_RANDOM_BASE =", 1064, ""},
 	{"CREATE TABLE t (a INT) TTL_ENABLE =", 1064, ""},
 	{"CREATE TABLE t (a INT) PLACEMENT POLICY", 1064, ""},
@@ -86,6 +89,9 @@ var optionValueCases = []optionValueCase{
 	{"ALTER TABLE ta AUTO_INCREMENT = 5 COMMENT 'x' ENGINE = InnoDB", 0, ""},
 	{"CREATE TABLE t (a INT) DEFAULT CHARACTER SET = utf8mb4 COLLATE utf8mb4_bin", 0, ""},
 	{"CREATE TABLE t (a INT) SHARD_ROW_ID_BITS = 4", 0, ""},
+	{"CREATE TABLE t (a INT) AUTO_ID_CACHE = 1", 0, ""},
+	{"ALTER TABLE ta AUTO_ID_CACHE = 1000", 0, ""},
+	{"ALTER TABLE ta AUTO_ID_CACHE 1000", 0, ""},
 	{"CREATE TABLE t (a INT) PLACEMENT POLICY = DEFAULT", 0, ""},
 	{"CREATE DATABASE d PLACEMENT POLICY DEFAULT", 0, ""},
 }
