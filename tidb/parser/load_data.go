@@ -81,14 +81,17 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		p.advance()
 	}
 
-	// INFILE 'file_name'
+	// INFILE 'file_name'. The name is a string literal and not optional:
+	// v8.5.5 answers 1064 for `LOAD DATA INFILE INTO TABLE t`, where the
+	// word after INFILE is INTO and no file name stands between them.
 	if _, err := p.expect(kwINFILE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == tokSCONST {
-		stmt.Infile = p.cur.Str
-		p.advance()
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Infile = p.cur.Str
+	p.advance()
 
 	// [FORMAT 'format_name'], which TiDB has and MySQL has not. It sits
 	// between the file and REPLACE/IGNORE and nowhere else: v8.5.5 answers
@@ -109,9 +112,15 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Ignore = true
 	}
 
-	// INTO TABLE tbl_name
-	p.match(kwINTO)
-	p.match(kwTABLE)
+	// INTO TABLE tbl_name, both words required: v8.5.5 answers 1064 for
+	// `LOAD DATA INFILE 's' TABLE t` (no INTO) and for `LOAD DATA INFILE 's'
+	// INTO t` (no TABLE).
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after INTO TABLE, offer table_ref candidates.
 	p.checkCursor()
@@ -139,12 +148,16 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 
 	// [CHARACTER SET charset_name]. The name is a CharsetName, which carries
 	// the reserved word BINARY beside ident_or_text, so `CHARACTER SET BINARY`
-	// parses on v8.5.5 where a plain identifier would turn BINARY away.
+	// parses on v8.5.5 where a plain identifier would turn BINARY away. SET is
+	// required after CHARACTER: v8.5.5 answers 1064 for `CHARACTER BINARY`,
+	// reading BINARY as the keyword and not as the charset name.
 	//
 	// Ref: CharsetOpt and CharsetName in TiDB v8.5.5 pkg/parser/parser.y.
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
-		p.match(kwSET)
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
 		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
@@ -188,15 +201,17 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		}
 	}
 
-	// [IGNORE number LINES]. The unit is LINES and only LINES: v8.5.5
-	// answers 1064 for IGNORE 2 ROWS, where MySQL 8.0, MariaDB 11.8.8 and
-	// OceanBase 4.3.5 all take it.
+	// [IGNORE number LINES]. The count is required and the unit is LINES and
+	// only LINES: v8.5.5 answers 1064 for `IGNORE LINES` with no count, and
+	// for `IGNORE 2 ROWS`, where MySQL 8.0, MariaDB 11.8.8 and OceanBase
+	// 4.3.5 all take ROWS.
 	if p.cur.Type == kwIGNORE {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			stmt.IgnoreRows = int(p.cur.Ival)
-			p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.IgnoreRows = int(p.cur.Ival)
+		p.advance()
 		if _, err := p.expect(kwLINES); err != nil {
 			return nil, err
 		}

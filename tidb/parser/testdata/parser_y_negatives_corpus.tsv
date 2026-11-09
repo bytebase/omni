@@ -6152,9 +6152,9 @@ reject	reject	Statement#61/swap	LABELS 1
 reject	reject	Statement#62/drop-1	DATA INFILE 's' INTO TABLE ident
 reject	reject	Statement#62/drop-2	LOAD INFILE 's' INTO TABLE ident
 reject	reject	Statement#62/drop-3	LOAD DATA 's' INTO TABLE ident
-accept	reject	Statement#62/drop-4	LOAD DATA INFILE INTO TABLE ident
-accept	reject	Statement#62/drop-5	LOAD DATA INFILE 's' TABLE ident
-accept	reject	Statement#62/drop-6	LOAD DATA INFILE 's' INTO ident
+reject	reject	Statement#62/drop-4	LOAD DATA INFILE INTO TABLE ident
+reject	reject	Statement#62/drop-5	LOAD DATA INFILE 's' TABLE ident
+reject	reject	Statement#62/drop-6	LOAD DATA INFILE 's' INTO ident
 reject	reject	Statement#62/drop-7	LOAD DATA INFILE 's' INTO TABLE
 reject	reject	Statement#62/insert	LOAD DATA INFILE 's' INTO TABLE ident zzz
 reject	reject	Statement#62/swap	LOAD_STATS DATA INFILE 's' INTO TABLE ident
@@ -6284,9 +6284,9 @@ reject	reject	TraceableStmt#8/swap	TRACE(SEND_CREDENTIALS_TO_TIKV *)
 reject	reject	TraceableStmt#9/drop-1	TRACE DATA INFILE 's' INTO TABLE ident
 reject	reject	TraceableStmt#9/drop-2	TRACE LOAD INFILE 's' INTO TABLE ident
 reject	reject	TraceableStmt#9/drop-3	TRACE LOAD DATA 's' INTO TABLE ident
-accept	reject	TraceableStmt#9/drop-4	TRACE LOAD DATA INFILE INTO TABLE ident
-accept	reject	TraceableStmt#9/drop-5	TRACE LOAD DATA INFILE 's' TABLE ident
-accept	reject	TraceableStmt#9/drop-6	TRACE LOAD DATA INFILE 's' INTO ident
+reject	reject	TraceableStmt#9/drop-4	TRACE LOAD DATA INFILE INTO TABLE ident
+reject	reject	TraceableStmt#9/drop-5	TRACE LOAD DATA INFILE 's' TABLE ident
+reject	reject	TraceableStmt#9/drop-6	TRACE LOAD DATA INFILE 's' INTO ident
 reject	reject	TraceableStmt#9/drop-7	TRACE LOAD DATA INFILE 's' INTO TABLE
 reject	reject	TraceableStmt#9/insert	TRACE LOAD DATA INFILE 's' INTO TABLE ident zzz
 reject	reject	TraceableStmt#9/swap	TRACE LOAD_STATS DATA INFILE 's' INTO TABLE ident
@@ -7351,12 +7351,12 @@ reject	reject	FormatOpt#2/drop-2	IMPORT INTO ident FROM 's' FORMAT
 reject	reject	FormatOpt#2/insert	IMPORT INTO ident FROM 's' FORMAT 's' zzz
 reject	reject	FormatOpt#2/swap	IMPORT INTO ident FROM 's' FOUND 's'
 reject	reject	IgnoreLines#2/drop-1	LOAD DATA INFILE 's' INTO TABLE ident 1 LINES
-accept	reject	IgnoreLines#2/drop-2	LOAD DATA INFILE 's' INTO TABLE ident IGNORE LINES
+reject	reject	IgnoreLines#2/drop-2	LOAD DATA INFILE 's' INTO TABLE ident IGNORE LINES
 reject	reject	IgnoreLines#2/drop-3	LOAD DATA INFILE 's' INTO TABLE ident IGNORE 1
 reject	reject	IgnoreLines#2/insert	LOAD DATA INFILE 's' INTO TABLE ident IGNORE 1 LINES zzz
 reject	reject	IgnoreLines#2/swap	LOAD DATA INFILE 's' INTO TABLE ident IGNORE_STATS 1 LINES
 reject	reject	CharsetOpt#2/drop-1	LOAD DATA INFILE 's' INTO TABLE ident SET BINARY
-accept	reject	CharsetOpt#2/drop-2	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER BINARY
+reject	reject	CharsetOpt#2/drop-2	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER BINARY
 reject	reject	CharsetOpt#2/drop-3	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET
 reject	reject	CharsetOpt#2/insert	LOAD DATA INFILE 's' INTO TABLE ident CHARACTER SET BINARY zzz
 reject	reject	CharsetOpt#2/swap	LOAD DATA INFILE 's' INTO TABLE ident CHARSET SET BINARY

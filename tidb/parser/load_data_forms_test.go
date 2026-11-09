@@ -32,6 +32,14 @@ type loadDataFormCase struct {
 }
 
 var loadDataFormCases = []loadDataFormCase{
+	// --- the statement skeleton: a file name, then INTO TABLE, all required ---
+	{"load data infile '/x.csv' into table t", true},
+	// INFILE takes a string file name and not the next keyword.
+	{"load data infile into table t", false},
+	// INTO and TABLE are both required and in that order.
+	{"load data infile '/x.csv' table t", false},
+	{"load data infile '/x.csv' into t", false},
+
 	// --- FIELDS and LINES option values: a string, a hex or a bit literal ---
 	{"load data infile '/x.csv' into table t fields terminated by X'6B6B'", true},
 	{"load data infile '/x.csv' into table t fields terminated by x'6b6b'", true},
@@ -98,6 +106,8 @@ var loadDataFormCases = []loadDataFormCase{
 	{"load data infile '/x.csv' into table t character set utf8mb4", true},
 	{"load data infile '/x.csv' into table t character set 'utf8mb4'", true},
 	{"load data infile '/x.csv' into table t character set 1", false},
+	// SET is required after CHARACTER; BINARY alone is the keyword, not a name.
+	{"load data infile '/x.csv' into table t character binary", false},
 
 	// --- LINES: STARTING before TERMINATED, each once ---
 	{"load data infile '/x.csv' into table t lines", true},
@@ -111,6 +121,8 @@ var loadDataFormCases = []loadDataFormCase{
 	// --- IGNORE n LINES, counted in LINES and not in ROWS ---
 	{"load data infile '/x.csv' into table t ignore 2 lines", true},
 	{"load data infile '/x.csv' into table t ignore 2 rows", false},
+	// The count is required: IGNORE with LINES straight after it is a 1064.
+	{"load data infile '/x.csv' into table t ignore lines", false},
 	// IGNORE comes after FIELDS and LINES, not before them.
 	{"load data infile '/x.csv' into table t ignore 2 lines fields terminated by ','", false},
 
