@@ -3,7 +3,9 @@ package completion
 import (
 	"testing"
 
+	"github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/catalog"
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // containsCandidate returns true if candidates contains one with the given text and type.
@@ -273,7 +275,7 @@ func setupCatalog(t *testing.T) *catalog.Catalog {
 	mustExec(t, cat, "CREATE INDEX idx_name ON users (name)")
 	mustExec(t, cat, "CREATE INDEX idx_user_id ON orders (user_id)")
 	mustExec(t, cat, "CREATE VIEW active_users AS SELECT * FROM users WHERE id > 0")
-	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+	mustDefineProcedure(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
 	return cat
 }
 
@@ -282,6 +284,25 @@ func mustExec(t *testing.T, cat *catalog.Catalog, sql string) {
 	t.Helper()
 	if _, err := cat.Exec(sql, nil); err != nil {
 		t.Fatalf("Exec(%q) failed: %v", sql, err)
+	}
+}
+
+// mustDefineProcedure seeds a stored procedure through the Define* loader path.
+// TiDB rejects CREATE PROCEDURE at execution (8108), so Exec cannot install one;
+// the catalog still holds a routine model that a metadata loader can populate,
+// which is what procedure-name completion reads.
+func mustDefineProcedure(t *testing.T, cat *catalog.Catalog, sql string) {
+	t.Helper()
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql, err)
+	}
+	stmt, ok := list.Items[0].(*ast.CreateFunctionStmt)
+	if !ok {
+		t.Fatalf("Parse(%q) did not yield a CreateFunctionStmt", sql)
+	}
+	if err := cat.DefineProcedure(stmt); err != nil {
+		t.Fatalf("DefineProcedure(%q) failed: %v", sql, err)
 	}
 }
 
@@ -1607,7 +1628,7 @@ func TestComplete_4_3_DeleteLoadCall(t *testing.T) {
 	mustExec(t, cat, "CREATE TABLE t (a INT, b INT, c INT)")
 	mustExec(t, cat, "CREATE TABLE t1 (a INT, b INT)")
 	mustExec(t, cat, "CREATE TABLE t2 (a INT, b INT)")
-	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+	mustDefineProcedure(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
 
 	// Scenario 1: DELETE FROM | → table_ref
 	t.Run("delete_from_table_ref", func(t *testing.T) {
