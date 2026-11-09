@@ -627,7 +627,7 @@ func (p *Parser) parseDropResourceGroupStmt(start int) (*nodes.DropResourceGroup
 // parseCalibrateResourceStmt parses a CALIBRATE RESOURCE statement. CALIBRATE
 // is the current token.
 //
-// Ref: TiDB v8.5.5 parser.y:16882
+// Ref: TiDB v8.5.5 parser.y:16445
 //
 //	CALIBRATE RESOURCE [WORKLOAD workload | option [[,] option] ...]
 //
@@ -777,7 +777,7 @@ func (p *Parser) parseCalibrateOption() (*nodes.CalibrateResourceOption, error) 
 // parseQueryWatchStmt parses the two QUERY WATCH statements. QUERY is the
 // current token and the caller has checked that WATCH follows it.
 //
-// Ref: TiDB v8.5.5 parser.y:16980 (ADD), 17068 (REMOVE)
+// Ref: TiDB v8.5.5 parser.y:16543 (ADD), 16631 (REMOVE)
 //
 //	QUERY WATCH ADD option [[,] option] ...
 //	QUERY WATCH REMOVE watch_id
