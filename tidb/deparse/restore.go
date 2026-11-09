@@ -877,6 +877,14 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 		b.kw("DEFAULT")
 		if n.Column != "" {
 			b.WriteByte('(')
+			if n.Schema != "" {
+				restoreName(b, n.Schema)
+				b.WriteByte('.')
+			}
+			if n.Table != "" {
+				restoreName(b, n.Table)
+				b.WriteByte('.')
+			}
 			restoreName(b, n.Column)
 			b.WriteByte(')')
 		}
