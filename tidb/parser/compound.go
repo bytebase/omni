@@ -167,10 +167,9 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 	// the same statement inside BEGIN ... END, a WHILE body, and an IF
 	// branch, where CREATE PROCEDURE p() SELECT 1 reaches 8108 instead.
 	//
-	// SHOW, CHECK TABLE, CHECKSUM TABLE, FLUSH, and BATCH are outside that
-	// list too and this parser still takes them here; narrowing the body to
-	// TiDB's list is its own change, and this guard only keeps ADMIN from
-	// joining them.
+	// SHOW, FLUSH, and BATCH are outside that list too and this parser still
+	// takes them here; narrowing the body to TiDB's list is its own change,
+	// and this guard only keeps ADMIN from joining them.
 	if p.cur.Type == kwADMIN {
 		return nil, p.syntaxErrorAtCur()
 	}

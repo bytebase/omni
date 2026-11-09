@@ -5519,13 +5519,13 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 ANALYZE TABLE t;
 OPTIMIZE TABLE t;
-CHECK TABLE t;
+ADMIN CHECK TABLE t;
 REPAIR TABLE t;
 FLUSH TABLES;
 RESET MASTER;
 KILL 42;
 DO 1;
-CHECKSUM TABLE t1;
+ADMIN CHECKSUM TABLE t1;
 SHUTDOWN;
 RESTART`,
 			count: 38,
@@ -6495,35 +6495,21 @@ func TestParseRevokeRole(t *testing.T) {
 	}
 }
 
-func TestParseChecksumTable(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CHECKSUM TABLE t1",
-			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1}}",
-		},
-		{
-			sql:  "CHECKSUM TABLE t1, t2",
-			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1} {TABLEREF :loc 19 :name t2}}",
-		},
-		{
-			sql:  "CHECKSUM TABLE t1 QUICK",
-			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1} :quick true}",
-		},
-		{
-			sql:  "CHECKSUM TABLE t1 EXTENDED",
-			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1} :extended true}",
-		},
-		{
-			sql:  "CHECKSUM TABLE db.t1, db.t2 QUICK",
-			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :schema db :name t1} {TABLEREF :loc 22 :schema db :name t2} :quick true}",
-		},
+// TiDB has no bare CHECKSUM TABLE statement; its only checksum-table production
+// is "ADMIN" "CHECKSUM" "TABLE" TableNameList (parser.y:11275). CHECKSUM is
+// otherwise only a table option, so MySQL's ADMIN-less CHECKSUM TABLE and its
+// QUICK/EXTENDED tail are rejected.
+func TestParseChecksumTableRejected(t *testing.T) {
+	tests := []string{
+		"CHECKSUM TABLE t1",
+		"CHECKSUM TABLE t1, t2",
+		"CHECKSUM TABLE t1 QUICK",
+		"CHECKSUM TABLE t1 EXTENDED",
+		"CHECKSUM TABLE db.t1, db.t2 QUICK",
 	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
 		})
 	}
 }
@@ -7366,7 +7352,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"VALUES ROW(1, 2), ROW(3, 4)",
 
 		// Utility (batch 34)
-		"CHECKSUM TABLE t1",
+		"ADMIN CHECKSUM TABLE t1",
 		"SHUTDOWN",
 		"RESTART",
 
@@ -9302,7 +9288,11 @@ func TestParseOptimizeTable(t *testing.T) {
 	}
 }
 
-func TestParseCheckTable(t *testing.T) {
+// TiDB has no bare CHECK TABLE statement; its only check-table production is
+// "ADMIN" "CHECK" "TABLE" TableNameList (parser.y:11235). MySQL's ADMIN-less
+// CHECK TABLE and its option tail (FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED,
+// CHANGED) do not exist here, so every bare form is rejected.
+func TestParseCheckTableRejected(t *testing.T) {
 	tests := []string{
 		"CHECK TABLE t1",
 		"CHECK TABLE t1, t2",
@@ -9316,7 +9306,7 @@ func TestParseCheckTable(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
@@ -9788,7 +9778,10 @@ func TestParseRepairTableUseFrm(t *testing.T) {
 	})
 }
 
-func TestParseChecksumTableExtended(t *testing.T) {
+// The CHECKSUM TABLE option tail (EXTENDED, QUICK) is likewise unreachable:
+// TiDB has no bare CHECKSUM TABLE statement (parser.y:11275 gives only the
+// ADMIN-prefixed form), so these are rejected.
+func TestParseChecksumTableExtendedRejected(t *testing.T) {
 	tests := []string{
 		"CHECKSUM TABLE t EXTENDED",
 		"CHECKSUM TABLE t1, t2 EXTENDED",
@@ -9796,18 +9789,9 @@ func TestParseChecksumTableExtended(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
-
-	// Verify EXTENDED is captured in AST
-	t.Run("extended_value_captured", func(t *testing.T) {
-		result := ParseAndCheck(t, "CHECKSUM TABLE t EXTENDED")
-		s := ast.NodeToString(result.Items[0])
-		if !strings.Contains(s, ":extended true") {
-			t.Errorf("expected :extended true in AST, got: %s", s)
-		}
-	})
 }
 
 func TestParseShowCreateSchema(t *testing.T) {
@@ -10407,16 +10391,13 @@ func TestReviewBatch111_RepairTableLocal(t *testing.T) {
 	}
 }
 
-func TestReviewBatch111_CheckTableFastUpperCase(t *testing.T) {
-	result := ParseAndCheck(t, "CHECK TABLE t1 FAST")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "FAST") {
-		t.Errorf("expected FAST (uppercase), got %s", s)
-	}
+func TestReviewBatch111_CheckTableFastRejected(t *testing.T) {
+	// Bare CHECK TABLE does not exist in TiDB (parser.y:11235 is ADMIN-only).
+	ParseExpectError(t, "CHECK TABLE t1 FAST")
 }
 
-func TestReviewBatch111_CheckTableMultipleOptions(t *testing.T) {
-	ParseAndCheck(t, "CHECK TABLE t1 QUICK FAST MEDIUM EXTENDED CHANGED")
+func TestReviewBatch111_CheckTableMultipleOptionsRejected(t *testing.T) {
+	ParseExpectError(t, "CHECK TABLE t1 QUICK FAST MEDIUM EXTENDED CHANGED")
 }
 
 func TestReviewBatch111_FlushEngineLogs(t *testing.T) {
@@ -10491,12 +10472,13 @@ func TestReviewBatch111_DoMultiExpr(t *testing.T) {
 	ParseAndCheck(t, "DO 1 + 2, SLEEP(1)")
 }
 
-func TestReviewBatch111_ChecksumTableQuick(t *testing.T) {
-	ParseAndCheck(t, "CHECKSUM TABLE t1, t2 QUICK")
+func TestReviewBatch111_ChecksumTableQuickRejected(t *testing.T) {
+	// Bare CHECKSUM TABLE does not exist in TiDB (parser.y:11275 is ADMIN-only).
+	ParseExpectError(t, "CHECKSUM TABLE t1, t2 QUICK")
 }
 
-func TestReviewBatch111_ChecksumTableExtended(t *testing.T) {
-	ParseAndCheck(t, "CHECKSUM TABLE t1 EXTENDED")
+func TestReviewBatch111_ChecksumTableExtendedRejected(t *testing.T) {
+	ParseExpectError(t, "CHECKSUM TABLE t1 EXTENDED")
 }
 
 func TestReviewBatch111_Shutdown(t *testing.T) {

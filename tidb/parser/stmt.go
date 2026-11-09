@@ -21,7 +21,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwLOCK, kwUNLOCK,
 			kwGRANT, kwREVOKE,
 			kwLOAD, kwPREPARE, kwEXECUTE, kwDEALLOCATE,
-			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR,
+			kwANALYZE, kwOPTIMIZE, kwREPAIR,
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
 			kwADMIN, // TiDB's own maintenance family
@@ -163,7 +163,11 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseOptimizeTableStmt()
 
 	case kwCHECK:
-		return p.parseCheckTableStmt()
+		// TiDB has no bare CHECK TABLE statement. Its only check-table
+		// production is "ADMIN" "CHECK" "TABLE" TableNameList
+		// (parser.y:11235), reached through kwADMIN; the ADMIN-less form
+		// MySQL carries does not exist here, so reject a leading CHECK.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwREPAIR:
 		return p.parseRepairTableStmt()
@@ -221,7 +225,12 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseHelpStmt()
 
 	case kwCHECKSUM:
-		return p.parseChecksumTableStmt()
+		// TiDB has no bare CHECKSUM TABLE statement. Its only
+		// checksum-table production is "ADMIN" "CHECKSUM" "TABLE"
+		// TableNameList (parser.y:11275), reached through kwADMIN;
+		// MySQL's ADMIN-less form does not exist here, and CHECKSUM is
+		// otherwise only a table option, so reject a leading CHECKSUM.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwSHUTDOWN:
 		return p.parseShutdownStmt()
