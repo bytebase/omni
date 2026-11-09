@@ -2057,9 +2057,104 @@ func deparseDataType(dt *ast.DataType) string {
 
 func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
 	b.WriteString("interval ")
-	writeExpr(b, n.Value)
+	writeIntervalValue(b, n.Value, intervalValueBottom)
 	b.WriteString(" ")
 	b.WriteString(strings.ToLower(n.Unit))
+}
+
+// INTERVAL value precedences, mirroring the bit_expr ladder the parser folds a
+// value at (tidb/parser/expr.go); a higher number binds tighter. The value
+// comes back out bare because TiDB reads `INTERVAL (x) unit` as the INTERVAL
+// function, never the literal, so writeIntervalValue writes only the
+// parentheses the value's own precedence requires — not the ones
+// writeBinaryExpr wraps every binary expression in elsewhere.
+const (
+	intervalValueBottom = 8  // | — the bottom of a bit_expr, where a value starts
+	intervalPrecBitAnd  = 9  // &
+	intervalPrecShift   = 10 // <<, >>
+	intervalPrecAdd     = 11 // +, -
+	intervalPrecMul     = 12 // *, /, DIV, %, MOD
+	intervalPrecBitXor  = 13 // ^
+	intervalPrecUnary   = 14 // -, ~
+	intervalPrecCollate = 15 // COLLATE
+)
+
+// intervalValueBinPrec returns the precedence of a bit_expr binary operator, or
+// 0 for an operator (such as -> / ->>) that deparse rewrites to a function call
+// and so is already bare.
+func intervalValueBinPrec(op ast.BinaryOp) int {
+	switch op {
+	case ast.BinOpBitOr:
+		return intervalValueBottom
+	case ast.BinOpBitAnd:
+		return intervalPrecBitAnd
+	case ast.BinOpShiftLeft, ast.BinOpShiftRight:
+		return intervalPrecShift
+	case ast.BinOpAdd, ast.BinOpSub:
+		return intervalPrecAdd
+	case ast.BinOpMul, ast.BinOpDiv, ast.BinOpDivInt, ast.BinOpMod:
+		return intervalPrecMul
+	case ast.BinOpBitXor:
+		return intervalPrecBitXor
+	}
+	return 0
+}
+
+// writeIntervalValue writes an INTERVAL value as a bare bit_expr, parenthesizing
+// only where its precedence requires. parentPrec is the precedence of the
+// operator this value is an operand of; the value is wrapped when it binds
+// looser than that.
+func writeIntervalValue(b *strings.Builder, node ast.ExprNode, parentPrec int) {
+	switch n := node.(type) {
+	case *ast.BinaryExpr:
+		prec := intervalValueBinPrec(n.Op)
+		if prec == 0 {
+			writeExpr(b, node)
+			return
+		}
+		open := prec < parentPrec
+		if open {
+			b.WriteString("(")
+		}
+		writeIntervalValue(b, n.Left, prec) // left-associative
+		b.WriteString(" ")
+		b.WriteString(binaryOpToString(n.Op))
+		b.WriteString(" ")
+		writeIntervalValue(b, n.Right, prec+1)
+		if open {
+			b.WriteString(")")
+		}
+	case *ast.UnaryExpr:
+		switch n.Op {
+		case ast.UnaryMinus:
+			b.WriteString("-")
+			writeIntervalValue(b, n.Operand, intervalPrecUnary)
+		case ast.UnaryBitNot:
+			b.WriteString("~")
+			writeIntervalValue(b, n.Operand, intervalPrecUnary)
+		case ast.UnaryPlus:
+			// MySQL drops a unary plus.
+			writeIntervalValue(b, n.Operand, intervalPrecUnary)
+		default:
+			writeExpr(b, node)
+		}
+	case *ast.ParenExpr:
+		// Keep the parentheses: the value may hold a predicate the input grouped
+		// (`1 + (a IN (SELECT 1))`), which binds looser than a bit operator and
+		// writeExpr writes without its own parentheses, so dropping them would
+		// not reparse. A redundant pair here is harmless and reparses the same.
+		b.WriteString("(")
+		writeIntervalValue(b, n.Expr, intervalValueBottom)
+		b.WriteString(")")
+	case *ast.CollateExpr:
+		// COLLATE binds tighter than every bit operator, so it never needs
+		// parentheses here; writeCollateExpr would add them.
+		writeIntervalValue(b, n.Expr, intervalPrecCollate)
+		b.WriteString(" collate ")
+		b.WriteString(n.Collation)
+	default:
+		writeExpr(b, node)
+	}
 }
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
