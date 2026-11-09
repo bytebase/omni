@@ -964,12 +964,6 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"t_drop_col",
 		},
 		{
-			"drop_column_part_of_index",
-			"CREATE TABLE t_drop_idx_col (id INT PRIMARY KEY, a INT, b INT, KEY idx_ab (a, b))",
-			"ALTER TABLE t_drop_idx_col DROP COLUMN b",
-			"t_drop_idx_col",
-		},
-		{
 			"drop_column_only_in_index",
 			"CREATE TABLE t_drop_only_idx (id INT PRIMARY KEY, a INT, KEY idx_a (a))",
 			"ALTER TABLE t_drop_only_idx DROP COLUMN a",
@@ -1061,12 +1055,6 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"ALTER TABLE t_drop_def ALTER COLUMN val DROP DEFAULT",
 			"t_drop_def",
 		},
-		{
-			"drop_column_part_of_pk",
-			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
-			"ALTER TABLE t_drop_pk DROP COLUMN a",
-			"t_drop_pk",
-		},
 	}
 
 	for _, tc := range ddlCases {
@@ -1120,6 +1108,24 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"CREATE TABLE t_fk_parent (id INT PRIMARY KEY); CREATE TABLE t_fk_child (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent(id))",
 			"ALTER TABLE t_fk_child DROP COLUMN pid",
 			"t_fk_child",
+			true,
+		},
+		{
+			// TiDB v8.5.5 rejects dropping a column covered by a composite
+			// index (8200); MySQL strips the column and keeps the index.
+			"drop_column_part_of_index",
+			"CREATE TABLE t_drop_idx_col (id INT PRIMARY KEY, a INT, b INT, KEY idx_ab (a, b))",
+			"ALTER TABLE t_drop_idx_col DROP COLUMN b",
+			"t_drop_idx_col",
+			true,
+		},
+		{
+			// TiDB v8.5.5 rejects dropping a column that is part of the
+			// primary key (8200); MySQL shrinks the PK.
+			"drop_column_part_of_pk",
+			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
+			"ALTER TABLE t_drop_pk DROP COLUMN a",
+			"t_drop_pk",
 			true,
 		},
 	}
@@ -1213,12 +1219,6 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 		// Note: DROP INDEX IF EXISTS is not supported in MySQL 8.0 (syntax error).
 		// Scenario marked as [~] partial in SCENARIOS.md.
 		{
-			"drop_primary_key",
-			"CREATE TABLE t_drop_pk (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id))",
-			"ALTER TABLE t_drop_pk DROP PRIMARY KEY",
-			"t_drop_pk",
-		},
-		{
 			"rename_index",
 			"CREATE TABLE t_ren_idx (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_old (name))",
 			"ALTER TABLE t_ren_idx RENAME INDEX idx_old TO idx_new",
@@ -1291,6 +1291,16 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			"CREATE TABLE t_dup_pk (id INT PRIMARY KEY, val INT NOT NULL)",
 			"ALTER TABLE t_dup_pk ADD PRIMARY KEY (val)",
 			"t_dup_pk",
+			true,
+		},
+		{
+			// TiDB v8.5.5 rejects DROP PRIMARY KEY on a clustered PK (8200):
+			// a single-integer PK from CREATE TABLE is the clustered row
+			// handle. MySQL drops it. A NONCLUSTERED or ALTER-added PK drops.
+			"drop_primary_key_clustered",
+			"CREATE TABLE t_drop_pk (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id))",
+			"ALTER TABLE t_drop_pk DROP PRIMARY KEY",
+			"t_drop_pk",
 			true,
 		},
 	}

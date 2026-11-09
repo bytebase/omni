@@ -43,30 +43,26 @@ ALTER TABLE t ADD COLUMN f INT AFTER a;`)
 		assertStringEq(t, "omni column order", strings.Join(omni, ","), strings.Join(want, ","))
 	})
 
-	// --- AX.2 DROP COLUMN cascades removal of indexes containing column --
-	t.Run("AX_2_DropColumn_cascades_indexes", func(t *testing.T) {
+	// --- AX.2 DROP COLUMN covered by a composite index rejects ----------
+	t.Run("AX_2_DropColumn_composite_index_rejects", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT, c INT, INDEX idx_a(a), INDEX idx_ab(a, b), INDEX idx_bc(b, c));
-ALTER TABLE t DROP COLUMN a;`)
+		// Only the CREATE runs on both; the DROP is expected to fail.
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT, c INT, INDEX idx_a(a), INDEX idx_ab(a, b), INDEX idx_bc(b, c));`)
 
-		// Oracle: scenario doc claims idx_ab should be removed entirely,
-		// but MySQL 8.0 actually strips only the dropped column and keeps
-		// idx_ab as an index on the surviving column(s). Verify dual-agreement
-		// against observed MySQL behavior rather than the doc's stale claim.
-		oracleIdx := axOracleIndexNames(t, mc, "t")
-		want := []string{"idx_ab", "idx_bc"}
-		assertStringEq(t, "oracle surviving indexes", strings.Join(oracleIdx, ","), strings.Join(want, ","))
-
-		// omni
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil {
-			t.Errorf("omni: table t missing")
-			return
+		// TiDB v8.5.5 rejects dropping column a — it is covered by the
+		// composite index idx_ab(a, b) — with 8200, unlike MySQL which strips
+		// a from idx_ab and keeps the index on the surviving column.
+		_, oracleErr := mc.db.ExecContext(mc.ctx, `ALTER TABLE t DROP COLUMN a`)
+		if oracleErr == nil {
+			t.Errorf("oracle: expected error dropping composite-index column, got nil")
 		}
-		omni := axOmniIndexNames(tbl)
-		assertStringEq(t, "omni surviving indexes", strings.Join(omni, ","), strings.Join(want, ","))
+
+		results, _ := c.Exec(`ALTER TABLE t DROP COLUMN a`, nil)
+		if !axExecHasError(results) {
+			t.Errorf("omni: expected error dropping composite-index column, got nil")
+		}
 	})
 
 	// --- AX.3 DROP COLUMN rejects last-column removal --------------------

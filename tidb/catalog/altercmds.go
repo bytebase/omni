@@ -317,12 +317,52 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
+	// TiDB v8.5.5 (8200) rejects dropping a column that the primary key covers,
+	// or that a composite (multi-column) index covers. A column covered only by
+	// single-column secondary indexes drops cleanly — those indexes drop with
+	// it (see cleanupIndexesForDroppedColumn). Measured against the container.
+	if err := checkDropColumnCovered(tbl, cmd.Name); err != nil {
+		return err
+	}
+
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
 
 	idx := tbl.colByName[colKey]
 	tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 	rebuildColIndex(tbl)
+	return nil
+}
+
+// checkDropColumnCovered enforces TiDB v8.5.5's 8200 rejections for DROP COLUMN.
+// A column that is part of the primary key, or of any composite (multi-column)
+// index, cannot be dropped — not even by dropping the covering index in the
+// same statement (measured). The single integer, clustered primary key (the row
+// handle, pkIsHandle) carries its own message. A column covered only by
+// single-column secondary indexes is droppable and returns nil here.
+func checkDropColumnCovered(tbl *Table, colName string) error {
+	colKey := toLower(colName)
+	for _, idx := range tbl.Indexes {
+		covered := false
+		for _, ic := range idx.Columns {
+			if toLower(ic.Name) == colKey {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			continue
+		}
+		if idx.Primary {
+			if isRowHandle(tbl, idx) && primaryKeyClustered(tbl, idx) {
+				return errDropIntegerPrimaryKey()
+			}
+			return errDropColumnCovered(colName)
+		}
+		if len(idx.Columns) > 1 {
+			return errDropColumnCovered(colName)
+		}
+	}
 	return nil
 }
 
@@ -731,6 +771,11 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	found := false
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			// DROP INDEX `PRIMARY` hits the same clustered-PK rejection as
+			// DROP PRIMARY KEY on TiDB v8.5.5 (8200). Measured against v8.5.5.
+			if idx.Primary && primaryKeyClustered(tbl, idx) {
+				return errDropClusteredPrimaryKey()
+			}
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -763,6 +808,17 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	name := cmd.Name
 	key := toLower(name)
+
+	// DROP PRIMARY KEY: TiDB v8.5.5 (8200) rejects dropping the primary key
+	// when the table clusters by it. A NONCLUSTERED primary key, or one added
+	// by ALTER TABLE ADD PRIMARY KEY, drops cleanly. Measured against v8.5.5.
+	if key == "primary" {
+		for _, idx := range tbl.Indexes {
+			if idx.Primary && primaryKeyClustered(tbl, idx) {
+				return errDropClusteredPrimaryKey()
+			}
+		}
+	}
 
 	found := false
 	isForeignKey := false
