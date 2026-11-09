@@ -131,3 +131,41 @@ here — noted, never fixed by widening `Parse`.
 - Note: the forks' loose word-collector also over-accepts trailing junk relative
   to MySQL's grammar (`RELOAD TLS zzz`, malformed NO clause); fixing them to
   MySQL's full instance_action is separate, measured against MySQL.
+
+### (c) close over-acceptances — cluster 5: ALTER TABLE spec required keywords
+
+- **Cluster: ALTER TABLE spec trailing keywords.** The alter-spec parser used
+  `p.match` (optional) where the grammar requires a keyword, so omni accepted
+  `ALTER TABLE t ENABLE` / `DISABLE` (no KEYS), `WITH` / `WITHOUT` (no VALIDATION,
+  incl. EXCHANGE PARTITION … WITH/WITHOUT), and `ORDER c` (no BY).
+- Shared across all four engines (MySQL-family). Changed each `p.match` to
+  `p.expect` for KEYS, VALIDATION, and BY in tidb/mysql/mariadb/oceanbase.
+- Measured live: over-acceptances **106 → 99** (7 rows to reject/reject, 0
+  no-verdict), no new gaps, positive corpora unregressed; broad parse unit tests
+  pass on all four engines.
+
+### (c) close over-acceptances — cluster 6: ALTER TABLE IMPORT/DISCARD TABLESPACE
+
+- **Cluster: IMPORT/DISCARD TABLESPACE.** The parser used `p.match(kwTABLESPACE)`
+  (optional) where the grammar requires it, so omni accepted `ALTER TABLE t
+  IMPORT` / `DISCARD` (no TABLESPACE), `IMPORT/DISCARD PARTITION ALL` (no
+  TABLESPACE), and `IMPORT/DISCARD PARTITION TABLESPACE` (no name-list). Required
+  TABLESPACE with `p.expect` at all four spots in each engine.
+- Shared across all four engines. Measured live: over-acceptances **99 → 93**
+  (6 rows to reject/reject, 0 no-verdict), no new gaps, positives unregressed;
+  broad parse unit tests pass on all four.
+
+### (d) differential mutation fuzz sweep — harness + minimiser (CI wiring pending)
+
+- `tidb/parser/reject_fuzz_test.go` (`TestTiDBRejectFuzz`): mutates the valid
+  (accept/accept) statements of the §3.3 corpus and §3.4 samples at token and
+  byte level, runs omni + live TiDB v8.5.5, flags over-acceptances. Mirrors
+  pg's TestParenOracleFuzz: fixed seed (`rejectFuzzSeed`), size by
+  `TIDB_REJECT_FUZZ_N`, known-mismatches allowlist with set-equality gate,
+  `TIDB_REJECT_FUZZ_DEFER` log-and-persist mode, token-level ddmin minimiser.
+- Validated at N=300: found 2 over-acceptances the grammar-guided corpus missed,
+  e.g. `select ( * )` (omni accepts a parenthesized `*`; TiDB rejects). Baselined
+  in `testdata/reject-fuzz-corpus/known-mismatches.txt`.
+- **CI budget pending orchestrator confirmation** before wiring `.github/workflows/ci.yml`
+  and the AGENTS.md sweep list: env `TIDB_REJECT_FUZZ_N`, seed `rejectFuzzSeed`,
+  proposed CI size + defer mode.

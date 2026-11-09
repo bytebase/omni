@@ -458,20 +458,20 @@ reject	reject	AlterTableSpec#26/insert	ALTER TABLE ident REPAIR PARTITION ALL zz
 reject	reject	AlterTableSpec#26/swap	ALTER TABLE ident REPEAT PARTITION ALL
 reject	reject	AlterTableSpec#27/drop-1	ALTER TABLE ident PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#27/drop-2	ALTER TABLE ident IMPORT ALL TABLESPACE
-accept	reject	AlterTableSpec#27/drop-3	ALTER TABLE ident IMPORT PARTITION TABLESPACE
-accept	reject	AlterTableSpec#27/drop-4	ALTER TABLE ident IMPORT PARTITION ALL
+reject	reject	AlterTableSpec#27/drop-3	ALTER TABLE ident IMPORT PARTITION TABLESPACE
+reject	reject	AlterTableSpec#27/drop-4	ALTER TABLE ident IMPORT PARTITION ALL
 reject	reject	AlterTableSpec#27/insert	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE zzz
 reject	reject	AlterTableSpec#27/swap	ALTER TABLE ident IMPORTS PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#28/drop-2	ALTER TABLE ident DISCARD ALL TABLESPACE
-accept	reject	AlterTableSpec#28/drop-3	ALTER TABLE ident DISCARD PARTITION TABLESPACE
-accept	reject	AlterTableSpec#28/drop-4	ALTER TABLE ident DISCARD PARTITION ALL
+reject	reject	AlterTableSpec#28/drop-3	ALTER TABLE ident DISCARD PARTITION TABLESPACE
+reject	reject	AlterTableSpec#28/drop-4	ALTER TABLE ident DISCARD PARTITION ALL
 reject	reject	AlterTableSpec#28/insert	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE zzz
 reject	reject	AlterTableSpec#28/swap	ALTER TABLE ident DISK PARTITION ALL TABLESPACE
 reject	reject	AlterTableSpec#29/drop-1	ALTER TABLE ident TABLESPACE
-accept	reject	AlterTableSpec#29/drop-2	ALTER TABLE ident IMPORT
+reject	reject	AlterTableSpec#29/drop-2	ALTER TABLE ident IMPORT
 reject	reject	AlterTableSpec#29/insert	ALTER TABLE ident IMPORT TABLESPACE zzz
 reject	reject	AlterTableSpec#29/swap	ALTER TABLE ident IMPORTS TABLESPACE
-accept	reject	AlterTableSpec#30/drop-2	ALTER TABLE ident DISCARD
+reject	reject	AlterTableSpec#30/drop-2	ALTER TABLE ident DISCARD
 reject	reject	AlterTableSpec#30/insert	ALTER TABLE ident DISCARD TABLESPACE zzz
 reject	reject	AlterTableSpec#30/swap	ALTER TABLE ident DISK TABLESPACE
 reject	reject	AlterTableSpec#31/drop-2	ALTER TABLE ident REBUILD ALL
@@ -487,15 +487,15 @@ reject	reject	AlterTableSpec#33/drop-4	ALTER TABLE ident DROP FOREIGN KEY
 reject	reject	AlterTableSpec#33/insert	ALTER TABLE ident DROP FOREIGN KEY ident zzz
 reject	reject	AlterTableSpec#33/swap	ALTER TABLE ident DRY FOREIGN KEY ident
 reject	reject	AlterTableSpec#34/drop-1	ALTER TABLE ident BY ident
-accept	reject	AlterTableSpec#34/drop-2	ALTER TABLE ident ORDER ident
+reject	reject	AlterTableSpec#34/drop-2	ALTER TABLE ident ORDER ident
 reject	reject	AlterTableSpec#34/drop-3	ALTER TABLE ident ORDER BY
 reject	reject	AlterTableSpec#34/insert	ALTER TABLE ident ORDER BY ident zzz
 reject	reject	AlterTableSpec#34/swap	ALTER TABLE ident OUT BY ident
 reject	reject	AlterTableSpec#35/drop-1	ALTER TABLE ident KEYS
-accept	reject	AlterTableSpec#35/drop-2	ALTER TABLE ident DISABLE
+reject	reject	AlterTableSpec#35/drop-2	ALTER TABLE ident DISABLE
 reject	reject	AlterTableSpec#35/insert	ALTER TABLE ident DISABLE KEYS zzz
 reject	reject	AlterTableSpec#35/swap	ALTER TABLE ident DISABLED KEYS
-accept	reject	AlterTableSpec#36/drop-2	ALTER TABLE ident ENABLE
+reject	reject	AlterTableSpec#36/drop-2	ALTER TABLE ident ENABLE
 reject	reject	AlterTableSpec#36/insert	ALTER TABLE ident ENABLE KEYS zzz
 reject	reject	AlterTableSpec#36/swap	ALTER TABLE ident ENABLED KEYS
 reject	reject	AlterTableSpec#37/drop-2	ALTER TABLE ident MODIFY JSON
@@ -566,9 +566,9 @@ reject	reject	AlterTableSpec#49/swap	ALTER TABLE ident ALL DEFAULT
 reject	reject	AlterTableSpec#50/insert	ALTER TABLE ident FORCE zzz
 reject	reject	AlterTableSpec#50/swap	ALTER TABLE ident FOREIGN
 reject	reject	AlterTableSpec#51/drop-1	ALTER TABLE ident VALIDATION
-accept	reject	AlterTableSpec#51/drop-2	ALTER TABLE ident WITH
+reject	reject	AlterTableSpec#51/drop-2	ALTER TABLE ident WITH
 reject	reject	AlterTableSpec#51/insert	ALTER TABLE ident WITH VALIDATION zzz
-accept	reject	AlterTableSpec#52/drop-2	ALTER TABLE ident WITHOUT
+reject	reject	AlterTableSpec#52/drop-2	ALTER TABLE ident WITHOUT
 reject	reject	AlterTableSpec#52/insert	ALTER TABLE ident WITHOUT VALIDATION zzz
 reject	reject	AlterTableSpec#52/swap	ALTER TABLE ident WITH_SYS_TABLE VALIDATION
 reject	reject	AlterTableSpec#53/insert	ALTER TABLE ident SECONDARY_LOAD zzz
@@ -605,9 +605,9 @@ reject	reject	ReorganizePartitionRuleOpt#2/swap	ALTER TABLE ident REORGANIZE PAR
 reject	reject	AllOrPartitionNameList#1/swap	ALTER TABLE ident CHECK PARTITION ALTER
 reject	reject	AllOrPartitionNameList#2/insert	ALTER TABLE ident CHECK PARTITION ident zzz
 reject	reject	WithValidationOpt#2/drop-1	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident VALIDATION
-accept	reject	WithValidationOpt#2/drop-2	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH
+reject	reject	WithValidationOpt#2/drop-2	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH
 reject	reject	WithValidationOpt#2/insert	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION zzz
-accept	reject	WithValidation#2/drop-2	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT
+reject	reject	WithValidation#2/drop-2	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT
 reject	reject	WithValidation#2/insert	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION zzz
 reject	reject	WithValidation#2/swap	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH_SYS_TABLE VALIDATION
 reject	reject	WithClustered#1/insert	ALTER TABLE ident ADD ident JSON KEY CLUSTERED zzz
