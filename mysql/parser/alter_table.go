@@ -377,12 +377,16 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			if err != nil {
 				return nil, err
 			}
-			p.match(kwTABLESPACE)
+			if _, err := p.expect(kwTABLESPACE); err != nil {
+				return nil, err
+			}
 			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// DISCARD TABLESPACE
-		p.match(kwTABLESPACE)
+		if _, err := p.expect(kwTABLESPACE); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDiscardTablespace
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -395,12 +399,16 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			if err != nil {
 				return nil, err
 			}
-			p.match(kwTABLESPACE)
+			if _, err := p.expect(kwTABLESPACE); err != nil {
+				return nil, err
+			}
 			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// IMPORT TABLESPACE
-		p.match(kwTABLESPACE)
+		if _, err := p.expect(kwTABLESPACE); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATImportTablespace
 		cmd.Loc.End = p.prev.End
 		return cmd, nil

@@ -143,3 +143,14 @@ here — noted, never fixed by widening `Parse`.
 - Measured live: over-acceptances **106 → 99** (7 rows to reject/reject, 0
   no-verdict), no new gaps, positive corpora unregressed; broad parse unit tests
   pass on all four engines.
+
+### (c) close over-acceptances — cluster 6: ALTER TABLE IMPORT/DISCARD TABLESPACE
+
+- **Cluster: IMPORT/DISCARD TABLESPACE.** The parser used `p.match(kwTABLESPACE)`
+  (optional) where the grammar requires it, so omni accepted `ALTER TABLE t
+  IMPORT` / `DISCARD` (no TABLESPACE), `IMPORT/DISCARD PARTITION ALL` (no
+  TABLESPACE), and `IMPORT/DISCARD PARTITION TABLESPACE` (no name-list). Required
+  TABLESPACE with `p.expect` at all four spots in each engine.
+- Shared across all four engines. Measured live: over-acceptances **99 → 93**
+  (6 rows to reject/reject, 0 no-verdict), no new gaps, positives unregressed;
+  broad parse unit tests pass on all four.
