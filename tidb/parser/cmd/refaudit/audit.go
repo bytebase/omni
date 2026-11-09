@@ -84,29 +84,85 @@ var ruleWord = regexp.MustCompile(`[A-Z][A-Za-z0-9_]*`)
 
 const parserYAnchor = "parser.y:"
 
-// extractCitations pulls every line-anchored parser.y citation from one Go
-// source line. A citation is a comment that mentions Ref: and carries a
-// "parser.y:" anchor followed by one or more comma-separated N or N-N ranges,
-// each optionally trailed by a "(annotation)". Multiple ranges under one anchor
-// (parser.y:13764-13769, 2068-2084) are all returned. Name-only references,
-// which carry no numeric range, are not citations here; refNames collects those
-// for coverage crediting.
+// commentBody returns the text after the "//" of a comment line, and whether
+// the line is a comment at all. Leading indentation is ignored, so a doc comment
+// and a tab-indented inline comment read the same.
+func commentBody(line string) (string, bool) {
+	t := strings.TrimLeft(line, " \t")
+	if !strings.HasPrefix(t, "//") {
+		return "", false
+	}
+	return strings.TrimPrefix(t, "//"), true
+}
+
+// extractCitations pulls the line-anchored parser.y citations from one source
+// line, treating it as a one-line comment block. It is the single-line entry
+// the unit tests use; scanFile reads real multi-line blocks.
 func extractCitations(file string, lineNo int, text string) []Citation {
-	if !strings.Contains(text, "Ref:") || !strings.Contains(text, parserYAnchor) {
+	if !strings.Contains(text, "Ref:") {
 		return nil
 	}
-	var out []Citation
-	rest := text
+	cits, _ := extractBlock(file, []blockLine{{no: lineNo, text: text}})
+	return cits
+}
+
+// A blockLine is one comment line of a block: its 1-based source line and the
+// text after the "//".
+type blockLine struct {
+	no   int
+	text string
+}
+
+// combine joins a block's comment bodies into one string with single-space
+// separators, and returns a function mapping an offset in that string back to
+// the source line it falls on. A Ref comment that wraps across several lines is
+// then read as one run of text, so a parser.y: range, a continuation range, or a
+// rule name on a later line is not lost, while a broken citation still reports
+// the line it was written on.
+func combine(block []blockLine) (string, func(int) int) {
+	var b strings.Builder
+	starts := make([]int, len(block))
+	for i, bl := range block {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		starts[i] = b.Len()
+		b.WriteString(bl.text)
+	}
+	lineAt := func(off int) int {
+		ln := block[0].no
+		for i, s := range starts {
+			if s <= off {
+				ln = block[i].no
+			} else {
+				break
+			}
+		}
+		return ln
+	}
+	return b.String(), lineAt
+}
+
+// extractBlock reads one comment block as a unit: every parser.y: line range in
+// it (across continuation lines), each attributed to the line it appears on, and
+// every CamelCase rule-like word it names. A range list under one anchor may be
+// separated by commas or by "and", and each range may trail a "(annotation)".
+func extractBlock(file string, block []blockLine) (cits []Citation, named []string) {
+	s, lineAt := combine(block)
+	named = ruleWord.FindAllString(s, -1)
+
+	pos := 0
 	for {
-		i := strings.Index(rest, parserYAnchor)
+		i := strings.Index(s[pos:], parserYAnchor)
 		if i < 0 {
 			break
 		}
-		rest = rest[i+len(parserYAnchor):]
-		// Read a comma-separated list of ranges immediately after the anchor.
+		p := pos + i + len(parserYAnchor)
 		for {
-			rest = strings.TrimLeft(rest, " ")
-			m := citationRange.FindStringSubmatch(rest)
+			for p < len(s) && s[p] == ' ' {
+				p++
+			}
+			m := citationRange.FindStringSubmatch(s[p:])
 			if m == nil {
 				break
 			}
@@ -115,45 +171,80 @@ func extractCitations(file string, lineNo int, text string) []Citation {
 			if m[2] != "" {
 				end, _ = strconv.Atoi(m[2])
 			}
-			out = append(out, Citation{
-				File: file, Line: lineNo, Start: start, End: end, RawRange: m[0],
-			})
-			rest = rest[len(m[0]):]
-			// Skip a trailing " (annotation)" before looking for a comma.
-			rest = strings.TrimLeft(rest, " ")
-			if strings.HasPrefix(rest, "(") {
-				if j := strings.Index(rest, ")"); j >= 0 {
-					rest = rest[j+1:]
+			cits = append(cits, Citation{File: file, Line: lineAt(p), Start: start, End: end, RawRange: m[0]})
+			p += len(m[0])
+			// Skip a trailing " (annotation)".
+			for p < len(s) && s[p] == ' ' {
+				p++
+			}
+			if p < len(s) && s[p] == '(' {
+				if j := strings.IndexByte(s[p:], ')'); j >= 0 {
+					p += j + 1
 				} else {
-					rest = "" // unbalanced paren continues on the next line; stop
+					p = len(s)
 				}
 			}
-			rest = strings.TrimLeft(rest, " ")
-			if strings.HasPrefix(rest, ",") {
-				rest = rest[1:]
+			for p < len(s) && s[p] == ' ' {
+				p++
+			}
+			// A comma or an "and" before another range continues the list.
+			if p < len(s) && s[p] == ',' {
+				p++
 				continue
+			}
+			if rest := s[p:]; strings.HasPrefix(rest, "and ") {
+				q := p + len("and ")
+				for q < len(s) && s[q] == ' ' {
+					q++
+				}
+				if citationRange.MatchString(s[q:]) {
+					p = q
+					continue
+				}
 			}
 			break
 		}
+		pos = p
 	}
-	return out
+	return cits, named
 }
 
-// refNames returns the CamelCase rule-like words named on a Ref comment line.
-// A Ref comment names the rule(s) a production implements, whether or not it
-// also gives a parser.y:N line range (many name the rule and end "parser.y.",
-// with no number). Intersected with the real rule names in runAudit, these
-// credit coverage that the line-range citations alone would miss.
-func refNames(text string) []string {
-	if !strings.Contains(text, "Ref:") {
-		return nil
+// scanFile returns the citations and named rules in one file's Ref comment
+// blocks. Consecutive comment lines form a block; a block containing "Ref:" is
+// read whole, so continuation lines take part in both validation and coverage.
+func scanFile(rel, src string) (cits []Citation, named []string) {
+	lines := strings.Split(src, "\n")
+	for i := 0; i < len(lines); {
+		if _, ok := commentBody(lines[i]); !ok {
+			i++
+			continue
+		}
+		var block []blockLine
+		hasRef := false
+		for i < len(lines) {
+			body, ok := commentBody(lines[i])
+			if !ok {
+				break
+			}
+			if strings.Contains(body, "Ref:") {
+				hasRef = true
+			}
+			block = append(block, blockLine{no: i + 1, text: body})
+			i++
+		}
+		if !hasRef {
+			continue
+		}
+		c, n := extractBlock(rel, block)
+		cits = append(cits, c...)
+		named = append(named, n...)
 	}
-	return ruleWord.FindAllString(text, -1)
+	return cits, named
 }
 
 // scanTree walks the Go sources under root (excluding _test.go files, which are
 // not productions) and returns every line-anchored parser.y citation and the
-// set of rule-like names mentioned on any Ref comment line. Paths in the
+// set of rule-like names mentioned in any Ref comment block. Paths in the
 // returned citations are relative to root.
 func scanTree(root string) (cits []Citation, named map[string]bool, err error) {
 	named = map[string]bool{}
@@ -176,11 +267,10 @@ func scanTree(root string) (cits []Citation, named map[string]bool, err error) {
 		if err != nil {
 			rel = path
 		}
-		for i, line := range strings.Split(string(b), "\n") {
-			cits = append(cits, extractCitations(rel, i+1, line)...)
-			for _, n := range refNames(line) {
-				named[n] = true
-			}
+		c, n := scanFile(rel, string(b))
+		cits = append(cits, c...)
+		for _, name := range n {
+			named[name] = true
 		}
 		return nil
 	})

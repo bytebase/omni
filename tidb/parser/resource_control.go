@@ -19,7 +19,7 @@ import (
 // resource_control_test.go.
 //
 // Ref: TiDB v8.5.5 parser.y:15733 (CREATE), 15743 (ALTER), 15753 (DROP),
-// 16882 (CALIBRATE RESOURCE), 16980 and 17068 (QUERY WATCH)
+// 16445 (CALIBRATE RESOURCE), 16543 and 16631 (QUERY WATCH)
 // Ref: https://docs.pingcap.com/tidb/stable/sql-statement-create-resource-group/
 
 // eqOpt consumes an optional '=', the grammar's EqOpt.
@@ -88,7 +88,7 @@ func goDuration(s string) bool {
 
 // tidbDuration reports whether TiDB's own duration parser reads s, which is
 // the check the grammar runs on CALIBRATE RESOURCE's DURATION
-// (parser.y:16938). That parser takes the units d, h and m only, reads a
+// (parser.y:16501). That parser takes the units d, h and m only, reads a
 // leading number only when a unit follows it, and special-cases "0"; the
 // empty string parses because its loop never runs. So '20d' and '1d12h' are
 // durations here where Go's parser has no 'd', and '20', '1w' and '-1m' are

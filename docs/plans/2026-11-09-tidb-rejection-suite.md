@@ -41,6 +41,14 @@ here — noted, never fixed by widening `Parse`.
   in ... parser.y." with no line number) were dropped before coverage crediting,
   so cited rules read as uncited. Fixed: rule names on any Ref line now credit
   coverage independently of numeric ranges (114 → 209 cited).
+- Codex review 2 (PR #755) caught that multi-line Ref blocks were scanned a line
+  at a time, so a parser.y: range or anchor on a continuation line was dropped —
+  both a missed stale citation and under-credited coverage. Fixed: whole Ref
+  comment blocks are read as one unit (combine + offset→line map), with range
+  lists separated by "," or "and". This surfaced 4 more stale master-based
+  citations in resource_control.go (16882/16980/17068 at the file-level doc
+  block, 16938 for DURATION); corrected to 16445/16543/16631 and 16501. Now 144
+  citations, 290 cited, 0 broken.
 
 ### (b) grammar-guided negatives — PR pending
 
