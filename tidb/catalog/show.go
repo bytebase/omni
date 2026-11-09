@@ -533,7 +533,7 @@ func showTableOptions(tbl *Table, charset, collate string) string {
 	// written right after the collation and before AUTO_INCREMENT, with the
 	// value as given: COMPRESSION='ZLIB'.
 	if tbl.Compression != "" {
-		fmt.Fprintf(&b, " COMPRESSION='%s'", tbl.Compression)
+		fmt.Fprintf(&b, " COMPRESSION='%s'", outputFormat(tbl.Compression))
 	}
 	if tbl.AutoIncrement > 1 {
 		for _, col := range tbl.Columns {
