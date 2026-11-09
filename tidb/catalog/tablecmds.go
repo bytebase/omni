@@ -1600,6 +1600,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Comment:      srcTbl.Comment,
 		RowFormat:    srcTbl.RowFormat,
 		KeyBlockSize: srcTbl.KeyBlockSize,
+		Compression:  srcTbl.Compression,
 		Temporary:    stmt.Temporary,
 		// CREATE GLOBAL TEMPORARY TABLE ... LIKE t carries its own ON COMMIT,
 		// so these come from the statement and not from the source table.
