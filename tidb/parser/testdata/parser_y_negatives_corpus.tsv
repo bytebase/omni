@@ -4660,13 +4660,13 @@ reject	reject	WindowFuncCall#2/drop-3	DO RANK(OVER ident
 reject	reject	WindowFuncCall#2/drop-4	DO RANK() ident
 reject	reject	WindowFuncCall#2/drop-5	DO RANK() OVER
 reject	reject	WindowFuncCall#2/insert	DO RANK() OVER ident zzz
-accept	reject	WindowFuncCall#2/swap	DO RATE_LIMIT() OVER ident
+reject	reject	WindowFuncCall#2/swap	DO RATE_LIMIT() OVER ident
 reject	reject	WindowFuncCall#3/drop-2	DO DENSE_RANK) OVER ident
 reject	reject	WindowFuncCall#3/drop-3	DO DENSE_RANK(OVER ident
 reject	reject	WindowFuncCall#3/drop-4	DO DENSE_RANK() ident
 reject	reject	WindowFuncCall#3/drop-5	DO DENSE_RANK() OVER
 reject	reject	WindowFuncCall#3/insert	DO DENSE_RANK() OVER ident zzz
-accept	reject	WindowFuncCall#3/swap	DO DEPENDENCY() OVER ident
+reject	reject	WindowFuncCall#3/swap	DO DEPENDENCY() OVER ident
 reject	reject	WindowFuncCall#4/drop-2	DO CUME_DIST) OVER ident
 reject	reject	WindowFuncCall#4/drop-3	DO CUME_DIST(OVER ident
 reject	reject	WindowFuncCall#4/drop-4	DO CUME_DIST() ident
@@ -4678,38 +4678,38 @@ reject	reject	WindowFuncCall#5/drop-3	DO PERCENT_RANK(OVER ident
 reject	reject	WindowFuncCall#5/drop-4	DO PERCENT_RANK() ident
 reject	reject	WindowFuncCall#5/drop-5	DO PERCENT_RANK() OVER
 reject	reject	WindowFuncCall#5/insert	DO PERCENT_RANK() OVER ident zzz
-accept	reject	WindowFuncCall#5/swap	DO PER_DB() OVER ident
+reject	reject	WindowFuncCall#5/swap	DO PER_DB() OVER ident
 reject	reject	WindowFuncCall#6/drop-1	DO(ident) OVER ident
 reject	reject	WindowFuncCall#6/drop-2	DO NTILE ident) OVER ident
-accept	reject	WindowFuncCall#6/drop-3	DO NTILE() OVER ident
+reject	reject	WindowFuncCall#6/drop-3	DO NTILE() OVER ident
 reject	reject	WindowFuncCall#6/drop-4	DO NTILE(ident OVER ident
 reject	reject	WindowFuncCall#6/drop-5	DO NTILE(ident) ident
 reject	reject	WindowFuncCall#6/drop-6	DO NTILE(ident) OVER
 reject	reject	WindowFuncCall#6/insert	DO NTILE(ident) OVER ident zzz
 reject	reject	WindowFuncCall#6/swap	DO NULL(ident) OVER ident
 reject	reject	WindowFuncCall#7/drop-2	DO LEAD ident) OVER ident
-accept	reject	WindowFuncCall#7/drop-3	DO LEAD() OVER ident
+reject	reject	WindowFuncCall#7/drop-3	DO LEAD() OVER ident
 reject	reject	WindowFuncCall#7/drop-4	DO LEAD(ident OVER ident
 reject	reject	WindowFuncCall#7/drop-5	DO LEAD(ident) ident
 reject	reject	WindowFuncCall#7/drop-6	DO LEAD(ident) OVER
 reject	reject	WindowFuncCall#7/insert	DO LEAD(ident) OVER ident zzz
-accept	reject	WindowFuncCall#7/swap	DO LEADER(ident) OVER ident
+reject	reject	WindowFuncCall#7/swap	DO LEADER(ident) OVER ident
 reject	reject	WindowFuncCall#8/drop-2	DO LAG ident) OVER ident
-accept	reject	WindowFuncCall#8/drop-3	DO LAG() OVER ident
+reject	reject	WindowFuncCall#8/drop-3	DO LAG() OVER ident
 reject	reject	WindowFuncCall#8/drop-4	DO LAG(ident OVER ident
 reject	reject	WindowFuncCall#8/drop-5	DO LAG(ident) ident
 reject	reject	WindowFuncCall#8/drop-6	DO LAG(ident) OVER
 reject	reject	WindowFuncCall#8/insert	DO LAG(ident) OVER ident zzz
 reject	reject	WindowFuncCall#8/swap	DO LANGUAGE(ident) OVER ident
 reject	reject	WindowFuncCall#9/drop-2	DO FIRST_VALUE ident) OVER ident
-accept	reject	WindowFuncCall#9/drop-3	DO FIRST_VALUE() OVER ident
+reject	reject	WindowFuncCall#9/drop-3	DO FIRST_VALUE() OVER ident
 reject	reject	WindowFuncCall#9/drop-4	DO FIRST_VALUE(ident OVER ident
 reject	reject	WindowFuncCall#9/drop-5	DO FIRST_VALUE(ident) ident
 reject	reject	WindowFuncCall#9/drop-6	DO FIRST_VALUE(ident) OVER
 reject	reject	WindowFuncCall#9/insert	DO FIRST_VALUE(ident) OVER ident zzz
 reject	reject	WindowFuncCall#9/swap	DO FIXED(ident) OVER ident
 reject	reject	WindowFuncCall#10/drop-2	DO LAST_VALUE ident) OVER ident
-accept	reject	WindowFuncCall#10/drop-3	DO LAST_VALUE() OVER ident
+reject	reject	WindowFuncCall#10/drop-3	DO LAST_VALUE() OVER ident
 reject	reject	WindowFuncCall#10/drop-4	DO LAST_VALUE(ident OVER ident
 reject	reject	WindowFuncCall#10/drop-5	DO LAST_VALUE(ident) ident
 reject	reject	WindowFuncCall#10/drop-6	DO LAST_VALUE(ident) OVER
@@ -4723,7 +4723,7 @@ reject	reject	WindowFuncCall#11/drop-6	DO NTH_VALUE(ident, ident OVER ident
 reject	reject	WindowFuncCall#11/drop-7	DO NTH_VALUE(ident, ident) ident
 reject	reject	WindowFuncCall#11/drop-8	DO NTH_VALUE(ident, ident) OVER
 reject	reject	WindowFuncCall#11/insert	DO NTH_VALUE(ident, ident) OVER ident zzz
-accept	reject	WindowFuncCall#11/swap	DO NTILE(ident, ident) OVER ident
+reject	reject	WindowFuncCall#11/swap	DO NTILE(ident, ident) OVER ident
 reject	reject	OptLeadLagInfo#1/insert	DO LEAD(ident zzz) OVER ident
 reject	reject	OptLeadLagInfo#2/drop-1	DO LEAD(ident 1) OVER ident
 reject	reject	OptLeadLagInfo#2/drop-2	DO LEAD(ident,) OVER ident
