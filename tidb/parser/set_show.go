@@ -352,19 +352,29 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 			stmt.ToRandom = true
 		}
 	} else {
-		// consume '='
-		p.match('=')
+		// SetPwdStmt (parser.y:10750,10754) spells the separator EqOrAssignmentEq,
+		// so `= 'auth_string'` requires the `=`; a missing one is a 1064. (The `:=`
+		// spelling never reaches here: the heuristic at the call site routes
+		// `SET PASSWORD := ...` to a variable assignment instead.)
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
 
-		// Password value: either a string literal or PASSWORD('string')
+		// PasswordOpt (parser.y:11125): stringLit | "PASSWORD" '(' AuthString ')'.
 		if p.cur.Type == kwPASSWORD {
-			// PASSWORD('auth_string') form
+			// PASSWORD('auth_string'): all three of '(', the string, and ')' are required.
 			p.advance() // consume PASSWORD
-			p.match('(')
-			if p.cur.Type == tokSCONST {
-				stmt.Password = "PASSWORD(" + p.cur.Str + ")"
-				p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-			p.match(')')
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Password = "PASSWORD(" + p.cur.Str + ")"
+			p.advance()
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == tokSCONST {
 			stmt.Password = p.cur.Str
 			p.advance()
