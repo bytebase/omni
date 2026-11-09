@@ -597,6 +597,24 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		name = strings.ToUpper(tok.Str)
 		word.keyword = true
 	case tokIDENT:
+		// A bare word TiDB's lexer scans as a keyword token omni's MySQL-forked
+		// table has no token for (e.g. SEND_CREDENTIALS_TO_TIKV, a
+		// BRIEBooleanOptionName) reaches here as tokIDENT. TiDB's ExtendedPriv
+		// (parser.y:14749) is a run of `identifier` and admits no keyword token,
+		// and RolenameWithoutIdent (parser.y:11149) takes no bare keyword, so
+		// such a word is a grantee or privilege only if it is a PrivType. `GRANT
+		// SEND_CREDENTIALS_TO_TIKV TO u` is a 1064 on v8.5.5. A keyword omni does
+		// hold a token for never reaches this arm, and a non-keyword word (a real
+		// role or dynamic privilege such as BACKUP_ADMIN) is a grammar identifier.
+		// A '@'-led user variable is also no grammar identifier, but it is a
+		// separate RolenameComposed/Username concern left to its own reader.
+		if !p.atAtIdent() && !p.curIsGrammarIdentifier() &&
+			!tidbPrivilegeNames[strings.ToUpper(p.cur.Str)] {
+			return "", word, &ParseError{
+				Message:  "expected privilege name",
+				Position: start,
+			}
+		}
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
 		// ExtendedPriv (parser.y:14749) is a run of identifiers, which is

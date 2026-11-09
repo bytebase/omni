@@ -213,6 +213,13 @@ var grantFormCases = []grantFormCase{
 	{"GRANT CREATE VIEW TO u1", false},
 	{"GRANT REPLICATION SLAVE TO u1", false},
 	{"GRANT GRANT OPTION TO u1", false},
+	// SEND_CREDENTIALS_TO_TIKV is a BRIEBooleanOptionName keyword, so no
+	// ExtendedPriv identifier and no PrivType; it is neither a grantee nor a
+	// privilege. A backquoted spelling is a plain identifier and so a role.
+	{"GRANT SEND_CREDENTIALS_TO_TIKV TO CURRENT_USER", false},
+	{"GRANT SEND_CREDENTIALS_TO_TIKV TO u1", false},
+	{"GRANT SEND_CREDENTIALS_TO_TIKV ON *.* TO u1", false},
+	{"GRANT `send_credentials_to_tikv` TO u1", true},
 
 	// --- the privilege names ---
 	// GRANT OPTION is the privilege; GRANT on its own is not one.
@@ -247,6 +254,7 @@ var grantFormCases = []grantFormCase{
 	// when the TO arrives.
 	{"GRANT LOAD FROM S3 TO u1", true},
 	{"GRANT INVOKE LAMBDA TO u1", true},
+	{"GRANT BACKUP_ADMIN TO u1", true},
 	// --- a name that spells a privilege word, and a clause that is not one ---
 	// A word written backquoted is a name, not the keyword, so it is a role
 	// name even where the keyword is a privilege or is reserved. The
