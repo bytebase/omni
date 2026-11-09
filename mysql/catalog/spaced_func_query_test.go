@@ -81,6 +81,15 @@ func TestSpacedFuncGeneratedExprRejected(t *testing.T) {
 		{"CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (position (a)))", true},
 		{"CREATE TABLE t (a INT, b INT, CHECK (sum (a) > 0))", true},
 		{"CREATE TABLE t (a INT, b INT CHECK (position (a) > 0))", true},
+		// Functional index (mysql:8.0 answers 3758) and expression default
+		// (3770) forbid the generic stored-function call too; the deterministic
+		// scalar builtin is allowed.
+		{"CREATE TABLE t (a INT, INDEX i ((abs(a))))", false},
+		{"CREATE TABLE t (a INT, INDEX i ((position (a))))", true},
+		{"CREATE TABLE t (a INT, INDEX i ((substr (a, 1))))", true},
+		{"CREATE TABLE t (a INT DEFAULT (abs(1)))", false},
+		{"CREATE TABLE t (a INT DEFAULT (position (1)))", true},
+		{"CREATE TABLE t (a INT DEFAULT (substr ('x', 1)))", true},
 	} {
 		c := New()
 		mustExec(t, c, "CREATE DATABASE d; USE d;")

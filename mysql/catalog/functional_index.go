@@ -387,6 +387,12 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 	case nil:
 		return false
 	case *nodes.FuncCallExpr:
+		// A spaced gated keyword is a generic stored-function call, which a
+		// functional index forbids: mysql:8.0 answers 3758 for
+		// INDEX ((position (a))).
+		if e.SpacedParen {
+			return true
+		}
 		switch strings.ToLower(e.Name) {
 		case "rand", "uuid", "sleep", "now", "current_timestamp", "sysdate":
 			return true
