@@ -295,6 +295,24 @@ var grantFormCases = []grantFormCase{
 	// the role-name sweep.
 	{"CREATE USER u1@localhost DEFAULT ROLE current_user", false},
 	{"ALTER USER u1@localhost DEFAULT ROLE current_user", false},
+
+	// --- IF [NOT] EXISTS and RENAME USER's TO are required where they appear ---
+	// CREATE USER takes IfNotExists (`/* empty */ | "IF" NotSym "EXISTS"`),
+	// DROP/ALTER USER take IfExists (`/* empty */ | "IF" "EXISTS"`), and
+	// UserToUserList's UserToUser is `Username "TO" Username`, so a half-written
+	// IF run or a pair missing TO is 1064 (parser.y IfNotExists / IfExists /
+	// RenameUserStmt / UserToUserList). The complete forms stay valid.
+	{"CREATE USER IF NOT EXISTS u", true},
+	{"ALTER USER IF EXISTS u IDENTIFIED BY 'notarealpw'", true},
+	{"DROP USER IF EXISTS u", true},
+	{"RENAME USER a TO b, c TO d", true},
+	{"CREATE USER IF EXISTS u", false},
+	{"CREATE USER IF NOT u", false},
+	{"ALTER USER IF u", false},
+	{"DROP USER IF u", false},
+	{"RENAME USER a b", false},
+	{"RENAME USER a b, c TO d", false},
+	{"RENAME USER a TO b, c d", false},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no
