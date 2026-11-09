@@ -188,6 +188,50 @@ func TestShowProfileLimitOffsetShape(t *testing.T) {
 	}
 }
 
+// TestShowProfileTypeList pins the SHOW PROFILE type list against TiDB
+// v8.5.5's grammar (parser.y:11757-11817). The three two-word types -- BLOCK
+// IO, CONTEXT SWITCHES, PAGE FAULTS -- are each a pair of required terminals,
+// so the first word alone is a syntax error; and the list is `type [, type]
+// ...` with no trailing comma. The reject verdicts are the ones the §3.6
+// negatives corpus records, measured against the server.
+func TestShowProfileTypeList(t *testing.T) {
+	// Valid forms must keep parsing: the whole list is optional, every
+	// single-word type stands alone, and each pair is accepted whole. This is
+	// the completeness half -- a reject that is too wide would drop one of
+	// these.
+	for _, sql := range []string{
+		"SHOW PROFILE",
+		"SHOW PROFILE ALL",
+		"SHOW PROFILE CPU",
+		"SHOW PROFILE CPU, MEMORY",
+		"SHOW PROFILE BLOCK IO",
+		"SHOW PROFILE CONTEXT SWITCHES",
+		"SHOW PROFILE PAGE FAULTS",
+		"SHOW PROFILE CPU FOR QUERY 1",
+		"SHOW PROFILE CPU, BLOCK IO LIMIT 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q): %v", sql, err)
+			}
+		})
+	}
+	// Over-acceptances the corpus pins as reject on TiDB v8.5.5: a two-word
+	// type missing its required second word, and a trailing comma.
+	for _, sql := range []string{
+		"SHOW PROFILE BLOCK",   // wants BLOCK IO
+		"SHOW PROFILE CONTEXT", // wants CONTEXT SWITCHES
+		"SHOW PROFILE PAGE",    // wants PAGE FAULTS
+		"SHOW PROFILE CPU,",    // trailing comma
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
+		})
+	}
+}
+
 // TestShowVariantsReachNodeToString pins that the new fields are written by
 // the AST printer, so a change that drops one of them shows up here rather
 // than in a silent diff of someone else's golden file.
