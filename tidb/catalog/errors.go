@@ -108,57 +108,85 @@ const (
 	// temporal column whose NOW()-family DEFAULT names a precision other than the
 	// column's own.
 	ErrInvalidDefault = 1067
+	// ErrInvalidOnUpdate is 1294 for an ON UPDATE CURRENT_TIMESTAMP clause that
+	// is not valid for the column: on a non-TIMESTAMP/DATETIME column, or whose
+	// fractional-seconds precision does not match the column's (measured on TiDB
+	// v8.5.5, 2026-11-09).
+	ErrInvalidOnUpdate = 1294
+	// ErrWrongSubKey is 1089 for an index prefix length that exceeds the column's
+	// own length (measured on TiDB v8.5.5, 2026-11-09).
+	ErrWrongSubKey = 1089
+	// Expression (functional) index restrictions TiDB v8.5.5 enforces (measured
+	// 2026-11-09): 3762 rejects an expression index over a bare column, 3753 one
+	// whose expression returns JSON or GEOMETRY, 3757 one that returns BLOB or
+	// TEXT, and 3758 one that calls a non-deterministic / disallowed function.
+	ErrFunctionalIndexOnField              = 3762
+	ErrFunctionalIndexOnJSONOrGeo          = 3753
+	ErrFunctionalIndexOnBlob               = 3757
+	ErrFunctionalIndexFunctionIsNotAllowed = 3758
+	// ErrKeyColumnDoesNotExist is 1072 for an index key part naming a column the
+	// table does not have (measured on TiDB v8.5.5, 2026-11-10) — including a
+	// column added later in the same multi-command ALTER, which TiDB resolves
+	// against the pre-ALTER schema.
+	ErrKeyColumnDoesNotExist = 1072
 )
 
 var sqlStateMap = map[int]string{
-	ErrDupDatabase:                       "HY000",
-	ErrUnknownDatabase:                   "42000",
-	ErrDupTable:                          "42S01",
-	ErrUnknownTable:                      "42S02",
-	ErrDupColumn:                         "42S21",
-	ErrWrongDBName:                       "42000",
-	ErrWrongTableName:                    "42000",
-	ErrWrongNameForIndex:                 "42000",
-	ErrDupKeyName:                        "42000",
-	ErrDupEntry:                          "23000",
-	ErrMultiplePriKey:                    "42000",
-	ErrNoSuchTable:                       "42S02",
-	ErrNoSuchColumn:                      "42S22",
-	ErrNoDatabaseSelected:                "3D000",
-	ErrDupIndex:                          "42000",
-	ErrFKNoRefTable:                      "HY000",
-	ErrCantDropKey:                       "42000",
-	ErrCheckConstraintViolated:           "HY000",
-	ErrFKCannotDropParent:                "HY000",
-	ErrFKMissingIndex:                    "HY000",
-	ErrFKIncompatibleColumns:             "HY000",
-	ErrNoSuchFunction:                    "42000",
-	ErrDupFunction:                       "HY000",
-	ErrNoSuchEvent:                       "HY000",
-	ErrDupEvent:                          "HY000",
-	ErrUnsupportedGeneratedStorageChange: "HY000",
-	ErrStoredRoutineUnsupported:          "HY000",
-	ErrDependentByGenCol:                 "HY000",
-	ErrWrongArguments:                    "HY000",
-	ErrUnknownCharacterSet:               "42000",
-	ErrBlobCantHaveDefault:               "42000",
-	ErrBlobKeyWithoutLength:              "42000",
-	ErrUnknownCollation:                  "HY000",
-	ErrCollationCharsetMismatch:          "42000",
-	ErrPlacementPolicyExists:             "HY000",
-	ErrPlacementPolicyInUse:              "HY000",
-	ErrUnknownError:                      "HY000",
-	ErrPlacementPolicyMissing:            "HY000",
-	ErrPrimaryCantHaveNull:               "42000",
-	ErrTooBigScale:                       "42000",
-	ErrTooBigPrecision:                   "42000",
-	ErrMBiggerThanD:                      "42000",
-	ErrDefValFunctionNotAllow:            "HY000",
-	ErrFKColumnCannotBeNull:              "HY000",
-	ErrFKCannotUseVirtualColumn:          "HY000",
-	ErrGeneratedColumnFunction:           "HY000",
-	ErrCantRemoveAllFields:               "42000",
-	ErrInvalidDefault:                    "42000",
+	ErrDupDatabase:                         "HY000",
+	ErrUnknownDatabase:                     "42000",
+	ErrDupTable:                            "42S01",
+	ErrUnknownTable:                        "42S02",
+	ErrDupColumn:                           "42S21",
+	ErrWrongDBName:                         "42000",
+	ErrWrongTableName:                      "42000",
+	ErrWrongNameForIndex:                   "42000",
+	ErrDupKeyName:                          "42000",
+	ErrDupEntry:                            "23000",
+	ErrMultiplePriKey:                      "42000",
+	ErrNoSuchTable:                         "42S02",
+	ErrNoSuchColumn:                        "42S22",
+	ErrNoDatabaseSelected:                  "3D000",
+	ErrDupIndex:                            "42000",
+	ErrFKNoRefTable:                        "HY000",
+	ErrCantDropKey:                         "42000",
+	ErrCheckConstraintViolated:             "HY000",
+	ErrFKCannotDropParent:                  "HY000",
+	ErrFKMissingIndex:                      "HY000",
+	ErrFKIncompatibleColumns:               "HY000",
+	ErrNoSuchFunction:                      "42000",
+	ErrDupFunction:                         "HY000",
+	ErrNoSuchEvent:                         "HY000",
+	ErrDupEvent:                            "HY000",
+	ErrUnsupportedGeneratedStorageChange:   "HY000",
+	ErrStoredRoutineUnsupported:            "HY000",
+	ErrDependentByGenCol:                   "HY000",
+	ErrWrongArguments:                      "HY000",
+	ErrUnknownCharacterSet:                 "42000",
+	ErrBlobCantHaveDefault:                 "42000",
+	ErrBlobKeyWithoutLength:                "42000",
+	ErrUnknownCollation:                    "HY000",
+	ErrCollationCharsetMismatch:            "42000",
+	ErrPlacementPolicyExists:               "HY000",
+	ErrPlacementPolicyInUse:                "HY000",
+	ErrUnknownError:                        "HY000",
+	ErrPlacementPolicyMissing:              "HY000",
+	ErrPrimaryCantHaveNull:                 "42000",
+	ErrTooBigScale:                         "42000",
+	ErrTooBigPrecision:                     "42000",
+	ErrMBiggerThanD:                        "42000",
+	ErrDefValFunctionNotAllow:              "HY000",
+	ErrFKColumnCannotBeNull:                "HY000",
+	ErrFKCannotUseVirtualColumn:            "HY000",
+	ErrGeneratedColumnFunction:             "HY000",
+	ErrCantRemoveAllFields:                 "42000",
+	ErrInvalidDefault:                      "42000",
+	ErrInvalidOnUpdate:                     "HY000",
+	ErrWrongSubKey:                         "HY000",
+	ErrFunctionalIndexOnField:              "HY000",
+	ErrFunctionalIndexOnJSONOrGeo:          "HY000",
+	ErrFunctionalIndexOnBlob:               "HY000",
+	ErrFunctionalIndexFunctionIsNotAllowed: "HY000",
+	ErrKeyColumnDoesNotExist:               "42000",
 }
 
 func sqlState(code int) string {
@@ -206,6 +234,12 @@ func errNoDatabaseSelected() error {
 func errDupTable(name string) error {
 	return &Error{Code: ErrDupTable, SQLState: sqlState(ErrDupTable),
 		Message: fmt.Sprintf("Table '%s' already exists", name)}
+}
+
+// errDupTableQualified reports a CREATE collision the way TiDB v8.5.5 does,
+// qualifying the table with its schema: "Table 'db.tbl' already exists".
+func errDupTableQualified(db, name string) error {
+	return errDupTable(db + "." + name)
 }
 
 func errNoSuchTable(db, name string) error {
@@ -273,6 +307,28 @@ func errWrongNameForIndex(name string) error {
 func errCantDropKey(name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
+}
+
+// errIndexDoesntExist is TiDB v8.5.5's 1091 for DROP INDEX / ALTER DROP
+// INDEX|KEY of an index the table does not have: "index X doesn't exist". DROP
+// COLUMN of a missing column keeps the "Can't DROP ..." wording (errCantDropKey).
+// errWrongSubKey is TiDB v8.5.5's 1089 for an index prefix length that exceeds
+// the column's own length.
+func errWrongSubKey(_ string) error {
+	return &Error{Code: ErrWrongSubKey, SQLState: sqlState(ErrWrongSubKey),
+		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+// errKeyColumnDoesNotExist is TiDB v8.5.5's 1072 for an index key part over a
+// column the table does not have.
+func errKeyColumnDoesNotExist(col string) error {
+	return &Error{Code: ErrKeyColumnDoesNotExist, SQLState: sqlState(ErrKeyColumnDoesNotExist),
+		Message: fmt.Sprintf("column does not exist: %s", col)}
+}
+
+func errIndexDoesntExist(name string) error {
+	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
+		Message: fmt.Sprintf("index %s doesn't exist", name)}
 }
 
 // errDropColumnCovered is TiDB v8.5.5's 8200 for DROP COLUMN of a column that

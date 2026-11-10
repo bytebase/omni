@@ -179,7 +179,15 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INT(5) ZEROFILL)`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(5) unsigned zerofill")
+		// TiDB v8.5.5 keeps ZEROFILL in SHOW CREATE TABLE but drops it from
+		// information_schema.COLUMNS.COLUMN_TYPE: SHOW CREATE renders
+		// `int(5) unsigned zerofill`, while IS.COLUMNS reports `int(5) unsigned`.
+		// omni's ColumnType models the SHOW CREATE form, so it matches the former.
+		sc := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
+		if !strings.Contains(sc, "int(5) unsigned zerofill") {
+			t.Errorf("oracle SHOW CREATE: expected int(5) unsigned zerofill, got %s", sc)
+		}
+		assertStringEq(t, "oracle IS.COLUMNS COLUMN_TYPE", oracleColumnType(t, "c"), "int(5) unsigned")
 
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int(5) unsigned zerofill")

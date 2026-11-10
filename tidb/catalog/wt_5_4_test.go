@@ -87,29 +87,29 @@ func TestWalkThrough_5_4(t *testing.T) {
 	})
 
 	t.Run("add_index_then_drop_same_column", func(t *testing.T) {
-		// ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x —
-		// MySQL processes sequentially: add x, create index, then drop x
-		// which also cleans up the index. Net result: table unchanged except
-		// droppedByCleanup tracking. The ALTER succeeds in MySQL.
+		// ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x — MySQL would
+		// process these sequentially, but TiDB v8.5.5 resolves ADD INDEX (x)
+		// against the pre-ALTER schema (x not yet present) and rejects the whole
+		// ALTER (1072 column does not exist: x); it rolls back, leaving the table
+		// unchanged (measured on a live engine).
 		c := setupTestTable(t)
 
-		mustExec(t, c,
+		results, _ := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x",
+			&ExecOptions{ContinueOnError: true},
 		)
+		assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 		tbl := c.GetDatabase("test").GetTable("t1")
-		// x was added then dropped — should not be present.
 		if tbl.GetColumn("x") != nil {
-			t.Error("column 'x' should not exist — it was added then dropped")
+			t.Error("column 'x' should not exist after rollback")
 		}
 		if len(tbl.Columns) != 3 {
 			t.Errorf("expected 3 columns, got %d", len(tbl.Columns))
 		}
-
-		// Index should also have been cleaned up when x was dropped.
 		for _, idx := range tbl.Indexes {
 			if idx.Name == "idx_x" {
-				t.Error("index 'idx_x' should not exist — its column was dropped")
+				t.Error("index 'idx_x' should not exist after rollback")
 			}
 		}
 	})

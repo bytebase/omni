@@ -94,3 +94,60 @@ once. Suggested order: land the real omni fixes first (buckets 3, 4, and the C6
 partition-metadata gap), then the mechanical re-baselines (buckets 1, 2, 5 and
 the remaining bucket 6), then remove the `startContainer` quarantine so the
 differential suite runs by default.
+
+## Resolution (2026-11-10)
+
+The residual is cleared and the `startContainer` quarantine is deleted: the
+tidb/catalog differential and `wt_*` walk-through tests run by default (no
+`TIDB_CATALOG_PARITY` gate). The full suite is green with no env var set.
+
+Real omni fixes (omni accepted or rendered something TiDB does not):
+
+- **C6 partition metadata** — HASH/KEY without `PARTITIONS N` now yields one
+  partition `p0`; `PARTITION BY KEY()` resolves its key columns to the primary
+  key (kept on `keyColumns`, so SHOW CREATE still renders `KEY ()` as TiDB does).
+- **C16 defaults** — reject `DATETIME DEFAULT SYSDATE()` / `UTC_TIMESTAMP`
+  (1067), and `ON UPDATE` fsp mismatch / `ON UPDATE` on a non-temporal column
+  (1294).
+- **C2 types** — `FLOAT(M>24)` normalises its `DataType` to `double`, an
+  over-long `VARCHAR` and `TEXT(N)`/`BLOB(N)` promote to the byte-sized TEXT/BLOB
+  variant.
+- **C4** — an index prefix longer than the column's length is 1089.
+- **C1 / C19 index naming + rejection** — auto-named index over a column named
+  `PRIMARY` becomes `PRIMARY_2`; an unnamed expression index is
+  `expression_index`; expression indexes over a bare column (3762), returning
+  JSON/GEOMETRY (3753) or BLOB/TEXT (3757), or calling a non-deterministic
+  function (3758) are rejected (vector indexes exempt).
+- **Error wording** — dup-table is schema-qualified (`db.tbl`), DROP INDEX of a
+  missing index is `index X doesn't exist` (1091), and an unknown `AFTER` target
+  reports context `generated column function`.
+- **Partition expression rendering** — function names are uppercased
+  (`YEAR(`c`)`, `TO_DAYS(`c`)`) to match TiDB SHOW CREATE.
+- **Multi-command ALTER** — every subcommand's column references (an ADD/
+  MODIFY/CHANGE COLUMN's `AFTER` target, an ADD INDEX/KEY/CONSTRAINT's key
+  columns) are resolved against the PRE-ALTER schema, so `ADD y AFTER x` /
+  `ADD INDEX (c)` referencing a column added in the same statement is rejected
+  (1054 / 1072) as TiDB does, not applied left-to-right as MySQL does.
+
+Re-baselines (omni already matched TiDB; the hard-coded expectation was MySQL's):
+C6 subpartition/LINEAR dropped, C16 `YEAR(4)` kept and no TIMESTAMP promotion,
+C2 `ZEROFILL` kept in SHOW CREATE but dropped from `information_schema`, C1
+`expression_index` naming, C19 no MySQL `!hidden!` columns (TiDB exposes none;
+the expression lives on the index key part), AX FULLTEXT dropped, Section tests
+(no spatial types, no `FLOOR` default, no stored procedures), and SpotCheck (FK
+name collision allowed, CHECK constraints discarded under the TiDB default,
+view `CHECK_OPTION=CASCADED`).
+
+No parked-gap `t.Skip`s remain. Features TiDB does not have (triggers, stored
+procedures) are covered by rejection-parity tests: the catalog refuses
+`CREATE TRIGGER` (at parse) and `CREATE PROCEDURE` (`errStoredRoutineUnsupported`)
+just as TiDB does, so `C11_1_Trigger_rejected` and `6_2 show_create_procedure`
+assert both engines reject them.
+
+`16_4_CURTIME_precision_default_0` keeps its executable oracle checks (CURTIME()
+fsp 0, CURTIME(6), TiDB rejecting CURTIME(7)); it drops only the omni-side
+assertion, because `fsp>6` there rides in a bare `SELECT`/`DO` (DML), which the
+DDL catalog does not analyze (SELECT/DO are Skipped in exec.go) and which TiDB
+itself accepts at parse, rejecting only at plan-build. The `fsp>6` ceiling the
+catalog IS responsible for — on a temporal column — is covered by
+`checkTemporalFspBounds`.

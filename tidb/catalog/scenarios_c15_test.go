@@ -132,16 +132,38 @@ func TestScenario_C15(t *testing.T) {
 		}
 	})
 
-	// --- 15.5 multiple ADD COLUMN in one ALTER, left-to-right resolution ---
+	// --- 15.5 multi-command ALTER resolves AFTER against the pre-ALTER schema ---
 	t.Run("15_5_multi_add_left_to_right", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT);
-			ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x;`)
+		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT)`)
 
-		want := []string{"a", "x", "y", "b"}
-		c15AssertOrder(t, "oracle order after multi-ADD", c15OracleColumnOrder(t, "t"), want)
-		c15AssertOrder(t, "omni order after multi-ADD", c15OmniColumnOrder(c, "t"), want)
+		// TiDB v8.5.5 resolves every subcommand of a multi-command ALTER against
+		// the PRE-ALTER schema, so `ADD COLUMN y AFTER x` where x is added in the
+		// same statement is rejected (1054 Unknown column 'x'). omni matches
+		// (MySQL would resolve it left-to-right and succeed).
+		multiAdd := `ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x`
+		if _, err := mc.db.ExecContext(mc.ctx, multiAdd); err == nil {
+			t.Errorf("oracle: expected rejection of ADD ... AFTER a same-statement column")
+		}
+		results, err := c.Exec(multiAdd, nil)
+		omniErr := err
+		if omniErr == nil {
+			for _, r := range results {
+				if r.Error != nil {
+					omniErr = r.Error
+					break
+				}
+			}
+		}
+		if omniErr == nil {
+			t.Errorf("omni: expected rejection of ADD ... AFTER a same-statement column, got nil")
+		}
+
+		// The rejected ALTER leaves the table unchanged on both sides.
+		want := []string{"a", "b"}
+		c15AssertOrder(t, "oracle order after rejected multi-ADD", c15OracleColumnOrder(t, "t"), want)
+		c15AssertOrder(t, "omni order after rejected multi-ADD", c15OmniColumnOrder(c, "t"), want)
 	})
 }

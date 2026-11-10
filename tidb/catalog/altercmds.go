@@ -33,6 +33,14 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return c.execAlterCmd(db, tbl, stmt.Commands[0])
 	}
 
+	// TiDB resolves every subcommand of a multi-command ALTER against the
+	// pre-ALTER schema, so a reference to a column added earlier in the same
+	// statement is rejected. Check that before applying any subcommand (omni
+	// would otherwise apply them left-to-right and accept the DDL).
+	if err := checkMultiCmdColumnRefs(tbl, stmt.Commands); err != nil {
+		return err
+	}
+
 	// Multi-command ALTER: MySQL treats this as atomic.
 	// Snapshot the table so we can rollback on any sub-command failure.
 	snapshot := cloneTable(tbl)
@@ -46,6 +54,37 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	return nil
+}
+
+// checkMultiCmdColumnRefs enforces TiDB v8.5.5's rule that every column a
+// subcommand of a multi-command ALTER references — an ADD/MODIFY/CHANGE COLUMN's
+// AFTER target, an ADD INDEX/KEY/CONSTRAINT's key columns — must exist in the
+// PRE-ALTER table. TiDB resolves all subcommands against the original schema, so
+// a reference to a column added earlier in the same statement (ADD y AFTER x,
+// ADD INDEX (c) after ADD COLUMN c) is rejected (1054 / 1072) rather than
+// resolved left-to-right as MySQL does.
+func checkMultiCmdColumnRefs(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	orig := make(map[string]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		orig[toLower(col.Name)] = true
+	}
+	for _, cmd := range cmds {
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+			if cmd.After != "" && !orig[toLower(cmd.After)] {
+				return errNoSuchColumn(cmd.After, tbl.Name)
+			}
+		case nodes.ATAddIndex, nodes.ATAddConstraint:
+			if cmd.Constraint != nil {
+				for _, name := range extractColumnNames(cmd.Constraint) {
+					if name != "" && !orig[toLower(name)] {
+						return errKeyColumnDoesNotExist(name)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -803,7 +842,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return errIndexDoesntExist(name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -1075,7 +1114,10 @@ func insertColumn(tbl *Table, col *Column, first bool, after string) error {
 	} else if after != "" {
 		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
-			return errNoSuchColumn(after, tbl.Name)
+			// TiDB v8.5.5 resolves an AFTER position through its column-dependency
+			// pass and names the context "generated column function" for an
+			// unknown target column (measured on a live container, 2026-11-09).
+			return errNoSuchColumn(after, "generated column function")
 		}
 		pos := afterIdx + 1
 		tbl.Columns = append(tbl.Columns, nil)
@@ -1142,6 +1184,23 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 				}
 			} else {
 				col.Collation = tbl.Collation
+			}
+		}
+	}
+
+	// Apply TiDB's implicit length-driven type promotions (FLOAT(M>24) → DOUBLE,
+	// an over-long VARCHAR → TEXT, TEXT(N)/BLOB(N) → the sized variant), the same
+	// as the CREATE TABLE path, so an ADD/MODIFY/CHANGE column records the same
+	// base type a CREATE does (keeping e.g. FK type comparisons consistent).
+	// Skipped for a CHARACTER SET binary column, already mapped to its BLOB form.
+	if colDef.TypeName != nil && strings.EqualFold(col.DataType, toLower(colDef.TypeName.Name)) {
+		if promoted := promoteDeclaredType(colDef.TypeName, col.Charset); promoted != "" {
+			col.DataType = promoted
+			// FLOAT → DOUBLE is already reflected in formatColumnType's output
+			// (with UNSIGNED/ZEROFILL), so keep that ColumnType; the TEXT/BLOB/
+			// VARCHAR promotions yield a length-less, modifier-free type name.
+			if !strings.EqualFold(toLower(colDef.TypeName.Name), "float") {
+				col.ColumnType = promoted
 			}
 		}
 	}

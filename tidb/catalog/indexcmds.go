@@ -26,18 +26,54 @@ func isBlobOrTextKeyType(dataType string) bool {
 // a functional key part (an expression, so no column name) is exempt.
 func validateKeyColumnLengths(tbl *Table, cols []*IndexColumn) error {
 	for _, ic := range cols {
-		if ic.Name == "" || ic.Length > 0 {
+		if ic.Name == "" {
 			continue
 		}
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
 			continue
 		}
-		if isBlobOrTextKeyType(col.DataType) {
-			return errBlobKeyWithoutLength(ic.Name)
+		if ic.Length == 0 {
+			if isBlobOrTextKeyType(col.DataType) {
+				return errBlobKeyWithoutLength(ic.Name)
+			}
+			continue
+		}
+		// A prefix longer than the column's own character length is 1089
+		// (ER_WRONG_SUB_KEY): KEY (c(768)) over VARCHAR(200) is rejected.
+		if n := columnCharLength(col); n > 0 && ic.Length > n {
+			return errWrongSubKey(ic.Name)
 		}
 	}
 	return nil
+}
+
+// columnCharLength returns the declared character length of a CHAR/VARCHAR/
+// BINARY/VARBINARY column, parsed from its ColumnType, or 0 for a type whose
+// prefix length is not bounded by a declared character length.
+func columnCharLength(col *Column) int {
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "binary", "varbinary":
+	default:
+		return 0
+	}
+	ct := col.ColumnType
+	open := strings.IndexByte(ct, '(')
+	if open < 0 {
+		return 0
+	}
+	close := strings.IndexByte(ct[open:], ')')
+	if close < 0 {
+		return 0
+	}
+	n := 0
+	for _, r := range ct[open+1 : open+close] {
+		if r < '0' || r > '9' {
+			return 0
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n
 }
 
 // createIndex handles standalone CREATE INDEX statements.
@@ -96,6 +132,15 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			col.Expr = nodeToSQL(ic.Expr)
 		}
 		idxCols = append(idxCols, col)
+	}
+
+	// Reject functional key parts TiDB refuses (bare column, JSON/GEOMETRY,
+	// BLOB/TEXT, non-deterministic function). A VECTOR index is exempt: its key
+	// part is a functional part over a column ((v)), which TiDB requires.
+	if !stmt.Vector {
+		if err := validateFunctionalIndexColumns(stmt.Columns); err != nil {
+			return err
+		}
 	}
 
 	// A plain or unique key over a BLOB/TEXT column needs a prefix length;
@@ -204,7 +249,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		if stmt.IfExists {
 			return nil
 		}
-		return errCantDropKey(stmt.Name)
+		return errIndexDoesntExist(stmt.Name)
 	}
 
 	// Also remove any constraint that references this index.

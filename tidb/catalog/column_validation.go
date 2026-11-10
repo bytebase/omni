@@ -138,6 +138,71 @@ func checkTemporalDefaultFsp(colName string, dt *nodes.DataType, defaultExpr nod
 	return nil
 }
 
+// errInvalidOnUpdate is TiDB 1294 for an ON UPDATE CURRENT_TIMESTAMP clause the
+// column cannot carry.
+func errInvalidOnUpdate(col string) error {
+	return &Error{Code: ErrInvalidOnUpdate, SQLState: sqlState(ErrInvalidOnUpdate),
+		Message: fmt.Sprintf("Invalid ON UPDATE clause for '%s' column", col)}
+}
+
+// checkTemporalBareDefault rejects a bare (non-parenthesized) function DEFAULT on
+// a DATETIME or TIMESTAMP column when the function is not one TiDB v8.5.5 permits
+// there. Only CURRENT_TIMESTAMP/NOW and the synonyms LOCALTIME/LOCALTIMESTAMP are
+// valid as a datetime default; SYSDATE() and UTC_TIMESTAMP are 1067. A
+// parenthesized expression default is checked by checkDefaultExprFunction, and
+// the NOW()-family precision match by checkTemporalDefaultFsp.
+func checkTemporalBareDefault(colName string, dt *nodes.DataType, defaultExpr nodes.ExprNode) error {
+	if dt == nil || defaultExpr == nil {
+		return nil
+	}
+	switch strings.ToLower(dt.Name) {
+	case "datetime", "timestamp":
+	default:
+		return nil
+	}
+	fn, ok := defaultExpr.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil
+	}
+	if nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+		return nil
+	}
+	return errInvalidDefault(colName)
+}
+
+// checkTemporalOnUpdate enforces TiDB v8.5.5's 1294 for an ON UPDATE
+// CURRENT_TIMESTAMP clause: it is valid only on a TIMESTAMP or DATETIME column,
+// and its fractional-seconds precision must match the column's own. DATE ON
+// UPDATE NOW() and DATETIME(6) ON UPDATE NOW() (0 vs 6) both fail, while
+// DATETIME(6) ON UPDATE NOW(6) and TIMESTAMP ON UPDATE CURRENT_TIMESTAMP pass.
+func checkTemporalOnUpdate(colName string, dt *nodes.DataType, onUpdate nodes.ExprNode) error {
+	if onUpdate == nil {
+		return nil
+	}
+	if dt == nil {
+		return nil
+	}
+	switch strings.ToLower(dt.Name) {
+	case "timestamp", "datetime":
+	default:
+		return errInvalidOnUpdate(colName)
+	}
+	fn, ok := onUpdate.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil
+	}
+	updFsp := 0
+	if len(fn.Args) > 0 {
+		if lit, ok := fn.Args[0].(*nodes.IntLit); ok {
+			updFsp = int(lit.Value)
+		}
+	}
+	if updFsp != dt.Length {
+		return errInvalidOnUpdate(colName)
+	}
+	return nil
+}
+
 // columnDefExplicitlyNull reports whether a column definition carries an
 // explicit NULL nullability. TiDB v8.5.5 rejects a PRIMARY KEY column declared
 // explicitly NULL with 1171, while a column left implicitly nullable is silently
@@ -327,6 +392,82 @@ func checkGeneratedColumnFunctions(colName string, expr nodes.ExprNode) error {
 	})
 	if bad {
 		return errGeneratedColumnFunction(colName)
+	}
+	return nil
+}
+
+// errFunctionalIndexOnField is TiDB 3762 for an expression index over a bare
+// column (INDEX ((a))).
+func errFunctionalIndexOnField() error {
+	return &Error{Code: ErrFunctionalIndexOnField, SQLState: sqlState(ErrFunctionalIndexOnField),
+		Message: "Expression index on a column is not supported. Consider using a regular index instead"}
+}
+
+// errFunctionalIndexOnJSONOrGeo is TiDB 3753 for an expression index whose
+// expression returns a JSON or GEOMETRY value (e.g. the -> operator).
+func errFunctionalIndexOnJSONOrGeo() error {
+	return &Error{Code: ErrFunctionalIndexOnJSONOrGeo, SQLState: sqlState(ErrFunctionalIndexOnJSONOrGeo),
+		Message: "Cannot create an expression index on a function that returns a JSON or GEOMETRY value"}
+}
+
+// errFunctionalIndexOnBlob is TiDB 3757 for an expression index whose expression
+// returns a BLOB or TEXT value (e.g. the ->> operator without a CAST).
+func errFunctionalIndexOnBlob() error {
+	return &Error{Code: ErrFunctionalIndexOnBlob, SQLState: sqlState(ErrFunctionalIndexOnBlob),
+		Message: "Cannot create an expression index on an expression that returns a BLOB or TEXT. Please consider using CAST"}
+}
+
+// errFunctionalIndexFunctionNotAllowed is TiDB 3758 for an expression index that
+// calls a non-deterministic / disallowed function.
+func errFunctionalIndexFunctionNotAllowed(fn string) error {
+	return &Error{Code: ErrFunctionalIndexFunctionIsNotAllowed, SQLState: sqlState(ErrFunctionalIndexFunctionIsNotAllowed),
+		Message: fmt.Sprintf("Expression of expression index 'expression_index' contains a disallowed function: `%s`.", strings.ToUpper(fn))}
+}
+
+// validateFunctionalIndexColumns rejects functional (expression) key parts TiDB
+// v8.5.5 refuses: a bare column in parentheses (3762), an expression returning
+// JSON/GEOMETRY (3753, the -> operator), one returning BLOB/TEXT (3757, the ->>
+// operator), or one that calls a non-deterministic / disallowed function (3758).
+// Measured against a live container (2026-11-09).
+func validateFunctionalIndexColumns(cols []*nodes.IndexColumn) error {
+	for _, ic := range cols {
+		if !ic.Functional {
+			continue
+		}
+		if _, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			return errFunctionalIndexOnField()
+		}
+		// The expression's return type is set by its OUTERMOST operator: a
+		// top-level -> returns JSON (3753) and a top-level ->> returns BLOB/TEXT
+		// (3757). A CAST(... AS CHAR) wrapping a ->> changes the return type and
+		// is accepted, so the operator is checked only at the top level, never
+		// deep in the tree.
+		if bin, ok := ic.Expr.(*nodes.BinaryExpr); ok {
+			switch bin.Op {
+			case nodes.BinOpJsonExtract:
+				return errFunctionalIndexOnJSONOrGeo()
+			case nodes.BinOpJsonUnquote:
+				return errFunctionalIndexOnBlob()
+			}
+		}
+		// A non-deterministic / disallowed function anywhere in the expression
+		// is refused (3758).
+		var bad error
+		nodes.Inspect(ic.Expr, func(n nodes.Node) bool {
+			if bad != nil {
+				return false
+			}
+			if fn, ok := n.(*nodes.FuncCallExpr); ok {
+				if disallowedGeneratedColumnFuncs[strings.ToLower(fn.Name)] {
+					bad = errFunctionalIndexFunctionNotAllowed(fn.Name)
+					return false
+				}
+			}
+			return true
+		})
+		if bad != nil {
+			return bad
+		}
 	}
 	return nil
 }
