@@ -138,15 +138,16 @@ the expression lives on the index key part), AX FULLTEXT dropped, Section tests
 name collision allowed, CHECK constraints discarded under the TiDB default,
 view `CHECK_OPTION=CASCADED`).
 
-Features TiDB does not have (triggers, stored procedures) are covered by
-rejection-parity tests, not skips: the catalog refuses `CREATE TRIGGER` (at
-parse) and `CREATE PROCEDURE` (`errStoredRoutineUnsupported`) just as TiDB does,
-so `C11_1_Trigger_rejected` and `6_2 show_create_procedure` assert both engines
-reject them.
+No parked-gap `t.Skip`s remain. Features TiDB does not have (triggers, stored
+procedures) are covered by rejection-parity tests: the catalog refuses
+`CREATE TRIGGER` (at parse) and `CREATE PROCEDURE` (`errStoredRoutineUnsupported`)
+just as TiDB does, so `C11_1_Trigger_rejected` and `6_2 show_create_procedure`
+assert both engines reject them.
 
-The one remaining documented `t.Skip`:
-
-- `TestScenario_C16/16_4_CURTIME_precision_default_0` — `fsp>6` in a `SELECT`
-  is a DML/plan concern that TiDB accepts at parse and rejects only at
-  plan-build; the DDL catalog does not analyze DML (SELECT is Skipped in
-  exec.go), so there is no DDL surface to hold it to.
+`16_4_CURTIME_precision_default_0` keeps its executable oracle checks (CURTIME()
+fsp 0, CURTIME(6), TiDB rejecting CURTIME(7)); it drops only the omni-side
+assertion, because `fsp>6` there rides in a bare `SELECT`/`DO` (DML), which the
+DDL catalog does not analyze (SELECT/DO are Skipped in exec.go) and which TiDB
+itself accepts at parse, rejecting only at plan-build. The `fsp>6` ceiling the
+catalog IS responsible for — on a temporal column — is covered by
+`checkTemporalFspBounds`.

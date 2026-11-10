@@ -198,16 +198,9 @@ func TestScenario_C16(t *testing.T) {
 
 	// ---- 16.4 CURTIME / CURRENT_TIME / UTC_TIME precision defaults to 0 --
 	t.Run("16_4_CURTIME_precision_default_0", func(t *testing.T) {
-		// CURTIME(7) is rejected by TiDB at plan-build time (ER_TOO_BIG_PRECISION
-		// 1426), not at parse — TiDB's own parser accepts it. The omni catalog is
-		// a DDL catalog and skips DML (SELECT/DO are Skipped in exec.go), so it
-		// never analyzes a bare SELECT CURTIME(7) and has no place to reject it.
-		// Validating function-argument precision inside skipped DML is out of the
-		// catalog's scope. Documented in
-		// docs/plans/2026-11-09-tidb-catalog-parity-residual.md.
-		t.Skip("out of catalog scope: fsp>6 in a SELECT expression is a DML/plan concern; the DDL catalog skips DML")
 		scenarioReset(t, mc)
 
+		// Oracle: CURTIME() defaults to fsp 0 (length 8) and CURTIME(6) is 15.
 		var l0, l6 int
 		row := mc.db.QueryRowContext(mc.ctx,
 			`SELECT LENGTH(CURTIME()), LENGTH(CURTIME(6))`)
@@ -221,26 +214,18 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle LENGTH(CURTIME(6))=%d, want 15", l6)
 		}
 
-		// CURTIME(7) rejected
+		// Oracle: CURTIME(7) exceeds the fsp ceiling and is rejected.
 		if _, err := mc.db.ExecContext(mc.ctx, `DO CURTIME(7)`); err == nil {
 			t.Errorf("oracle: CURTIME(7) unexpectedly accepted")
 		}
 
-		// omni: parses a SELECT CURTIME() successfully. Rejects CURTIME(7)?
-		c := scenarioNewCatalog(t)
-		results, parseErr := c.Exec(`SELECT CURTIME(7)`, nil)
-		omniAccepted := parseErr == nil
-		if parseErr == nil {
-			for _, r := range results {
-				if r.Error != nil {
-					omniAccepted = false
-					break
-				}
-			}
-		}
-		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — CURTIME(7) should be rejected (ER_TOO_BIG_PRECISION), see mysql/catalog/scenarios_bug_queue/c16.md")
-		}
+		// No omni assertion here: CURTIME(7) rides in a bare SELECT/DO, which is
+		// DML. The DDL catalog does not analyze DML (SELECT/DO are Skipped in
+		// exec.go) and TiDB itself accepts CURTIME(7) at parse, rejecting it only
+		// at plan-build (1426), so function-argument precision inside a DML
+		// expression is outside the catalog's scope. The fsp>6 ceiling the catalog
+		// IS responsible for — a DATETIME/TIMESTAMP/TIME column — is covered by
+		// checkTemporalFspBounds and its own scenarios.
 	})
 
 	// ---- 16.5 SYSDATE cannot be used as DEFAULT --------------------------
