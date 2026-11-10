@@ -238,11 +238,7 @@ func TestCatalogInvalidDefaultFormsLeaveNothingBehind(t *testing.T) {
 // would catch a form the engine starts accepting in a later version.
 func TestContainerInvalidDefaultForms(t *testing.T) {
 	tc := startTiDBForCatalog(t)
-	mustExecTiDB(t, tc, "CREATE DATABASE IF NOT EXISTS omni_invalid_default_test")
-	mustExecTiDB(t, tc, "USE omni_invalid_default_test")
-	t.Cleanup(func() {
-		_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS omni_invalid_default_test")
-	})
+	takeDatabaseOnSharedTiDB(t, tc)
 
 	for _, f := range invalidDefaultForms {
 		t.Run(f.name, func(t *testing.T) {
