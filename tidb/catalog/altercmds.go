@@ -1188,6 +1188,23 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 		}
 	}
 
+	// Apply TiDB's implicit length-driven type promotions (FLOAT(M>24) → DOUBLE,
+	// an over-long VARCHAR → TEXT, TEXT(N)/BLOB(N) → the sized variant), the same
+	// as the CREATE TABLE path, so an ADD/MODIFY/CHANGE column records the same
+	// base type a CREATE does (keeping e.g. FK type comparisons consistent).
+	// Skipped for a CHARACTER SET binary column, already mapped to its BLOB form.
+	if colDef.TypeName != nil && strings.EqualFold(col.DataType, toLower(colDef.TypeName.Name)) {
+		if promoted := promoteDeclaredType(colDef.TypeName, col.Charset); promoted != "" {
+			col.DataType = promoted
+			// FLOAT → DOUBLE is already reflected in formatColumnType's output
+			// (with UNSIGNED/ZEROFILL), so keep that ColumnType; the TEXT/BLOB/
+			// VARCHAR promotions yield a length-less, modifier-free type name.
+			if !strings.EqualFold(toLower(colDef.TypeName.Name), "float") {
+				col.ColumnType = promoted
+			}
+		}
+	}
+
 	// Standalone BINARY modifier (CHAR(10) BINARY) → the effective charset's
 	// binary collation, matching TiDB. Resolved after the charset default above
 	// so a bare CHAR BINARY uses the table/db charset. An explicit COLLATE wins
