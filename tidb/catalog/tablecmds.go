@@ -399,6 +399,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := checkLiteralDefaultAllowed(col); err != nil {
 			return err
 		}
+		if err := checkColumnDefaultValue(colDef, col.DataType, stmt.Constraints); err != nil {
+			return err
+		}
 		if colDef.Generated != nil {
 			if err := checkGeneratedColumnFunctions(col.Name, colDef.Generated.Expr); err != nil {
 				return err
@@ -407,6 +410,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 		tbl.Columns = append(tbl.Columns, col)
 		tbl.colByName[colKey] = i
+	}
+
+	// TiDB v8.5.5 takes one AUTO_INCREMENT column per table and answers 1075
+	// for a second, whether or not either backs a key.
+	if err := checkSingleAutoIncrementColumn(tbl.Columns); err != nil {
+		return err
 	}
 
 	// Second pass: add column-level PK and UNIQUE indexes/constraints.
@@ -496,6 +505,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateCreateTablePKColumnsExist(tbl, idxCols); err != nil {
+				return err
+			}
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
 			}
@@ -536,6 +548,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+				return err
+			}
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
 			}
@@ -624,6 +639,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+				return err
+			}
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
 			}

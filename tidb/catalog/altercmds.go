@@ -210,10 +210,10 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// TiDB resolves a constraint's columns against the table as it stood
 	// before the statement, so `ADD COLUMN (c INT, PRIMARY KEY (c))` is an
 	// error (1072, "column does not exist: c") on v8.5.5 where MySQL 8.0.46
-	// makes c the primary key. This catalog does not model that: it validates
-	// no key column anywhere, so `ADD INDEX i (nosuch)` is accepted too, and
-	// singling this one statement out would be the only such check in the
-	// package.
+	// makes c the primary key. This catalog does not model that ordering: it
+	// adds the columns first, so the key resolves against them and the
+	// statement is accepted. A key part naming a column that this statement
+	// does not add either is rejected (1072), as everywhere else.
 	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
 			if err := c.addSingleColumnIfNotExists(tbl, colDef, cmd.IfNotExists, false, ""); err != nil {
@@ -597,6 +597,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		// v8.5.5 words 1072 for a key added by ALTER as its secondary-index
+		// path does, even for a PRIMARY KEY.
+		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -654,6 +659,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
 		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -758,6 +766,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
 		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -1080,6 +1091,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := checkLiteralDefaultAllowed(&probe); err != nil {
 			return err
 		}
+		if err := checkExistingColumnDefault(tbl, col, cmd.DefaultExpr); err != nil {
+			return err
+		}
 		col.Default = &s
 		col.DefaultDropped = false
 	} else {
@@ -1263,6 +1277,13 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 	}
 
 	if err := checkLiteralDefaultAllowed(col); err != nil {
+		return nil, err
+	}
+	// ALTER TABLE ADD / MODIFY / CHANGE COLUMN is held to the same
+	// invalid-default rules as a column written in CREATE TABLE. The statement
+	// carries no table-level PRIMARY KEY of its own, so the 1171 case cannot
+	// arise here and the nil constraint list is the whole story.
+	if err := checkColumnDefaultValue(colDef, col.DataType, nil); err != nil {
 		return nil, err
 	}
 	return col, nil

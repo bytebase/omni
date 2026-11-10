@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -104,10 +105,8 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 func TestTiDBCatalogContainerCrossValidation(t *testing.T) {
 	tc := startTiDBForCatalog(t)
 
-	// Isolate test tables in a dedicated database.
-	mustExecTiDB(t, tc, "CREATE DATABASE IF NOT EXISTS omni_cat_test")
-	mustExecTiDB(t, tc, "USE omni_cat_test")
-	t.Cleanup(func() { _, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS omni_cat_test") })
+	// Isolate test tables in a database of this test's own.
+	dbName := takeDatabaseOnSharedTiDB(t, tc)
 
 	cases := []struct {
 		name    string
@@ -180,7 +179,7 @@ func TestTiDBCatalogContainerCrossValidation(t *testing.T) {
 			// 2. Catalog must accept through the same path (fresh catalog
 			//    per case so setup SQL on TiDB doesn't need to be mirrored).
 			cat := New()
-			catSetup := "CREATE DATABASE omni_cat_test; USE omni_cat_test;"
+			catSetup := "CREATE DATABASE " + dbName + "; USE " + dbName + ";"
 			if _, err := cat.Exec(catSetup, nil); err != nil {
 				t.Fatalf("catalog setup failed: %v", err)
 			}
@@ -211,6 +210,46 @@ func TestTiDBCatalogContainerCrossValidation(t *testing.T) {
 	}
 }
 
+// takeDatabaseOnSharedTiDB gives the test a database of its own on the
+// package-shared server and drops it again when the test ends. The name is
+// derived from the test's own name rather than written down, so no two tests on
+// this server can collide and none has to agree on a literal (AGENTS.md: "A
+// test takes a database or schema on its package's server"). It is deterministic
+// across runs, so a failure is reproducible, and it is left selected as the
+// session's current database, which the pinned single connection keeps.
+func takeDatabaseOnSharedTiDB(t *testing.T, tc *tidbCatalogContainer) string {
+	t.Helper()
+	name := databaseNameForTest(t.Name())
+	mustExecTiDB(t, tc, "DROP DATABASE IF EXISTS "+name)
+	mustExecTiDB(t, tc, "CREATE DATABASE "+name)
+	mustExecTiDB(t, tc, "USE "+name)
+	t.Cleanup(func() {
+		_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS "+name)
+	})
+	return name
+}
+
+// databaseNameForTest turns a test name into a legal, lowercase database
+// identifier: anything that is not a letter, a digit or an underscore becomes
+// an underscore, and the result is cut to MySQL's 64-character limit from the
+// right, which is the end that tells two tests apart.
+func databaseNameForTest(testName string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(testName) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	name := b.String()
+	if len(name) > 64 {
+		name = name[len(name)-64:]
+	}
+	return name
+}
+
 func mustExecTiDB(t *testing.T, tc *tidbCatalogContainer, sqlStr string) {
 	t.Helper()
 	if _, err := tc.db.ExecContext(tc.ctx, sqlStr); err != nil {
@@ -232,5 +271,30 @@ func pingTiDBUntilReady(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// TestDatabaseNameForTest covers the identifier derivation: a subtest's '/' and
+// any other character MySQL will not take in an unquoted name become
+// underscores, and a name past the 64-character limit keeps its tail, which is
+// the end that tells two tests apart.
+func TestDatabaseNameForTest(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{in: "TestContainerInvalidDefaultForms", want: "testcontainerinvaliddefaultforms"},
+		{in: "TestX/sub name", want: "testx_sub_name"},
+		{in: "TestX/enum('x','y')", want: "testx_enum__x___y__"},
+		{in: "Test_Keep_Underscores9", want: "test_keep_underscores9"},
+	}
+	for _, c := range cases {
+		if got := databaseNameForTest(c.in); got != c.want {
+			t.Errorf("databaseNameForTest(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	long := databaseNameForTest(strings.Repeat("a", 60) + "/tail")
+	if len(long) != 64 {
+		t.Errorf("a long name came back %d characters, want 64: %q", len(long), long)
+	}
+	if !strings.HasSuffix(long, "_tail") {
+		t.Errorf("a long name dropped its tail: %q", long)
 	}
 }

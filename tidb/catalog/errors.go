@@ -129,6 +129,9 @@ const (
 	// column added later in the same multi-command ALTER, which TiDB resolves
 	// against the pre-ALTER schema.
 	ErrKeyColumnDoesNotExist = 1072
+	// ErrIncorrectTableDefinition is 1075 for a table that declares more than
+	// one AUTO_INCREMENT column (measured on TiDB v8.5.5, 2026-11-10).
+	ErrIncorrectTableDefinition = 1075
 )
 
 var sqlStateMap = map[int]string{
@@ -187,6 +190,7 @@ var sqlStateMap = map[int]string{
 	ErrFunctionalIndexOnBlob:               "HY000",
 	ErrFunctionalIndexFunctionIsNotAllowed: "HY000",
 	ErrKeyColumnDoesNotExist:               "42000",
+	ErrIncorrectTableDefinition:            "42000",
 }
 
 func sqlState(code int) string {
