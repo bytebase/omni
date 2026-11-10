@@ -92,6 +92,22 @@ const (
 	ErrTooBigPrecision        = 1426
 	ErrMBiggerThanD           = 1427
 	ErrDefValFunctionNotAllow = 3770
+	// FK / generated-column / drop-column over-acceptance validation (measured
+	// on TiDB v8.5.5, 2026-11-09). 1830 rejects a NOT NULL referencing column
+	// under ON DELETE/UPDATE SET NULL; 3733 rejects a foreign key on a VIRTUAL
+	// generated column; 3102 rejects a generated-column expression that contains
+	// a disallowed (non-deterministic) function; 3106 (shared with the stored-
+	// status change above) rejects a VIRTUAL generated column as a primary key;
+	// 1090 rejects dropping a table's only remaining column.
+	ErrFKColumnCannotBeNull     = 1830
+	ErrFKCannotUseVirtualColumn = 3733
+	ErrGeneratedColumnFunction  = 3102
+	ErrCantRemoveAllFields      = 1090
+	// Temporal fsp validation (measured on TiDB v8.5.5, 2026-11-09). 1426 bounds
+	// a DATETIME/TIMESTAMP/TIME fractional-seconds precision at 6; 1067 rejects a
+	// temporal column whose NOW()-family DEFAULT names a precision other than the
+	// column's own.
+	ErrInvalidDefault = 1067
 )
 
 var sqlStateMap = map[int]string{
@@ -138,6 +154,11 @@ var sqlStateMap = map[int]string{
 	ErrTooBigPrecision:                   "42000",
 	ErrMBiggerThanD:                      "42000",
 	ErrDefValFunctionNotAllow:            "HY000",
+	ErrFKColumnCannotBeNull:              "HY000",
+	ErrFKCannotUseVirtualColumn:          "HY000",
+	ErrGeneratedColumnFunction:           "HY000",
+	ErrCantRemoveAllFields:               "42000",
+	ErrInvalidDefault:                    "42000",
 }
 
 func sqlState(code int) string {

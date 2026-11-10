@@ -295,6 +295,13 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return errCantDropKey(cmd.Name)
 	}
 
+	// TiDB v8.5.5 refuses dropping a table's only remaining column (1090). A
+	// multi-subcommand ALTER mutates the table between drops, so the last one
+	// is caught here.
+	if len(tbl.Columns) == 1 {
+		return errCantRemoveAllFields(cmd.Name, tbl.Name)
+	}
+
 	// Check if column is referenced by a generated column expression.
 	for _, col := range tbl.Columns {
 		if col.Generated != nil && generatedExprReferencesColumn(col.Generated.Expr, cmd.Name) {
@@ -598,6 +605,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrUnique:
+		if err := checkIndexName(con.Name); err != nil {
+			return err
+		}
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
@@ -699,6 +709,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrIndex:
+		if err := checkIndexName(con.Name); err != nil {
+			return err
+		}
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])

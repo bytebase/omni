@@ -66,6 +66,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			Message: "FULLTEXT and SPATIAL index is not supported"}
 	}
 
+	// A non-fulltext secondary index may not be named PRIMARY (1280). FULLTEXT
+	// and SPATIAL were already refused above.
+	if !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {
+		if err := checkIndexName(stmt.IndexName); err != nil {
+			return err
+		}
+	}
+
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
 		if stmt.IfNotExists {
