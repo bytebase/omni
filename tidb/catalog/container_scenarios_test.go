@@ -4964,37 +4964,29 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 	// --- SHOW CREATE PROCEDURE ---
 	t.Run("show_create_procedure", func(t *testing.T) {
 		// TiDB v8.5.5 does not support this stored-procedure body: CREATE
-		// PROCEDURE ... BEGIN DECLARE ... END is rejected with 8108 "Unsupported
-		// type *resolve.NodeW", and there is no SHOW CREATE PROCEDURE to compare.
-		// Stored procedures are a MySQL feature outside TiDB's DDL surface, so
-		// there is nothing to hold omni to here.
-		t.Skip("TiDB v8.5.5 does not support CREATE PROCEDURE with a BEGIN...END body (8108)")
-		// Test SHOW CREATE PROCEDURE with INOUT params.
+		// PROCEDURE ... BEGIN DECLARE ... END is rejected (8108), so there is no
+		// procedure to SHOW CREATE (MySQL supports it). Rejection parity: the
+		// catalog must refuse the statement too, which it does
+		// (errStoredRoutineUnsupported), never storing a routine.
 		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
 		createSQL := "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateProcedure("sp_sc_swap")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err == nil {
+			t.Errorf("container: expected TiDB to reject CREATE PROCEDURE")
+			ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
 		}
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
+		omniRejected := parseErr != nil
+		for _, r := range results {
+			if r.Error != nil {
+				omniRejected = true
+			}
 		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateProcedure("test", "sp_sc_swap")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
+		if !omniRejected {
+			t.Errorf("omni: expected CREATE PROCEDURE to be rejected; TiDB rejects it")
 		}
 	})
 

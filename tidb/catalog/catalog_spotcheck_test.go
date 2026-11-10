@@ -964,30 +964,36 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// ---------------------------------------------------------------
 	// C11.1: Trigger DEFINER defaults to current user.
 	// ---------------------------------------------------------------
-	t.Run("C11_1_Trigger_definer_default", func(t *testing.T) {
-		// TiDB v8.5.5 does not support triggers: CREATE TRIGGER is rejected as a
-		// syntax error (1064), so there is no trigger DEFINER to verify.
-		t.Skip("TiDB v8.5.5 does not support CREATE TRIGGER")
+	t.Run("C11_1_Trigger_rejected", func(t *testing.T) {
+		// TiDB v8.5.5 has no triggers: CREATE TRIGGER is a syntax error (1064,
+		// measured), so there is no trigger DEFINER to default (MySQL supports
+		// triggers). This is a rejection-parity check: the catalog must refuse
+		// the statement too, which it does at parse — it never stores a trigger.
 		reset(t)
 		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE tt11 (a INT)`); err != nil {
 			t.Fatalf("setup: %v", err)
 		}
-		if _, err := mc.db.ExecContext(mc.ctx,
-			`CREATE TRIGGER trg11 BEFORE INSERT ON tt11 FOR EACH ROW SET NEW.a = NEW.a`); err != nil {
-			t.Fatalf("create trigger: %v", err)
+		const ddl = `CREATE TRIGGER trg11 BEFORE INSERT ON tt11 FOR EACH ROW SET NEW.a = NEW.a`
+
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err == nil {
+			t.Errorf("oracle: expected TiDB to reject CREATE TRIGGER")
 		}
-		rows := spotCheckQuery(t, mc, ``, `
-			SELECT DEFINER FROM information_schema.TRIGGERS
-			WHERE TRIGGER_SCHEMA='sc' AND TRIGGER_NAME='trg11'
-		`)
-		if len(rows) != 1 {
-			t.Fatalf("expected 1 row, got %d", len(rows))
+
+		oc := New()
+		oc.Exec("CREATE DATABASE sc", nil)
+		oc.SetCurrentDatabase("sc")
+		oc.Exec("CREATE TABLE tt11 (a INT)", nil)
+		results, perr := oc.Exec(ddl, nil)
+		omniRejected := perr != nil
+		for _, r := range results {
+			if r.Error != nil {
+				omniRejected = true
+			}
 		}
-		def := asString(rows[0][0])
-		if def == "" || def == "<nil>" {
-			t.Errorf("CATALOG MISMATCH C11.1: expected DEFINER populated, got %q", def)
+		if !omniRejected {
+			t.Errorf("CATALOG MISMATCH C11.1: omni accepted CREATE TRIGGER; TiDB rejects it")
 		} else {
-			t.Logf("OK C11.1 verified: DEFINER=%s", def)
+			t.Logf("OK C11.1 verified: both reject CREATE TRIGGER")
 		}
 	})
 

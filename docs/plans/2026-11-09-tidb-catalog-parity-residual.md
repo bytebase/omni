@@ -138,10 +138,15 @@ the expression lives on the index key part), AX FULLTEXT dropped, Section tests
 name collision allowed, CHECK constraints discarded under the TiDB default,
 view `CHECK_OPTION=CASCADED`).
 
-Documented `t.Skip`s (features TiDB does not have):
+Features TiDB does not have (triggers, stored procedures) are covered by
+rejection-parity tests, not skips: the catalog refuses `CREATE TRIGGER` (at
+parse) and `CREATE PROCEDURE` (`errStoredRoutineUnsupported`) just as TiDB does,
+so `C11_1_Trigger_rejected` and `6_2 show_create_procedure` assert both engines
+reject them.
+
+The one remaining documented `t.Skip`:
 
 - `TestScenario_C16/16_4_CURTIME_precision_default_0` — `fsp>6` in a `SELECT`
-  is a DML/plan concern; the DDL catalog skips DML and TiDB accepts it at parse.
-- `TestContainer_Section_6_2_.../show_create_procedure` — TiDB rejects a
-  `CREATE PROCEDURE ... BEGIN ... END` body (8108).
-- `TestSpotCheck_.../C11_1_Trigger_definer_default` — TiDB has no triggers.
+  is a DML/plan concern that TiDB accepts at parse and rejects only at
+  plan-build; the DDL catalog does not analyze DML (SELECT is Skipped in
+  exec.go), so there is no DDL surface to hold it to.
