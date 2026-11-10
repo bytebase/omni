@@ -293,7 +293,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			col.Default = &s
 		}
 		if colDef.OnUpdate != nil {
-			col.OnUpdate = nodeToSQL(colDef.OnUpdate)
+			col.OnUpdate = onUpdateToSQL(colDef.OnUpdate)
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
@@ -1516,6 +1516,12 @@ func nodeToSQL(node nodes.ExprNode) string {
 // expression default in its parentheses, so it stays apart from a literal, and
 // TRUE and FALSE as the 1 and 0 TiDB stores for them.
 func defaultToSQL(node nodes.ExprNode) string {
+	// A NOW()/CURRENT_TIMESTAMP-family default is recorded the way TiDB's
+	// information_schema.COLUMN_DEFAULT spells it, so a parsed-DDL column matches
+	// what a live TiDB sync reads back.
+	if s, ok := currentTimestampSpelling(node); ok {
+		return s
+	}
 	switch n := node.(type) {
 	case *nodes.ParenExpr:
 		return "(" + nodeToSQL(n.Expr) + ")"
@@ -1524,6 +1530,36 @@ func defaultToSQL(node nodes.ExprNode) string {
 			return "1"
 		}
 		return "0"
+	}
+	return nodeToSQL(node)
+}
+
+// currentTimestampSpelling renders a NOW()/CURRENT_TIMESTAMP-family temporal
+// function the way TiDB's information_schema spells it in COLUMN_DEFAULT and in
+// the "on update" part of EXTRA — CURRENT_TIMESTAMP, with the precision when one
+// is given (CURRENT_TIMESTAMP(3)) — and reports whether node is one. The catalog
+// stores DEFAULT and ON UPDATE with this spelling (rather than the internal
+// deparsed `now()`) so a column built from parsed DDL compares equal to the same
+// column read back by a live sync, which is what Bytebase's metadata path needs.
+func currentTimestampSpelling(node nodes.ExprNode) (string, bool) {
+	fn, ok := node.(*nodes.FuncCallExpr)
+	if !ok || !nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+		return "", false
+	}
+	if len(fn.Args) > 0 {
+		if lit, ok := fn.Args[0].(*nodes.IntLit); ok && lit.Value > 0 {
+			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", lit.Value), true
+		}
+	}
+	return "CURRENT_TIMESTAMP", true
+}
+
+// onUpdateToSQL records an ON UPDATE clause with the same information_schema
+// spelling as a default (CURRENT_TIMESTAMP[(fsp)]); anything else is kept as
+// deparsed.
+func onUpdateToSQL(node nodes.ExprNode) string {
+	if s, ok := currentTimestampSpelling(node); ok {
+		return s
 	}
 	return nodeToSQL(node)
 }
