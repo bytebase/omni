@@ -107,7 +107,7 @@ func migrationProbes() []migrationProbe {
 		{"create-multi-column", "t", "",
 			"CREATE TABLE t (id INT NOT NULL, c1 VARCHAR(10), c2 INT DEFAULT 0, c3 DATE, c4 DECIMAL(8,3), PRIMARY KEY (id))", both()},
 		{"create-functional-default", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))", only(OceanBase)},
 		{"create-row-format", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", both()},
 
@@ -212,7 +212,7 @@ func migrationProbes() []migrationProbe {
 		// box may lack; proven on 8.0.
 		{"gen-storage-flip", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) VIRTUAL)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED)", only(OceanBase)},
 		// Dropping a base column AND a generated column that references it: the generated column
 		// must be dropped first (error 3108 otherwise).
 		{"gen-drop-with-base", "t",
@@ -224,14 +224,14 @@ func migrationProbes() []migrationProbe {
 		// (stored generated columns).
 		{"gen-flip-with-base-modify", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g INT GENERATED ALWAYS AS (z+1) VIRTUAL, z SMALLINT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g INT GENERATED ALWAYS AS (z+1) STORED, z BIGINT)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g INT GENERATED ALWAYS AS (z+1) STORED, z BIGINT)", only(OceanBase)},
 
 		// ---- coverage: INVISIBLE column, COLLATE-only divergence (8.0 features) ----
 		{"create-invisible-column", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, secret INT INVISIBLE)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, secret INT INVISIBLE)", only(OceanBase)},
 		{"add-invisible-column", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, secret INT INVISIBLE)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, secret INT INVISIBLE)", only(OceanBase)},
 		{"create-collate-only-column", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) COLLATE utf8mb4_unicode_ci) DEFAULT CHARSET=utf8mb4", both()},
 	}
@@ -611,7 +611,7 @@ func TestForeignKeyBackingDropDedupDottedIdentifiers(t *testing.T) {
 		fkDropTableEntry("d", "a.b", "c", "y"),
 	}}
 
-	ops := generateForeignKeyDDL(nil, nil, diff, NormalizerFor(MySQL80))
+	ops := generateForeignKeyDDL(nil, nil, diff, NormalizerFor(OceanBase))
 
 	var dropIndex []string
 	for _, op := range ops {

@@ -69,11 +69,11 @@ var fulltextChangeCases = []struct{ from, to string }{
 // indexDiffs returns the index entries of a diff from one table definition to another.
 func indexDiffs(t *testing.T, fromDDL, toDDL string) []IndexDiffEntry {
 	t.Helper()
-	sc := serverCharsetFor(MySQL80)
+	sc := serverCharsetFor(OceanBase)
 	from, _ := loadOneTable(t, sc, fromDDL, "t")
 	to, _ := loadOneTable(t, sc, toDDL, "t")
 	var out []IndexDiffEntry
-	for _, te := range DiffWithNormalizer(from, to, NormalizerFor(MySQL80)).Tables {
+	for _, te := range DiffWithNormalizer(from, to, NormalizerFor(OceanBase)).Tables {
 		out = append(out, te.Indexes...)
 	}
 	return out
@@ -103,10 +103,10 @@ func TestFulltextParserChangeDiffs(t *testing.T) {
 			if d := indexDiffs(t, fulltextTable(tc.from), fulltextTable(tc.to)); len(d) != 1 || d[0].Action != DiffModify {
 				t.Errorf("diff = %+v, want one index MODIFY", d)
 			}
-			sc := serverCharsetFor(MySQL80)
+			sc := serverCharsetFor(OceanBase)
 			from, _ := loadOneTable(t, sc, fulltextTable(tc.from), "t")
 			to, toTbl := loadOneTable(t, sc, fulltextTable(tc.to), "t")
-			n := NormalizerFor(MySQL80)
+			n := NormalizerFor(OceanBase)
 			plan := GenerateMigrationWithNormalizer(from, to, DiffWithNormalizer(from, to, n), n).SQL()
 			var ft *Index
 			for _, idx := range toTbl.Indexes {

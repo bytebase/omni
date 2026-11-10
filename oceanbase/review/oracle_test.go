@@ -10,10 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
-
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/review"
@@ -37,57 +33,40 @@ INSERT INTO plain VALUES (1, 1), (2, 2);
 CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
-var mysqlOracle struct {
-	once      sync.Once
-	container testcontainers.Container
-	db        *sql.DB
-	err       error
+var reviewOracle struct {
+	once sync.Once
+	db   *sql.DB
+	err  error
 }
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	if mysqlOracle.container != nil {
-		_ = mysqlOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mysqlOracle.container)
-	}
-	for _, e := range walkServers.dbs {
-		if e.db != nil {
-			_ = e.db.Close()
-		}
-	}
-	for _, c := range walkServers.containers {
-		_ = testcontainers.TerminateContainer(c)
+	if reviewOracle.db != nil {
+		_ = reviewOracle.db.Close()
 	}
 	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }
 
-// startMySQL returns the MySQL 8.0 the oracle tests of this package ask,
-// started once.
-func startMySQL(t *testing.T) *sql.DB {
+// startOracle returns a connection to this package's shared OceanBase server,
+// opened once, with multi-statement execution enabled.
+func startOracle(t *testing.T) *sql.DB {
 	t.Helper()
-	mysqlOracle.once.Do(func() {
-		ctx := context.Background()
-		c, err := tcmysql.Run(ctx, "mysql:8.0", tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test"))
+	reviewOracle.once.Do(func() {
+		dsn, err := testcontainer.OceanBase.DSN(context.Background())
 		if err != nil {
-			mysqlOracle.err = err
+			reviewOracle.err = err
 			return
 		}
-		mysqlOracle.container = c
-		dsn, err := c.ConnectionString(ctx, "multiStatements=true")
-		if err != nil {
-			mysqlOracle.err = err
-			return
-		}
-		mysqlOracle.db, mysqlOracle.err = sql.Open("mysql", dsn)
-		if mysqlOracle.err == nil {
-			mysqlOracle.err = mysqlOracle.db.PingContext(ctx)
+		reviewOracle.db, reviewOracle.err = testcontainer.OpenOceanBase(dsn + "?multiStatements=true")
+		if reviewOracle.err == nil {
+			reviewOracle.err = reviewOracle.db.PingContext(context.Background())
 		}
 	})
-	if mysqlOracle.err != nil {
-		t.Fatalf("mysql oracle unavailable: %v", mysqlOracle.err)
+	if reviewOracle.err != nil {
+		t.Fatalf("oceanbase oracle unavailable: %v", reviewOracle.err)
 	}
-	return mysqlOracle.db
+	return reviewOracle.db
 }
 
 // resetOracle recreates the shop database from oracleBase, and an empty
@@ -100,11 +79,15 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { conn.Close() })
+	// GIPK / require-primary-key are MySQL 8.0-only session variables; OceanBase
+	// does not define them, so clearing them is best-effort.
+	for _, stmt := range []string{"SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF"} {
+		_, _ = conn.ExecContext(ctx, stmt)
+	}
 	for _, stmt := range []string{
 		// Databases drop with foreign key checks off, since a table of one may
-		// reference another's, and the checks go back on after. A case may
-		// have required primary keys on the pooled connection.
-		"SET foreign_key_checks = 0", "SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF",
+		// reference another's, and the checks go back on after.
+		"SET foreign_key_checks = 0",
 		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase, "SET foreign_key_checks = 1",
 	} {
@@ -281,12 +264,12 @@ func parseChange(t *testing.T, change string) []statement {
 	return stmts
 }
 
-// TestPriorBackupAgainstMySQL builds each statement's backup query as
-// Bytebase does and runs it on MySQL before the change. A PriorBackup
+// TestPriorBackupAgainstOceanBase builds each statement's backup query as
+// Bytebase does and runs it on OceanBase before the change. A PriorBackup
 // finding on a statement must mean that query fails; for a complete case,
 // every query that fails must have a finding.
-func TestPriorBackupAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
+func TestPriorBackupAgainstOceanBase(t *testing.T) {
+	db := startOracle(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -462,15 +445,15 @@ func backupQueries(sql string, n ast.Node) []backupQuery {
 	return out
 }
 
-// TestScanRulesAgainstMySQL runs each change on MySQL, statement by
+// TestScanRulesAgainstOceanBase runs each change on OceanBase, statement by
 // statement, and derives from information_schema what the constraint
 // rules should report: DisallowDropConstraint, a primary key, foreign key,
 // unique key, or check constraint a statement removes; RequirePrimaryKey,
 // a table a CREATE TABLE made, or one that had a primary key, that ends
 // the change without one. Every finding must match; for a complete case,
 // every expected finding must be reported.
-func TestScanRulesAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
+func TestScanRulesAgainstOceanBase(t *testing.T) {
+	db := startOracle(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -630,8 +613,8 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 	return want
 }
 
-// TestColumnDropAgainstMySQL runs ALTER TABLE ... DROP COLUMN on a table
-// x's primary key on MySQL, and pins what the server does with it: the
+// TestColumnDropAgainstOceanBase runs ALTER TABLE ... DROP COLUMN on a table
+// x's primary key on OceanBase, and pins what the server does with it: the
 // error it stops the change with, if any, and the key x has after. MySQL
 // removes a dropped column from every index, and drops an index with the
 // last of its columns, so a drop of every column of the key leaves x
@@ -643,8 +626,8 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 // server does.
 //
 // mysql: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html#alter-table-add-drop-column
-func TestColumnDropAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
+func TestColumnDropAgainstOceanBase(t *testing.T) {
+	db := startOracle(t)
 	tests := []struct {
 		name   string
 		setup  string

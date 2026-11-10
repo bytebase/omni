@@ -23,7 +23,7 @@ func TestShowCreateTableBasic(t *testing.T) {
 	assertContains(t, got, "ENGINE=InnoDB")
 	assertContains(t, got, "DEFAULT CHARSET=utf8mb4")
 	// MySQL 8.0 always shows COLLATE in SHOW CREATE TABLE.
-	assertContains(t, got, "COLLATE=utf8mb4_0900_ai_ci")
+	assertContains(t, got, "COLLATE=utf8mb4_general_ci")
 }
 
 func TestShowCreateTableUniqueKey(t *testing.T) {

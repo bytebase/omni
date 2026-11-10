@@ -41,7 +41,7 @@ func TestMigration_EmptyDiffEmptyPlan(t *testing.T) {
 	}
 	for _, s := range schemas {
 		c := loadCat(t, s)
-		for _, n := range []*Normalizer{NormalizerFor(MySQL80), NormalizerFor(MySQL57)} {
+		for _, n := range []*Normalizer{NormalizerFor(OceanBase)} {
 			diff := DiffWithNormalizer(c, c, n)
 			plan := GenerateMigrationWithNormalizer(c, c, diff, n)
 			if len(plan.Ops) != 0 {
@@ -99,7 +99,7 @@ func TestMigrationPlan_Filter(t *testing.T) {
 func TestMigration_CreateTable(t *testing.T) {
 	from := dbDDL
 	to := dbDDL + "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20));"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpCreateTable {
 		t.Fatalf("want CreateTable, got %s", op.Type)
 	}
@@ -118,7 +118,7 @@ func TestMigration_CreateTable(t *testing.T) {
 func TestMigration_DropTable(t *testing.T) {
 	from := dbDDL + "CREATE TABLE a (id INT PRIMARY KEY); CREATE TABLE b (id INT PRIMARY KEY);"
 	to := dbDDL + "CREATE TABLE a (id INT PRIMARY KEY);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpDropTable {
 		t.Fatalf("want DropTable, got %s", op.Type)
 	}
@@ -133,7 +133,7 @@ func TestMigration_DropTable(t *testing.T) {
 func TestMigration_TableEngineChange(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB;"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) ENGINE=MyISAM;"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpAlterTable {
 		t.Fatalf("want AlterTable, got %s", op.Type)
 	}
@@ -145,7 +145,7 @@ func TestMigration_TableEngineChange(t *testing.T) {
 func TestMigration_TableCommentChange(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) COMMENT='old';"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) COMMENT='new';"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpAlterTable || !strings.Contains(op.SQL, "COMMENT='new'") {
 		t.Errorf("want ALTER TABLE COMMENT='new', got %q", op.SQL)
 	}
@@ -154,7 +154,7 @@ func TestMigration_TableCommentChange(t *testing.T) {
 func TestMigration_TableCharsetChange(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4;"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=latin1;"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpAlterTable || !strings.Contains(strings.ToUpper(op.SQL), "CHARSET=LATIN1") {
 		t.Errorf("want ALTER TABLE DEFAULT CHARSET=latin1, got %q", op.SQL)
 	}
@@ -165,7 +165,7 @@ func TestMigration_TableCharsetChange(t *testing.T) {
 func TestMigration_ColumnChangeNoTableOptionAlter(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v INT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v BIGINT);"
-	p := planFor(t, from, to, NormalizerFor(MySQL80))
+	p := planFor(t, from, to, NormalizerFor(OceanBase))
 	for _, op := range p.Ops {
 		if op.Type == OpAlterTable {
 			t.Errorf("column-only change must not emit a table-option ALTER, got %q", op.SQL)
@@ -182,7 +182,7 @@ func TestMigration_ColumnChangeNoTableOptionAlter(t *testing.T) {
 func TestMigration_AddColumn(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL DEFAULT 'x');"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpAddColumn {
 		t.Fatalf("want AddColumn, got %s", op.Type)
 	}
@@ -199,7 +199,7 @@ func TestMigration_AddColumn(t *testing.T) {
 func TestMigration_DropColumn(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20));"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpDropColumn || !strings.Contains(op.SQL, "DROP COLUMN `name`") {
 		t.Errorf("want DROP COLUMN `name`, got %q", op.SQL)
 	}
@@ -211,7 +211,7 @@ func TestMigration_DropColumn(t *testing.T) {
 func TestMigration_ModifyColumnUsesModify(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v INT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v BIGINT NOT NULL);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpModifyColumn {
 		t.Fatalf("want ModifyColumn, got %s", op.Type)
 	}
@@ -224,26 +224,22 @@ func TestMigration_ModifyColumnUsesModify(t *testing.T) {
 	}
 }
 
-// 5.7 renders integer display widths; 8.0 drops them. The MODIFY must reflect the target
-// version's canonical type (proving rendering routes through the Normalizer, not a fixed
-// 8.0 form).
+// OceanBase drops integer display widths (it stores like 8.0). The MODIFY must render
+// the canonical width-less type, proving rendering routes through the Normalizer rather
+// than echoing the input width.
 func TestMigration_ModifyColumnVersionedWidth(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v SMALLINT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v BIGINT);"
-	op80 := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
-	if !strings.Contains(op80.SQL, "`v` bigint") || strings.Contains(op80.SQL, "bigint(") {
-		t.Errorf("8.0 MODIFY must render width-less bigint, got %q", op80.SQL)
-	}
-	op57 := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL57)))
-	if !strings.Contains(op57.SQL, "`v` bigint(20)") {
-		t.Errorf("5.7 MODIFY must render bigint(20), got %q", op57.SQL)
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
+	if !strings.Contains(op.SQL, "`v` bigint") || strings.Contains(op.SQL, "bigint(") {
+		t.Errorf("MODIFY must render width-less bigint, got %q", op.SQL)
 	}
 }
 
 func TestMigration_AddGeneratedColumn(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) STORED);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpAddColumn {
 		t.Fatalf("want AddColumn, got %s", op.Type)
 	}
@@ -260,7 +256,7 @@ func TestMigration_AddAutoIncrementColumn(t *testing.T) {
 	// Adding an AUTO_INCREMENT column to a table that has it as PK already.
 	from := dbDDL + "CREATE TABLE t (id INT NOT NULL PRIMARY KEY);"
 	to := dbDDL + "CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpModifyColumn {
 		t.Fatalf("want ModifyColumn, got %s", op.Type)
 	}
@@ -278,7 +274,7 @@ func TestMigration_DeterministicOrdering(t *testing.T) {
 	from := dbDDL + "CREATE TABLE keep (id INT PRIMARY KEY, old_col INT); CREATE TABLE goner (id INT PRIMARY KEY); CREATE TABLE zeta (id INT PRIMARY KEY);"
 	to := dbDDL + "CREATE TABLE keep (id INT PRIMARY KEY, new_col INT); CREATE TABLE zeta (id INT PRIMARY KEY); CREATE TABLE alpha (id INT PRIMARY KEY);"
 
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	fromCat := loadCat(t, from)
 	toCat := loadCat(t, to)
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -321,7 +317,7 @@ func TestMigration_DeterministicOrdering(t *testing.T) {
 func TestMigration_TableNameCasePreserved(t *testing.T) {
 	from := "CREATE DATABASE App DEFAULT CHARSET=utf8mb4; USE App; CREATE TABLE MyTable (Id INT PRIMARY KEY); CREATE TABLE Goner (Id INT PRIMARY KEY);"
 	to := "CREATE DATABASE App DEFAULT CHARSET=utf8mb4; USE App; CREATE TABLE MyTable (Id INT PRIMARY KEY, NewCol INT);"
-	p := planFor(t, from, to, NormalizerFor(MySQL80))
+	p := planFor(t, from, to, NormalizerFor(OceanBase))
 	sql := p.SQL()
 	if !strings.Contains(sql, "`App`.`MyTable`") {
 		t.Errorf("table identifier must preserve case `App`.`MyTable`, got:\n%s", sql)
@@ -339,7 +335,7 @@ func TestMigration_TableNameCasePreserved(t *testing.T) {
 func TestMigration_GeneratedColumnDroppedBeforeBase(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, z INT GENERATED ALWAYS AS (a+1) STORED);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY);"
-	p := planFor(t, from, to, NormalizerFor(MySQL80))
+	p := planFor(t, from, to, NormalizerFor(OceanBase))
 	posA, posZ := -1, -1
 	for i, op := range p.Ops {
 		if op.Type == OpDropColumn && strings.Contains(op.SQL, "`a`") {
@@ -362,7 +358,7 @@ func TestMigration_GeneratedColumnDroppedBeforeBase(t *testing.T) {
 func TestMigration_GeneratedStorageFlipIsDropAdd(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) VIRTUAL);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED);"
-	p := planFor(t, from, to, NormalizerFor(MySQL80))
+	p := planFor(t, from, to, NormalizerFor(OceanBase))
 	var sawDrop, sawAdd, sawModify bool
 	for _, op := range p.Ops {
 		switch op.Type {
@@ -400,7 +396,7 @@ func TestMigration_GeneratedStorageFlipIsDropAdd(t *testing.T) {
 func TestMigration_GeneratedExprChangeIsModify(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
+	op := onlyOp(t, planFor(t, from, to, NormalizerFor(OceanBase)))
 	if op.Type != OpModifyColumn {
 		t.Fatalf("generation-expr change (same storage) must be MODIFY, got %s:\n%s", op.Type, op.SQL)
 	}
@@ -414,7 +410,7 @@ func TestMigration_GeneratedAddAfterBaseModify(t *testing.T) {
 	// `g` (generated, refs z) sorts before `z`; flip g VIRTUAL->STORED and widen z's type.
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, g INT GENERATED ALWAYS AS (z+1) VIRTUAL, z SMALLINT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, g INT GENERATED ALWAYS AS (z+1) STORED, z BIGINT);"
-	p := planFor(t, from, to, NormalizerFor(MySQL80))
+	p := planFor(t, from, to, NormalizerFor(OceanBase))
 	posGAdd, posZMod := -1, -1
 	for i, op := range p.Ops {
 		if op.Type == OpAddColumn && strings.Contains(op.SQL, "`g`") {

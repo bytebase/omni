@@ -236,11 +236,8 @@ func eventSQLModeTZ(t *testing.T, conn *sql.Conn, ctx context.Context, db, name 
 	return mode.String, tz.String
 }
 
-// defaultCollationForServerCharset returns a plausible default collation for the server
-// charset of a version, used only to populate a realistic synced context in these tests.
-func defaultCollationForServerCharset(v Version) string {
-	if v == MySQL57 {
-		return "utf8mb4_general_ci"
-	}
-	return "utf8mb4_0900_ai_ci"
+// defaultCollationForServerCharset returns OceanBase's default collation for its server
+// charset, used only to populate a realistic synced context in these tests.
+func defaultCollationForServerCharset(_ Version) string {
+	return "utf8mb4_general_ci"
 }

@@ -184,7 +184,7 @@ func explicitColumnsComparable(v *View, n *Normalizer) bool {
 	if !v.ExplicitColumns {
 		return false
 	}
-	return n.Version == MySQL80
+	return n.is80()
 }
 
 // canonicalViewBody returns the view's SELECT body in a database-qualifier-neutral canonical form:

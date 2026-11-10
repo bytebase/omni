@@ -9,20 +9,17 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Version-dispatch tests for the MySQL SDL catalog (node omni:version-dispatch).
+// Version-dispatch tests for the OceanBase SDL catalog (node omni:version-dispatch).
 //
-// The bug these lock in: the catalog had no notion of server version, so the diff/generate
-// canonicalizer always assumed 8.0. A bare `CHARSET=utf8mb4` synced from a 5.7 server is
-// dumped (by bytebase MetadataToSDL) as `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`
-// (the 5.7 stored default), while the user's target DDL `... DEFAULT CHARSET=utf8mb4` (no
-// COLLATE) is loaded carrying the loader-baked STATIC 8.0 default `utf8mb4_0900_ai_ci`. Under
-// an 8.0-only normalizer the two resolve to different collations -> a phantom table-collation
-// diff that cascades into inherited varchar columns, and the generated DDL emits
-// `COLLATE=utf8mb4_0900_ai_ci` — a collation that DOES NOT EXIST on 5.7 (Error 1273).
+// The invariant these lock in: a bare `CHARSET=utf8mb4` synced from OceanBase is dumped
+// (by bytebase MetadataToSDL) as `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`
+// (OceanBase's stored default), while the user's target DDL `... DEFAULT CHARSET=utf8mb4`
+// (no COLLATE) is loaded carrying the same OceanBase default. They must resolve to the same
+// collation — no phantom table-collation diff, no cascade into inherited varchar columns —
+// and the generated DDL must never emit `utf8mb4_0900_ai_ci`, which OceanBase does not ship.
 //
-// The version-correct defaults are oracle-verified (SHOW COLLATION ... Default='Yes'):
-//   utf8mb4 -> utf8mb4_general_ci (5.7) vs utf8mb4_0900_ai_ci (8.0)
-//   utf8/utf8mb3 -> utf8mb3_general_ci ; latin1 -> latin1_swedish_ci (both stable)
+// The default collation is oracle-verified (information_schema.CHARACTER_SETS):
+//   utf8mb4 -> utf8mb4_general_ci ; latin1 -> latin1_swedish_ci ; ascii -> ascii_general_ci
 
 // loadOneTableWithVersion loads a CREATE TABLE wrapped in a database with the given server
 // charset and records the target version on the catalog (the bytebase wiring path:
@@ -60,15 +57,11 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 
 	cases := []struct {
 		version    Version
-		syncedDump string // what MetadataToSDL emits for this version's synced table
+		syncedDump string // what MetadataToSDL emits for OceanBase's synced table
 	}{
 		{
-			version:    MySQL57,
+			version:    OceanBase,
 			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
-		},
-		{
-			version:    MySQL80,
-			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
 		},
 	}
 
@@ -111,24 +104,23 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 	}
 }
 
-// TestVersionDispatch_DefaultVersionIs80 guards the back-compat contract: a catalog with no
-// version set canonicalizes as 8.0 (Version's zero value is MySQL57, so defaultSessionState
-// must force MySQL80).
-func TestVersionDispatch_DefaultVersionIs80(t *testing.T) {
+// TestVersionDispatch_DefaultVersionIsOceanBase guards that a catalog with no version set
+// canonicalizes as OceanBase (its Version zero value).
+func TestVersionDispatch_DefaultVersionIsOceanBase(t *testing.T) {
 	c := New()
-	if c.Version() != MySQL80 {
-		t.Fatalf("New() catalog Version = %v, want MySQL80 (back-compat)", c.Version())
+	if c.Version() != OceanBase {
+		t.Fatalf("New() catalog Version = %v, want OceanBase (back-compat)", c.Version())
 	}
 	cat, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4;")
 	if err != nil {
 		t.Fatalf("LoadSDL: %v", err)
 	}
-	if cat.Version() != MySQL80 {
-		t.Fatalf("LoadSDL catalog Version = %v, want MySQL80", cat.Version())
+	if cat.Version() != OceanBase {
+		t.Fatalf("LoadSDL catalog Version = %v, want OceanBase", cat.Version())
 	}
 	// defaultNormalizer(to) must therefore be 8.0.
-	if got := defaultNormalizer(cat).Version; got != MySQL80 {
-		t.Fatalf("defaultNormalizer version = %v, want MySQL80", got)
+	if got := defaultNormalizer(cat).Version; got != OceanBase {
+		t.Fatalf("defaultNormalizer version = %v, want OceanBase", got)
 	}
 }
 
@@ -160,70 +152,50 @@ func TestVersionDispatch_GeneratedDDLNoMissingCollation(t *testing.T) {
 	}
 }
 
-func versionName(v Version) string {
-	if v == MySQL80 {
-		return "8.0"
-	}
-	return "5.7"
+func versionName(_ Version) string {
+	return "oceanbase"
 }
 
-// TestVersionDispatch_BareTimestampNoPhantom locks in the EDFT half of the 5.7 fix:
-// LoadSDLWithVersion seeds the session explicit_defaults_for_timestamp to the version's
-// box default (OFF on 5.7), so a bare TIMESTAMP synced from 5.7 (which the server
-// materializes to NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) does
-// not phantom-diff against the user's bare `TIMESTAMP` target. Without the EDFT seed the
-// 5.7 catalog would keep New()'s 8.0 default (ON) and the bare TIMESTAMP would diff.
+// TestVersionDispatch_BareTimestampNoPhantom locks in the EDFT behavior: OceanBase's
+// explicit_defaults_for_timestamp defaults ON, so a bare first TIMESTAMP stays nullable
+// (no implicit NOT NULL DEFAULT CURRENT_TIMESTAMP magic) and the engine's stored form
+// (nullable, no default) does not phantom-diff against the user's bare `TIMESTAMP`.
 func TestVersionDispatch_BareTimestampNoPhantom(t *testing.T) {
-	// 5.7 server stored form of a bare first TIMESTAMP under EDFT=OFF.
-	synced57 := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+	// OceanBase stored form of a bare TIMESTAMP under EDFT=ON: nullable, no default.
+	synced := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
 	target := "CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP) DEFAULT CHARSET=utf8mb4"
 
-	from, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced57, MySQL57)
+	from, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced, OceanBase)
 	if err != nil {
 		t.Fatalf("load synced: %v", err)
 	}
-	to, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, MySQL57)
+	to, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, OceanBase)
 	if err != nil {
 		t.Fatalf("load target: %v", err)
 	}
-	if from.Version() != MySQL57 {
-		t.Fatalf("from version = %v, want MySQL57", from.Version())
+	if from.Version() != OceanBase {
+		t.Fatalf("from version = %v, want OceanBase", from.Version())
 	}
 	if d := Diff(from, to); !d.IsEmpty() {
-		t.Errorf("5.7 bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
-	}
-
-	// And on 8.0 a bare TIMESTAMP stays nullable (EDFT ON), so the same user target vs an
-	// 8.0 stored form (nullable, no implicit default) is also empty.
-	synced80 := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
-	from80, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced80, MySQL80)
-	if err != nil {
-		t.Fatalf("load synced80: %v", err)
-	}
-	to80, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, MySQL80)
-	if err != nil {
-		t.Fatalf("load target80: %v", err)
-	}
-	if d := Diff(from80, to80); !d.IsEmpty() {
-		t.Errorf("8.0 bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
+		t.Errorf("bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
 	}
 }
 
 // TestVersionDispatch_EDFTExplicitSetWins proves EDFT remains a SESSION variable, not a
-// version trait: LoadSDLWithVersion seeds the session to the version box default, but an
-// explicit `SET explicit_defaults_for_timestamp` inside the SDL (processed after the seed)
-// still wins. A 5.7 schema that ran with EDFT explicitly ON must therefore leave a bare
-// TIMESTAMP nullable (no implicit NOT NULL / DEFAULT CURRENT_TIMESTAMP magic).
+// version trait: LoadSDLWithVersion seeds the session to OceanBase's box default (ON),
+// but an explicit `SET explicit_defaults_for_timestamp=0` inside the SDL (processed after
+// the seed) still wins. With EDFT OFF a bare first TIMESTAMP gets the implicit NOT NULL /
+// DEFAULT CURRENT_TIMESTAMP magic.
 func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
-	// 5.7 catalog (box default EDFT OFF) but the SDL carries SET ...=1 (ON).
-	sdl := "CREATE DATABASE d; USE d; SET SESSION explicit_defaults_for_timestamp=1;\n" +
+	// OceanBase catalog (box default EDFT ON) but the SDL carries SET ...=0 (OFF).
+	sdl := "CREATE DATABASE d; USE d; SET SESSION explicit_defaults_for_timestamp=0;\n" +
 		"CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP)"
-	cat, err := LoadSDLWithVersion(sdl, MySQL57)
+	cat, err := LoadSDLWithVersion(sdl, OceanBase)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if !cat.session.ExplicitDefaultsForTimestamp {
-		t.Fatalf("explicit SET ...=1 must win over the 5.7 box-default seed; session EDFT = false")
+	if cat.session.ExplicitDefaultsForTimestamp {
+		t.Fatalf("explicit SET ...=0 must win over the OceanBase box-default seed; session EDFT = true")
 	}
 	var tbl *Table
 	for _, db := range cat.Databases() {
@@ -238,20 +210,17 @@ func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
 	if ts == nil {
 		t.Fatal("column ts not found")
 	}
-	// EDFT ON: bare TIMESTAMP stays nullable, no implicit default materialized at load.
-	if !ts.Nullable {
-		t.Errorf("with EDFT explicitly ON, bare TIMESTAMP must stay nullable, got NOT NULL")
+	// EDFT OFF: bare first TIMESTAMP gets the implicit NOT NULL / DEFAULT magic at load.
+	if ts.Nullable {
+		t.Errorf("with EDFT explicitly OFF, bare first TIMESTAMP must be NOT NULL, got nullable")
 	}
-	if ts.Default != nil {
-		t.Errorf("with EDFT explicitly ON, bare TIMESTAMP must have no implicit default, got %q", *ts.Default)
-	}
-	// And the diff-time normalizer (which reads the session EDFT) agrees it is nullable.
+	// And the diff-time normalizer (which reads the session EDFT) agrees it is NOT NULL.
 	n := defaultNormalizer(cat)
-	if n.ExplicitDefaultsForTimestamp != true {
-		t.Errorf("defaultNormalizer EDFT = false, want true (session override)")
+	if n.ExplicitDefaultsForTimestamp != false {
+		t.Errorf("defaultNormalizer EDFT = true, want false (session override)")
 	}
-	if n.CanonicalNotNull(tbl, ts) {
-		t.Errorf("CanonicalNotNull(bare TIMESTAMP) = true under EDFT ON, want false (nullable)")
+	if !n.CanonicalNotNull(tbl, ts) {
+		t.Errorf("CanonicalNotNull(bare TIMESTAMP) = false under EDFT OFF, want true (NOT NULL)")
 	}
 }
 
@@ -334,8 +303,8 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			}
 			plan := GenerateMigrationWithNormalizer(fromCat, toPlusCat, diff, n)
 			planSQL := plan.SQL()
-			if strings.Contains(planSQL, "utf8mb4_0900_ai_ci") && v == MySQL57 {
-				t.Errorf("[%s] change DDL names utf8mb4_0900_ai_ci (invalid on 5.7):\n%s", o.name, planSQL)
+			if strings.Contains(planSQL, "utf8mb4_0900_ai_ci") {
+				t.Errorf("[%s] change DDL names utf8mb4_0900_ai_ci (OceanBase has no such collation):\n%s", o.name, planSQL)
 			}
 
 			ctx := context.Background()

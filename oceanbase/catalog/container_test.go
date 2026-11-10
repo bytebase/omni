@@ -9,14 +9,13 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
-
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
-// mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
+// mysqlContainer wraps a connection to the package's shared OceanBase server for
+// container testing. (The name predates the migration off MySQL; OceanBase speaks the
+// MySQL wire protocol, so the SHOW CREATE / information_schema helpers below are
+// unchanged.)
 type mysqlContainer struct {
 	db  *sql.DB
 	ctx context.Context
@@ -24,9 +23,8 @@ type mysqlContainer struct {
 
 var sharedMySQL = struct {
 	sync.Mutex
-	container *tcmysql.MySQLContainer
-	db        *sql.DB
-	ctx       context.Context
+	db  *sql.DB
+	ctx context.Context
 }{
 	ctx: context.Background(),
 }
@@ -51,120 +49,60 @@ type constraintInfo struct {
 	Name, Type string
 }
 
-// startContainer starts a MySQL 8.0 container and returns an container handle plus
-// a cleanup function. The caller must defer the cleanup function.
+// startContainer returns a handle to the package's shared OceanBase server plus a
+// cleanup function the caller must defer. The handle is reset to a clean `test`
+// database under a lock the cleanup releases, so tests serialize on the shared server.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	if os.Getenv("MYSQL_TESTCONTAINERS_SHARED") == "0" {
-		return startDedicatedContainer(t)
-	}
-
 	sharedMySQL.Lock()
 	ctr, err := getSharedContainer()
 	if err != nil {
 		sharedMySQL.Unlock()
-		t.Fatalf("failed to start shared MySQL container: %v", err)
+		t.Fatalf("failed to start shared OceanBase container: %v", err)
 	}
 	if err := resetSharedContainer(ctr); err != nil {
 		sharedMySQL.Unlock()
-		t.Fatalf("failed to reset shared MySQL container: %v", err)
+		t.Fatalf("failed to reset shared OceanBase container: %v", err)
 	}
 	return ctr, func() {
 		sharedMySQL.Unlock()
 	}
 }
 
-func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
-	t.Helper()
-	ctx := context.Background()
-
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
-	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
-	}
-
-	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to open database: %v", err)
-	}
-
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to ping database: %v", err)
-	}
-
-	cleanup := func() {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-	}
-
-	return &mysqlContainer{db: db, ctx: ctx}, cleanup
-}
-
 func getSharedContainer() (*mysqlContainer, error) {
-	if sharedMySQL.container != nil {
+	if sharedMySQL.db != nil {
 		return &mysqlContainer{db: sharedMySQL.db, ctx: sharedMySQL.ctx}, nil
 	}
 
-	container, err := tcmysql.Run(sharedMySQL.ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
+	dsn, err := testcontainer.OceanBase.DSN(sharedMySQL.ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	connStr, err := container.ConnectionString(sharedMySQL.ctx, "parseTime=true", "multiStatements=true")
+	db, err := testcontainer.OpenOceanBase(dsn + "?parseTime=true&multiStatements=true")
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
-
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, err
-	}
+	// Pin to one connection so USE and session state hold across statements.
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-
 	if err := db.PingContext(sharedMySQL.ctx); err != nil {
 		db.Close()
-		_ = testcontainers.TerminateContainer(container)
 		return nil, err
 	}
 
-	sharedMySQL.container = container
 	sharedMySQL.db = db
 	return &mysqlContainer{db: db, ctx: sharedMySQL.ctx}, nil
 }
 
 func resetSharedContainer(ctr *mysqlContainer) error {
-	if err := execResetStmts(ctr,
-		"SET SESSION foreign_key_checks = 0",
-		"SET SESSION sql_mode = DEFAULT",
-		"USE mysql",
-	); err != nil {
+	if err := execResetStmts(ctr, "SET SESSION foreign_key_checks = 0"); err != nil {
 		return err
 	}
 
 	dbNames, err := queryStrings(ctr, `
 		SELECT SCHEMA_NAME
 		FROM information_schema.SCHEMATA
-		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')`)
+		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys', 'oceanbase', '__recyclebin')`)
 	if err != nil {
 		return err
 	}
@@ -174,25 +112,30 @@ func resetSharedContainer(ctr *mysqlContainer) error {
 		}
 	}
 
-	accounts, err := queryAccountNames(ctr)
-	if err != nil {
-		return err
-	}
-	for _, account := range accounts {
-		_ = execResetStmts(ctr, "DROP ROLE IF EXISTS "+quoteAccount(account.user, account.host))
-		_ = execResetStmts(ctr, "DROP USER IF EXISTS "+quoteAccount(account.user, account.host))
+	// Account cleanup is best-effort: the user catalog is engine-specific and some
+	// tests create no accounts, so a query failure must not fail the reset.
+	if accounts, err := queryAccountNames(ctr); err == nil {
+		for _, account := range accounts {
+			_ = execResetStmts(ctr, "DROP ROLE IF EXISTS "+quoteAccount(account.user, account.host))
+			_ = execResetStmts(ctr, "DROP USER IF EXISTS "+quoteAccount(account.user, account.host))
+		}
 	}
 
-	return execResetStmts(ctr,
+	if err := execResetStmts(ctr,
 		"CREATE DATABASE IF NOT EXISTS test",
 		"USE test",
 		"SET SESSION sql_mode = DEFAULT",
 		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
 		"SET SESSION foreign_key_checks = 1",
 		"SET SESSION time_zone = DEFAULT",
-		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
-		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
-	)
+	); err != nil {
+		return err
+	}
+	// GIPK session variables are MySQL 8.0-only; OceanBase does not define them, so
+	// resetting them is best-effort.
+	_ = execResetStmts(ctr, "SET SESSION sql_generate_invisible_primary_key = DEFAULT")
+	_ = execResetStmts(ctr, "SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT")
+	return nil
 }
 
 func execResetStmts(ctr *mysqlContainer, stmts ...string) error {
@@ -263,12 +206,7 @@ func TestMain(m *testing.M) {
 		_ = sharedMySQL.db.Close()
 		sharedMySQL.db = nil
 	}
-	if sharedMySQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMySQL.container)
-		sharedMySQL.container = nil
-	}
 	sharedMySQL.Unlock()
-	terminateOracleFallbacks()
 	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }

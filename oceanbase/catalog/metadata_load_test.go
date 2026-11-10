@@ -153,7 +153,7 @@ func TestLoadMetadataInstallsTable(t *testing.T) {
 		Name:          "users",
 		Engine:        "InnoDB",
 		Charset:       "utf8mb4",
-		Collation:     "utf8mb4_0900_ai_ci",
+		Collation:     "utf8mb4_general_ci",
 		Comment:       "users table",
 		CreateOptions: "row_format=COMPRESSED stats_persistent=0",
 		Columns: []*metadata.ColumnMetadata{
@@ -531,7 +531,7 @@ func TestLoadMetadataInstallsEvents(t *testing.T) {
 func TestLoadMetadataInstallsRoutines(t *testing.T) {
 	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
 		Functions: []*metadata.FunctionMetadata{
-			{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1", SqlMode: "PIPES_AS_CONCAT", CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_0900_ai_ci"},
+			{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1", SqlMode: "PIPES_AS_CONCAT", CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_general_ci"},
 			{Name: "broken_fn", Definition: "not a function"},
 		},
 		Procedures: []*metadata.ProcedureMetadata{
@@ -545,7 +545,7 @@ func TestLoadMetadataInstallsRoutines(t *testing.T) {
 		t.Errorf("functions %v, procedures %v; want add_one and touch", db.Functions, db.Procedures)
 	}
 	// A routine takes the context the snapshot records; one with none stays bare.
-	if fn := db.Functions["add_one"]; fn == nil || !fn.HasSessionContext || fn.SQLMode != "PIPES_AS_CONCAT" || fn.CollationConnection != "utf8mb4_0900_ai_ci" {
+	if fn := db.Functions["add_one"]; fn == nil || !fn.HasSessionContext || fn.SQLMode != "PIPES_AS_CONCAT" || fn.CollationConnection != "utf8mb4_general_ci" {
 		t.Errorf("add_one = %+v, want the snapshot's session context", fn)
 	}
 	if p := db.Procedures["touch"]; p == nil || p.HasSessionContext {

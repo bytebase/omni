@@ -260,11 +260,11 @@ func DiffWithNormalizer(from, to *Catalog, n *Normalizer) *SchemaDiff {
 // `to` catalog's session. `to` is the target/desired schema, which on the release path
 // is re-loaded from the source's synced metadata, so its session carries the source
 // server's version and EDFT — exactly the stored form the canonicalizer must match. A
-// nil `to` falls back to MySQL80 (the historical default), so existing 8.0 callers that
+// nil `to` falls back to OceanBase (the only version), so callers that
 // never set a version are unaffected.
 func defaultNormalizer(to *Catalog) *Normalizer {
 	if to == nil {
-		return NormalizerFor(MySQL80)
+		return NormalizerFor(OceanBase)
 	}
 	n := NormalizerFor(to.session.Version)
 	n.ExplicitDefaultsForTimestamp = to.session.ExplicitDefaultsForTimestamp

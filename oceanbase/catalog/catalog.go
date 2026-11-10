@@ -22,12 +22,9 @@ type SessionState struct {
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
 	SQLMode                      string
-	// Version is the MySQL major version (MySQL57/MySQL80) whose stored form the
-	// diff/generate canonicalizer must reproduce. It defaults to MySQL80 so an
-	// unset catalog keeps the historical 8.0 behavior; bytebase sets it from the
-	// synced database's server version before diffing a 5.7 schema so a bare
-	// CHARSET=utf8mb4 does not phantom-diff against the 8.0 default collation, and
-	// so generated DDL never emits a collation (utf8mb4_0900_ai_ci) that 5.7 lacks.
+	// Version selects the stored form the diff/generate canonicalizer reproduces.
+	// OceanBase is the only engine this catalog models, so OceanBase is the only
+	// value; the field is kept so the diff/SDL entry points stay version-addressable.
 	Version Version
 }
 
@@ -36,7 +33,7 @@ func New() *Catalog {
 	return &Catalog{
 		databases:        make(map[string]*Database),
 		defaultCharset:   "utf8mb4",
-		defaultCollation: "utf8mb4_0900_ai_ci",
+		defaultCollation: "utf8mb4_general_ci",
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
@@ -50,12 +47,11 @@ func defaultSessionState() SessionState {
 	return SessionState{
 		ForeignKeyChecks:             true,
 		CharsetClient:                "utf8mb4",
-		CollationConnection:          "utf8mb4_0900_ai_ci",
+		CollationConnection:          "utf8mb4_general_ci",
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
-		// Default to the modern 8.0 stored form (Version's zero value is MySQL57, so
-		// this MUST be set explicitly to preserve the historical default behavior).
-		Version: MySQL80,
+		// OceanBase is the only stored form (Version's zero value).
+		Version: OceanBase,
 	}
 }
 
@@ -68,14 +64,13 @@ func (c *Catalog) SetForeignKeyChecks(v bool) {
 	c.session.ForeignKeyChecks = v
 }
 
-// Version returns the MySQL major version whose stored form this catalog's diff and
-// generate paths canonicalize against (default MySQL80).
+// Version returns the stored form this catalog's diff and generate paths canonicalize
+// against (always OceanBase).
 func (c *Catalog) Version() Version { return c.session.Version }
 
-// SetVersion fixes the MySQL major version (MySQL57/MySQL80) whose stored form the
-// diff/generate canonicalizer reproduces for this catalog. bytebase's
-// mysqlDiffSDLMigration sets it from the synced database's server version so a
-// 5.7-synced schema canonicalizes (and generates DDL) as 5.7 rather than 8.0.
+// SetVersion fixes the stored form the diff/generate canonicalizer reproduces for this
+// catalog. OceanBase is the only version; the setter is kept so callers stay
+// version-addressable.
 func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }

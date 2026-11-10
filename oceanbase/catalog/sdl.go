@@ -45,23 +45,20 @@ import (
 // before executing that statement. foreign_key_checks is likewise held off for
 // the entire load regardless of any SET inside the SDL.
 func LoadSDL(sql string) (*Catalog, error) {
-	return LoadSDLWithVersion(sql, MySQL80)
+	return LoadSDLWithVersion(sql, OceanBase)
 }
 
-// LoadSDLWithVersion is LoadSDL with an explicit target MySQL version recorded on the
-// returned catalog's session. The version does not change how the SDL is parsed or how
-// objects are stored (the loader always bakes the static 8.0 default collation for a
-// bare CHARSET); it is the version the later Diff/GenerateMigration canonicalize
-// against. bytebase passes the synced database's server version so a 5.7 schema is
-// diffed and rendered as 5.7. LoadSDL delegates here with MySQL80 to preserve the
-// historical default.
+// LoadSDLWithVersion is LoadSDL with an explicit target version recorded on the
+// returned catalog's session. OceanBase is the only version; the parameter is kept so
+// the entry point stays version-addressable. It does not change how the SDL is parsed
+// or how objects are stored; it is the version the later Diff/GenerateMigration
+// canonicalize against.
 //
-// Setting the version also seeds the session's explicit_defaults_for_timestamp to that
-// version's SERVER-BOX default (OFF on 5.7, ON on 8.0), because a synced schema dumped to
-// SDL carries no `SET explicit_defaults_for_timestamp` and otherwise the session would
-// keep New()'s 8.0 default — making a bare TIMESTAMP synced from 5.7 phantom-diff. EDFT
-// remains a session variable, not a version trait: an explicit `SET` inside the SDL is
-// processed after this and still wins (exec.go), so a captured non-box value is honored.
+// Setting the version also seeds the session's explicit_defaults_for_timestamp to the
+// engine's SERVER default (ON on OceanBase), because a synced schema dumped to SDL
+// carries no `SET explicit_defaults_for_timestamp`. EDFT remains a session variable,
+// not a version trait: an explicit `SET` inside the SDL is processed after this and
+// still wins (exec.go), so a captured non-box value is honored.
 func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	c := New()
 	c.SetVersion(version)

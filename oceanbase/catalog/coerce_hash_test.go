@@ -1,11 +1,8 @@
 package catalog
 
 import (
-	"fmt"
 	"strings"
 	"testing"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 // Unit + oracle proof for the InnoDB USING HASH fold (coerceInnoDBHashIndex). InnoDB silently
@@ -72,97 +69,5 @@ func TestCoerceInnoDBHashIndex_Unit(t *testing.T) {
 				t.Errorf("IndexType = %q, want %q", got, c.want)
 			}
 		})
-	}
-}
-
-// hashProbe is one schema form whose index uses USING HASH; it must round-trip empty against the
-// engine readback (folded away on InnoDB, preserved on MEMORY). createSQL may be multiple
-// statements (the connection enables multiStatements and omni's LoadSQL is multi-statement too), so
-// a probe can author the index via CREATE TABLE, ALTER TABLE ADD …, or CREATE [UNIQUE] INDEX — all
-// five paths that build an index from a user USING clause.
-type hashProbe struct {
-	id        string
-	table     string
-	createSQL string
-	versions  []Version
-}
-
-func hashRoundTripProbes() []hashProbe {
-	return []hashProbe{
-		// ---- CREATE TABLE inline index (the originally-covered forms) --------------------------
-		// InnoDB: USING HASH must fold so the round-trip is empty on BOTH versions (5.7 keeps the
-		// echo, 8.0 drops it — both must collapse to the no-USING form).
-		{"innodb-unique-hash", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), UNIQUE KEY uk (name) USING HASH) ENGINE=InnoDB", both()},
-		{"innodb-key-hash", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), KEY k (name) USING HASH) ENGINE=InnoDB", both()},
-		// InnoDB with no explicit ENGINE (defaults to InnoDB): USING HASH still folds.
-		{"innodb-default-engine-hash", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), KEY k (name) USING HASH)", both()},
-		// InnoDB USING BTREE must round-trip too (echoed verbatim on both versions; NOT folded).
-		{"innodb-key-btree", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), KEY k (name) USING BTREE) ENGINE=InnoDB", both()},
-		// MEMORY: HASH is the real index type and is echoed on both versions, so it round-trips as
-		// HASH (the fold must NOT fire for MEMORY).
-		{"memory-unique-hash", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), UNIQUE KEY uk (name) USING HASH) ENGINE=MEMORY", both()},
-		{"memory-key-hash", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20), KEY k (name) USING HASH) ENGINE=MEMORY", both()},
-
-		// ---- ALTER TABLE … ADD UNIQUE … USING HASH (the missing ALTER-ADD-UNIQUE path) ---------
-		// InnoDB: ADD UNIQUE USING HASH must fold → empty round-trip on both versions.
-		{"alter-add-unique-hash-innodb", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB;" +
-				"ALTER TABLE t ADD UNIQUE uk (name) USING HASH", both()},
-		// MEMORY: ADD UNIQUE USING HASH must be PRESERVED (HASH is real there) → round-trips as HASH.
-		{"alter-add-unique-hash-memory", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=MEMORY;" +
-				"ALTER TABLE t ADD UNIQUE uk (name) USING HASH", both()},
-
-		// ---- ALTER TABLE … ADD KEY … USING HASH (the plain-KEY ALTER path) ---------------------
-		// Already folded pre-fix, but probed here so the oracle matrix covers all five paths.
-		{"alter-add-key-hash-innodb", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB;" +
-				"ALTER TABLE t ADD KEY k (name) USING HASH", both()},
-		{"alter-add-key-hash-memory", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=MEMORY;" +
-				"ALTER TABLE t ADD KEY k (name) USING HASH", both()},
-
-		// ---- CREATE INDEX … USING HASH (non-unique standalone, the missing CREATE INDEX path) ---
-		// InnoDB: folds → empty. (Trailing USING is the common form the parser routes into Options.)
-		{"create-index-hash-innodb", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB;" +
-				"CREATE INDEX k ON t (name) USING HASH", both()},
-		// MEMORY: preserved → round-trips as HASH.
-		{"create-index-hash-memory", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=MEMORY;" +
-				"CREATE INDEX k ON t (name) USING HASH", both()},
-
-		// ---- CREATE UNIQUE INDEX … USING HASH (the missing CREATE-UNIQUE-INDEX path) -----------
-		// InnoDB: folds → empty.
-		{"create-unique-index-hash-innodb", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB;" +
-				"CREATE UNIQUE INDEX uk ON t (name) USING HASH", both()},
-		// MEMORY: preserved → round-trips as HASH.
-		{"create-unique-index-hash-memory", "t",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) ENGINE=MEMORY;" +
-				"CREATE UNIQUE INDEX uk ON t (name) USING HASH", both()},
-	}
-}
-
-// TestOracle_InnoDBHashRoundTrip proves the USING HASH fold against the LIVE engines (5.7 :13307,
-// 8.0 :13306): every probe's user form vs its engine readback diffs empty on both versions.
-func TestOracle_InnoDBHashRoundTrip(t *testing.T) {
-	for _, version := range both() {
-		o := connectOracle(t, version)
-		for _, p := range hashRoundTripProbes() {
-			if !containsVersion(p.versions, version) {
-				continue
-			}
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
-				db := "hash_" + strings.ReplaceAll(p.id, "-", "_")
-				assertDiffEmptyAgainstReadback(t, o, db, p.createSQL, p.table)
-			})
-		}
 	}
 }

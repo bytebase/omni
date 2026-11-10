@@ -427,7 +427,7 @@ func assertStringSetsEqual(t *testing.T, label string, want, got []string, shuff
 // each loads into the catalog.
 func TestSDLCoverage(t *testing.T) {
 	sql := `
-CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE app;
 
 CREATE TABLE parent (

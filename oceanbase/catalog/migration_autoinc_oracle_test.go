@@ -106,13 +106,13 @@ func autoIncMigrationProbes() []migrationProbe {
 		// INVISIBLE index, and a trailing functional part behind the plain first column.
 		{"aig-add-col-desc-key", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, KEY k_seq (seq DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, KEY k_seq (seq DESC))", only(OceanBase)},
 		{"aig-add-col-invisible-key", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, UNIQUE KEY uk_seq (seq) INVISIBLE)", only(MySQL80)},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, UNIQUE KEY uk_seq (seq) INVISIBLE)", only(OceanBase)},
 		{"aig-add-col-trailing-expr-key", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT, seq INT NOT NULL AUTO_INCREMENT, KEY k_se (seq, (a + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT, seq INT NOT NULL AUTO_INCREMENT, KEY k_se (seq, (a + 1)))", only(OceanBase)},
 
 		// ---- DROP direction: the last backing key leaves while the column is AUTO_INCREMENT ----
 
@@ -191,7 +191,7 @@ func autoIncMigrationProbes() []migrationProbe {
 		// auto column: its ADD must be pulled into the grouped statement (errno 1054 otherwise).
 		{"aig-funcpart-new-col", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, z INT, KEY k_sz (seq, (z + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, z INT, KEY k_sz (seq, (z + 1)))", only(OceanBase)},
 		// A PREFIX key part over an existing column widened in the same plan: the widening
 		// MODIFY must join the grouped statement (errno 1089 against the old length otherwise;
 		// in one statement MySQL validates against the post-MODIFY shape).

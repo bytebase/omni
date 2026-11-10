@@ -311,33 +311,27 @@ func TestDiffIndex_FKImplicitUserNamedConstraint(t *testing.T) {
 	}
 }
 
-// TestCanonicalIndex_VersionFlaggedAttrs asserts the version-divergent normalization decisions in
-// canonicalIndex directly: DESC and index KEY_BLOCK_SIZE are significant on 8.0/5.7 respectively
-// and dropped on the other, matching the live-engine behavior proven in the oracle tests.
+// TestCanonicalIndex_VersionFlaggedAttrs asserts the index normalization decisions in
+// canonicalIndex directly: OceanBase stores like 8.0, so DESC is significant and index
+// KEY_BLOCK_SIZE is absorbed (dropped from the key), matching the live-engine behavior
+// proven in the oracle tests.
 func TestCanonicalIndex_VersionFlaggedAttrs(t *testing.T) {
-	n80 := NormalizerFor(MySQL80)
-	n57 := NormalizerFor(MySQL57)
+	n := NormalizerFor(OceanBase)
 
 	asc := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}}
 	desc := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b", Descending: true}}}
 
-	// 8.0: DESC distinguishes; 5.7: DESC is dropped (stored ascending), so the keys collapse.
-	if canonicalIndex(asc, n80) == canonicalIndex(desc, n80) {
-		t.Errorf("8.0: ASC and DESC index keys must differ")
-	}
-	if canonicalIndex(asc, n57) != canonicalIndex(desc, n57) {
-		t.Errorf("5.7: DESC must be dropped from the key (stored ascending), keys must match")
+	// DESC distinguishes the key (OceanBase stores descending like 8.0).
+	if canonicalIndex(asc, n) == canonicalIndex(desc, n) {
+		t.Errorf("ASC and DESC index keys must differ")
 	}
 
 	plain := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}}}
 	kbs := &Index{Name: "k", Visible: true, KeyBlockSize: 4, Columns: []*IndexColumn{{Name: "a"}}}
 
-	// 5.7: index KEY_BLOCK_SIZE is echoed → significant; 8.0: absorbed → dropped from the key.
-	if canonicalIndex(plain, n57) == canonicalIndex(kbs, n57) {
-		t.Errorf("5.7: index KEY_BLOCK_SIZE must contribute to the key")
-	}
-	if canonicalIndex(plain, n80) != canonicalIndex(kbs, n80) {
-		t.Errorf("8.0: index KEY_BLOCK_SIZE must be ignored in the key")
+	// Index KEY_BLOCK_SIZE is absorbed (dropped from the key), like 8.0.
+	if canonicalIndex(plain, n) != canonicalIndex(kbs, n) {
+		t.Errorf("index KEY_BLOCK_SIZE must be ignored in the key")
 	}
 }
 
@@ -403,7 +397,7 @@ func TestDiffIndex_ScopeMigrationRoundTrip(t *testing.T) {
 		{"unstated to GLOBAL", "", "GLOBAL"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			n := NormalizerFor(MySQL80)
+			n := NormalizerFor(OceanBase)
 			from := loadCat(t, dbDDL+tbl(tc.from))
 			to := loadCat(t, dbDDL+tbl(tc.to))
 			plan := GenerateMigrationWithNormalizer(from, to, DiffWithNormalizer(from, to, n), n)

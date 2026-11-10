@@ -38,7 +38,7 @@ func planSQL(t *testing.T, from, to *Catalog, n *Normalizer) string {
 // non-default sql_mode whose body is edited is DROPped and re-CREATEd wrapped in an exact
 // SET sql_mode='<mode>' … restore.
 func TestRecreate_RoutineCarriesSQLMode(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1")
 	to := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 2")
 
@@ -47,7 +47,7 @@ func TestRecreate_RoutineCarriesSQLMode(t *testing.T) {
 			"f": {
 				SQLMode:             "PIPES_AS_CONCAT,NO_BACKSLASH_ESCAPES",
 				CharacterSetClient:  "utf8mb4",
-				CollationConnection: "utf8mb4_0900_ai_ci",
+				CollationConnection: "utf8mb4_general_ci",
 			},
 		},
 	})
@@ -65,7 +65,7 @@ func TestRecreate_RoutineCarriesSQLMode(t *testing.T) {
 		"SET @saved_cs_client = @@character_set_client",
 		"SET character_set_client = utf8mb4",
 		"SET @saved_coll_conn = @@collation_connection",
-		"SET collation_connection = utf8mb4_0900_ai_ci",
+		"SET collation_connection = utf8mb4_general_ci",
 		"CREATE FUNCTION `d`.`f`",
 		"RETURN a + 2",
 		"SET collation_connection = @saved_coll_conn",
@@ -77,7 +77,7 @@ func TestRecreate_RoutineCarriesSQLMode(t *testing.T) {
 // TestNewRoutine_BareCreate covers requirement (2): a brand-new routine (no From) emits a
 // bare CREATE with no session framing.
 func TestNewRoutine_BareCreate(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE FUNCTION other() RETURNS INT DETERMINISTIC RETURN 1")
 	to := loadSCCatalog(t, "CREATE FUNCTION other() RETURNS INT DETERMINISTIC RETURN 1;\nCREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a")
 
@@ -104,7 +104,7 @@ func TestNewRoutine_BareCreate(t *testing.T) {
 // the carried session context differs) produces NO diff entry — the identity is
 // context-agnostic, so there is no phantom churn.
 func TestUnchangedRoutine_NoDiff(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	body := "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a"
 	from := loadSCCatalog(t, body)
 	to := loadSCCatalog(t, body)
@@ -126,7 +126,7 @@ func TestUnchangedRoutine_NoDiff(t *testing.T) {
 // carried through a routine recreate even when sql_mode is empty. sql_mode is still framed
 // (empty modes are authored, not the server default).
 func TestRecreate_RoutineCharsetCollationOnly(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE PROCEDURE p(IN a INT) BEGIN SET @v = a; END")
 	to := loadSCCatalog(t, "CREATE PROCEDURE p(IN a INT) BEGIN SET @v = a + 1; END")
 
@@ -156,7 +156,7 @@ func TestRecreate_RoutineCharsetCollationOnly(t *testing.T) {
 // DROP+CREATE (an ENDS-removal change, which forces the recreate path) carries BOTH its
 // non-UTC time_zone and its sql_mode.
 func TestRecreate_EventCarriesTimeZoneAndSQLMode(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	// From has an ENDS bound; To drops it → eventModifyNeedsRecreate → DROP+CREATE.
 	from := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS '2030-01-01 00:00:00' DO SET @x = 1")
 	to := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1")
@@ -166,7 +166,7 @@ func TestRecreate_EventCarriesTimeZoneAndSQLMode(t *testing.T) {
 			"e": {
 				SQLMode:             "STRICT_ALL_TABLES",
 				CharacterSetClient:  "utf8mb4",
-				CollationConnection: "utf8mb4_0900_ai_ci",
+				CollationConnection: "utf8mb4_general_ci",
 				TimeZone:            "+08:00",
 			},
 		},
@@ -201,7 +201,7 @@ func TestRecreate_EventCarriesTimeZoneAndSQLMode(t *testing.T) {
 // collation from the executing session (verified on live 8.0.32), so the ALTER must be
 // framed with the OLD event's context too.
 func TestAlterEvent_CarriesSQLMode(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	// Body-only change → ALTER path (no ENDS to remove).
 	from := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1")
 	to := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 2")
@@ -245,7 +245,7 @@ func TestAlterEvent_CarriesSQLMode(t *testing.T) {
 // TestAlterEvent_NoContextIsBare confirms a body-only event change with NO applied context
 // stays a bare ALTER EVENT (framing is opt-in via ApplySessionContext).
 func TestAlterEvent_NoContextIsBare(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1")
 	to := loadSCCatalog(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 2")
 	// No ApplySessionContext.
@@ -263,13 +263,13 @@ func TestAlterEvent_NoContextIsBare(t *testing.T) {
 // PROCEDURE) is emitted BARE even with context applied: ALTER FUNCTION does NOT re-stamp
 // sql_mode (verified on live 8.0.32), so framing it is unnecessary and would be noise.
 func TestAlterRoutine_NoFraming(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'old' RETURN a")
 	to := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'new' RETURN a")
 
 	from.ApplySessionContext(SessionContextMap{
 		Functions: map[string]SessionContext{
-			"f": {SQLMode: "PIPES_AS_CONCAT", CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_0900_ai_ci"},
+			"f": {SQLMode: "PIPES_AS_CONCAT", CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_general_ci"},
 		},
 	})
 
@@ -293,7 +293,7 @@ func TestAlterRoutine_NoFraming(t *testing.T) {
 // DROP+CREATE — MySQL has no ALTER TRIGGER). Triggers already model charset/collation; this
 // adds sql_mode and asserts the full framing.
 func TestRecreate_TriggerCarriesSQLMode(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE TABLE t (id INT);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @x = 1")
 	to := loadSCCatalog(t, "CREATE TABLE t (id INT);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @x = 2")
 
@@ -302,7 +302,7 @@ func TestRecreate_TriggerCarriesSQLMode(t *testing.T) {
 			"trg": {
 				SQLMode:             "NO_ENGINE_SUBSTITUTION",
 				CharacterSetClient:  "utf8mb4",
-				CollationConnection: "utf8mb4_0900_ai_ci",
+				CollationConnection: "utf8mb4_general_ci",
 			},
 		},
 	})
@@ -327,7 +327,7 @@ func TestRecreate_TriggerCarriesSQLMode(t *testing.T) {
 // TestRecreate_NoContextIsBareRecreate confirms that a MODIFY whose From carries NO applied
 // session context stays a bare DROP+CREATE — the framing is opt-in via ApplySessionContext.
 func TestRecreate_NoContextIsBareRecreate(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1")
 	to := loadSCCatalog(t, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 2")
 	// No ApplySessionContext.

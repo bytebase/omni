@@ -38,13 +38,14 @@ import (
 type Version int
 
 const (
-	// MySQL57 reproduces MySQL 5.7's stored form (display widths injected,
-	// utf8 spelling, utf8mb4_general_ci default, no descending indexes, CHECK dropped).
-	MySQL57 Version = iota
-	// MySQL80 reproduces MySQL 8.0's stored form (display widths dropped except
-	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
-	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
-	MySQL80
+	// OceanBase is the only stored form this catalog models: OceanBase CE 4.3.x.
+	// It reports as MySQL 5.7 but stores like 8.0 — display widths dropped except
+	// tinyint(1)/zerofill, utf8mb3 spelling, descending indexes, CHECK kept,
+	// explicit_defaults_for_timestamp default ON — while keeping 5.7-style
+	// *_general_ci default collations (utf8mb4 → utf8mb4_general_ci, NOT
+	// utf8mb4_0900_ai_ci, which OceanBase does not ship). All measured on
+	// OceanBaseImage; see oceanbase/internal/testcontainer.
+	OceanBase Version = iota
 )
 
 // Normalizer carries the engine version plus the session/server variables that the
@@ -63,18 +64,22 @@ type Normalizer struct {
 	ExplicitDefaultsForTimestamp bool
 }
 
-// NormalizerFor builds a Normalizer for a version, seeding session variables to that
-// version's oracle-box default (explicit_defaults_for_timestamp=0 on 5.7, 1 on 8.0).
-// Callers with a captured value should set ExplicitDefaultsForTimestamp explicitly.
+// NormalizerFor builds a Normalizer for a version, seeding session variables to the
+// engine's default (explicit_defaults_for_timestamp=1 on OceanBase). Callers with a
+// captured value should set ExplicitDefaultsForTimestamp explicitly.
 func NormalizerFor(v Version) *Normalizer {
 	return &Normalizer{
 		Version:                      v,
-		ExplicitDefaultsForTimestamp: v == MySQL80,
+		ExplicitDefaultsForTimestamp: true,
 	}
 }
 
-// is80 reports whether the target reproduces 8.0 stored form.
-func (n *Normalizer) is80() bool { return n.Version == MySQL80 }
+// is80 reports whether the target reproduces 8.0 stored-form structure. OceanBase
+// stores like 8.0 for every structural trait this gates (display widths, year, bit,
+// descending indexes, CHECK persistence), so it is always true; the one 8.0 trait
+// OceanBase does NOT share — the utf8mb4_0900_ai_ci default collation — is handled in
+// defaultCollationFor, not here.
+func (n *Normalizer) is80() bool { return true }
 
 // ---------------------------------------------------------------------------
 // Charset / collation — the dominant phantom-diff surface (HIGHEST RISK).
@@ -104,16 +109,14 @@ func foldCollation(coll string) string {
 	return coll
 }
 
-// defaultCollationFor returns the version-correct default collation for a charset,
-// already folded. The utf8mb4 default is the single most dangerous case: 8.0 uses
-// utf8mb4_0900_ai_ci (which does not even exist on 5.7) while 5.7 uses
-// utf8mb4_general_ci. (entry utf8mb4-default-collation)
+// defaultCollationFor returns OceanBase's default collation for a charset, already
+// folded. OceanBase keeps the 5.7-style *_general_ci defaults even though it stores
+// like 8.0 structurally: utf8mb4 → utf8mb4_general_ci (NOT utf8mb4_0900_ai_ci, which
+// OceanBase does not ship). Verified via information_schema.CHARACTER_SETS on
+// OceanBaseImage. (entry utf8mb4-default-collation)
 func (n *Normalizer) defaultCollationFor(charset string) string {
 	cs := foldCharset(charset)
 	if cs == "utf8mb4" {
-		if n.is80() {
-			return "utf8mb4_0900_ai_ci"
-		}
 		return "utf8mb4_general_ci"
 	}
 	if dc, ok := defaultCollationForCharset[cs]; ok {
@@ -1342,12 +1345,14 @@ func (n *Normalizer) CanonicalEngine(table *Table) string {
 func (n *Normalizer) IgnoreTableAutoIncrement() bool { return true }
 
 // IgnoreRowFormat reports whether the table's ROW_FORMAT should be excluded from the
-// diff. The default ROW_FORMAT is environment-dependent (innodb_default_row_format) and
-// not reliably reconstructible from DDL, so it is ignored unless the user explicitly set
-// a non-default value (entry row-format-default-omitted; flag row-format-default-source).
+// diff. OceanBase ALWAYS echoes ROW_FORMAT=DYNAMIC in SHOW CREATE — even for a bare
+// table that declared no row format — because DYNAMIC is its physical default, so a
+// readback's DYNAMIC is an engine default, not user intent, and must be ignored like an
+// empty / DEFAULT value. A genuinely non-default value (e.g. COMPRESSED) is still
+// significant. (entry row-format-default-omitted; OceanBase always-emits DYNAMIC.)
 func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
 	rf := strings.ToUpper(strings.TrimSpace(table.RowFormat))
-	return rf == "" || rf == "DEFAULT"
+	return rf == "" || rf == "DEFAULT" || rf == "DYNAMIC"
 }
 
 // ---------------------------------------------------------------------------

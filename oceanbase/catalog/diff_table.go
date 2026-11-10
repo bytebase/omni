@@ -154,12 +154,11 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 }
 
 // rowFormatChanged reports whether the table ROW_FORMAT differs in a way that matters.
-// ROW_FORMAT in both the target SDL and the synced SHOW CREATE readback is a DECLARED
-// option, not the table's physical row format: the oracle confirms SHOW CREATE echoes
-// ROW_FORMAT=X iff the user explicitly declared a non-DEFAULT value (a bare table, and a
-// ROW_FORMAT=DEFAULT table, both read back with NO clause; an explicit ROW_FORMAT=DYNAMIC
-// — even though DYNAMIC is the 8.0 physical default — IS echoed). So both sides are the
-// same kind of declared-option string and are compared directly.
+// OceanBase ALWAYS echoes ROW_FORMAT=DYNAMIC in SHOW CREATE — even for a bare table that
+// declared no row format — because DYNAMIC is its physical default. So a readback's
+// DYNAMIC is an engine default, not user intent, and IgnoreRowFormat maps empty /
+// DEFAULT / DYNAMIC alike to "" here; only a genuinely non-default value (COMPRESSED) is
+// significant and compared directly.
 //
 // The ignore DECISION is owned by normalize-core's IgnoreRowFormat (empty / DEFAULT →
 // ignorable, mapped to "" here; an explicit non-default value is significant). The

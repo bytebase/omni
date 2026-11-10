@@ -32,7 +32,7 @@ func viewOps(plan *MigrationPlan) []MigrationOp {
 }
 
 func TestGenerateView_NoOpEmpty(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{OceanBase} {
 		sdl := `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`
 		plan := viewPlanFor(t, version, sdl, sdl)
@@ -43,7 +43,7 @@ CREATE VIEW v1 AS SELECT a FROM t;`
 }
 
 func TestGenerateView_CreateShape(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT, b INT);`,
 		`CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`)
@@ -75,7 +75,7 @@ CREATE VIEW v1 AS SELECT a FROM t;`)
 }
 
 func TestGenerateView_CreateWithOptions(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT, b INT);`,
 		`CREATE TABLE t (a INT, b INT);
 CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v1 (p, q) AS SELECT a, b FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;`)
@@ -96,7 +96,7 @@ CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v1 (p, q) AS SELECT a, b FROM t
 }
 
 func TestGenerateView_ModifyEmitsCreateOrReplace(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`,
 		`CREATE TABLE t (a INT, b INT);
@@ -111,7 +111,7 @@ CREATE VIEW v1 AS SELECT b FROM t;`)
 }
 
 func TestGenerateView_DropShape(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t;`,
 		`CREATE TABLE t (a INT);`)
@@ -131,7 +131,7 @@ CREATE VIEW v1 AS SELECT a FROM t;`,
 // View-on-view CREATE must order the dependency before the dependent. v_base references table t;
 // v_dep references v_base, so v_base's CREATE must precede v_dep's in the plan order.
 func TestGenerateView_ViewOnViewOrdering(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT, b INT);`,
 		`CREATE TABLE t (a INT, b INT);
 CREATE VIEW v_dep AS SELECT x FROM v_base;
@@ -159,7 +159,7 @@ CREATE VIEW v_base (x) AS SELECT a FROM t;`)
 
 // A three-level chain (v3 → v2 → v1 → t) must come out strictly in dependency order.
 func TestGenerateView_ViewChainOrdering(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT);`,
 		`CREATE TABLE t (a INT);
 CREATE VIEW v3 AS SELECT a FROM v2;
@@ -182,7 +182,7 @@ CREATE VIEW v2 AS SELECT a FROM v1;`)
 // An earlier substring-based scan saw `a`'s alias `b` as a reference to view `b`, forming a
 // false cycle that put `b` before `a` — which fails to apply (a doesn't exist yet).
 func TestGenerateView_AliasMatchingViewNameNoFalseEdge(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (id INT, x INT);`,
 		`CREATE TABLE t (id INT, x INT);
 CREATE VIEW a AS SELECT id AS b FROM t;
@@ -208,7 +208,7 @@ CREATE VIEW b AS SELECT x FROM a;`)
 // Regression: a parenthesized JOIN of two batch views must order both before a view that joins
 // them. Exercises relation extraction at the `(` anchor (join arms are parenthesized).
 func TestGenerateView_ParenJoinOfViewsOrdering(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (id INT); CREATE TABLE u (id INT);`,
 		`CREATE TABLE t (id INT); CREATE TABLE u (id INT);
 CREATE VIEW v1 AS SELECT id FROM t;
@@ -232,7 +232,7 @@ CREATE VIEW jv AS SELECT v1.id, v2.id AS id2 FROM v1 JOIN v2 ON v1.id = v2.id;`)
 func TestGenerateView_DependencyExtractionRobust(t *testing.T) {
 	// base `b` (referenced by `dep`); view `c` aliases a column `b` and joins t with a literal that
 	// mentions `b`; view `dep` truly depends on `b`. `b` must precede `dep`.
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (id INT, x INT);`,
 		`CREATE TABLE t (id INT, x INT);
 CREATE VIEW b AS SELECT id FROM t;
@@ -254,7 +254,7 @@ CREATE VIEW dep AS SELECT id FROM b;`)
 // NOT depend on the view `shared` (its `FROM shared` binds to the CTE), so no ordering constraint
 // links them — and no false cycle is formed.
 func TestGenerateView_CTENameNotAViewEdge(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (id INT);`,
 		`CREATE TABLE t (id INT);
 CREATE VIEW shared AS SELECT id FROM t;
@@ -271,7 +271,7 @@ CREATE VIEW ctev AS WITH shared AS (SELECT id FROM t) SELECT id FROM shared;`)
 // A view over a freshly created table must be created after the table (CREATE TABLE at
 // priorityTable precedes CREATE VIEW at priorityView in the global sort).
 func TestGenerateView_ViewAfterTable(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		``,
 		`CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`)
@@ -321,7 +321,7 @@ func opPositions(plan *MigrationPlan, wants []opWant) []int {
 // routine creates are hoisted before view creates unconditionally. Regression for the enterprise
 // SDL smoke failure (view-before-function plan → Error 1305 on apply).
 func TestGenerateView_ViewAfterFunction(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{OceanBase} {
 		plan := viewPlanFor(t, version,
 			`CREATE TABLE users (id INT PRIMARY KEY);`,
 			`CREATE TABLE users (id INT PRIMARY KEY);
@@ -342,7 +342,7 @@ CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`)
 // function a view still references (live-verified — the view merely goes invalid), so this is the
 // safe semantic order rather than an apply-success requirement.
 func TestGenerateView_DropViewBeforeDropFunction(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE users (id INT PRIMARY KEY);
 CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users);
 CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`,
@@ -359,7 +359,7 @@ CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`,
 // Transitive: function ← view ← view. Combining routine-before-view (priority) with view-on-view
 // depth ordering must yield fn < v1 < v2.
 func TestGenerateView_FunctionViewViewChainOrdering(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT);`,
 		`CREATE TABLE t (a INT);
 CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t);
@@ -378,7 +378,7 @@ CREATE VIEW v1 AS SELECT fn_base() AS n;`)
 // A body-modified function (DROP+CREATE path) with a NEW view calling it: the function's re-CREATE
 // (PhaseMain) must still precede the view's CREATE, and its DROP stays in PhasePre.
 func TestGenerateView_ViewAfterModifiedFunction(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT);
 CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t);`,
 		`CREATE TABLE t (a INT);
@@ -397,7 +397,7 @@ CREATE VIEW v1 AS SELECT fn_base() AS n;`)
 // All drops precede all creates: a view dropped and another created in one plan must not interleave
 // such that a create lands before the drops (PhasePre vs PhaseMain).
 func TestGenerateView_DropsBeforeCreates(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
+	plan := viewPlanFor(t, OceanBase,
 		`CREATE TABLE t (a INT);
 CREATE VIEW old_v AS SELECT a FROM t;`,
 		`CREATE TABLE t (a INT);

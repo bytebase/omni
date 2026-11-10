@@ -28,7 +28,7 @@ func diffEventsOnly(t *testing.T, fromSQL, toSQL string) *SchemaDiff {
 	t.Helper()
 	from := loadCat(t, evDBDDL+fromSQL)
 	to := loadCat(t, evDBDDL+toSQL)
-	return DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	return DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 }
 
 // ---- canonicalizeSchedule: the headline normalization -----------------------
@@ -185,7 +185,7 @@ func TestDiffEvents_SelfEmpty(t *testing.T) {
 	}
 	for _, s := range schemas {
 		c := loadCat(t, evDBDDL+s)
-		if d := DiffWithNormalizer(c, c, NormalizerFor(MySQL80)); !d.IsEmpty() {
+		if d := DiffWithNormalizer(c, c, NormalizerFor(OceanBase)); !d.IsEmpty() {
 			t.Errorf("self-diff not empty for %q: events=%d", s, len(d.Events))
 		}
 	}
@@ -196,7 +196,7 @@ func TestDiffEvents_StartsInjectionNoOp(t *testing.T) {
 	// must diff EMPTY.
 	from := loadCat(t, evDBDDL+"CREATE EVENT e ON SCHEDULE EVERY 1 HOUR STARTS '2026-06-26 12:32:56' DO SET @x = 1;")
 	to := loadCat(t, evDBDDL+"CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x = 1;")
-	if d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80)); !d.IsEmpty() {
+	if d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase)); !d.IsEmpty() {
 		t.Errorf("STARTS-injection no-op must diff empty, got %d event changes", len(d.Events))
 	}
 }
@@ -243,7 +243,7 @@ func TestDiffEvents_DefinerIgnored(t *testing.T) {
 	// Two events differing ONLY in DEFINER must NOT diff (DEFINER is ignore-in-diff).
 	from := loadCat(t, evDBDDL+"CREATE DEFINER=`a`@`%` EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
 	to := loadCat(t, evDBDDL+"CREATE DEFINER=`b`@`localhost` EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
-	if d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80)); !d.IsEmpty() {
+	if d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase)); !d.IsEmpty() {
 		t.Errorf("DEFINER-only change must not diff, got %d event changes", len(d.Events))
 	}
 }
@@ -276,8 +276,8 @@ func TestGenerateEventDDL_CommentEscaping(t *testing.T) {
 
 func TestGenerateEventDDL_EmptyOnNoOp(t *testing.T) {
 	from := loadCat(t, evDBDDL+"CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
-	diff := DiffWithNormalizer(from, from, NormalizerFor(MySQL80))
-	plan := GenerateMigrationWithNormalizer(from, from, diff, NormalizerFor(MySQL80))
+	diff := DiffWithNormalizer(from, from, NormalizerFor(OceanBase))
+	plan := GenerateMigrationWithNormalizer(from, from, diff, NormalizerFor(OceanBase))
 	if plan.SQL() != "" {
 		t.Errorf("no-op plan must be empty, got:\n%s", plan.SQL())
 	}
@@ -288,8 +288,8 @@ func TestGenerateEventDDL_DropPhaseBeforeCreate(t *testing.T) {
 	// (PhasePre < PhaseMain).
 	from := loadCat(t, evDBDDL+"CREATE EVENT old ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
 	to := loadCat(t, evDBDDL+"CREATE EVENT new ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
-	diff := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
-	plan := GenerateMigrationWithNormalizer(from, to, diff, NormalizerFor(MySQL80))
+	diff := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
+	plan := GenerateMigrationWithNormalizer(from, to, diff, NormalizerFor(OceanBase))
 	sql := plan.SQL()
 	di := strings.Index(sql, "DROP EVENT")
 	ci := strings.Index(sql, "CREATE EVENT")
@@ -311,7 +311,7 @@ func genEventPlan(t *testing.T, fromSQL, toSQL string) string {
 	} else {
 		to = loadCat(t, evDBDDL+toSQL)
 	}
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	diff := DiffWithNormalizer(from, to, n)
 	return GenerateMigrationWithNormalizer(from, to, diff, n).SQL()
 }

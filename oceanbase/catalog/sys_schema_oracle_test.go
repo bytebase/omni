@@ -31,8 +31,8 @@ import (
 // unrelated surface; the enterprise-baseline harness leg this test
 // replicates (TestSDLEnterpriseBaseline/mysql80/sys) targets 8.0.
 func TestOracle_SysSchemaDogfood(t *testing.T) {
-	o := connectOracle(t, MySQL80)
-	n := NormalizerFor(MySQL80)
+	o := connectOracle(t, OceanBase)
+	n := NormalizerFor(OceanBase)
 	ctx := context.Background()
 
 	// Enumerate and read back every sys view, verbatim.
@@ -70,7 +70,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 	}
 
 	// Gate 1: the canonical dump loads and self-diffs empty.
-	catA, err := LoadSDLWithVersion(dump.String(), MySQL80)
+	catA, err := LoadSDLWithVersion(dump.String(), OceanBase)
 	if err != nil {
 		t.Fatalf("[%s] LoadSDL(sys dump) failed: %v", o.name, err)
 	}
@@ -154,7 +154,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 		redump.WriteString(rehomed)
 		redump.WriteString(";\n")
 	}
-	catB, err := LoadSDLWithVersion(redump.String(), MySQL80)
+	catB, err := LoadSDLWithVersion(redump.String(), OceanBase)
 	if err != nil {
 		t.Fatalf("[%s] LoadSDL(re-dump) failed: %v", o.name, err)
 	}

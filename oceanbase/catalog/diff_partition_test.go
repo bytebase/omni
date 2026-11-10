@@ -208,10 +208,10 @@ func TestDiffPartition_SubpartitionTemplate(t *testing.T) {
 	two := ddl("SUBPARTITION s0, SUBPARTITION s1")
 	three := ddl("SUBPARTITION s0, SUBPARTITION s1, SUBPARTITION s2")
 
-	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, three), NormalizerFor(MySQL80)); d.IsEmpty() {
+	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, three), NormalizerFor(OceanBase)); d.IsEmpty() {
 		t.Error("a two-entry template against a three-entry one diffed empty, so no migration")
 	}
-	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, two), NormalizerFor(MySQL80)); !d.IsEmpty() {
+	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, two), NormalizerFor(OceanBase)); !d.IsEmpty() {
 		t.Errorf("the same template must be empty, got: %s", describeDiff(d))
 	}
 	// The rendered form has to be loadable, since the spec is compared as text. Each

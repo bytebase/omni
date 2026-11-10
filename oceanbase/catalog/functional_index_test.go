@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+// scenarioNewCatalog returns a fresh catalog with testdb created and selected. (It was
+// shared from the scenario oracle helpers; those container-fidelity tests were moved to
+// the OceanBase test-rework follow-up, so the helper lives here with its last caller.)
+func scenarioNewCatalog(t *testing.T) *Catalog {
+	t.Helper()
+	c := New()
+	results, err := c.Exec("CREATE DATABASE testdb; USE testdb;", nil)
+	if err != nil {
+		t.Fatalf("scenarioNewCatalog parse error: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("scenarioNewCatalog exec error on stmt %d: %v", r.Index, r.Error)
+		}
+	}
+	return c
+}
+
 func TestFunctionalIndexHiddenColumnsVisibleAndHiddenViews(t *testing.T) {
 	c := scenarioNewCatalog(t)
 	results, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));", nil)
@@ -287,7 +305,7 @@ func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
 		CREATE TABLE t (
 			a INT,
 			b INT,
-			name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
 			payload JSON,
 			INDEX k_sum ((a + b)),
 			INDEX k_low ((LOWER(name))),
@@ -308,7 +326,7 @@ func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
 		t.Fatal("table t missing")
 	}
 	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_sum!0!0", "bigint", "bigint", "", "")
-	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_low!0!0", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_0900_ai_ci")
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_low!0!0", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_general_ci")
 	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_cast!0!0", "bigint", "bigint unsigned", "", "")
 }
 

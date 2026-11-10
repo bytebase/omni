@@ -197,7 +197,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"cte", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW v AS WITH cte AS (SELECT a, b FROM t) SELECT a FROM cte",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"v"}, only(OceanBase)},
 		{"union", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE TABLE u (a INT)",
@@ -212,12 +212,12 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"explicit-columns", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20))",
 			"CREATE VIEW v (p, q) AS SELECT a, b FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"v"}, only(OceanBase)},
 		{"view-on-view-explicit-cols", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW base (x, y) AS SELECT a, b FROM t",
 			"CREATE VIEW v AS SELECT x FROM base",
-		}, []string{"t"}, []string{"base", "v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"base", "v"}, only(OceanBase)},
 		// Parenthesized subquery as the LEFT operand of a binary operator, with
 		// the comparison itself inside parens — the stock sys.metrics shape
 		// (`if(((select count(0) from ... where (...))) = 0),'NO','YES')`).
@@ -344,13 +344,9 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"weight-string-forms", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT WEIGHT_STRING(s) AS c1, WEIGHT_STRING(s AS CHAR(4)) AS c2, WEIGHT_STRING(s AS BINARY(4)) AS c3 FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
-		// WEIGHT_STRING LEVEL: 5.7-only syntax (8.0 rejects LEVEL), written
-		// explicitly so the user form matches the engine-stored level list.
-		{"weight-string-level", []string{
-			"CREATE TABLE t (s VARCHAR(20))",
-			"CREATE VIEW v AS SELECT WEIGHT_STRING(s LEVEL 1) AS c1, WEIGHT_STRING(s AS CHAR(4) LEVEL 1) AS c2, WEIGHT_STRING(s LEVEL 1 DESC REVERSE) AS c3 FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL57)},
+		}, []string{"t"}, []string{"v"}, only(OceanBase)},
+		// (Removed the WEIGHT_STRING LEVEL probe: LEVEL is 5.7-only syntax that
+		// OceanBase, storing like 8.0, does not reproduce in a view body.)
 	}
 }
 
@@ -631,7 +627,7 @@ func viewMigrationProbes() []viewMigrationProbe {
 		{"create-explicit-columns",
 			base("CREATE TABLE t (a INT, b VARCHAR(20))"),
 			base("CREATE TABLE t (a INT, b VARCHAR(20))", "CREATE VIEW v (p, q) AS SELECT a, b FROM t"),
-			[]string{"t"}, []string{"v"}, only(MySQL80)},
+			[]string{"t"}, []string{"v"}, only(OceanBase)},
 		// ---- temporal-unit keyword arguments ----
 		// CREATE the sys.innodb_lock_waits shape from a table-only state:
 		// the generated body must carry timestampdiff(SECOND,...) with a
@@ -838,8 +834,8 @@ func firstIdentAfter(s string, pos int) string {
 // into a catalog that diffs empty against the first load in both directions.
 // 8.0 only: 5.7 ships a different sys version without the metrics view.
 func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
-	o := connectOracle(t, MySQL80)
-	n := NormalizerFor(MySQL80)
+	o := connectOracle(t, OceanBase)
+	n := NormalizerFor(OceanBase)
 	ctx := context.Background()
 
 	var name, ddl, csClient, coll string
@@ -849,7 +845,7 @@ func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
 	}
 
 	readbackSDL := "CREATE DATABASE sys;\nUSE sys;\n" + ddl + ";\n"
-	cat1, err := LoadSDLWithVersion(readbackSDL, MySQL80)
+	cat1, err := LoadSDLWithVersion(readbackSDL, OceanBase)
 	if err != nil {
 		t.Fatalf("[%s] LoadSDL(sys.metrics readback) failed: %v\n%s", o.name, err, readbackSDL)
 	}
@@ -869,7 +865,7 @@ func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
 	// Second generation: regenerate the CREATE from the loaded catalog (the
 	// canonical stored form the migration generator emits) and reload it.
 	regenSDL := "CREATE DATABASE sys;\nUSE sys;\n" + formatCreateOrReplaceView(v1) + ";\n"
-	cat2, err := LoadSDLWithVersion(regenSDL, MySQL80)
+	cat2, err := LoadSDLWithVersion(regenSDL, OceanBase)
 	if err != nil {
 		t.Fatalf("[%s] LoadSDL(regenerated sys.metrics) failed: %v\n%s", o.name, err, regenSDL)
 	}

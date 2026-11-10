@@ -82,8 +82,8 @@ func TestWalkThrough_8_3_Utf8mb4DefaultCollation(t *testing.T) {
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=utf8mb4")
 	got := c.ShowCreateTable("testdb", "t")
 	// MySQL 8.0 always shows COLLATE for utf8mb4 tables
-	if !strings.Contains(got, "COLLATE=utf8mb4_0900_ai_ci") {
-		t.Errorf("expected COLLATE=utf8mb4_0900_ai_ci in table options for utf8mb4\ngot:\n%s", got)
+	if !strings.Contains(got, "COLLATE=utf8mb4_general_ci") {
+		t.Errorf("expected COLLATE=utf8mb4_general_ci in table options for utf8mb4\ngot:\n%s", got)
 	}
 }
 

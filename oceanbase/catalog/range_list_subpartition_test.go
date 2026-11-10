@@ -218,8 +218,8 @@ var rangeListAddPartitionScenarios = []struct {
 // bounds and no partition diff between them, in either direction.
 func requirePartitionsEqual(t *testing.T, a, b string, layout []string) {
 	t.Helper()
-	sc := serverCharsetFor(MySQL80)
-	n := NormalizerFor(MySQL80)
+	sc := serverCharsetFor(OceanBase)
+	n := NormalizerFor(OceanBase)
 	ca, ta := loadOneTable(t, sc, a, "t")
 	cb, tb := loadOneTable(t, sc, b, "t")
 	for _, side := range []struct {

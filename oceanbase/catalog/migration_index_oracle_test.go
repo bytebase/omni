@@ -45,15 +45,15 @@ func indexMigrationProbes() []migrationProbe {
 			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", both()},
 		// 8.0-only forms.
 		{"create-with-descending", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(OceanBase)},
 		{"create-with-invisible", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(OceanBase)},
 		{"create-with-functional", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)))", only(OceanBase)},
 		{"create-with-mv-index", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(OceanBase)},
 		{"create-with-spatial", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", only(OceanBase)},
 
 		// ---- ADD INDEX (modified table) ----
 		{"add-secondary", "t",
@@ -80,16 +80,16 @@ func indexMigrationProbes() []migrationProbe {
 		// 8.0-only.
 		{"add-descending", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(OceanBase)},
 		{"add-invisible", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(OceanBase)},
 		{"add-functional", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY fa ((a + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY fa ((a + 1)))", only(OceanBase)},
 		{"add-mv-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(OceanBase)},
 
 		// ---- DROP INDEX (modified table) ----
 		{"drop-secondary", "t",
@@ -106,7 +106,7 @@ func indexMigrationProbes() []migrationProbe {
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))", both()},
 		{"drop-mv-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)", only(OceanBase)},
 
 		// ---- MODIFY index (DROP+ADD): same name, changed shape ----
 		{"modify-columns", "t",
@@ -153,10 +153,10 @@ func indexMigrationProbes() []migrationProbe {
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) /*!80000 INVISIBLE */)", only(OceanBase)},
 		{"modify-direction", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a DESC))", only(OceanBase)},
 
 		// ---- index DROP + column DROP interplay (ordering: DROP INDEX before DROP COLUMN) ----
 		// MySQL auto-drops a single-column index when its column is dropped; an explicit DROP INDEX

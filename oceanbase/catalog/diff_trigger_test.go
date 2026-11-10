@@ -33,7 +33,7 @@ func triggerEntry(t *testing.T, d *SchemaDiff, name string) *TriggerDiffEntry {
 }
 
 func TestTriggerDiff_SelfEmpty(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	cat := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;
@@ -44,7 +44,7 @@ CREATE TRIGGER au AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.b;`)
 }
 
 func TestTriggerDiff_Add(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `CREATE TABLE t (id INT PRIMARY KEY, a INT);`)
 	to := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
@@ -57,7 +57,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 }
 
 func TestTriggerDiff_Drop(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -71,7 +71,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 
 // TestTriggerDiff_ModifyEachField proves every compared field independently triggers a MODIFY.
 func TestTriggerDiff_ModifyEachField(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	base := "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT);\nCREATE TABLE u (id INT PRIMARY KEY, a INT);\n"
 	cases := []struct {
 		name string
@@ -104,7 +104,7 @@ func TestTriggerDiff_ModifyEachField(t *testing.T) {
 // (no DEFINER → loader default `root`@`%`) and a stored form carrying an explicit DEFINER must
 // collapse to empty.
 func TestTriggerDiff_IgnoreDefiner(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	userForm := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -122,7 +122,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 // FOLLOWS (non-nil Order) and the same trigger declared without it (the readback form, nil Order)
 // must collapse to empty. This is the deliberate trigger-order-not-modelled flag.
 func TestTriggerDiff_IgnoreOrder(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	withFollows := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT);
 CREATE TRIGGER bi1 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;
@@ -144,7 +144,7 @@ CREATE TRIGGER bi2 BEFORE INSERT ON t FOR EACH ROW SET NEW.b = 2;`)
 // (the loader TrimSpaces). Interior whitespace/case is significant (MySQL stores it verbatim) and
 // is NOT folded — a genuine body change must still diff.
 func TestTriggerDiff_BodyWhitespaceTrim(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	a := &Trigger{Name: "x", Table: "t", Timing: "BEFORE", Event: "INSERT", Body: "SET NEW.a = 1"}
 	b := &Trigger{Name: "x", Table: "t", Timing: "BEFORE", Event: "INSERT", Body: "  SET NEW.a = 1  "}
 	if triggersChanged(a, b, n) {
@@ -159,7 +159,7 @@ func TestTriggerDiff_BodyWhitespaceTrim(t *testing.T) {
 // ---- generator unit tests ----
 
 func TestTriggerGenerate_CreateDDL(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `CREATE TABLE t (id INT PRIMARY KEY, a INT);`)
 	to := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
@@ -176,7 +176,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 }
 
 func TestTriggerGenerate_DropDDL(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -195,7 +195,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 // TestTriggerGenerate_ModifyIsDropThenCreate proves a changed trigger emits exactly DROP then
 // CREATE (no ALTER TRIGGER), and the DROP (PhasePre) sorts before the CREATE (PhaseMain).
 func TestTriggerGenerate_ModifyIsDropThenCreate(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -220,7 +220,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2;`)
 // TestTriggerGenerate_DropTableSuppressesTriggerDrop proves that when a trigger's owning table is
 // dropped, no explicit DROP TRIGGER is emitted (the DROP TABLE cascades).
 func TestTriggerGenerate_DropTableSuppressesTriggerDrop(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -250,7 +250,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 // the CREATE half (on the surviving new table) is emitted. (Confirmed against live MySQL: without
 // the suppression the apply fails with "Trigger does not exist".)
 func TestTriggerGenerate_ModifyTableMoveOldTableDropped(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE old_t (id INT PRIMARY KEY, a INT);
 CREATE TABLE new_t (id INT PRIMARY KEY, a INT);
@@ -273,7 +273,7 @@ CREATE TRIGGER tr BEFORE INSERT ON new_t FOR EACH ROW SET NEW.a = 1;`)
 // TestTriggerGenerate_ModifyInPlaceStillDrops is the counterpart: an in-place body change (same
 // table, table NOT dropped) must still emit DROP+CREATE — the suppression must not over-fire.
 func TestTriggerGenerate_ModifyInPlaceStillDrops(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);
 CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
@@ -298,7 +298,7 @@ CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2;`)
 // TestTriggerGenerate_CreateOnNewTable proves a trigger on a freshly-created table is emitted (the
 // CREATE TRIGGER sorts after the CREATE TABLE via priorityTrigger > priorityTable).
 func TestTriggerGenerate_CreateOnNewTable(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	from := New()
 	to := loadTriggerCatalog(t, `
 CREATE TABLE t (id INT PRIMARY KEY, a INT);

@@ -86,7 +86,7 @@ func TestForeignKeyCanonicalHelpers(t *testing.T) {
 		t.Errorf("canonicalRefDatabase(cross-db) = %q, want otherdb", canonicalRefDatabase(crossDB))
 	}
 	// A same-db FK and an unqualified FK must produce the same canonical key.
-	if canonicalForeignKey(sameDB, NormalizerFor(MySQL80)) != canonicalForeignKey(noDB, NormalizerFor(MySQL80)) {
+	if canonicalForeignKey(sameDB, NormalizerFor(OceanBase)) != canonicalForeignKey(noDB, NormalizerFor(OceanBase)) {
 		t.Errorf("same-db-qualified and unqualified FK must canonicalize equal")
 	}
 }
@@ -249,6 +249,10 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 		if err := row.Scan(&nm, &ddl); err != nil {
 			t.Fatalf("[%s] SHOW CREATE %s: %v", o.name, tbl, err)
 		}
+		// OceanBase qualifies a FOREIGN KEY's referenced table with the schema it was
+		// created in (`<execDB>`.`p`), unlike MySQL which emits an unqualified name.
+		// Rewrite that qualifier to the fixed logical db so the readback reloads there.
+		ddl = strings.ReplaceAll(ddl, "`"+execDB+"`.", "`"+logicalDB+"`.")
 		b.WriteString(ddl + ";\n")
 	}
 	cat, err := LoadSQL(b.String())

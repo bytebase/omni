@@ -31,7 +31,7 @@ func charsetForCollation(collation string) string {
 
 // defaultCollationForCharset returns the default collation for common MySQL charsets.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
+	"utf8mb4":  "utf8mb4_general_ci",
 	"utf8mb3":  "utf8mb3_general_ci",
 	"utf8":     "utf8mb3_general_ci",
 	"latin1":   "latin1_swedish_ci",

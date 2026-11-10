@@ -47,7 +47,7 @@ func findViewDiff(d *SchemaDiff, name string) *ViewDiffEntry {
 }
 
 func TestDiffViews_SelfDiffEmpty(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{OceanBase} {
 		sdl := `CREATE TABLE t (a INT, b VARCHAR(20), c INT);
 CREATE VIEW v1 AS SELECT a, b FROM t;
 CREATE VIEW v2 (p, q) AS SELECT a, b FROM t;
@@ -61,10 +61,10 @@ CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v3 AS SELECT a FROM t WHERE a >
 }
 
 func TestDiffViews_Add(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);`)
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	e := findViewDiff(d, "v1")
 	if e == nil || e.Action != DiffAdd {
 		t.Fatalf("want v1 ADD, got %+v", d.Views)
@@ -75,10 +75,10 @@ CREATE VIEW v1 AS SELECT a FROM t;`)
 }
 
 func TestDiffViews_Drop(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);`)
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	e := findViewDiff(d, "v1")
 	if e == nil || e.Action != DiffDrop {
 		t.Fatalf("want v1 DROP, got %+v", d.Views)
@@ -89,11 +89,11 @@ CREATE VIEW v1 AS SELECT a FROM t;`)
 }
 
 func TestDiffViews_ModifyBody(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT b FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	e := findViewDiff(d, "v1")
 	if e == nil || e.Action != DiffModify {
 		t.Fatalf("want v1 MODIFY, got %+v", d.Views)
@@ -101,44 +101,44 @@ CREATE VIEW v1 AS SELECT b FROM t;`)
 }
 
 func TestDiffViews_ModifyAlgorithm(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE ALGORITHM=UNDEFINED VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
 		t.Fatalf("algorithm change should be a MODIFY, got %+v", d.Views)
 	}
 }
 
 func TestDiffViews_ModifySQLSecurity(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE SQL SECURITY DEFINER VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT a FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
 		t.Fatalf("sql security change should be a MODIFY, got %+v", d.Views)
 	}
 }
 
 func TestDiffViews_ModifyCheckOption(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH LOCAL CHECK OPTION;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
 		t.Fatalf("check-option change should be a MODIFY, got %+v", d.Views)
 	}
 }
 
 func TestDiffViews_AddRemoveCheckOption(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
 		t.Fatalf("adding a check option should be a MODIFY, got %+v", d.Views)
 	}
@@ -147,15 +147,15 @@ CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;`)
 // DEFINER differences must NOT produce a diff (ignore-in-diff). OceanBase takes a
 // view's DEFINER only after ALGORITHM (see oceanbase/parser's parseCreateViewStmt).
 func TestDiffViews_DefinerIgnored(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE ALGORITHM=UNDEFINED DEFINER=`+"`root`@`%`"+` VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT);
 CREATE ALGORITHM=UNDEFINED DEFINER=`+"`admin`@`localhost`"+` VIEW v1 AS SELECT a FROM t;`)
 	// Sanity: the definers really differ on the loaded views.
 	if getView(t, from, "v1").Definer == getView(t, to, "v1").Definer {
 		t.Fatalf("test setup: definers should differ")
 	}
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if !d.IsEmpty() {
 		t.Errorf("DEFINER-only change must NOT diff (ignore-in-diff), got %d view changes", len(d.Views))
 	}
@@ -163,11 +163,11 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`+"`admin`@`localhost`"+` VIEW v1 AS SELECT a
 
 // On 8.0, an explicit column-list change is a modify; the list is a stored attribute.
 func TestDiffViews_ExplicitColumns80(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);
+	from := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 (p, q) AS SELECT a, b FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT, b INT);
+	to := loadViewCatalog(t, OceanBase, `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 (x, y) AS SELECT a, b FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
+	d := DiffWithNormalizer(from, to, NormalizerFor(OceanBase))
 	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
 		t.Fatalf("explicit column-list change should be a MODIFY on 8.0, got %+v", d.Views)
 	}
@@ -232,7 +232,7 @@ func TestCanonicalView_UserVsEngineBodyConverge(t *testing.T) {
 		Definition: "select `t`.`a` AS `a`,`t`.`b` AS `b` from `t`"}
 	engine := &View{Name: "v1", Database: db, Algorithm: "UNDEFINED", SqlSecurity: "DEFINER",
 		Definition: "select `vt`.`t`.`a` AS `a`,`vt`.`t`.`b` AS `b` from `vt`.`t`"}
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	if canonicalView(user, n) != canonicalView(engine, n) {
 		t.Errorf("user vs engine body did not converge:\n  user:   %q\n  engine: %q",
 			canonicalView(user, n), canonicalView(engine, n))

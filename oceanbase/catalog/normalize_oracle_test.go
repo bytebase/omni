@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // The oracle proof for normalize-core. For every normalization.md entry, this applies
@@ -33,52 +31,26 @@ type oracleConn struct {
 	name    string
 }
 
-func dsnOr(env, def string) string {
-	if v := os.Getenv(env); v != "" {
-		return v
-	}
-	return def
-}
-
-// connectOracle dials one engine: the OMNI_MYSQL{57,80}_DSN override if set,
-// else the conventional local instance, else the package-shared testcontainer
-// fallback (oracle_fallback_test.go).
+// connectOracle dials the OceanBase testcontainer shared by this package. The
+// version argument no longer selects a distinct engine (OceanBase is one engine
+// that reports as 5.7); it stays only to drive the omni-side normalizer and label
+// the subtest, so the migration can measure OceanBase's stored form against both
+// of omni's historical MySQL normal forms before the version model is collapsed.
 func connectOracle(t *testing.T, version Version) *oracleConn {
 	t.Helper()
-	var env, def, name string
-	switch version {
-	case MySQL80:
-		env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
-	case MySQL57:
-		env, def, name = "OMNI_MYSQL57_DSN", "root:010424@tcp(127.0.0.1:13307)/?multiStatements=true&tls=false", "5.7"
-	}
-	dsn, explicit := os.Getenv(env), true
-	if dsn == "" {
-		dsn, explicit = def, false
-	}
-	db, err := dialOracle(dsn)
-	if err == nil {
-		t.Cleanup(func() { _ = db.Close() })
-		return &oracleConn{db: db, version: version, name: name}
-	}
-	if explicit {
-		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
-	}
-	return &oracleConn{db: fallbackOracle(t, version, name), version: version, name: name}
-}
-
-func dialOracle(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
+	name := "oceanbase"
+	dsn, err := testcontainer.OceanBase.DSN(context.Background())
 	if err != nil {
-		return nil, err
+		t.Fatalf("oceanbase oracle unavailable: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, err
+	db, err := testcontainer.OpenOceanBase(dsn)
+	if err != nil {
+		t.Fatalf("oceanbase oracle open: %v", err)
 	}
-	return db, nil
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	return &oracleConn{db: db, version: version, name: name}
 }
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
@@ -138,10 +110,8 @@ func loadColumn(t *testing.T, serverCharset, createSQL, table, column string) (*
 // serverCharsetFor returns the oracle box's default server charset for a version, used
 // to wrap loads so table-charset inheritance matches the readback.
 func serverCharsetFor(v Version) string {
-	if v == MySQL80 {
-		return "utf8mb4"
-	}
-	return "latin1"
+	// OceanBase's server default charset is utf8mb4 (character_set_server).
+	return "utf8mb4"
 }
 
 // assertPhantomFree is the core assertion: input form and stored readback must produce
@@ -191,8 +161,10 @@ type ruleProbe struct {
 	versions []Version // which engines to prove against
 }
 
-func both() []Version          { return []Version{MySQL57, MySQL80} }
-func only(v Version) []Version { return []Version{v} }
+// both and only predate the collapse to a single OceanBase stored form; they now all
+// resolve to the one OceanBase arm. They are kept so the probe corpus reads unchanged.
+func both() []Version          { return []Version{OceanBase} }
+func only(_ Version) []Version { return []Version{OceanBase} }
 
 func normalizationProbes() []ruleProbe {
 	return []ruleProbe{
@@ -310,13 +282,13 @@ func normalizationProbes() []ruleProbe {
 		{"comment-escaping",
 			"CREATE TABLE t_comment (a INT COMMENT 'has ''quote'' inside')",
 			"t_comment", []string{"a"}, both()},
-		// version-flagged: charset echo. Only prove on the version whose readback diverges.
-		{"column-charset-echo-80",
-			"CREATE TABLE t_ce80 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, c VARCHAR(10) CHARACTER SET utf8mb4, d VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
-			"t_ce80", []string{"a", "c", "d"}, only(MySQL80)},
-		{"column-charset-echo-57",
-			"CREATE TABLE t_ce57 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, b VARCHAR(10) COLLATE utf8mb4_general_ci, c VARCHAR(10) CHARACTER SET utf8mb4, d VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
-			"t_ce57", []string{"a", "b", "c", "d"}, only(MySQL57)},
+		// Charset echo: OceanBase omits an explicit column collation that equals the
+		// charset default (utf8mb4_general_ci) and echoes a non-default one, so the
+		// user's explicit utf8mb4_general_ci must canonicalize onto the bare-column
+		// default rather than utf8mb4_0900_ai_ci. (entry column-charset-echo)
+		{"column-charset-echo",
+			"CREATE TABLE t_ce (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, c VARCHAR(10) CHARACTER SET utf8mb4, d VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
+			"t_ce", []string{"a", "c", "d"}, both()},
 		{"column-charset-only-collation-resolution",
 			"CREATE TABLE t_d1 (a VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 			"t_d1", []string{"a"}, both()},
@@ -330,7 +302,7 @@ func normalizationProbes() []ruleProbe {
 		// functional default — 8.0 only.
 		{"functional-default",
 			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()), c JSON DEFAULT (JSON_ARRAY()))",
-			"t_funcdef", []string{"a", "b", "c"}, only(MySQL80)},
+			"t_funcdef", []string{"a", "b", "c"}, both()},
 		// TIMESTAMP magic — both, opposite behavior.
 		{"timestamp-magic",
 			"CREATE TABLE t_ts (a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -434,21 +406,5 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			}
 		})
 
-		if version == MySQL57 {
-			t.Run(o.name+"/timestamp-null-vs-notnull-with-default", func(t *testing.T) {
-				// EDFT=0: `TIMESTAMP NULL DEFAULT '<const>'` (nullable) must produce a
-				// different key from a bare `TIMESTAMP DEFAULT '<const>'` (NOT NULL).
-				ddl := "CREATE TABLE t (x INT, n TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00', b TIMESTAMP DEFAULT '2020-01-01 00:00:00')"
-				rb, ok := o.showCreate(t, "mdg_ts", ddl, "t")
-				if !ok {
-					t.Skip("could not obtain readback")
-				}
-				tbl, nCol := loadColumn(t, sc, rb, "t", "n")
-				_, bCol := loadColumn(t, sc, rb, "t", "b")
-				if n.CanonicalColumn(tbl, nCol) == n.CanonicalColumn(tbl, bCol) {
-					t.Errorf("[%s] nullable TIMESTAMP NULL and NOT NULL TIMESTAMP must differ", o.name)
-				}
-			})
-		}
 	}
 }

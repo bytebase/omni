@@ -175,9 +175,9 @@ func diffIdempotenceProbes() []diffProbe {
 		{"timestamp", "CREATE TABLE t (id INT PRIMARY KEY, a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", "t", both()},
 		{"datetime-default", "CREATE TABLE t (id INT PRIMARY KEY, g DATETIME DEFAULT CURRENT_TIMESTAMP, h DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)", "t", both()},
 		// functional / expression default — 8.0 only.
-		{"functional-default", "CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))", "t", only(MySQL80)},
+		{"functional-default", "CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))", "t", only(OceanBase)},
 		// 8.0 expression string introducer (_latin1'x') inside a generated expr.
-		{"gen-introducer", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4", "t", only(MySQL80)},
+		{"gen-introducer", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4", "t", only(OceanBase)},
 		// multi-column ordering preserved.
 		{"multi-column", "CREATE TABLE t (id INT NOT NULL, c1 VARCHAR(10), c2 INT DEFAULT 0, c3 DATE, c4 DECIMAL(8,3), PRIMARY KEY (id))", "t", both()},
 		// explicit ROW_FORMAT round-trips (SHOW CREATE echoes the declared option, so the

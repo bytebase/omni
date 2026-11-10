@@ -10,12 +10,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oceanbase/parser"
@@ -118,7 +115,7 @@ var walkCases = []walkCase{
 	// Each assignment of a SET has a scope of its own (spec §4): an
 	// unprefixed one the statement's, an @@session or bare @@ one the
 	// session's. A global assignment leaves the session's checks as they
-	// are; resetWalk sets the global back.
+	// are; the per-case reset sets the global back.
 	{name: "SET foreign_key_checks in each assignment's scope", change: "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, @@foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nSET GLOBAL foreign_key_checks = 0;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	{name: "SET foreign_key_checks under a later scope", change: "SET @a = 1, GLOBAL foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, SESSION foreign_key_checks = 0;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET SESSION foreign_key_checks = 1, GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	// What the walk leaves Unknown by design (spec §6): databases other than
@@ -134,76 +131,6 @@ var walkCases = []walkCase{
 	// database. A call before a base table read in one query counts too.
 	{name: "a function a view or another database holds may create a temporary table", setup: "CREATE DATABASE q;\nCREATE FUNCTION q.mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int); RETURN 1; END;\nCREATE FUNCTION q.mk2() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made2 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk3() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made3 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk4() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made4 (a int); RETURN 1; END;\nCREATE VIEW vv AS SELECT q.mk() AS x;\nCREATE VIEW q.qv AS SELECT q.mk3() AS x;\nINSERT INTO nokey VALUES (1);", change: "SELECT q.mk4() FROM nokey;\nDROP TEMPORARY TABLE made4;\nSELECT * FROM vv;\nDROP TEMPORARY TABLE made;\nUSE q;\nSELECT mk2();\nUSE shop;\nDROP TEMPORARY TABLE made2;\nINSERT INTO nokey SELECT x FROM q.qv;\nDROP TEMPORARY TABLE made3;\nDROP TEMPORARY TABLE made3;", complete: true},
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
-}
-
-// walkServer is one MySQL configuration the oracle runs on.
-type walkServer struct {
-	image string
-	lctn  int
-	// shard is which of a sweep's shards the server is for, so each gets
-	// one of its own.
-	shard int
-}
-
-// walkDB is one configuration's server, started on the first ask. The
-// once is per configuration rather than over the map, so a sweep's shards
-// start their servers at once: a server takes about ten seconds to come
-// up, and a lock held across the start would add that per shard.
-type walkDB struct {
-	once sync.Once
-	db   *sql.DB
-	err  error
-}
-
-var walkServers = struct {
-	mu         sync.Mutex
-	dbs        map[walkServer]*walkDB
-	containers []testcontainers.Container
-}{dbs: make(map[walkServer]*walkDB)}
-
-// startWalkMySQL returns a server of the configuration, started once.
-func startWalkMySQL(t *testing.T, s walkServer) *sql.DB {
-	t.Helper()
-	walkServers.mu.Lock()
-	e, ok := walkServers.dbs[s]
-	if !ok {
-		e = &walkDB{}
-		walkServers.dbs[s] = e
-	}
-	walkServers.mu.Unlock()
-	e.once.Do(func() { e.db, e.err = openWalkMySQL(s) })
-	if e.err != nil {
-		t.Fatalf("mysql %v unavailable: %v", s, e.err)
-	}
-	return e.db
-}
-
-// openWalkMySQL starts a server of the configuration and connects to it.
-func openWalkMySQL(s walkServer) (*sql.DB, error) {
-	ctx := context.Background()
-	opts := []testcontainers.ContainerCustomizer{tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test")}
-	if s.lctn != 0 {
-		opts = append(opts, testcontainers.WithCmdArgs("--lower-case-table-names="+strconv.Itoa(s.lctn)))
-	}
-	c, err := tcmysql.Run(ctx, s.image, opts...)
-	if err != nil {
-		return nil, err
-	}
-	walkServers.mu.Lock()
-	walkServers.containers = append(walkServers.containers, c)
-	walkServers.mu.Unlock()
-	dsn, err := c.ConnectionString(ctx, "multiStatements=true")
-	if err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err := db.PingContext(ctx); err != nil {
-		return nil, err
-	}
-	return db, nil
 }
 
 // session opens a session of its own, which the cleanup closes rather
@@ -222,89 +149,6 @@ func session(t testing.TB, db *sql.DB) *sql.Conn {
 	return conn
 }
 
-func TestWalkThroughAgainstMySQL(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0"})
-}
-
-// TestWalkThroughAgainstMySQLFolded runs the cases with lower_case_table_names=1,
-// where table and database names fold.
-func TestWalkThroughAgainstMySQLFolded(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0", lctn: 1})
-}
-
-func TestWalkThroughAgainstMySQL84(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.4"})
-}
-
-func runWalkCases(t *testing.T, s walkServer) {
-	db := startWalkMySQL(t, s)
-	var found, rejected int
-	for _, tt := range walkCases {
-		t.Run(tt.name, func(t *testing.T) {
-			resetWalk(t, db, walkBase+tt.setup)
-			f, r := judgeWalk(t, db, s, tt.change, tt.complete)
-			found += f
-			rejected += r
-		})
-	}
-	t.Logf("found %d of the %d statements the server rejects", found, rejected)
-}
-
-// resetWalk drops every user database and recreates shop from base.
-func resetWalk(t *testing.T, db *sql.DB, base string) {
-	t.Helper()
-	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var names []string
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		names = append(names, n)
-	}
-	rows.Close()
-	var udfs []string
-	rows, err = db.QueryContext(ctx, "SELECT name FROM mysql.func")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		udfs = append(udfs, n)
-	}
-	rows.Close()
-	conn := session(t, db)
-	// A change may set the global foreign_key_checks; the server goes back
-	// to its default.
-	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0", "SET GLOBAL show_gipk_in_create_table_and_information_schema = ON"}
-	for _, n := range names {
-		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
-	}
-	// A loadable function is the server's, not a database's; with every
-	// database gone, DROP FUNCTION drops it.
-	for _, n := range udfs {
-		stmts = append(stmts, "DROP FUNCTION `"+strings.ReplaceAll(n, "`", "``")+"`")
-	}
-	stmts = append(stmts, "SET foreign_key_checks = 1", "CREATE DATABASE shop", "USE shop")
-	for _, q := range stmts {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	for _, q := range splitWalk(base) {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatalf("base %s: %v", q, err)
-		}
-	}
-}
-
 // splitWalk splits a change into its statements, each with its ';' so
 // the statements joined again are a change.
 func splitWalk(sql string) []string {
@@ -318,34 +162,6 @@ func splitWalk(sql string) []string {
 		}
 	}
 	return out
-}
-
-// judgeWalk runs the change on a fresh connection with shop selected, as
-// Bytebase runs it, and holds the walk to it (walktest.Judge). The target
-// is the database as the admin connection syncs it before the change.
-func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete bool) (found, rejected int) {
-	t.Helper()
-	ctx := context.Background()
-	conn := session(t, db)
-	// The session checks foreign keys, as the target says. One the pool
-	// opened while a change had the global foreign_key_checks off starts
-	// with them off.
-	for _, q := range []string{"USE shop", "SET foreign_key_checks = 1"} {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e := &mysqlEngine{
-		conn: conn,
-		db:   db,
-		fold: s.lctn != 0,
-		target: review.Target{
-			Schema:              walkSync(t, db),
-			LowerCaseTableNames: s.lctn,
-			ForeignKeyChecks:    review.SwitchOn,
-		},
-	}
-	return walktest.Judge(t, e, change, complete)
 }
 
 // mysqlEngine is the oracle's MySQL side of one change. MySQL commits DDL
@@ -778,60 +594,6 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	return out
 }
 
-// TestWalkThroughSweepMySQL runs random changes over a small pool of names
-// that collide often, case included. Precision must hold on every one;
-// recall is logged. WALK_SWEEP_N sets the number of changes,
-// WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the MySQL image.
-func TestWalkThroughSweepMySQL(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261023, "mysql:8.0")
-	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
-		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
-	})
-	shards := walktest.Shards(n)
-	// The two settings run at once, each on its own server, and each deals
-	// its changes over shards servers of its own.
-	for _, lctn := range []int{0, 1} {
-		t.Run(fmt.Sprintf("lctn%d", lctn), func(t *testing.T) {
-			t.Parallel()
-			for shard := range shards {
-				t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
-					t.Parallel()
-					s := walkServer{image: image, lctn: lctn, shard: shard}
-					db := startWalkMySQL(t, s)
-					var found, rejected int
-					for i := shard; i < len(changes); i += shards {
-						base, change := changes[i].Base, changes[i].Change
-						t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-							resetWalk(t, db, "")
-							conn := session(t, db)
-							if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
-								t.Fatal(err)
-							}
-							// The base's temporary tables end with its session, before the sync.
-							for _, q := range splitWalk(base) {
-								_, _ = conn.ExecContext(context.Background(), q)
-							}
-							_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-							f, r := judgeWalk(t, db, s, change, false)
-							found += f
-							rejected += r
-							if t.Failed() {
-								t.Logf("base:\n%s\nchange:\n%s", base, change)
-							}
-						})
-					}
-					t.Logf("%s lctn=%d shard=%d seed %d: found %d of the %d statements the server rejects", image, lctn, shard, seed, found, rejected)
-				})
-			}
-		})
-	}
-}
-
-func walkSweepChange(rng *rand.Rand, n int) string {
-	return sweepChange(rng, n, "a_ibfk_1")
-}
-
-// sweepChange is a sweep's change of n statements. generated is a name
 // the server may generate for a foreign key of table a.
 func sweepChange(rng *rand.Rand, n int, generated string) string {
 	pick := func(xs ...string) string { return xs[rng.Intn(len(xs))] }

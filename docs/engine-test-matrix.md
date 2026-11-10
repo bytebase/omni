@@ -15,7 +15,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `mongo` | No local database oracle | Add native MongoDB shell coverage. |
 | `mssql` | SQL Server `2022-CU27-GDR1-ubuntu-22.04`; ScriptDOM reference | Move inline container setup into an engine-owned helper. |
 | `mysql` | `mysql:8.0`, with `mysql:5.7` catalog reference/fallback tests | Consolidate on the selected MySQL 8.4 patch and investigate version drift. Shared helper: `mysql/internal/testcontainer`. |
-| `oceanbase` | Native OceanBase `4.3.5.6-106000012026040916`, which the parser and validate oracles ask, plus inherited `mysql:5.7` / `mysql:8.0` / `mysql:8.4` oracles in catalog and review | Replace the inherited catalog and review oracles with OceanBase and repair native compatibility. Shared helper: `oceanbase/internal/testcontainer`. |
+| `oceanbase` | Native OceanBase `4.3.5.6-106000012026040916` across parser, validate, catalog, and review | Inherited MySQL oracles removed; the catalog normalizer models OceanBase natively (8.0 stored-form structure, `utf8mb4_general_ci` default collation). Shared helper: `oceanbase/internal/testcontainer`. |
 | `oracle` | Oracle Free `23.26.3-slim-faststart`; optional reference DSN | Move inline container setup into an engine-owned helper. |
 | `partiql` | No local database oracle | Add DynamoDB Local for its supported PartiQL subset. |
 | `pg` | `postgres:17-alpine`; review also checks `postgres:18-alpine` | Consolidate on the selected PostgreSQL 18 patch and investigate version drift. |

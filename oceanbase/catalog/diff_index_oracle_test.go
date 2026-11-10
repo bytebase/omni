@@ -53,25 +53,25 @@ func indexDiffProbes() []diffProbe {
 		// Composite mixed ASC/DESC + prefix together.
 		{"composite-mixed", "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(50), KEY mix (a DESC, s(8)))", "t", both()},
 		// Invisible — 8.0 only (/*!80000 INVISIBLE */).
-		{"invisible", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", "t", only(MySQL80)},
+		{"invisible", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", "t", only(OceanBase)},
 		// Functional / expression index — 8.0 only.
-		{"functional", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)), KEY fab ((a + b)))", "t", only(MySQL80)},
+		{"functional", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)), KEY fab ((a + b)))", "t", only(OceanBase)},
 		// Multi-valued (JSON array) functional index — 8.0.17+ only. The CAST(... AS <type> ARRAY)
 		// key part must parse, deparse with the trailing `array`, and round-trip empty. Cover the
 		// representative cast targets (UNSIGNED/CHAR(n)/DECIMAL(m,n)/DATE) MySQL allows in MV keys.
-		{"mv-unsigned", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(MySQL80)},
-		{"mv-char", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS CHAR(40) ARRAY))))", "t", only(MySQL80)},
-		{"mv-decimal", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DECIMAL(10,2) ARRAY))))", "t", only(MySQL80)},
-		{"mv-date", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATE ARRAY))))", "t", only(MySQL80)},
+		{"mv-unsigned", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(OceanBase)},
+		{"mv-char", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS CHAR(40) ARRAY))))", "t", only(OceanBase)},
+		{"mv-decimal", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DECIMAL(10,2) ARRAY))))", "t", only(OceanBase)},
+		{"mv-date", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATE ARRAY))))", "t", only(OceanBase)},
 		// Composite MV index: a regular column part combined with an MV (array-cast) part.
-		{"mv-composite", "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50), j JSON, KEY mv (name, (CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(MySQL80)},
+		{"mv-composite", "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50), j JSON, KEY mv (name, (CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(OceanBase)},
 		// FULLTEXT.
 		{"fulltext", "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, ftcol VARCHAR(200), FULLTEXT KEY ftb (body), FULLTEXT KEY ftc (ftcol))", "t", both()},
 		// SPATIAL — needs a NOT NULL geometry column. 8.0 supports SPATIAL on InnoDB; 5.7 needs
 		// MyISAM. Prove on 8.0 (InnoDB default) to keep the form simple.
-		{"spatial", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", "t", only(MySQL80)},
+		{"spatial", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", "t", only(OceanBase)},
 		// Mixed bag: PK + unique + secondary + invisible on one table (8.0).
-		{"mixed-all-80", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b DESC), KEY kc (c(5)) /*!80000 INVISIBLE */)", "t", only(MySQL80)},
+		{"mixed-all-80", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b DESC), KEY kc (c(5)) /*!80000 INVISIBLE */)", "t", only(OceanBase)},
 		// Mixed bag for 5.7 (no DESC/invisible/functional).
 		{"mixed-all-57", "CREATE TABLE t (id INT NOT NULL, a INT, b INT, c VARCHAR(40), PRIMARY KEY (id), UNIQUE KEY ua (a), KEY kb (b), KEY kc (c(5)))", "t", both()},
 	}

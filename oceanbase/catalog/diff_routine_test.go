@@ -212,7 +212,7 @@ func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
 // DiffAction for in-memory routine catalogs: add, drop, modify (body), and no-op for an identical
 // pair. It pins the structural behavior independent of a live engine.
 func TestRoutineDiffActions(t *testing.T) {
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(OceanBase)
 	load := func(t *testing.T, ddl string) *Catalog {
 		t.Helper()
 		cat, err := LoadSQL("CREATE DATABASE d DEFAULT CHARSET=utf8mb4;\nUSE d;\n" + ddl)
