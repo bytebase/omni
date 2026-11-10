@@ -12,9 +12,6 @@ import "testing"
 // not list, so a statement missing from that switch reports line 1 wherever it
 // stands, and no corpus row can see it: the corpus records whether a statement
 // parses and nothing about what the catalog did with it.
-//
-// tidb/catalog's differential tests sit behind TIDB_CATALOG_PARITY, so this
-// runs unconditionally instead.
 func TestResourceControlExecLines(t *testing.T) {
 	stmts := []string{
 		"CREATE RESOURCE GROUP rg RU_PER_SEC = 1000",

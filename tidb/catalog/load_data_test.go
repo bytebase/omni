@@ -13,8 +13,7 @@ import "testing"
 // deliberate no-op read the same -- which is the whole difference a corpus
 // recording only whether a statement parsed cannot see.
 //
-// These tests run unconditionally: they need no container and so are outside
-// the TIDB_CATALOG_PARITY quarantine in container_test.go.
+// These tests need no container.
 
 func TestExecBulkLoadStatementsChangeNoSchema(t *testing.T) {
 	for _, sql := range []string{

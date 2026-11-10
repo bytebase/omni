@@ -20,8 +20,7 @@ import "testing"
 //
 // Each is dispatched explicitly rather than left to processUtility's default
 // arm, where an unmodelled statement and a deliberate no-op read the same.
-// These tests run unconditionally: they need no container and so are outside
-// the TIDB_CATALOG_PARITY quarantine in container_test.go.
+// These tests need no container.
 
 func TestExecBRIEAndFlashbackChangeNoSchema(t *testing.T) {
 	for _, sql := range []string{

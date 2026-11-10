@@ -18,8 +18,7 @@ import "testing"
 // are new, and a catalog that read any of them as a schema change would show
 // up here.
 //
-// These tests run unconditionally: they need no container and so are outside
-// the TIDB_CATALOG_PARITY quarantine in container_test.go.
+// These tests need no container.
 
 func TestExecStatisticsStatementsChangeNoSchema(t *testing.T) {
 	for _, sql := range []string{
