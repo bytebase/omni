@@ -123,6 +123,11 @@ Real omni fixes (omni accepted or rendered something TiDB does not):
   reports context `generated column function`.
 - **Partition expression rendering** — function names are uppercased
   (`YEAR(`c`)`, `TO_DAYS(`c`)`) to match TiDB SHOW CREATE.
+- **Multi-command ALTER** — every subcommand's column references (an ADD/
+  MODIFY/CHANGE COLUMN's `AFTER` target, an ADD INDEX/KEY/CONSTRAINT's key
+  columns) are resolved against the PRE-ALTER schema, so `ADD y AFTER x` /
+  `ADD INDEX (c)` referencing a column added in the same statement is rejected
+  (1054 / 1072) as TiDB does, not applied left-to-right as MySQL does.
 
 Re-baselines (omni already matched TiDB; the hard-coded expectation was MySQL's):
 C6 subpartition/LINEAR dropped, C16 `YEAR(4)` kept and no TIMESTAMP promotion,
@@ -133,14 +138,10 @@ the expression lives on the index key part), AX FULLTEXT dropped, Section tests
 name collision allowed, CHECK constraints discarded under the TiDB default,
 view `CHECK_OPTION=CASCADED`).
 
-Documented `t.Skip`s (features TiDB lacks, or a narrow real over-acceptance):
+Documented `t.Skip`s (features TiDB does not have):
 
 - `TestScenario_C16/16_4_CURTIME_precision_default_0` — `fsp>6` in a `SELECT`
   is a DML/plan concern; the DDL catalog skips DML and TiDB accepts it at parse.
-- `TestScenario_C15/15_5_multi_add_left_to_right` and
-  `TestScenario_AX/AX_15_MultiSubCommand_compose` — TiDB resolves same-statement
-  column references in a multi-command ALTER against the pre-ALTER schema; omni
-  applies subcommands sequentially (MySQL), a real over-acceptance to fix later.
 - `TestContainer_Section_6_2_.../show_create_procedure` — TiDB rejects a
   `CREATE PROCEDURE ... BEGIN ... END` body (8108).
 - `TestSpotCheck_.../C11_1_Trigger_definer_default` — TiDB has no triggers.

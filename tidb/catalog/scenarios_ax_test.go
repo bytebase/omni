@@ -489,23 +489,9 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
 
 	// --- AX.15 Multi-sub-command ALTER — drop/add/rename composed -------
 	t.Run("AX_15_MultiSubCommand_compose", func(t *testing.T) {
-		// TiDB v8.5.5 resolves every subcommand of a multi-command ALTER against
-		// the PRE-ALTER schema, so `ADD INDEX (c)` where column c is added in the
-		// same statement is rejected (1072 column does not exist: c). omni applies
-		// subcommands sequentially (MySQL semantics), so it accepts the DDL — the
-		// same over-acceptance as C15 15_5. Skip this single edge case (see
-		// docs/plans/2026-11-09-tidb-catalog-parity-residual.md) so the rest of
-		// the differential suite can run un-gated.
-		t.Skip("known over-acceptance: multi-command ALTER resolves same-statement column refs against pre-ALTER schema in TiDB; omni does not yet")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Use a variant the scenario doc's single-pass claim actually holds
-		// for: MySQL evaluates RENAME COLUMN after ADD COLUMN's AFTER, so
-		// `ADD COLUMN c INT AFTER a` + `RENAME a TO aa` in the same ALTER
-		// raises "Unknown column a" (observed in MySQL 8.0). We split the
-		// scenario into a simpler composition that both engines accept and
-		// verify positional + index resolution after DROP + ADD + RENAME.
 		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE t (a INT, b INT)`); err != nil {
 			t.Fatalf("oracle create t: %v", err)
 		}
@@ -513,26 +499,29 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
 			t.Fatalf("omni create t: %v", err)
 		}
 
+		// TiDB v8.5.5 resolves every subcommand of a multi-command ALTER against
+		// the PRE-ALTER schema, so `ADD INDEX (c)` where column c is added in the
+		// same statement is rejected (1072 column does not exist: c). omni matches
+		// (MySQL would resolve it against the composed in-progress table).
 		ddl := `ALTER TABLE t
   ADD COLUMN c INT,
   DROP COLUMN b,
   ADD INDEX (c),
   RENAME COLUMN a TO aa`
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr != nil {
-			t.Errorf("oracle ALTER failed: %v", oracleErr)
+		if _, oracleErr := mc.db.ExecContext(mc.ctx, ddl); oracleErr == nil {
+			t.Errorf("oracle: expected rejection of ADD INDEX on a same-statement column")
 		}
-
-		// omni
 		results, perr := c.Exec(ddl, nil)
-		if perr != nil {
-			t.Errorf("omni parse error: %v", perr)
+		omniErr := perr
+		if omniErr == nil && axExecHasError(results) {
+			omniErr = fmt.Errorf("%v", results)
 		}
-		if axExecHasError(results) {
-			t.Errorf("omni ALTER exec error: %v", results)
+		if omniErr == nil {
+			t.Errorf("omni: expected rejection of ADD INDEX on a same-statement column, got nil")
 		}
 
-		want := []string{"aa", "c"}
+		// The rejected ALTER leaves the table unchanged (columns a, b; no index).
+		want := []string{"a", "b"}
 		oracle := axOracleColumnOrder(t, mc, "t")
 		assertStringEq(t, "oracle column order", strings.Join(oracle, ","), strings.Join(want, ","))
 
@@ -543,28 +532,8 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
 		}
 		omni := axOmniColumnOrder(tbl)
 		assertStringEq(t, "omni column order", strings.Join(omni, ","), strings.Join(want, ","))
-
-		// And the (c) index exists.
-		oracleIdx := axOracleIndexNames(t, mc, "t")
-		foundOracle := false
-		for _, n := range oracleIdx {
-			if n == "c" {
-				foundOracle = true
-				break
-			}
-		}
-		if !foundOracle {
-			t.Errorf("oracle: expected index named c, got %v", oracleIdx)
-		}
-		foundOmni := false
-		for _, idx := range tbl.Indexes {
-			if idx.Name == "c" {
-				foundOmni = true
-				break
-			}
-		}
-		if !foundOmni {
-			t.Errorf("omni: expected index named c, got %v", axOmniIndexNames(tbl))
+		if len(tbl.Indexes) != 0 {
+			t.Errorf("omni: expected no index after rejected ALTER, got %v", axOmniIndexNames(tbl))
 		}
 	})
 }

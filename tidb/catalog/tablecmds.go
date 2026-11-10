@@ -253,7 +253,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if colDef.TypeName != nil && strings.EqualFold(col.DataType, toLower(colDef.TypeName.Name)) {
 			if promoted := promoteDeclaredType(colDef.TypeName, col.Charset); promoted != "" {
 				col.DataType = promoted
-				col.ColumnType = promoted
+				// The TEXT/BLOB/VARCHAR promotions yield a length-less type with
+				// no numeric modifiers, so ColumnType is just the name. FLOAT →
+				// DOUBLE is already reflected in formatColumnType's output,
+				// including UNSIGNED/ZEROFILL, so that ColumnType is kept.
+				if !strings.EqualFold(toLower(colDef.TypeName.Name), "float") {
+					col.ColumnType = promoted
+				}
 			}
 		}
 

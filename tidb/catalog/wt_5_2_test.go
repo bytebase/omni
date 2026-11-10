@@ -7,73 +7,49 @@ import "testing"
 
 // Scenario: ADD COLUMN x INT, ADD INDEX idx_x (x) — add column then index on it in same ALTER
 func TestWalkThrough_5_2_AddColumnThenIndex(t *testing.T) {
+	// ADD COLUMN x, ADD INDEX idx_x (x) — the index names a column added in the
+	// same statement. TiDB v8.5.5 resolves index columns against the pre-ALTER
+	// schema and rejects it (1072 column does not exist: x); the ALTER rolls
+	// back, leaving the table unchanged (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD INDEX idx_x (x)")
+	results, _ := c.Exec("ALTER TABLE t ADD COLUMN x INT, ADD INDEX idx_x (x)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-
-	// Verify column was added.
-	col := tbl.GetColumn("x")
-	if col == nil {
-		t.Fatal("column x not found")
+	if tbl.GetColumn("x") != nil {
+		t.Error("column x should not exist after rollback")
 	}
-
-	// Verify index was created.
-	var found *Index
 	for _, idx := range tbl.Indexes {
 		if idx.Name == "idx_x" {
-			found = idx
-			break
+			t.Error("index idx_x should not exist after rollback")
 		}
-	}
-	if found == nil {
-		t.Fatal("index idx_x not found")
-	}
-	if found.Unique {
-		t.Error("idx_x should not be unique")
-	}
-	if len(found.Columns) != 1 || found.Columns[0].Name != "x" {
-		t.Errorf("index columns mismatch: %+v", found.Columns)
 	}
 }
 
 // Scenario: ADD COLUMN x INT, ADD UNIQUE INDEX ux (x) — add column then unique index
 func TestWalkThrough_5_2_AddColumnThenUniqueIndex(t *testing.T) {
+	// Same-statement reference as AddColumnThenIndex: TiDB rejects (1072) and
+	// rolls back (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100))")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT, ADD UNIQUE INDEX ux (x)")
+	results, _ := c.Exec("ALTER TABLE t ADD COLUMN x INT, ADD UNIQUE INDEX ux (x)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-
-	// Verify column was added.
-	col := tbl.GetColumn("x")
-	if col == nil {
-		t.Fatal("column x not found")
+	if tbl.GetColumn("x") != nil {
+		t.Error("column x should not exist after rollback")
 	}
-
-	// Verify unique index was created.
-	var found *Index
 	for _, idx := range tbl.Indexes {
 		if idx.Name == "ux" {
-			found = idx
-			break
+			t.Error("unique index ux should not exist after rollback")
 		}
-	}
-	if found == nil {
-		t.Fatal("unique index ux not found")
-	}
-	if !found.Unique {
-		t.Error("ux should be unique")
-	}
-	if len(found.Columns) != 1 || found.Columns[0].Name != "x" {
-		t.Errorf("unique index columns mismatch: %+v", found.Columns)
 	}
 }
 
@@ -149,81 +125,52 @@ func TestWalkThrough_5_2_ModifyColumnRebuildIndex(t *testing.T) {
 
 // Scenario: CHANGE COLUMN x y INT, ADD INDEX idx_y (y) — rename column then index with new name
 func TestWalkThrough_5_2_ChangeColumnThenIndex(t *testing.T) {
+	// TiDB v8.5.5 resolves the index column against the pre-ALTER schema, where
+	// the renamed name y does not exist, so it rejects (1072 column does not
+	// exist: y) and rolls back (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, x INT)")
-
-	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN x y INT, ADD INDEX idx_y (y)")
+	results, _ := c.Exec("ALTER TABLE t CHANGE COLUMN x y INT, ADD INDEX idx_y (y)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-
-	// Verify old column is gone and new column exists.
-	if tbl.GetColumn("x") != nil {
-		t.Error("column x should no longer exist after CHANGE")
+	if tbl.GetColumn("x") == nil {
+		t.Error("column x should still exist after rollback")
 	}
-	col := tbl.GetColumn("y")
-	if col == nil {
-		t.Fatal("column y not found after CHANGE")
+	if tbl.GetColumn("y") != nil {
+		t.Error("column y should not exist after rollback")
 	}
-
-	// Verify index on new column name.
-	var found *Index
 	for _, idx := range tbl.Indexes {
 		if idx.Name == "idx_y" {
-			found = idx
-			break
+			t.Error("index idx_y should not exist after rollback")
 		}
-	}
-	if found == nil {
-		t.Fatal("index idx_y not found")
-	}
-	if len(found.Columns) != 1 || found.Columns[0].Name != "y" {
-		t.Errorf("index columns mismatch: %+v", found.Columns)
 	}
 }
 
 // Scenario: ADD COLUMN x INT, ADD PRIMARY KEY (id, x) — add column then include in new PK
 func TestWalkThrough_5_2_AddColumnThenPrimaryKey(t *testing.T) {
+	// The new PK names x, added in the same statement. TiDB v8.5.5 resolves it
+	// against the pre-ALTER schema and rejects (1072 column does not exist: x),
+	// rolling back (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT NOT NULL, name VARCHAR(100))")
-
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN x INT NOT NULL, ADD PRIMARY KEY (id, x)")
+	results, _ := c.Exec("ALTER TABLE t ADD COLUMN x INT NOT NULL, ADD PRIMARY KEY (id, x)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-
-	// Verify column was added.
-	col := tbl.GetColumn("x")
-	if col == nil {
-		t.Fatal("column x not found")
+	if tbl.GetColumn("x") != nil {
+		t.Error("column x should not exist after rollback")
 	}
-	if col.Nullable {
-		t.Error("column x should be NOT NULL")
-	}
-
-	// Verify primary key exists with both columns.
-	var pkIdx *Index
 	for _, idx := range tbl.Indexes {
 		if idx.Primary {
-			pkIdx = idx
-			break
+			t.Error("primary key should not exist after rollback")
 		}
-	}
-	if pkIdx == nil {
-		t.Fatal("primary key not found")
-	}
-	if len(pkIdx.Columns) != 2 {
-		t.Fatalf("expected 2 PK columns, got %d", len(pkIdx.Columns))
-	}
-	if pkIdx.Columns[0].Name != "id" {
-		t.Errorf("expected first PK column 'id', got %q", pkIdx.Columns[0].Name)
-	}
-	if pkIdx.Columns[1].Name != "x" {
-		t.Errorf("expected second PK column 'x', got %q", pkIdx.Columns[1].Name)
 	}
 }
 

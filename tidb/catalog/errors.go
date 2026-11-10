@@ -124,6 +124,11 @@ const (
 	ErrFunctionalIndexOnJSONOrGeo          = 3753
 	ErrFunctionalIndexOnBlob               = 3757
 	ErrFunctionalIndexFunctionIsNotAllowed = 3758
+	// ErrKeyColumnDoesNotExist is 1072 for an index key part naming a column the
+	// table does not have (measured on TiDB v8.5.5, 2026-11-10) — including a
+	// column added later in the same multi-command ALTER, which TiDB resolves
+	// against the pre-ALTER schema.
+	ErrKeyColumnDoesNotExist = 1072
 )
 
 var sqlStateMap = map[int]string{
@@ -181,6 +186,7 @@ var sqlStateMap = map[int]string{
 	ErrFunctionalIndexOnJSONOrGeo:          "HY000",
 	ErrFunctionalIndexOnBlob:               "HY000",
 	ErrFunctionalIndexFunctionIsNotAllowed: "HY000",
+	ErrKeyColumnDoesNotExist:               "42000",
 }
 
 func sqlState(code int) string {
@@ -311,6 +317,13 @@ func errCantDropKey(name string) error {
 func errWrongSubKey(_ string) error {
 	return &Error{Code: ErrWrongSubKey, SQLState: sqlState(ErrWrongSubKey),
 		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+// errKeyColumnDoesNotExist is TiDB v8.5.5's 1072 for an index key part over a
+// column the table does not have.
+func errKeyColumnDoesNotExist(col string) error {
+	return &Error{Code: ErrKeyColumnDoesNotExist, SQLState: sqlState(ErrKeyColumnDoesNotExist),
+		Message: fmt.Sprintf("column does not exist: %s", col)}
 }
 
 func errIndexDoesntExist(name string) error {

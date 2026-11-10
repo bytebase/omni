@@ -6,112 +6,52 @@ import "testing"
 
 // Scenario 1: ADD COLUMN parent_id INT, ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)
 func TestWalkThrough_5_3_AddColumnThenFK(t *testing.T) {
+	// ADD COLUMN parent_id, ADD CONSTRAINT fk FOREIGN KEY (parent_id) ... — the
+	// FK names a column added in the same statement. TiDB v8.5.5 resolves it
+	// against the pre-ALTER schema and rejects (1072); the ALTER rolls back,
+	// leaving child with only its id column (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 	wtExec(t, c, "CREATE TABLE child (id INT NOT NULL)")
 
-	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
+	results, _ := c.Exec("ALTER TABLE child ADD COLUMN parent_id INT, ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("child")
 	if tbl == nil {
 		t.Fatal("table child not found")
 	}
-
-	// Verify column was added.
-	col := tbl.GetColumn("parent_id")
-	if col == nil {
-		t.Fatal("column parent_id not found")
+	if tbl.GetColumn("parent_id") != nil {
+		t.Error("column parent_id should not exist after rollback")
 	}
-
-	// Verify FK constraint exists.
-	var fkCon *Constraint
-	for _, con := range tbl.Constraints {
-		if con.Type == ConForeignKey && con.Name == "fk" {
-			fkCon = con
-			break
-		}
-	}
-	if fkCon == nil {
-		t.Fatal("FK constraint 'fk' not found")
-	}
-	if len(fkCon.Columns) != 1 || fkCon.Columns[0] != "parent_id" {
-		t.Errorf("FK columns = %v, want [parent_id]", fkCon.Columns)
-	}
-	if fkCon.RefTable != "parent" {
-		t.Errorf("FK ref table = %q, want 'parent'", fkCon.RefTable)
-	}
-
-	// Verify backing index exists (named "fk" since constraint is named).
-	var fkIdx *Index
-	for _, idx := range tbl.Indexes {
-		if idx.Name == "fk" {
-			fkIdx = idx
-			break
-		}
-	}
-	if fkIdx == nil {
-		t.Fatal("backing index 'fk' not found")
-	}
-	if len(fkIdx.Columns) != 1 || fkIdx.Columns[0].Name != "parent_id" {
-		t.Errorf("backing index columns = %v, want [parent_id]", fkIdx.Columns)
+	if len(tbl.Constraints) != 0 {
+		t.Errorf("expected no constraints after rollback, got %d", len(tbl.Constraints))
 	}
 }
 
 // Scenario 2: ADD COLUMN parent_id INT, ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)
 func TestWalkThrough_5_3_AddColumnExplicitIndexThenFK(t *testing.T) {
+	// The ADD INDEX names parent_id, added in the same statement. TiDB v8.5.5
+	// resolves it against the pre-ALTER schema and rejects (1072); the ALTER
+	// rolls back (measured on a live engine).
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 	wtExec(t, c, "CREATE TABLE child (id INT NOT NULL)")
 
-	mustExec(t, c, "ALTER TABLE child ADD COLUMN parent_id INT, ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)")
+	results, _ := c.Exec("ALTER TABLE child ADD COLUMN parent_id INT, ADD INDEX idx (parent_id), ADD CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id)", &ExecOptions{ContinueOnError: true})
+	assertError(t, results[0].Error, ErrKeyColumnDoesNotExist)
 
 	tbl := c.GetDatabase("testdb").GetTable("child")
 	if tbl == nil {
 		t.Fatal("table child not found")
 	}
-
-	// Verify column was added.
-	col := tbl.GetColumn("parent_id")
-	if col == nil {
-		t.Fatal("column parent_id not found")
+	if tbl.GetColumn("parent_id") != nil {
+		t.Error("column parent_id should not exist after rollback")
 	}
-
-	// Verify FK constraint exists.
-	var fkCon *Constraint
-	for _, con := range tbl.Constraints {
-		if con.Type == ConForeignKey && con.Name == "fk" {
-			fkCon = con
-			break
-		}
-	}
-	if fkCon == nil {
-		t.Fatal("FK constraint 'fk' not found")
-	}
-
-	// Verify explicit index "idx" exists.
-	var explicitIdx *Index
 	for _, idx := range tbl.Indexes {
 		if idx.Name == "idx" {
-			explicitIdx = idx
-			break
+			t.Error("index idx should not exist after rollback")
 		}
-	}
-	if explicitIdx == nil {
-		t.Fatal("explicit index 'idx' not found")
-	}
-
-	// Verify NO duplicate backing index was created — the explicit index should cover the FK.
-	idxCount := 0
-	for _, idx := range tbl.Indexes {
-		for _, ic := range idx.Columns {
-			if ic.Name == "parent_id" {
-				idxCount++
-				break
-			}
-		}
-	}
-	if idxCount != 1 {
-		t.Errorf("expected exactly 1 index covering parent_id, got %d (indexes: %v)", idxCount, indexNames(tbl))
 	}
 }
 
