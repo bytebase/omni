@@ -484,3 +484,180 @@ func columnDefaultExpr(colDef *nodes.ColumnDef) nodes.ExprNode {
 	}
 	return expr
 }
+
+// errIncorrectAutoIncrementDefinition is TiDB 1075 for a table that declares
+// more than one AUTO_INCREMENT column.
+func errIncorrectAutoIncrementDefinition() error {
+	return &Error{Code: ErrIncorrectTableDefinition, SQLState: sqlState(ErrIncorrectTableDefinition),
+		Message: "Incorrect table definition; there can be only one auto column and it must be defined as a key"}
+}
+
+// errCreateTablePKColumnDoesNotExist is TiDB 1072 as its CREATE TABLE PRIMARY
+// KEY path words it. The code is errKeyColumnDoesNotExist's; only the message
+// differs, and v8.5.5 is inconsistent about which it uses — a table-level
+// PRIMARY KEY in CREATE TABLE gets this wording, the same key added by ALTER
+// gets "column does not exist".
+func errCreateTablePKColumnDoesNotExist(col string) error {
+	return &Error{Code: ErrKeyColumnDoesNotExist, SQLState: sqlState(ErrKeyColumnDoesNotExist),
+		Message: fmt.Sprintf("Key column '%s' doesn't exist in table", col)}
+}
+
+// emptyStringDefaultForbiddenType reports whether TiDB v8.5.5 refuses an empty
+// (or whitespace-only) string literal as the DEFAULT of a column of this type,
+// with 1067. Measured against a live container on 2026-11-10: date, datetime,
+// timestamp, year, every numeric type and enum are refused, while char,
+// varchar, binary, varbinary, bit and set take an empty string happily. TIME
+// is left out deliberately — v8.5.5 answers 1292 ("Truncated incorrect time
+// value") for an empty-string default on it, a different error this check does
+// not model. BLOB, TEXT
+// and JSON never reach here: checkLiteralDefaultAllowed refuses any literal
+// default on them first (1101).
+//
+// The type name is the catalog's normalized DataType, so BOOL arrives as
+// tinyint and NUMERIC as decimal; the extra spellings are listed anyway so the
+// predicate also reads correctly off a parser type name.
+func emptyStringDefaultForbiddenType(dataType string) bool {
+	switch strings.ToLower(dataType) {
+	case "date", "datetime", "timestamp", "year",
+		"tinyint", "smallint", "mediumint", "int", "integer", "bigint",
+		"decimal", "numeric", "dec", "fixed", "float", "double", "real",
+		"bool", "boolean", "enum":
+		return true
+	}
+	return false
+}
+
+// isEmptyStringDefault reports whether expr is a string literal holding nothing
+// but whitespace. TiDB refuses an empty-string default and a blank one alike
+// on the types emptyStringDefaultForbiddenType lists.
+func isEmptyStringDefault(expr nodes.ExprNode) bool {
+	s, ok := expr.(*nodes.StringLit)
+	return ok && strings.TrimSpace(s.Value) == ""
+}
+
+// isNullDefault reports whether expr is the NULL literal.
+func isNullDefault(expr nodes.ExprNode) bool {
+	_, ok := expr.(*nodes.NullLit)
+	return ok
+}
+
+// columnDefNotNullable reports whether the column definition resolves to NOT
+// NULL. NOT NULL, an inline PRIMARY KEY and AUTO_INCREMENT each make it so, and
+// a later explicit NULL takes it back, which is the order TiDB reads them in.
+func columnDefNotNullable(colDef *nodes.ColumnDef) bool {
+	notNull := colDef.AutoIncrement
+	for _, cc := range colDef.Constraints {
+		switch cc.Type {
+		case nodes.ColConstrNotNull, nodes.ColConstrPrimaryKey, nodes.ColConstrAutoIncrement:
+			notNull = true
+		case nodes.ColConstrNull:
+			notNull = false
+		}
+	}
+	return notNull
+}
+
+// columnNamedInTableLevelPK reports whether a table-level PRIMARY KEY(...) in
+// the statement names the column. TiDB answers 1171 rather than 1067 when such
+// a column carries DEFAULT NULL, so the two cases are told apart.
+func columnNamedInTableLevelPK(cons []*nodes.Constraint, colName string) bool {
+	for _, con := range cons {
+		if con.Type != nodes.ConstrPrimaryKey {
+			continue
+		}
+		for _, name := range extractColumnNames(con) {
+			if strings.EqualFold(name, colName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkColumnDefaultValue rejects the two invalid-default forms TiDB v8.5.5
+// refuses and this catalog used to accept: a NULL default on a column that is
+// not nullable (1067, or 1171 when the column is a part of a table-level
+// PRIMARY KEY), and an empty-string default on a type that cannot hold one
+// (1067). dataType is the catalog's normalized type name; tableCons are the
+// statement's table-level constraints, empty on an ALTER that declares none.
+//
+// Still over-accepted, and left to its own change: a non-empty literal that the
+// type cannot hold (`a date DEFAULT 'abc'`, `a int DEFAULT 'abc'`), which needs
+// the engine's full literal conversion rather than a shape check.
+func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons []*nodes.Constraint) error {
+	expr := columnDefaultExpr(colDef)
+	if expr == nil {
+		return nil
+	}
+	if isNullDefault(expr) {
+		if columnNamedInTableLevelPK(tableCons, colDef.Name) {
+			return errPrimaryKeyCantHaveNull()
+		}
+		if columnDefNotNullable(colDef) {
+			return errInvalidDefault(colDef.Name)
+		}
+		return nil
+	}
+	if isEmptyStringDefault(expr) && emptyStringDefaultForbiddenType(dataType) {
+		return errInvalidDefault(colDef.Name)
+	}
+	return nil
+}
+
+// checkExistingColumnDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT
+// to the same rules as the CREATE TABLE path, against the column as the catalog
+// already holds it: a NULL default on a primary-key column is 1171, on any
+// other non-nullable column 1067, and an empty-string default on a type that
+// cannot hold one is 1067.
+func checkExistingColumnDefault(tbl *Table, col *Column, expr nodes.ExprNode) error {
+	if expr == nil {
+		return nil
+	}
+	if isNullDefault(expr) {
+		if columnInPrimaryKey(tbl, col.Name) {
+			return errPrimaryKeyCantHaveNull()
+		}
+		if !col.Nullable {
+			return errInvalidDefault(col.Name)
+		}
+		return nil
+	}
+	if isEmptyStringDefault(expr) && emptyStringDefaultForbiddenType(col.DataType) {
+		return errInvalidDefault(col.Name)
+	}
+	return nil
+}
+
+// columnInPrimaryKey reports whether the table's primary key covers the column.
+func columnInPrimaryKey(tbl *Table, colName string) bool {
+	for _, idx := range tbl.Indexes {
+		if !idx.Primary {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if strings.EqualFold(ic.Name, colName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkSingleAutoIncrementColumn rejects a table that declares more than one
+// AUTO_INCREMENT column, which TiDB v8.5.5 answers 1075 for. Unlike MySQL,
+// v8.5.5 accepts a lone AUTO_INCREMENT column that backs no key (`CREATE TABLE
+// t (a int auto_increment)` succeeds, measured 2026-11-10), so only the count
+// is checked. An AUTO_RANDOM column is not an auto column for this rule:
+// v8.5.5 takes AUTO_RANDOM and AUTO_INCREMENT on one table.
+func checkSingleAutoIncrementColumn(cols []*Column) error {
+	seen := 0
+	for _, col := range cols {
+		if col.AutoIncrement {
+			seen++
+			if seen > 1 {
+				return errIncorrectAutoIncrementDefinition()
+			}
+		}
+	}
+	return nil
+}

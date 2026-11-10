@@ -76,6 +76,40 @@ func columnCharLength(col *Column) int {
 	return n
 }
 
+// validateIndexColumnsExist rejects a key part naming a column the table does
+// not have, which TiDB v8.5.5 answers 1072 for (measured 2026-11-10). It covers
+// PRIMARY KEY, UNIQUE and plain KEY in CREATE TABLE, CREATE INDEX and ALTER
+// TABLE ADD alike. A functional key part carries an expression and no column
+// name, so it is exempt: v8.5.5 answers 1054 for `INDEX ((c+1))` over a missing
+// c, a different error this check does not model. A FULLTEXT key is exempt too,
+// because v8.5.5 reads one over a missing column and keeps nothing rather than
+// failing.
+func validateIndexColumnsExist(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic.Name == "" {
+			continue
+		}
+		if tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
+	}
+	return nil
+}
+
+// validateCreateTablePKColumnsExist is validateIndexColumnsExist with the
+// wording v8.5.5 uses for a table-level PRIMARY KEY in CREATE TABLE.
+func validateCreateTablePKColumnsExist(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic.Name == "" {
+			continue
+		}
+		if tbl.GetColumn(ic.Name) == nil {
+			return errCreateTablePKColumnDoesNotExist(ic.Name)
+		}
+	}
+	return nil
+}
+
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	// Resolve database.
@@ -141,6 +175,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if err := validateFunctionalIndexColumns(stmt.Columns); err != nil {
 			return err
 		}
+	}
+
+	// Every key part must name a column the table has.
+	if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+		return err
 	}
 
 	// A plain or unique key over a BLOB/TEXT column needs a prefix length;
