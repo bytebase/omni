@@ -10,8 +10,7 @@ import "testing"
 // neither -- outside repair mode TiDB answers 8215, and in repair mode the
 // statement rewrites the metadata of a table that is already there.
 //
-// These tests run unconditionally; the differential tests behind
-// TIDB_CATALOG_PARITY are a separate gate.
+// These tests need no container.
 
 func TestExecAdminChangesNothing(t *testing.T) {
 	c := setupWithDB(t)

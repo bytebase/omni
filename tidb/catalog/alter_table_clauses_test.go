@@ -8,8 +8,7 @@ import (
 // These tests assert what the ALTER TABLE clauses do to the catalog, not that
 // they parse. A clause that parses and applies nothing looks like a closed gap
 // in tidb/parser's corpus, which records only a verdict. None of them boots a
-// container, so none is inside the TIDB_CATALOG_PARITY quarantine that gates
-// the differential tests in container_test.go.
+// container.
 
 // execAll runs a script and fails on the first statement that errors.
 func execAll(t *testing.T, c *Catalog, sql string) {

@@ -14,8 +14,7 @@ import (
 //
 // ALTER RANGE is the exception, and has a test of its own below.
 //
-// These tests run unconditionally: they need no container and so are outside the
-// TIDB_CATALOG_PARITY quarantine in container_test.go.
+// These tests need no container.
 
 func TestExecTiDBAdminStatementsChangeNoSchema(t *testing.T) {
 	for _, sql := range []string{

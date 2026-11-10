@@ -28,9 +28,7 @@ func mustParseSelect(t *testing.T, sql string) *nodes.SelectStmt {
 //	CREATE VIEW vv AS VALUES ROW(1,2)          → error 1051, Unknown table ''
 //
 // The catalog stores a VALUES body in TiDB's restore format although TiDB
-// refuses one. These run without a container, so they are outside the
-// TIDB_CATALOG_PARITY quarantine that gates the differential tests in this
-// package.
+// refuses one. These run without a container.
 
 // TestDefineView_TablePrimaryBodyColumns: a TABLE primary is SELECT * FROM t,
 // so the view's columns are the table's. Reading the primary's (absent) target

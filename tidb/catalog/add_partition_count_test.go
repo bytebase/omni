@@ -11,8 +11,7 @@ import (
 // 2`, which is also what MySQL 8.0 does.
 //
 // TestScenario_C6/6_16_add_partition_auto_naming puts the same statement to a
-// live server, but tidb/catalog's differential tests are quarantined behind
-// TIDB_CATALOG_PARITY, so the behaviour needs a test that runs unconditionally:
+// live server; this test covers the behaviour without a container:
 // the parser only began accepting this form with the partition-maintenance
 // modifiers, and the handler ignored cmd.Number until then, which made the
 // statement a silent no-op on the catalog.
