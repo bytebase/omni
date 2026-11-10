@@ -502,16 +502,16 @@ func errCreateTablePKColumnDoesNotExist(col string) error {
 		Message: fmt.Sprintf("Key column '%s' doesn't exist in table", col)}
 }
 
-// emptyStringDefaultForbiddenType reports whether TiDB v8.5.5 refuses an empty
-// (or whitespace-only) string literal as the DEFAULT of a column of this type,
-// with 1067. Measured against a live container on 2026-11-10: date, datetime,
-// timestamp, year, every numeric type and enum are refused, while char,
-// varchar, binary, varbinary, bit and set take an empty string happily. TIME
-// is left out deliberately — v8.5.5 answers 1292 ("Truncated incorrect time
-// value") for an empty-string default on it, a different error this check does
-// not model. BLOB, TEXT
-// and JSON never reach here: checkLiteralDefaultAllowed refuses any literal
-// default on them first (1101).
+// emptyStringDefaultForbiddenType reports whether TiDB v8.5.5 refuses a blank
+// (empty or whitespace-only) string literal as the DEFAULT of a column of this
+// type, with 1067. Measured against a live container on 2026-11-10: date,
+// datetime, timestamp, year and every numeric type are refused, while char,
+// varchar, binary, varbinary, bit and set take a blank default happily. TIME is
+// left out deliberately — v8.5.5 answers 1292 ("Truncated incorrect time
+// value") there, a different error this check does not model. BLOB, TEXT and
+// JSON never reach here: checkLiteralDefaultAllowed refuses any literal default
+// on them first (1101). ENUM is not a type question at all and goes through
+// blankStringDefaultRefused.
 //
 // The type name is the catalog's normalized DataType, so BOOL arrives as
 // tinyint and NUMERIC as decimal; the extra spellings are listed anyway so the
@@ -521,18 +521,89 @@ func emptyStringDefaultForbiddenType(dataType string) bool {
 	case "date", "datetime", "timestamp", "year",
 		"tinyint", "smallint", "mediumint", "int", "integer", "bigint",
 		"decimal", "numeric", "dec", "fixed", "float", "double", "real",
-		"bool", "boolean", "enum":
+		"bool", "boolean":
 		return true
 	}
 	return false
 }
 
-// isEmptyStringDefault reports whether expr is a string literal holding nothing
-// but whitespace. TiDB refuses an empty-string default and a blank one alike
-// on the types emptyStringDefaultForbiddenType lists.
-func isEmptyStringDefault(expr nodes.ExprNode) bool {
+// blankStringDefaultRefused reports whether TiDB v8.5.5 refuses value — a blank
+// string literal — as the DEFAULT of a column of this type.
+//
+// For an ENUM the question is membership, not emptiness: v8.5.5 takes an
+// empty-string default on an ENUM that declares an empty member, and
+// `ENUM(' ','x') DEFAULT ' '` likewise, because the blank string is a declared
+// member; it refuses the same default on `ENUM('x','y')` and
+// `ENUM('x') DEFAULT ' '`, where it is not (measured 2026-11-10). A blank
+// string has no case, so the members are compared byte for byte and the
+// column's collation does not come into it. An ENUM whose members could not be
+// read is left alone rather than guessed at.
+//
+// A non-blank default that the ENUM does not declare (`ENUM('x') DEFAULT 'z'`,
+// also 1067) is still over-accepted; it belongs with the other literal-
+// conversion gap this file's checkColumnDefaultValue notes.
+func blankStringDefaultRefused(dataType, value string, enumMembers []string) bool {
+	if strings.EqualFold(dataType, "enum") {
+		if len(enumMembers) == 0 {
+			return false
+		}
+		for _, m := range enumMembers {
+			if m == value {
+				return false
+			}
+		}
+		return true
+	}
+	return emptyStringDefaultForbiddenType(dataType)
+}
+
+// blankStringLit returns the value of expr when it is a string literal holding
+// nothing but whitespace.
+func blankStringLit(expr nodes.ExprNode) (string, bool) {
 	s, ok := expr.(*nodes.StringLit)
-	return ok && strings.TrimSpace(s.Value) == ""
+	if !ok || strings.TrimSpace(s.Value) != "" {
+		return "", false
+	}
+	return s.Value, true
+}
+
+// enumMembersFromColumnType reads the declared members out of a rendered ENUM
+// or SET column type, as formatColumnType writes it, undoing escapeEnumValue's
+// doubled quote so a member holding a quote reads back whole. It returns nil
+// for a type that declares
+// none, so a caller cannot tell "no members" from "could not read them" and
+// must treat both as unknown.
+func enumMembersFromColumnType(columnType string) []string {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return nil
+	}
+	var members []string
+	var cur strings.Builder
+	inQuote := false
+	for i := open + 1; i < len(columnType); i++ {
+		ch := columnType[i]
+		switch {
+		case inQuote && ch == '\'':
+			// A doubled quote is one literal quote inside the member.
+			if i+1 < len(columnType) && columnType[i+1] == '\'' {
+				cur.WriteByte('\'')
+				i++
+				continue
+			}
+			inQuote = false
+			members = append(members, cur.String())
+			cur.Reset()
+		case inQuote:
+			cur.WriteByte(ch)
+		case ch == '\'':
+			inQuote = true
+		case ch == ')':
+			return members
+		}
+	}
+	// An unterminated list is a rendering this parser does not understand.
+	return nil
 }
 
 // isNullDefault reports whether expr is the NULL literal.
@@ -577,13 +648,14 @@ func columnNamedInTableLevelPK(cons []*nodes.Constraint, colName string) bool {
 // checkColumnDefaultValue rejects the two invalid-default forms TiDB v8.5.5
 // refuses and this catalog used to accept: a NULL default on a column that is
 // not nullable (1067, or 1171 when the column is a part of a table-level
-// PRIMARY KEY), and an empty-string default on a type that cannot hold one
+// PRIMARY KEY), and a blank string default the column's type cannot hold
 // (1067). dataType is the catalog's normalized type name; tableCons are the
 // statement's table-level constraints, empty on an ALTER that declares none.
 //
-// Still over-accepted, and left to its own change: a non-empty literal that the
-// type cannot hold (`a date DEFAULT 'abc'`, `a int DEFAULT 'abc'`), which needs
-// the engine's full literal conversion rather than a shape check.
+// Still over-accepted, and left to its own change: a non-blank literal that the
+// type cannot hold (`a date DEFAULT 'abc'`, `a int DEFAULT 'abc'`,
+// `a enum('x') DEFAULT 'z'`), which needs the engine's full literal conversion
+// rather than a shape check.
 func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons []*nodes.Constraint) error {
 	expr := columnDefaultExpr(colDef)
 	if expr == nil {
@@ -598,7 +670,13 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 		}
 		return nil
 	}
-	if isEmptyStringDefault(expr) && emptyStringDefaultForbiddenType(dataType) {
+	// The declared members come straight from the type, so an ENUM written in
+	// this statement is judged on its own member list.
+	var enumMembers []string
+	if colDef.TypeName != nil {
+		enumMembers = colDef.TypeName.EnumValues
+	}
+	if value, ok := blankStringLit(expr); ok && blankStringDefaultRefused(dataType, value, enumMembers) {
 		return errInvalidDefault(colDef.Name)
 	}
 	return nil
@@ -607,8 +685,9 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 // checkExistingColumnDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT
 // to the same rules as the CREATE TABLE path, against the column as the catalog
 // already holds it: a NULL default on a primary-key column is 1171, on any
-// other non-nullable column 1067, and an empty-string default on a type that
-// cannot hold one is 1067.
+// other non-nullable column 1067, and a blank string default the column's type
+// cannot hold is 1067. An ENUM's members are read back out of its rendered
+// column type, which is the only place this catalog keeps them.
 func checkExistingColumnDefault(tbl *Table, col *Column, expr nodes.ExprNode) error {
 	if expr == nil {
 		return nil
@@ -622,7 +701,15 @@ func checkExistingColumnDefault(tbl *Table, col *Column, expr nodes.ExprNode) er
 		}
 		return nil
 	}
-	if isEmptyStringDefault(expr) && emptyStringDefaultForbiddenType(col.DataType) {
+	value, ok := blankStringLit(expr)
+	if !ok {
+		return nil
+	}
+	var enumMembers []string
+	if strings.EqualFold(col.DataType, "enum") {
+		enumMembers = enumMembersFromColumnType(col.ColumnType)
+	}
+	if blankStringDefaultRefused(col.DataType, value, enumMembers) {
 		return errInvalidDefault(col.Name)
 	}
 	return nil

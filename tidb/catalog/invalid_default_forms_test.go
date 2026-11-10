@@ -44,6 +44,14 @@ var invalidDefaultForms = []invalidDefaultForm{
 	{name: "double default empty", sql: "CREATE TABLE t (a double DEFAULT '')", wantCode: 1067},
 	{name: "bool default empty", sql: "CREATE TABLE t (a bool DEFAULT '')", wantCode: 1067},
 	{name: "enum default empty", sql: "CREATE TABLE t (a enum('x','y') DEFAULT '')", wantCode: 1067},
+	// An ENUM is judged on its declared members, not on emptiness: a blank
+	// string that the ENUM declares is a valid default, and one it does not is
+	// 1067. Measured on 2026-11-10.
+	{name: "enum declaring empty member default empty accepted", sql: "CREATE TABLE t (a enum('','x') DEFAULT '')"},
+	{name: "enum declaring empty member last default empty accepted", sql: "CREATE TABLE t (a enum('a','') DEFAULT '')"},
+	{name: "enum declaring empty member not null default empty accepted", sql: "CREATE TABLE t (a enum('','x') NOT NULL DEFAULT '')"},
+	{name: "enum declaring blank member default blank accepted", sql: "CREATE TABLE t (a enum(' ','x') DEFAULT ' ')"},
+	{name: "enum default blank not a member", sql: "CREATE TABLE t (a enum('x') DEFAULT ' ')", wantCode: 1067},
 	{name: "date default blank", sql: "CREATE TABLE t (a date DEFAULT ' ')", wantCode: 1067},
 	{name: "date not null default empty", sql: "CREATE TABLE t (a date NOT NULL DEFAULT '')", wantCode: 1067},
 	{name: "varchar default empty accepted", sql: "CREATE TABLE t (a varchar(10) DEFAULT '')"},
@@ -76,6 +84,10 @@ var invalidDefaultForms = []invalidDefaultForm{
 		sql: "ALTER TABLE t ALTER COLUMN a SET DEFAULT 5"},
 	{name: "set default empty on varchar accepted", setup: "CREATE TABLE t (x varchar(5))",
 		sql: "ALTER TABLE t ALTER COLUMN x SET DEFAULT ''"},
+	{name: "set default empty on enum declaring it accepted", setup: "CREATE TABLE t (a enum('','x'))",
+		sql: "ALTER TABLE t ALTER COLUMN a SET DEFAULT ''"},
+	{name: "set default empty on enum not declaring it", setup: "CREATE TABLE t (a enum('x','y'))",
+		sql: "ALTER TABLE t ALTER COLUMN a SET DEFAULT ''", wantCode: 1067},
 
 	// Cluster 3: NOT NULL with DEFAULT NULL, written in the column definition.
 	// A table-level PRIMARY KEY over the column answers 1171 instead, which is
@@ -99,6 +111,10 @@ var invalidDefaultForms = []invalidDefaultForm{
 		sql: "ALTER TABLE t ADD COLUMN c date DEFAULT ''", wantCode: 1067},
 	{name: "add column nullable default null accepted", setup: "CREATE TABLE t (x int)",
 		sql: "ALTER TABLE t ADD COLUMN b INT DEFAULT NULL"},
+	{name: "add column enum declaring empty member default empty accepted", setup: "CREATE TABLE t (x int)",
+		sql: "ALTER TABLE t ADD COLUMN a enum('','x') DEFAULT ''"},
+	{name: "add column enum not declaring empty member default empty", setup: "CREATE TABLE t (x int)",
+		sql: "ALTER TABLE t ADD COLUMN c enum('x','y') DEFAULT ''", wantCode: 1067},
 
 	// Cluster 4: more than one AUTO_INCREMENT column. Unlike MySQL, v8.5.5
 	// takes a lone auto column that backs no key, so only the count is a
@@ -247,6 +263,46 @@ func TestContainerInvalidDefaultForms(t *testing.T) {
 			}
 			if int(myErr.Number) != f.wantCode {
 				t.Fatalf("TiDB answered %d for %q, want %d: %v", myErr.Number, f.sql, f.wantCode, err)
+			}
+		})
+	}
+}
+
+// TestEnumMembersFromColumnType covers the reader that recovers an ENUM's
+// declared members from its rendered column type, which is where the catalog
+// keeps them once a column is built. A member holding a quote is the case no
+// DDL test above reaches, and getting it wrong would silently mis-judge an
+// ENUM default.
+func TestEnumMembersFromColumnType(t *testing.T) {
+	cases := []struct {
+		columnType string
+		want       []string
+	}{
+		{columnType: "enum('x','y')", want: []string{"x", "y"}},
+		{columnType: "enum('','x')", want: []string{"", "x"}},
+		{columnType: "enum('a','')", want: []string{"a", ""}},
+		{columnType: "enum(' ','x')", want: []string{" ", "x"}},
+		{columnType: "enum('a','b''c')", want: []string{"a", "b'c"}},
+		{columnType: "enum('''')", want: []string{"'"}},
+		{columnType: "enum('a,b','c')", want: []string{"a,b", "c"}},
+		{columnType: "set('x','y')", want: []string{"x", "y"}},
+		{columnType: "enum('x') character set binary", want: []string{"x"}},
+		// Types that declare no members, and a rendering this reader does not
+		// understand, both come back nil: a caller must treat them as unknown.
+		{columnType: "int", want: nil},
+		{columnType: "varchar(10)", want: nil},
+		{columnType: "enum('x'", want: nil},
+	}
+	for _, c := range cases {
+		t.Run(c.columnType, func(t *testing.T) {
+			got := enumMembersFromColumnType(c.columnType)
+			if len(got) != len(c.want) {
+				t.Fatalf("read %q as %q, want %q", c.columnType, got, c.want)
+			}
+			for i := range got {
+				if got[i] != c.want[i] {
+					t.Fatalf("read %q as %q, want %q", c.columnType, got, c.want)
+				}
 			}
 		})
 	}
