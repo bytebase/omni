@@ -16,7 +16,11 @@ func TestIsDDL(t *testing.T) {
 		&FlashbackDatabaseStmt{}, &FlashbackTableStmt{}, &FlashbackToTimestampStmt{},
 		&LockTablesStmt{}, &UnlockTablesStmt{}, &OptimizeTableStmt{},
 		&RecoverTableStmt{}, &RenameTableStmt{}, &RepairTableStmt{}, &TruncateStmt{},
+		// ADMIN CLEANUP TABLE LOCK and ADMIN REPAIR TABLE parse to an AdminStmt
+		// here but to a dedicated DDLNode (CleanupTableLockStmt / RepairTableStmt)
+		// in pingcap.
 		&AdminStmt{Kind: AdminCleanupTableLock},
+		&AdminStmt{Kind: AdminRepairTable},
 	}
 	for _, n := range ddl {
 		if !IsDDL(n) {
