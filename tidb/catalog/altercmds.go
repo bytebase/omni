@@ -1227,7 +1227,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 		col.Default = &s
 	}
 	if colDef.OnUpdate != nil {
-		col.OnUpdate = nodeToSQL(colDef.OnUpdate)
+		col.OnUpdate = onUpdateToSQL(colDef.OnUpdate)
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
