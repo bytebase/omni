@@ -1474,12 +1474,10 @@ func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 			"ALTER TABLE t_conv_cs CONVERT TO CHARACTER SET utf8mb4",
 			"t_conv_cs",
 		},
-		{
-			"default_charset_latin1",
-			"CREATE TABLE t_def_cs (id INT PRIMARY KEY, name VARCHAR(100))",
-			"ALTER TABLE t_def_cs DEFAULT CHARACTER SET latin1",
-			"t_def_cs",
-		},
+		// NOTE: TiDB v8.5.5 rejects ALTER TABLE ... DEFAULT CHARACTER SET latin1
+		// with 8200 "Unsupported modify charset from utf8mb4 to latin1" (a
+		// narrowing charset change), so there is no DEFAULT CHARACTER SET case
+		// here — unlike MySQL, which performs it.
 		{
 			"comment",
 			"CREATE TABLE t_comment (id INT PRIMARY KEY)",
@@ -4747,14 +4745,10 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			timestamp_frac TIMESTAMP(3) NULL,
 			year_col YEAR,
 			json_col JSON,
-			geo_col GEOMETRY,
-			point_col POINT,
-			linestring_col LINESTRING,
-			polygon_col POLYGON,
-			multipoint_col MULTIPOINT,
-			multiline_col MULTILINESTRING,
-			multipoly_col MULTIPOLYGON,
-			geocoll_col GEOMETRYCOLLECTION,
+			-- NOTE: TiDB v8.5.5 does not support the spatial types (GEOMETRY,
+			-- POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING,
+			-- MULTIPOLYGON, GEOMETRYCOLLECTION): a CREATE TABLE naming one is a
+			-- syntax error (1064), so none appears here (MySQL supports them).
 			PRIMARY KEY (id)
 		)`, "t_all_types"},
 
@@ -4779,7 +4773,9 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			ts_def TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			dt_def DATETIME DEFAULT CURRENT_TIMESTAMP,
 			ts3_def TIMESTAMP(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-			expr_int INT DEFAULT (FLOOR(RAND()*100)),
+			-- NOTE: TiDB v8.5.5 rejects a DEFAULT whose expression calls FLOOR
+			-- (3770 "disallowed function"), so the MySQL case
+			-- expr_int INT DEFAULT (FLOOR(RAND()*100)) is omitted.
 			expr_json JSON DEFAULT (JSON_ARRAY()),
 			expr_varchar VARCHAR(100) DEFAULT (UUID()),
 			dt_literal DATETIME DEFAULT '2024-01-01 00:00:00',
@@ -4788,6 +4784,9 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 		)`, "t_all_defaults"},
 
 		// --- All index types (Phase 1.13-1.16) integration ---
+		// NOTE: TiDB v8.5.5 supports neither spatial columns/indexes (POINT,
+		// SPATIAL KEY) nor FULLTEXT indexes, so this case keeps only the index
+		// forms TiDB accepts (MySQL also supports the spatial and fulltext ones).
 		{"all_index_types", `CREATE TABLE t_all_indexes (
 			id INT NOT NULL AUTO_INCREMENT,
 			name VARCHAR(255) NOT NULL,
@@ -4796,15 +4795,12 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			rank_val INT,
 			bio TEXT,
 			description TEXT,
-			geo_col POINT NOT NULL,
 			PRIMARY KEY (id),
 			KEY idx_name (name),
 			KEY idx_email_prefix (email(10)),
 			KEY idx_score_desc (score DESC),
 			KEY idx_multi_mixed (score ASC, rank_val DESC),
 			UNIQUE KEY uk_email (email),
-			FULLTEXT KEY ft_bio (bio, description),
-			SPATIAL KEY sp_geo (geo_col),
 			KEY idx_expr ((UPPER(name))),
 			KEY idx_expr_calc ((score + rank_val)),
 			KEY idx_comment (name) COMMENT 'name lookup index',
@@ -4967,6 +4963,12 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 
 	// --- SHOW CREATE PROCEDURE ---
 	t.Run("show_create_procedure", func(t *testing.T) {
+		// TiDB v8.5.5 does not support this stored-procedure body: CREATE
+		// PROCEDURE ... BEGIN DECLARE ... END is rejected with 8108 "Unsupported
+		// type *resolve.NodeW", and there is no SHOW CREATE PROCEDURE to compare.
+		// Stored procedures are a MySQL feature outside TiDB's DDL surface, so
+		// there is nothing to hold omni to here.
+		t.Skip("TiDB v8.5.5 does not support CREATE PROCEDURE with a BEGIN...END body (8108)")
 		// Test SHOW CREATE PROCEDURE with INOUT params.
 		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
 		createSQL := "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END"

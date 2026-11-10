@@ -31,10 +31,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if stmt.IfNotExists {
 			return nil
 		}
-		return errDupTable(tableName)
+		return errDupTableQualified(db.Name, tableName)
 	}
 	if db.Views[key] != nil {
-		return errDupTable(tableName)
+		return errDupTableQualified(db.Name, tableName)
 	}
 
 	// CREATE TABLE ... LIKE
@@ -245,6 +245,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 		}
 
+		// Apply TiDB's implicit length-driven type promotions (FLOAT(M>24) →
+		// DOUBLE, an over-long VARCHAR → TEXT, TEXT(N)/BLOB(N) → the sized
+		// variant). Skipped for a CHARACTER SET binary column, which the block
+		// above already mapped to its BLOB form, so col.DataType no longer
+		// matches the declared base name.
+		if colDef.TypeName != nil && strings.EqualFold(col.DataType, toLower(colDef.TypeName.Name)) {
+			if promoted := promoteDeclaredType(colDef.TypeName, col.Charset); promoted != "" {
+				col.DataType = promoted
+				col.ColumnType = promoted
+			}
+		}
+
 		// Standalone BINARY modifier (CHAR(10) BINARY) → the effective charset's
 		// binary collation, matching TiDB. Resolved after the charset default
 		// above so a bare CHAR BINARY uses the table/db charset. An explicit
@@ -369,6 +381,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := checkTemporalDefaultFsp(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
 			return err
 		}
+		if err := checkTemporalBareDefault(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+			return err
+		}
+		if err := checkTemporalOnUpdate(colDef.Name, colDef.TypeName, colDef.OnUpdate); err != nil {
+			return err
+		}
 		if err := checkDefaultExprFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
 			return err
 		}
@@ -468,6 +486,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					c.Nullable = false
 				}
 			}
+			if err := validateFunctionalIndexColumns(con.IndexColumns); err != nil {
+				return err
+			}
 			idxCols := buildIndexColumns(con)
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
@@ -502,8 +523,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = autoIndexName(tbl, cols)
+			}
+			if err := validateFunctionalIndexColumns(con.IndexColumns); err != nil {
+				return err
 			}
 			idxCols := buildIndexColumns(con)
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
@@ -587,8 +611,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = autoIndexName(tbl, cols)
+			}
+			if err := validateFunctionalIndexColumns(con.IndexColumns); err != nil {
+				return err
 			}
 			idxCols := buildIndexColumns(con)
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
@@ -794,6 +821,42 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 	}
 }
 
+// upperFuncNames uppercases every function name in a deparsed partition
+// expression, which is how TiDB v8.5.5 writes it in SHOW CREATE: YEAR(`c`),
+// TO_DAYS(`c`). A function name is a bare identifier immediately followed by
+// '(' — column names are backtick-quoted, so they are never touched.
+func upperFuncNames(s string) string {
+	isIdentStart := func(c byte) bool {
+		return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	}
+	isIdentPart := func(c byte) bool {
+		return isIdentStart(c) || (c >= '0' && c <= '9')
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		if isIdentStart(s[i]) {
+			j := i
+			for j < len(s) && isIdentPart(s[j]) {
+				j++
+			}
+			k := j
+			for k < len(s) && s[k] == ' ' {
+				k++
+			}
+			if k < len(s) && s[k] == '(' {
+				b.WriteString(strings.ToUpper(s[i:j]))
+			} else {
+				b.WriteString(s[i:j])
+			}
+			i = j
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo,
 // keeping what TiDB keeps. v8.5.5 reads LINEAR, KEY ALGORITHM, a partition's
 // ENGINE and the whole SUBPARTITION clause and stores none of them: SHOW CREATE
@@ -811,7 +874,7 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "RANGE"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
 		}
 	case nodes.PartitionList:
 		if len(pc.Columns) > 0 {
@@ -819,11 +882,11 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "LIST"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
 		}
 	case nodes.PartitionHash:
 		pi.Type = "HASH"
-		pi.Expr = nodeToSQL(pc.Expr)
+		pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
@@ -845,10 +908,15 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 		pi.Partitions = append(pi.Partitions, pdi)
 	}
 
-	// Auto-generate partition definitions for HASH/KEY when PARTITIONS N is
-	// specified without explicit partition definitions: p0, p1, p2, ...
-	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
-		for i := 0; i < pi.NumParts; i++ {
+	// Auto-generate partition definitions for HASH/KEY. With PARTITIONS N the
+	// names are p0, p1, ..., p(N-1); without it TiDB defaults to a single
+	// partition p0 (CREATE TABLE ... PARTITION BY HASH(id) yields PARTITIONS 1).
+	if len(pi.Partitions) == 0 && (pi.Type == "HASH" || pi.Type == "KEY") {
+		count := pi.NumParts
+		if count == 0 {
+			count = 1
+		}
+		for i := 0; i < count; i++ {
 			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
 				Name: fmt.Sprintf("p%d", i),
 			})
@@ -1079,11 +1147,24 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 func allocIndexName(tbl *Table, baseName string) string {
 	candidate := baseName
 	suffix := 2
-	for indexNameExists(tbl, candidate) {
+	// "PRIMARY" is reserved for the primary key, so an auto-name that would land
+	// on it is bumped: TiDB names a UNIQUE KEY over a column named `PRIMARY`
+	// PRIMARY_2, not PRIMARY (measured on v8.5.5).
+	for indexNameExists(tbl, candidate) || strings.EqualFold(candidate, "PRIMARY") {
 		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
 		suffix++
 	}
 	return candidate
+}
+
+// autoIndexName returns the name for an unnamed secondary index: based on its
+// first plain column, or, for an index whose key parts are all expressions,
+// TiDB's expression_index / expression_index_2 (measured on v8.5.5).
+func autoIndexName(tbl *Table, cols []string) string {
+	if len(cols) > 0 {
+		return allocIndexName(tbl, cols[0])
+	}
+	return allocIndexName(tbl, "expression_index")
 }
 
 // hasIndexCoveringColumns returns true if the table already has an index whose
@@ -1496,6 +1577,72 @@ func binaryOpToString(op nodes.BinaryOp) string {
 	default:
 		return "?"
 	}
+}
+
+// charsetMaxLen returns the maximum bytes per character of a charset, used for
+// TiDB's implicit length-driven TEXT/VARCHAR promotions. An unknown charset
+// falls back to 1, which never over-promotes.
+func charsetMaxLen(cs string) int {
+	switch strings.ToLower(cs) {
+	case "utf8mb4", "utf16", "utf16le", "utf32":
+		return 4
+	case "utf8", "utf8mb3", "ujis", "eucjpms":
+		return 3
+	case "gbk", "big5", "sjis", "euckr", "gb2312", "cp932", "ucs2":
+		return 2
+	default:
+		return 1
+	}
+}
+
+// textTierForBytes returns the smallest TEXT variant whose capacity holds the
+// given byte length, matching TiDB v8.5.5's choice of tinytext (<=255), text
+// (<=65535), mediumtext (<=16777215) or longtext.
+func textTierForBytes(bytes int64) string {
+	switch {
+	case bytes <= 255:
+		return "tinytext"
+	case bytes <= 65535:
+		return "text"
+	case bytes <= 16777215:
+		return "mediumtext"
+	default:
+		return "longtext"
+	}
+}
+
+// promoteDeclaredType applies the implicit, length-driven type promotions TiDB
+// v8.5.5 performs so the stored type is not the declared one: FLOAT(M>24) without
+// a scale becomes DOUBLE, a VARCHAR whose byte length exceeds 65535 becomes the
+// smallest TEXT type that holds it, and TEXT(N)/BLOB(N) become the TINY/…/LONG
+// variant sized by byte length (measured on a live container, 2026-11-09). It
+// returns the promoted base type name, or "" when the declared type stands.
+// charset is the column's effective charset, which sets the bytes-per-character
+// for the TEXT and VARCHAR cases.
+func promoteDeclaredType(dt *nodes.DataType, charset string) string {
+	name := strings.ToLower(dt.Name)
+	switch name {
+	case "float":
+		if dt.Length > 24 && !dt.HasScale {
+			return "double"
+		}
+	case "varchar":
+		if dt.Length > 0 {
+			if bytes := int64(dt.Length) * int64(charsetMaxLen(charset)); bytes > 65535 {
+				return textTierForBytes(bytes)
+			}
+		}
+	case "text":
+		if dt.Length > 0 {
+			return textTierForBytes(int64(dt.Length) * int64(charsetMaxLen(charset)))
+		}
+	case "blob":
+		if dt.Length > 0 {
+			tier := textTierForBytes(int64(dt.Length))
+			return strings.Replace(tier, "text", "blob", 1)
+		}
+	}
+	return ""
 }
 
 func formatColumnType(dt *nodes.DataType) string {

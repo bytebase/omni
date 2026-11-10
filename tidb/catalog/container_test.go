@@ -53,19 +53,15 @@ var sharedTiDB sync.Mutex
 // ~16 minutes, while the reset takes milliseconds. Callers are serialised so a
 // test never sees another test's objects.
 //
-// QUARANTINE: every test that goes through here is a differential test forked
-// from mysql/catalog, and its expectations are still MySQL-shaped. Against
-// TiDB v8.5.5, 30 top-level tests fail (mostly MySQL-shaped assertions where
-// omni already matches TiDB, plus a few real renderer/behavior gaps); they are
-// being cleared cluster by cluster (see
-// docs/plans/2026-11-09-tidb-catalog-parity-inventory.md). They are skipped
-// unless TIDB_CATALOG_PARITY=1 so CI stays green; run with it set when working
-// on parity. Deleting this skip once the count reaches zero is the follow-up.
+// These were the quarantined mysql/catalog-forked differential tests; they are
+// now at parity with TiDB v8.5.5 (stale MySQL-shaped expectations re-baselined,
+// real over-acceptances fixed) and run by default. A handful of subtests that
+// exercise features TiDB does not have (triggers, stored procedures) or a
+// narrow multi-command-ALTER over-acceptance carry their own documented t.Skip
+// (see docs/plans/2026-11-09-tidb-catalog-parity-residual.md). The env-var gate
+// is gone; the differential and walk-through tests are ordinary container tests.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	if os.Getenv("TIDB_CATALOG_PARITY") == "" {
-		t.Skip("quarantined: tidb/catalog differential tests are not yet at parity with TiDB v8.5.5; set TIDB_CATALOG_PARITY=1 to run (see startContainer)")
-	}
 	tc := startTiDBForCatalog(t)
 	sharedTiDB.Lock()
 	ctr := &mysqlContainer{db: tc.db, ctx: tc.ctx}

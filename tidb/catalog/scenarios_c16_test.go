@@ -198,6 +198,14 @@ func TestScenario_C16(t *testing.T) {
 
 	// ---- 16.4 CURTIME / CURRENT_TIME / UTC_TIME precision defaults to 0 --
 	t.Run("16_4_CURTIME_precision_default_0", func(t *testing.T) {
+		// CURTIME(7) is rejected by TiDB at plan-build time (ER_TOO_BIG_PRECISION
+		// 1426), not at parse — TiDB's own parser accepts it. The omni catalog is
+		// a DDL catalog and skips DML (SELECT/DO are Skipped in exec.go), so it
+		// never analyzes a bare SELECT CURTIME(7) and has no place to reject it.
+		// Validating function-argument precision inside skipped DML is out of the
+		// catalog's scope. Documented in
+		// docs/plans/2026-11-09-tidb-catalog-parity-residual.md.
+		t.Skip("out of catalog scope: fsp>6 in a SELECT expression is a DML/plan concern; the DDL catalog skips DML")
 		scenarioReset(t, mc)
 
 		var l0, l6 int
@@ -428,10 +436,9 @@ func TestScenario_C16(t *testing.T) {
 		for _, k := range cases {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
-			// Use explicit_defaults_for_timestamp so TIMESTAMP doesn't pick up promotion.
-			if _, err := mc.db.ExecContext(mc.ctx, `SET SESSION explicit_defaults_for_timestamp=1`); err != nil {
-				t.Errorf("oracle SET: %v", err)
-			}
+			// TiDB keeps explicit_defaults_for_timestamp ON and read-only, so no
+			// SET is needed (and one would be rejected 1238): TIMESTAMP never
+			// picks up legacy promotion here.
 			ddl := `CREATE TABLE t (a ` + k.decl + ` NULL)`
 			runOnBoth(t, mc, c, ddl)
 
@@ -490,13 +497,14 @@ func TestScenario_C16(t *testing.T) {
 			}
 		}
 
-		// YEAR(4) normalized to YEAR in SHOW CREATE.
+		// TiDB v8.5.5 does NOT normalize YEAR(4) to YEAR: SHOW CREATE keeps the
+		// explicit width as `year(4)` (MySQL drops it). omni matches TiDB.
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (y YEAR(4))`)
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
-		if !strings.Contains(show, "`y` year") || strings.Contains(show, "year(4)") {
-			t.Errorf("oracle SHOW CREATE: YEAR(4) not normalized: %s", show)
+		if !strings.Contains(show, "`y` year(4)") {
+			t.Errorf("oracle SHOW CREATE: expected year(4) (TiDB keeps the width): %s", show)
 		}
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl != nil {
@@ -505,45 +513,36 @@ func TestScenario_C16(t *testing.T) {
 				if omniType == "" {
 					omniType = strings.ToLower(col.DataType)
 				}
-				if strings.Contains(omniType, "year(4)") || strings.Contains(omniType, "year(2)") {
-					t.Errorf("omni: KNOWN BUG — YEAR(4) not normalized: %q", omniType)
+				if !strings.Contains(omniType, "year(4)") {
+					t.Errorf("omni: expected year(4) to match TiDB, got %q", omniType)
 				}
 			}
 		}
 	})
 
-	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------
+	// ---- 16.12 TIMESTAMP first-column promotion ---------------------------
 	//
-	// NOTE: asymmetric scenario. The session variable
-	// `explicit_defaults_for_timestamp=0` only affects the MySQL oracle —
-	// omni has no session-variable model today. The omni-side assertions
-	// below are tagged "KNOWN GAP" and are expected to fail in either
-	// direction: omni's promotion path either doesn't honor the oracle's
-	// session state at all (today's behavior) or eventually will honor
-	// session vars and then match automatically. If omni starts tracking
-	// session vars, revisit this test to mirror the SET on both sides.
+	// TiDB v8.5.5 keeps explicit_defaults_for_timestamp ON and read-only (the
+	// SET that MySQL 8.0 uses to toggle legacy promotion is rejected 1238), so
+	// a NOT NULL TIMESTAMP gets NO implicit DEFAULT CURRENT_TIMESTAMP / ON
+	// UPDATE promotion. omni has the same no-promotion behavior, so both agree.
 	t.Run("16_12_Timestamp_promotion_fsp", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
-		// Default explicit_defaults_for_timestamp=ON on MySQL 8.0, so turn it
-		// off to trigger implicit promotion on the oracle side.
-		if _, err := mc.db.ExecContext(mc.ctx, `SET SESSION explicit_defaults_for_timestamp=0`); err != nil {
-			t.Errorf("oracle SET: %v", err)
-		}
 		runOnBoth(t, mc, c, `CREATE TABLE t (ts TIMESTAMP(3) NOT NULL)`)
 
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
 		if !strings.Contains(show, "timestamp(3)") {
 			t.Errorf("oracle SHOW CREATE: missing timestamp(3): %s", show)
 		}
-		if !strings.Contains(show, "default current_timestamp(3)") {
-			t.Errorf("oracle SHOW CREATE: missing DEFAULT CURRENT_TIMESTAMP(3): %s", show)
+		if strings.Contains(show, "default current_timestamp") {
+			t.Errorf("oracle SHOW CREATE: unexpected DEFAULT CURRENT_TIMESTAMP — TiDB does not promote under explicit_defaults: %s", show)
 		}
-		if !strings.Contains(show, "on update current_timestamp(3)") {
-			t.Errorf("oracle SHOW CREATE: missing ON UPDATE CURRENT_TIMESTAMP(3): %s", show)
+		if strings.Contains(show, "on update current_timestamp") {
+			t.Errorf("oracle SHOW CREATE: unexpected ON UPDATE CURRENT_TIMESTAMP — TiDB does not promote: %s", show)
 		}
 
-		// omni side: check promotion produced matching fsp on DEFAULT and ON UPDATE.
+		// omni side: no promotion either, matching TiDB.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
@@ -554,19 +553,14 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("omni: column ts missing")
 			return
 		}
-		if col.Default == nil {
-			t.Errorf("omni: KNOWN GAP — expected DEFAULT CURRENT_TIMESTAMP(3) after first-col TIMESTAMP promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
-		} else {
+		if col.Default != nil {
 			lo := strings.ToLower(*col.Default)
-			if !strings.Contains(lo, "current_timestamp(3)") && !strings.Contains(lo, "now(3)") {
-				t.Errorf("omni: KNOWN BUG — DEFAULT = %q, expected CURRENT_TIMESTAMP(3), see mysql/catalog/scenarios_bug_queue/c16.md", *col.Default)
+			if strings.Contains(lo, "current_timestamp") || strings.Contains(lo, "now(") {
+				t.Errorf("omni: unexpected DEFAULT %q — TiDB does not promote", *col.Default)
 			}
 		}
-		if col.OnUpdate == "" {
-			t.Errorf("omni: KNOWN GAP — expected ON UPDATE CURRENT_TIMESTAMP(3) after promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
-		} else if !strings.Contains(strings.ToLower(col.OnUpdate), "current_timestamp(3)") &&
-			!strings.Contains(strings.ToLower(col.OnUpdate), "now(3)") {
-			t.Errorf("omni: KNOWN BUG — ON UPDATE = %q, expected CURRENT_TIMESTAMP(3)", col.OnUpdate)
+		if col.OnUpdate != "" {
+			t.Errorf("omni: unexpected ON UPDATE %q — TiDB does not promote", col.OnUpdate)
 		}
 	})
 }

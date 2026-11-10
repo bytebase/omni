@@ -803,7 +803,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if tbl.droppedByCleanup[key] {
 			return nil
 		}
-		return errCantDropKey(name)
+		return errIndexDoesntExist(name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -1075,7 +1075,10 @@ func insertColumn(tbl *Table, col *Column, first bool, after string) error {
 	} else if after != "" {
 		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
-			return errNoSuchColumn(after, tbl.Name)
+			// TiDB v8.5.5 resolves an AFTER position through its column-dependency
+			// pass and names the context "generated column function" for an
+			// unknown target column (measured on a live container, 2026-11-09).
+			return errNoSuchColumn(after, "generated column function")
 		}
 		pos := afterIdx + 1
 		tbl.Columns = append(tbl.Columns, nil)

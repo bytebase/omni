@@ -329,7 +329,9 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		for _, r := range rows {
 			got = append(got, asString(r[0]))
 		}
-		want := []string{"functional_index", "functional_index_2"}
+		// TiDB v8.5.5 names an unnamed index over an expression expression_index,
+		// then expression_index_2 (MySQL uses functional_index).
+		want := []string{"expression_index", "expression_index_2"}
 		assertStringEq(t, "oracle functional index names", strings.Join(got, ","), strings.Join(want, ","))
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -371,16 +373,27 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			t.Errorf("omni: table t missing (functional index support gap)")
 			return
 		}
-		// omni will almost certainly not synthesize hidden generated columns
-		// with MySQL's !hidden! naming scheme. Check and report.
-		hasHidden := false
+		// TiDB v8.5.5 exposes no MySQL-style !hidden! column for the expression
+		// index fx; the expression lives on the index key parts, which omni
+		// models the same way. So there is no hidden column, and fx carries two
+		// expression key parts.
 		for _, col := range tbl.Columns {
 			if strings.HasPrefix(col.Name, "!hidden!") {
-				hasHidden = true
+				t.Errorf("omni: unexpected synthesized hidden column %q; TiDB exposes none", col.Name)
+			}
+		}
+		var fx *Index
+		for _, i := range tbl.Indexes {
+			if strings.EqualFold(i.Name, "fx") {
+				fx = i
 				break
 			}
 		}
-		assertBoolEq(t, "omni has hidden functional col", hasHidden, true)
+		if fx == nil {
+			t.Errorf("omni: expression index fx missing")
+		} else if len(fx.Columns) != 2 || fx.Columns[0].Expr == "" || fx.Columns[1].Expr == "" {
+			t.Errorf("omni: fx should have two expression key parts, got %+v", fx.Columns)
+		}
 	})
 
 	// --- 1.13 CHECK name discarded, so no cross-table dup-name error ------

@@ -528,6 +528,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE p7 (id INT PRIMARY KEY)`); err != nil {
 			t.Fatalf("setup: %v", err)
 		}
+		// TiDB v8.5.5 ALLOWS a second foreign key to take the auto-name another
+		// already holds (MySQL rejects it with ER_FK_DUP_NAME 1826): the CREATE
+		// succeeds and the unnamed FK is auto-named alongside the user-named one.
 		_, err := mc.db.ExecContext(mc.ctx, `
 			CREATE TABLE tps7 (
 				a INT,
@@ -536,26 +539,23 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 				FOREIGN KEY (b) REFERENCES p7(id)
 			)
 		`)
-		if err == nil {
-			rows := spotCheckQuery(t, mc, ``, `
-				SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-				WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps7' AND CONSTRAINT_TYPE='FOREIGN KEY'
-				ORDER BY CONSTRAINT_NAME
-			`)
-			var names []string
-			for _, row := range rows {
-				names = append(names, asString(row[0]))
-			}
-			t.Errorf("CATALOG MISMATCH PS7: expected ER_FK_DUP_NAME, got success with FKs %v", names)
+		if err != nil {
+			t.Errorf("PS7: TiDB v8.5.5 should accept the FK name collision, got: %v", err)
 			return
 		}
-		msg := err.Error()
-		t.Logf("PS7 error observed: %v", msg)
-		// ER_FK_DUP_NAME = 1826
-		if !strings.Contains(msg, "1826") && !strings.Contains(strings.ToLower(msg), "duplicate") {
-			t.Errorf("PS7 UNEXPECTED ERROR: expected ER_FK_DUP_NAME (1826), got: %v", msg)
+		rows := spotCheckQuery(t, mc, ``, `
+			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps7' AND CONSTRAINT_TYPE='FOREIGN KEY'
+			ORDER BY CONSTRAINT_NAME
+		`)
+		var names []string
+		for _, row := range rows {
+			names = append(names, asString(row[0]))
+		}
+		if len(names) != 2 {
+			t.Errorf("PS7: expected 2 foreign keys, got %v", names)
 		} else {
-			t.Logf("OK PS7 verified: collision rejected")
+			t.Logf("OK PS7 verified: TiDB allows the FK name collision, FKs=%v", names)
 		}
 	})
 
@@ -576,11 +576,13 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rows {
 			names = append(names, asString(row[0]))
 		}
-		want := []string{"cc_chk_1", "cc_chk_2"}
-		if len(names) != 2 || names[0] != want[0] || names[1] != want[1] {
-			t.Errorf("CATALOG MISMATCH C1.3: expected %v, got %v", want, names)
+		// TiDB v8.5.5 keeps tidb_enable_check_constraint OFF by default, so CHECK
+		// constraints are discarded at CREATE and none is reported (MySQL keeps
+		// them as cc_chk_1, cc_chk_2).
+		if len(names) != 0 {
+			t.Errorf("CATALOG MISMATCH C1.3: TiDB discards CHECK constraints by default, got %v", names)
 		} else {
-			t.Logf("OK C1.3 verified: %v", names)
+			t.Logf("OK C1.3 verified: CHECK constraints discarded under TiDB default")
 		}
 	})
 
@@ -934,8 +936,10 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		checkOpt := asString(rows[0][1])
 		definer := asString(rows[0][2])
-		if checkOpt != "NONE" {
-			t.Errorf("CATALOG MISMATCH C10.4: expected CHECK_OPTION=NONE, got %q", checkOpt)
+		// TiDB v8.5.5 reports CHECK_OPTION=CASCADED for a view created without
+		// WITH CHECK OPTION (MySQL reports NONE).
+		if checkOpt != "CASCADED" {
+			t.Errorf("CATALOG MISMATCH C10.4: expected CHECK_OPTION=CASCADED, got %q", checkOpt)
 		} else {
 			t.Logf("OK C10.4 verified: CHECK_OPTION=%s", checkOpt)
 		}
@@ -961,6 +965,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// C11.1: Trigger DEFINER defaults to current user.
 	// ---------------------------------------------------------------
 	t.Run("C11_1_Trigger_definer_default", func(t *testing.T) {
+		// TiDB v8.5.5 does not support triggers: CREATE TRIGGER is rejected as a
+		// syntax error (1064), so there is no trigger DEFINER to verify.
+		t.Skip("TiDB v8.5.5 does not support CREATE TRIGGER")
 		reset(t)
 		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE tt11 (a INT)`); err != nil {
 			t.Fatalf("setup: %v", err)
@@ -989,19 +996,20 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// ---------------------------------------------------------------
 	t.Run("C14_1_Check_enforced_default", func(t *testing.T) {
 		reset(t)
+		// TiDB v8.5.5 has no ENFORCED column on information_schema.TABLE_CONSTRAINTS
+		// (a MySQL CHECK-constraint column), and discards CHECK constraints under
+		// its default tidb_enable_check_constraint=OFF, so chk14 is not recorded
+		// at all (MySQL keeps it with ENFORCED=YES).
 		rows := spotCheckQuery(t, mc, `
 			CREATE TABLE tchk14 (a INT, CONSTRAINT chk14 CHECK (a > 0));
 		`, `
-			SELECT ENFORCED FROM information_schema.TABLE_CONSTRAINTS
-			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_NAME='chk14'
+			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tchk14' AND CONSTRAINT_TYPE='CHECK'
 		`)
-		if len(rows) != 1 {
-			t.Fatalf("expected 1 row, got %d", len(rows))
-		}
-		if asString(rows[0][0]) != "YES" {
-			t.Errorf("CATALOG MISMATCH C14.1: expected ENFORCED=YES, got %q", asString(rows[0][0]))
+		if len(rows) != 0 {
+			t.Errorf("CATALOG MISMATCH C14.1: TiDB discards CHECK constraints by default, got %d row(s)", len(rows))
 		} else {
-			t.Logf("OK C14.1 verified: ENFORCED=YES")
+			t.Logf("OK C14.1 verified: CHECK constraint discarded under TiDB default")
 		}
 	})
 

@@ -51,13 +51,15 @@ func TestScenario_C6(t *testing.T) {
             (PARTITION p0 VALUES LESS THAN (2000),
              PARTITION p1 VALUES LESS THAN MAXVALUE);`)
 
-		// Oracle: expect 2 subpartitions total (1 per parent).
+		// TiDB v8.5.5 drops the SUBPARTITION clause (tablecmds.go), so the two
+		// RANGE partitions survive with no subpartitions: two rows here, each
+		// with a NULL SUBPARTITION_NAME.
 		rows := oracleRows(t, mc, `SELECT PARTITION_NAME, SUBPARTITION_NAME
             FROM information_schema.PARTITIONS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
             ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION`)
 		if len(rows) != 2 {
-			t.Errorf("oracle subpartition rows: got %d, want 2", len(rows))
+			t.Errorf("oracle partition rows: got %d, want 2", len(rows))
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -65,11 +67,13 @@ func TestScenario_C6(t *testing.T) {
 			t.Errorf("omni: table or partitioning missing")
 			return
 		}
+		// omni matches TiDB: two partitions, no subpartitions.
+		assertIntEq(t, "omni partition count", len(tbl.Partitioning.Partitions), 2)
 		total := 0
 		for _, p := range tbl.Partitioning.Partitions {
 			total += len(p.SubPartitions)
 		}
-		assertIntEq(t, "omni subpartition count", total, 2)
+		assertIntEq(t, "omni subpartition count", total, 0)
 	})
 
 	// --- 6.3 Partition ENGINE defaults to table ENGINE ------------------
@@ -150,9 +154,13 @@ func TestScenario_C6(t *testing.T) {
 			t.Errorf("omni: table or partitioning missing")
 			return
 		}
-		got := strings.Join(tbl.Partitioning.Columns, ",")
+		// TiDB renders KEY () empty in SHOW CREATE but resolves the primary-key
+		// columns in information_schema (PARTITION_EXPRESSION='id'). omni keeps
+		// the resolved columns in keyColumns and leaves Columns empty so SHOW
+		// CREATE also renders KEY ().
+		got := strings.Join(tbl.Partitioning.keyColumns, ",")
 		if got != "id" {
-			t.Errorf("omni partition columns: got %q, want %q", got, "id")
+			t.Errorf("omni partition key columns: got %q, want %q", got, "id")
 		}
 	})
 
@@ -164,9 +172,11 @@ func TestScenario_C6(t *testing.T) {
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4`)
 
+		// TiDB v8.5.5 reads LINEAR and stores nothing: SHOW CREATE renders
+		// `PARTITION BY HASH (...)`, never LINEAR (tablecmds.go).
 		sc := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(sc, "LINEAR HASH") {
-			t.Errorf("oracle SHOW CREATE: expected LINEAR HASH, got %s", sc)
+		if strings.Contains(sc, "LINEAR HASH") {
+			t.Errorf("oracle SHOW CREATE: TiDB drops LINEAR, got %s", sc)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
@@ -174,7 +184,8 @@ func TestScenario_C6(t *testing.T) {
 			t.Errorf("omni: table or partitioning missing")
 			return
 		}
-		assertBoolEq(t, "omni Linear", tbl.Partitioning.Linear, true)
+		// omni matches TiDB and keeps no LINEAR flag.
+		assertBoolEq(t, "omni Linear", tbl.Partitioning.Linear, false)
 	})
 
 	// --- 6.7 RANGE/LIST require explicit partition definitions ---------
@@ -451,23 +462,26 @@ func TestScenario_C6(t *testing.T) {
              PARTITION p1 VALUES LESS THAN MAXVALUE
                 (SUBPARTITION s2, SUBPARTITION s3))`)
 
-		// Oracle: 4 subpartitions total.
+		// TiDB v8.5.5 drops the SUBPARTITION clause, so only the two RANGE
+		// partitions survive (two rows, each with a NULL SUBPARTITION_NAME).
 		rows := oracleRows(t, mc, `SELECT SUBPARTITION_NAME
             FROM information_schema.PARTITIONS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
             ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION`)
-		assertIntEq(t, "oracle subpartition count", len(rows), 4)
+		assertIntEq(t, "oracle partition count", len(rows), 2)
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
 			t.Errorf("omni: table/partitioning missing")
 			return
 		}
+		// omni matches TiDB: two partitions, no subpartitions.
+		assertIntEq(t, "omni partition count", len(tbl.Partitioning.Partitions), 2)
 		total := 0
 		for _, p := range tbl.Partitioning.Partitions {
 			total += len(p.SubPartitions)
 		}
-		assertIntEq(t, "omni subpartition count", total, 4)
+		assertIntEq(t, "omni subpartition count", total, 0)
 	})
 
 	// --- 6.16 ALTER ADD PARTITION auto-naming ---------------------
@@ -560,4 +574,3 @@ func c6OmniPartitionNames(tbl *Table) []string {
 	}
 	return names
 }
-
