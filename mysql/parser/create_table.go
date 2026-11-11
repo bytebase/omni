@@ -656,6 +656,10 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if p.cur.Type != tokICONST {
 			return false, nil
 		}
+		// The id is held to 32 unsigned bits while the statement parses (1690).
+		if p.cur.Ival > math.MaxUint32 {
+			return false, &ParseError{Message: "SRID value is out of range in 'SRID'", Position: p.cur.Loc}
+		}
 		col.TypeName.SRID = int(p.cur.Ival)
 		col.TypeName.HasSRID = true
 		p.advance()
@@ -1720,7 +1724,8 @@ func (p *Parser) consumeWordOptionValue(words ...string) (string, error) {
 }
 
 // consumeSizeOptionValue reads size_number: an integer, or an integer with a K, M or G
-// after it, which lexes as a name. The action answers 1531 for any other name.
+// after it, which lexes as a name. The action answers 1531 for any other name, and 1532
+// for a suffixed number past 31 bits: 2147483647K parses and 2147483648K does not.
 //
 // Ref: size_number in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) consumeSizeOptionValue() (string, error) {
@@ -1730,6 +1735,9 @@ func (p *Parser) consumeSizeOptionValue() (string, error) {
 	if p.cur.Type == tokIDENT {
 		digits := strings.TrimRight(p.cur.Str, "kKmMgG")
 		if len(p.cur.Str)-len(digits) == 1 && strings.Trim(digits, "0123456789") == "" {
+			if numberWhole(digits) > math.MaxInt32 {
+				return "", &ParseError{Message: "The size number was correct but we don't allow the digit part to be more than 2 billion", Position: p.cur.Loc}
+			}
 			return p.advance().Str, nil
 		}
 	}

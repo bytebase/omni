@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1712,7 +1713,7 @@ var keywords = map[string]int{
 type Token struct {
 	Type int    // token type
 	Str  string // string value for identifiers, operators, string literals
-	Ival int64  // integer value for ICONST
+	Ival int64  // integer value for ICONST, and the whole part of an FCONST (numberWhole)
 	Loc  int    // byte offset in source text
 	End  int    // byte offset past the end of the token in the source text
 }
@@ -2446,11 +2447,63 @@ func (l *Lexer) scanNumber() Token {
 
 	s := l.input[start:l.pos]
 	if isFloat {
-		return Token{Type: tokFCONST, Str: s, Loc: start}
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
 	}
 
-	ival, _ := strconv.ParseInt(s, 10, 64)
-	return Token{Type: tokICONST, Str: s, Ival: ival, Loc: start}
+	// A digit run is an integer token only while it fits 64 unsigned bits. Past
+	// that MariaDB's lexer gives DECIMAL_NUM, the token of 1.5 (int_token in
+	// sql_lex.cc), so a production that takes an integer refuses it and one that
+	// takes a number keeps it: mariadb:11.8.8 parses PARTITIONS
+	// 18446744073709551615 and answers 1064 for PARTITIONS 18446744073709551616.
+	if _, err := strconv.ParseUint(s, 10, 64); err != nil {
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
+	}
+	return Token{Type: tokICONST, Str: s, Ival: numberWhole(s), Loc: start}
+}
+
+// isNum reports whether the token is NUM, the integer token that fits 31 bits, which
+// is all a key part's length and the like take. A wider integer is LONG_NUM or
+// ULONGLONG_NUM: mariadb:11.8.8 parses a(2147483647) as a key part and answers 1064
+// for a(2147483648).
+func (t Token) isNum() bool {
+	return t.Type == tokICONST && t.Ival <= math.MaxInt32
+}
+
+// isDecimalNum reports whether the token is DECIMAL_NUM: digits with a point, or a
+// run of them too wide for an integer token. An exponent makes it FLOAT_NUM.
+func (t Token) isDecimalNum() bool {
+	return t.Type == tokFCONST && !strings.ContainsAny(t.Str, "eE")
+}
+
+// isFieldLength reports whether the token can be a field_length: an integer token,
+// or DECIMAL_NUM with a whole part, which is the length. mariadb:11.8.8 parses
+// CHAR(1.5) and CHAR(1.) and refuses CHAR(.5), which has no digit to read.
+func (t Token) isFieldLength() bool {
+	return t.Type == tokICONST || t.isDecimalNum() && leadingDigits(t.Str) != ""
+}
+
+// leadingDigits returns the digits a number begins with.
+func leadingDigits(s string) string {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	return s[:end]
+}
+
+// numberWhole returns the integer the server reads from a number where the grammar
+// takes one for an integer: its leading digits, held to the largest int64, so 1.9
+// and 1e2 are both 1 and .5 is 0.
+func numberWhole(s string) int64 {
+	digits := leadingDigits(s)
+	if digits == "" {
+		return 0
+	}
+	whole, err := strconv.ParseInt(digits, 10, 64)
+	if err != nil {
+		return math.MaxInt64
+	}
+	return whole
 }
 
 // identCharAt reports whether the byte at i can appear inside an identifier.

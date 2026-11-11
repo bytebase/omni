@@ -533,6 +533,10 @@ func (p *Parser) parseRoutineDataType() (*nodes.DataType, error) {
 // every spelling: `varcharacter(1)`, `char varying(50)` and `nchar
 // varying(50)` are accepted and those three without a length are not. The LONG
 // forms carry no length at all, so they do not come here.
+//
+// A string type's length is a number and an integer type's width an integer:
+// OceanBase 4.3.5 parses CHAR(99999999999999999999), whose digits lex as a decimal,
+// and answers 1064 for INT(99999999999999999999).
 func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return &ParseError{
@@ -541,7 +545,7 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	p.advance()
-	if p.cur.Type != tokICONST {
+	if p.cur.Type != tokICONST && !(p.cur.isWideDigits() && stringLengthTypes[dt.Name]) {
 		return &ParseError{
 			Message:  "expected a length for " + dt.Name,
 			Position: p.cur.Loc,
@@ -558,6 +562,12 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	}
 	p.advance()
 	return nil
+}
+
+// stringLengthTypes are the types whose length is read as a number, which a run of
+// digits past 64 bits still is.
+var stringLengthTypes = map[string]bool{
+	"CHAR": true, "VARCHAR": true, "BINARY": true, "VARBINARY": true, "BLOB": true, "TEXT": true,
 }
 
 // parseOptionalLength parses the `(length)` a type may leave out. The
@@ -583,7 +593,11 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 		return nil
 	}
 	p.advance()
-	if p.cur.Type != tokICONST {
+	// FLOAT(n) reads a number, where every other precision is an integer: OceanBase
+	// 4.3.5 parses FLOAT(99999999999999999999) and answers 1064 for
+	// DECIMAL(99999999999999999999) and FLOAT(99999999999999999999,0).
+	floatLength := dt.Name == "FLOAT" && p.cur.isWideDigits() && p.peekNext().Type != ','
+	if p.cur.Type != tokICONST && !floatLength {
 		return &ParseError{
 			Message:  "expected a precision for " + dt.Name,
 			Position: p.cur.Loc,

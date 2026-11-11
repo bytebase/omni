@@ -87,6 +87,10 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		if p.cur.Type == kwWITH {
 			p.advance()
 			if p.cur.Type == tokICONST {
+				// The count is NUM, held to 1..1024 while the statement parses (1690).
+				if p.cur.Ival < 1 || p.cur.Ival > 1024 {
+					return nil, &ParseError{Message: "Number of buckets value is out of range in 'ANALYZE TABLE'", Position: p.cur.Loc}
+				}
 				stmt.Buckets = int(p.cur.Ival)
 				p.advance()
 			}
@@ -1190,12 +1194,19 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.AutoextendSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AutoextendSize = size
 		case p.cur.Type == kwFILE_BLOCK_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.FileBlockSize = p.cur.Str
-			p.advance()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.FileBlockSize = size
 		case p.cur.Type == kwENCRYPTION:
 			p.advance()
 			p.matchEqual()
@@ -1215,20 +1226,35 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		case p.cur.Type == kwEXTENT_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.ExtentSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ExtentSize = size
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwMAX_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.MaxSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.MaxSize = size
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			p.matchEqual()
-			stmt.NodeGroup = p.cur.Str
-			p.advance()
+			group, err := p.consumeIntegerOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.NodeGroup = group
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
@@ -1322,7 +1348,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
@@ -1337,7 +1367,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.AutoextendSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AutoextendSize = size
 		case p.cur.Type == kwSET:
 			p.advance() // consume SET
 			if p.cur.Type == kwACTIVE {
@@ -1727,9 +1761,13 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 	// Optional '='
 	p.matchEqual()
 
+	// A CPU number is NUM, as the thread priority is: mysql:8.0 answers 1064 for
+	// VCPU = 2147483648 and for THREAD_PRIORITY = 2147483648.
+	//
+	// Ref: vcpu_num_or_range and signed_num in MySQL 8.0 sql/sql_yacc.yy.
 	var specs []nodes.VCPUSpec
 	for {
-		if p.cur.Type != tokICONST {
+		if !p.cur.isNum() {
 			if len(specs) == 0 {
 				// vcpu_spec_list is not optional once VCPU is written:
 				// mysql:8.0 answers 1064 for `VCPU =` with nothing after it.
@@ -1748,7 +1786,7 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 		// Check for range: N-M (the '-' is parsed as a minus operator)
 		if p.cur.Type == '-' {
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if !p.cur.isNum() {
 				return nil, &ParseError{
 					Message:  "expected integer after '-' in VCPU range",
 					Position: p.cur.Loc,
@@ -1791,7 +1829,7 @@ func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriori
 				neg = true
 				p.advance()
 			}
-			if p.cur.Type != tokICONST {
+			if !p.cur.isNum() {
 				return &ParseError{
 					Message:  "expected integer for THREAD_PRIORITY",
 					Position: p.cur.Loc,
@@ -2321,23 +2359,6 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 	return stmt, nil
 }
 
-// parseSizeValue reads a size value which may be a number optionally followed
-// by a suffix like K, M, G (e.g. "16M", "256K", "1G"). The lexer tokenizes
-// "16M" as tokICONST("16") + tokIDENT("M"), so we concatenate them.
-func (p *Parser) parseSizeValue() string {
-	val := p.cur.Str
-	p.advance()
-	// Check for size suffix: K, M, G, T
-	if p.cur.Type == tokIDENT && len(p.cur.Str) == 1 {
-		ch := p.cur.Str[0]
-		if ch == 'K' || ch == 'k' || ch == 'M' || ch == 'm' || ch == 'G' || ch == 'g' || ch == 'T' || ch == 't' {
-			val += p.cur.Str
-			p.advance()
-		}
-	}
-	return val
-}
-
 // parseCreateLogfileGroupStmt parses a CREATE LOGFILE GROUP statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-logfile-group.html
@@ -2383,20 +2404,35 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwUNDO_BUFFER_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.UndoBufferSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.UndoBufferSize = size
 		case p.cur.Type == kwREDO_BUFFER_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.RedoBufferSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.RedoBufferSize = size
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			p.matchEqual()
-			stmt.NodeGroup = p.cur.Str
-			p.advance()
+			group, err := p.consumeIntegerOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.NodeGroup = group
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
@@ -2467,7 +2503,11 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.matchEqual()
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.consumeSizeOptionValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true

@@ -2,7 +2,6 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mysql/ast"
-	"strconv"
 )
 
 // parseWithClause parses a WITH clause (Common Table Expressions).
@@ -2079,9 +2078,6 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
 		// bits lexes as DECIMAL_NUM, which it does not take.
-		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
-			return nil, p.syntaxErrorAtCur()
-		}
 		return p.parsePrimaryExpr()
 	}
 	if p.isIdentToken() && !p.isVariableRef() {

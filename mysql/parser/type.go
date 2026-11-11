@@ -224,21 +224,21 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwTIME:
 		dt.Name = "TIME"
 		p.advance()
-		if err := p.parseOptionalLength(dt); err != nil { // fsp
+		if err := p.parseOptionalFsp(dt); err != nil {
 			return nil, err
 		}
 
 	case kwDATETIME:
 		dt.Name = "DATETIME"
 		p.advance()
-		if err := p.parseOptionalLength(dt); err != nil { // fsp
+		if err := p.parseOptionalFsp(dt); err != nil {
 			return nil, err
 		}
 
 	case kwTIMESTAMP:
 		dt.Name = "TIMESTAMP"
 		p.advance()
-		if err := p.parseOptionalLength(dt); err != nil { // fsp
+		if err := p.parseOptionalFsp(dt); err != nil {
 			return nil, err
 		}
 
@@ -534,6 +534,12 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 // every spelling: `varcharacter(1)`, `char varying(50)` and `nchar
 // varying(50)` are accepted and those three without a length are not. The LONG
 // forms carry no length at all, so they do not come here.
+//
+// field_length takes every integer token and DECIMAL_NUM, whose whole part is the
+// length: mysql:8.0 stores CHAR(1.5) as char(1), and reads
+// CHAR(99999999999999999999) as far as the 1439 its range check answers.
+//
+// Ref: field_length in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return &ParseError{
@@ -542,7 +548,7 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	p.advance()
-	if p.cur.Type != tokICONST {
+	if p.cur.Type != tokICONST && !p.cur.isDecimalNum() {
 		return &ParseError{
 			Message:  "expected a length for " + dt.Name,
 			Position: p.cur.Loc,
@@ -573,18 +579,44 @@ func (p *Parser) parseOptionalLength(dt *nodes.DataType) error {
 	return p.parseRequiredLength(dt)
 }
 
+// parseOptionalFsp parses the fractional seconds precision TIME, DATETIME and
+// TIMESTAMP may carry. It is `'(' NUM ')'`, narrower than a length: mysql:8.0 reads
+// TIME(2147483647) as far as its 1426 and answers 1064 for TIME(2147483648) and
+// TIME(1.5).
+//
+// Ref: type_datetime_precision in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseOptionalFsp(dt *nodes.DataType) error {
+	if p.cur.Type == '(' && !p.peekNext().isNum() {
+		return &ParseError{
+			Message:  "expected a precision for " + dt.Name,
+			Position: p.peekNext().Loc,
+		}
+	}
+	return p.parseOptionalLength(dt)
+}
+
 // parseOptionalPrecision parses the `(precision[, scale])` the approximate and
 // exact numeric types may leave out. As with a length, the parentheses are
 // optional and their contents are not: the engines answer 1064 for
 // `decimal(10,)`, `decimal(,2)` and `float(10,)`, so a precision that opens
 // must carry a number, a scale that follows a comma must too, and the whole
 // must close.
+//
+// A precision alone is field_length and one with a scale is `'(' NUM ',' NUM ')'`:
+// mysql:8.0 parses DECIMAL(1.5) and DECIMAL(2147483648), and answers 1064 for
+// DECIMAL(1.5,0), DECIMAL(2147483648,0) and DECIMAL(10,2147483648).
+//
+// Ref: float_options, field_length and precision in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return nil
 	}
 	p.advance()
-	if p.cur.Type != tokICONST {
+	precision := p.cur.Type == tokICONST || p.cur.isDecimalNum()
+	if p.peekNext().Type == ',' {
+		precision = p.cur.isNum()
+	}
+	if !precision {
 		return &ParseError{
 			Message:  "expected a precision for " + dt.Name,
 			Position: p.cur.Loc,
@@ -594,7 +626,7 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	p.advance()
 	if p.cur.Type == ',' {
 		p.advance()
-		if p.cur.Type != tokICONST {
+		if !p.cur.isNum() {
 			return &ParseError{
 				Message:  "expected a scale for " + dt.Name,
 				Position: p.cur.Loc,

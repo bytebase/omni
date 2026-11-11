@@ -509,6 +509,11 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case tokFCONST:
 		tok := p.advance()
+		if tok.isWideDigits() {
+			// A digit run past 64 bits is a decimal to the grammar and an integer to
+			// read: it keeps the node it has as a column default, with its digits in Text.
+			return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival, Text: tok.Str}, nil
+		}
 		return &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
 
 	case tokSCONST:
@@ -1636,7 +1641,9 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokICONST {
+		// The length is an integer that fits 63 bits: OceanBase 4.3.5 answers 1064
+		// for AS CHAR(9223372036854775808).
+		if !p.cur.isInt64() {
 			return nil, &ParseError{Message: "expected length", Position: p.cur.Loc}
 		}
 		if p.cur.Ival < 1 {

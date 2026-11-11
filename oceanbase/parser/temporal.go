@@ -32,25 +32,12 @@ import (
 // error: now(7) answers 1426 after parsing. Every row is held to the engine by
 // TestOceanBaseTemporalFormsMatchEngine.
 
-// maxPrecisionLiteral is the largest literal the lexer gives as INTNUM. Past it
-// the literal is a decimal, which the grammar refuses: OceanBase 4.3.5 runs
-// now(18446744073709551615) and answers 1064 for now(18446744073709551616).
-const maxPrecisionLiteral = "18446744073709551615"
-
 // atDatetimePrecision reports whether p.cur can be a function's fractional
-// seconds precision.
+// seconds precision: an INTNUM, which the lexer gives up to 18446744073709551615.
+// Past it the literal is a decimal, which the grammar refuses: OceanBase 4.3.5 runs
+// now(18446744073709551615) and answers 1064 for now(18446744073709551616).
 func (p *Parser) atDatetimePrecision() bool {
-	return p.cur.Type == tokICONST && intLiteralFits(p.cur.Str, maxPrecisionLiteral)
-}
-
-// intLiteralFits reports whether a run of decimal digits, leading zeros aside, is
-// no larger than max.
-func intLiteralFits(digits, max string) bool {
-	digits = strings.TrimLeft(digits, "0")
-	if len(digits) != len(max) {
-		return len(digits) < len(max)
-	}
-	return digits <= max
+	return p.cur.Type == tokICONST
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no

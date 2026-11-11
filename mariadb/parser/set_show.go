@@ -1962,11 +1962,12 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		if _, err := p.expect(kwCONNECTION); err != nil {
 			return nil, err
 		}
-		tok, err := p.expect(tokICONST)
-		if err != nil {
-			return nil, err
+		// A digit run past 64 bits lexes as a decimal and is still a run of digits,
+		// which mariadb:11.8.8 parses here, so it is read with the integers.
+		if p.cur.Type != tokICONST && !(p.cur.Type == tokFCONST && leadingDigits(p.cur.Str) == p.cur.Str) {
+			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.ForConnection = tok.Ival
+		stmt.ForConnection = p.advance().Ival
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}

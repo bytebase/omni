@@ -1977,7 +1977,7 @@ var keywords = map[string]int{
 type Token struct {
 	Type int    // token type
 	Str  string // string value for identifiers, operators, string literals
-	Ival int64  // integer value for ICONST
+	Ival int64  // integer value for ICONST, and the whole part of an FCONST (numberWhole)
 	Loc  int    // byte offset in source text
 	End  int    // byte offset past the end of the token in the source text
 }
@@ -2738,11 +2738,49 @@ func (l *Lexer) scanNumber() Token {
 		if f, err := strconv.ParseFloat(s, 64); err != nil && math.IsInf(f, 0) {
 			l.setError("floating point value is out of range", start)
 		}
-		return Token{Type: tokFCONST, Str: s, Loc: start}
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
 	}
 
-	ival, _ := strconv.ParseInt(s, 10, 64)
-	return Token{Type: tokICONST, Str: s, Ival: ival, Loc: start}
+	// A digit run is an integer token only while it fits 64 unsigned bits. Past
+	// that TiDB's lexer gives a decimal literal, the token of 1.5 (toInt in
+	// pkg/parser/lexer.go), so a production that takes an integer refuses it and one
+	// that takes a number keeps it: TiDB v8.5.5 parses PARTITIONS
+	// 18446744073709551615 and answers 1064 for PARTITIONS 18446744073709551616.
+	if _, err := strconv.ParseUint(s, 10, 64); err != nil {
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
+	}
+	return Token{Type: tokICONST, Str: s, Ival: numberWhole(s), Loc: start}
+}
+
+// isInt64 reports whether the token is an integer literal that fits an int64. The
+// lexer hands the grammar an int64 for one and a uint64 for a larger one (toInt), and
+// a production that reads `$n.(int64)` refuses the uint64: TiDB v8.5.5 parses PASSWORD
+// HISTORY 9223372036854775807 and answers 1064 for PASSWORD HISTORY
+// 9223372036854775808.
+func (t Token) isInt64() bool {
+	if t.Type != tokICONST {
+		return false
+	}
+	_, err := strconv.ParseInt(t.Str, 10, 64)
+	return err == nil
+}
+
+// numberWhole returns the integer the server reads from a number where the grammar
+// takes one for an integer: its leading digits, held to the largest int64, so 1.9
+// and 1e2 are both 1 and .5 is 0.
+func numberWhole(s string) int64 {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return 0
+	}
+	whole, err := strconv.ParseInt(s[:end], 10, 64)
+	if err != nil {
+		return math.MaxInt64
+	}
+	return whole
 }
 
 // identCharAt reports whether the byte at i can appear inside an identifier.

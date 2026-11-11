@@ -158,10 +158,12 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			Column: colName,
 		}
 
-		// Optional (length)
+		// Optional (length), which is NUM: mysql:8.0 answers 1064 for a(2147483648).
+		//
+		// Ref: key_part in MySQL 8.0 sql/sql_yacc.yy.
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == tokICONST {
+			if p.cur.isNum() {
 				col.Length = int(p.cur.Ival)
 				p.advance()
 			}
@@ -235,7 +237,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		p.advance()
 		p.matchEqual() // optional =
 		valStart := p.pos()
-		if p.cur.Type == tokICONST {
+		// ulong_num takes a decimal and reads its whole part: mysql:8.0 stores
+		// KEY_BLOCK_SIZE 4.9 as KEY_BLOCK_SIZE=4.
+		if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 			val := p.cur.Ival
 			p.advance()
 			return &nodes.IndexOption{

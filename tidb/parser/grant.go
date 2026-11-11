@@ -2303,7 +2303,7 @@ func (p *Parser) parseUserAccountOptions(
 				if p.cur.Type == kwDEFAULT {
 					*passwordHistory = "DEFAULT"
 					p.advance()
-				} else if p.cur.Type == tokICONST {
+				} else if p.cur.isInt64() {
 					*passwordHistory = strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
 				} else {
@@ -2319,7 +2319,7 @@ func (p *Parser) parseUserAccountOptions(
 				if p.cur.Type == kwDEFAULT {
 					*passwordReuseInterval = "DEFAULT"
 					p.advance()
-				} else if p.cur.Type == tokICONST {
+				} else if p.cur.isInt64() {
 					n := strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
 					if _, err := p.expect(kwDAY); err != nil {

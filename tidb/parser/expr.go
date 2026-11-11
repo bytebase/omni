@@ -1564,8 +1564,8 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 		// expression, so a bare keyword/identifier offset like `UNCOMMITTED
 		// PRECEDING` is a 1064 (parser.y:9691-9707 WindowFrameStart,
 		// 9719-9734 WindowFrameBound). omni's lexer has no separate decimal
-		// token: a decimal lexes as tokFCONST and an integer (oversized ones
-		// included) as tokICONST, so those two cover NumLiteral.
+		// token: a decimal lexes as tokFCONST, as an integer past 64 bits does, and
+		// any other integer as tokICONST, so those two cover NumLiteral.
 		switch p.cur.Type {
 		case kwINTERVAL:
 			expr, err := p.parseIntervalExpr()

@@ -513,6 +513,11 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case tokFCONST:
 		tok := p.advance()
+		if strings.Trim(tok.Str, "0123456789") == "" {
+			// A digit run past 64 bits is a decimal to the grammar and an integer to
+			// read: it keeps the node it has as a column default, with its digits in Text.
+			return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival, Text: tok.Str}, nil
+		}
 		return &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
 
 	case tokSCONST:

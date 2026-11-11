@@ -166,17 +166,12 @@ func (p *Parser) parseCastSize(dt *nodes.DataType, allowDecimal bool) error {
 	}
 	p.castSized = true
 	p.advance()
-	switch {
-	case p.cur.Type == tokICONST:
-		dt.Length = int(p.cur.Ival)
-	case allowDecimal && p.cur.Type == tokFCONST && !strings.ContainsAny(p.cur.Str, "eE"):
-		whole, _, _ := strings.Cut(p.cur.Str, ".")
-		for _, digit := range whole {
-			dt.Length = dt.Length*10 + int(digit-'0')
-		}
-	default:
+	// The whole part of a decimal is its length, held to the largest int64 as an
+	// integer's is, so a run of digits too wide for one is refused as too long.
+	if p.cur.Type != tokICONST && !(allowDecimal && p.cur.isDecimalNum()) {
 		return p.syntaxErrorAtCur()
 	}
+	dt.Length = int(p.cur.Ival)
 	// A written length of 0 is a length, which JSON_VALUE's RETURNING keeps.
 	dt.HasLength = true
 	p.advance()

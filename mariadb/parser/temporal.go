@@ -70,34 +70,20 @@ func (p *Parser) spacedFuncWordIsName(upperName string) bool {
 	return (spacedTemporalWords[upperName] || spacedFuncWords[upperName]) && p.prev.End != p.cur.Loc
 }
 
-// maxPrecisionLiteral is the largest decimal literal real_ulong_num reads. The
-// lexer gives anything larger as DECIMAL_NUM, which real_ulong_num refuses:
-// mariadb:11.8.8 answers 1426 for now(18446744073709551615) and 1064 for
-// now(18446744073709551616).
-const maxPrecisionLiteral = "18446744073709551615"
-
 // atDatetimePrecision reports whether p.cur can be a function's fractional
-// seconds precision. HEX_NUM is the 0x spelling only, at any length: X'01' and
+// seconds precision, which is real_ulong_num. The lexer gives a digit run past 64
+// bits as DECIMAL_NUM, which that refuses: mariadb:11.8.8 answers 1426 for
+// now(18446744073709551615) and 1064 for now(18446744073709551616). HEX_NUM is the 0x spelling only, at any length: X'01' and
 // 0X1 lex as something else and answer 1064. The lexer gives all three as
 // tokXCONST, and a string's contents can begin 0x too, so this reads the source.
 func (p *Parser) atDatetimePrecision() bool {
 	switch p.cur.Type {
 	case tokICONST:
-		return intLiteralFits(p.cur.Str, maxPrecisionLiteral)
+		return true
 	case tokXCONST:
 		return strings.HasPrefix(p.lexer.input[p.cur.Loc-p.lexer.baseOffset:], "0x")
 	}
 	return false
-}
-
-// intLiteralFits reports whether a run of decimal digits, leading zeros aside, is
-// no larger than max.
-func intLiteralFits(digits, max string) bool {
-	digits = strings.TrimLeft(digits, "0")
-	if len(digits) != len(max) {
-		return len(digits) < len(max)
-	}
-	return digits <= max
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no
