@@ -2229,20 +2229,6 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		if n.AsChar != nil {
 			fmt.Fprintf(&b, " as char(%d)", n.AsChar.Length)
 		}
-		for i, lv := range n.Levels {
-			if i == 0 {
-				b.WriteString(" level ")
-			} else {
-				b.WriteString(",")
-			}
-			fmt.Fprintf(&b, "%d", lv.Level)
-			if lv.Desc {
-				b.WriteString(" desc")
-			}
-			if lv.Reverse {
-				b.WriteString(" reverse")
-			}
-		}
 		b.WriteString(")")
 		return b.String()
 	case *nodes.BinaryExpr:

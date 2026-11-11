@@ -2398,15 +2398,6 @@ func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
 		sb.WriteString(" :aschar ")
 		writeNode(sb, n.AsChar)
 	}
-	for _, lv := range n.Levels {
-		fmt.Fprintf(sb, " :level %d", lv.Level)
-		if lv.Desc {
-			sb.WriteString(" desc")
-		}
-		if lv.Reverse {
-			sb.WriteString(" reverse")
-		}
-	}
 	sb.WriteString("}")
 }
 

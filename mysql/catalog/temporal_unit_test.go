@@ -1,20 +1,25 @@
 package catalog
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // Stored-form fidelity for temporal-unit / keyword-argument positions.
 //
 // Every case's `stored` string is a live-engine SHOW CREATE VIEW readback
-// (oracle 8.0.32 :13306 + 5.7.25 :13307 — the two agree on every form here
-// except WEIGHT_STRING's LEVEL suffix, which only 5.7 emits). LoadSDL of the
-// stored form must regenerate EXACTLY the stored form: any drift (a
-// backtick-quoted unit, a lost keyword form) produces CREATE VIEW DDL the
-// engine rejects with error 1064 — the sys-schema dogfood bug this file
-// pins: timestampdiff(`SECOND`,...) fails to apply while the engine stores
-// timestampdiff(SECOND,...) bare.
+// (oracle 8.0.32 :13306 + 5.7.25 :13307 — the two agree on every form
+// here). LoadSDL of the stored form must regenerate EXACTLY the stored
+// form: any drift (a backtick-quoted unit, a lost keyword form) produces
+// CREATE VIEW DDL the engine rejects with error 1064 — the sys-schema
+// dogfood bug this file pins: timestampdiff(`SECOND`,...) fails to apply
+// while the engine stores timestampdiff(SECOND,...) bare.
 func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 	cases := []struct{ id, stored string }{
 		// TIMESTAMPDIFF: unit stays bare UPPERCASE, args joined without spaces.
@@ -62,16 +67,11 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 		{"get-format-date", "select get_format(DATE, 'USA') AS `x`"},
 		{"get-format-time", "select get_format(TIME, 'USA') AS `x`"},
 		{"get-format-datetime", "select get_format(DATETIME, 'USA') AS `x`"},
-		// WEIGHT_STRING: plain, AS CHAR(n), the desugared AS BINARY cast form,
-		// and the 5.7 LEVEL suffixes (5.7 readbacks always carry a level list).
+		// WEIGHT_STRING: plain, AS CHAR(n), and the desugared AS BINARY cast
+		// form.
 		{"weight-string-plain", "select weight_string('ab') AS `x`"},
 		{"weight-string-as-char", "select weight_string('ab' as char(4)) AS `x`"},
 		{"weight-string-cast-binary", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
-		{"weight-string-level", "select weight_string('ab' level 1) AS `x`"},
-		{"weight-string-level-desc", "select weight_string('ab' level 1 desc) AS `x`"},
-		{"weight-string-level-reverse", "select weight_string('ab' level 1 reverse) AS `x`"},
-		{"weight-string-level-desc-reverse", "select weight_string('ab' level 1 desc reverse) AS `x`"},
-		{"weight-string-as-char-level", "select weight_string('ab' as char(4) level 1) AS `x`"},
 		// TRIM: directional and the direction-less remstr FROM form.
 		{"trim-both", "select trim(both 'x' from 'xax') AS `x`"},
 		{"trim-leading", "select trim(leading 'x' from 'xax') AS `x`"},
@@ -130,10 +130,6 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		{"extract-uppercase-unit", "select EXTRACT(DAY_HOUR FROM '2020-01-01 10:20:30') AS `x`", "select extract(day_hour from '2020-01-01 10:20:30') AS `x`"},
 		{"extract-sql-tsi", "select EXTRACT(SQL_TSI_DAY FROM '2020-01-01') AS `x`", "select extract(day from '2020-01-01') AS `x`"},
 		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
-		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab' level 1) AS `x`"},
-		// The engine clamps an out-of-range level instead of rejecting:
-		// LEVEL 0 stores as level 1 (oracle 5.7.25).
-		{"weight-string-level-0-clamps", "select WEIGHT_STRING('ab' LEVEL 0) AS `x`", "select weight_string('ab' level 1) AS `x`"},
 		// CAST/CONVERT to BINARY(n) desugar to the engine-stored
 		// char-charset-binary form in every expression position
 		// (oracle 8.0.32 + 5.7.25).
@@ -305,12 +301,11 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 		{"get-format-string", "select get_format('DATE','USA') AS `x`"},
 		{"extract-quoted-unit", "select extract(`day` from '2020-01-01') AS `x`"},
 		// WEIGHT_STRING grammar edges the engine rejects with 1064
-		// (oracle 8.0.32 + 5.7.25): a zero AS length, and REVERSE before the
-		// direction (the grammar is n [ASC|DESC] [REVERSE], in that order).
+		// (oracle 8.0.32 + 5.7.25): a zero AS length.
 		{"weight-string-as-char-0", "select weight_string('ab' as char(0)) AS `x`"},
 		{"weight-string-as-binary-0", "select weight_string('ab' as binary(0)) AS `x`"},
-		{"weight-string-level-reverse-desc", "select weight_string('ab' level 1 reverse desc) AS `x`"},
 	}
+	cases = append(cases, weightStringLevelBodies...)
 	for _, tc := range cases {
 		t.Run(tc.id, func(t *testing.T) {
 			sdl := "CREATE DATABASE d;\nUSE d;\nCREATE VIEW `v` AS " + tc.body + ";\n"
@@ -318,6 +313,66 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 				t.Errorf("expected parse error (engine rejects with 1064), got success for: %s", tc.body)
 			} else if !strings.Contains(err.Error(), "line") {
 				t.Logf("rejected (as expected): %v", err)
+			}
+		})
+	}
+}
+
+// weightStringLevelBodies are view bodies that use WEIGHT_STRING's LEVEL
+// clause. MySQL 5.7 took the clause and stored a level list; MySQL 8.0
+// removed it from the grammar (the WEIGHT_STRING_SYM arms of
+// function_call_conflict in sql_yacc.yy), so each body is a 1064 on the engine
+// and a parse error here. TestWeightStringLevelRejectedByMySQL holds the list
+// to the server.
+var weightStringLevelBodies = []struct{ id, body string }{
+	{"weight-string-level", "select weight_string('ab' level 1) AS `x`"},
+	{"weight-string-level-0", "select weight_string('ab' level 0) AS `x`"},
+	{"weight-string-level-asc", "select weight_string('ab' level 1 asc) AS `x`"},
+	{"weight-string-level-desc", "select weight_string('ab' level 1 desc) AS `x`"},
+	{"weight-string-level-reverse", "select weight_string('ab' level 1 reverse) AS `x`"},
+	{"weight-string-level-desc-reverse", "select weight_string('ab' level 1 desc reverse) AS `x`"},
+	{"weight-string-level-reverse-desc", "select weight_string('ab' level 1 reverse desc) AS `x`"},
+	{"weight-string-level-list", "select weight_string('ab' level 1, 2) AS `x`"},
+	{"weight-string-level-range", "select weight_string('ab' level 1 - 2) AS `x`"},
+	{"weight-string-as-char-level", "select weight_string('ab' as char(4) level 1) AS `x`"},
+	{"weight-string-as-binary-level", "select weight_string('ab' as binary(4) level 1) AS `x`"},
+}
+
+// TestWeightStringLevelRejectedByMySQL runs each LEVEL body on MySQL 8.0 as
+// the CREATE VIEW the catalog would load, and requires a 1064 from the server
+// and an error from LoadSDL. The same view without LEVEL is the control: the
+// server creates it and LoadSDL loads it.
+func TestWeightStringLevelRejectedByMySQL(t *testing.T) {
+	ctx := context.Background()
+	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_weight_string_level")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close(ctx) })
+	createView := func(body string) string { return "CREATE OR REPLACE VIEW `v` AS " + body }
+	load := func(body string) error {
+		_, err := LoadSDL("CREATE DATABASE d;\nUSE d;\n" + createView(body) + ";\n")
+		return err
+	}
+
+	t.Run("control", func(t *testing.T) {
+		const body = "select weight_string('ab' as char(4)) AS `x`"
+		if _, err := d.DB.ExecContext(ctx, createView(body)); err != nil {
+			t.Errorf("server refused the view without LEVEL: %v", err)
+		}
+		if err := load(body); err != nil {
+			t.Errorf("LoadSDL refused the view without LEVEL: %v", err)
+		}
+	})
+	for _, tc := range weightStringLevelBodies {
+		t.Run(tc.id, func(t *testing.T) {
+			_, err := d.DB.ExecContext(ctx, createView(tc.body))
+			var myErr *gomysql.MySQLError
+			if !errors.As(err, &myErr) || myErr.Number != 1064 {
+				t.Errorf("server answered %v, want 1064 for: %s", err, tc.body)
+			}
+			if err := load(tc.body); err == nil {
+				t.Errorf("LoadSDL accepts: %s", tc.body)
 			}
 		})
 	}

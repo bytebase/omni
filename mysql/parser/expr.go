@@ -1629,17 +1629,21 @@ func (p *Parser) parseGetFormatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 
 // parseWeightStringFunc parses
 //
-//	WEIGHT_STRING(expr [AS {CHAR|BINARY}(n)] [LEVEL n [ASC|DESC|REVERSE] [, ...] | LEVEL n - n])
+//	WEIGHT_STRING(expr [AS {CHAR|BINARY}(n)])
 //
 // The plain no-suffix form stays a generic FuncCallExpr (its round-trip
-// predates this parser and is pinned by tests); AS/LEVEL forms build a
+// predates this parser and is pinned by tests); the AS forms build a
 // WeightStringExpr. AS BINARY(n) is not stored by the engine — it desugars
-// to weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
-// 5.7.25), so the parser produces that shape directly. LEVEL is 5.7-only
-// syntax (8.0 rejects it); 5.7 stores a plain level list such as
-// "level 1 desc", with ASC dropped and ranges collapsed.
+// to weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32),
+// so the parser produces that shape directly.
 //
-// Ref: https://dev.mysql.com/doc/refman/5.7/en/string-functions.html#function_weight-string
+// MySQL 5.7 also took a LEVEL clause here (opt_ws_levels). 8.0 removed it
+// from the grammar, so LEVEL is a 1064 at the LEVEL token, which is where
+// the closing parenthesis is expected below (measured on mysql:8.0).
+//
+// Ref: the WEIGHT_STRING_SYM arms of function_call_conflict in mysql-server
+// 8.0 sql/sql_yacc.yy;
+// https://dev.mysql.com/doc/refman/8.0/en/string-functions.html#function_weight-string
 func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	// Completion parity with the generic argument path.
 	p.checkCursor()
@@ -1713,67 +1717,11 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		}
 	}
 
-	if p.cur.Type == kwLEVEL {
-		p.advance()
-		for {
-			if p.cur.Type != tokICONST {
-				return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}
-			}
-			lvTok := p.advance()
-			// The engine clamps out-of-range levels rather than rejecting:
-			// LEVEL 0 stores as level 1 (oracle 5.7.25). The collation-max
-			// upper clamp (LEVEL 7 also stored level 1 on a single-level
-			// collation) is collation-dependent and stays a flagged
-			// user-form residual.
-			lvNum := int(lvTok.Ival)
-			if lvNum < 1 {
-				lvNum = 1
-			}
-			level := nodes.WeightStringLevel{Level: lvNum}
-			// Grammar: n [ASC|DESC] [REVERSE] — direction first, then an
-			// optional REVERSE (LEVEL 1 DESC REVERSE stores as
-			// "level 1 desc reverse"; REVERSE DESC is a 1064 and ASC
-			// normalizes away — oracle 5.7.25).
-			switch p.cur.Type {
-			case kwASC:
-				p.advance() // ASC is the default; normalize away
-			case kwDESC:
-				p.advance()
-				level.Desc = true
-			}
-			if p.cur.Type == kwREVERSE {
-				p.advance()
-				level.Reverse = true
-			}
-			ws.Levels = append(ws.Levels, level)
-			// Range form LEVEL n - m: expand to the full list. Weight levels
-			// are 1..6 per the MySQL reference (no collation has more), so
-			// the expansion is capped — an absurd range like LEVEL 1 - 1e18
-			// parses without materializing entries beyond the domain.
-			if len(ws.Levels) == 1 && !level.Desc && !level.Reverse && p.cur.Type == '-' {
-				p.advance()
-				if p.cur.Type != tokICONST {
-					return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}
-				}
-				hiTok := p.advance()
-				const maxWeightLevels = 6
-				for l := level.Level + 1; l <= int(hiTok.Ival) && len(ws.Levels) < maxWeightLevels; l++ {
-					ws.Levels = append(ws.Levels, nodes.WeightStringLevel{Level: l})
-				}
-				break
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	}
-
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
-	if ws.AsChar == nil && !asBinary && len(ws.Levels) == 0 {
+	if ws.AsChar == nil && !asBinary {
 		// Plain WEIGHT_STRING(expr) — keep the generic function-call shape.
 		fc.Args = append(fc.Args, arg)
 		fc.Loc.End = p.prev.End

@@ -61,6 +61,15 @@ var collateConvertWeightCases = []collateConvertWeightCase{
 	{"DO WEIGHT_STRING(x AS BINARY)", false},
 	{"DO WEIGHT_STRING(x AS DECIMAL(1))", false},
 	{"DO WEIGHT_STRING(x AS)", false},
+
+	// TiDB has no LEVEL clause, the MySQL 5.7 form that MySQL 8.0 removed and
+	// MariaDB and OceanBase keep.
+	{"DO WEIGHT_STRING(x LEVEL 1)", false},
+	{"DO WEIGHT_STRING(x LEVEL 1 DESC REVERSE)", false},
+	{"DO WEIGHT_STRING(x LEVEL 1, 2)", false},
+	{"DO WEIGHT_STRING(x LEVEL 1 - 2)", false},
+	{"DO WEIGHT_STRING(x AS CHAR(4) LEVEL 1)", false},
+	{"DO WEIGHT_STRING(x AS BINARY(4) LEVEL 1)", false},
 }
 
 func TestCollateConvertWeightFormsAccepted(t *testing.T) {

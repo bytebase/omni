@@ -2058,31 +2058,19 @@ type KeywordArg struct {
 func (e *KeywordArg) nodeTag()  {}
 func (e *KeywordArg) exprNode() {}
 
-// WeightStringExpr represents WEIGHT_STRING(expr [AS CHAR(n)] [LEVEL ...]).
+// WeightStringExpr represents WEIGHT_STRING(expr [AS CHAR(n)]).
 // The AS BINARY(n) input form is not stored: MySQL desugars it to
-// weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
-// 5.7.25), so the parser produces that CastExpr shape instead. LEVEL is
-// accepted by 5.7 only; 5.7 readbacks always carry an explicit level list
-// (e.g. "1" or "1 desc"), while 8.0 rejects LEVEL entirely.
+// weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32), so
+// the parser produces that CastExpr shape instead. The LEVEL clause of
+// MySQL 5.7 is not represented: 8.0 rejects it and so does the parser.
 type WeightStringExpr struct {
 	Loc    Loc
 	Expr   ExprNode
 	AsChar *DataType // optional AS CHAR(n); nil when absent
-	Levels []WeightStringLevel
 }
 
 func (e *WeightStringExpr) nodeTag()  {}
 func (e *WeightStringExpr) exprNode() {}
-
-// WeightStringLevel is one element of a WEIGHT_STRING LEVEL list. The 5.7
-// grammar allows a direction and REVERSE together, in that order — LEVEL 1
-// DESC REVERSE stores as "level 1 desc reverse", while REVERSE DESC is a
-// syntax error and ASC normalizes away (oracle 5.7.25).
-type WeightStringLevel struct {
-	Level   int
-	Desc    bool
-	Reverse bool
-}
 
 // CollateExpr represents a COLLATE expression.
 type CollateExpr struct {
