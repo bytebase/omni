@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -139,7 +138,7 @@ func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
 // result back, and asserts the result canonicalizes equal to `to`.
 func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p routineMigrationProbe) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	sc := serverCharsetFor(o.version)
 	db := routineApplyDB + "_" + strings.ReplaceAll(p.id, "-", "_")
 
@@ -269,8 +268,7 @@ func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
-		ctx := context.Background()
-
+		ctx := oracleCtx(t)
 		t.Run(o.name+"/mixed-routines", func(t *testing.T) {
 			dbName := "rtn_multi"
 			stmts := []string{

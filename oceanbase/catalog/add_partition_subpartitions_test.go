@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -255,7 +254,7 @@ var reorganizeSubpartitionedAlters = []string{
 //	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseAddPartitionSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	t.Run("reorganize", func(t *testing.T) {
 		if _, err := storeAndRead(ctx, o, "obreorg", "CREATE TABLE t (a INT, b INT, PRIMARY KEY (a, b)) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "t"); err != nil {
 			t.Fatal(err)

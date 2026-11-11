@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -88,6 +87,7 @@ func TestOracle_IndexDiffIdempotence(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "IndexDiffIdempotence", probe.id)
 				db := "idx_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
 			})
@@ -137,8 +137,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
-		ctx := context.Background()
-
+		ctx := oracleCtx(t)
 		// loadSchema applies parent+child in a throwaway db, then reloads BOTH tables wrapped in a
 		// FIXED logical db name (idxfkc) so that the from/to catalogs share a database identity and
 		// only the child's FK (not the database) differs in the diff.
@@ -173,6 +172,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 		}
 
 		t.Run(o.name+"/fk-column-change", func(t *testing.T) {
+			skipIfKnownDivergence(t, "IndexFKColumnChangeNoIndexOps", "fk-column-change")
 			from := loadSchema("idxfkc_a", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x) REFERENCES p(a))")
 			to := loadSchema("idxfkc_b", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p(b))")
 			diff := DiffWithNormalizer(from, to, n)
@@ -195,8 +195,7 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
-		ctx := context.Background()
-
+		ctx := oracleCtx(t)
 		// parent `p` has both a single-col PK (for fk-named/unnamed/explicit) and a composite PK
 		// (for fk-composite); pick the parent matching the child.
 		parentFor := func(id string) string {

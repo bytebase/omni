@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -125,15 +124,14 @@ func TestOracle_CrossObjectOrderingApplyCorrectness(t *testing.T) {
 func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p orderingProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	// All three scratch databases share the ordsdl_ prefix and are dropped when the probe ends.
 	applyDB := "ordsdl_t"
 	toDB := "ordsdl_to_" + slug
 	fromDB := "ordsdl_from_" + slug
 	t.Cleanup(func() {
 		for _, db := range []string{applyDB, toDB, fromDB} {
-			_, _ = o.db.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+db)
+			_, _ = o.db.ExecContext(oracleCtx(t), "DROP DATABASE IF EXISTS "+db)
 		}
 	})
 
@@ -208,7 +206,7 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 // assertOrderingObjectsGone asserts the views/functions dropped by the plan no longer exist.
 func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, applyDB string, p orderingProbe, fromViews, fromFunctions []string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	inTo := func(names []string, n string) bool {
 		for _, x := range names {
 			if strings.EqualFold(x, n) {

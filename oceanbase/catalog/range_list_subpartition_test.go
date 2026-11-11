@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -296,7 +295,7 @@ func TestRangeListSubpartitionRendering(t *testing.T) {
 //	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	check := func(t *testing.T, dbName string, ddl []string, recorded string, layout []string) {
 		t.Helper()
 		if _, err := storeAndRead(ctx, o, dbName, ddl[0], "t"); err != nil {

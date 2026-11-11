@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -64,7 +63,7 @@ func TestViewExecCommentNames(t *testing.T) {
 // the columns it lists in information_schema against the case.
 func TestViewExecCommentNames_OceanBase(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, stmt := range []string{
 		"DROP DATABASE IF EXISTS ob_view_exec_names",
 		"CREATE DATABASE ob_view_exec_names",

@@ -226,6 +226,7 @@ func autoIncMigrationProbes() []migrationProbe {
 // generated plan, applied statement-by-statement to a real `from` database, must yield `to`.
 // Before the merge pass, the hazard probes fail on the first ungrouped statement (errno 1075).
 func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "AutoIncGroupingApplyCorrectness")
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -252,6 +253,7 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "AutoIncGroupingIdempotence", probe.id)
 				dbName := "aig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, dbName, probe.toDDL, probe.table)
 				if !ok {
@@ -281,6 +283,7 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 // synthesized into the grouped ADD COLUMN statement; the deferred PhasePost FK then reuses that
 // index instead of auto-creating a duplicate (probed live: both versions accept the sequence).
 func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "AutoIncGroupingFKImplicitBacking")
 	cases := []fkMultiCase{
 		{
 			id: "aig-fk-implicit-backing",

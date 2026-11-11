@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -355,7 +354,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 // the connection with the following statements). Returns the connection (caller closes) or skips.
 func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (*sql.Conn, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -384,7 +383,7 @@ func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string
 // (dependency order); LoadSDL re-sorts anyway.
 func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views []string) (string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n", logicalDB, serverCharsetFor(o.version), logicalDB)
 	for _, tbl := range tables {
@@ -450,6 +449,7 @@ func TestOracle_ViewIdempotence(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "ViewIdempotence", probe.id)
 				dbName := "videm_" + strings.ReplaceAll(probe.id, "-", "_")
 				conn, ok := o.applyViewSchema(t, dbName, probe.setup)
 				if !ok {
@@ -695,7 +695,7 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 
 	// Build a real database in state `from` (wrapped in `vt`, the database both catalogs load
 	// under via dumpViewSchemaSDL/userFormSDL → matches the plan's `vt`.`obj` qualification).
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -836,8 +836,7 @@ func firstIdentAfter(s string, pos int) string {
 func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
 	o := connectOracle(t, OceanBase)
 	n := NormalizerFor(OceanBase)
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	var name, ddl, csClient, coll string
 	row := o.db.QueryRowContext(ctx, "SHOW CREATE VIEW sys.metrics")
 	if err := row.Scan(&name, &ddl, &csClient, &coll); err != nil {

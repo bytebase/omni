@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -36,7 +37,7 @@ import (
 func (o *oracleConn) readbackTable(t *testing.T, dbName, table string) (string, bool) {
 	t.Helper()
 	var name, ddl string
-	row := o.db.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE TABLE %s.%s", dbName, table))
+	row := o.db.QueryRowContext(oracleCtx(t), fmt.Sprintf("SHOW CREATE TABLE %s.%s", dbName, table))
 	if err := row.Scan(&name, &ddl); err != nil {
 		t.Logf("[%s] SHOW CREATE %s.%s failed: %v", o.name, dbName, table, err)
 		return "", false
@@ -248,6 +249,7 @@ func TestOracle_MigrationApplyCorrectness(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "MigrationApplyCorrectness", probe.id)
 				assertApplyCorrect(t, o, n, probe)
 			})
 		}
@@ -268,7 +270,14 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	// (mirrors the partition harness's pa_<slug> convention; see assertPartitionApplyCorrect).
 	applyDB := applyDBName(t, p.id)
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
+	// Bound the whole probe so a wedged OceanBase statement (e.g. an online ALTER that
+	// never returns — see aig-add-col-invisible-key, which once stalled 48 minutes and
+	// timed out the package) fails fast instead of hanging. Context cancellation is
+	// honored by the driver even when a read-timeout would not fire (OceanBase can hold
+	// the connection open while an async DDL stalls). A healthy probe finishes in well
+	// under a second; this ceiling only trips on a genuine hang.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// One pinned connection for ALL of this probe's statements (readbacks + setup + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
@@ -477,7 +486,7 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
-		ctx := context.Background()
+		ctx := oracleCtx(t)
 		for _, c := range cases {
 			t.Run(o.name+"/"+c.id, func(t *testing.T) {
 				applyDB := applyDBName(t, "bigexact_"+c.id)

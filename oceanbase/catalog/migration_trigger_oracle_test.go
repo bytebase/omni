@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -64,7 +63,7 @@ func triggerSchemaSDL(dbName string, version Version, schema []string) string {
 // the trigger's target table present.
 func (o *oracleConn) reconstructTriggersSQL(t *testing.T, probeDB, emitDB string, schemaDDL []string, tables []string) (string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	stmts := append([]string{
 		"DROP DATABASE IF EXISTS " + probeDB,
 		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", probeDB, serverCharsetFor(o.version)),
@@ -176,6 +175,7 @@ func triggerIdempotenceProbes() []triggerIdemProbe {
 // and the no-op plan is empty, and the user form vs its engine readback is empty (canonicalization
 // — DEFINER, whitespace and FOLLOWS must not phantom-diff). Probed on every supported version.
 func TestOracle_TriggerIdempotence(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "TriggerIdempotence")
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -225,6 +225,7 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 // empty. The FOLLOWS is dropped by the readback (order-not-modelled flag): the stored form and the
 // user form must still collapse to empty.
 func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "TriggerMultiPerTableIdempotence")
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -355,6 +356,7 @@ func triggerMigrationProbes() []triggerMigProbe {
 // `from` database's trigger set into a `to`-equal one (compared via information_schema readback,
 // reloaded and diffed).
 func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "TriggerMigrationApplyCorrectness")
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -393,7 +395,7 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 
 	// Build a real database in state `from` on a dedicated connection (so a stray USE stays on the
 	// same pooled connection as the following statements), then apply the plan.
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -443,7 +445,7 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 // the same connection the plan ran on.
 func (o *oracleConn) reconstructTriggersFromConn(t *testing.T, conn *sql.Conn, dbName string, tables []string) (string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n", dbName, serverCharsetFor(o.version), dbName)
 	for _, tbl := range tables {

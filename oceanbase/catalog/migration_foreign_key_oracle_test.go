@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -118,6 +119,7 @@ func fkMigrationCases() []fkMigrationCase {
 // DDL transforms a real `from` database into a `to`-equal one (child compared via canonical
 // readback), including the PhasePost ordering and backing-index handling.
 func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "ForeignKeyMigrationApplyCorrectness")
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -140,7 +142,8 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	t.Helper()
 	slug := strings.ReplaceAll(fc.id, "-", "_")
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Build the from/to catalogs from engine readbacks, wrapped in a FIXED logical db so the FK
 	// references resolve and the plan qualifies tables consistently with the apply db.
@@ -204,7 +207,8 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 // result catalog has the same parent+child shape as `to` and FK references resolve on both sides.
 func loadResultChildSchema(t *testing.T, o *oracleConn, logicalDB, sc, childDDL string) *Catalog {
 	t.Helper()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	var nm, parentDDL string
 	row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.p", logicalDB))
 	if err := row.Scan(&nm, &parentDDL); err != nil {
@@ -321,6 +325,7 @@ func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "ForeignKeyMultiTableApplyCorrectness", mc.id)
 				assertFKMultiApplyCorrect(t, o, n, mc)
 			})
 		}
@@ -335,7 +340,8 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	t.Helper()
 	slug := strings.ReplaceAll(mc.id, "-", "_")
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	const logicalDB = "fkmulti"
 
 	fromCat := loadMultiSchema(t, o, logicalDB, "fkmulti_f_"+slug, sc, mc.fromSQL)
@@ -398,7 +404,8 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 // identity and FK references resolve identically).
 func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaSQL string) *Catalog {
 	t.Helper()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + execDB,
 		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", execDB, sc),

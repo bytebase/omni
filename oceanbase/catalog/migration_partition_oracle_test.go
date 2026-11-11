@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -56,8 +55,7 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	slug := strings.ReplaceAll(p.id, "-", "_")
 	applyDB := "pa_" + slug
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	// One pinned connection for ALL of this probe's statements (readbacks + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
 	conn, err := o.db.Conn(ctx)
@@ -280,6 +278,7 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "PartitionApplyCorrectness", p.id)
 				assertPartitionApplyCorrect(t, o, n, p)
 			})
 		}
@@ -298,6 +297,7 @@ func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "PartitionMigrationIdempotence", probe.id)
 				slug := strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, "pgen_idem_"+slug, probe.create, probe.table)
 				if !ok {

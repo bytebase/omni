@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"strings"
 	"testing"
 )
@@ -144,7 +143,7 @@ func TestOracle_OceanBaseVectorIndexMigration(t *testing.T) {
 // does not read as a change against its own readback.
 func TestOracle_OceanBaseVectorIndex(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, probe := range []struct{ id, create, want string }{
 		{"defaults", "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=cosine, type=hnsw))",
 			"VECTOR KEY `i` (`v`) WITH (DISTANCE=COSINE, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64)"},

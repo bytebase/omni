@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -154,7 +153,7 @@ func TestPartitionKeyCoverage(t *testing.T) {
 //	go test ./oceanbase/catalog/ -run OceanBasePartitionKeyCoverage -count=1
 func TestOceanBasePartitionKeyCoverage(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for i, tc := range partitionCoverageCases {
 		t.Run(tc.name, func(t *testing.T) {
 			dbName := fmt.Sprintf("pkc_%d", i)
@@ -234,7 +233,7 @@ func TestRefusedAlterKeepsTableInPlace(t *testing.T) {
 // it leaves off OceanBase.
 func TestOceanBaseRefusedAlterKeepsTableInPlace(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, tc := range crossDatabaseRenameCases {
 		t.Run(tc.stmt, func(t *testing.T) {
 			for _, stmt := range []string{"DROP DATABASE IF EXISTS d1", "DROP DATABASE IF EXISTS d2", "CREATE DATABASE d1", "CREATE DATABASE d2", tc.setup} {

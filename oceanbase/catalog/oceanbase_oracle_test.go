@@ -96,7 +96,7 @@ func storeAndRead(ctx context.Context, o *oracleConn, dbName, createSQL, table s
 // failure, a stored form that will not parse included, fails the test.
 func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, probe := range diffIdempotenceProbes() {
 		if !containsVersion(probe.versions, OceanBase) {
 			continue
@@ -123,7 +123,7 @@ func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 // which is how the diff carried the raw scope for a while without anything failing.
 func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, probe := range []struct{ id, create string }{
 		{"unpartitioned", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))"},
 		{"partitioned", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) PARTITIONS 2"},

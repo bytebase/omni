@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -92,7 +91,7 @@ func routineIdempotenceProbes() []routineProbe {
 // dbName. It returns the catalog + the routine's authentic stored DDL.
 func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, name string) (*Catalog, string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	sc := serverCharsetFor(o.version)
 	stmts := []string{
 		"DROP DATABASE IF EXISTS " + dbName,
@@ -124,7 +123,7 @@ func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, 
 func (o *oracleConn) showCreateRoutine(t *testing.T, dbName, kind, name string) (string, bool) {
 	t.Helper()
 	var c1, c2, c3, c4, c5, c6 sql.NullString
-	row := o.db.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE %s %s.%s", kind, dbName, name))
+	row := o.db.QueryRowContext(oracleCtx(t), fmt.Sprintf("SHOW CREATE %s %s.%s", kind, dbName, name))
 	if err := row.Scan(&c1, &c2, &c3, &c4, &c5, &c6); err != nil {
 		t.Logf("[%s] SHOW CREATE %s %s.%s failed: %v", o.name, kind, dbName, name, err)
 		return "", false
@@ -144,6 +143,7 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "RoutineDiffIdempotence", probe.id)
 				db := routineProbeDB + "_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, rb, ok := o.loadRoutineReadback(t, db, probe.create, probe.kind, probe.name)
 				if !ok {

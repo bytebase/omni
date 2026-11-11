@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -154,7 +153,7 @@ func requirePrimaryKeyMatchesReadback(t *testing.T, o *oracleConn, userDDL, read
 
 func TestOracle_OceanBaseAlterAddPrimaryKey(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	const create = "CREATE TABLE t (id INT NOT NULL, a INT)"
 	for i, alter := range addPrimaryKeyIgnoredOptionAlters {
 		t.Run(alter, func(t *testing.T) {

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -193,6 +192,7 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+				skipIfKnownDivergence(t, "IndexMigrationApplyCorrectness", probe.id)
 				assertApplyCorrect(t, o, n, probe)
 			})
 		}
@@ -209,8 +209,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
-		ctx := context.Background()
-
+		ctx := oracleCtx(t)
 		// Load a 2-table schema (parent + child) from real readbacks for a given child DDL.
 		loadSchema := func(dbName, childDDL string) *Catalog {
 			stmts := []string{

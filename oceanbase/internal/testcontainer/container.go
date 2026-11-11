@@ -236,6 +236,23 @@ func OpenOceanBase(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Bound every statement at the driver so a wedged OceanBase connection fails
+	// fast instead of blocking forever. A healthy DDL or SHOW CREATE answers in
+	// seconds; these ceilings only fire when the server (or a statement) has
+	// genuinely stalled — e.g. a SHOW CREATE that once hung 17 minutes on the
+	// shared runner, which then blew the package's 20-minute test timeout and
+	// took the whole CI job's goroutine dump with it. The ceilings are far above
+	// any real statement, so they never false-fail a slow-but-live operation;
+	// they just stop an indefinite hang from timing out the package. A read
+	// timeout surfaces as a net error, not a *mysql.MySQLError, so OceanBaseTransient
+	// does not retry it. Callers that need a tighter per-statement bound still pass
+	// their own context.
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = 3 * time.Minute
+	}
+	if cfg.WriteTimeout == 0 {
+		cfg.WriteTimeout = 1 * time.Minute
+	}
 	connector, err := gomysql.NewConnector(cfg)
 	if err != nil {
 		return nil, err

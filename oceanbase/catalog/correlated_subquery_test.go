@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -184,7 +183,7 @@ func execCorrelatedRows(t *testing.T, db *sql.DB) {
 // TestDeparseCorrelatedSubqueryOceanBase runs each correlated case and its
 // DeparseQuery text on OceanBase and requires the same rows.
 func TestDeparseCorrelatedSubqueryOceanBase(t *testing.T) {
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	d, err := testcontainer.OceanBase.Database(ctx, "oceanbase_catalog_correlated")
 	if err != nil {
 		t.Fatal(err)

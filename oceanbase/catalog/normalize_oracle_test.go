@@ -57,7 +57,7 @@ func connectOracle(t *testing.T, version Version) *oracleConn {
 // SHOW CREATE TABLE readback for the named table.
 func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	stmts := []string{
 		fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName),
 		fmt.Sprintf("CREATE DATABASE %s", dbName),

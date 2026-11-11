@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -100,8 +99,7 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 	t.Helper()
 	slug := strings.ReplaceAll(id, "-", "_")
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -193,8 +191,7 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
 	sc := serverCharsetFor(o.version)
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)

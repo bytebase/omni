@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -158,7 +157,7 @@ func TestStoringIsPartOfTheIndex(t *testing.T) {
 // reading of the DDL to its reading of the server's echo of it.
 func TestOracle_OceanBaseIndexOptions(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, probe := range []struct{ id, create, want string }{
 		{"storing", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c))", "KEY `k` (`a`) STORING (`b`, `c`)"},
 		{"twice", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) STORING (c))", "KEY `k` (`a`) STORING (`b`, `c`)"},
@@ -292,7 +291,7 @@ func TestStoringNamesDoNotRun(t *testing.T) {
 // /*!80000 INVISIBLE */ is a comment to a server that reports 5.7.25.
 func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	const plainTable = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a))"
 	for _, target := range []struct{ id, bare, create string }{
 		{"plain", plainTable, "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b))"},

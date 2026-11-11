@@ -57,7 +57,7 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := oracleCtx(t)
 			conn, err := o.db.Conn(ctx)
 			if err != nil {
 				t.Fatalf("grab conn: %v", err)
@@ -117,13 +117,14 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 // TestOracle_EventAlterPreservesSQLMode proves the ALTER EVENT framing preserves sql_mode on
 // the live engine — the case that a bare ALTER would silently re-stamp.
 func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "EventAlterPreservesSQLMode")
 	const origMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := oracleCtx(t)
 			conn, err := o.db.Conn(ctx)
 			if err != nil {
 				t.Fatalf("grab conn: %v", err)

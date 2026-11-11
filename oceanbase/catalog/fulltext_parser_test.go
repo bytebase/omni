@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -191,7 +190,7 @@ func TestFulltextParserCreateTableLike(t *testing.T) {
 //	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for i, tc := range fulltextEchoCases {
 		t.Run(tc.user, func(t *testing.T) {
 			dbName := fmt.Sprintf("obft_%d", i)

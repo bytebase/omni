@@ -55,7 +55,7 @@ func loadOneEvent(t *testing.T, serverCharset, createSQL, event string) (*Catalo
 // caller decides whether that is expected (e.g. 5.7 rejecting a far-future AT value).
 func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, event string) (string, bool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for _, s := range []string{
 		"DROP DATABASE IF EXISTS " + dbName,
 		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", dbName, sc),
@@ -67,7 +67,7 @@ func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, ev
 			return "", false
 		}
 	}
-	ddl, ok := scanShowCreateEvent(conn, dbName, event)
+	ddl, ok := scanShowCreateEvent(ctx, conn, dbName, event)
 	if !ok {
 		t.Logf("[%s] SHOW CREATE EVENT %s.%s failed", name, dbName, event)
 	}
@@ -77,9 +77,9 @@ func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, ev
 // scanShowCreateEvent runs SHOW CREATE EVENT and returns the "Create Event" column. The result set
 // has seven columns: Event, sql_mode, time_zone, Create Event, character_set_client,
 // collation_connection, Database Collation.
-func scanShowCreateEvent(conn *sql.Conn, dbName, event string) (string, bool) {
+func scanShowCreateEvent(ctx context.Context, conn *sql.Conn, dbName, event string) (string, bool) {
 	var name, sqlMode, tz, ddl, csClient, collConn, dbColl string
-	row := conn.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE EVENT %s.%s", dbName, event))
+	row := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE EVENT %s.%s", dbName, event))
 	if err := row.Scan(&name, &sqlMode, &tz, &ddl, &csClient, &collConn, &dbColl); err != nil {
 		return "", false
 	}
@@ -125,7 +125,7 @@ func TestOracle_EventIdempotence(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
-		ctx := context.Background()
+		ctx := oracleCtx(t)
 		conn, err := o.db.Conn(ctx)
 		if err != nil {
 			t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -243,7 +243,7 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	t.Helper()
 	slug := strings.ReplaceAll(id, "-", "_")
 	applyDB := "eva_" + slug
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	conn, err := o.db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
@@ -297,13 +297,13 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	}
 
 	if !eventInTo {
-		if _, ok := scanShowCreateEvent(conn, applyDB, event); ok {
+		if _, ok := scanShowCreateEvent(ctx, conn, applyDB, event); ok {
 			t.Errorf("[%s] %s: event %s still exists after DROP plan:\n%s", o.name, id, event, plan.SQL())
 		}
 		return
 	}
 
-	resultRB, ok := scanShowCreateEvent(conn, applyDB, event)
+	resultRB, ok := scanShowCreateEvent(ctx, conn, applyDB, event)
 	if !ok {
 		t.Fatalf("[%s] %s: result event %s missing after apply:\n%s", o.name, id, event, plan.SQL())
 	}

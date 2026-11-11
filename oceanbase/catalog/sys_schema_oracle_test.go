@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -33,8 +32,7 @@ import (
 func TestOracle_SysSchemaDogfood(t *testing.T) {
 	o := connectOracle(t, OceanBase)
 	n := NormalizerFor(OceanBase)
-	ctx := context.Background()
-
+	ctx := oracleCtx(t)
 	// Enumerate and read back every sys view, verbatim.
 	rows, err := o.db.QueryContext(ctx,
 		"SELECT table_name FROM information_schema.views WHERE table_schema='sys' ORDER BY table_name")

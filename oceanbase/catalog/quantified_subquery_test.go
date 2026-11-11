@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -216,7 +215,7 @@ func quantifiedOracleQueries() []string {
 // TestQuantifiedComparisonOceanBase runs each query and its DeparseQuery text on
 // OceanBase 4.3.5.6 and requires the same answer: the same rows, or the same error.
 func TestQuantifiedComparisonOceanBase(t *testing.T) {
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	d, err := testcontainer.OceanBase.Database(ctx, "oceanbase_catalog_quantified")
 	if err != nil {
 		t.Fatal(err)

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -307,7 +306,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 				t.Errorf("[%s] change DDL names utf8mb4_0900_ai_ci (OceanBase has no such collation):\n%s", o.name, planSQL)
 			}
 
-			ctx := context.Background()
+			ctx := oracleCtx(t)
 			conn, err := o.db.Conn(ctx)
 			if err != nil {
 				t.Fatalf("[%s] conn: %v", o.name, err)

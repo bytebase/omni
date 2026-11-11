@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -172,7 +171,7 @@ func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
-		ctx := context.Background()
+		ctx := oracleCtx(t)
 		t.Run(o.name+"/same-db-qualifier", func(t *testing.T) {
 			const db = "fksdq"
 			// Apply with an explicit same-db qualifier in the real db named `fksdq`.
@@ -227,7 +226,7 @@ func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 // Skips the subtest if the engine rejects the setup DDL.
 func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, childDDL string) *Catalog {
 	t.Helper()
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	sc := serverCharsetFor(o.version)
 	stmts := []string{
 		"DROP DATABASE IF EXISTS " + execDB,

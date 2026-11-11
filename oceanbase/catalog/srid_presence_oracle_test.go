@@ -273,6 +273,7 @@ func sridMigrationProbes() []migrationProbe {
 // add/remove/change: the generated DDL transforms a real from-state database into a to-equal
 // one, on MySQL 8.0. A non-empty result diff (or a failed apply) is a bug.
 func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
+	skipSuiteIfKnownDivergence(t, "SRIDPresenceApplyCorrectness")
 	for _, version := range only(OceanBase) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

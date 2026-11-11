@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"testing"
 )
@@ -75,7 +74,7 @@ func TestAlterTableSetAppliesOptions(t *testing.T) {
 //	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 	o := oceanBaseOracle(t)
-	ctx := context.Background()
+	ctx := oracleCtx(t)
 	for i, alter := range alterTableSetScenarios {
 		t.Run(alter, func(t *testing.T) {
 			dbName := fmt.Sprintf("obset_%d", i)

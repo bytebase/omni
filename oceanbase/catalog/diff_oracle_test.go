@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -224,8 +223,7 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
-		ctx := context.Background()
-
+		ctx := oracleCtx(t)
 		t.Run(o.name+"/two-tables-fk", func(t *testing.T) {
 			dbName := "diff_multi"
 			stmts := []string{
