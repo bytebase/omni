@@ -28,25 +28,16 @@ import (
 // ideally belongs in oceanbase/deparse's resolver so the stored Definition is symmetric; it is done
 // here because this node may not edit deparse.)
 //
-// VERSION DIVERGENCE (5.7 vs 8.0), proven against the live oracle:
-//   - Explicit column list: 8.0 stores `CREATE ... VIEW v (c1,c2) AS select e1 AS a1,e2 AS a2`
-//     (the list is kept, the SELECT aliases stay the ORIGINAL expression names). 5.7 DROPS the
-//     list and instead RENAMES the SELECT aliases to the view column names
-//     (`select e1 AS c1,e2 AS c2`). So on 5.7 the explicit column list is folded into the body
-//     and View.ExplicitColumns round-trips as false. Comparing the explicit column list is
-//     therefore an 8.0-only concern (explicitColumnsComparable); on 5.7 the renamed aliases
-//     already live in the body, which the body key compares. The 5.7 alias-rename itself is NOT
-//     reproduced by the omni loader (the user's explicit-list form keeps `AS a1`), so a 5.7
-//     round-trip of an explicit-column-list view can still differ — a documented, flagged
-//     limitation (PR normalization flags), not a silently-wrong empty.
-//   - view-on-view: 8.0 qualifies the referenced view with its database, 5.7 does not — both
-//     handled by canonicalViewBody stripping the own-database qualifier.
+// The explicit column list is stored: 8.0 keeps `CREATE ... VIEW v (c1,c2) AS select e1 AS a1,
+// e2 AS a2` with the list and the ORIGINAL SELECT aliases, so the list is compared. A view on a
+// view is stored with the referenced view qualified by its database, which canonicalViewBody
+// strips.
 //
 // DEFINER is intentionally NOT compared. On the release path the synced `from` view is loaded
 // from a metadata SDL dump that carries no DEFINER (createView defaults it to `root`@`%`), while a
 // user's target SDL DEFINER is environment-specific; comparing it would phantom-diff every release
 // whose live view has a non-root definer. ALGORITHM, SQL SECURITY and WITH CHECK OPTION ARE
-// compared — they are stored-form-significant and identical across 5.7/8.0 (oracle-verified).
+// compared — they are stored-form-significant (oracle-verified).
 func diffViews(from, to *Catalog, n *Normalizer) []ViewDiffEntry {
 	fromMap := buildViewMap(from)
 	toMap := buildViewMap(to)
@@ -134,20 +125,18 @@ func viewsChanged(a, b *View, n *Normalizer) bool {
 //   - ALGORITHM (UNDEFINED/MERGE/TEMPTABLE), upper-cased, defaulting to UNDEFINED;
 //   - SQL SECURITY (DEFINER/INVOKER), upper-cased, defaulting to DEFINER;
 //   - WITH [CASCADED|LOCAL] CHECK OPTION, upper-cased ("" when absent);
-//   - the explicit column list, but ONLY on a version that represents it in the stored form
-//     (8.0). On 5.7 the list is folded into the body's SELECT aliases (see diffViews), so
-//     comparing it there would phantom-diff; explicitColumnsComparable gates it out.
+//   - the explicit column list, when the view states one.
 //
 // DEFINER is deliberately excluded (ignore-in-diff; see diffViews). The view NAME is the identity
 // key (handled by the caller's map), not part of this content key.
-func canonicalView(v *View, n *Normalizer) string {
+func canonicalView(v *View, _ *Normalizer) string {
 	fields := []string{
 		"body", canonicalViewBody(v),
 		"algorithm", canonicalViewAlgorithm(v),
 		"sqlsecurity", canonicalViewSQLSecurity(v),
 		"checkoption", strings.ToUpper(v.CheckOption),
 	}
-	if explicitColumnsComparable(v, n) {
+	if v.ExplicitColumns {
 		fields = append(fields, "columns", strings.Join(lowerAll(v.Columns), ","))
 	}
 	return encodeKeyFields(fields...)
@@ -170,21 +159,6 @@ func canonicalViewSQLSecurity(v *View) string {
 		return "DEFINER"
 	}
 	return strings.ToUpper(v.SqlSecurity)
-}
-
-// explicitColumnsComparable reports whether a view's explicit column list is part of the stored
-// form for the target version and is therefore safe to compare directly. It is only on 8.0:
-// 8.0 keeps `CREATE ... VIEW v (c1,c2) AS ...` verbatim, so the column list is an independent
-// stored attribute. On 5.7 MySQL rewrites the list into the SELECT aliases and drops the clause
-// (View.ExplicitColumns becomes false on the readback), so the column identity already lives in
-// the body key — comparing the list separately would phantom-diff an explicit-list `to` against
-// its alias-folded 5.7 `from`. When neither side has an explicit list, there is nothing to
-// compare and this returns false regardless of version.
-func explicitColumnsComparable(v *View, n *Normalizer) bool {
-	if !v.ExplicitColumns {
-		return false
-	}
-	return n.Version == MySQL80
 }
 
 // canonicalViewBody returns the view's SELECT body in a database-qualifier-neutral canonical form:

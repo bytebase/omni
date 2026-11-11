@@ -12,12 +12,6 @@ import (
 // populated by diff_check.go) into ALTER TABLE ... ADD/DROP CHECK DDL. It is wired into
 // GenerateMigrationWithNormalizer (migration.go) against the OpAddCheck/OpDropCheck op-types.
 //
-// VERSION GATE. CHECK is 8.0.16+ only; on 5.7 it is parsed-and-dropped (normalize.go
-// CheckSupported). diffChecks already returns nil on 5.7, so the diff carries no check entries and
-// this generator would emit nothing anyway — but it gates explicitly too, so the new-table path
-// (which reads To.Constraints directly, not the diff) also emits nothing on 5.7. The gate is the
-// single owner of the version decision (CheckSupported), never re-derived here.
-//
 // Two table cases produce check ADDs:
 //   - DiffModify: the per-check diff drives ADD / DROP / (DROP+ADD for MODIFY).
 //   - DiffAdd: a freshly created table. generate-core's formatCreateTable renders only columns and
@@ -41,12 +35,6 @@ import (
 // column). Check DROPs run in PhasePre (before PhaseMain), so a modified check's drop precedes its
 // re-add. sortMigrationOps re-imposes the global phase/priority/name order.
 func generateCheckDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
-	// Version gate: no CHECK in 5.7 stored form, so emit nothing (the new-table path below reads
-	// To.Constraints directly, so this guard is what keeps it silent on 5.7).
-	if !n.CheckSupported() {
-		return nil
-	}
-
 	var ops []MigrationOp
 
 	for i := range diff.Tables {

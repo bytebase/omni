@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle proof for the trigger differ + generator (correctness-protocol.md gates 1 & 2),
-// against the LIVE MySQL engines (5.7 :13307 ssl-disabled, 8.0 :13306). Triggers are database-
+// against the LIVE MySQL 8.0 engine (:13306). Triggers are database-
 // level objects whose stored form is read from information_schema.triggers (the exact path the
 // bytebase MySQL driver syncs them with), so the table-centric harness in migration_oracle_test.go
 // does not fit — this file carries a trigger-shaped harness that:
@@ -29,8 +29,8 @@ import (
 // GATE 2 — APPLY-CORRECTNESS: for representative (from, to) pairs, GenerateMigration(from,to).SQL()
 // applied to a real `from` database yields a trigger set whose stored form equals `to`'s.
 //
-// The harness falls back to a shared testcontainer per version when the local engines
-// are unreachable (oracle_fallback_test.go).
+// The harness falls back to a shared testcontainer when the local engine
+// is unreachable (oracle_fallback_test.go).
 
 // triggerOracleDB is the database the trigger harness applies generated plans into (mirrors the
 // table harness's diffdb convention but kept distinct so parallel oracle tests don't collide).
@@ -39,8 +39,8 @@ const triggerOracleDB = "trigdb"
 // triggerSchemaSDL wraps a schema DDL list (base tables + CREATE TRIGGER statements) in a
 // CREATE DATABASE + USE under dbName, returning a loadable SDL snippet. Used to build the
 // user-written form for the canonicalization check, under the same database name AND server
-// charset as the engine's reconstructed stored form (serverCharsetFor(version) — latin1 on 5.7,
-// utf8mb4 on 8.0) so only trigger differences can surface, not a table-charset mismatch (the same
+// charset as the engine's reconstructed stored form (serverCharsetFor(version), utf8mb4)
+// so only trigger differences can surface, not a table-charset mismatch (the same
 // wrapping convention loadOneTable uses for the table harness).
 func triggerSchemaSDL(dbName string, version Version, schema []string) string {
 	var b strings.Builder
@@ -131,10 +131,9 @@ func (o *oracleConn) triggerStoredCatalog(t *testing.T, probeDB, emitDB string, 
 
 // triggerIdemProbe is one idempotence case: a base-table set + the trigger DDL applied on top.
 type triggerIdemProbe struct {
-	id       string
-	tables   []string // base tables (SHOW CREATE carried into the reload)
-	schema   []string // full schema DDL (tables + CREATE TRIGGER ...) applied to the engine
-	versions []Version
+	id     string
+	tables []string // base tables (SHOW CREATE carried into the reload)
+	schema []string // full schema DDL (tables + CREATE TRIGGER ...) applied to the engine
 }
 
 // triggerIdempotenceProbes enumerates the trigger FORMS that must round-trip empty: every
@@ -142,30 +141,29 @@ type triggerIdemProbe struct {
 // FOLLOWS (whose readback drops the FOLLOWS — the order-not-modelled flag).
 func triggerIdempotenceProbes() []triggerIdemProbe {
 	tbl := "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c INT)"
-	mk := func(id, trig string, vs []Version) triggerIdemProbe {
+	mk := func(id, trig string) triggerIdemProbe {
 		return triggerIdemProbe{
-			id:       id,
-			tables:   []string{"t"},
-			schema:   []string{tbl, trig},
-			versions: vs,
+			id:     id,
+			tables: []string{"t"},
+			schema: []string{tbl, trig},
 		}
 	}
 	return []triggerIdemProbe{
 		// ---- every timing × event ----
-		mk("before-insert", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1", both()),
-		mk("after-insert", "CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW SET @x = NEW.a", both()),
-		mk("before-update", "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW SET NEW.a = OLD.a + 1", both()),
-		mk("after-update", "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.b", both()),
-		mk("before-delete", "CREATE TRIGGER tr BEFORE DELETE ON t FOR EACH ROW SET @x = OLD.a", both()),
-		mk("after-delete", "CREATE TRIGGER tr AFTER DELETE ON t FOR EACH ROW SET @x = OLD.b", both()),
+		mk("before-insert", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"),
+		mk("after-insert", "CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW SET @x = NEW.a"),
+		mk("before-update", "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW SET NEW.a = OLD.a + 1"),
+		mk("after-update", "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.b"),
+		mk("before-delete", "CREATE TRIGGER tr BEFORE DELETE ON t FOR EACH ROW SET @x = OLD.a"),
+		mk("after-delete", "CREATE TRIGGER tr AFTER DELETE ON t FOR EACH ROW SET @x = OLD.b"),
 
 		// ---- body shapes ----
 		// BEGIN…END multi-statement body (verbatim storage incl. newlines/indentation).
-		mk("begin-end", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN\n  SET NEW.a = 1;\n  IF NEW.b IS NULL THEN\n    SET NEW.b = 0;\n  END IF;\nEND", both()),
+		mk("begin-end", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN\n  SET NEW.a = 1;\n  IF NEW.b IS NULL THEN\n    SET NEW.b = 0;\n  END IF;\nEND"),
 		// OLD/NEW + a string literal in the body (quoting must survive).
-		mk("string-literal", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.c = (SELECT 'literal value')", both()),
+		mk("string-literal", "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.c = (SELECT 'literal value')"),
 		// Lower-case keywords in the user form (MySQL preserves body case verbatim).
-		mk("lowercase-body", "CREATE TRIGGER tr before insert on t for each row set new.a = new.b + 1", both()),
+		mk("lowercase-body", "CREATE TRIGGER tr before insert on t for each row set new.a = new.b + 1"),
 
 		// ---- multiple triggers, distinct events on one table ----
 		// (handled by the multi-trigger probe below, which needs >1 CREATE)
@@ -176,13 +174,10 @@ func triggerIdempotenceProbes() []triggerIdemProbe {
 // and the no-op plan is empty, and the user form vs its engine readback is empty (canonicalization
 // — DEFINER, whitespace and FOLLOWS must not phantom-diff). Probed on every supported version.
 func TestOracle_TriggerIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range triggerIdempotenceProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				dbName := "trig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, ok := o.triggerStoredCatalog(t, dbName, dbName, probe.schema, probe.tables)
@@ -225,7 +220,7 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 // empty. The FOLLOWS is dropped by the readback (order-not-modelled flag): the stored form and the
 // user form must still collapse to empty.
 func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name+"/multi", func(t *testing.T) {
@@ -274,7 +269,6 @@ type triggerMigProbe struct {
 	toTables   []string // overrides tables for the `to` (and post-apply result) readback when set
 	fromDDL    []string
 	toDDL      []string
-	versions   []Version
 }
 
 // fromTableSet / toTableSet resolve the effective base-table list for each side.
@@ -300,29 +294,29 @@ func triggerMigrationProbes() []triggerMigProbe {
 	return []triggerMigProbe{
 		// ---- CREATE (add a trigger to an existing table) ----
 		{"create-before-insert", []string{"t"}, nil, nil, []string{tbl},
-			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"}},
 		{"create-after-update", []string{"t"}, nil, nil, []string{tbl},
-			[]string{tbl, "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.b"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.b"}},
 		{"create-before-delete", []string{"t"}, nil, nil, []string{tbl},
-			[]string{tbl, "CREATE TRIGGER tr BEFORE DELETE ON t FOR EACH ROW SET @x = OLD.a"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr BEFORE DELETE ON t FOR EACH ROW SET @x = OLD.a"}},
 		{"create-begin-end", []string{"t"}, nil, nil, []string{tbl},
-			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN\n  SET NEW.a = 1;\n  SET NEW.b = 2;\nEND"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN\n  SET NEW.a = 1;\n  SET NEW.b = 2;\nEND"}},
 
 		// ---- DROP (remove a trigger, table stays) ----
 		{"drop-trigger", []string{"t"}, nil, nil,
 			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"},
-			[]string{tbl}, both()},
+			[]string{tbl}},
 
 		// ---- CHANGE (= DROP + CREATE) ----
 		{"change-body", []string{"t"}, nil, nil,
 			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"},
-			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2"}},
 		{"change-timing", []string{"t"}, nil, nil,
 			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @x = NEW.a"},
-			[]string{tbl, "CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW SET @x = NEW.a"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW SET @x = NEW.a"}},
 		{"change-event", []string{"t"}, nil, nil,
 			[]string{tbl, "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"},
-			[]string{tbl, "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW SET NEW.a = 1"}, both()},
+			[]string{tbl, "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW SET NEW.a = 1"}},
 
 		// ---- multi-trigger plan: add one, drop one, keep one ----
 		{"multi-add-drop", []string{"t"}, nil, nil,
@@ -331,7 +325,7 @@ func triggerMigrationProbes() []triggerMigProbe {
 				"CREATE TRIGGER goes BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1"},
 			[]string{tbl,
 				"CREATE TRIGGER keep AFTER UPDATE ON t FOR EACH ROW SET @x = NEW.a",
-				"CREATE TRIGGER comes BEFORE DELETE ON t FOR EACH ROW SET @y = OLD.a"}, both()},
+				"CREATE TRIGGER comes BEFORE DELETE ON t FOR EACH ROW SET @y = OLD.a"}},
 
 		// ---- regression: trigger RELOCATED to a new table while the OLD table is dropped ----
 		// Identity is (database, name), so moving `tr` from old_t to new_t is a MODIFY (DROP+CREATE).
@@ -347,7 +341,7 @@ func triggerMigrationProbes() []triggerMigProbe {
 				"CREATE TRIGGER tr BEFORE INSERT ON old_t FOR EACH ROW SET NEW.a = 1"},
 			[]string{
 				"CREATE TABLE new_t (id INT PRIMARY KEY, a INT)",
-				"CREATE TRIGGER tr BEFORE INSERT ON new_t FOR EACH ROW SET NEW.a = 1"}, both()},
+				"CREATE TRIGGER tr BEFORE INSERT ON new_t FOR EACH ROW SET NEW.a = 1"}},
 	}
 }
 
@@ -355,13 +349,10 @@ func triggerMigrationProbes() []triggerMigProbe {
 // `from` database's trigger set into a `to`-equal one (compared via information_schema readback,
 // reloaded and diffed).
 func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range triggerMigrationProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				assertTriggerApplyCorrect(t, o, n, probe)
 			})

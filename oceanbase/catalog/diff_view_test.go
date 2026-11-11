@@ -9,7 +9,7 @@ import (
 // structural diff actions, the canonical-key folding (body db-qualifier stripping, ALGORITHM /
 // SQL SECURITY / CHECK OPTION / explicit-column comparison, DEFINER-ignored), and the generated
 // DDL shape + view-on-view ordering. The oracle gates (idempotence + apply-correctness against
-// the real 5.7 / 8.0 engines) live in diff_view_oracle_test.go and migration_view_oracle_test.go.
+// the real 8.0 engine) live in diff_view_oracle_test.go and migration_view_oracle_test.go.
 
 // loadViewCatalog loads SDL describing one or more views (and their tables) at a given version
 // and returns the catalog. The schema is wrapped in a database so view identity is (db, name).
@@ -47,7 +47,7 @@ func findViewDiff(d *SchemaDiff, name string) *ViewDiffEntry {
 }
 
 func TestDiffViews_SelfDiffEmpty(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{MySQL80} {
 		sdl := `CREATE TABLE t (a INT, b VARCHAR(20), c INT);
 CREATE VIEW v1 AS SELECT a, b FROM t;
 CREATE VIEW v2 (p, q) AS SELECT a, b FROM t;

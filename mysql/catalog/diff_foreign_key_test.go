@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle proof for the foreign-key differ (correctness-protocol.md gates 1 & 2), against the
-// LIVE MySQL engines (5.7 :13307, 8.0 :13306). A foreign key always lives on a CHILD table that
+// LIVE MySQL 8.0 engine (:13306). A foreign key always lives on a CHILD table that
 // references a PARENT, so every FK form is proven through a multi-table round-trip: parent `p` +
 // child `c` are applied to the real engine, BOTH are read back via SHOW CREATE, reloaded as one
 // schema, and the self-diff must be empty. The headline properties:
@@ -25,7 +25,7 @@ import (
 //  3. Auto-name normalization: an unnamed FK (auto-named `<table>_ibfk_N`) and an unnamed-backing
 //     index round-trip empty.
 //
-// The harness reuses connectOracle / serverCharsetFor / both / only / containsVersion /
+// The harness reuses connectOracle / serverCharsetFor /
 // describeDiff from the diff + normalize oracle tests; it skips cleanly when the engines are
 // unreachable.
 
@@ -97,7 +97,6 @@ type fkDiffCase struct {
 	id        string
 	parentDDL string
 	childDDL  string
-	versions  []Version
 }
 
 // fkParentSingle is the common single-column-PK parent (most FK cases reference p(id)).
@@ -114,50 +113,50 @@ func fkDiffCases() []fkDiffCase {
 		// ---- naming ----
 		// Named FK, no backing index → MySQL auto-creates KEY `fk`, constraint kept verbatim.
 		{"named", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
 		// Unnamed FK → constraint auto-named `c_ibfk_1`; backing index named after the column.
 		{"unnamed-autoname", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))"},
 		// User-chosen name that matches the `<table>_ibfk_N` auto shape.
 		{"user-named-ibfk", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))"},
 
 		// ---- ON DELETE / ON UPDATE actions (the action-default normalization core) ----
 		// Bare FK: no action clause. Stored form has no clause on both versions.
 		{"action-bare", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
 		// Explicit RESTRICT on both: 8.0 ECHOES it, 5.7 OMITS it — must round-trip empty on both.
 		{"action-restrict", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE RESTRICT ON UPDATE RESTRICT)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE RESTRICT ON UPDATE RESTRICT)"},
 		// Explicit NO ACTION on both: 8.0 OMITS it, 5.7 ECHOES it — must round-trip empty on both.
 		{"action-no-action", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE NO ACTION ON UPDATE NO ACTION)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE NO ACTION ON UPDATE NO ACTION)"},
 		// CASCADE / SET NULL: echoed verbatim on both. (pid must be nullable for SET NULL.)
 		{"action-cascade-setnull", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE ON UPDATE SET NULL)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE ON UPDATE SET NULL)"},
 		// ON DELETE only (ON UPDATE defaults/omitted).
 		{"action-delete-only", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE CASCADE)"},
 		// ON UPDATE only.
 		{"action-update-only", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON UPDATE CASCADE)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON UPDATE CASCADE)"},
 		// SET NULL on both actions.
 		{"action-setnull-both", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL ON UPDATE SET NULL)", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL ON UPDATE SET NULL)"},
 
 		// ---- columns / shape ----
 		// Composite FK with its own auto-created composite backing index.
 		{"composite", fkParentComposite,
-			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))"},
 		// FK reusing an explicit user index (distinct name) → no separate backing index.
 		{"explicit-covering-index", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
 		// Unnamed FK whose first-column index name collides with a user index → backing `pid_2`.
 		{"backing-name-collision", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))"},
 		// Multiple FKs on one child (two distinct parents' columns).
 		{"multiple-fks", fkParentSingle,
-			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))", both()},
+			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))"},
 	}
 }
 
@@ -168,7 +167,7 @@ func fkDiffCases() []fkDiffCase {
 // forever. The user form references the SAME db it lives in, so the schema is applied to a db of
 // that exact name and the FK resolves.
 func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
@@ -262,13 +261,10 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 // form self-diffs empty, AND the user form vs the engine's stored form diffs empty (action-default
 // + auto-name normalization), on every supported version.
 func TestOracle_ForeignKeyDiffIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, fc := range fkDiffCases() {
-			if !containsVersion(fc.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), func(t *testing.T) {
 				slug := strings.ReplaceAll(fc.id, "-", "_")
 				// Stored form (engine readback) — the idempotence spine.
@@ -337,7 +333,7 @@ func describeForeignKeyDiff(d *SchemaDiff) string {
 // schemas (the dual of idempotence — a missed FK diff is as harmful as a phantom one). Each case
 // loads two real engine readbacks and asserts the expected FK DiffAction.
 func TestOracle_ForeignKeyDiffNonEmptyCorrect(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 

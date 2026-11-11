@@ -13,20 +13,17 @@ import (
 )
 
 // The OceanBase oracle for this package. The TestOracle_* family answers for the
-// behavior this engine inherits from MySQL, against live 8.0 and 5.7; this file is
+// behavior this engine inherits from MySQL, against live 8.0; this file is
 // the one that answers for OceanBase itself.
 // oceanBaseOracle opens this process's own OceanBase: see
 // testcontainer.OceanBase.
 //
-// The version is MySQL80, which the probes below measure rather than assume. Under
-// MySQL80 every probe either canonicalizes empty or disagrees only in the ROW_FORMAT
-// echo; under MySQL57 twenty disagree, twelve because 5.7 assumes a latin1 server
-// default where OceanBase defaults to utf8mb4, and eight on column forms, since 5.7
-// injects display widths and then needs them to match. 4.3.5 does report a 5.7 version
-// string, and does print 5.7-style widths, but the stored form it prints is the one
-// MySQL80's normalizer reproduces: 8.0 strips widths from both sides. Nothing else pins
-// the choice, so this test is what holds it, and a wrong normalizer shows up here as a
-// non-empty diff rather than as a phantom change in a user's release.
+// The version is MySQL80, the only one, and the probes below measure that it fits:
+// every probe either canonicalizes empty or disagrees only in the ROW_FORMAT echo.
+// 4.3.5 does report a 5.7 version string, and does print 5.7-style widths, but the
+// stored form it prints is the one MySQL80's normalizer reproduces: 8.0 strips widths
+// from both sides. This test is what holds that, and a wrong normalizer shows up here
+// as a non-empty diff rather than as a phantom change in a user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
 	dsn, err := testcontainer.OceanBase.DSN(context.Background())
@@ -99,9 +96,6 @@ func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
 	for _, probe := range diffIdempotenceProbes() {
-		if !containsVersion(probe.versions, MySQL80) {
-			continue
-		}
 		t.Run(probe.id, func(t *testing.T) {
 			dbName := "ob_" + strings.ReplaceAll(probe.id, "-", "_")
 			readback, err := storeAndRead(ctx, o, dbName, probe.create, probe.table)

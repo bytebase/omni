@@ -12,16 +12,6 @@ import (
 // into compareTable (diff_table.go); tableSubdiffsChanged folds a non-empty Checks slice into the
 // "is this table modified?" decision, so this node only fills its own slice.
 //
-// VERSION GATE (the headline correctness property). CHECK constraints are 8.0.16+ only. On MySQL
-// 5.7 a CHECK clause is PARSED AND SILENTLY DROPPED — the engine never stores it, so SHOW CREATE
-// echoes nothing (normalize.go CheckSupported, entry check-constraint). The omni loader, however,
-// stores a ConCheck constraint UNCONDITIONALLY (tablecmds.go appends it regardless of version), so
-// a 5.7-targeted catalog loaded from user DDL DOES carry ConCheck entries while its engine readback
-// carries none. Comparing them would phantom-diff forever. So when the Normalizer targets a version
-// that does not represent CHECK in its stored form (5.7), this differ returns nil: no check exists
-// in the stored form, so there is nothing to diff. The gate is CheckSupported(), the single owner
-// of the version decision — this node never re-derives "is 8.0".
-//
 // Identity is the constraint name, lower-cased. MySQL auto-names an unnamed CHECK `<table>_chk_<N>`
 // at parse time, and the omni loader reproduces that same auto-name (tablecmds.go nextCheckNumber),
 // so by the time a check reaches the catalog it is ALWAYS named — both user-named and engine/loader
@@ -35,13 +25,6 @@ import (
 // An expression whose surface form differs from its SHOW CREATE readback but whose stored form is
 // identical (e.g. `a>0` vs the readback's `(`a` > 0)`) therefore produces no phantom diff.
 func diffChecks(from, to *Table, n *Normalizer) []CheckDiffEntry {
-	// Version gate: CHECK is unrepresentable on 5.7 (parsed-and-dropped), so there is no stored
-	// check to diff. Returning nil keeps a 5.7 self/round-trip diff empty even when the loaded
-	// catalog carries ConCheck entries the engine would have discarded.
-	if !n.CheckSupported() {
-		return nil
-	}
-
 	fromMap := checkMap(from)
 	toMap := checkMap(to)
 

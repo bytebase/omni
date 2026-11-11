@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle apply-correctness proof for CROSS-OBJECT operation ordering (correctness-protocol.md
-// gate 2), against the LIVE MySQL engines (5.7 :13307 ssl-disabled, 8.0 :13306). Per-object-kind
+// gate 2), against the LIVE MySQL 8.0 engine (:13306). Per-object-kind
 // apply-correctness lives with each kind's own oracle file; THIS file proves the plan-level
 // ordering rules that span kinds — currently view ↔ stored-function:
 //
@@ -45,7 +45,6 @@ type orderingProbe struct {
 	tables    []string
 	views     []string
 	functions []string
-	versions  []Version
 }
 
 // orderingProbes enumerates the cross-object ordering FORMS: function+view created together (the
@@ -64,14 +63,14 @@ func orderingProbes() []orderingProbe {
 			base("CREATE TABLE users (id INT PRIMARY KEY)",
 				"CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users)",
 				"CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n"),
-			[]string{"users"}, []string{"ent_v_fn"}, []string{"ent_ucount"}, both()},
+			[]string{"users"}, []string{"ent_v_fn"}, []string{"ent_ucount"}},
 		// Inverse: drop both. View drops first (PhasePre priorityView < priorityRoutineDrop).
 		{"drop-function-and-view",
 			base("CREATE TABLE users (id INT PRIMARY KEY)",
 				"CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users)",
 				"CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n"),
 			base("CREATE TABLE users (id INT PRIMARY KEY)"),
-			[]string{"users"}, nil, nil, both()},
+			[]string{"users"}, nil, nil},
 		// Transitive: v2 → v1 → fn_base. The plan must order fn_base < v1 < v2.
 		{"create-function-view-view-chain",
 			base("CREATE TABLE t (a INT)"),
@@ -79,7 +78,7 @@ func orderingProbes() []orderingProbe {
 				"CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)",
 				"CREATE VIEW v1 AS SELECT fn_base() AS n",
 				"CREATE VIEW v2 AS SELECT n FROM v1"),
-			[]string{"t"}, []string{"v1", "v2"}, []string{"fn_base"}, both()},
+			[]string{"t"}, []string{"v1", "v2"}, []string{"fn_base"}},
 		// The lazy-direction teeth: the function's body SELECTs from a view created in the SAME
 		// plan. The global hoist deliberately creates the function FIRST (before the view exists),
 		// so this apply succeeds only because routine bodies are lazily validated — the
@@ -90,7 +89,7 @@ func orderingProbes() []orderingProbe {
 			base("CREATE TABLE t (a INT)",
 				"CREATE VIEW v_src AS SELECT a FROM t",
 				"CREATE FUNCTION fn_over_view() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM v_src)"),
-			[]string{"t"}, []string{"v_src"}, []string{"fn_over_view"}, both()},
+			[]string{"t"}, []string{"v_src"}, []string{"fn_over_view"}},
 		// A body change forces the routine DROP+CREATE path; a NEW view calling the function lands
 		// in the same plan. Order must be DROP FUNCTION (PhasePre) → CREATE FUNCTION → CREATE VIEW.
 		{"modify-function-add-view",
@@ -99,20 +98,17 @@ func orderingProbes() []orderingProbe {
 			base("CREATE TABLE t (a INT)",
 				"CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) + 1 FROM t)",
 				"CREATE VIEW v1 AS SELECT fn_base() AS n"),
-			[]string{"t"}, []string{"v1"}, []string{"fn_base"}, both()},
+			[]string{"t"}, []string{"v1"}, []string{"fn_base"}},
 	}
 }
 
 // TestOracle_CrossObjectOrderingApplyCorrectness proves gate 2 for every ordering probe on both
 // engines: the generated plan applies cleanly in emitted order and converges.
 func TestOracle_CrossObjectOrderingApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range orderingProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				assertOrderingApplyCorrect(t, o, n, probe)
 			})

@@ -125,8 +125,7 @@ type ForeignKeyDiffEntry struct {
 	To     *Constraint
 }
 
-// CheckDiffEntry describes a CHECK-constraint change within a table (8.0 only — on
-// 5.7 CHECK is unrepresentable; see normalize.go CheckSupported).
+// CheckDiffEntry describes a CHECK-constraint change within a table.
 // Extension point: populated by a breadth node, not diff-core.
 type CheckDiffEntry struct {
 	Action DiffAction
@@ -215,16 +214,13 @@ func (d *SchemaDiff) IsEmpty() bool {
 
 // Diff compares two catalog states (from = old/current, to = new/target) and returns
 // all differences, canonicalizing against the version recorded on the `to` catalog's
-// session (default MySQL 8.0). Both the version and the explicit_defaults_for_timestamp
-// value are taken from the `to` catalog's session — the synced schema records the source
-// server's version and effective settings — so a 5.7-synced schema is diffed in 5.7
-// stored form (a bare CHARSET=utf8mb4 resolves to utf8mb4_general_ci, not the 8.0
-// default) without a separate version override.
+// session (MySQL 8.0). Both the version and the explicit_defaults_for_timestamp value
+// are taken from the `to` catalog's session — the synced schema records the source
+// server's effective settings.
 //
 // Diff is the contract entry point (pg/catalog/diff.go:210). Callers that need to fix
-// the version explicitly (the oracle tests, where 5.7-vs-8.0 stored forms genuinely
-// diverge) can still use DiffWithNormalizer; bytebase's mysqlDiffSDLMigration sets the
-// version on the catalog via SetVersion/LoadSDLWithVersion and uses this entry point.
+// the normalizer explicitly can still use DiffWithNormalizer; bytebase's
+// mysqlDiffSDLMigration uses this entry point.
 func Diff(from, to *Catalog) *SchemaDiff {
 	return DiffWithNormalizer(from, to, defaultNormalizer(to))
 }
@@ -260,8 +256,7 @@ func DiffWithNormalizer(from, to *Catalog, n *Normalizer) *SchemaDiff {
 // `to` catalog's session. `to` is the target/desired schema, which on the release path
 // is re-loaded from the source's synced metadata, so its session carries the source
 // server's version and EDFT — exactly the stored form the canonicalizer must match. A
-// nil `to` falls back to MySQL80 (the historical default), so existing 8.0 callers that
-// never set a version are unaffected.
+// nil `to` falls back to MySQL80.
 func defaultNormalizer(to *Catalog) *Normalizer {
 	if to == nil {
 		return NormalizerFor(MySQL80)

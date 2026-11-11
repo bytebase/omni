@@ -13,18 +13,18 @@ import (
 )
 
 // The oracle proof for normalize-core. For every normalization.md entry, this applies
-// the input DDL to a LIVE MySQL engine (both 5.7 and 8.0 where they diverge), reads back
+// the input DDL to a LIVE MySQL 8.0 engine, reads back
 // SHOW CREATE TABLE, and asserts the phantom-diff-elimination property:
 //
 //	CanonicalColumn(loaded(input_ddl))  ==  CanonicalColumn(loaded(SHOW CREATE readback))
 //
 // i.e. the user's declared form and the engine's stored form collapse onto the same
-// canonical key for the target version. A failure here is a real normalization bug — the
+// canonical key. A failure here is a real normalization bug — the
 // canonicalizer disagrees with what the engine actually stores, which would produce a
 // phantom diff forever. These tests are the correctness spine (correctness-protocol.md).
 //
-// Connection: the local oracle instances from the work order, overridable via env,
-// with a shared testcontainer fallback per version when neither is reachable
+// Connection: the local oracle instance from the work order, overridable via env,
+// with a shared testcontainer fallback when it is not reachable
 // (oracle_fallback_test.go), so the proof also runs unattended in CI.
 
 type oracleConn struct {
@@ -40,18 +40,12 @@ func dsnOr(env, def string) string {
 	return def
 }
 
-// connectOracle dials one engine: the OMNI_MYSQL{57,80}_DSN override if set,
-// else the conventional local instance, else the package-shared testcontainer
-// fallback (oracle_fallback_test.go).
+// connectOracle dials the engine for version: the OMNI_MYSQL80_DSN override if
+// set, else the conventional local instance, else the package-shared
+// testcontainer fallback (oracle_fallback_test.go).
 func connectOracle(t *testing.T, version Version) *oracleConn {
 	t.Helper()
-	var env, def, name string
-	switch version {
-	case MySQL80:
-		env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
-	case MySQL57:
-		env, def, name = "OMNI_MYSQL57_DSN", "root:010424@tcp(127.0.0.1:13307)/?multiStatements=true&tls=false", "5.7"
-	}
+	const env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
 	dsn, explicit := os.Getenv(env), true
 	if dsn == "" {
 		dsn, explicit = def, false
@@ -64,7 +58,7 @@ func connectOracle(t *testing.T, version Version) *oracleConn {
 	if explicit {
 		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
 	}
-	return &oracleConn{db: fallbackOracle(t, version, name), version: version, name: name}
+	return &oracleConn{db: fallbackOracle(t), version: version, name: name}
 }
 
 func dialOracle(dsn string) (*sql.DB, error) {
@@ -94,7 +88,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			// An input the version rejects (e.g. functional DEFAULT on 5.7) is not a
+			// An input the engine rejects is not a
 			// canonicalizer failure; the caller decides whether that is expected.
 			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
 			return "", false
@@ -111,10 +105,9 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 
 // loadColumn loads DDL through the omni catalog and returns the table + named column.
 // The CREATE TABLE is wrapped in a database whose default charset matches the oracle's
-// server default (utf8mb4 on the 8.0 box, latin1 on the 5.7 box) so that table-charset
-// inheritance resolves identically on both the user-input and the SHOW CREATE readback
-// sides — without this, db-inherited charset rules (e.g. column-charset-echo-57) would
-// not be comparable.
+// server default (utf8mb4 on the 8.0 box) so that table-charset inheritance resolves
+// identically on both the user-input and the SHOW CREATE readback sides — without this,
+// db-inherited charset rules (e.g. column-charset-echo-80) would not be comparable.
 func loadColumn(t *testing.T, serverCharset, createSQL, table, column string) (*Table, *Column) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE nrmdb DEFAULT CHARSET=%s;\nUSE nrmdb;\n%s", serverCharset, createSQL)
@@ -137,12 +130,7 @@ func loadColumn(t *testing.T, serverCharset, createSQL, table, column string) (*
 
 // serverCharsetFor returns the oracle box's default server charset for a version, used
 // to wrap loads so table-charset inheritance matches the readback.
-func serverCharsetFor(v Version) string {
-	if v == MySQL80 {
-		return "utf8mb4"
-	}
-	return "latin1"
-}
+func serverCharsetFor(Version) string { return "utf8mb4" }
 
 // assertPhantomFree is the core assertion: input form and stored readback must produce
 // the same canonical column key for the engine's version.
@@ -181,42 +169,42 @@ func normalizeReadbackForLoad(ddl string) string {
 	return ddl
 }
 
-// ---- the rule corpus: (id, inputDDL, table, columns, which versions diverge) --------
+// ---- the rule corpus: (id, inputDDL, table, columns) --------------------------------
 
 type ruleProbe struct {
-	id       string
-	create   string
-	table    string
-	columns  []string
-	versions []Version // which engines to prove against
+	id      string
+	create  string
+	table   string
+	columns []string
 }
 
-func both() []Version          { return []Version{MySQL57, MySQL80} }
-func only(v Version) []Version { return []Version{v} }
+// oracleVersions lists the versions an engine answers for: MySQL 8.0, the one
+// version the catalog reproduces.
+func oracleVersions() []Version { return []Version{MySQL80} }
 
 func normalizationProbes() []ruleProbe {
 	return []ruleProbe{
 		{"int-display-width",
 			"CREATE TABLE t_int (a INT(11), b BIGINT(20), c INT, f SMALLINT(6), o BIGINT, p TINYINT, q SMALLINT, r MEDIUMINT)",
-			"t_int", []string{"a", "b", "c", "f", "o", "p", "q", "r"}, both()},
+			"t_int", []string{"a", "b", "c", "f", "o", "p", "q", "r"}},
 		{"tinyint1-boolean",
 			"CREATE TABLE t_bool (d TINYINT(1), e TINYINT(4), m BOOLEAN, n BOOL, p TINYINT)",
-			"t_bool", []string{"d", "e", "m", "n", "p"}, both()},
+			"t_bool", []string{"d", "e", "m", "n", "p"}},
 		{"int-unsigned-width",
 			"CREATE TABLE t_uns (h INT UNSIGNED, i INT(11) UNSIGNED, b BIGINT UNSIGNED, ti TINYINT UNSIGNED)",
-			"t_uns", []string{"h", "i", "b", "ti"}, both()},
+			"t_uns", []string{"h", "i", "b", "ti"}},
 		{"int-zerofill",
 			"CREATE TABLE t_zf (j INT ZEROFILL, k INT(5) ZEROFILL, l INT UNSIGNED ZEROFILL)",
-			"t_zf", []string{"j", "k", "l"}, both()},
+			"t_zf", []string{"j", "k", "l"}},
 		{"decimal-precision-scale",
 			"CREATE TABLE t_num (a DECIMAL, b DECIMAL(10), c DECIMAL(10,2), d NUMERIC, e NUMERIC(8,3), k DEC, l FIXED)",
-			"t_num", []string{"a", "b", "c", "d", "e", "k", "l"}, both()},
+			"t_num", []string{"a", "b", "c", "d", "e", "k", "l"}},
 		{"float-double-aliasing",
 			"CREATE TABLE t_fd (f FLOAT, g FLOAT(10,2), h DOUBLE, i DOUBLE(15,4), j REAL, m FLOAT(5))",
-			"t_fd", []string{"f", "g", "h", "i", "j", "m"}, both()},
+			"t_fd", []string{"f", "g", "h", "i", "j", "m"}},
 		{"char-binary-length-default",
 			"CREATE TABLE t_char (a CHAR, b CHAR(10), d BINARY, e BINARY(16), f VARBINARY(32))",
-			"t_char", []string{"a", "b", "d", "e", "f"}, both()},
+			"t_char", []string{"a", "b", "d", "e", "f"}},
 		// bug (Roundcube/phpBB/MediaWiki dumps): the legacy `BINARY` column modifier on a
 		// string type is NOT the BINARY data type — it means "use the binary collation of
 		// the column's charset", which MySQL stores as an explicit
@@ -227,127 +215,121 @@ func normalizationProbes() []ruleProbe {
 		// all resolve to <table-charset>_bin; explicit table CHARSET keeps it version-stable.
 		{"char-binary-attribute-utf8mb4",
 			"CREATE TABLE t_binu (k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, t TEXT BINARY, ti TINYTEXT BINARY, me MEDIUMTEXT BINARY, lo LONGTEXT BINARY) DEFAULT CHARSET=utf8mb4",
-			"t_binu", []string{"k", "c", "t", "ti", "me", "lo"}, both()},
+			"t_binu", []string{"k", "c", "t", "ti", "me", "lo"}},
 		// latin1 table → latin1_bin (the column inherits the table charset, BINARY picks its _bin).
 		{"char-binary-attribute-latin1",
 			"CREATE TABLE t_binl (a VARCHAR(50) BINARY, c CHAR(8) BINARY) DEFAULT CHARSET=latin1",
-			"t_binl", []string{"a", "c"}, both()},
+			"t_binl", []string{"a", "c"}},
 		// explicit column CHARACTER SET ascii + BINARY → ascii_bin (column charset, not table's).
 		{"char-binary-attribute-ascii-explicit",
 			"CREATE TABLE t_bina (a VARCHAR(10) CHARACTER SET ascii BINARY, c CHAR(4) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4",
-			"t_bina", []string{"a", "c"}, both()},
+			"t_bina", []string{"a", "c"}},
 		// utf8/utf8mb3 alias + BINARY → utf8_bin (5.7) / utf8mb3_bin (8.0); the fold must collapse them.
 		{"char-binary-attribute-utf8-alias",
 			"CREATE TABLE t_binm (a VARCHAR(10) CHARACTER SET utf8 BINARY, b VARCHAR(10) CHARACTER SET utf8mb3 BINARY) DEFAULT CHARSET=utf8mb4",
-			"t_binm", []string{"a", "b"}, both()},
+			"t_binm", []string{"a", "b"}},
 		// precedence edge: `BINARY` after the type silently OVERRIDES a trailing explicit
 		// COLLATE — MySQL stores utf8mb4_bin, NOT utf8mb4_unicode_ci (verified on the engine;
 		// the reversed order `COLLATE ... BINARY` is a syntax error MySQL rejects). So the
 		// BINARY-derived _bin collation must win the canonical key.
 		{"char-binary-attribute-collate-precedence",
 			"CREATE TABLE t_binp (a VARCHAR(10) BINARY COLLATE utf8mb4_unicode_ci) DEFAULT CHARSET=utf8mb4",
-			"t_binp", []string{"a"}, both()},
+			"t_binp", []string{"a"}},
 		// don't over-match: a real BINARY/VARBINARY DATA TYPE column carries no charset/collation
 		// and must NOT be touched by the BINARY-modifier resolution (it has no _bin pair).
 		{"char-binary-attribute-real-binary-type",
 			"CREATE TABLE t_binr (a BINARY(8), b VARBINARY(16), c BLOB) DEFAULT CHARSET=utf8mb4",
-			"t_binr", []string{"a", "b", "c"}, both()},
+			"t_binr", []string{"a", "b", "c"}},
 		{"text-blob-no-default-null",
 			"CREATE TABLE t_tb (g TEXT, h BLOB, j LONGTEXT, k TINYTEXT)",
-			"t_tb", []string{"g", "h", "j", "k"}, both()},
+			"t_tb", []string{"g", "h", "j", "k"}},
 		{"year-width",
 			"CREATE TABLE t_year (a YEAR, b YEAR(4))",
-			"t_year", []string{"a", "b"}, both()},
+			"t_year", []string{"a", "b"}},
 		{"bit-length-default",
 			"CREATE TABLE t_bit (c BIT, d BIT(8))",
-			"t_bit", []string{"c", "d"}, both()},
+			"t_bit", []string{"c", "d"}},
 		// bug: BIT column default — every literal form (bit-literal, hex, bare int, quoted
 		// byte string) is stored as b'<binary>' and must canonicalize by VALUE. b'0' is the
 		// task's stated case; 0x05/x'05'/0b101/5 all equal b'101', while 'A' (=65) and the
 		// byte string 'AB' stay distinct values.
 		{"bit-default-bitliteral",
 			"CREATE TABLE t_bitd (a BIT(8) NOT NULL DEFAULT b'0', b BIT(8) NOT NULL DEFAULT b'101', c BIT(8) NOT NULL DEFAULT b'00000101')",
-			"t_bitd", []string{"a", "b", "c"}, both()},
+			"t_bitd", []string{"a", "b", "c"}},
 		{"bit-default-hex",
 			"CREATE TABLE t_bithex (a BIT(8) NOT NULL DEFAULT 0x05, b BIT(8) NOT NULL DEFAULT x'05', c BIT(16) NOT NULL DEFAULT 0xABCD)",
-			"t_bithex", []string{"a", "b", "c"}, both()},
+			"t_bithex", []string{"a", "b", "c"}},
 		{"bit-default-numeric-and-string",
 			"CREATE TABLE t_bitns (a BIT(8) NOT NULL DEFAULT 5, b BIT(8) NOT NULL DEFAULT 0b101, c BIT(16) NOT NULL DEFAULT 'AB')",
-			"t_bitns", []string{"a", "b", "c"}, both()},
+			"t_bitns", []string{"a", "b", "c"}},
 		// bug: YEAR default — stored single-quoted ('2000') but written numeric (2000); the
 		// two forms must compare equal by value. Two-digit YEAR is expanded at storage
 		// (99 -> '1999', 5 -> '2005'), and 0 stays the zero year ('0000').
 		{"year-default-numeric",
 			"CREATE TABLE t_yeard (a YEAR NOT NULL DEFAULT 2000, b YEAR NOT NULL DEFAULT 1999, c YEAR NOT NULL DEFAULT 0, d YEAR NOT NULL DEFAULT 99, e YEAR NOT NULL DEFAULT 5)",
-			"t_yeard", []string{"a", "b", "c", "d", "e"}, both()},
+			"t_yeard", []string{"a", "b", "c", "d", "e"}},
 		// bug: BIGINT UNSIGNED max default (18446744073709551615) must not be int64-clamped;
 		// the unquoted user form and the quoted stored readback must compare equal at the
 		// exact uint64 value. Signed-bigint boundaries (int64 min/max) are covered too.
 		{"bigint-unsigned-max-default",
 			"CREATE TABLE t_bigmax (big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615, mid BIGINT UNSIGNED NOT NULL DEFAULT 9223372036854775808)",
-			"t_bigmax", []string{"big", "mid"}, both()},
+			"t_bigmax", []string{"big", "mid"}},
 		{"bigint-signed-boundary-default",
 			"CREATE TABLE t_bigbnd (lo BIGINT NOT NULL DEFAULT -9223372036854775808, hi BIGINT NOT NULL DEFAULT 9223372036854775807)",
-			"t_bigbnd", []string{"lo", "hi"}, both()},
+			"t_bigbnd", []string{"lo", "hi"}},
 		{"time-json-date-stable",
 			"CREATE TABLE t_tjd (e JSON, f DATE, g TIME, h TIME(3))",
-			"t_tjd", []string{"e", "f", "g", "h"}, both()},
+			"t_tjd", []string{"e", "f", "g", "h"}},
 		{"default-literal-quoting",
 			"CREATE TABLE t_def (a INT DEFAULT 0, b INT DEFAULT 5, h INT DEFAULT '7', c VARCHAR(20) DEFAULT 'hello', d VARCHAR(20) DEFAULT '', e VARCHAR(20) DEFAULT 'it''s')",
-			"t_def", []string{"a", "b", "h", "c", "d", "e"}, both()},
+			"t_def", []string{"a", "b", "h", "c", "d", "e"}},
 		{"decimal-default-padding",
 			"CREATE TABLE t_dpad (f DECIMAL(10,2) DEFAULT 0, g DECIMAL(10,2) DEFAULT 0.00)",
-			"t_dpad", []string{"f", "g"}, both()},
+			"t_dpad", []string{"f", "g"}},
 		{"boolean-default",
 			"CREATE TABLE t_bdef (j BOOLEAN DEFAULT TRUE, k BOOLEAN DEFAULT FALSE)",
-			"t_bdef", []string{"j", "k"}, both()},
+			"t_bdef", []string{"j", "k"}},
 		{"nullable-default-null",
 			"CREATE TABLE t_null (a INT NULL, b INT DEFAULT NULL, c INT NULL DEFAULT NULL, d VARCHAR(10) NULL)",
-			"t_null", []string{"a", "b", "c", "d"}, both()},
+			"t_null", []string{"a", "b", "c", "d"}},
 		{"enum-set-quoting",
 			`CREATE TABLE t_enum (a ENUM('x','y','z'), b SET('a','b','c'), e ENUM("dq1","dq2"))`,
-			"t_enum", []string{"a", "b", "e"}, both()},
+			"t_enum", []string{"a", "b", "e"}},
 		{"comment-escaping",
 			"CREATE TABLE t_comment (a INT COMMENT 'has ''quote'' inside')",
-			"t_comment", []string{"a"}, both()},
-		// version-flagged: charset echo. Only prove on the version whose readback diverges.
+			"t_comment", []string{"a"}},
+		// version-flagged: charset echo.
 		{"column-charset-echo-80",
 			"CREATE TABLE t_ce80 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, c VARCHAR(10) CHARACTER SET utf8mb4, d VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
-			"t_ce80", []string{"a", "c", "d"}, only(MySQL80)},
-		{"column-charset-echo-57",
-			"CREATE TABLE t_ce57 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, b VARCHAR(10) COLLATE utf8mb4_general_ci, c VARCHAR(10) CHARACTER SET utf8mb4, d VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
-			"t_ce57", []string{"a", "b", "c", "d"}, only(MySQL57)},
+			"t_ce80", []string{"a", "c", "d"}},
 		{"column-charset-only-collation-resolution",
 			"CREATE TABLE t_d1 (a VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-			"t_d1", []string{"a"}, both()},
+			"t_d1", []string{"a"}},
 		// generated columns.
 		{"generated-expr-normalization",
 			"CREATE TABLE t_gen (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, c INT GENERATED ALWAYS AS ( a * 2 ) STORED, d INT AS (a+1))",
-			"t_gen", []string{"b", "c", "d"}, both()},
+			"t_gen", []string{"b", "c", "d"}},
 		{"generated-expr-string-introducer",
 			"CREATE TABLE t_gen2 (a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4",
-			"t_gen2", []string{"e"}, both()},
+			"t_gen2", []string{"e"}},
 		// functional default — 8.0 only.
 		{"functional-default",
 			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()), c JSON DEFAULT (JSON_ARRAY()))",
-			"t_funcdef", []string{"a", "b", "c"}, only(MySQL80)},
+			"t_funcdef", []string{"a", "b", "c"}},
 		// TIMESTAMP magic — both, opposite behavior.
 		{"timestamp-magic",
 			"CREATE TABLE t_ts (a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-			"t_ts", []string{"a", "b", "d"}, both()},
+			"t_ts", []string{"a", "b", "d"}},
 		{"timestamp-datetime-default-expr",
 			"CREATE TABLE t_ts2 (g DATETIME DEFAULT CURRENT_TIMESTAMP, h DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, i TIMESTAMP(3) NULL DEFAULT CURRENT_TIMESTAMP(3))",
-			"t_ts2", []string{"g", "h", "i"}, both()},
+			"t_ts2", []string{"g", "h", "i"}},
 	}
 }
 
 func TestOracle_PhantomDiffElimination(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		for _, probe := range normalizationProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				db := "nrm_" + strings.ReplaceAll(probe.id, "-", "_")
 				for _, c := range probe.columns {
@@ -358,22 +340,13 @@ func TestOracle_PhantomDiffElimination(t *testing.T) {
 	}
 }
 
-func containsVersion(vs []Version, v Version) bool {
-	for _, x := range vs {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
 // TestOracle_MissedDiffGuards proves the canonical key DISTINGUISHES schemas that
 // genuinely differ — the dual of phantom-diff elimination. These lock in the review
 // findings where the canonicalizer was over-collapsing (a missed diff is as harmful as
 // a phantom one). Each asserts two real, different MySQL schemas produce different keys,
 // loaded through the real engine's SHOW CREATE so the catalog state is authentic.
 func TestOracle_MissedDiffGuards(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
@@ -433,22 +406,5 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 					o.name, n.CanonicalDefault(nCol), n.CanonicalDefault(sCol))
 			}
 		})
-
-		if version == MySQL57 {
-			t.Run(o.name+"/timestamp-null-vs-notnull-with-default", func(t *testing.T) {
-				// EDFT=0: `TIMESTAMP NULL DEFAULT '<const>'` (nullable) must produce a
-				// different key from a bare `TIMESTAMP DEFAULT '<const>'` (NOT NULL).
-				ddl := "CREATE TABLE t (x INT, n TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00', b TIMESTAMP DEFAULT '2020-01-01 00:00:00')"
-				rb, ok := o.showCreate(t, "mdg_ts", ddl, "t")
-				if !ok {
-					t.Skip("could not obtain readback")
-				}
-				tbl, nCol := loadColumn(t, sc, rb, "t", "n")
-				_, bCol := loadColumn(t, sc, rb, "t", "b")
-				if n.CanonicalColumn(tbl, nCol) == n.CanonicalColumn(tbl, bCol) {
-					t.Errorf("[%s] nullable TIMESTAMP NULL and NOT NULL TIMESTAMP must differ", o.name)
-				}
-			})
-		}
 	}
 }

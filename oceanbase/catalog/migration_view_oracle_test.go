@@ -11,8 +11,8 @@ import (
 )
 
 // The oracle proof for the view differ + generator (correctness-protocol.md gates 1 & 2), against
-// the LIVE MySQL engines (5.7 :13307 ssl-disabled, 8.0 :13306). Two properties are proven
-// mechanically across every view FORM the node covers, on BOTH versions:
+// the LIVE MySQL 8.0 engine (:13306). Two properties are proven
+// mechanically across every view FORM the node covers:
 //
 //  1. IDEMPOTENCE (the spine). A schema (tables + views) is applied to a real database; each
 //     view's SHOW CREATE VIEW and each table's SHOW CREATE TABLE are read back and reassembled
@@ -25,26 +25,23 @@ import (
 //     REPLACE / DROP VIEW DDL applied to a real `from` database yields a schema whose views
 //     canonicalize equal to `to` — including view-on-table and view-on-view dependency ordering.
 //
-// The harness reuses connectOracle / serverCharsetFor / both() / only() / containsVersion from the
-// normalize + diff oracle tests, and falls back to a shared testcontainer per version when the
-// local engines are unreachable (oracle_fallback_test.go).
+// The harness reuses connectOracle / serverCharsetFor from the
+// normalize + diff oracle tests, and falls back to a shared testcontainer when the
+// local engine is unreachable (oracle_fallback_test.go).
 //
-// 5.7-vs-8.0 view-body divergences this file exercises (oracle-verified, see diff_view.go):
-//   - column qualification: 8.0 qualifies same-db refs with the database, 5.7 (for view-on-view)
-//     does not — folded by canonicalViewBody on both.
-//   - explicit column list: kept on 8.0, rewritten into renamed SELECT aliases on 5.7. The 5.7
-//     rewrite is NOT reproduced by the omni loader, so explicit-column-list views are proven on
-//     8.0 and FLAGGED as a known 5.7 limitation (they are version-gated to 8.0 here).
+// View-body rewrites this file exercises (oracle-verified, see diff_view.go):
+//   - column qualification: 8.0 qualifies same-db refs with the database — folded by
+//     canonicalViewBody.
+//   - explicit column list: kept, with the original SELECT aliases.
 
 // viewSchemaProbe is one schema (a set of CREATE statements) plus the table + view names to read
 // back. `setup` are the CREATE TABLE / CREATE VIEW statements in dependency order (LoadSDL is
 // order-tolerant, but the engine apply is not, so they are listed creatable-order).
 type viewSchemaProbe struct {
-	id       string
-	setup    []string
-	tables   []string
-	views    []string
-	versions []Version
+	id     string
+	setup  []string
+	tables []string
+	views  []string
 }
 
 // viewIdempotenceProbes enumerates representative view FORMS whose user-declared body differs from
@@ -55,29 +52,29 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"simple", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20), c INT)",
 			"CREATE VIEW v AS SELECT a, b FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"star-expanded", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20), c INT)",
 			"CREATE VIEW v AS SELECT * FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"where-expr", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20))",
 			"CREATE VIEW v AS SELECT a FROM t WHERE a > 0",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"expr-and-func", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20))",
 			"CREATE VIEW v AS SELECT a + 1 AS s, UPPER(b) AS ub FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"join", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20), c INT)",
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE VIEW v AS SELECT t.a, u.y FROM t JOIN u ON t.c = u.x",
-		}, []string{"t", "u"}, []string{"v"}, both()},
+		}, []string{"t", "u"}, []string{"v"}},
 		{"left-join", []string{
 			"CREATE TABLE t (a INT, c INT)",
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE VIEW v AS SELECT t.a, u.y FROM t LEFT JOIN u ON t.c = u.x",
-		}, []string{"t", "u"}, []string{"v"}, both()},
+		}, []string{"t", "u"}, []string{"v"}},
 		// Multi-table joins: the engine stores these as nested parenthesized join
 		// groups — `((t join u on(..)) join w on(..))` — the canonical SHOW CREATE
 		// VIEW form that the FROM-clause table_reference parser must accept. These
@@ -87,14 +84,14 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE TABLE w (m INT, n INT)",
 			"CREATE VIEW v AS SELECT t.a, u.y, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m",
-		}, []string{"t", "u", "w"}, []string{"v"}, both()},
+		}, []string{"t", "u", "w"}, []string{"v"}},
 		{"join-4-table", []string{
 			"CREATE TABLE t (a INT, c INT)",
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE TABLE w (m INT, n INT)",
 			"CREATE TABLE z (p INT, q INT)",
 			"CREATE VIEW v AS SELECT t.a FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m JOIN z ON w.n = z.p",
-		}, []string{"t", "u", "w", "z"}, []string{"v"}, both()},
+		}, []string{"t", "u", "w", "z"}, []string{"v"}},
 		// LEFT/INNER mix over 3+ tables (the sakila film_list join shape).
 		{"join-left-inner-mix", []string{
 			"CREATE TABLE category (category_id INT, name VARCHAR(50))",
@@ -108,7 +105,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 				"LEFT JOIN film ON film_category.film_id = film.film_id " +
 				"JOIN film_actor ON film.film_id = film_actor.film_id " +
 				"JOIN actor ON film_actor.actor_id = actor.actor_id",
-		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}},
 		// GROUP BY over a multi-table join (full sakila film_list shape).
 		{"join-group-by", []string{
 			"CREATE TABLE category (category_id INT, name VARCHAR(50))",
@@ -123,7 +120,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 				"JOIN film_actor ON film.film_id = film_actor.film_id " +
 				"JOIN actor ON film_actor.actor_id = actor.actor_id " +
 				"GROUP BY film.film_id",
-		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}},
 		// view-on-view layered over a multi-table-join base view.
 		{"view-on-multi-join-view", []string{
 			"CREATE TABLE t (a INT, c INT)",
@@ -131,7 +128,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE w (m INT, n INT)",
 			"CREATE VIEW base AS SELECT t.a AS a, u.y AS y, w.n AS n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m",
 			"CREATE VIEW v AS SELECT a, n FROM base WHERE a > 0",
-		}, []string{"t", "u", "w"}, []string{"base", "v"}, both()},
+		}, []string{"t", "u", "w"}, []string{"base", "v"}},
 		// Aliased parenthesized join group as the LEFT operand of a further top-level
 		// join, with a COMPOUND (AND) ON condition — the exact employees current_dept_emp
 		// shape. The engine stores the compound ON double-wrapped: `on(((a) and (b)))`, and
@@ -146,7 +143,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 				"FROM dept_emp d " +
 				"JOIN dept_emp_latest_date l ON d.emp_no = l.emp_no AND d.from_date = l.from_date " +
 				"JOIN departments dp ON d.dept_no = dp.dept_no",
-		}, []string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}, both()},
+		}, []string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}},
 		// Aliased 3-table LEFT/INNER mix with a compound ON on the parenthesized left
 		// operand (compound-ON on both the nested and the outer join).
 		{"join-aliased-left-inner-compound-on", []string{
@@ -156,68 +153,68 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE VIEW v AS SELECT x.v, y.w, q.z FROM a x " +
 				"LEFT JOIN b y ON x.id = y.id AND x.k = y.k " +
 				"INNER JOIN c q ON y.id = q.id AND y.k = q.k",
-		}, []string{"a", "b", "c"}, []string{"v"}, both()},
+		}, []string{"a", "b", "c"}, []string{"v"}},
 		// Derived table (subquery) in FROM — must still parse as a subquery, not a
 		// join group (regression guard for the disambiguation).
 		{"derived-table-from", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW v AS SELECT d.a FROM (SELECT a, b FROM t WHERE b > 0) d",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// Derived table joined to a base table inside the FROM (mixed subquery + join).
 		{"derived-table-join", []string{
 			"CREATE TABLE t (a INT, c INT)",
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE VIEW v AS SELECT t.a, d.y FROM t JOIN (SELECT x, y FROM u) d ON t.c = d.x",
-		}, []string{"t", "u"}, []string{"v"}, both()},
+		}, []string{"t", "u"}, []string{"v"}},
 		{"algorithm-merge", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE ALGORITHM=MERGE VIEW v AS SELECT a FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"algorithm-temptable", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE ALGORITHM=TEMPTABLE VIEW v AS SELECT a FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"sql-security-invoker", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE SQL SECURITY INVOKER VIEW v AS SELECT a FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"check-cascaded", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"check-local", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT a FROM t WHERE a > 0 WITH LOCAL CHECK OPTION",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"view-on-view", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW base AS SELECT a, b FROM t",
 			"CREATE VIEW v AS SELECT a FROM base",
-		}, []string{"t"}, []string{"base", "v"}, both()},
+		}, []string{"t"}, []string{"base", "v"}},
 		{"cte", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW v AS WITH cte AS (SELECT a, b FROM t) SELECT a FROM cte",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"v"}},
 		{"union", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE TABLE u (a INT)",
 			"CREATE VIEW v AS SELECT a FROM t UNION SELECT a FROM u",
-		}, []string{"t", "u"}, []string{"v"}, both()},
+		}, []string{"t", "u"}, []string{"v"}},
 		{"group-by-agg", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW v AS SELECT a, COUNT(*) AS n FROM t GROUP BY a",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// Explicit column list: 8.0 keeps the list + original aliases (round-trips); 5.7 rewrites
 		// into renamed aliases (a FLAGGED loader limitation), so proven on 8.0 only.
 		{"explicit-columns", []string{
 			"CREATE TABLE t (a INT, b VARCHAR(20))",
 			"CREATE VIEW v (p, q) AS SELECT a, b FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"v"}},
 		{"view-on-view-explicit-cols", []string{
 			"CREATE TABLE t (a INT, b INT)",
 			"CREATE VIEW base (x, y) AS SELECT a, b FROM t",
 			"CREATE VIEW v AS SELECT x FROM base",
-		}, []string{"t"}, []string{"base", "v"}, only(MySQL80)},
+		}, []string{"t"}, []string{"base", "v"}},
 		// Parenthesized subquery as the LEFT operand of a binary operator, with
 		// the comparison itself inside parens — the stock sys.metrics shape
 		// (`if(((select count(0) from ... where (...))) = 0),'NO','YES')`).
@@ -229,50 +226,50 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"paren-subquery-compare-if", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT if(((SELECT count(0) FROM t) = 0),'NO','YES') AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-compare-if-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT if((((SELECT count(0) FROM t)) = 0),'NO','YES') AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// Wrapper-collapse in the other expression positions the engine
 		// canonicalizes the same way: pure select item, IN subquery, EXISTS,
 		// and a set-operation subquery as a comparison operand.
 		{"paren-subquery-pure-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT ((SELECT count(0) FROM t)) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-in-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (1 IN ((SELECT max(a) FROM t))) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-exists-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (EXISTS((SELECT 1 FROM t))) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-setop-compare", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT ((SELECT 1 UNION SELECT 1) = 1) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-arith", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT ((SELECT max(a) FROM t) + 1) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-where", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT a FROM t WHERE ((SELECT count(0) FROM t) > 0)",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-both-operands", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT ((SELECT min(a) FROM t) = (SELECT max(a) FROM t)) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-subquery-in-list", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (1 IN ((SELECT max(a) FROM t) + 1, 2)) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		{"paren-exists-compare", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT ((EXISTS(SELECT 1 FROM t)) = 1) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// The engine EXPANDS a row-constructor comparison into AND-ed scalar
 		// compares when storing a view body, so the expanded form (which
 		// contains `((select 1) = 1)` — a paren-subquery compare) is what a
@@ -283,7 +280,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"paren-subquery-row-expanded", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (((SELECT 1) = 1) AND (2 = 2)) AS x",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// ---- temporal-unit keyword arguments ----
 		// The engine stores these units as BARE keywords; a backtick-quoted
 		// unit is a syntax error (8.0.32 + 5.7.25: 1064). These probes prove
@@ -295,47 +292,47 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"tsdiff-all-units", []string{
 			"CREATE TABLE t (a DATETIME, b DATETIME)",
 			"CREATE VIEW v AS SELECT TIMESTAMPDIFF(MICROSECOND,a,b) AS c1, timestampdiff(second,a,b) AS c2, TIMESTAMPDIFF(MINUTE,a,b) AS c3, TIMESTAMPDIFF(HOUR,a,b) AS c4, TIMESTAMPDIFF(DAY,a,b) AS c5, TIMESTAMPDIFF(WEEK,a,b) AS c6, TIMESTAMPDIFF(MONTH,a,b) AS c7, TIMESTAMPDIFF(QUARTER,a,b) AS c8, TIMESTAMPDIFF(YEAR,a,b) AS c9 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// The stock sys.innodb_lock_waits shape (the dogfood bug): a
 		// timestampdiff over a column and now().
 		{"tsdiff-column-now", []string{
 			"CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))",
 			"CREATE VIEW v AS SELECT id, TIMESTAMPDIFF(SECOND, created, NOW()) AS age_secs FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// TIMESTAMPADD + the DATE_ADD family: never stored as function calls —
 		// the engine folds them all into (expr ± interval n unit).
 		{"date-arith-family", []string{
 			"CREATE TABLE t (a DATETIME)",
 			"CREATE VIEW v AS SELECT TIMESTAMPADD(HOUR, 1, a) AS c1, DATE_ADD(a, INTERVAL 1 DAY) AS c2, DATE_SUB(a, INTERVAL 30 MINUTE) AS c3, ADDDATE(a, INTERVAL 1 WEEK) AS c4, ADDDATE(a, 31) AS c5, SUBDATE(a, INTERVAL 1 MONTH) AS c6, SUBDATE(a, 31) AS c7 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// Bare INTERVAL arithmetic: compound units, expression values,
 		// negative counts, and the interval-first commuted form.
 		{"interval-forms", []string{
 			"CREATE TABLE t (a DATETIME, n INT)",
 			"CREATE VIEW v AS SELECT a + INTERVAL 1 DAY AS c1, a - INTERVAL 30 MINUTE AS c2, a + INTERVAL '1:1' DAY_HOUR AS c3, a + INTERVAL '1-1' YEAR_MONTH AS c4, a + INTERVAL (n + 1) DAY AS c5, ADDDATE(a, -5) AS c6, INTERVAL 1 DAY + a AS c7 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// EXTRACT: lowercase unit, simple + compound, over a column.
 		{"extract-units", []string{
 			"CREATE TABLE t (a DATETIME)",
 			"CREATE VIEW v AS SELECT EXTRACT(SECOND FROM a) AS c1, extract(day from a) AS c2, EXTRACT(QUARTER FROM a) AS c3, EXTRACT(DAY_HOUR FROM a) AS c4, EXTRACT(YEAR_MONTH FROM a) AS c5, EXTRACT(HOUR_MICROSECOND FROM a) AS c6, EXTRACT(WEEK FROM a) AS c7 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// GET_FORMAT: bare UPPERCASE first argument, TIMESTAMP folds to
 		// DATETIME, and the stored form keeps a space after the first comma.
 		{"get-format-kinds", []string{
 			"CREATE VIEW v AS SELECT GET_FORMAT(DATE, 'USA') AS c1, get_format(time, 'ISO') AS c2, GET_FORMAT(DATETIME, 'EUR') AS c3, GET_FORMAT(TIMESTAMP, 'JIS') AS c4",
-		}, nil, []string{"v"}, both()},
+		}, nil, []string{"v"}},
 		// TRIM keyword forms, including the direction-less remstr FROM form
 		// the engine stores verbatim (not as comma arguments).
 		{"trim-keyword-forms", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM s) AS c1, TRIM(LEADING 'x' FROM s) AS c2, TRIM(TRAILING 'x' FROM s) AS c3, TRIM('x' FROM s) AS c4, TRIM(s) AS c5 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// SUBSTRING keyword forms: the engine rewrites FROM/FOR into the
 		// comma form under the substr name (regression pin — worked before).
 		{"substring-keyword-forms", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT SUBSTRING(s FROM 2) AS c1, SUBSTRING(s FROM 2 FOR 3) AS c2, SUBSTRING(s, 2, 3) AS c3 FROM t",
-		}, []string{"t"}, []string{"v"}, both()},
+		}, []string{"t"}, []string{"v"}},
 		// WEIGHT_STRING: plain and AS CHAR(n); AS BINARY(n) desugars to the
 		// cast-charset-binary form. 8.0 only: 5.7 auto-appends `level 1` to
 		// the STORED body, which omni does not reproduce for user-declared
@@ -344,13 +341,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"weight-string-forms", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT WEIGHT_STRING(s) AS c1, WEIGHT_STRING(s AS CHAR(4)) AS c2, WEIGHT_STRING(s AS BINARY(4)) AS c3 FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL80)},
-		// WEIGHT_STRING LEVEL: 5.7-only syntax (8.0 rejects LEVEL), written
-		// explicitly so the user form matches the engine-stored level list.
-		{"weight-string-level", []string{
-			"CREATE TABLE t (s VARCHAR(20))",
-			"CREATE VIEW v AS SELECT WEIGHT_STRING(s LEVEL 1) AS c1, WEIGHT_STRING(s AS CHAR(4) LEVEL 1) AS c2, WEIGHT_STRING(s LEVEL 1 DESC REVERSE) AS c3 FROM t",
-		}, []string{"t"}, []string{"v"}, only(MySQL57)},
+		}, []string{"t"}, []string{"v"}},
 	}
 }
 
@@ -446,13 +437,10 @@ func describeViewDiff(d *SchemaDiff) string {
 // TestOracle_ViewIdempotence proves gates 1 & 2 for every view form: the user-declared schema and
 // its engine-stored readback diff EMPTY (both directions), and each side self-diffs empty.
 func TestOracle_ViewIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range viewIdempotenceProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				dbName := "videm_" + strings.ReplaceAll(probe.id, "-", "_")
 				conn, ok := o.applyViewSchema(t, dbName, probe.setup)
@@ -499,12 +487,11 @@ func TestOracle_ViewIdempotence(t *testing.T) {
 // viewMigrationProbe is one apply-correctness case: transform a database from the `from` schema to
 // the `to` schema. Empty `from`/`to` slices mean "no objects" on that side.
 type viewMigrationProbe struct {
-	id       string
-	from     []string
-	to       []string
-	tables   []string // table names present in `to` (for readback assembly)
-	views    []string // view names present in `to`
-	versions []Version
+	id     string
+	from   []string
+	to     []string
+	tables []string // table names present in `to` (for readback assembly)
+	views  []string // view names present in `to`
 }
 
 // viewMigrationProbes enumerates the CREATE / REPLACE / DROP view FORMS the generator covers,
@@ -516,25 +503,25 @@ func viewMigrationProbes() []viewMigrationProbe {
 		{"create-simple",
 			base("CREATE TABLE t (a INT, b INT)"),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT a FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		{"create-with-options",
 			base("CREATE TABLE t (a INT, b INT)"),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		// view-on-table created together with its table in one plan (table first).
 		{"create-view-and-table",
 			base(),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT a FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		// ---- view-on-view created in one plan: dependency ordering ----
 		{"create-view-on-view",
 			base("CREATE TABLE t (a INT, b INT)"),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW base AS SELECT a, b FROM t", "CREATE VIEW v AS SELECT a FROM base"),
-			[]string{"t"}, []string{"base", "v"}, both()},
+			[]string{"t"}, []string{"base", "v"}},
 		{"create-view-chain",
 			base("CREATE TABLE t (a INT)"),
 			base("CREATE TABLE t (a INT)", "CREATE VIEW v1 AS SELECT a FROM t", "CREATE VIEW v2 AS SELECT a FROM v1", "CREATE VIEW v3 AS SELECT a FROM v2"),
-			[]string{"t"}, []string{"v1", "v2", "v3"}, both()},
+			[]string{"t"}, []string{"v1", "v2", "v3"}},
 		// Regression (review blocker): base view `a` carries a column alias named `b`, and view `b`
 		// references `a` (selecting the column `b` that `a` exposes). The alias must not create a
 		// false `a->b` edge that reverses CREATE order (which would fail to apply, since `a` would be
@@ -542,14 +529,14 @@ func viewMigrationProbes() []viewMigrationProbe {
 		{"create-view-alias-name-clash",
 			base("CREATE TABLE t (id INT)"),
 			base("CREATE TABLE t (id INT)", "CREATE VIEW a AS SELECT id AS b FROM t", "CREATE VIEW b AS SELECT b FROM a"),
-			[]string{"t"}, []string{"a", "b"}, both()},
+			[]string{"t"}, []string{"a", "b"}},
 		// ---- multi-table-join views (parenthesized-join-group apply-correctness) ----
 		// CREATE a view whose stored body is a nested parenthesized join group.
 		{"create-multi-join",
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)"),
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
 				"CREATE VIEW v AS SELECT t.a, u.y, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m"),
-			[]string{"t", "u", "w"}, []string{"v"}, both()},
+			[]string{"t", "u", "w"}, []string{"v"}},
 		// CREATE the sakila film_list join shape (5-table LEFT/INNER mix + GROUP BY).
 		{"create-sakila-film-list",
 			base("CREATE TABLE category (category_id INT, name VARCHAR(50))",
@@ -569,7 +556,7 @@ func viewMigrationProbes() []viewMigrationProbe {
 					"JOIN film_actor ON film.film_id = film_actor.film_id "+
 					"JOIN actor ON film_actor.actor_id = actor.actor_id "+
 					"GROUP BY film.film_id"),
-			[]string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+			[]string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}},
 		// CREATE the employees current_dept_emp shape: an aliased parenthesized join
 		// group (compound AND ON) as the left operand of a further join, over a base
 		// view. Guards the `((expr))` scalar-vs-subquery disambiguation end-to-end.
@@ -584,14 +571,14 @@ func viewMigrationProbes() []viewMigrationProbe {
 					"FROM dept_emp d "+
 					"JOIN dept_emp_latest_date l ON d.emp_no = l.emp_no AND d.from_date = l.from_date "+
 					"JOIN departments dp ON d.dept_no = dp.dept_no"),
-			[]string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}, both()},
+			[]string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}},
 		// REPLACE a single-table body with a multi-table-join body.
 		{"replace-into-multi-join",
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
 				"CREATE VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
 				"CREATE VIEW v AS SELECT t.a, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m"),
-			[]string{"t", "u", "w"}, []string{"v"}, both()},
+			[]string{"t", "u", "w"}, []string{"v"}},
 		// CREATE a view whose body compares a parenthesized subquery (the
 		// sys.metrics if-shape) — the generated DDL must apply cleanly and
 		// read back canonically equal (paren-subquery-operand fix).
@@ -599,39 +586,39 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (a INT)"),
 			base("CREATE TABLE t (a INT)",
 				"CREATE VIEW v AS SELECT if(((SELECT count(0) FROM t) = 0),'NO','YES') AS x"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		// ---- REPLACE (modify body / options) ----
 		{"replace-body",
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT b FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		{"replace-algorithm",
 			base("CREATE TABLE t (a INT)", "CREATE ALGORITHM=UNDEFINED VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a INT)", "CREATE ALGORITHM=MERGE VIEW v AS SELECT a FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		{"replace-sql-security",
 			base("CREATE TABLE t (a INT)", "CREATE SQL SECURITY DEFINER VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a INT)", "CREATE SQL SECURITY INVOKER VIEW v AS SELECT a FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		{"replace-add-check-option",
 			base("CREATE TABLE t (a INT)", "CREATE VIEW v AS SELECT a FROM t WHERE a > 0"),
 			base("CREATE TABLE t (a INT)", "CREATE VIEW v AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		// ---- DROP ----
 		{"drop-view",
 			base("CREATE TABLE t (a INT)", "CREATE VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a INT)"),
-			[]string{"t"}, nil, both()},
+			[]string{"t"}, nil},
 		// Drop a dependent view and its base in one plan (both dropped; order irrelevant for DROP).
 		{"drop-view-on-view",
 			base("CREATE TABLE t (a INT)", "CREATE VIEW base AS SELECT a FROM t", "CREATE VIEW v AS SELECT a FROM base"),
 			base("CREATE TABLE t (a INT)"),
-			[]string{"t"}, nil, both()},
+			[]string{"t"}, nil},
 		// ---- explicit column list (8.0 only — 5.7 loader limitation flagged) ----
 		{"create-explicit-columns",
 			base("CREATE TABLE t (a INT, b VARCHAR(20))"),
 			base("CREATE TABLE t (a INT, b VARCHAR(20))", "CREATE VIEW v (p, q) AS SELECT a, b FROM t"),
-			[]string{"t"}, []string{"v"}, only(MySQL80)},
+			[]string{"t"}, []string{"v"}},
 		// ---- temporal-unit keyword arguments ----
 		// CREATE the sys.innodb_lock_waits shape from a table-only state:
 		// the generated body must carry timestampdiff(SECOND,...) with a
@@ -641,7 +628,7 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))"),
 			base("CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))",
 				"CREATE VIEW v AS SELECT id, TIMESTAMPDIFF(SECOND, created, NOW()) AS age_secs FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 		// REPLACE a plain body with one exercising every temporal keyword
 		// position at once: the generated CREATE OR REPLACE must apply and
 		// read back canonically equal.
@@ -649,7 +636,7 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (a DATETIME, s VARCHAR(20))", "CREATE VIEW v AS SELECT a FROM t"),
 			base("CREATE TABLE t (a DATETIME, s VARCHAR(20))",
 				"CREATE VIEW v AS SELECT TIMESTAMPDIFF(DAY, a, NOW()) AS c1, TIMESTAMPADD(HOUR, 1, a) AS c2, EXTRACT(DAY_HOUR FROM a) AS c3, GET_FORMAT(DATE, 'USA') AS c4, a + INTERVAL '1:1' DAY_HOUR AS c5, TRIM('x' FROM s) AS c6 FROM t"),
-			[]string{"t"}, []string{"v"}, both()},
+			[]string{"t"}, []string{"v"}},
 	}
 }
 
@@ -657,13 +644,10 @@ func viewMigrationProbes() []viewMigrationProbe {
 // generated DDL transforms a real `from` database into a `to`-equal one (compared via canonical
 // readback of the full schema).
 func TestOracle_ViewMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range viewMigrationProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				assertViewApplyCorrect(t, o, n, probe)
 			})

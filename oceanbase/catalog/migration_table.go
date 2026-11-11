@@ -117,10 +117,8 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 			clauses = append(clauses, "DEFAULT CHARSET="+cs)
 		}
 		// Emit COLLATE only for a non-default collation. When `coll` is the charset's
-		// version default it is redundant — and emitting it risks naming a collation the
-		// target server lacks (utf8mb4_0900_ai_ci does not exist on 5.7). Omitting it lets
-		// the server apply its own default, which is valid on either version and reads back
-		// canonically equal (entry utf8mb4-default-collation).
+		// default it is redundant: omitting it lets the server apply its own default, which
+		// reads back canonically equal (entry utf8mb4-default-collation).
 		if coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 			clauses = append(clauses, "COLLATE="+coll)
 		}
@@ -346,9 +344,7 @@ func formatInlinePrimaryKey(tbl *Table) string {
 	return ""
 }
 
-// migrationIndexColumn renders one index/PK key part: `col`[(len)][ DESC] or (expr). DESC is
-// rendered unconditionally (it is harmless on 5.7, which stores ascending — the diff already
-// drops 5.7 DESC via CanonicalIndexColumn, so a round-tripped PK key still compares equal).
+// migrationIndexColumn renders one index/PK key part: `col`[(len)][ DESC] or (expr).
 func migrationIndexColumn(ic *IndexColumn) string {
 	var b strings.Builder
 	if ic.Expr != "" {
@@ -380,8 +376,7 @@ func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 	if cs := foldCharset(tbl.Charset); cs != "" {
 		parts = append(parts, "DEFAULT CHARSET="+cs)
 		// Emit COLLATE only for a non-default collation (see tableOptionAlterOp): a bare
-		// CHARSET table renders no COLLATE, so the server applies its version default and
-		// the DDL is valid on both 5.7 and 8.0 (never naming a missing utf8mb4_0900_ai_ci).
+		// CHARSET table renders no COLLATE, so the server applies its default.
 		if coll := n.effectiveTableCollation(tbl); coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 			parts = append(parts, "COLLATE="+coll)
 		}

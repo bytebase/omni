@@ -173,8 +173,7 @@ func canonicalRefDatabase(con *Constraint) string {
 //
 // FLAG: this is FK-action canonicalization and arguably belongs in normalize-core alongside
 // CanonicalColumn / CanonicalComment. It is kept local to the FK node (no other node needs it)
-// pending a normalize-core CanonicalFKAction; if one is added, route through it. This mirrors
-// the index node keeping canonicalIndexKeyBlockSize local with the same FLAG.
+// pending a normalize-core CanonicalFKAction; if one is added, route through it.
 func canonicalFKAction(action string) string {
 	switch strings.ToUpper(strings.TrimSpace(action)) {
 	case "", "RESTRICT", "NO ACTION":

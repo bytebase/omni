@@ -268,7 +268,7 @@ func TestMain(m *testing.M) {
 		sharedMySQL.container = nil
 	}
 	sharedMySQL.Unlock()
-	terminateOracleFallbacks()
+	terminateOracleFallback()
 	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }

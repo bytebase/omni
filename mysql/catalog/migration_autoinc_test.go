@@ -383,7 +383,7 @@ func TestAutoIncGrouping_IdempotenceHermetic(t *testing.T) {
 	}
 	for _, s := range schemas {
 		c := loadCat(t, dbDDL+s)
-		for _, n := range []*Normalizer{NormalizerFor(MySQL80), NormalizerFor(MySQL57)} {
+		for _, n := range []*Normalizer{NormalizerFor(MySQL80)} {
 			diff := DiffWithNormalizer(c, c, n)
 			if plan := GenerateMigrationWithNormalizer(c, c, diff, n); plan.SQL() != "" {
 				t.Errorf("self-diff plan not empty (version=%d) for %q:\n%s", n.Version, s, plan.SQL())

@@ -10,15 +10,15 @@ import (
 )
 
 // The oracle apply-correctness proof for the index generator (correctness-protocol.md gate 2),
-// against the LIVE MySQL engines. For representative (from, to) pairs covering every index
+// against the LIVE MySQL 8.0 engine. For representative (from, to) pairs covering every index
 // variant, the generated ALTER TABLE ... ADD/DROP index DDL applied to a real `from` database
 // must yield a table whose canonical form equals `to`. Idempotence (gate 1) for index forms is
 // covered by extending the migration idempotence corpus is not needed here because the index
 // diff probes already prove the no-op plan is empty via TestOracle_IndexDiffIdempotence; this
 // file proves the EMITTED DDL is correct.
 //
-// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / connectOracle /
-// both / only from migration_oracle_test.go; it skips cleanly when the engines are unreachable.
+// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / connectOracle
+// from migration_oracle_test.go; it skips cleanly when the engines are unreachable.
 
 // indexMigrationProbes enumerates the index ADD/DROP/MODIFY FORMS the generator covers. Each is a
 // single-table (from, to) pair (FK-backing indexes are proven separately — they need a parent and
@@ -28,124 +28,124 @@ func indexMigrationProbes() []migrationProbe {
 	return []migrationProbe{
 		// ---- CREATE TABLE carrying indexes (new table; non-PK indexes added via ALTER) ----
 		{"create-with-secondary", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kab (a,b))"},
 		{"create-with-unique", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY ua (a), UNIQUE KEY uab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, UNIQUE KEY ua (a), UNIQUE KEY uab (a,b))"},
 		{"create-with-prefix", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))"},
 		{"create-with-comment", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'hello')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'hello')"},
 		{"create-with-using-btree", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ua (a) USING BTREE) ENGINE=InnoDB"},
 		{"create-with-kbs", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE=4) ENGINE=InnoDB"},
 		{"create-with-composite-pk", "t", "",
-			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b), KEY kc (c))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT, PRIMARY KEY (a,b), KEY kc (c))"},
 		{"create-with-fulltext", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))"},
 		// 8.0-only forms.
 		{"create-with-descending", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))"},
 		{"create-with-invisible", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)"},
 		{"create-with-functional", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)))"},
 		{"create-with-mv-index", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))"},
 		{"create-with-spatial", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))"},
 
 		// ---- ADD INDEX (modified table) ----
 		{"add-secondary", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))"},
 		{"add-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))"},
 		{"add-composite", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))"},
 		{"add-prefix", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100))",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY sp (s(10)))"},
 		{"add-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'c')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a) COMMENT 'c')"},
 		{"add-fulltext", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY ftb (body))"},
 		{"add-primary-key", "t",
 			"CREATE TABLE t (id INT NOT NULL, a INT)",
-			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)"},
 		// 8.0-only.
 		{"add-descending", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ab (a, b DESC))"},
 		{"add-invisible", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)"},
 		{"add-functional", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY fa ((a + 1)))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY fa ((a + 1)))"},
 		{"add-mv-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))"},
 
 		// ---- DROP INDEX (modified table) ----
 		{"drop-secondary", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT)"},
 		{"drop-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY ua (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT)"},
 		{"drop-primary-key", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)",
-			"CREATE TABLE t (id INT NOT NULL, a INT)", both()},
+			"CREATE TABLE t (id INT NOT NULL, a INT)"},
 		{"drop-one-of-many", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kb (b))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))"},
 		{"drop-mv-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))",
-			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)"},
 
 		// ---- MODIFY index (DROP+ADD): same name, changed shape ----
 		{"modify-columns", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))"},
 		{"modify-kind-to-unique", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY k (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, UNIQUE KEY k (a))"},
 		{"modify-prefix-length", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(10)))",
-			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(20)))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, s VARCHAR(100), KEY k (s(20)))"},
 		{"modify-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'old')",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'new')", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) COMMENT 'new')"},
 		{"modify-pk-columns", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
-			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))"},
 		// PK change on an AUTO_INCREMENT table: the combined DROP+ADD PRIMARY KEY in one ALTER
 		// avoids the unkeyed window that leaves the AUTO_INCREMENT column without a key (errno
 		// 1075). `a` is promoted to NOT NULL to join the PK (column generator + MySQL auto-promote).
 		{"modify-pk-autoincrement", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT NOT NULL)",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id,a))", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id,a))"},
 		// PK swap to a different column on an AUTO_INCREMENT table (id stays auto-inc, still keyed
 		// by the new composite PK that includes it).
 		{"modify-pk-swap-autoincrement", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,a))",
-			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))", both()},
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))"},
 		// PK change that ALSO drops a column which was a member of the old PK: the PK must be
 		// dropped (PhasePre) before the column drop auto-removes it, then re-added (PhaseMain) after
 		// — the split form (errno 1091 otherwise).
 		{"modify-pk-drop-old-member", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
-			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))", both()},
+			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))"},
 		// PK shrink that demotes a removed PK member to nullable: the PK must be dropped before the
 		// MODIFY ... NULL (errno 1171 otherwise — a still-PK column cannot be made nullable).
 		{"modify-pk-shrink-demote-nullable", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))",
-			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))", both()},
+			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))"},
 		// NOTE: the combination "AUTO_INCREMENT keeps the PK AND a different old-PK member is
 		// demoted to nullable in the same migration" is handled by the AUTO_INCREMENT grouping
 		// pass (mergeAutoIncrementKeyOps) and proven by the aig-pk-keep-ai-demote-member probe in
@@ -153,45 +153,42 @@ func indexMigrationProbes() []migrationProbe {
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) /*!80000 INVISIBLE */)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a) /*!80000 INVISIBLE */)"},
 		{"modify-direction", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a DESC))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a DESC))"},
 
 		// ---- index DROP + column DROP interplay (ordering: DROP INDEX before DROP COLUMN) ----
 		// MySQL auto-drops a single-column index when its column is dropped; an explicit DROP INDEX
 		// after the column is gone fails errno 1091. The index drop must precede the column drop.
 		{"drop-column-and-its-single-col-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)"},
 		// Composite index on (a,b); dropping BOTH columns auto-drops the index → the explicit DROP
 		// INDEX must still come first.
 		{"drop-columns-and-their-composite-index", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))",
-			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY)"},
 		// Drop one column of a composite index but keep the index name on the remaining column:
 		// k (a,b) → k (b) while dropping a. This is a MODIFY (DROP+ADD) racing a column DROP; the
 		// index DROP (PhasePre) precedes the column DROP, and the re-ADD (PhaseMain) lands after.
 		{"modify-index-shrink-with-column-drop", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))",
-			"CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY k (b))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY k (b))"},
 		// Add a column AND an index on it in the same plan (ADD COLUMN then ADD INDEX).
 		{"add-column-and-index-on-it", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", both()},
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))"},
 	}
 }
 
 // TestOracle_IndexMigrationApplyCorrectness proves gate 2 for every index probe: the generated
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range indexMigrationProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				assertApplyCorrect(t, o, n, probe)
 			})
@@ -205,7 +202,7 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 // This guards against the index node fighting the FK node (duplicate-key-name on ADD, errno 1553
 // on DROP). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
