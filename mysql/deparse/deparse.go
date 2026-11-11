@@ -986,20 +986,6 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		if n.AsChar != nil {
 			fmt.Fprintf(b, " AS CHAR(%d)", n.AsChar.Length)
 		}
-		for i, lv := range n.Levels {
-			if i == 0 {
-				b.WriteString(" LEVEL ")
-			} else {
-				b.WriteString(", ")
-			}
-			fmt.Fprintf(b, "%d", lv.Level)
-			if lv.Desc {
-				b.WriteString(" DESC")
-			}
-			if lv.Reverse {
-				b.WriteString(" REVERSE")
-			}
-		}
 		b.WriteString(")")
 	default:
 		// Fallback: use the regular deparsed text
@@ -2118,28 +2104,12 @@ func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
 }
 
 // writeWeightStringExpr renders WEIGHT_STRING in the engine-stored form:
-// weight_string('ab' as char(4)) on 8.0, with 5.7 readbacks additionally
-// carrying a level list — weight_string('ab' as char(4) level 1)
-// (oracle 8.0.32 + 5.7.25).
+// weight_string('ab' as char(4)) (oracle 8.0.32).
 func writeWeightStringExpr(b *strings.Builder, n *ast.WeightStringExpr) {
 	b.WriteString("weight_string(")
 	writeExpr(b, n.Expr)
 	if n.AsChar != nil {
 		fmt.Fprintf(b, " as char(%d)", n.AsChar.Length)
-	}
-	for i, lv := range n.Levels {
-		if i == 0 {
-			b.WriteString(" level ")
-		} else {
-			b.WriteString(",")
-		}
-		fmt.Fprintf(b, "%d", lv.Level)
-		if lv.Desc {
-			b.WriteString(" desc")
-		}
-		if lv.Reverse {
-			b.WriteString(" reverse")
-		}
 	}
 	b.WriteString(")")
 }

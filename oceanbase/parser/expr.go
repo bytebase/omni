@@ -1584,11 +1584,20 @@ func (p *Parser) parseGetFormatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 // predates this parser and is pinned by tests); AS/LEVEL forms build a
 // WeightStringExpr. AS BINARY(n) is not stored by the engine — it desugars
 // to weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
-// 5.7.25), so the parser produces that shape directly. LEVEL is 5.7-only
-// syntax (8.0 rejects it); 5.7 stores a plain level list such as
-// "level 1 desc", with ASC dropped and ranges collapsed.
+// 5.7.25), so the parser produces that shape directly. LEVEL is the MySQL
+// 5.7 clause, which OceanBase keeps where MySQL 8.0 removed it; 5.7 stores
+// a plain level list such as "level 1 desc", with ASC dropped and ranges
+// collapsed.
 //
-// Ref: https://dev.mysql.com/doc/refman/5.7/en/string-functions.html#function_weight-string
+// OceanBase's grammar has opt_ws_levels on the plain and AS CHAR(n) arms
+// only, and its range is two bare numbers, so LEVEL after AS BINARY(n) and
+// a range whose first number carries ASC, DESC or REVERSE are both 1064
+// (measured on OceanBase 4.3.5.6).
+//
+// Ref: the WEIGHT_STRING arms of func_expr, opt_ws_levels and
+// ws_level_range in src/sql/parser/sql_parser_mysql_mode.y
+// (oceanbase/oceanbase v4.3.5_CE_BP6);
+// https://dev.mysql.com/doc/refman/5.7/en/string-functions.html#function_weight-string
 func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	// Completion parity with the generic argument path.
 	p.checkCursor()
@@ -1662,7 +1671,9 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		}
 	}
 
-	if p.cur.Type == kwLEVEL {
+	// AS BINARY(n) takes no LEVEL: the ')' expected below then refuses it at
+	// the LEVEL token.
+	if p.cur.Type == kwLEVEL && !asBinary {
 		p.advance()
 		for {
 			if p.cur.Type != tokICONST {
@@ -1683,23 +1694,29 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			// optional REVERSE (LEVEL 1 DESC REVERSE stores as
 			// "level 1 desc reverse"; REVERSE DESC is a 1064 and ASC
 			// normalizes away — oracle 5.7.25).
+			flagged := false
 			switch p.cur.Type {
 			case kwASC:
 				p.advance() // ASC is the default; normalize away
+				flagged = true
 			case kwDESC:
 				p.advance()
 				level.Desc = true
+				flagged = true
 			}
 			if p.cur.Type == kwREVERSE {
 				p.advance()
 				level.Reverse = true
+				flagged = true
 			}
 			ws.Levels = append(ws.Levels, level)
 			// Range form LEVEL n - m: expand to the full list. Weight levels
 			// are 1..6 per the MySQL reference (no collation has more), so
 			// the expansion is capped — an absurd range like LEVEL 1 - 1e18
-			// parses without materializing entries beyond the domain.
-			if len(ws.Levels) == 1 && !level.Desc && !level.Reverse && p.cur.Type == '-' {
+			// parses without materializing entries beyond the domain. A range
+			// is two bare numbers, so a written ASC ends the item like DESC
+			// and REVERSE do, and the '-' after it is refused below.
+			if len(ws.Levels) == 1 && !flagged && p.cur.Type == '-' {
 				p.advance()
 				if p.cur.Type != tokICONST {
 					return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}

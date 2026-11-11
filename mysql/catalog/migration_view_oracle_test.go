@@ -333,10 +333,8 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE VIEW v AS SELECT SUBSTRING(s FROM 2) AS c1, SUBSTRING(s FROM 2 FOR 3) AS c2, SUBSTRING(s, 2, 3) AS c3 FROM t",
 		}, []string{"t"}, []string{"v"}},
 		// WEIGHT_STRING: plain and AS CHAR(n); AS BINARY(n) desugars to the
-		// cast-charset-binary form. 8.0 only: 5.7 auto-appends `level 1` to
-		// the STORED body, which omni does not reproduce for user-declared
-		// SDL (FLAGGED; a 5.7 user can write LEVEL 1 explicitly, and 5.7
-		// readbacks — which always carry the level list — round-trip fine).
+		// cast-charset-binary form. The LEVEL clause of 5.7 is a 1064 on 8.0
+		// and a parse error here (TestWeightStringLevelRejectedByMySQL).
 		{"weight-string-forms", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT WEIGHT_STRING(s) AS c1, WEIGHT_STRING(s AS CHAR(4)) AS c2, WEIGHT_STRING(s AS BINARY(4)) AS c3 FROM t",

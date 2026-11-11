@@ -2103,9 +2103,9 @@ func (e *KeywordArg) exprNode() {}
 // WeightStringExpr represents WEIGHT_STRING(expr [AS CHAR(n)] [LEVEL ...]).
 // The AS BINARY(n) input form is not stored: MySQL desugars it to
 // weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
-// 5.7.25), so the parser produces that CastExpr shape instead. LEVEL is
-// accepted by 5.7 only; 5.7 readbacks always carry an explicit level list
-// (e.g. "1" or "1 desc"), while 8.0 rejects LEVEL entirely.
+// 5.7.25), so the parser produces that CastExpr shape instead. LEVEL is the
+// MySQL 5.7 clause, which OceanBase 4.3.5.6 accepts and MySQL 8.0 rejects;
+// 5.7 readbacks always carry an explicit level list (e.g. "1" or "1 desc").
 type WeightStringExpr struct {
 	Loc    Loc
 	Expr   ExprNode
