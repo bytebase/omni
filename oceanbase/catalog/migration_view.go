@@ -148,10 +148,7 @@ func formatCreateOrReplaceView(v *View) string {
 
 	fmt.Fprintf(&b, " VIEW %s", viewIdent(v, v.databaseName(), v.Name))
 
-	// Explicit column list (only when the user specified one). On 5.7 the engine folds this into
-	// the SELECT aliases and drops the clause; emitting it on a 5.7 target is still accepted
-	// (MySQL applies the rename), and the diff's 5.7 handling does not compare the list, so this
-	// rendering is safe on both versions.
+	// Explicit column list (only when the user specified one).
 	if v.ExplicitColumns && len(v.Columns) > 0 {
 		cols := make([]string, len(v.Columns))
 		for i, c := range v.Columns {

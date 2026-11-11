@@ -11,18 +11,12 @@ import (
 
 // Version-dispatch tests for the MySQL SDL catalog (node omni:version-dispatch).
 //
-// The bug these lock in: the catalog had no notion of server version, so the diff/generate
-// canonicalizer always assumed 8.0. A bare `CHARSET=utf8mb4` synced from a 5.7 server is
-// dumped (by bytebase MetadataToSDL) as `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`
-// (the 5.7 stored default), while the user's target DDL `... DEFAULT CHARSET=utf8mb4` (no
-// COLLATE) is loaded carrying the loader-baked STATIC 8.0 default `utf8mb4_0900_ai_ci`. Under
-// an 8.0-only normalizer the two resolve to different collations -> a phantom table-collation
-// diff that cascades into inherited varchar columns, and the generated DDL emits
-// `COLLATE=utf8mb4_0900_ai_ci` — a collation that DOES NOT EXIST on 5.7 (Error 1273).
-//
-// The version-correct defaults are oracle-verified (SHOW COLLATION ... Default='Yes'):
-//   utf8mb4 -> utf8mb4_general_ci (5.7) vs utf8mb4_0900_ai_ci (8.0)
-//   utf8/utf8mb3 -> utf8mb3_general_ci ; latin1 -> latin1_swedish_ci (both stable)
+// The catalog records a server version, and Diff/GenerateMigration canonicalize against that
+// version's stored form. MySQL80 is the only version: MySQL 5.7 is end-of-life and its form is
+// no longer reproduced. These lock in what the dispatch still owes on 8.0: a synced dump that
+// spells the default collation out (`DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`, as
+// bytebase MetadataToSDL emits) and the user's bare `DEFAULT CHARSET=utf8mb4` do not
+// phantom-diff, and the generated DDL names no collation for a bare charset.
 
 // loadOneTableWithVersion loads a CREATE TABLE wrapped in a database with the given server
 // charset and records the target version on the catalog (the bytebase wiring path:
@@ -49,12 +43,11 @@ func loadTableVersioned(t *testing.T, serverCharset, createSQL, table string, v 
 
 // --- Unit proof (no live engine): the exact phantom-diff scenario --------------------
 
-// TestVersionDispatch_BareCharsetNoPhantom is the headline unit proof. It reproduces the
-// bug's two input forms and asserts the diff is EMPTY under BOTH versions' normalizers:
-//   - synced/stored form: bare CHARSET=utf8mb4 with the version's stored default COLLATE
-//     spelled out (as MetadataToSDL emits), differing per version.
-//   - target/user form: bare CHARSET=utf8mb4 (no COLLATE) — loader bakes the static 8.0
-//     default regardless of version.
+// TestVersionDispatch_BareCharsetNoPhantom is the headline unit proof. It takes the two
+// input forms and asserts the diff is EMPTY:
+//   - synced/stored form: bare CHARSET=utf8mb4 with the stored default COLLATE spelled out
+//     (as MetadataToSDL emits).
+//   - target/user form: bare CHARSET=utf8mb4 (no COLLATE) — loader bakes the 8.0 default.
 func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 	const userTarget = "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50)) DEFAULT CHARSET=utf8mb4"
 
@@ -62,10 +55,6 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 		version    Version
 		syncedDump string // what MetadataToSDL emits for this version's synced table
 	}{
-		{
-			version:    MySQL57,
-			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
-		},
 		{
 			version:    MySQL80,
 			syncedDump: "CREATE TABLE t (id INT NOT NULL, name VARCHAR(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
@@ -77,8 +66,8 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 		t.Run(versionName(v), func(t *testing.T) {
 			n := NormalizerFor(v)
 			// serverCharset must match the version box default so inheritance resolves the
-			// same way on both sides (utf8mb4 on the 8.0 box, latin1 on the 5.7 box) — but the
-			// tables here declare their own utf8mb4 charset, so it is moot; use the box default.
+			// same way on both sides — but the tables here declare their own utf8mb4 charset,
+			// so it is moot; use the box default.
 			sc := serverCharsetFor(v)
 
 			fromCat, fromTbl := loadTableVersioned(t, sc, c.syncedDump, "t", v)
@@ -111,9 +100,8 @@ func TestVersionDispatch_BareCharsetNoPhantom(t *testing.T) {
 	}
 }
 
-// TestVersionDispatch_DefaultVersionIs80 guards the back-compat contract: a catalog with no
-// version set canonicalizes as 8.0 (Version's zero value is MySQL57, so defaultSessionState
-// must force MySQL80).
+// TestVersionDispatch_DefaultVersionIs80 guards the contract that a catalog with no version
+// set canonicalizes as 8.0.
 func TestVersionDispatch_DefaultVersionIs80(t *testing.T) {
 	c := New()
 	if c.Version() != MySQL80 {
@@ -132,12 +120,12 @@ func TestVersionDispatch_DefaultVersionIs80(t *testing.T) {
 	}
 }
 
-// TestVersionDispatch_GeneratedDDLNoMissingCollation proves the generate path never emits the
-// 5.7-missing collation for a bare-charset table/column: the rendered CREATE/ALTER carries no
-// COLLATE for a default-collation charset, so it is valid on either version.
-func TestVersionDispatch_GeneratedDDLNoMissingCollation(t *testing.T) {
+// TestVersionDispatch_BareCharsetEmitsNoCollate proves the generate path names no collation
+// for a bare-charset table/column: the rendered CREATE carries no COLLATE for a
+// default-collation charset.
+func TestVersionDispatch_BareCharsetEmitsNoCollate(t *testing.T) {
 	// from: empty; to: a bare CHARSET=utf8mb4 table (CREATE TABLE rendering).
-	for _, v := range both() {
+	for _, v := range []Version{MySQL80} {
 		t.Run(versionName(v), func(t *testing.T) {
 			n := NormalizerFor(v)
 			sc := serverCharsetFor(v)
@@ -149,9 +137,6 @@ func TestVersionDispatch_GeneratedDDLNoMissingCollation(t *testing.T) {
 			diff := DiffWithNormalizer(fromCat, toCat, n)
 			plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 			sql := plan.SQL()
-			if strings.Contains(sql, "utf8mb4_0900_ai_ci") {
-				t.Errorf("[%s] generated DDL names utf8mb4_0900_ai_ci (invalid on 5.7):\n%s", versionName(v), sql)
-			}
 			// A bare CHARSET table renders DEFAULT CHARSET=utf8mb4 but NO COLLATE clause.
 			if strings.Contains(strings.ToUpper(sql), "COLLATE") {
 				t.Errorf("[%s] bare-charset CREATE should emit no COLLATE, got:\n%s", versionName(v), sql)
@@ -160,70 +145,43 @@ func TestVersionDispatch_GeneratedDDLNoMissingCollation(t *testing.T) {
 	}
 }
 
-func versionName(v Version) string {
-	if v == MySQL80 {
-		return "8.0"
-	}
-	return "5.7"
-}
+func versionName(Version) string { return "8.0" }
 
-// TestVersionDispatch_BareTimestampNoPhantom locks in the EDFT half of the 5.7 fix:
-// LoadSDLWithVersion seeds the session explicit_defaults_for_timestamp to the version's
-// box default (OFF on 5.7), so a bare TIMESTAMP synced from 5.7 (which the server
-// materializes to NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) does
-// not phantom-diff against the user's bare `TIMESTAMP` target. Without the EDFT seed the
-// 5.7 catalog would keep New()'s 8.0 default (ON) and the bare TIMESTAMP would diff.
+// TestVersionDispatch_BareTimestampNoPhantom: LoadSDLWithVersion seeds the session
+// explicit_defaults_for_timestamp to the server default (ON), so a bare TIMESTAMP stays
+// nullable and the user's bare `TIMESTAMP` target does not phantom-diff against the stored
+// form (nullable, no implicit default).
 func TestVersionDispatch_BareTimestampNoPhantom(t *testing.T) {
-	// 5.7 server stored form of a bare first TIMESTAMP under EDFT=OFF.
-	synced57 := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+	synced := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
 	target := "CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP) DEFAULT CHARSET=utf8mb4"
 
-	from, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced57, MySQL57)
+	from, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced, MySQL80)
 	if err != nil {
 		t.Fatalf("load synced: %v", err)
 	}
-	to, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, MySQL57)
+	to, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, MySQL80)
 	if err != nil {
 		t.Fatalf("load target: %v", err)
 	}
-	if from.Version() != MySQL57 {
-		t.Fatalf("from version = %v, want MySQL57", from.Version())
-	}
 	if d := Diff(from, to); !d.IsEmpty() {
-		t.Errorf("5.7 bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
-	}
-
-	// And on 8.0 a bare TIMESTAMP stays nullable (EDFT ON), so the same user target vs an
-	// 8.0 stored form (nullable, no implicit default) is also empty.
-	synced80 := "CREATE TABLE t (id INT NOT NULL, ts TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
-	from80, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+synced80, MySQL80)
-	if err != nil {
-		t.Fatalf("load synced80: %v", err)
-	}
-	to80, err := LoadSDLWithVersion("CREATE DATABASE d; USE d;\n"+target, MySQL80)
-	if err != nil {
-		t.Fatalf("load target80: %v", err)
-	}
-	if d := Diff(from80, to80); !d.IsEmpty() {
-		t.Errorf("8.0 bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
+		t.Errorf("bare-TIMESTAMP no-op diff not empty:\n  %s", describeDiff(d))
 	}
 }
 
 // TestVersionDispatch_EDFTExplicitSetWins proves EDFT remains a SESSION variable, not a
-// version trait: LoadSDLWithVersion seeds the session to the version box default, but an
+// version trait: LoadSDLWithVersion seeds the session to the server default (ON), but an
 // explicit `SET explicit_defaults_for_timestamp` inside the SDL (processed after the seed)
-// still wins. A 5.7 schema that ran with EDFT explicitly ON must therefore leave a bare
-// TIMESTAMP nullable (no implicit NOT NULL / DEFAULT CURRENT_TIMESTAMP magic).
+// still wins. A schema that ran with EDFT explicitly OFF must therefore give its first bare
+// TIMESTAMP the implicit NOT NULL.
 func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
-	// 5.7 catalog (box default EDFT OFF) but the SDL carries SET ...=1 (ON).
-	sdl := "CREATE DATABASE d; USE d; SET SESSION explicit_defaults_for_timestamp=1;\n" +
+	sdl := "CREATE DATABASE d; USE d; SET SESSION explicit_defaults_for_timestamp=0;\n" +
 		"CREATE TABLE t (id INT PRIMARY KEY, ts TIMESTAMP)"
-	cat, err := LoadSDLWithVersion(sdl, MySQL57)
+	cat, err := LoadSDLWithVersion(sdl, MySQL80)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if !cat.session.ExplicitDefaultsForTimestamp {
-		t.Fatalf("explicit SET ...=1 must win over the 5.7 box-default seed; session EDFT = false")
+	if cat.session.ExplicitDefaultsForTimestamp {
+		t.Fatalf("explicit SET ...=0 must win over the server-default seed; session EDFT = true")
 	}
 	var tbl *Table
 	for _, db := range cat.Databases() {
@@ -238,20 +196,13 @@ func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
 	if ts == nil {
 		t.Fatal("column ts not found")
 	}
-	// EDFT ON: bare TIMESTAMP stays nullable, no implicit default materialized at load.
-	if !ts.Nullable {
-		t.Errorf("with EDFT explicitly ON, bare TIMESTAMP must stay nullable, got NOT NULL")
-	}
-	if ts.Default != nil {
-		t.Errorf("with EDFT explicitly ON, bare TIMESTAMP must have no implicit default, got %q", *ts.Default)
-	}
-	// And the diff-time normalizer (which reads the session EDFT) agrees it is nullable.
+	// The diff-time normalizer reads the session EDFT and agrees the column is NOT NULL.
 	n := defaultNormalizer(cat)
-	if n.ExplicitDefaultsForTimestamp != true {
-		t.Errorf("defaultNormalizer EDFT = false, want true (session override)")
+	if n.ExplicitDefaultsForTimestamp {
+		t.Errorf("defaultNormalizer EDFT = true, want false (session override)")
 	}
-	if n.CanonicalNotNull(tbl, ts) {
-		t.Errorf("CanonicalNotNull(bare TIMESTAMP) = true under EDFT ON, want false (nullable)")
+	if !n.CanonicalNotNull(tbl, ts) {
+		t.Errorf("CanonicalNotNull(bare TIMESTAMP) = false under EDFT OFF, want true (NOT NULL)")
 	}
 }
 
@@ -262,7 +213,7 @@ func TestVersionDispatch_EDFTExplicitSetWins(t *testing.T) {
 // table's non-default collation on apply (non-convergent). The omission is keyed off the
 // table's effective collation (inheritance), not the charset default.
 func TestVersionDispatch_ColumnDefaultUnderNonDefaultTable(t *testing.T) {
-	for _, v := range both() {
+	for _, v := range []Version{MySQL80} {
 		t.Run(versionName(v), func(t *testing.T) {
 			n := NormalizerFor(v)
 			defColl := n.defaultCollationFor("utf8mb4")
@@ -286,19 +237,19 @@ func TestVersionDispatch_ColumnDefaultUnderNonDefaultTable(t *testing.T) {
 	}
 }
 
-// --- Oracle proof (live engines): apply-clean on 5.7 and 8.0 -------------------------
+// --- Oracle proof (live engine): apply-clean on 8.0 -----------------------------------
 
 // TestOracle_VersionDispatchBareCharset is the live spine for this node. For each version it:
 //  1. applies the user target to a real DB, reads back the engine's stored form, and dumps a
 //     "synced" SDL form (bare charset + the version's explicit stored default collation —
 //     mirroring what bytebase MetadataToSDL produces);
 //  2. asserts Diff(synced, target) is EMPTY under the version normalizer (idempotence);
-//  3. generates the change DDL for a real modification, applies it to the real 5.7/8.0 DB
-//     (proving no Error 1273), and asserts convergence (re-diff empty).
+//  3. generates the change DDL for a real modification, applies it to the real DB, and
+//     asserts convergence (re-diff empty).
 func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 	const userTarget = "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(50)) DEFAULT CHARSET=utf8mb4"
 
-	for _, v := range both() {
+	for _, v := range oracleVersions() {
 		o := connectOracle(t, v)
 		t.Run(o.name, func(t *testing.T) {
 			// (1) engine's authentic stored form of the bare-charset target.
@@ -334,9 +285,6 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			}
 			plan := GenerateMigrationWithNormalizer(fromCat, toPlusCat, diff, n)
 			planSQL := plan.SQL()
-			if strings.Contains(planSQL, "utf8mb4_0900_ai_ci") && v == MySQL57 {
-				t.Errorf("[%s] change DDL names utf8mb4_0900_ai_ci (invalid on 5.7):\n%s", o.name, planSQL)
-			}
 
 			ctx := context.Background()
 			conn, err := o.db.Conn(ctx)
@@ -358,7 +306,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			}
 			for _, op := range plan.Ops {
 				if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-					t.Fatalf("[%s] APPLY FAILED (Error here on 5.7 = the bug):\n  stmt: %s\n  err: %v\n  plan:\n%s",
+					t.Fatalf("[%s] APPLY FAILED:\n  stmt: %s\n  err: %v\n  plan:\n%s",
 						o.name, op.SQL, err, planSQL)
 				}
 			}

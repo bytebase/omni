@@ -203,11 +203,8 @@ func (p *MigrationPlan) Warnings() []MigrationOp {
 // (pg/catalog/migration.go:196) and uses the modern MySQL 8.0 canonical form by default,
 // seeded — like Diff — with the `to` catalog's explicit_defaults_for_timestamp.
 //
-// Callers that know the target server version (bytebase's mysqlDiffSDLMigration, the oracle
-// apply tests where 5.7-vs-8.0 stored forms diverge) should use
-// GenerateMigrationWithNormalizer so the emitted DDL reproduces the version whose stored
-// form the readback will canonicalize against — the same Diff/DiffWithNormalizer split
-// diff-core established.
+// Callers that fix the normalizer explicitly should use GenerateMigrationWithNormalizer —
+// the same Diff/DiffWithNormalizer split diff-core established.
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	return GenerateMigrationWithNormalizer(from, to, diff, defaultNormalizer(to))
 }

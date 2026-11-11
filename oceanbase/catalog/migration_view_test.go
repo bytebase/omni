@@ -32,7 +32,7 @@ func viewOps(plan *MigrationPlan) []MigrationOp {
 }
 
 func TestGenerateView_NoOpEmpty(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{MySQL80} {
 		sdl := `CREATE TABLE t (a INT, b INT);
 CREATE VIEW v1 AS SELECT a FROM t;`
 		plan := viewPlanFor(t, version, sdl, sdl)
@@ -321,7 +321,7 @@ func opPositions(plan *MigrationPlan, wants []opWant) []int {
 // routine creates are hoisted before view creates unconditionally. Regression for the enterprise
 // SDL smoke failure (view-before-function plan → Error 1305 on apply).
 func TestGenerateView_ViewAfterFunction(t *testing.T) {
-	for _, version := range []Version{MySQL57, MySQL80} {
+	for _, version := range []Version{MySQL80} {
 		plan := viewPlanFor(t, version,
 			`CREATE TABLE users (id INT PRIMARY KEY);`,
 			`CREATE TABLE users (id INT PRIMARY KEY);

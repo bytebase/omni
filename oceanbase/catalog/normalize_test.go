@@ -37,54 +37,6 @@ func baseTypeOf(columnType string) string {
 //  column-charset-only-collation-resolution, utf8mb4-default-collation)
 // ---------------------------------------------------------------------------
 
-func TestResolveColumnCharsetCollation_57_StripsWhenEqualsTable(t *testing.T) {
-	// 5.7 readback: a column whose charset == table charset stores NO charset/collation
-	// clause (all four columns read back as bare `varchar(10)`). The user's target may
-	// write the clause explicitly. Both must resolve to the same effective pair.
-	tbl := &Table{Name: "c1", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
-
-	// User target: explicit charset+collation equal to the table default.
-	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", CharsetExplicit: true, Collation: "utf8mb4_general_ci", CollationExplicit: true, Nullable: true}
-	// Synced stored form: 5.7 stripped both clauses, leaving them empty (inherited).
-	storedCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "", Collation: "", Nullable: true}
-
-	n := NormalizerFor(MySQL57)
-	uc, ucol := n.ResolveColumnCharsetCollation(tbl, userCol)
-	sc, scol := n.ResolveColumnCharsetCollation(tbl, storedCol)
-	if uc != sc || ucol != scol {
-		t.Fatalf("5.7 equal-to-table charset must resolve identically: user=(%q,%q) stored=(%q,%q)", uc, ucol, sc, scol)
-	}
-	if uc != "utf8mb4" || ucol != "utf8mb4_general_ci" {
-		t.Fatalf("expected resolved pair (utf8mb4, utf8mb4_general_ci), got (%q,%q)", uc, ucol)
-	}
-}
-
-func TestResolveColumnCharsetCollation_57_KeepsGenuineOverride(t *testing.T) {
-	// 5.7 readback: a column whose charset differs from the table keeps it
-	// (`CHARACTER SET utf8` under a utf8mb4 table).
-	tbl := &Table{Name: "cu", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
-	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8", CharsetExplicit: true, Nullable: true} // user wrote CHARACTER SET utf8, no collate
-	storedCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8", CharsetExplicit: true, Nullable: true} // 5.7 keeps `CHARACTER SET utf8`
-
-	n := NormalizerFor(MySQL57)
-	uc, ucol := n.ResolveColumnCharsetCollation(tbl, userCol)
-	sc, scol := n.ResolveColumnCharsetCollation(tbl, storedCol)
-	if uc != sc || ucol != scol {
-		t.Fatalf("override must resolve identically: user=(%q,%q) stored=(%q,%q)", uc, ucol, sc, scol)
-	}
-	// utf8 ≡ utf8mb3; collation resolves to the charset default, not the table's.
-	if uc != "utf8mb3" {
-		t.Fatalf("expected resolved charset utf8mb3 (utf8 alias), got %q", uc)
-	}
-	if ucol != "utf8_general_ci" && ucol != "utf8mb3_general_ci" {
-		t.Fatalf("expected utf8 charset-default collation, got %q", ucol)
-	}
-}
-
 func TestResolveColumnCharsetCollation_80_KeepsRedundantPair(t *testing.T) {
 	// 8.0 readback: when the user specifies charset OR collation, 8.0 echoes BOTH as a
 	// pair even if it equals the table default. A bare column collapses to varchar(10).
@@ -164,53 +116,35 @@ func TestCanonicalColumnType_IntWidth_80DropsWidth(t *testing.T) {
 	canonTypeEq(t, MySQL80, "tinyint", "tinyint", "tinyint", "tinyint(4)")
 }
 
-func TestCanonicalColumnType_IntWidth_57InjectsDefault(t *testing.T) {
-	// 5.7 injects the default width when omitted. Loader-form "int" and readback
-	// "int(11)" must both canonicalize to "int(11)".
-	canonTypeEq(t, MySQL57, "int(11)", "int", "int(11)", "integer")
-	canonTypeEq(t, MySQL57, "bigint(20)", "bigint", "bigint(20)")
-	canonTypeEq(t, MySQL57, "smallint(6)", "smallint", "smallint(6)")
-	canonTypeEq(t, MySQL57, "mediumint(9)", "mediumint", "mediumint(9)")
-	canonTypeEq(t, MySQL57, "tinyint(4)", "tinyint", "tinyint(4)")
-}
-
 func TestCanonicalColumnType_Tinyint1Boolean(t *testing.T) {
-	// tinyint(1) survives on BOTH versions (boolean marker); BOOLEAN/BOOL → tinyint(1).
+	// tinyint(1) survives (boolean marker); BOOLEAN/BOOL → tinyint(1).
 	canonTypeEq(t, MySQL80, "tinyint(1)", "tinyint(1)", "boolean", "bool")
-	canonTypeEq(t, MySQL57, "tinyint(1)", "tinyint(1)", "boolean", "bool")
-	// bare tinyint differs: 8.0 drops to tinyint, 5.7 injects tinyint(4).
+	// bare tinyint differs: its width drops.
 	canonTypeEq(t, MySQL80, "tinyint", "tinyint(4)")
-	canonTypeEq(t, MySQL57, "tinyint(4)", "tinyint")
 }
 
 func TestCanonicalColumnType_UnsignedWidth(t *testing.T) {
 	canonTypeEq(t, MySQL80, "int unsigned", "int unsigned", "int(11) unsigned", "int(10) unsigned")
-	// 5.7 bare INT UNSIGNED → int(10) unsigned (unsigned default width is 10, not 11).
-	canonTypeEq(t, MySQL57, "int(10) unsigned", "int unsigned", "int(10) unsigned")
-	canonTypeEq(t, MySQL57, "bigint(20) unsigned", "bigint unsigned", "bigint(20) unsigned")
-	canonTypeEq(t, MySQL57, "tinyint(3) unsigned", "tinyint unsigned")
 }
 
-func TestCanonicalColumnType_Zerofill_WidthKeptBothVersions(t *testing.T) {
-	// ZEROFILL retains display width on BOTH versions and implies unsigned.
+func TestCanonicalColumnType_Zerofill_WidthKept(t *testing.T) {
+	// ZEROFILL retains display width and implies unsigned.
 	want := "int(5) unsigned zerofill"
 	canonTypeEq(t, MySQL80, want, "int(5) zerofill", "int(5) unsigned zerofill")
-	canonTypeEq(t, MySQL57, want, "int(5) zerofill", "int(5) unsigned zerofill")
-	// bare INT ZEROFILL → width 10 injected, both versions.
+	// bare INT ZEROFILL → width 10 injected.
 	canonTypeEq(t, MySQL80, "int(10) unsigned zerofill", "int zerofill")
-	canonTypeEq(t, MySQL57, "int(10) unsigned zerofill", "int zerofill")
 }
 
 func TestCanonicalColumnType_DecimalPrecisionScale(t *testing.T) {
 	// NUMERIC/DEC/FIXED → decimal; bare → decimal(10,0); DECIMAL(10) → decimal(10,0).
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		canonTypeEq(t, v, "decimal(10,0)", "decimal", "decimal(10)", "numeric", "dec", "fixed", "decimal(10,0)")
 		canonTypeEq(t, v, "decimal(8,3)", "decimal(8,3)", "numeric(8,3)")
 	}
 }
 
 func TestCanonicalColumnType_FloatDoubleAliasing(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		canonTypeEq(t, v, "float", "float", "float(5)") // single-arg precision dropped
 		canonTypeEq(t, v, "double", "double", "real")
 		canonTypeEq(t, v, "float(10,2)", "float(10,2)")
@@ -220,11 +154,10 @@ func TestCanonicalColumnType_FloatDoubleAliasing(t *testing.T) {
 
 func TestCanonicalColumnType_YearWidth(t *testing.T) {
 	canonTypeEq(t, MySQL80, "year", "year", "year(4)")
-	canonTypeEq(t, MySQL57, "year(4)", "year", "year(4)")
 }
 
 func TestCanonicalColumnType_BitCharBinaryLengthDefault(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		canonTypeEq(t, v, "bit(1)", "bit", "bit(1)")
 		canonTypeEq(t, v, "char(1)", "char", "char(1)")
 		canonTypeEq(t, v, "binary(1)", "binary", "binary(1)")
@@ -234,7 +167,7 @@ func TestCanonicalColumnType_BitCharBinaryLengthDefault(t *testing.T) {
 }
 
 func TestCanonicalColumnType_TextBlobNoWidth(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		canonTypeEq(t, v, "text", "text")
 		canonTypeEq(t, v, "blob", "blob")
 		canonTypeEq(t, v, "longtext", "longtext")
@@ -268,7 +201,7 @@ func defaultKeyEq(t *testing.T, v Version, a, b *Column) {
 func TestCanonicalDefault_NumericValueBased(t *testing.T) {
 	// flag numeric-default-quote-version: compare numeric defaults by VALUE, not string.
 	// Loader stores "0" for DEFAULT 0; readback is "'0'". Both must be equal.
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		defaultKeyEq(t, v,
 			defCol("int", sp("0"), ColumnDefaultConstant),
 			defCol("int", sp("'0'"), ColumnDefaultConstant))
@@ -280,7 +213,7 @@ func TestCanonicalDefault_NumericValueBased(t *testing.T) {
 
 func TestCanonicalDefault_DecimalScalePadding(t *testing.T) {
 	// A numeric default on a scaled DECIMAL is padded to the column scale: 0 → '0.00'.
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		defaultKeyEq(t, v,
 			defCol("decimal(10,2)", sp("0"), ColumnDefaultConstant),
 			defCol("decimal(10,2)", sp("'0.00'"), ColumnDefaultConstant))
@@ -291,7 +224,7 @@ func TestCanonicalDefault_DecimalScalePadding(t *testing.T) {
 }
 
 func TestCanonicalDefault_StringQuoting(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		// Double-quoted vs single-quoted string default are equal.
 		defaultKeyEq(t, v,
 			defCol("varchar(10)", sp(`"double"`), ColumnDefaultConstant),
@@ -305,7 +238,7 @@ func TestCanonicalDefault_StringQuoting(t *testing.T) {
 
 func TestCanonicalDefault_NullHandling(t *testing.T) {
 	// A nullable column with explicit NULL / DEFAULT NULL / no default are equivalent.
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		nullDef := defCol("int", sp("NULL"), ColumnDefaultConstant)
 		noDef := col("x", "int") // Default == nil
 		defaultKeyEq(t, v, nullDef, noDef)
@@ -314,7 +247,7 @@ func TestCanonicalDefault_NullHandling(t *testing.T) {
 
 func TestCanonicalDefault_BooleanLiteral(t *testing.T) {
 	// BOOLEAN DEFAULT TRUE/FALSE → '1'/'0'. Loader already folds TRUE→"1".
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		defaultKeyEq(t, v,
 			defCol("tinyint(1)", sp("1"), ColumnDefaultConstant),
 			defCol("tinyint(1)", sp("'1'"), ColumnDefaultConstant))
@@ -323,7 +256,7 @@ func TestCanonicalDefault_BooleanLiteral(t *testing.T) {
 
 func TestCanonicalDefault_CurrentTimestampSynonyms(t *testing.T) {
 	// NOW()/LOCALTIME/LOCALTIMESTAMP → CURRENT_TIMESTAMP, unquoted, case-insensitive.
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		defaultKeyEq(t, v,
 			defCol("datetime", sp("CURRENT_TIMESTAMP"), ColumnDefaultCurrentTimestamp),
 			defCol("datetime", sp("now()"), ColumnDefaultCurrentTimestamp))
@@ -370,7 +303,7 @@ func genExprEq(t *testing.T, v Version, inputs ...string) {
 
 func TestCanonicalGeneratedExpr_WhitespaceAndParens(t *testing.T) {
 	// (a+1), ( a + 1 ), `a` + 1, ((`a` + 1)) all collapse to one canonical form.
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		genExprEq(t, v,
 			"`a` + 1",
 			"(`a` + 1)",
@@ -384,7 +317,7 @@ func TestCanonicalGeneratedExpr_WhitespaceAndParens(t *testing.T) {
 func TestCanonicalGeneratedExpr_LatinIntroducerStripped(t *testing.T) {
 	// 8.0 readback injects _latin1 before string literals; 5.7 and user input do not.
 	// Both must compare equal (the introducer is connection-dependent noise).
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		genExprEq(t, v,
 			"concat(`a`,'x')",
 			"concat(`a`,_latin1'x')",
@@ -394,7 +327,7 @@ func TestCanonicalGeneratedExpr_LatinIntroducerStripped(t *testing.T) {
 }
 
 func TestCanonicalGeneratedExpr_FunctionLowercasing(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		genExprEq(t, v,
 			"concat(`a`,`b`)",
 			"CONCAT(`a`,`b`)",
@@ -457,7 +390,7 @@ func tsCol(name string) *Column {
 func TestCanonicalTimestamp_EDFTOff_FirstBareGetsMagic(t *testing.T) {
 	// explicit_defaults_for_timestamp=0: the FIRST bare TIMESTAMP gets
 	// NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP.
-	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	n := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: false}
 	a := tsCol("a")
 	tbl := tsTable(a)
 
@@ -478,7 +411,7 @@ func TestCanonicalTimestamp_EDFTOff_NullExplicitDistinguishesBareFromNull(t *tes
 	// non-first one — while an explicit `TIMESTAMP NULL` stays nullable. The loader's
 	// NullExplicit flag tells them apart (a bare TIMESTAMP and `TIMESTAMP NULL` are
 	// otherwise the same catalog state).
-	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	n := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: false}
 	a := tsCol("a")            // first, bare
 	bare := tsCol("b")         // non-first, bare → NOT NULL
 	explicitNull := tsCol("c") // non-first, explicit NULL → nullable
@@ -496,7 +429,7 @@ func TestCanonicalTimestamp_EDFTOff_NullExplicitDistinguishesBareFromNull(t *tes
 func TestCanonicalTimestamp_EDFTOff_FirstWithPrecisionGetsPreciseDefault(t *testing.T) {
 	// First TIMESTAMP(3) under EDFT=0 → DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE
 	// CURRENT_TIMESTAMP(3), matching the column's fractional precision.
-	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	n := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: false}
 	a := &Column{Name: "a", DataType: "timestamp", ColumnType: "timestamp(3)", Nullable: true}
 	tbl := tsTable(a)
 	def, onUpdate := n.CanonicalTimestampDefaults(tbl, a)
@@ -516,12 +449,12 @@ func TestCanonicalTimestamp_EDFTOn_BareIsNullable(t *testing.T) {
 }
 
 func TestCanonicalTimestamp_SameVersionDifferentEDFT_Diverges(t *testing.T) {
-	// The whole point of flag #3: a 5.7 server with EDFT=1 behaves like 8.0, NOT like
-	// the 5.7 box. Nullability must follow the captured variable, not the version.
+	// The whole point of flag #3: a server with EDFT=0 does not behave like the server
+	// default. Nullability must follow the captured variable, not the version.
 	a1 := tsCol("a")
 	a2 := tsCol("a")
-	on := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: true}   // 5.7 + EDFT ON
-	off := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false} // 5.7 + EDFT OFF
+	on := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: true}   // EDFT ON
+	off := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: false} // EDFT OFF
 	if on.CanonicalNotNull(tsTable(a1), a1) == off.CanonicalNotNull(tsTable(a2), a2) {
 		t.Fatal("TIMESTAMP nullability must depend on explicit_defaults_for_timestamp, not version")
 	}
@@ -591,7 +524,7 @@ func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 // Index column direction — descending is version-flagged. (entry index-desc-asc)
 // ---------------------------------------------------------------------------
 
-func TestCanonicalIndexColumn_DescendingVersionFlagged(t *testing.T) {
+func TestCanonicalIndexColumn_Descending(t *testing.T) {
 	descCol := &IndexColumn{Name: "a", Descending: true}
 	ascCol := &IndexColumn{Name: "a", Descending: false}
 
@@ -600,15 +533,10 @@ func TestCanonicalIndexColumn_DescendingVersionFlagged(t *testing.T) {
 	if n80.CanonicalIndexColumn(descCol) == n80.CanonicalIndexColumn(ascCol) {
 		t.Fatal("8.0: DESC and ASC index columns must differ")
 	}
-	// 5.7 ignores direction: DESC and ASC produce the SAME key (stored ascending).
-	n57 := NormalizerFor(MySQL57)
-	if n57.CanonicalIndexColumn(descCol) != n57.CanonicalIndexColumn(ascCol) {
-		t.Fatal("5.7: direction must be ignored (no descending indexes)")
-	}
 }
 
 func TestCanonicalIndexColumn_PrefixLengthPreserved(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		n := NormalizerFor(v)
 		a10 := &IndexColumn{Name: "a", Length: 10}
 		a20 := &IndexColumn{Name: "a", Length: 20}
@@ -623,7 +551,7 @@ func TestCanonicalIndexColumn_PrefixLengthPreserved(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCanonicalColumnType_EnumSetQuoting(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		// Double-quoted members canonicalize to single-quoted; order preserved.
 		canonTypeEq(t, v, "enum('x','y','z')", "enum('x','y','z')", `enum("x","y","z")`)
 		canonTypeEq(t, v, "set('a','b','c')", "set('a','b','c')")
@@ -656,21 +584,6 @@ func TestCanonicalColumn_8080PhantomDiffEliminated(t *testing.T) {
 	}
 }
 
-func TestCanonicalColumn_57CharsetEchoPhantomEliminated(t *testing.T) {
-	// 5.7: user writes explicit `CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`
-	// equal to the table default; synced readback dropped both. Keys must match.
-	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
-	n := NormalizerFor(MySQL57)
-
-	user := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", Collation: "utf8mb4_general_ci", Nullable: true}
-	stored := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)", Nullable: true}
-	if n.CanonicalColumn(tbl, user) != n.CanonicalColumn(tbl, stored) {
-		t.Fatalf("5.7 charset-echo must not phantom-diff:\n user=%s\n stor=%s",
-			n.CanonicalColumn(tbl, user), n.CanonicalColumn(tbl, stored))
-	}
-}
-
 func TestCanonicalColumn_GenuineDifferenceDetected(t *testing.T) {
 	// The firewall must still detect a REAL change (int → bigint).
 	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
@@ -687,7 +600,7 @@ func TestCanonicalColumn_GenuineDifferenceDetected(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIdempotence_ColumnType(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		n := NormalizerFor(v)
 		for _, in := range []string{"int(11)", "int", "bigint", "tinyint(1)", "boolean",
 			"decimal(10,2)", "decimal", "float(10,2)", "year(4)", "varchar(10)",
@@ -714,7 +627,7 @@ func TestIdempotence_GeneratedExpr(t *testing.T) {
 
 func TestIdempotence_CharsetCollation(t *testing.T) {
 	tbl := &Table{Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		n := NormalizerFor(v)
 		in := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)", Charset: "utf8", Nullable: true}
 		cs, coll := n.ResolveColumnCharsetCollation(tbl, in)
@@ -762,11 +675,8 @@ func TestCanonicalDefault_LargeBigintPrecisionPreserved(t *testing.T) {
 // either version. (Oracle: `YEAR NOT NULL DEFAULT 2000` reads back `DEFAULT '2000'` on
 // 5.7 and 8.0.)
 func TestCanonicalDefault_YearNumericVsQuoted(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		ct := "year"
-		if v == MySQL57 {
-			ct = "year(4)"
-		}
 		// Numeric user form vs quoted stored readback.
 		defaultKeyEq(t, v,
 			defCol(ct, sp("2000"), ColumnDefaultConstant),
@@ -836,7 +746,7 @@ func TestCanonicalDefault_YearNumericVsQuoted(t *testing.T) {
 // SAME bit value must canonicalize equal, and the canonical key is value-based so the
 // minimal (`b'0'`) and zero-padded (`b'00000000'`) spellings of the same value also match.
 func TestCanonicalDefault_BitLiteralValueBased(t *testing.T) {
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		// b'0' (the task's stated case) round-trips: user b'0' vs stored b'0'.
 		defaultKeyEq(t, v,
 			defCol("bit(8)", sp("b'0'"), ColumnDefaultConstant),
@@ -880,11 +790,8 @@ func TestCanonicalDefault_BitLiteralValueBased(t *testing.T) {
 func TestCanonicalDefault_BigintUnsignedMaxExact(t *testing.T) {
 	const maxU64 = "18446744073709551615"
 	const maxI64 = "9223372036854775807"
-	for _, v := range []Version{MySQL57, MySQL80} {
+	for _, v := range []Version{MySQL80} {
 		ct := "bigint unsigned"
-		if v == MySQL57 {
-			ct = "bigint(20) unsigned"
-		}
 		// Unquoted user form vs quoted stored readback at the uint64 max.
 		defaultKeyEq(t, v,
 			defCol(ct, sp(maxU64), ColumnDefaultConstant),
@@ -1012,7 +919,7 @@ func TestResolveColumnCharsetCollation_CollateOnlyDerivesCharset(t *testing.T) {
 func TestCanonicalTimestamp_NotNullFirstColumnGetsMagic(t *testing.T) {
 	// EDFT=0: the first TIMESTAMP column gets the implicit CURRENT_TIMESTAMP default even
 	// when explicitly NOT NULL (only an explicit NULL suppresses it).
-	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	n := &Normalizer{Version: MySQL80, ExplicitDefaultsForTimestamp: false}
 	a := &Column{Name: "a", DataType: "timestamp", ColumnType: "timestamp", Nullable: false, NullExplicit: true}
 	tbl := tsTable(a)
 	def, onUpdate := n.CanonicalTimestampDefaults(tbl, a)

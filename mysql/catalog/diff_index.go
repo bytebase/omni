@@ -20,12 +20,11 @@ import (
 //
 // Identity is the index name, lower-cased (PRIMARY for the primary key). Equality is decided
 // by a canonical key (canonicalIndex) that folds every stored-form-significant attribute —
-// kind, column parts (name/prefix/expr, version-flagged DESC via the normalizer), USING type,
-// comment, visibility, and the 5.7-only index KEY_BLOCK_SIZE — so an index whose surface form
-// differs from its SHOW CREATE readback but whose stored form is identical produces no phantom
-// diff. Every canonicalization-sensitive part is routed through normalize.go (the normalizer's
-// CanonicalIndexColumn handles prefix + version-flagged DESC; CanonicalGeneratedExpr handles a
-// functional index expression).
+// kind, column parts (name/prefix/expr, DESC via the normalizer), USING type, comment, and
+// visibility — so an index whose surface form differs from its SHOW CREATE readback but whose
+// stored form is identical produces no phantom diff. Every canonicalization-sensitive part is
+// routed through normalize.go (the normalizer's CanonicalIndexColumn handles prefix + DESC;
+// CanonicalGeneratedExpr handles a functional index expression).
 //
 // FK-implicit-backing indexes are EXCLUDED (see fkImplicitIndexNames): MySQL auto-creates an
 // index to back a foreign key when no user index covers the FK columns, and SHOW CREATE shows
@@ -275,19 +274,16 @@ func indexesChanged(a, b *Index, n *Normalizer) bool {
 }
 
 // canonicalIndex returns a single stable comparison key for an index, folding the attributes
-// that survive into MySQL's stored form for the normalizer's version. Routed entirely through
-// normalize-core for the canonicalization-sensitive parts:
-//   - column parts via CanonicalIndexColumn (name/prefix/expr + version-flagged DESC: 8.0
-//     keeps DESC, 5.7 silently stores ascending);
-//   - KEY_BLOCK_SIZE is version-flagged the same way DESC is: 5.7 echoes an index-level
-//     KEY_BLOCK_SIZE in SHOW CREATE, 8.0 silently absorbs it (never stored on the index, never
-//     echoed — verified against both live engines), so it contributes to the key only on 5.7.
-//     This is canonicalIndexKeyBlockSize; it keeps an 8.0 user form that wrote KEY_BLOCK_SIZE=N
-//     from phantom-diffing against the 8.0 readback that drops it.
+// that survive into MySQL's stored form. Routed entirely through normalize-core for the
+// canonicalization-sensitive parts:
+//   - column parts via CanonicalIndexColumn (name/prefix/expr + DESC);
+//   - an index-level KEY_BLOCK_SIZE is not part of the key: 8.0 silently absorbs it (never
+//     stored on the index, never echoed), so a user form that wrote KEY_BLOCK_SIZE=N must not
+//     phantom-diff against the readback that drops it.
 //
-// Kind (primary/unique/fulltext/spatial), USING type, comment, and visibility are
-// version-independent and compared directly. The index NAME is the identity key (handled by the
-// caller's map), not part of this content key.
+// Kind (primary/unique/fulltext/spatial), USING type, comment, and visibility are compared
+// directly. The index NAME is the identity key (handled by the caller's map), not part of this
+// content key.
 func canonicalIndex(idx *Index, n *Normalizer) string {
 	parts := make([]string, 0, len(idx.Columns))
 	for _, ic := range idx.Columns {
@@ -301,7 +297,6 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"using", canonicalIndexType(idx),
 		"comment", n.CanonicalComment(idx.Comment),
 		"visible", strconv.FormatBool(idx.Visible),
-		"kbs", canonicalIndexKeyBlockSize(idx, n),
 		"cols", strings.Join(parts, ","),
 	)
 }
@@ -316,17 +311,4 @@ func canonicalIndexType(idx *Index) string {
 		return ""
 	}
 	return strings.ToUpper(strings.TrimSpace(idx.IndexType))
-}
-
-// canonicalIndexKeyBlockSize returns the index KEY_BLOCK_SIZE as a key fragment, but only on
-// 5.7 where SHOW CREATE echoes it. On 8.0 the engine does not store an index-level
-// KEY_BLOCK_SIZE (information_schema shows none and SHOW CREATE omits it), so it is dropped from
-// the key — otherwise an 8.0 `KEY k (a) KEY_BLOCK_SIZE=4` user form would phantom-diff against
-// its readback, which has no block size. FLAG: this version split is local to index diffing; if
-// normalize-core later grows a CanonicalIndexKeyBlockSize, route through it.
-func canonicalIndexKeyBlockSize(idx *Index, n *Normalizer) string {
-	if idx.KeyBlockSize == 0 || n.is80() {
-		return ""
-	}
-	return strconv.Itoa(idx.KeyBlockSize)
 }

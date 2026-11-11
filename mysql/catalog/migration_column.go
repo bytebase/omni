@@ -220,9 +220,9 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 			b.WriteString(cs)
 			// The column declares a DIFFERENT charset than the table, so it cannot inherit the
 			// table COLLATE; a bare `CHARACTER SET cs` falls back to cs's SERVER default. Emit
-			// COLLATE only when the target collation is NOT that charset's version default — so
-			// a column whose collation IS the default renders no COLLATE (valid on 5.7 and 8.0,
-			// never naming a collation the target lacks), while a non-default one is explicit.
+			// COLLATE only when the target collation is NOT that charset's default — so a
+			// column whose collation IS the default renders no COLLATE, while a non-default one
+			// is explicit.
 			if coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 				b.WriteString(" COLLATE ")
 				b.WriteString(coll)

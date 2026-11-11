@@ -329,10 +329,9 @@ func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 //
 // It mirrors show.go's showIndex (the stored index line) so the readback of the ADD
 // canonicalizes equal to `to`. The one addition over showIndex is KEY_BLOCK_SIZE: show.go never
-// emits it (SHOW CREATE drops the index-level value on 8.0), but the ADD must carry it so the
-// value is actually applied — on 5.7 the readback then echoes it (matches), and on 8.0 the
-// readback drops it but canonicalIndexKeyBlockSize also ignores it on 8.0, so the round-trip is
-// empty either way.
+// emits it (SHOW CREATE drops the index-level value on 8.0), but the ADD carries what the
+// target states — the readback drops it and canonicalIndex ignores it, so the round-trip is
+// empty.
 func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 	var b strings.Builder
 

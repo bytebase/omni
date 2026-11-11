@@ -41,7 +41,7 @@ func TestMigration_EmptyDiffEmptyPlan(t *testing.T) {
 	}
 	for _, s := range schemas {
 		c := loadCat(t, s)
-		for _, n := range []*Normalizer{NormalizerFor(MySQL80), NormalizerFor(MySQL57)} {
+		for _, n := range []*Normalizer{NormalizerFor(MySQL80)} {
 			diff := DiffWithNormalizer(c, c, n)
 			plan := GenerateMigrationWithNormalizer(c, c, diff, n)
 			if len(plan.Ops) != 0 {
@@ -224,19 +224,13 @@ func TestMigration_ModifyColumnUsesModify(t *testing.T) {
 	}
 }
 
-// 5.7 renders integer display widths; 8.0 drops them. The MODIFY must reflect the target
-// version's canonical type (proving rendering routes through the Normalizer, not a fixed
-// 8.0 form).
-func TestMigration_ModifyColumnVersionedWidth(t *testing.T) {
+// 8.0 drops integer display widths, and the MODIFY renders the canonical type.
+func TestMigration_ModifyColumnWidth(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v SMALLINT);"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, v BIGINT);"
 	op80 := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
 	if !strings.Contains(op80.SQL, "`v` bigint") || strings.Contains(op80.SQL, "bigint(") {
 		t.Errorf("8.0 MODIFY must render width-less bigint, got %q", op80.SQL)
-	}
-	op57 := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL57)))
-	if !strings.Contains(op57.SQL, "`v` bigint(20)") {
-		t.Errorf("5.7 MODIFY must render bigint(20), got %q", op57.SQL)
 	}
 }
 

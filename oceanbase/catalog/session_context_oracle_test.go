@@ -20,8 +20,8 @@ import (
 // framing these assertions fail (the object comes back under the deploy session's mode) —
 // which is the whole point of the change.
 //
-// 5.7 is exercised too; connectOracle falls back to a container for a version with no local
-// instance (oracle_fallback_test.go).
+// connectOracle falls back to a container when there is no local instance
+// (oracle_fallback_test.go).
 
 const scOracleDB = "byt9832_sc_apply"
 
@@ -53,7 +53,7 @@ func execUnderSession(t testing.TB, conn sessionExecer, ctx context.Context, sql
 // preserves sql_mode on the live engine.
 func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT,NO_BACKSLASH_ESCAPES"
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
@@ -119,7 +119,7 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
@@ -238,9 +238,4 @@ func eventSQLModeTZ(t *testing.T, conn *sql.Conn, ctx context.Context, db, name 
 
 // defaultCollationForServerCharset returns a plausible default collation for the server
 // charset of a version, used only to populate a realistic synced context in these tests.
-func defaultCollationForServerCharset(v Version) string {
-	if v == MySQL57 {
-		return "utf8mb4_general_ci"
-	}
-	return "utf8mb4_0900_ai_ci"
-}
+func defaultCollationForServerCharset(Version) string { return "utf8mb4_0900_ai_ci" }

@@ -58,7 +58,7 @@ func TestDiff_SelfEmpty(t *testing.T) {
 	}
 	for _, s := range schemas {
 		c := loadCat(t, s)
-		for _, n := range []*Normalizer{NormalizerFor(MySQL80), NormalizerFor(MySQL57)} {
+		for _, n := range []*Normalizer{NormalizerFor(MySQL80)} {
 			d := DiffWithNormalizer(c, c, n)
 			if !d.IsEmpty() {
 				t.Errorf("self-diff not empty (version=%d) for %q:\n%+v", n.Version, s, d.Tables)
@@ -351,10 +351,10 @@ func TestDiff_ModifyColumnAutoIncrementAttr(t *testing.T) {
 // SHOW CREATE; these are the fast, engine-free siblings.)
 
 func TestDiff_CanonicalEmpty_BooleanVsTinyint1(t *testing.T) {
-	// BOOLEAN canonicalizes to tinyint(1) on both versions.
+	// BOOLEAN canonicalizes to tinyint(1).
 	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, flag BOOLEAN);")
 	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, flag TINYINT(1));")
-	for _, n := range []*Normalizer{NormalizerFor(MySQL80), NormalizerFor(MySQL57)} {
+	for _, n := range []*Normalizer{NormalizerFor(MySQL80)} {
 		if d := DiffWithNormalizer(from, to, n); !d.IsEmpty() {
 			t.Errorf("BOOLEAN vs tinyint(1) must be empty (version=%d), got %+v", n.Version, d.Tables)
 		}
@@ -376,36 +376,6 @@ func TestDiff_CanonicalEmpty_IntDisplayWidth80(t *testing.T) {
 	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, v INT);")
 	if d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80)); !d.IsEmpty() {
 		t.Errorf("INT(11) vs INT must be empty on 8.0, got %+v", d.Tables)
-	}
-}
-
-// FLAG (normalize-core / loader): on 5.7, a NON-DEFAULT integer display width such as
-// INT(5) is invisible to the diff. The shared omni loader (formatColumnType in
-// tablecmds.go) bakes MySQL 8.0's width-less stored form into Column.ColumnType at load
-// time — it strips non-zerofill int display widths unconditionally — so INT(5) and INT
-// both load as ColumnType="int" before normalize-core sees them. normalize-core's
-// CanonicalColumnType then re-injects 5.7's *default* width (int(11)) for both, so they
-// compare equal. This is NOT a diff-core defect: diff-core routes type comparison
-// through CanonicalColumn correctly; the width is discarded upstream in the loader.
-//
-// Idempotence is unaffected (the release path runs target and current through the same
-// loader, so both collapse to int identically — no phantom diff). The only loss is
-// detecting a width-ONLY change on 5.7, where display width is cosmetic. To distinguish
-// non-default int widths on 5.7, the loader must preserve the user width and
-// CanonicalColumnType must honor it — owned by normalize-core/loader, flagged not patched.
-//
-// This test pins the CURRENT diff-core contract: a default-width int change is a no-op
-// on 5.7. A genuine type change (int -> bigint) is still detected on 5.7.
-func TestDiff_IntDisplayWidth57_LoaderNormalizesAway(t *testing.T) {
-	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, v INT(5));")
-	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, v INT(11));")
-	if d := DiffWithNormalizer(from, to, NormalizerFor(MySQL57)); !d.IsEmpty() {
-		t.Errorf("loader strips int width: INT(5) vs INT(11) currently collapse on 5.7; got %+v", d.Tables)
-	}
-	// But a real base-type change is detected on 5.7.
-	to2 := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, v BIGINT);")
-	if d := DiffWithNormalizer(from, to2, NormalizerFor(MySQL57)); d.IsEmpty() {
-		t.Errorf("INT vs BIGINT must diff on 5.7")
 	}
 }
 

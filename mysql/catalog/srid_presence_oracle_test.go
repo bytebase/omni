@@ -9,8 +9,7 @@ import (
 )
 
 // The oracle proof for column SRID presence (correctness-protocol.md gates 1 & 2), against
-// the LIVE MySQL 8.0 engine. The spatial column `SRID` clause is 8.0-only (MySQL 5.7 has no
-// column-level SRID), so every probe here is gated to 8.0; 5.7 is skipped, not proven.
+// the LIVE MySQL 8.0 engine.
 //
 // The bug this locks in: the catalog used to model SRID as a plain int where 0 doubled as
 // "not set", gating every emit/diff site on `SRID != 0`. But MySQL keeps an explicit
@@ -28,7 +27,7 @@ import (
 //     that, applied to a real from-state database, yields a to-equal table.
 //
 // The harness reuses connectOracle / showCreate / assertDiffEmptyAgainstReadback /
-// assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable / both() / only() from
+// assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable from
 // the sibling oracle tests. It falls back to a shared testcontainer when the local
 // engine is unreachable (oracle_fallback_test.go).
 
@@ -38,32 +37,32 @@ import (
 func sridIdempotenceProbes() []diffProbe {
 	return []diffProbe{
 		// Explicit SRID 0 — the headline case. Must not collapse to no-SRID.
-		{"srid-zero", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", "t", only(MySQL80)},
+		{"srid-zero", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", "t"},
 		// Nonzero SRID — the previously-working case must stay working.
-		{"srid-4326", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", "t", only(MySQL80)},
+		{"srid-4326", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", "t"},
 		// No-SRID spatial column — must stay no-SRID (no phantom SRID 0 emitted).
-		{"srid-none", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", "t", only(MySQL80)},
+		{"srid-none", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", "t"},
 		// Nullable spatial column with an explicit SRID 0 (nullable geometry has no spatial
 		// index requirement; proves presence is independent of nullability).
-		{"srid-zero-nullable", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY SRID 0)", "t", only(MySQL80)},
+		{"srid-zero-nullable", "CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY SRID 0)", "t"},
 		// Multiple spatial types carrying SRID 0 (POINT/LINESTRING/POLYGON) — the clause is a
 		// column attribute, not specific to GEOMETRY.
 		{"srid-zero-multi-type",
 			"CREATE TABLE t (id INT PRIMARY KEY, p POINT NOT NULL SRID 0, l LINESTRING NOT NULL SRID 0, y POLYGON NOT NULL SRID 0)",
-			"t", only(MySQL80)},
+			"t"},
 		// Spatial column WITH a SPATIAL index + SRID (SRID is meaningful for SPATIAL indexes,
 		// which require a NOT NULL, SRID-constrained column). Must still round-trip.
 		{"srid-zero-spatial-index",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_g (g))",
-			"t", only(MySQL80)},
+			"t"},
 		{"srid-4326-spatial-index",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326, SPATIAL INDEX sp_g (g))",
-			"t", only(MySQL80)},
+			"t"},
 		// Mixed table: a no-SRID spatial column alongside an explicit SRID 0 one — the two must
 		// not smear into each other (one stays absent, one stays present-0).
 		{"srid-mixed-none-and-zero",
 			"CREATE TABLE t (id INT PRIMARY KEY, a GEOMETRY, b GEOMETRY NOT NULL SRID 0)",
-			"t", only(MySQL80)},
+			"t"},
 	}
 }
 
@@ -89,7 +88,7 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 		{"clone-srid-4326", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", "4326", "/*!80003 SRID 4326 */"},
 		{"clone-srid-none", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", "", ""},
 	}
-	for _, version := range only(MySQL80) {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
@@ -150,13 +149,10 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 // engine readback diffs EMPTY, and the stored form self-diffs empty and self-plans empty,
 // on MySQL 8.0.
 func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
-	for _, version := range only(MySQL80) {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range sridIdempotenceProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				db := "srid_" + strings.ReplaceAll(probe.id, "-", "_")
 				// Gate 1a + 2 (canonicalization): user form vs stored readback empty, both directions.
@@ -188,7 +184,7 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 // canonical keys — otherwise add/remove/change of an explicit SRID 0 is an invisible no-op.
 // Each pair is loaded from the real engine's SHOW CREATE so the stored forms are authentic.
 func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
-	for _, version := range only(MySQL80) {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
@@ -241,31 +237,31 @@ func sridMigrationProbes() []migrationProbe {
 		// ---- ADD SRID (none -> value) ----
 		{"add-srid-none-to-zero", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)"},
 		{"add-srid-none-to-4326", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)"},
 		// ---- REMOVE SRID (value -> none) ----
 		{"remove-srid-zero-to-none", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)"},
 		{"remove-srid-4326-to-none", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL)"},
 		// ---- CHANGE SRID (value -> different value, incl. to/from 0) ----
 		{"change-srid-4326-to-zero", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)"},
 		{"change-srid-zero-to-4326", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)"},
 		// ---- ADD spatial column carrying SRID 0 (from empty table) ----
 		{"add-column-with-srid-zero", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)"},
 		// ---- CREATE table with a SRID-0 column + spatial index (from empty) ----
 		{"create-srid-zero-spatial-index", "t", "",
-			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_g (g))", only(MySQL80)},
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_g (g))"},
 	}
 }
 
@@ -273,13 +269,10 @@ func sridMigrationProbes() []migrationProbe {
 // add/remove/change: the generated DDL transforms a real from-state database into a to-equal
 // one, on MySQL 8.0. A non-empty result diff (or a failed apply) is a bug.
 func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
-	for _, version := range only(MySQL80) {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range sridMigrationProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				assertApplyCorrect(t, o, n, probe)
 			})
@@ -294,7 +287,7 @@ func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
 // itself, and directly pins the "MODIFY re-renders WITHOUT SRID 0" regression: a remove must
 // emit no SRID clause, an add of SRID 0 must emit `SRID 0`.
 func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
-	for _, version := range only(MySQL80) {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)

@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle proof for the routine (function + procedure) differ (correctness-protocol.md
-// gate 1: idempotence), against the LIVE MySQL engines (5.7 :13307, 8.0 :13306). Two
+// gate 1: idempotence), against the LIVE MySQL 8.0 engine (:13306). Two
 // properties are proven mechanically for every routine FORM:
 //
 //  1. Idempotence (the spine): a routine in its real stored form (the engine's own SHOW
@@ -24,7 +24,7 @@ import (
 //     if it compared surface tokens these would phantom-diff forever.
 //
 // Both sides are loaded under the SAME database name (routineProbeDB) so identity matches the
-// single-database release path; the harness reuses connectOracle / serverCharsetFor / both()
+// single-database release path; the harness reuses connectOracle / serverCharsetFor
 // from the diff + normalize oracle tests and skips cleanly when the engines are unreachable.
 
 const routineProbeDB = "rtn_idem"
@@ -32,11 +32,10 @@ const routineProbeDB = "rtn_idem"
 // routineProbe is one idempotence/canonicalization case: a routine DDL whose engine-stored form
 // may differ from the user form but must canonicalize equal. kind is "FUNCTION"/"PROCEDURE".
 type routineProbe struct {
-	id       string
-	kind     string
-	name     string
-	create   string // bare CREATE FUNCTION/PROCEDURE (no DEFINER, no leading CREATE DATABASE)
-	versions []Version
+	id     string
+	kind   string
+	name   string
+	create string // bare CREATE FUNCTION/PROCEDURE (no DEFINER, no leading CREATE DATABASE)
 }
 
 // routineIdempotenceProbes enumerates representative routine FORMS that must round-trip empty.
@@ -46,44 +45,44 @@ type routineProbe struct {
 func routineIdempotenceProbes() []routineProbe {
 	return []routineProbe{
 		// ---- functions ----
-		{"fn-simple", "FUNCTION", "f", "CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b", both()},
-		{"fn-string-return", "FUNCTION", "f", "CREATE FUNCTION f(s VARCHAR(50)) RETURNS VARCHAR(100) DETERMINISTIC RETURN CONCAT(s, s)", both()},
-		{"fn-all-characteristics", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'hi' RETURN a", both()},
-		{"fn-no-sql", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS INT NO SQL RETURN 42", both()},
-		{"fn-modifies", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA RETURN a", both()},
+		{"fn-simple", "FUNCTION", "f", "CREATE FUNCTION f(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b"},
+		{"fn-string-return", "FUNCTION", "f", "CREATE FUNCTION f(s VARCHAR(50)) RETURNS VARCHAR(100) DETERMINISTIC RETURN CONCAT(s, s)"},
+		{"fn-all-characteristics", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'hi' RETURN a"},
+		{"fn-no-sql", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS INT NO SQL RETURN 42"},
+		{"fn-modifies", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA RETURN a"},
 		// Explicit-default characteristics the readback DROPS — must still canonicalize empty.
-		{"fn-explicit-defaults", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC CONTAINS SQL SQL SECURITY DEFINER RETURN a", both()},
+		{"fn-explicit-defaults", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC CONTAINS SQL SQL SECURITY DEFINER RETURN a"},
 		// LANGUAGE SQL is never echoed distinctly — must not phantom-diff.
-		{"fn-language-sql", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS INT LANGUAGE SQL DETERMINISTIC RETURN 7", both()},
+		{"fn-language-sql", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS INT LANGUAGE SQL DETERMINISTIC RETURN 7"},
 		// Multi-statement BEGIN...END body with internal whitespace (stored verbatim).
-		{"fn-begin-body", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC\nBEGIN\n  DECLARE r INT;\n  SET r = a * 2;\n  RETURN r;\nEND", both()},
+		{"fn-begin-body", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC\nBEGIN\n  DECLARE r INT;\n  SET r = a * 2;\n  RETURN r;\nEND"},
 		// Comment with an embedded single quote (escaping round-trip).
-		{"fn-comment-quote", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'it''s here' RETURN a", both()},
+		{"fn-comment-quote", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'it''s here' RETURN a"},
 		// Comment with an embedded backslash: the engine echoes it backslash-escaped and the loader
 		// decodes it back consistently, so the no-op diff stays empty (guards against an
 		// escape-asymmetry idempotence break).
-		{"fn-comment-backslash", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'a\\\\b' RETURN a", both()},
+		{"fn-comment-backslash", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'a\\\\b' RETURN a"},
 		// DECIMAL RETURNS: precision/scale padding via the type canonicalizer.
-		{"fn-decimal-return", "FUNCTION", "f", "CREATE FUNCTION f(a DECIMAL(10,2)) RETURNS DECIMAL(10,2) DETERMINISTIC RETURN a", both()},
+		{"fn-decimal-return", "FUNCTION", "f", "CREATE FUNCTION f(a DECIMAL(10,2)) RETURNS DECIMAL(10,2) DETERMINISTIC RETURN a"},
 		// ENUM RETURNS + ENUM/SET params: the member list must survive the load (was dropped before
 		// the formatDataType fix) so the type round-trips.
-		{"fn-enum-return", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS ENUM('a','b','c') DETERMINISTIC RETURN 'a'", both()},
-		{"proc-enum-set-params", "PROCEDURE", "p", "CREATE PROCEDURE p(IN s SET('x','y'), IN e ENUM('p','q')) BEGIN SET @v = s; END", both()},
+		{"fn-enum-return", "FUNCTION", "f", "CREATE FUNCTION f() RETURNS ENUM('a','b','c') DETERMINISTIC RETURN 'a'"},
+		{"proc-enum-set-params", "PROCEDURE", "p", "CREATE PROCEDURE p(IN s SET('x','y'), IN e ENUM('p','q')) BEGIN SET @v = s; END"},
 		// Reserved-word parameter name (must be backtick-quoted in the rendered CREATE).
-		{"proc-reserved-param", "PROCEDURE", "p", "CREATE PROCEDURE p(IN `select` INT, IN `from` INT) BEGIN SET @v = `select`; END", both()},
+		{"proc-reserved-param", "PROCEDURE", "p", "CREATE PROCEDURE p(IN `select` INT, IN `from` INT) BEGIN SET @v = `select`; END"},
 
 		// ---- procedures ----
-		{"proc-in-out-inout", "PROCEDURE", "p", "CREATE PROCEDURE p(IN x INT, OUT y INT, INOUT z INT) BEGIN SET y = x + z; SET z = z + 1; END", both()},
-		{"proc-no-params", "PROCEDURE", "p", "CREATE PROCEDURE p() BEGIN DECLARE n INT; SET n = 1; END", both()},
-		{"proc-modifies", "PROCEDURE", "p", "CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END", both()},
-		{"proc-default-in-direction", "PROCEDURE", "p", "CREATE PROCEDURE p(x INT, y INT) BEGIN SET @v = x + y; END", both()},
-		{"proc-all-characteristics", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'pc' BEGIN SET @v = a; END", both()},
-		{"proc-explicit-defaults", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) NOT DETERMINISTIC CONTAINS SQL SQL SECURITY DEFINER BEGIN SET @v = a; END", both()},
+		{"proc-in-out-inout", "PROCEDURE", "p", "CREATE PROCEDURE p(IN x INT, OUT y INT, INOUT z INT) BEGIN SET y = x + z; SET z = z + 1; END"},
+		{"proc-no-params", "PROCEDURE", "p", "CREATE PROCEDURE p() BEGIN DECLARE n INT; SET n = 1; END"},
+		{"proc-modifies", "PROCEDURE", "p", "CREATE PROCEDURE p() MODIFIES SQL DATA BEGIN SET @v = 1; END"},
+		{"proc-default-in-direction", "PROCEDURE", "p", "CREATE PROCEDURE p(x INT, y INT) BEGIN SET @v = x + y; END"},
+		{"proc-all-characteristics", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'pc' BEGIN SET @v = a; END"},
+		{"proc-explicit-defaults", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) NOT DETERMINISTIC CONTAINS SQL SQL SECURITY DEFINER BEGIN SET @v = a; END"},
 		// Adjacent string-literal concatenation in the body ('...' '...' across a line
 		// break — the stock-8.0 sys.ps_trace_thread shape). Bodies are stored VERBATIM,
 		// so the engine readback still carries the adjacency and the reload re-parses
 		// it; before adjacency support that failed with "unexpected token".
-		{"proc-adjacent-literals", "PROCEDURE", "p", "CREATE PROCEDURE p()\nBEGIN\n    SELECT CONCAT('tmp disk tables: ', 3, '\\n'\n                  'select scan: ', 4, '\\n');\nEND", both()},
+		{"proc-adjacent-literals", "PROCEDURE", "p", "CREATE PROCEDURE p()\nBEGIN\n    SELECT CONCAT('tmp disk tables: ', 3, '\\n'\n                  'select scan: ', 4, '\\n');\nEND"},
 	}
 }
 
@@ -135,14 +134,11 @@ func (o *oracleConn) showCreateRoutine(t *testing.T, dbName, kind, name string) 
 // TestOracle_RoutineDiffIdempotence proves gate 1 & 2 for every routine form: the user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported version.
 func TestOracle_RoutineDiffIdempotence(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(version)
 		for _, probe := range routineIdempotenceProbes() {
-			if !containsVersion(probe.versions, version) {
-				continue
-			}
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
 				db := routineProbeDB + "_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, rb, ok := o.loadRoutineReadback(t, db, probe.create, probe.kind, probe.name)
@@ -187,7 +183,7 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 // and self-diff empty. Before adjacency support this failed with "unexpected
 // token" — hard-blocking the declarative path for any dump containing sys.
 func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
-	for _, version := range both() {
+	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(o.version)
 		t.Run(o.name, func(t *testing.T) {

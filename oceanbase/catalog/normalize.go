@@ -2,9 +2,9 @@ package catalog
 
 // Package-level diff-time canonicalization for MySQL SDL (declarative) migration.
 //
-// MySQL implicitly rewrites DDL on storage: it drops integer display widths (8.0),
-// injects them (5.7), folds BOOLEAN to tinyint(1), echoes or strips column charset
-// clauses depending on version, single-quotes numeric defaults, and so on. A
+// MySQL implicitly rewrites DDL on storage: it drops integer display widths, folds
+// BOOLEAN to tinyint(1), echoes column charset clauses, single-quotes numeric
+// defaults, and so on. A
 // declarative diff compares the user's TARGET schema against the SYNCED (stored)
 // schema read back via SHOW CREATE TABLE. Unless both sides are reduced to MySQL's
 // canonical stored form first, every implicit rewrite produces a phantom diff forever.
@@ -14,13 +14,13 @@ package catalog
 // charset/collation, generated expressions, or table options. The defining property,
 // proven against the live oracle, is:
 //
-//	Canonical(userTargetForm) == Canonical(syncedStoredForm)   (for a given engine version)
+//	Canonical(userTargetForm) == Canonical(syncedStoredForm)
 //
 // Every entry in docs/migration/mysql/sdl/normalization.md is a readback that this
-// layer must collapse onto its target form. Behavior that diverges across MySQL 5.7
-// and 8.0 is branched on Version; behavior that depends on a session variable
-// (explicit_defaults_for_timestamp) is taken from the Normalizer context, never
-// hardcoded to a version (see the flag explicit-defaults-for-timestamp-is-session-var).
+// layer must collapse onto its target form. The stored form is MySQL 8.0's: MySQL 5.7
+// is end-of-life and its form is no longer reproduced. Behavior that depends on a
+// session variable (explicit_defaults_for_timestamp) is taken from the Normalizer
+// context, never hardcoded (see the flag explicit-defaults-for-timestamp-is-session-var).
 
 import (
 	"fmt"
@@ -32,19 +32,15 @@ import (
 )
 
 // Version identifies the target MySQL major version whose stored form the
-// canonicalizer must reproduce. Charset spelling, integer display width, YEAR width,
-// descending indexes, the utf8mb4 default collation, CHECK persistence, functional
-// defaults, and the expression charset introducer all diverge across these.
+// canonicalizer reproduces. MySQL80 is the only one: MySQL 5.7 is end-of-life, and a
+// server older than 8.0 is canonicalized as 8.0.
 type Version int
 
 const (
-	// MySQL57 reproduces MySQL 5.7's stored form (display widths injected,
-	// utf8 spelling, utf8mb4_general_ci default, no descending indexes, CHECK dropped).
-	MySQL57 Version = iota
 	// MySQL80 reproduces MySQL 8.0's stored form (display widths dropped except
 	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
 	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
-	MySQL80
+	MySQL80 Version = iota
 )
 
 // Normalizer carries the engine version plus the session/server variables that the
@@ -55,26 +51,22 @@ type Normalizer struct {
 	Version Version
 	// ExplicitDefaultsForTimestamp is the effective explicit_defaults_for_timestamp.
 	// It governs the implicit NOT NULL / DEFAULT CURRENT_TIMESTAMP magic on bare
-	// TIMESTAMP columns. It is a session/server variable, NOT a version trait: a 5.7
-	// server can run with it ON and an 8.0 server with it OFF. diff-core must capture
-	// it per source database and pass it here. NormalizerFor seeds it to each
-	// version's box default for convenience, but callers should override it from the
-	// synced schema when known.
+	// TIMESTAMP columns. It is a session/server variable, NOT a version trait: an 8.0
+	// server can run with it OFF. diff-core must capture it per source database and
+	// pass it here. NormalizerFor seeds it to the server default for convenience, but
+	// callers should override it from the synced schema when known.
 	ExplicitDefaultsForTimestamp bool
 }
 
 // NormalizerFor builds a Normalizer for a version, seeding session variables to that
-// version's oracle-box default (explicit_defaults_for_timestamp=0 on 5.7, 1 on 8.0).
+// version's server default (explicit_defaults_for_timestamp=1 on 8.0).
 // Callers with a captured value should set ExplicitDefaultsForTimestamp explicitly.
 func NormalizerFor(v Version) *Normalizer {
 	return &Normalizer{
 		Version:                      v,
-		ExplicitDefaultsForTimestamp: v == MySQL80,
+		ExplicitDefaultsForTimestamp: true,
 	}
 }
-
-// is80 reports whether the target reproduces 8.0 stored form.
-func (n *Normalizer) is80() bool { return n.Version == MySQL80 }
 
 // ---------------------------------------------------------------------------
 // Charset / collation — the dominant phantom-diff surface (HIGHEST RISK).
@@ -104,18 +96,10 @@ func foldCollation(coll string) string {
 	return coll
 }
 
-// defaultCollationFor returns the version-correct default collation for a charset,
-// already folded. The utf8mb4 default is the single most dangerous case: 8.0 uses
-// utf8mb4_0900_ai_ci (which does not even exist on 5.7) while 5.7 uses
-// utf8mb4_general_ci. (entry utf8mb4-default-collation)
+// defaultCollationFor returns the default collation for a charset, already folded:
+// utf8mb4_0900_ai_ci for utf8mb4. (entry utf8mb4-default-collation)
 func (n *Normalizer) defaultCollationFor(charset string) string {
 	cs := foldCharset(charset)
-	if cs == "utf8mb4" {
-		if n.is80() {
-			return "utf8mb4_0900_ai_ci"
-		}
-		return "utf8mb4_general_ci"
-	}
 	if dc, ok := defaultCollationForCharset[cs]; ok {
 		return foldCollation(dc)
 	}
@@ -131,18 +115,17 @@ func (n *Normalizer) defaultCollationFor(charset string) string {
 // resolved pair instead of the surface CHARACTER SET/COLLATE tokens. This is the
 // canonical strategy for the whole charset family (flag
 // column-charset-collation-echo-asymmetry): surface-token comparison phantom-diffs
-// across versions because 5.7 STRIPS a column's charset when it equals the table's
-// while 8.0 KEEPS it as a full pair; resolving the effective pair on BOTH sides and
-// comparing that is version-robust.
+// because the readback KEEPS a column's charset as a full pair even when it equals the
+// table's; resolving the effective pair on BOTH sides and comparing that is robust.
 //
-// Resolution rules (entries column-charset-echo-57/-80, -only-collation-resolution),
+// Resolution rules (entries column-charset-echo-80, -only-collation-resolution),
 // driven by the loader's explicit-clause flags so the three cases MySQL distinguishes
 // are kept apart even though the loader fills Charset/Collation from inheritance:
 //   - charset: the column's explicit CHARACTER SET if it wrote one, else the table's.
 //   - collation: the column's explicit COLLATE if it wrote one; else, if it wrote only a
 //     CHARACTER SET, that charset's default collation (NOT the table COLLATE — the subtle
 //     -only-collation-resolution rule); else (a bare column) the table's effective
-//     collation, re-resolved to the target version.
+//     collation.
 //
 // For non-string columns (no charset concept) it returns ("", "").
 func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (charset, collation string) {
@@ -167,7 +150,7 @@ func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (cha
 		charset = tableCharset
 	}
 
-	// Effective collation, resolved with the version-correct rules. The explicit flags
+	// Effective collation. The explicit flags
 	// let us tell apart the three otherwise-indistinguishable cases the loader collapses:
 	switch {
 	case c.CollationExplicit && c.Collation != "":
@@ -178,62 +161,33 @@ func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (cha
 		// never the table COLLATE. (entry column-charset-only-collation-resolution)
 		collation = n.defaultCollationFor(c.Charset)
 	default:
-		// Bare column: inherits the table's effective collation (re-resolved to the
-		// target version). MySQL stores a bare column with the table's collation, not the
-		// charset default — so a table-level COLLATE change must propagate to bare columns.
+		// Bare column: inherits the table's effective collation. MySQL stores a bare
+		// column with the table's collation, not the charset default — so a table-level
+		// COLLATE change must propagate to bare columns.
 		collation = tableCollation
 	}
 	return charset, collation
 }
 
-// effectiveTableCollation returns the table's collation, folded and re-resolved to the
-// target version. Two distinct "this is really the charset default" cases must both
-// collapse onto the version-correct default so a bare CHARSET table never phantom-diffs:
-//
-//   - The omni loader bakes the STATIC (8.0) charset-default collation into
-//     table.Collation when the table has no explicit COLLATE (it cannot know the target
-//     version at load time) — so a user's `... DEFAULT CHARSET=utf8mb4` arrives carrying
-//     utf8mb4_0900_ai_ci even when the target is 5.7.
-//   - The SYNCED side is dumped by MetadataToSDL with the server's STORED default spelled
-//     out as an explicit COLLATE (a 5.7 utf8mb4 table reads back
-//     `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`) — so it arrives carrying the
-//     version's stored default as an "explicit" clause.
-//
-// Both are the charset default for SOME version and are indistinguishable from a bare
-// charset on the engine, so we fold any collation equal to either the loader-baked
-// static default OR the version-appropriate default down to defaultCollationFor. A
-// genuinely non-default table COLLATE (e.g. utf8mb4_unicode_ci) is honored as-is.
+// effectiveTableCollation returns the table's collation, folded, or the charset default
+// when the table states none. The omni loader bakes the charset-default collation into
+// table.Collation for a bare `DEFAULT CHARSET=utf8mb4`, and the synced side spells the
+// stored default out as an explicit COLLATE; both arrive as the same collation, so a
+// bare CHARSET table never phantom-diffs. A non-default table COLLATE (e.g.
+// utf8mb4_unicode_ci) is honored as-is.
 func (n *Normalizer) effectiveTableCollation(table *Table) string {
-	tableCharset := foldCharset(table.Charset)
 	tableCollation := foldCollation(table.Collation)
 	if tableCollation == "" {
-		return n.defaultCollationFor(tableCharset)
-	}
-	if n.isCharsetDefaultCollation(tableCharset, tableCollation) {
-		return n.defaultCollationFor(tableCharset)
+		return n.defaultCollationFor(foldCharset(table.Charset))
 	}
 	return tableCollation
 }
 
-// isCharsetDefaultCollation reports whether folded collation `coll` is "the default" for
-// folded charset `cs` for the purpose of effective-collation resolution: it matches
-// either the version-appropriate default (defaultCollationFor) or the static collation
-// the omni loader bakes for a bare charset (the 8.0 default, from
-// defaultCollationForCharset). The utf8mb4 case is the only one whose default diverges by
-// version (5.7 utf8mb4_general_ci vs 8.0 utf8mb4_0900_ai_ci); folding both spellings keeps
-// a 5.7-synced `COLLATE=utf8mb4_general_ci` and a loader-baked `utf8mb4_0900_ai_ci` equal
-// to each other and to a bare charset under either version's normalizer.
+// isCharsetDefaultCollation reports whether folded collation `coll` is the default for
+// folded charset `cs`, which is also the collation the omni loader bakes for a bare
+// charset.
 func (n *Normalizer) isCharsetDefaultCollation(cs, coll string) bool {
-	if coll == "" {
-		return true
-	}
-	if coll == n.defaultCollationFor(cs) {
-		return true
-	}
-	if baked, ok := defaultCollationForCharset[cs]; ok && coll == foldCollation(baked) {
-		return true
-	}
-	return false
+	return coll == "" || coll == n.defaultCollationFor(cs)
 }
 
 // ---------------------------------------------------------------------------
@@ -242,8 +196,8 @@ func (n *Normalizer) isCharsetDefaultCollation(cs, coll string) bool {
 
 // parsedType is a decomposed column-type string. The loader stores the 8.0 form (e.g.
 // "int"); raw readback strings may carry widths (e.g. "int(11)"). CanonicalColumnType
-// parses either and re-emits the version-correct canonical form, so both collapse onto
-// one value and never phantom-diff.
+// parses either and re-emits the canonical form, so both collapse onto one value and
+// never phantom-diff.
 type parsedType struct {
 	base     string // lowercased base type name (already alias-folded: numeric→decimal, etc.)
 	length   int    // first paren arg (display width, char length, precision); 0 = absent
@@ -309,12 +263,11 @@ func parseColumnType(columnType string) parsedType {
 	return p
 }
 
-// CanonicalColumnType returns the canonical stored column type for the target version.
-// It folds aliases (BOOLEAN/BOOL→tinyint(1), NUMERIC/DEC/FIXED→decimal, REAL→double,
-// integer→int), applies the version's integer-display-width rule (8.0 drops widths
-// except tinyint(1) and zerofill; 5.7 injects the type's default width), pads DECIMAL
-// precision/scale, drops single-arg FLOAT precision, injects length-1 for bare
-// CHAR/BINARY/BIT, and reproduces the version's YEAR width. The result is a stable
+// CanonicalColumnType returns the canonical stored column type. It folds aliases
+// (BOOLEAN/BOOL→tinyint(1), NUMERIC/DEC/FIXED→decimal, REAL→double, integer→int),
+// applies the integer-display-width rule (widths dropped except tinyint(1) and
+// zerofill), pads DECIMAL precision/scale, drops single-arg FLOAT precision, injects
+// length-1 for bare CHAR/BINARY/BIT, and drops the YEAR width. The result is a stable
 // comparison key, not necessarily a SHOW CREATE rendering.
 func (n *Normalizer) CanonicalColumnType(c *Column) string {
 	p := parseColumnType(c.ColumnType)
@@ -324,7 +277,7 @@ func (n *Normalizer) CanonicalColumnType(c *Column) string {
 func (n *Normalizer) canonicalType(p parsedType) string {
 	switch p.base {
 	case "boolean":
-		// BOOLEAN/BOOL → tinyint(1) on both versions. (parseColumnType already folds
+		// BOOLEAN/BOOL → tinyint(1). (parseColumnType already folds
 		// "bool" → "boolean" via normalizedTypeName, so only "boolean" reaches here.)
 		return "tinyint(1)"
 	case "serial":
@@ -359,10 +312,7 @@ func (n *Normalizer) canonicalType(p parsedType) string {
 
 	switch p.base {
 	case "year":
-		if n.is80() {
-			return "year"
-		}
-		return "year(4)"
+		return "year"
 	case "bit":
 		if !p.hasLen {
 			return "bit(1)"
@@ -392,19 +342,19 @@ func (n *Normalizer) canonicalType(p parsedType) string {
 	return p.base
 }
 
-// canonicalIntType applies the version-specific integer display-width rule.
+// canonicalIntType applies the integer display-width rule.
 // p.base is already alias-folded by normalizedTypeName (integer→int), so it is one of
 // tinyint/smallint/mediumint/int/bigint here.
 func (n *Normalizer) canonicalIntType(p parsedType) string {
 	base := p.base
 
-	// tinyint(1) is the boolean marker: width survives on BOTH versions (only when
-	// signed and not zerofill — tinyint(1) unsigned/zerofill is a plain narrow int).
+	// tinyint(1) is the boolean marker: its width survives (only when signed and not
+	// zerofill — tinyint(1) unsigned/zerofill is a plain narrow int).
 	if base == "tinyint" && p.hasLen && p.length == 1 && !p.unsigned && !p.zerofill {
 		return "tinyint(1)"
 	}
 
-	// ZEROFILL retains the display width on both versions (8.0 does NOT drop it).
+	// ZEROFILL retains the display width (8.0 does NOT drop it).
 	if p.zerofill {
 		width := p.length
 		if !p.hasLen {
@@ -413,16 +363,8 @@ func (n *Normalizer) canonicalIntType(p parsedType) string {
 		return fmt.Sprintf("%s(%d) unsigned zerofill", base, width)
 	}
 
-	if n.is80() {
-		// 8.0 drops the display width from all (non-zerofill) integer types.
-		return n.withUnsigned(base, p)
-	}
-	// 5.7 keeps/injects the default width.
-	width := p.length
-	if !p.hasLen {
-		width = defaultIntDisplayWidth(base, p.unsigned)
-	}
-	return n.withUnsigned(fmt.Sprintf("%s(%d)", base, width), p)
+	// 8.0 drops the display width from all (non-zerofill) integer types.
+	return n.withUnsigned(base, p)
 }
 
 // withUnsigned appends " unsigned" to a rendered type when the column is unsigned
@@ -1205,9 +1147,8 @@ func exprSpaceIsSignificant(emitted, expr string, next int) bool {
 //     (entry pk-implies-not-null);
 //   - when explicit_defaults_for_timestamp is OFF, a TIMESTAMP column with NO explicit
 //     nullability clause becomes NOT NULL (entry timestamp-magic-first-57). This is
-//     governed by the captured session variable, NOT the version (flag #3): a 5.7
-//     server with the variable ON leaves TIMESTAMP nullable, an 8.0 server with it OFF
-//     forces NOT NULL. The Column.NullExplicit flag (set by the loader) tells a bare
+//     governed by the captured session variable, NOT the version (flag #3): an 8.0
+//     server with it OFF forces NOT NULL. The Column.NullExplicit flag (set by the loader) tells a bare
 //     `TIMESTAMP` apart from an explicit `TIMESTAMP NULL`, so a genuinely-nullable
 //     `TIMESTAMP NULL` — even one with a constant default — is left nullable.
 //
@@ -1365,13 +1306,12 @@ func (n *Normalizer) CanonicalComment(comment string) string {
 }
 
 // ---------------------------------------------------------------------------
-// Index columns — descending direction is version-flagged.
+// Index columns.
 // ---------------------------------------------------------------------------
 
 // CanonicalIndexColumn returns a comparison key for one index column part, including
-// its prefix length (entry prefix-index) and — only on 8.0 — its DESC direction. 5.7
-// has no descending indexes and silently stores ascending, so direction is dropped from
-// the 5.7 key (entry index-desc-asc). Explicit ASC is the default and never contributes.
+// its prefix length (entry prefix-index) and its DESC direction (entry index-desc-asc).
+// Explicit ASC is the default and never contributes.
 func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 	var b strings.Builder
 	if ic.Expr != "" {
@@ -1384,8 +1324,7 @@ func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 	if ic.Length > 0 {
 		fmt.Fprintf(&b, "(%d)", ic.Length)
 	}
-	// DESC is meaningful only on 8.0; 5.7 stores ascending regardless.
-	if n.is80() && ic.Descending {
+	if ic.Descending {
 		b.WriteString(" desc")
 	}
 	return b.String()
@@ -1480,20 +1419,12 @@ func encodeKeyFields(pairs ...string) string {
 }
 
 // ---------------------------------------------------------------------------
-// CHECK constraints — version-flagged (8.0 normalized + auto-named; 5.7 dropped).
+// CHECK constraints — normalized and auto-named.
 // ---------------------------------------------------------------------------
 
-// CheckSupported reports whether CHECK constraints are represented in the stored form
-// for the target version. 8.0 keeps and normalizes CHECK; 5.7 parses and silently drops
-// it, so any target CHECK is unrepresentable and cannot round-trip (entry
-// check-constraint). diff-core must skip CHECK on 5.7 (treat as unsupported) and compare
-// the normalized expression on 8.0.
-func (n *Normalizer) CheckSupported() bool { return n.is80() }
-
-// CanonicalCheckExpr returns the canonical key for a CHECK constraint expression on 8.0,
+// CanonicalCheckExpr returns the canonical key for a CHECK constraint expression,
 // using the same expression normalizer as generated columns (entry check-constraint:
-// "(a > 0)" -> "((`a` > 0))" normalized). On 5.7 callers should consult CheckSupported
-// first; this still returns a normalized key for completeness.
+// "(a > 0)" -> "((`a` > 0))" normalized).
 func (n *Normalizer) CanonicalCheckExpr(expr string) string {
 	return n.CanonicalGeneratedExpr(expr)
 }
