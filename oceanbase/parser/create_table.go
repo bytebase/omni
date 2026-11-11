@@ -1284,6 +1284,12 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwAUTO_INCREMENT:
 		p.advance()
 		p.match('=')
+		// The value is a number, where the other counts are integers: OceanBase 4.3.5
+		// parses AUTO_INCREMENT = 99999999999999999999 and AUTO_INCREMENT = 1.5.
+		if p.cur.Type == tokFCONST {
+			val := p.advance().Str
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "AUTO_INCREMENT", Value: val}, true, nil
+		}
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1397,6 +1403,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCHECKSUM:
 		p.advance()
 		p.match('=')
+		if p.cur.Type == tokICONST && !p.cur.isInt64() {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1626,9 +1635,16 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
 		kwAUTOEXTEND_SIZE:
+		optType := p.cur.Type
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
+		// Two of these take an integer of no more than 63 bits: OceanBase 4.3.5
+		// answers 1064 for AVG_ROW_LENGTH = 9223372036854775808 and for
+		// DELAY_KEY_WRITE = 9223372036854775808, as it does for CHECKSUM.
+		if (optType == kwAVG_ROW_LENGTH || optType == kwDELAY_KEY_WRITE) && p.cur.Type == tokICONST && !p.cur.isInt64() {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err

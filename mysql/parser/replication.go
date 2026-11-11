@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -119,14 +120,11 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 		p.match('(')
 		if p.cur.Type != ')' {
 			for {
-				if p.cur.Type != tokICONST {
+				// ignore_server_id is ulong_num: any number, read by its whole part.
+				if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 					return nil, &ParseError{Message: "expected integer in server ID list", Position: p.cur.Loc}
 				}
-				id, err := strconv.ParseInt(p.cur.Str, 10, 64)
-				if err != nil {
-					return nil, &ParseError{Message: "invalid integer in server ID list", Position: p.cur.Loc}
-				}
-				opt.IDs = append(opt.IDs, id)
+				opt.IDs = append(opt.IDs, p.cur.Ival)
 				p.advance() // consume the number
 				if p.cur.Type != ',' {
 					break
@@ -145,6 +143,21 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 		opt.Value = p.cur.Str
 		p.advance()
 	case tokICONST, tokFCONST:
+		// Two options hold their number to a range while the statement parses: the
+		// delay to 31 bits (1729) and the heartbeat period to 4294967 seconds (1624).
+		// The delay is ulong_num, read by its whole part, so 1e30 is 1.
+		//
+		// Ref: source_def in MySQL 8.0 sql/sql_yacc.yy.
+		switch optTokType {
+		case kwSOURCE_DELAY, kwMASTER_DELAY:
+			if p.cur.Ival > math.MaxInt32 {
+				return nil, &ParseError{Message: "The requested value " + p.cur.Str + " for the source delay exceeds the maximum 2147483647", Position: p.cur.Loc}
+			}
+		case kwSOURCE_HEARTBEAT_PERIOD, kwMASTER_HEARTBEAT_PERIOD:
+			if period, err := strconv.ParseFloat(p.cur.Str, 64); err != nil || period > 4294967 {
+				return nil, &ParseError{Message: "The requested value for the heartbeat period exceeds the maximum 4294967", Position: p.cur.Loc}
+			}
+		}
 		opt.Value = p.cur.Str
 		p.advance()
 	case kwNULL:
@@ -474,9 +487,9 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 					}
 					_ = posName // SOURCE_LOG_POS, MASTER_LOG_POS, RELAY_LOG_POS
 					p.match('=')
-					if p.cur.Type == tokICONST {
-						pos, _ := strconv.ParseInt(p.cur.Str, 10, 64)
-						stmt.UntilPos = pos
+					// ulonglong_num: any number, read by its whole part.
+					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+						stmt.UntilPos = p.cur.Ival
 						p.advance()
 					}
 				}
@@ -689,8 +702,11 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
 		if p.cur.Type == tokICONST {
-			val, _ := strconv.ParseInt(p.cur.Str, 10, 64)
-			stmt.To = val
+			// The index is held to 1..2000000000 while the statement parses (3567).
+			if p.cur.Ival < 1 || p.cur.Ival > 2000000000 {
+				return nil, &ParseError{Message: "The requested value '" + p.cur.Str + "' is out of range for RESET MASTER TO", Position: p.cur.Loc}
+			}
+			stmt.To = p.cur.Ival
 			p.advance()
 		}
 	}

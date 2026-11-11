@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strconv"
-
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -413,8 +411,7 @@ func (p *Parser) parseAnalyzeOptions() ([]*nodes.AnalyzeOption, error) {
 // and each lexes as its own token here, so neither reaches a unit. An integer
 // past uint64 is a decimal to TiDB's lexer and not an integer literal, so
 // `WITH 18446744073709551616 BUCKETS` is 1064 where
-// `WITH 18446744073709551615 BUCKETS` parses; the check is on the written
-// text because Token.Ival saturates.
+// `WITH 18446744073709551615 BUCKETS` parses.
 func (p *Parser) parseAnalyzeOption() (*nodes.AnalyzeOption, error) {
 	start := p.pos()
 	num := p.cur
@@ -454,9 +451,6 @@ func (p *Parser) parseAnalyzeOption() (*nodes.AnalyzeOption, error) {
 	if opt.Type != nodes.AnalyzeOptSampleRate {
 		if num.Type != tokICONST {
 			return nil, &ParseError{Message: "expected an integer", Position: num.Loc}
-		}
-		if _, err := strconv.ParseUint(num.Str, 10, 64); err != nil {
-			return nil, &ParseError{Message: "integer out of range", Position: num.Loc}
 		}
 	}
 

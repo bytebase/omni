@@ -495,8 +495,9 @@ func (p *Parser) parseHandlerConditionValue() (nodes.HandlerCondValue, error) {
 		return nodes.HandlerCondValue{Kind: nodes.HandlerCondNotFound}, nil
 	}
 
-	// mysql_error_code (integer literal)
-	if p.cur.Type == tokICONST {
+	// mysql_error_code is a number: OceanBase 4.3.5 parses FOR 99999999999999999999,
+	// whose digits lex as a decimal, so that is read with the integers.
+	if p.cur.Type == tokICONST || p.cur.isWideDigits() {
 		val := p.cur.Str
 		p.advance()
 		return nodes.HandlerCondValue{Kind: nodes.HandlerCondErrorCode, Value: val}, nil

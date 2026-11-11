@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1697,7 +1698,7 @@ var keywords = map[string]int{
 type Token struct {
 	Type int    // token type
 	Str  string // string value for identifiers, operators, string literals
-	Ival int64  // integer value for ICONST
+	Ival int64  // integer value for ICONST, and the whole part of an FCONST (numberWhole)
 	Loc  int    // byte offset in source text
 	End  int    // byte offset past the end of the token in the source text
 }
@@ -2409,12 +2410,56 @@ func (l *Lexer) scanNumber() Token {
 	}
 
 	s := l.input[start:l.pos]
-	if isFloat {
-		return Token{Type: tokFCONST, Str: s, Loc: start}
+	// A digit run is an integer token only while it fits 64 unsigned bits. Past
+	// that MySQL's lexer gives DECIMAL_NUM, the token of 1.5 (int_token in
+	// sql_lex.cc), so a production that takes an integer refuses it and one that
+	// takes a number keeps it: mysql:8.0 parses PARTITIONS 18446744073709551615
+	// and answers 1064 for PARTITIONS 18446744073709551616.
+	if !isFloat {
+		if _, err := strconv.ParseUint(s, 10, 64); err == nil {
+			return Token{Type: tokICONST, Str: s, Ival: numberWhole(s), Loc: start}
+		}
 	}
+	return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
+}
 
-	ival, _ := strconv.ParseInt(s, 10, 64)
-	return Token{Type: tokICONST, Str: s, Ival: ival, Loc: start}
+// numberWhole returns the integer the server reads from a number where the grammar
+// takes one for an integer: its leading digits, held to the largest int64.
+// my_strtoll10 stops at the first byte that is no digit, so 1.9 and 1e2 are both 1
+// and .5 is 0.
+func numberWhole(s string) int64 {
+	digits := leadingDigits(s)
+	if digits == "" {
+		return 0
+	}
+	whole, err := strconv.ParseInt(digits, 10, 64)
+	if err != nil {
+		return math.MaxInt64
+	}
+	return whole
+}
+
+// leadingDigits returns the digits a number begins with.
+func leadingDigits(s string) string {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	return s[:end]
+}
+
+// isNum reports whether the token is NUM, the integer token that fits 31 bits, which
+// is all a precision pair, a key part's length and the like take. A wider integer is
+// LONG_NUM or ULONGLONG_NUM: mysql:8.0 parses DECIMAL(2147483647,0) as far as its
+// range check and answers 1064 for DECIMAL(2147483648,0).
+func (t Token) isNum() bool {
+	return t.Type == tokICONST && t.Ival <= math.MaxInt32
+}
+
+// isDecimalNum reports whether the token is DECIMAL_NUM: digits with a point, or a
+// run of them too wide for an integer token. An exponent makes it FLOAT_NUM.
+func (t Token) isDecimalNum() bool {
+	return t.Type == tokFCONST && !strings.ContainsAny(t.Str, "eE")
 }
 
 // identCharAt reports whether the byte at i can appear inside an identifier.

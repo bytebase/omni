@@ -213,7 +213,8 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// [IGNORE number {LINES | ROWS}]
 	if p.cur.Type == kwIGNORE {
 		p.advance()
-		if p.cur.Type == tokICONST {
+		// The count is NUM: mysql:8.0 answers 1064 for IGNORE 2147483648 LINES.
+		if p.cur.isNum() {
 			stmt.IgnoreRows = int(p.cur.Ival)
 			p.advance()
 		}

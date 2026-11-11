@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -78,6 +79,11 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		if p.cur.Type == kwWITH {
 			p.advance()
 			if p.cur.Type == tokICONST {
+				// The count is held to 1..1024: OceanBase 4.3.5 answers 1064 for
+				// WITH 0 BUCKETS and WITH 1025 BUCKETS.
+				if p.cur.Ival < 1 || p.cur.Ival > 1024 {
+					return nil, &ParseError{Message: "Number of buckets is out of range", Position: p.cur.Loc}
+				}
 				stmt.Buckets = int(p.cur.Ival)
 				p.advance()
 			}
@@ -675,6 +681,13 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		if err != nil {
 			return nil, err
 		}
+		// The count is held to 63 bits here, where SELECT's takes 64: OceanBase 4.3.5
+		// answers 1064 for HANDLER t READ FIRST LIMIT 9223372036854775808.
+		if lit, ok := lim.Count.(*nodes.IntLit); ok {
+			if _, err := strconv.ParseInt(lit.Text, 10, 64); err != nil {
+				return nil, &ParseError{Message: "LIMIT value is out of range", Position: lit.Loc.Start}
+			}
+		}
 		stmt.Limit = lim
 	}
 
@@ -1172,10 +1185,18 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.AutoextendSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AutoextendSize = size
 		case p.cur.Type == kwFILE_BLOCK_SIZE:
 			p.advance()
 			p.match('=')
+			// A number here is an integer, as a size is (parseSizeValue).
+			if p.cur.Type == tokFCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.FileBlockSize = p.cur.Str
 			p.advance()
 		case p.cur.Type == kwENCRYPTION:
@@ -1197,18 +1218,34 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		case p.cur.Type == kwEXTENT_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.ExtentSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ExtentSize = size
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwMAX_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.MaxSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.MaxSize = size
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			p.match('=')
+			// A number here is an integer, as a size is (parseSizeValue).
+			if p.cur.Type == tokFCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.NodeGroup = p.cur.Str
 			p.advance()
 		case p.cur.Type == kwWAIT:
@@ -1304,7 +1341,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
@@ -1319,7 +1360,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.match('=')
-			stmt.AutoextendSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AutoextendSize = size
 		case p.cur.Type == kwSET:
 			p.advance() // consume SET
 			if p.cur.Type == kwACTIVE {
@@ -2057,10 +2102,13 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 	return stmt, nil
 }
 
-// parseSizeValue reads a size value which may be a number optionally followed
-// by a suffix like K, M, G (e.g. "16M", "256K", "1G"). The lexer tokenizes
-// "16M" as tokICONST("16") + tokIDENT("M"), so we concatenate them.
-func (p *Parser) parseSizeValue() string {
+// parseSizeValue reads the value of a tablespace or logfile group option. A number
+// there is an integer: OceanBase 4.3.5 answers 1064 for INITIAL_SIZE = 1.5 and for
+// INITIAL_SIZE = 18446744073709551616, whose digits lex as a decimal.
+func (p *Parser) parseSizeValue() (string, error) {
+	if p.cur.Type == tokFCONST {
+		return "", p.syntaxErrorAtCur()
+	}
 	val := p.cur.Str
 	p.advance()
 	// Check for size suffix: K, M, G, T
@@ -2071,7 +2119,7 @@ func (p *Parser) parseSizeValue() string {
 			p.advance()
 		}
 	}
-	return val
+	return val, nil
 }
 
 // parseCreateLogfileGroupStmt parses a CREATE LOGFILE GROUP statement.
@@ -2121,23 +2169,39 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwUNDO_BUFFER_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.UndoBufferSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.UndoBufferSize = size
 		case p.cur.Type == kwREDO_BUFFER_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.RedoBufferSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.RedoBufferSize = size
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
+			}
+			// A number here is an integer, as a size is (parseSizeValue).
+			if p.cur.Type == tokFCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.NodeGroup = p.cur.Str
 			p.advance()
@@ -2217,7 +2281,11 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.InitialSize = p.parseSizeValue()
+			size, err := p.parseSizeValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.InitialSize = size
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true

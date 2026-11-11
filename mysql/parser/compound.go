@@ -514,9 +514,16 @@ func (p *Parser) parseHandlerConditionValue() (nodes.HandlerCondValue, error) {
 		return nodes.HandlerCondValue{Kind: nodes.HandlerCondNotFound}, nil
 	}
 
-	// mysql_error_code (integer literal)
-	if p.cur.Type == tokICONST {
-		val := p.cur.Str
+	// mysql_error_code is ulong_num, which takes a decimal and reads its whole part,
+	// and the action refuses 0 with 1525: mysql:8.0 parses FOR 1.5 and
+	// FOR 99999999999999999999, and refuses FOR 0 and FOR 0.5 while it parses.
+	//
+	// Ref: sp_cond in MySQL 8.0 sql/sql_yacc.yy.
+	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+		if p.cur.Ival == 0 {
+			return nodes.HandlerCondValue{}, &ParseError{Message: "Incorrect CONDITION value: '0'", Position: p.cur.Loc}
+		}
+		val := leadingDigits(p.cur.Str)
 		p.advance()
 		return nodes.HandlerCondValue{Kind: nodes.HandlerCondErrorCode, Value: val}, nil
 	}

@@ -157,17 +157,13 @@ func (p *Parser) parseCastSize(dt *nodes.DataType, allowDecimal bool) error {
 		return nil
 	}
 	p.advance()
-	switch {
-	case p.cur.Type == tokICONST:
-		dt.Length = int(p.cur.Ival)
-	case allowDecimal && p.cur.Type == tokFCONST && !strings.ContainsAny(p.cur.Str, "eE"):
-		whole, _, _ := strings.Cut(p.cur.Str, ".")
-		for _, digit := range whole {
-			dt.Length = dt.Length*10 + int(digit-'0')
-		}
-	default:
+	// The whole part of a decimal is its length, held to the largest int64 as an
+	// integer's is, so a run of digits too wide for one is refused as too long. A
+	// decimal with no whole part is refused: CAST(a AS CHAR(.5)) is no length.
+	if p.cur.Type != tokICONST && !(allowDecimal && p.cur.isFieldLength()) {
 		return p.syntaxErrorAtCur()
 	}
+	dt.Length = int(p.cur.Ival)
 	p.advance()
 	_, err := p.expect(')')
 	return err

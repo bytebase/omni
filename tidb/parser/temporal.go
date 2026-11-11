@@ -83,26 +83,13 @@ func (p *Parser) checkSpacedFuncWord(upperName string) (ordinary bool, err error
 	return false, nil
 }
 
-// maxPrecisionLiteral is the largest literal the lexer gives as intLit. Past it the
-// literal is no longer an intLit, which the grammar refuses: TiDB v8.5.5 answers 1064
-// with a position for curtime(18446744073709551616). Up to it the grammar takes the
-// literal, including the ones refused from past the parser (see the file comment).
-const maxPrecisionLiteral = "18446744073709551615"
-
 // atDatetimePrecision reports whether p.cur can be a function's fractional
-// seconds precision.
+// seconds precision: an intLit, which the lexer gives up to 18446744073709551615.
+// Past it the literal is a decimal, which the grammar refuses: TiDB v8.5.5 answers
+// 1064 with a position for curtime(18446744073709551616). Up to it the grammar takes
+// the literal, including the ones refused from past the parser (see the file comment).
 func (p *Parser) atDatetimePrecision() bool {
-	return p.cur.Type == tokICONST && intLiteralFits(p.cur.Str, maxPrecisionLiteral)
-}
-
-// intLiteralFits reports whether a run of decimal digits, leading zeros aside, is
-// no larger than max.
-func intLiteralFits(digits, max string) bool {
-	digits = strings.TrimLeft(digits, "0")
-	if len(digits) != len(max) {
-		return len(digits) < len(max)
-	}
-	return digits <= max
+	return p.cur.Type == tokICONST
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no

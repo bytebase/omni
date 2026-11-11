@@ -2097,7 +2097,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 		switch p.cur.Type {
 		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxQueriesPerHour = int(p.cur.Ival)
@@ -2105,7 +2105,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxUpdatesPerHour = int(p.cur.Ival)
@@ -2113,7 +2113,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxConnectionsPerHour = int(p.cur.Ival)
@@ -2121,11 +2121,9 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_USER_CONNECTIONS:
 			p.advance()
-			if p.cur.Type != tokICONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			// Signed, unlike the other three.
-			if _, err := strconv.ParseInt(p.cur.Str, 10, 64); err != nil {
+			// NUM, where the other three are ulong_num and take any number:
+			// mariadb:11.8.8 answers 1064 for MAX_USER_CONNECTIONS 2147483648.
+			if !p.cur.isNum() {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxUserConnections = int(p.cur.Ival)
@@ -2180,7 +2178,9 @@ func (p *Parser) parseUserAccountOptions(
 					p.advance()
 				} else if p.cur.Type == kwINTERVAL {
 					p.advance() // consume INTERVAL
-					n, err := p.parseUserLimit(1, math.MaxInt64, "PASSWORD EXPIRE INTERVAL")
+					// The day count is NUM: mariadb:11.8.8 answers 1064 for INTERVAL
+					// 2147483648 DAY.
+					n, err := p.parseUserLimit(1, math.MaxInt32, "PASSWORD EXPIRE INTERVAL")
 					if err != nil {
 						return err
 					}

@@ -667,6 +667,12 @@ const maxVectorDimension = 16383
 // every spelling: `varcharacter(1)`, `char varying(50)` and `nchar
 // varying(50)` are accepted and those three without a length are not. The LONG
 // forms carry no length at all, so they do not come here.
+//
+// field_length takes every integer token and DECIMAL_NUM, whose whole part is the
+// length: mariadb:11.8.8 parses CHAR(1.5) and YEAR(99999999999999999999), and holds
+// the other types to their ranges while it parses.
+//
+// Ref: field_length in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return &ParseError{
@@ -675,7 +681,7 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	p.advance()
-	if p.cur.Type != tokICONST {
+	if !p.cur.isFieldLength() {
 		return &ParseError{
 			Message:  "expected a length for " + dt.Name,
 			Position: p.cur.Loc,
@@ -723,7 +729,10 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 // has one and DECIMAL(10) does not, though dt.Scale is 0 for both.
 func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err error) {
 	p.advance()
-	if p.cur.Type != tokICONST {
+	// A precision alone is field_length, which takes DECIMAL_NUM, and one with a scale
+	// is two integers: mariadb:11.8.8 parses DECIMAL(1.5) and answers 1064 for
+	// DECIMAL(1.5,0).
+	if p.cur.Type != tokICONST && !(p.cur.isFieldLength() && p.peekNext().Type != ',') {
 		return false, &ParseError{
 			Message:  "expected a precision for " + dt.Name,
 			Position: p.cur.Loc,

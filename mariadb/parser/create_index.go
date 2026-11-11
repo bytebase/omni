@@ -263,9 +263,10 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		}
 
 		// Optional (length) — when present, the length is required (no empty "()").
+		// The length is NUM: mariadb:11.8.8 answers 1064 for a(2147483648).
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if !p.cur.isNum() {
 				return nil, p.syntaxErrorAtCur()
 			}
 			col.Length = int(p.cur.Ival)
@@ -397,7 +398,8 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		p.advance()
 		p.matchEqual() // optional =
 		valStart := p.pos()
-		if p.cur.Type == tokICONST {
+		// ulong_num takes a decimal and reads its whole part.
+		if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 			val := p.cur.Ival
 			p.advance()
 			return &nodes.IndexOption{

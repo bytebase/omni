@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"math"
-	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -1593,7 +1591,7 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 		}
 		// The id is the NUM token, an integer that fits 31 bits, and no expression:
 		// FOR QUERY 2147483648 and FOR QUERY 1+1 are each a 1064.
-		if p.cur.Type != tokICONST || p.cur.Ival > math.MaxInt32 {
+		if !p.cur.isNum() {
 			return p.syntaxErrorAtCur()
 		}
 		expr, err := p.parsePrimaryExpr()
@@ -1836,9 +1834,6 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		tok, err := p.expect(tokICONST)
 		if err != nil {
 			return nil, err
-		}
-		if _, err := strconv.ParseUint(tok.Str, 10, 64); err != nil {
-			return nil, p.syntaxErrorAtTok(tok)
 		}
 		stmt.ForConnection = tok.Ival
 		stmt.Loc.End = p.prev.End

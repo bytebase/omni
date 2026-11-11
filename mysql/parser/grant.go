@@ -1974,6 +1974,9 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	  | MAX_USER_CONNECTIONS count
 //	}
 func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
+	// Each count is ulong_num, which takes a decimal and reads its whole part.
+	//
+	// Ref: connect_option in MySQL 8.0 sql/sql_yacc.yy.
 	var res *nodes.ResourceOption
 	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
 		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
@@ -1983,7 +1986,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 		switch p.cur.Type {
 		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxQueriesPerHour = int(p.cur.Ival)
@@ -1991,7 +1994,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxUpdatesPerHour = int(p.cur.Ival)
@@ -1999,7 +2002,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxConnectionsPerHour = int(p.cur.Ival)
@@ -2007,7 +2010,7 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 			p.advance()
 		case kwMAX_USER_CONNECTIONS:
 			p.advance()
-			if p.cur.Type != tokICONST {
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			res.MaxUserConnections = int(p.cur.Ival)

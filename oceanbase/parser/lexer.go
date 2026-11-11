@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1715,7 +1716,7 @@ var keywords = map[string]int{
 type Token struct {
 	Type int    // token type
 	Str  string // string value for identifiers, operators, string literals
-	Ival int64  // integer value for ICONST
+	Ival int64  // integer value for ICONST, and the whole part of an FCONST (numberWhole)
 	Loc  int    // byte offset in source text
 	End  int    // byte offset past the end of the token in the source text
 }
@@ -2457,11 +2458,53 @@ func (l *Lexer) scanNumber() Token {
 
 	s := l.input[start:l.pos]
 	if isFloat {
-		return Token{Type: tokFCONST, Str: s, Loc: start}
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
 	}
 
-	ival, _ := strconv.ParseInt(s, 10, 64)
-	return Token{Type: tokICONST, Str: s, Ival: ival, Loc: start}
+	// A digit run is an integer token only while it fits 64 unsigned bits. Past
+	// that OceanBase's lexer gives a decimal, the token of 1.5, so a production that
+	// takes an integer refuses it and one that takes a number keeps it: OceanBase
+	// 4.3.5 parses PARTITIONS 18446744073709551615 and answers 1064 for PARTITIONS
+	// 18446744073709551616.
+	if _, err := strconv.ParseUint(s, 10, 64); err != nil {
+		return Token{Type: tokFCONST, Str: s, Ival: numberWhole(s), Loc: start}
+	}
+	return Token{Type: tokICONST, Str: s, Ival: numberWhole(s), Loc: start}
+}
+
+// isWideDigits reports whether the token is a decimal for its width alone: a run of
+// digits past 64 bits, with no point or exponent in it.
+func (t Token) isWideDigits() bool {
+	return t.Type == tokFCONST && strings.Trim(t.Str, "0123456789") == ""
+}
+
+// isInt64 reports whether the token is an integer that fits 63 bits. A few places
+// take no more: OceanBase 4.3.5 parses AVG_ROW_LENGTH = 9223372036854775807 and
+// answers 1064 for AVG_ROW_LENGTH = 9223372036854775808.
+func (t Token) isInt64() bool {
+	if t.Type != tokICONST {
+		return false
+	}
+	_, err := strconv.ParseInt(t.Str, 10, 64)
+	return err == nil
+}
+
+// numberWhole returns the integer the server reads from a number where the grammar
+// takes one for an integer: its leading digits, held to the largest int64, so 1.9
+// and 1e2 are both 1 and .5 is 0.
+func numberWhole(s string) int64 {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return 0
+	}
+	whole, err := strconv.ParseInt(s[:end], 10, 64)
+	if err != nil {
+		return math.MaxInt64
+	}
+	return whole
 }
 
 // identCharAt reports whether the byte at i can appear inside an identifier.

@@ -70,25 +70,11 @@ func (p *Parser) spacedFuncWordIsName(upperName string) bool {
 	return (spacedTemporalWords[upperName] || spacedFuncWords[upperName]) && p.prev.End != p.cur.Loc
 }
 
-// maxPrecisionLiteral is the largest literal func_datetime_precision reads. The
-// lexer gives anything larger as LONG_NUM rather than NUM: mysql:8.0 answers
-// 1426 for now(2147483647) and 1064 for now(2147483648).
-const maxPrecisionLiteral = "2147483647"
-
 // atDatetimePrecision reports whether p.cur can be a function's fractional
-// seconds precision.
+// seconds precision. func_datetime_precision reads NUM and nothing wider:
+// mysql:8.0 answers 1426 for now(2147483647) and 1064 for now(2147483648).
 func (p *Parser) atDatetimePrecision() bool {
-	return p.cur.Type == tokICONST && intLiteralFits(p.cur.Str, maxPrecisionLiteral)
-}
-
-// intLiteralFits reports whether a run of decimal digits, leading zeros aside, is
-// no larger than max.
-func intLiteralFits(digits, max string) bool {
-	digits = strings.TrimLeft(digits, "0")
-	if len(digits) != len(max) {
-		return len(digits) < len(max)
-	}
-	return digits <= max
+	return p.cur.isNum()
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no
