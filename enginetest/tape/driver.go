@@ -24,6 +24,9 @@ type session struct {
 	codec Codec
 	rec   bool
 
+	// poison ends the recording of this stream's file. Recording only.
+	poison func() error
+
 	mu     sync.Mutex
 	want   []exchange // replay: the tape; recording: the committed stream, if any
 	next   int
@@ -86,7 +89,11 @@ func (s *session) reproduces() {
 	}
 }
 
-// errorAnswer turns an error the live server returned into an answer.
+// errorAnswer turns an error the live server returned into an answer. An
+// error the engine did not answer (a timeout, a driver fault) fails the
+// test and poisons the recording: it must never reach the tape, where a
+// replay would hand it to the test as the engine's verdict. The test gets
+// that error as the driver returned it.
 func (s *session) errorAnswer(err error) answer {
 	if errors.Is(err, driver.ErrBadConn) {
 		return answer{kind: "badconn"}
@@ -94,7 +101,10 @@ func (s *session) errorAnswer(err error) answer {
 	text, ok := s.codec.EncodeError(err)
 	if !ok {
 		s.t.Errorf("stream %q: %v is not an answer from the engine, so it can't be recorded", s.name, err)
-		text = err.Error()
+		if perr := s.poison(); perr != nil {
+			s.t.Errorf("tape: %v", perr)
+		}
+		return answer{kind: "error", err: err.Error(), raw: err}
 	}
 	return answer{kind: "error", err: text}
 }
@@ -104,6 +114,9 @@ func (s *session) errorAnswer(err error) answer {
 func (s *session) result(a answer) (answer, error) {
 	switch a.kind {
 	case "error":
+		if a.raw != nil {
+			return a, a.raw
+		}
 		return a, s.codec.DecodeError(a.err)
 	case "badconn":
 		return a, driver.ErrBadConn

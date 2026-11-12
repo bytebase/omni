@@ -60,8 +60,19 @@ var sharedTiDB sync.Mutex
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	sharedTiDB.Lock()
+	// Reset and Open fail the test on a missing tape or server, and a Fatalf
+	// never returns: release the lock on that path, or every test after it
+	// blocks until the package times out instead of reporting the failure.
+	opened := false
+	defer func() {
+		if !opened {
+			sharedTiDB.Unlock()
+		}
+	}()
 	testcontainer.Reset(t, resetServer)
-	return &mysqlContainer{db: testcontainer.Open(t), ctx: context.Background()}, sharedTiDB.Unlock
+	ctr := &mysqlContainer{db: testcontainer.Open(t), ctx: context.Background()}
+	opened = true
+	return ctr, sharedTiDB.Unlock
 }
 
 // resetServer drops everything a test could have created on the shared

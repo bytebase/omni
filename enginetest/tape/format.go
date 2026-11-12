@@ -58,6 +58,10 @@ type answer struct {
 	lastID   string
 	err      string // the codec's text
 	sets     []resultSet
+
+	// raw is an error that is not the engine's answer, which only a
+	// recording sees. It is never written: it poisons the recording.
+	raw error
 }
 
 type resultSet struct {

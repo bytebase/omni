@@ -18,6 +18,7 @@ import (
 	"database/sql/driver"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -71,8 +72,11 @@ type openKey struct {
 // recording has written so far.
 type fileState struct {
 	path     string
-	old      *tapeFile // nil when there is no committed tape
+	existed  bool      // the file was there when this run first opened it
+	orig     []byte    // its bytes then
+	old      *tapeFile // nil when there is no committed tape, or it does not parse
 	err      error
+	poisoned bool // a recording took an answer that can't replay; the committed file stays
 	opened   map[string]bool
 	pins     map[string]string
 	recorded map[string]*stream
@@ -91,9 +95,30 @@ func file(path string) *fileState {
 	case err != nil:
 		f.err = err
 	default:
+		f.existed, f.orig = true, b
 		f.old, f.err = parse(path, string(b))
 	}
 	return f
+}
+
+// poison ends the file's recording, because an answer in it can't be
+// replayed. A stream that finished earlier may have rewritten the file by
+// now, so poison puts the committed bytes back, and the streams that finish
+// later leave them alone.
+func (f *fileState) poison() error {
+	reg.Lock()
+	defer reg.Unlock()
+	if f.poisoned {
+		return nil
+	}
+	f.poisoned = true
+	if f.existed {
+		return os.WriteFile(f.path, f.orig, 0o644)
+	}
+	if err := os.Remove(f.path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Open returns t's connection to the server in pin row role: a replay of
@@ -122,10 +147,12 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 	f.opened[name] = true
 	reg.Unlock()
 
-	if f.err != nil {
+	// A recording replaces a tape that does not parse, such as one left with
+	// merge conflict markers; anything else wrong with the file stops here.
+	if f.err != nil && !(recording && f.existed) {
 		t.Fatalf("tape: %v", f.err)
 	}
-	ses := &session{t: t, name: name, codec: s.Codec, rec: recording}
+	ses := &session{t: t, name: name, codec: s.Codec, rec: recording, poison: f.poison}
 	var committed *stream
 	if f.old != nil && f.old.pins[role] == pin.String() {
 		committed = f.old.stream(name)
@@ -161,6 +188,9 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 		ses.reproduces()
 		reg.Lock()
 		defer reg.Unlock()
+		if f.poisoned {
+			return // the test failed, and the committed tape stays
+		}
 		f.pins[role] = pin.String()
 		f.recorded[name] = &stream{name: name, exchanges: ses.got}
 		if err := f.write(); err != nil {
@@ -189,40 +219,52 @@ func (f *fileState) write() error {
 }
 
 // Main runs the package's tests, as TestMain's m.Run does, and returns the
-// exit code. A run with no -run or -skip also accounts for every tape:
-// a replay fails on a tape or stream no test opened, which a deleted or
+// exit code. A passing run of every test also accounts for every tape: a
+// replay fails on a tape or stream no test opened, which a deleted or
 // renamed test leaves behind, and a recording deletes such tapes.
 func Main(m *testing.M) int {
 	reg.Lock()
 	reg.main = true
 	reg.Unlock()
-	code := m.Run()
-	if filtered() {
+	return account(m.Run(), partialRun(testFlag), os.Stderr)
+}
+
+// account settles the tapes no test opened once the tests have run. Only a
+// passing run of every test can: a test that failed may not have opened its
+// streams, and a partial run says nothing about the tapes of the tests it
+// left out.
+func account(code int, partial bool, stderr io.Writer) int {
+	if code != 0 || partial {
 		return code
 	}
 	recording, err := enginetest.RecordingMode()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if code != 0 && !recording {
-		return code // a test that failed may not have opened its streams
-	}
-	problems := leftovers(recording)
-	if len(problems) > 0 {
-		fmt.Fprintf(os.Stderr, "tape: %s\n", strings.Join(problems, "\ntape: "))
+	if problems := leftovers(recording); len(problems) > 0 {
+		fmt.Fprintf(stderr, "tape: %s\n", strings.Join(problems, "\ntape: "))
 		return 1
 	}
 	return code
 }
 
-func filtered() bool {
-	for _, name := range []string{"test.run", "test.skip"} {
-		if f := flag.Lookup(name); f != nil && f.Value.String() != "" {
+func testFlag(name string) string {
+	if f := flag.Lookup(name); f != nil {
+		return f.Value.String()
+	}
+	return ""
+}
+
+// partialRun reports whether this run leaves tests out: -run and -skip
+// select some, and -list and a fuzz worker process run none at all.
+func partialRun(flagValue func(name string) string) bool {
+	for _, name := range []string{"test.run", "test.skip", "test.list"} {
+		if flagValue(name) != "" {
 			return true
 		}
 	}
-	return false
+	return flagValue("test.fuzzworker") == "true"
 }
 
 // leftovers reports the tapes and streams no test opened, and in a

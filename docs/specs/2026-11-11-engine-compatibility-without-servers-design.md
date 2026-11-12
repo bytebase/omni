@@ -333,7 +333,7 @@ default	oceanbase/oceanbase-ce:4.3.5.6-106000012026040916	sha256:…	v4.3.5_CE_B
 
 - **One engine at a time.** No machine holds every server.
 - **The judge starts itself.** For an engine with a server, the tests start the pinned image by digest, so recording needs Docker. For the others, the judge is a recognizer and needs nothing.
-- **A recording must reproduce.** If a test sends what its committed tape holds, under the same pin, the answers must match, or the recording fails. Nothing nondeterministic gets committed.
+- **A recording must reproduce.** If a test sends what its committed tape holds, under the same pin, the answers must match, or the recording fails. Nothing nondeterministic gets committed, and an answer the engine did not give (a timeout, a driver fault) fails the recording and leaves the committed tape as it was.
 - **Missing Docker fails.** A recording never skips.
 - **`OMNI_RECORD=1` fails when `CI` is set.** CI never writes answers.
 - **Nothing is build-tagged.** The recording code compiles on every PR, so it can't rot unseen.
@@ -423,7 +423,7 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
-| A deleted or renamed test leaves its tape behind | On a run with no `-run` or `-skip`, the harness fails on a tape no test opened. |
+| A deleted or renamed test leaves its tape behind | After a passing run of every test (no `-run`, `-skip` or `-list`), the harness fails on a tape no test opened. |
 | An answer comes from the wrong server | Headers must match `pins.tsv`. |
 | A nondeterministic answer is committed | The recording fails (§5.2). |
 | A tape or an `engine` cell is written by hand | Not caught without a server. See D5. |
@@ -558,7 +558,7 @@ func Reset(t testing.TB, fn func(context.Context, *sql.DB) error) // in a record
 What the harness handles:
 - **Every kind of answer:** result sets with column types, several result sets, transactions, errors through the codec, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
 - **Streams.** Each `Open` is one stream, named by test, pin role and open order, with a pool of one connection so session state holds. A recording that sends what the committed tape holds, under the same pin, must get the same answers.
-- **`tape.Main(m)`** runs the package's tests. On a run with no `-run` or `-skip`, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A focused run checks only what it opened.
-- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs.
+- **`tape.Main(m)`** runs the package's tests. After a passing run of every test, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A run that failed, selected tests (`-run`, `-skip`) or ran none (`-list`, a fuzz worker) settles nothing: it neither fails on those tapes nor deletes them.
+- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs, including one that no longer parses, such as a tape left with merge conflict markers.
 - **Not built yet:** statements over 64 KB stored by hash, `tape.Live(t)` for tests with nothing to replay, and package setup recorded once in `_setup.tape`. TiDB's catalog needed none of them.
 - **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.

@@ -302,15 +302,149 @@ func TestPreparedStatementsAreRefused(t *testing.T) {
 	}
 }
 
-func TestRecordingRefusesAnErrorTheEngineDidNotAnswer(t *testing.T) {
+// An error the engine did not answer, such as a timeout, fails the recording
+// and never reaches the tape, where a replay would hand it to the test as the
+// engine's verdict.
+func TestAnUnrecordableAnswerKeepsTheCommittedTape(t *testing.T) {
 	srv, _ := harness(t)
 	record(t)
-	_, errs := run(t, "TestFake", func(t testing.TB) []string {
-		_, _ = Open(t, srv, "default").Exec("TIMEOUT")
-		return nil
-	})
-	if len(errs) != 1 || !strings.Contains(errs[0], "i/o timeout is not an answer from the engine") {
-		t.Errorf("got %q", errs)
+	path := filepath.Join(dir, "TestFake.tape")
+	read := func() string {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	healthy := func(t testing.TB) []string {
+		_, err := Open(t, srv, "default").Exec("CREATE TABLE t (a INT)")
+		return []string{fmt.Sprint(err)}
+	}
+	// timeout opens a healthy stream beside the one that times out, and the
+	// healthy one finishes last.
+	timeout := func(t testing.TB) []string {
+		_, _ = Open(t, srv, "default").Exec("CREATE TABLE t (a INT)")
+		_, err := Open(t, srv, "default").Exec("TIMEOUT")
+		return []string{fmt.Sprint(err)}
+	}
+	refused := func(log, errs []string) {
+		t.Helper()
+		if len(errs) != 1 || !strings.Contains(errs[0], "i/o timeout is not an answer from the engine") {
+			t.Errorf("got %q", errs)
+		}
+		if len(log) != 1 || log[0] != "i/o timeout" {
+			t.Errorf("the test got %q, want the driver's own error", log)
+		}
+	}
+
+	// With no committed tape, none appears.
+	refused(run(t, "TestFake", timeout))
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("a failed recording wrote %s", path)
+	}
+
+	// With one, it stays as it was.
+	resetRegistry()
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	committed := read()
+	resetRegistry()
+	refused(run(t, "TestFake", timeout))
+	if got := read(); got != committed {
+		t.Errorf("a failed recording rewrote the tape:\n%s", got)
+	}
+
+	// A subtest that finished before the failure has rewritten the tape by
+	// then. The failure puts the committed tape back, and a subtest after it
+	// leaves the tape alone.
+	resetRegistry()
+	if _, errs := run(t, "TestFake/before", healthy); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	if read() == committed {
+		t.Fatal("the first subtest did not rewrite the tape, so the rest checks nothing")
+	}
+	refused(run(t, "TestFake/failing", timeout))
+	if _, errs := run(t, "TestFake/after", healthy); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	if got := read(); got != committed {
+		t.Errorf("a failed recording left a partial tape:\n%s", got)
+	}
+}
+
+func TestARecordingReplacesATapeThatDoesNotParse(t *testing.T) {
+	srv, _ := harness(t)
+	path := filepath.Join(dir, "TestFake.tape")
+	if err := os.WriteFile(path, []byte("<<<<<<< HEAD\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], `TestFake.tape:1: unexpected line "<<<<<<< HEAD"`) {
+		t.Errorf("a replay: %q", errs)
+	}
+	record(t)
+	resetRegistry()
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatalf("a recording: %q", errs)
+	}
+	replay(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Errorf("the replay of it: %q", errs)
+	}
+}
+
+// Only a passing run of every test settles the tapes no test opened. A run
+// that failed, selected tests, or ran none (-list, a fuzz worker) proves
+// nothing about them, and must neither fail on them nor delete them.
+func TestOnlyAPassingRunOfEveryTestAccountsForTapes(t *testing.T) {
+	for _, c := range []struct {
+		flags map[string]string
+		want  bool
+	}{
+		{nil, false},
+		{map[string]string{"test.count": "2", "test.fuzzworker": "false"}, false},
+		{map[string]string{"test.run": "^TestX$"}, true},
+		{map[string]string{"test.skip": "TestX"}, true},
+		{map[string]string{"test.list": "."}, true},
+		{map[string]string{"test.fuzzworker": "true"}, true},
+	} {
+		if got := partialRun(func(name string) string { return c.flags[name] }); got != c.want {
+			t.Errorf("partialRun with %v = %v, want %v", c.flags, got, c.want)
+		}
+	}
+
+	harness(t)
+	stray := filepath.Join(dir, "TestGone.tape")
+	if err := os.WriteFile(stray, []byte("-- pin: default img:1 sha256:1 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	for _, mode := range []func(*testing.T){record, replay} {
+		mode(t)
+		if code := account(1, false, &out); code != 1 {
+			t.Errorf("a failed run exits %d, want 1", code)
+		}
+		if code := account(0, true, &out); code != 0 {
+			t.Errorf("a partial run exits %d, want 0", code)
+		}
+		if _, err := os.Stat(stray); err != nil || out.Len() > 0 {
+			t.Fatalf("a failed or partial run settled the tapes: %v, %q", err, out.String())
+		}
+	}
+
+	replay(t)
+	if code := account(0, false, &out); code != 1 || !strings.Contains(out.String(), "TestGone.tape belongs to no test that ran") {
+		t.Errorf("a passing replay of every test exits %d with %q", code, out.String())
+	}
+	record(t)
+	if code := account(0, false, &out); code != 0 {
+		t.Errorf("a passing recording of every test exits %d", code)
+	}
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Errorf("a passing recording of every test kept %s", stray)
 	}
 }
 
