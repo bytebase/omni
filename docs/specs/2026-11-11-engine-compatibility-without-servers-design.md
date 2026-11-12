@@ -1,0 +1,544 @@
+# Engine compatibility without servers in CI
+
+Status: draft, 2026-11-12. Nothing is implemented. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost, so rollout step 0 rebuilds it. The other engines' grammars were located, not run.
+
+## 1. Summary
+
+**CI starts no database server. The engine's answers are committed to the repo, and tests compare omni with those files.**
+
+```text
+        Recording: OMNI_RECORD=1, one engine, a developer machine        Every other run: go test ./...
+
+vendor grammar ─▶ generated statements ──▶ judge ──▶ compat.tsv    ─▶  omni's parser, held to the file
+                  DDL × starting schemas ─▶ engine ─▶ simulate.tsv  ─▶  omni's catalog, held to the file
+hand-written test ───────────────────────▶ engine ─▶ <Test>.tape   ─▶  the same test, answered from the file
+```
+
+| Committed answer | One entry holds | Checks |
+| --- | --- | --- |
+| `compat.tsv` (§2) | A statement, omni's verdict, and the judge's | Syntax: parser, completion, analysis |
+| `simulate.tsv` (§3) | A DDL statement on a starting schema, omni's outcome, and the engine's | DDL behavior: catalog, walk-through |
+| Tapes (§4) | Every request a hand-written test sends, and the engine's answer | Everything else: generated SQL, Split, review, validate |
+
+Four terms are used throughout:
+
+| Term | Meaning |
+| --- | --- |
+| Pin | The exact engine release the answers come from (§5.1) |
+| Judge | What decides the expected answer: the pinned engine where there is one, otherwise the vendor's grammar or docs (§2.3) |
+| Recording | A run that asks the judge and writes answers: `OMNI_RECORD=1` (§5.2) |
+| Replay | Every other run. It reads the files and reaches no server |
+
+**An engine is fully compatible at its pin when all four hold:**
+
+1. **Complete:** its rows cover every grammar alternative and every token form in `tokens.tsv`. They are generated, and CI regenerates them to prove none was dropped.
+2. **Judged:** no row is waiting for a judge.
+3. **Agreeing:** on every row, omni's answer equals the judge's.
+4. **Replaying:** every tape replays.
+
+Until then, the disagreeing rows are the work list: 3,047 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
+
+**What that does not claim:**
+- **Statements no row covers.** Rows sample an infinite language. A statement outside them is unknown until someone adds it as a row, and then it is covered for good.
+- **More than the docs, for docs engines.** Where docs are the judge, omni is compatible with the docs, not necessarily with the engine.
+- **How omni reads a query.** Agreeing on accept or reject doesn't prove omni built the right tree. `simulate.tsv` proves it for DDL, by comparing what gets stored. Queries are D6.
+
+**Omni's parsers stay hand-written.** A generated parser would add a runtime dependency, lose omni's `Loc`, depth limits and AST shapes, and still miss checks made outside the grammar rules. The grammar generates the test set instead.
+
+**Why now.** OceanBase's container takes 3.5 GiB and about 21 of CI's 30 minutes on a box that runs out of memory, and its packages still test against MySQL. Six engines have no judge at all: cassandra, cosmosdb, elasticsearch, mongo, partiql, snowflake.
+
+## 2. Syntax: `compat.tsv`
+
+### 2.1 The file
+
+`<engine>/parser/testdata/compat.tsv` has one row per statement. It generalizes the corpus TiDB already keeps (`tidb/parser/testdata/parser_y_corpus.tsv`):
+
+```text
+# pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 v4.3.5_CE_BP6
+# columns: omni, expected, source, rule, statement
+accept	accept	engine	stmt_list/BEGIN	BEGIN
+reject	accept	engine	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+accept	reject	engine	func_expr/MONTH!drop-3	DO MONTH()
+?	?	-	issue:BYT-9120	ALTER TABLE t TRUNCATE PARTITION ALL
+```
+
+1. An agreement.
+2. A known gap: OceanBase accepts this and omni doesn't.
+3. A known gap the other way: omni accepts a broken statement.
+4. A bug report just added. It fails the test until a recording judges it, so it is committed judged, never as `?`.
+
+The first three are real spike results. The fourth shows the form of a new row.
+
+| Column | Holds |
+| --- | --- |
+| `omni` | Omni's verdict when the row was last updated |
+| `expected` | The judge's verdict |
+| `source` | Which judge: `engine`, `grammar` or `docs` |
+| `rule` | The grammar rule the row came from, or a label for a hand-added row |
+
+A verdict is `accept`, `reject`, or `reject@<byte>` where the judge reports a position, as pg does. Two more values exist: `undocumented` (§2.3), and `?` for a cell not filled yet.
+
+The test is one call. The engine supplies only its parser:
+
+```go
+func TestCompatibility(t *testing.T) {
+	compat.Check(t, "testdata/compat.tsv", omniVerdict)
+}
+
+func omniVerdict(sql string) string {
+	if _, err := Parse(sql); err != nil {
+		return "reject"
+	}
+	return "accept"
+}
+```
+
+`compat.Check` runs omni on every row and compares:
+
+| Omni's verdict now | Result |
+| --- | --- |
+| Equals the `omni` cell | Pass. The row is an agreement or a known gap. |
+| Differs from the cell, equals `expected` | Fail: a gap closed. Rerun with `-update-compat` to commit it. |
+| Differs from both | Fail: a regression. |
+| The row is `?` | Fail: not judged yet. |
+
+Recording both columns is what makes this work. Thousands of known gaps pass quietly, and the one statement a change breaks fails by name:
+
+```text
+index_or_heap/ORGANIZATION_HEAP: omni now says reject, engine says accept:
+    ALTER TABLE a ORGANIZATION HEAP
+```
+
+### 2.2 Where rows come from
+
+**Generated rows** come from the vendor's grammar at the pinned release:
+
+| Kind | Rows | Example | Covers |
+| --- | --- | --- | --- |
+| Alternative | The shortest statement for each alternative of each rule | `ALTER TABLE a REMOVE TTL` | Every production |
+| Near-miss | Each alternative broken once: a token dropped, a word inserted, a keyword swapped, the end cut off | `ALTER TABLE a REMOVE` | Rejections |
+| Derivation | N random, deeper expansions per rule, from a fixed seed | `SELECT a FROM t WHERE (b + 1) * 2 > ANY (SELECT c FROM u)` | Combinations, nesting, precedence |
+| Token | Every form of every token, in a carrier statement | ``SELECT `a``b` ``, `SELECT 0x1F`, `SELECT /*+ INDEX(t i) */ 1` | Lexing, which grammar rules never see |
+
+- **The judge decides every row.** A near-miss can still be valid: OceanBase's own grammar accepts 900 of its 15,560.
+- **Rule IDs are stable.** A row is named by its rule and the alternative's symbols, not by an index, so a pin bump's diff shows only what the release changed.
+- **Token forms come from a committed `tokens.tsv`,** cited to the vendor's lexer or lexical docs. It is written by hand, because the lexers of MySQL, MariaDB and TiDB are code, not grammar files. Other rows take their sample identifiers and literals from it.
+
+**Hand-added rows** carry a label in `rule` and survive regeneration: `issue:<key>` for a bug report, `suite:<name>` for a corpus. Today's corpora become `suite:` rows: TiDB's, Doris and StarRocks conformance, Trino's differential, pg's fuzz, and the statements that completion and analysis tests check for validity.
+
+**Grammar files.** The generator reads two formats, bison `.y` and ANTLR `.g4`.
+- A vendor `.y` or `.g4` is used as published. It is committed where the license allows, as TiDB's `parser.y` already is, and fetched by tag otherwise (D1).
+- Anything else is converted once per pin to a committed `.g4`, each rule citing its source: docs syntax blocks, Doris's CUP, GoogleSQL's Textmapper, ANTLR 2 and 3 (D2).
+- A community grammar is never used. Omni's Snowflake parser was ported from one, so that grammar can't judge it.
+- Mongo and Elasticsearch have no statement grammar. Their rows cover call shapes (method names, endpoints), not argument documents or request bodies.
+
+### 2.3 Who judges
+
+`expected` comes from the strongest judge the engine has:
+
+1. **`engine`:** the pinned server.
+2. **`grammar`:** a recognizer over the vendor's grammar.
+3. **`docs`:** a recognizer over the `.g4` converted from the vendor's docs.
+
+Each engine with a server has one function that reads the server's answer as a verdict:
+
+| Engines | Verdict from |
+| --- | --- |
+| mysql, mariadb, tidb, oceanbase | `PREPARE`, read by TiDB's `prepareVerdict` |
+| pg, redshift | SQLSTATE `42601` from the `SELECT 1/0` probe |
+| mssql | `SET PARSEONLY ON` |
+| oracle | `DBMS_SQL.PARSE` |
+| trino, doris, starrocks, googlesql | The engine's error name or message |
+
+An answer the function can't read fails the recording. It is never guessed.
+
+The two recognizers are weaker judges, in known ways:
+- **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `grammar-overrides.tsv`.
+- **Docs only say what is valid.** A near-miss judged by docs is `undocumented`, not `reject`. It counts as neither a gap nor a regression, so omni is never pushed to reject forms users write.
+- **Snowflake and Redshift can upgrade.** With `SNOWFLAKE_COMPAT_DSN` or `REDSHIFT_COMPAT_DSN` set, a recording asks the engine instead of the docs. The account must be dedicated and scratch-only, because preparing DDL there executes it.
+
+## 3. DDL behavior: `simulate.tsv`
+
+Omni's catalog simulates DDL. `catalog.Exec` either changes the schema as the engine would, or refuses with the engine's error code. `simulate.tsv` holds the engine's side of that. One row, traced:
+
+```text
+fixture one_table     CREATE TABLE t (a INT PRIMARY KEY, b INT, KEY idx_b (b))
+statement             ALTER TABLE t ADD COLUMN a INT
+engine                error 1060 (duplicate column)
+omni, catalog.Exec    error 1060                      → the row agrees
+```
+
+Rows are generated: every DDL statement the engine accepts in `compat.tsv`, on each fixture, with each object name filled three ways.
+
+```text
+# columns: omni, expected, source, fixture, rule, statement
+ok:7c21…	ok:7c21…	engine	one_table	alter_table_action/ADD_COLUMN@exists	ALTER TABLE t ADD COLUMN c INT
+1060	1060	engine	one_table	alter_table_action/ADD_COLUMN@collides	ALTER TABLE t ADD COLUMN a INT
+ok:3f9a…	1146	engine	one_table	alter_table_action/ADD_COLUMN@missing	ALTER TABLE nosuch ADD COLUMN c INT
+```
+
+These rows show the format. No simulation has been run.
+
+- **Fixtures** are a few committed starting schemas in `<engine>/catalog/testdata/fixtures/`: an empty database, one table with keys, a foreign-key pair, a partitioned table, a view.
+- **Names.** The grammar doesn't say which symbols must name an existing object. `references.tsv` does, in tens of rows per engine. The generator fills each with a name that exists, one that is missing, and one that collides.
+- **Outcomes** are an error code, or `ok:<hash>`. The hash is of the database's stored form after the statement: every object's `SHOW CREATE`, in name order. So an `ok` row agrees only when omni stores what the engine stores. The texts are on a tape (§4), so a mismatch prints a diff.
+- **Everything else is §2.1:** the same columns plus `fixture`, the same checker, the same guards. The test is `TestSimulation`.
+
+**Walk-through reads the same rows.** For each row, the walk runs on the fixture and the statement:
+- On an `ok` row, any finding fails.
+- On a refused row, a finding must name the engine's code, or claim only facts true of the fixture.
+- Silence passes, since the walk must never be wrong but may be unsure. How often it finds the refusal is printed.
+
+**Cost is unmeasured, and measuring it is the first job.** At about 5 seconds per row on OceanBase, 1,000 statements × 5 fixtures × 3 names would take about 20 hours to record. Rollout starts with one fixture. Docs engines have no `simulate.tsv`, since docs rarely name the error a statement raises.
+
+## 4. Hand-written tests: tapes
+
+### 4.1 What changes in a test
+
+A test that talks to a server keeps its code. It opens its connection differently and iterates maps in sorted order:
+
+```diff
+ func TestOracle_ConstraintOfIndexSurvivesOtherNames(t *testing.T) {
+-	o := oceanBaseOracle(t)
++	db := testcontainer.Open(t)
+ 	...
+-	for name, script := range constraintOfIndexScripts {
++	for _, name := range slices.Sorted(maps.Keys(constraintOfIndexScripts)) {
+```
+
+`testcontainer.Open(t)` returns an ordinary `*sql.DB`. In replay it answers from the test's tape. In a recording it talks to the pinned server and writes the tape. Errors keep the driver's own type, so `errors.As(err, &mysqlErr)` still works.
+
+### 4.2 What a tape holds
+
+One text file per top-level test, `<package>/testdata/tapes/<Test>.tape`. Each request is followed by the engine's answer:
+
+```text
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:… v4.3.5_CE_BP6
+
+== TestOracle_OceanBaseAddPartitionSubpartitions/reorganize default#1
+> exec
+ALTER TABLE t REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (15), PARTITION p1b VALUES LESS THAN (20))
+< error 1235 0A000 split subpartition is not supported
+> query
+SHOW CREATE TABLE obreorg.t
+< columns Table:VARCHAR Create Table:VARCHAR
+< row
+| bytes t
+| bytes
+|   CREATE TABLE `t` (
+|     `a` int(11) NOT NULL,
+...
+```
+
+A line-oriented file means a diff shows the line that changed, even inside a `SHOW CREATE`. A file per test means two PRs conflict only when they change the same test.
+
+### 4.3 The rule
+
+**What a test sends depends only on its inputs, never on omni's results.**
+
+Replay holds a test to its tape in both directions. It fails on a request the tape doesn't have next, and on answers the test never asked for.
+
+Two kinds of test send omni's own output, because that output is what they test: round trips (migrations, diff, deparse) and Split. A change to the SQL omni generates therefore fails replay until the engine has seen the new SQL:
+
+```text
+no recorded answer for exec "ALTER TABLE `t` ADD COLUMN `c` int NOT NULL" (statement 3 of TestMigration_AddColumn#1).
+Record it:
+  OMNI_RECORD=1 go test -run '^TestMigration_AddColumn$' ./oceanbase/catalog/
+```
+
+This is deliberate, and it is the design's main recurring cost: a PR that changes DDL generation needs the pinned server before it merges.
+
+### 4.4 What goes on tapes
+
+| Component | The tape holds |
+| --- | --- |
+| Catalog stored form and load | DDL, `SHOW CREATE`, `information_schema` rows |
+| Migrations, diff, deparse | Omni's generated SQL, and what the engine stores after it |
+| Split | pg's S3 differential: a script run whole, then segment by segment |
+| Walk-through on changes | Each statement's outcome, and the database's objects before it |
+| Review rules | The query results and stored state a rule predicts |
+| Validate | Each routine body's outcome on its fixture |
+| Completion | How the engine folds identifiers |
+| ScriptDOM | The AST shapes and error positions Microsoft's parser reports |
+
+**Walk-through needs one change to follow the rule.** Today, when a finding doesn't name the server's error code, `Holds` queries the server about the objects the finding claims (`walktest.go:177`). A change to the findings would then change what the test sends. Instead, the engine lists the database's objects before every statement, and `Holds` checks the claim against that list:
+
+```go
+type Engine interface {
+	// ...Statements, Exec, Report, Violation, Codes as today
+	Inventory(t testing.TB, change string) []Object // fixed queries, whatever the walk says
+	Same(claimed, stored walk.Key) bool             // the engine's name folding
+}
+```
+
+The inventory's hash replaces `Digest`. Sweeps keep their fixed seeds, and the tape header records each sweep's size and seed.
+
+### 4.5 Writing a replayable test
+
+- Sort map iteration.
+- Use the test's own database. Read no server-wide state outside package setup.
+- Take names from `t.Name()`, not from counters or the clock.
+- Order every multi-row read.
+- Don't skip. Today's skips and DSN fallbacks go.
+
+**A few tests have nothing to replay:** harness self-tests, timing and hang tests, and the Oracle PL/SQL dictionary test, whose input is Oracle's own source. They call `tape.Live(t)`, which skips them outside a recording. That is the only environment gate. The dictionary test keeps its known-failures manifest as it is today.
+
+The harness is in Appendix C.
+
+## 5. Recording
+
+### 5.1 Pins
+
+`<engine>/testdata/pins.tsv` names each server by image digest, with the source tag it was built from:
+
+```text
+# role	image	digest	source tag
+default	oceanbase/oceanbase-ce:4.3.5.6-106000012026040916	sha256:…	v4.3.5_CE_BP6
+```
+
+- **One release, one grammar.** The grammar comes from the release's source tag, never from a branch.
+- **Roles.** `default` judges the rows and records the tapes. An extra row serves tests that need another server, such as pg 18 or MySQL with `lower_case_table_names=1`.
+- **Docs engines** pin the conversion date instead of an image.
+- **Every committed file names its pin** in a header. A test fails when the header no longer matches `pins.tsv`.
+
+### 5.2 Commands
+
+| Command | Writes | Needs the judge |
+| --- | --- | --- |
+| `go test ./...` | Nothing | No |
+| `go test ./<engine>/<pkg>/ -update-compat` | `omni` cells that now equal `expected` | No |
+| `OMNI_RECORD=1 go test ./<engine>/...` | `?` cells, and the tapes of the tests it runs | Yes |
+
+- **One engine at a time.** No machine holds every server.
+- **The judge starts itself.** For an engine with a server, the tests start the pinned image by digest, so recording needs Docker. For the others, the judge is a recognizer and needs nothing.
+- **A recording must reproduce.** If a test sends what its committed tape holds, under the same pin, the answers must match, or the recording fails. Nothing nondeterministic gets committed.
+- **Missing Docker fails.** A recording never skips.
+- **`OMNI_RECORD=1` fails when `CI` is set.** CI never writes answers.
+- **Nothing is build-tagged.** The recording code compiles on every PR, so it can't rot unseen.
+
+### 5.3 Where things live
+
+```text
+enginetest/                          shared by every engine, knows none of them
+  grammar/                           .y and .g4 readers, converters, generator, recognizers
+  compat/                            the row checker, prepareVerdict
+  tape/                              record and replay
+  cmd/genrows/                       regenerates an engine's rows
+
+oceanbase/
+  testdata/pins.tsv                  the pinned server
+  testdata/tokens.tsv                token forms and sample values
+  parser/testdata/compat.tsv
+  catalog/testdata/simulate.tsv
+  catalog/testdata/fixtures/         starting schemas
+  catalog/testdata/references.tsv
+  <package>/testdata/tapes/          one .tape per test
+  internal/testcontainer/            Open(t), the error codec, the live connector
+```
+
+`enginetest` is new shared code, which D4 must allow. `prepareVerdict` takes plain error codes, so the package imports no driver: each MySQL-family engine converts its driver's error first.
+
+## 6. Everyday work
+
+**Do I need a server?**
+
+| You change | Engine has a server | Engine has none |
+| --- | --- | --- |
+| Omni's code, and tests send the same requests | No | No |
+| Omni's walk-through findings | No | — |
+| SQL omni generates, or where `Split` cuts | **Yes:** record the affected tests | — |
+| A hand-written test | **Yes:** record that test | — |
+| A new row, fixture or reference | **Yes:** judge it | No: the recognizer judges |
+| The pin | **Yes:** record the whole engine | Regenerate, or re-convert the docs |
+
+**Fix a gap.** No server.
+
+```bash
+go test ./oceanbase/parser/ -run '^TestCompatibility$'
+#   alter_table_action/REMOVE_TTL: gap closed; rerun with -update-compat
+go test ./oceanbase/parser/ -run '^TestCompatibility$' -update-compat
+```
+
+```diff
+-reject	accept	engine	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
++accept	accept	engine	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+```
+
+**Report a bug.** Add the statement as a `?` row, and let the engine judge it. Then fix omni as above.
+
+```bash
+printf '?\t?\t-\tissue:BYT-9120\tALTER TABLE t TRUNCATE PARTITION ALL\n' >> oceanbase/parser/testdata/compat.tsv
+OMNI_RECORD=1 go test ./oceanbase/parser/ -run '^TestCompatibility$'
+```
+
+Commit the row as the recording filled it.
+
+**Change generated SQL.** Replay fails and names the test (§4.3). Record it:
+
+```bash
+OMNI_RECORD=1 go test ./oceanbase/catalog/ -run '^TestMigration_AddColumn$'
+```
+
+**Bump a pin.** In a PR of its own, with no code changes:
+
+```bash
+# edit oceanbase/testdata/pins.tsv, then:
+go run ./enginetest/cmd/genrows oceanbase
+OMNI_RECORD=1 go test ./oceanbase/...
+```
+
+The diff is what the release changed. Fix omni in later PRs.
+
+## 7. Guards
+
+Each guard is a test or a CI step (`scripts/compat-check.sh`).
+
+| Risk | Guard |
+| --- | --- |
+| A change breaks a row omni handled | The row checker fails (§2.1). |
+| A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
+| `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
+| A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
+| Generated rows are added, removed or edited by hand | CI regenerates them from the pinned grammar and diffs. |
+| A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
+| A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
+| A deleted or renamed test leaves its tape behind | On a run with no `-run` or `-skip`, the harness fails on a tape no test opened. |
+| An answer comes from the wrong server | Headers must match `pins.tsv`. |
+| A nondeterministic answer is committed | The recording fails (§5.2). |
+| A tape or an `engine` cell is written by hand | Not caught without a server. See D5. |
+
+Progress is visible: `TestCompatibility` prints how many rows of each kind agree, and `docs/engine-test-matrix.md` keeps the numbers per engine.
+
+## 8. Engines
+
+| Engine | Grammar | Judge |
+| --- | --- | --- |
+| pg | `gram.y` | `postgres:17-alpine` |
+| redshift | AWS docs → `.g4` | docs; engine with `REDSHIFT_COMPAT_DSN` |
+| mysql | `sql_yacc.yy` @ `mysql-8.0.46` | `mysql:8.0.46` |
+| mariadb | `sql_yacc.yy` @ `mariadb-11.8.8` | `mariadb:11.8.8` |
+| tidb | `parser.y` @ `v8.5.5` | `pingcap/tidb:v8.5.5` |
+| oceanbase | `sql_parser_mysql_mode.y` @ `v4.3.5_CE_BP6` | OceanBase 4.3.5.6 |
+| mssql | ScriptDOM `TSql160.g` → `.g4` | SQL Server 2022 CU27 |
+| oracle | `oracle/parser/bnf/` docs → `.g4` | Oracle Free 23.26.3 |
+| snowflake | Snowflake docs → `.g4` | docs; engine with `SNOWFLAKE_COMPAT_DSN` |
+| googlesql | ZetaSQL `googlesql.tm` → `.g4` | Spanner emulator 1.5.54 |
+| trino | `SqlBase.g4` @ `482` | `trinodb/trino:482` |
+| doris | `DorisParser.g4` + `sql_parser.cup` → `.g4` @ `3.1.4` | Doris 3.1.4 |
+| starrocks | `StarRocks.g4` @ `3.4.10` | StarRocks 3.4.10 |
+| cassandra | CQL `Parser.g` → `.g4` | grammar |
+| partiql | `PartiQLParser.g4` + DynamoDB docs | grammar + docs |
+| cosmosdb | `sql.g4` | grammar |
+| mongo | mongosh method docs → `.g4` | docs |
+| elasticsearch | `elasticsearch-specification` → `.g4` | grammar |
+
+- **TiDB is the starting point.** It already generates rows from `parser.y` (`cmd/grammarcorpus`) and judges them on a live server (`corpus_oracle_test.go`).
+- **Engines judged by grammar or docs** move up to `engine` once an image is pinned: Cassandra, DynamoDB Local, the Cosmos DB emulator, MongoDB and Elasticsearch all ship one.
+
+## 9. Rollout
+
+| Step | What | Done when |
+| --- | --- | --- |
+| 0 | `enginetest`: generator, row checker, tape harness, `scripts/compat-check.sh` | TiDB's existing corpus runs through it |
+| 1 | Per engine: `pins.tsv`, `tokens.tsv`, `compat.tsv`, `TestCompatibility` | Every row judged, baseline committed |
+| 2 | Per engine with a server: tapes for every live test, then `simulate.tsv` on one fixture | The engine's tests pass with Docker off |
+| 3 | Per engine: remove its server from CI | Its CI starts no container |
+| 4 | Per engine: more fixtures, and the disagreements worked down | Fully compatible (§1) |
+
+After step 0 the engines are independent. Order:
+1. **OceanBase,** which is the CI pain. Its roughly 160 catalog tests and two review files that run on MySQL today move to OceanBase (D3). The #808 branch has native fixes and 65 cited differences.
+2. **Snowflake.**
+3. **The other engines with no judge.**
+4. **The container engines,** which work today and gain only CI time.
+
+## 10. Decisions
+
+- **D1. Grammar licenses.** MySQL's and MariaDB's grammars are GPL, OceanBase's is Mulan PubL, and omni is MIT. Recommended: don't commit those three. Fetch them by tag, and commit only the generated rows. Permissively licensed grammars are committed, as TiDB's already is.
+- **D2. Converted docs.** Confirm that committing `.g4` files derived from vendor docs is acceptable. Oracle's `bnf/` directory already quotes them.
+- **D3. MySQL tests in OceanBase and MariaDB.** Recommended: point them at their own engine and record, deleting only tests of MySQL-only behavior.
+- **D4. Shared `enginetest`.** It breaks "engines share only `metadata` and `review`". Recommended: allow it, like `review/walk/walktest`, rather than keep 18 copies.
+- **D5. A verify lane.** Nothing in §7 catches an engine answer written by hand. Option: a third mode, `OMNI_RECORD=verify`, asks the engine again, fails on any difference, and writes nothing. The self-hosted runner runs it on just the tests and rows a PR changed, so most PRs still start no server. The alternative is to trust review.
+- **D6. Queries.** Stored form proves omni reads DDL as the engine does. The same check reaches queries by wrapping each accepted `SELECT` row in `CREATE VIEW`: the engine's stored view text is its own reading of the query. It works where omni's catalog renders views (pg, the MySQL family), and it multiplies the size of `simulate.tsv`. Recommended: decide once step 2 has measured what a row costs.
+
+## Appendix A. Measured results
+
+**OceanBase.** `sql_parser_mysql_mode.y` has 5,123 alternatives. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
+
+| Statements | Total | Agree | Only engine accepts | Only omni accepts | Server crash |
+| --- | --- | --- | --- | --- | --- |
+| One per alternative | 3,969 | 2,622 | 1,287 | 57 | 3 |
+| Near-misses | 15,560 | 13,860 | 1,296 | 404 | 0 |
+
+- **3,047 disagreements,** while every existing oracle test passes. They are untriaged. `ALTER SYSTEM` and optimizer hints are the largest families, and some come from the spike's crude sample tokens.
+- **The grammar alone** agreed with the engine on 90% of statements. Most of the rest is the lexer (531 malformed hints, which live in comments) and 124 `yyerror` checks in C actions. Token rows and overrides (§2.2, §2.3) exist for these.
+- **Replay** took about 1 second per package, against 147 seconds (catalog) and about 300 seconds (review) live.
+
+**Snowflake.** A prototype converted the Syntax blocks of 77 docs pages to a `.g4` and generated 1,557 statements, of which omni accepts 64%. The blocks are near-BNF and map directly:
+
+```text
+ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
+```
+
+```antlr
+// https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse
+alterWarehouse : ALTER WAREHOUSE (IF EXISTS)? name? (SUSPEND | RESUME (IF SUSPENDED)?) ;
+```
+
+Docs are prose, so some blocks need hand fixes: malformed syntax, undefined fragments. Each fix is made in the `.g4`, with a comment citing its page.
+
+## Appendix B. Rule changes
+
+The **Compatibility** section below replaces the `AGENTS.md` Tests bullets on testing against the engine, CI servers, Docker and environment gates. It lands with the implementation.
+
+> **Compatibility**
+>
+> - CI starts no database server. Engine answers are committed: syntax verdicts in `<engine>/parser/testdata/compat.tsv`, DDL outcomes in `<engine>/catalog/testdata/simulate.tsv`, and each test's exchanges in `testdata/tapes/<Test>.tape`. Only `OMNI_RECORD=1 go test ./<engine>/...` writes them, from the servers in `<engine>/testdata/pins.tsv`.
+> - Grammars are the vendor's `.y` or `.g4` at the pinned release tag, or a committed `.g4` converted from vendor docs. Never a community grammar.
+> - Agreement only grows. After a fix, run `-update-compat` and commit the rows it flips. A bug no row covers gets one first, labelled `issue:<key>`: add it with `?` in both verdict cells, record, and commit the filled row.
+> - Never edit an `expected` cell or a tape by hand.
+> - Record when you add a test, row or fixture, change what a test sends, change SQL omni generates, or bump a pin. Nothing else needs a server.
+> - A test reaches the engine only through its engine's `testcontainer` package. What it sends depends only on its inputs, never on omni's results, except where omni's generated SQL is under test.
+> - A replayable test sorts map iterations, uses its own database, takes names from `t.Name()`, and orders every multi-row read.
+> - Replay never skips. `OMNI_RECORD` is the only environment gate.
+> - A pin-bump PR changes the pin and the recorded answers only. Fix omni in a separate PR.
+
+Other files:
+- **`AGENTS.md`:** `enginetest` joins `metadata` and `review` as shared code, and the pinned images move to `pins.tsv`.
+- **`ci.yml`:** no Docker. The Trino and OceanBase lanes and the live sweep sizes go. `scripts/compat-check.sh` is added.
+- **`docs/engine-test-matrix.md`:** becomes the §8 table, with agreement counts per engine.
+
+## Appendix C. The tape harness
+
+`enginetest/tape` is about 500 lines. Its core:
+
+```go
+// Open returns t's connection to the server in pin row role: a replay of its
+// tape, or, in a recording, the pinned server with every exchange written down.
+func Open(t testing.TB, role string, live func(testing.TB, string) driver.Connector, c Codec) *sql.DB {
+	s := stream(t, role) // in testdata/tapes/<top-level test>.tape
+	if Recording(t) {    // OMNI_RECORD=1
+		t.Cleanup(s.save)
+		return sql.OpenDB(recorder{live(t, role), s, c})
+	}
+	t.Cleanup(s.finish) // fails if recorded answers were never asked for
+	return sql.OpenDB(replayer{s, c})
+}
+```
+
+Each engine adds three small things in `<engine>/internal/testcontainer`:
+
+```go
+func Open(t testing.TB) *sql.DB { return tape.Open(t, "default", liveConnector, codec{}) }
+```
+
+- **`codec`** turns the driver's error into tape text and back (`*mysql.MySQLError`, `*pgconn.PgError`), and replaces names the engine makes up, such as OceanBase's `_OBFK_\d{16}`, with placeholders.
+- **`liveConnector`** is called only in a recording. It starts the pinned image by digest, inlines arguments, and sets a 30-second statement timeout, so a hung statement fails its test and not the run.
+
+What the harness handles, each needed by a test that exists today:
+- **Every kind of answer:** result sets with column types, several result sets, out-parameters, errors with code, SQLSTATE and position, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
+- **Streams.** Each connection a test opens is one stream, named by test, pin role and open order. Parallel subtests and sweep shards each get their own.
+- **Package setup** (`sync.Once` today) is recorded once, in `_setup.tape`.
+- **`tape.Main(m)`** lets `-count=2` replay. On a run with no `-run` or `-skip`, it fails on a tape no test opened; a focused run checks only the tapes it opened.
+- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does.
+- **Statements over 64 KB** are stored by hash.
+- **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.
