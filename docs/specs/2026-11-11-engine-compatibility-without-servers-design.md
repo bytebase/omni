@@ -65,7 +65,7 @@ accept	reject	engine	func_expr/MONTH!drop-3	DO MONTH()
 1. An agreement.
 2. A known gap: OceanBase accepts this and omni doesn't.
 3. A known gap the other way: omni accepts a broken statement.
-4. A bug report just added, waiting for a recording.
+4. A bug report just added. It fails the test until a recording judges it, so it is committed judged, never as `?`.
 
 The first three are real spike results. The fourth shows the form of a new row.
 
@@ -371,6 +371,8 @@ printf '?\t?\t-\tissue:BYT-9120\tALTER TABLE t TRUNCATE PARTITION ALL\n' >> ocea
 OMNI_RECORD=1 go test ./oceanbase/parser/ -run '^TestCompatibility$'
 ```
 
+Commit the row as the recording filled it.
+
 **Change generated SQL.** Replay fails and names the test (§4.3). Record it:
 
 ```bash
@@ -396,11 +398,11 @@ Each guard is a test or a CI step (`scripts/compat-check.sh`).
 | A change breaks a row omni handled | The row checker fails (§2.1). |
 | A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
-| A row is added already judged | CI fails a new hand-added row that isn't `?`. |
+| A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
 | Generated rows are added, removed or edited by hand | CI regenerates them from the pinned grammar and diffs. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
-| A deleted or renamed test leaves its tape behind | The harness fails on a tape no test opened. |
+| A deleted or renamed test leaves its tape behind | On a run with no `-run` or `-skip`, the harness fails on a tape no test opened. |
 | An answer comes from the wrong server | Headers must match `pins.tsv`. |
 | A nondeterministic answer is committed | The recording fails (§5.2). |
 | A tape or an `engine` cell is written by hand | Not caught without a server. See D5. |
@@ -455,7 +457,7 @@ After step 0 the engines are independent. Order:
 - **D2. Converted docs.** Confirm that committing `.g4` files derived from vendor docs is acceptable. Oracle's `bnf/` directory already quotes them.
 - **D3. MySQL tests in OceanBase and MariaDB.** Recommended: point them at their own engine and record, deleting only tests of MySQL-only behavior.
 - **D4. Shared `enginetest`.** It breaks "engines share only `metadata` and `review`". Recommended: allow it, like `review/walk/walktest`, rather than keep 18 copies.
-- **D5. A verify lane.** Nothing in §7 catches an answer written by hand. Option: a third mode, `OMNI_RECORD=verify`, asks the engine again, fails on any difference, and writes nothing. The self-hosted runner runs it on just the tests and rows a PR changed, so most PRs still start no server. The alternative is to trust review.
+- **D5. A verify lane.** Nothing in §7 catches an engine answer written by hand. Option: a third mode, `OMNI_RECORD=verify`, asks the engine again, fails on any difference, and writes nothing. The self-hosted runner runs it on just the tests and rows a PR changed, so most PRs still start no server. The alternative is to trust review.
 - **D6. Queries.** Stored form proves omni reads DDL as the engine does. The same check reaches queries by wrapping each accepted `SELECT` row in `CREATE VIEW`: the engine's stored view text is its own reading of the query. It works where omni's catalog renders views (pg, the MySQL family), and it multiplies the size of `simulate.tsv`. Recommended: decide once step 2 has measured what a row costs.
 
 ## Appendix A. Measured results
@@ -492,7 +494,7 @@ The **Compatibility** section below replaces the `AGENTS.md` Tests bullets on te
 >
 > - CI starts no database server. Engine answers are committed: syntax verdicts in `<engine>/parser/testdata/compat.tsv`, DDL outcomes in `<engine>/catalog/testdata/simulate.tsv`, and each test's exchanges in `testdata/tapes/<Test>.tape`. Only `OMNI_RECORD=1 go test ./<engine>/...` writes them, from the servers in `<engine>/testdata/pins.tsv`.
 > - Grammars are the vendor's `.y` or `.g4` at the pinned release tag, or a committed `.g4` converted from vendor docs. Never a community grammar.
-> - Agreement only grows. After a fix, run `-update-compat` and commit the rows it flips. A bug no row covers gets one first, labelled `issue:<key>`, with `?` in both verdict cells.
+> - Agreement only grows. After a fix, run `-update-compat` and commit the rows it flips. A bug no row covers gets one first, labelled `issue:<key>`: add it with `?` in both verdict cells, record, and commit the filled row.
 > - Never edit an `expected` cell or a tape by hand.
 > - Record when you add a test, row or fixture, change what a test sends, change SQL omni generates, or bump a pin. Nothing else needs a server.
 > - A test reaches the engine only through its engine's `testcontainer` package. What it sends depends only on its inputs, never on omni's results, except where omni's generated SQL is under test.
@@ -536,6 +538,7 @@ What the harness handles, each needed by a test that exists today:
 - **Every kind of answer:** result sets with column types, several result sets, out-parameters, errors with code, SQLSTATE and position, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
 - **Streams.** Each connection a test opens is one stream, named by test, pin role and open order. Parallel subtests and sweep shards each get their own.
 - **Package setup** (`sync.Once` today) is recorded once, in `_setup.tape`.
-- **`tape.Main(m)`** lets `-count=2` replay, and fails on a tape no test opened.
+- **`tape.Main(m)`** lets `-count=2` replay. On a run with no `-run` or `-skip`, it fails on a tape no test opened; a focused run checks only the tapes it opened.
+- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does.
 - **Statements over 64 KB** are stored by hash.
 - **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.
