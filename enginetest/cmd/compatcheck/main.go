@@ -32,7 +32,11 @@ func main() {
 	var code []string
 	for _, f := range changed {
 		if strings.HasSuffix(f, "/testdata/pins.tsv") {
-			bumped[top(f)] = true
+			// A pins.tsv that is new introduces the engine's pin; only
+			// changing one that existed bumps it.
+			if _, existed := show(mergeBase, f); existed {
+				bumped[top(f)] = true
+			}
 		}
 		if strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") {
 			code = append(code, f)
