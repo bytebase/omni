@@ -12,6 +12,8 @@ import (
 	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/enginetest/compat"
 )
 
 var update = flag.Bool("update", false, "rewrite the TiDB parser corpus from the current omni and engine verdicts")
@@ -297,7 +299,7 @@ func TestTiDBCorpusEngineVerdicts(t *testing.T) {
 // assertTiDBVersion fails unless the container runs the release the corpus was
 // recorded on. VERSION() reports the MySQL version TiDB claims with the TiDB
 // release appended, as in "8.0.11-TiDB-v8.5.5".
-func assertTiDBVersion(t *testing.T, tc *tidbContainer) {
+func assertTiDBVersion(t testing.TB, tc *tidbContainer) {
 	t.Helper()
 	var version string
 	if err := tc.db.QueryRowContext(tc.ctx, "SELECT VERSION()").Scan(&version); err != nil {
@@ -314,7 +316,7 @@ func assertTiDBVersion(t *testing.T, tc *tidbContainer) {
 // which is not a rejection and not agreement; it names the statement that went
 // unanswered and the one before it, because the statement that destroys a run
 // is the one that ran last, not the one that reported the loss.
-func (tc *tidbContainer) syntaxVerdict(t *testing.T, stmt, previous string) (accepts, recovered bool, err error) {
+func (tc *tidbContainer) syntaxVerdict(t testing.TB, stmt, previous string) (accepts, recovered bool, err error) {
 	t.Helper()
 	accepts, err = tc.prepareSyntax(stmt)
 	if err == nil {
@@ -550,59 +552,26 @@ func (tc *tidbContainer) prepareSyntax(stmt string) (bool, error) {
 		return err
 	}
 	return prepareVerdict(prepare(), func() error {
-		if _, err := conn.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt+syntaxProbeTail); err != nil {
+		if _, err := conn.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt+compat.ProbeTail); err != nil {
 			return fmt.Errorf("binding the probe: %w", err)
 		}
 		return prepare()
 	})
 }
 
-// syntaxProbeTail is what the probe appends to a statement. It starts on a new line
-// so a trailing comment in the statement cannot swallow it.
-const syntaxProbeTail = "\n; SELECT FROM"
-
-// lookupErrorCodes are errors TiDB raises while parsing for a name it looks up in
-// what the server has: a system variable (1193), a character set (1115) and a
-// collation (1273, 1253). They are about that list and not about the shape of the
-// text, so the statement counts as read: `SELECT @@nosuch` answers 1193 while
-// parsing, and omni, which keeps no such list, reads it.
-var lookupErrorCodes = map[uint16]bool{
-	1115: true,
-	1193: true,
-	1253: true,
-	1273: true,
+// prepareVerdict reads PREPARE's answer through compat.PrepareVerdict, which
+// says how the probe tells a grammar action's refusal from an error raised after
+// the parse.
+func prepareVerdict(err error, probe func() error) (bool, error) {
+	return compat.PrepareVerdict(err, mysqlErrorCode, probe)
 }
 
-// prepareVerdict reads the error PREPARE returned, and calls probe for the error the
-// same statement gives with syntaxProbeTail after it when the first error leaves the
-// verdict open. The server reads the whole text before it looks at anything, so a
-// statement refused after parsing answers the tail's 1064, and one a grammar action
-// refused answers its own code again, because the action ended the parse before the
-// tail was read.
-//
-// Anything that is not a server error is no verdict, and comes back as an error so
-// the caller recovers or fails rather than records agreement.
-func prepareVerdict(err error, probe func() error) (bool, error) {
-	if err == nil {
-		return true, nil
-	}
+// mysqlErrorCode returns the server's error number, and false for an error the
+// server did not send.
+func mysqlErrorCode(err error) (uint16, bool) {
 	var myErr *gomysql.MySQLError
 	if !errors.As(err, &myErr) {
-		return false, err
+		return 0, false
 	}
-	if myErr.Number == 1064 {
-		return false, nil
-	}
-	if lookupErrorCodes[myErr.Number] {
-		return true, nil
-	}
-	tailErr := probe()
-	if tailErr == nil {
-		return false, fmt.Errorf("the server took the probe's syntax error after answering %w", err)
-	}
-	var tailed *gomysql.MySQLError
-	if !errors.As(tailErr, &tailed) {
-		return false, tailErr
-	}
-	return tailed.Number != myErr.Number, nil
+	return myErr.Number, true
 }

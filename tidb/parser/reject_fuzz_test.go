@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/enginetest/grammar"
 )
 
 // TestTiDBRejectFuzz is the differential mutation half of the §3.6 rejection
@@ -29,7 +31,7 @@ import (
 // accepts is a §3.3 completeness gap, out of scope here; it is logged, not
 // gated. A confirmed over-acceptance is minimised to the shortest disagreeing
 // input and pinned into known-mismatches.txt (and, once fixed, promoted into
-// parser_y_negatives_corpus.tsv as a permanent regression row).
+// compat.tsv as a hand-added suite:reject-fuzz row).
 const (
 	rejectFuzzSeed        int64 = 0x7E1DB_EEF
 	rejectFuzzSizeDefault       = 300
@@ -71,7 +73,7 @@ func rejectFuzzDeferMode() bool {
 func loadFuzzSeeds(t testing.TB) []string {
 	t.Helper()
 	paths := []string{
-		filepath.Join("testdata", "parser_y_corpus.tsv"),
+		filepath.Join("testdata", "compat.tsv"),
 		filepath.Join("testdata", "pingcap_parser_corpus.tsv"),
 		filepath.Join("testdata", "pingcap_parser_rest_corpus.tsv"),
 		filepath.Join("testdata", "tidb_integrationtest_corpus.tsv"),
@@ -92,8 +94,13 @@ func loadFuzzSeeds(t testing.TB) []string {
 			if len(fields) < 3 {
 				continue
 			}
-			// omni verdict, engine verdict, [label], statement.
+			// omni verdict, engine verdict, [label], statement; compat.tsv
+			// also has a source column. Its near-misses are not seeds: the
+			// pool is the grammar's alternatives.
 			if fields[0] != "accept" || fields[1] != "accept" {
+				continue
+			}
+			if len(fields) == 5 && grammar.IsNearMiss(fields[3]) {
 				continue
 			}
 			sql := fields[len(fields)-1]
@@ -303,7 +310,7 @@ func writeRejectFuzzFindings(t *testing.T, findings []fuzzFinding) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# TiDB reject-fuzz over-acceptances (seed=0x%x, N=%d).\n", rejectFuzzSeed, rejectFuzzSize())
 	fmt.Fprintf(&b, "# omni accepts, TiDB v8.5.5 rejects. Minimised. %d finding(s).\n", len(findings))
-	fmt.Fprintf(&b, "# Triage: fix across the forks and pin into parser_y_negatives_corpus.tsv,\n")
+	fmt.Fprintf(&b, "# Triage: fix across the forks and pin into compat.tsv as suite:reject-fuzz,\n")
 	fmt.Fprintf(&b, "# or, if intended, move the family<TAB>sql line into known-mismatches.txt.\n\n")
 	for _, f := range findings {
 		fmt.Fprintf(&b, "%s\t%s\n", f.family, f.sql)
@@ -390,7 +397,7 @@ func TestTiDBRejectFuzz(t *testing.T) {
 	// An unmeasured mutant fails the run independently of the mismatch gate and
 	// of defer mode: a sweep that could not get a verdict for every mutant is
 	// not a clean run, and must not read as success just because the findings it
-	// did measure match the baseline. This mirrors TestTiDBNegativesCorpusEngineVerdicts.
+	// did measure match the baseline.
 	for _, u := range unanswered {
 		t.Errorf("reject-fuzz: no verdict: %s", u)
 	}

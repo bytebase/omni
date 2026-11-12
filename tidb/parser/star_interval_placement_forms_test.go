@@ -20,7 +20,7 @@ import "testing"
 //
 // The five corpus rows these fixes flip (DO(*), DO ident IN(*),
 // DO +/- INTERVAL ..., DO(ident, INTERVAL ...)) carry the engine verdict measured
-// against pingcap/tidb:v8.5.5 in parser_y_negatives_corpus.tsv. The cases below
+// against pingcap/tidb:v8.5.5 in compat.tsv. The cases below
 // are grammar-derived and held to omni's parser; accept records what TiDB's
 // grammar allows.
 

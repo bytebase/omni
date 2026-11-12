@@ -33,7 +33,7 @@ var (
 	tidbInitErr error
 )
 
-func startTiDB(t *testing.T) *tidbContainer {
+func startTiDB(t testing.TB) *tidbContainer {
 	t.Helper()
 
 	tidbOnce.Do(func() {

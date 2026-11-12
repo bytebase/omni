@@ -5,7 +5,7 @@ The TiDB syntax-mapping ledger (design doc §3.6). It checks that every
 the vendored v8.5.5 `parser.y`, and reports which grammar rules no production
 cites.
 
-Like `grammarcorpus`, it is a plain root-module command that reads text and
+It is a plain root-module command that reads text and
 writes text, importing nothing from omni or pingcap. `go test ./...` compiles it;
 the companion test runs the same audit.
 

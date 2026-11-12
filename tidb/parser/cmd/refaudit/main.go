@@ -4,7 +4,7 @@
 // cites. It is the lint-and-audit half of the rejection suite (design doc
 // section 3.6): a ledger that keeps coverage visible, not a proof of rejection.
 //
-// Like grammarcorpus it is a plain root-module command that reads text and
+// It is a plain root-module command that reads text and
 // writes text; it imports nothing from omni or pingcap. Run it from the repo
 // root:
 //
@@ -23,13 +23,14 @@ import (
 	"path/filepath"
 )
 
-// defaultGrammar is the vendored pkg/parser/parser.y that grammarcorpus reads;
-// refaudit resolves citations against the same copy. defaultTree is the TiDB
-// source tree whose productions carry the citations. defaultReport is the
+// defaultGrammar is the vendored pkg/parser/parser.y that the compat rows are
+// generated from; refaudit resolves citations against the same copy.
+// defaultTree is the TiDB source tree whose productions carry the citations.
+// defaultReport is the
 // checked-in coverage report. All three are repo-root-relative, so a normal run
 // is `go run ./tidb/parser/cmd/refaudit` from the root.
 const (
-	defaultGrammar = "tidb/parser/cmd/grammarcorpus/testdata/parser.y"
+	defaultGrammar = "tidb/testdata/parser.y"
 	defaultTree    = "tidb"
 	defaultReport  = "tidb/parser/cmd/refaudit/testdata/parser_y_coverage.md"
 )

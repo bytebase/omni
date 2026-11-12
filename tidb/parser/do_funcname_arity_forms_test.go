@@ -17,7 +17,7 @@ import "testing"
 //
 // The valid forms are pinned beside the rejections so a widened or narrowed grammar is reported
 // without a server. The reject verdicts are the negatives corpus's measured engine column
-// (parser_y_negatives_corpus.tsv); the accept forms are measured in the acceptance corpora.
+// (compat.tsv); the accept forms are measured in the acceptance corpora.
 
 // TestDoFuncNameArityForms holds omni to the recorded verdicts without a server.
 func TestDoFuncNameArityForms(t *testing.T) {

@@ -10,7 +10,7 @@ import "testing"
 // parse. omni's MySQL-forked keyword table has no token for the word, so the
 // lexer scans it as a bare identifier; the DBName gate in parseUseStmt is what
 // rejects it. The engine verdict is pinned by the
-// TiDBKeyword#33/swap row of testdata/parser_y_negatives_corpus.tsv, measured
+// TiDBKeyword/TIDB!swap row of testdata/compat.tsv, measured
 // against pingcap/tidb:v8.5.5.
 var useDBNameFormCases = []struct {
 	sql    string

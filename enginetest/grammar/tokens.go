@@ -1,0 +1,52 @@
+package grammar
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+// Forms a tokens.tsv row can give besides a token's text.
+const (
+	// Empty: the token is written as nothing, such as a hint the lexer
+	// reads from a comment.
+	Empty = "(empty)"
+	// Unreachable: the lexer never produces the token in the mode the judge
+	// runs in, so an alternative that needs it gets no generated row and
+	// needs a hand-added one.
+	Unreachable = "(unreachable)"
+)
+
+// Tokens is an engine's testdata/tokens.tsv: the text generated rows write
+// for each terminal whose grammar declaration does not spell it.
+type Tokens struct {
+	forms map[string]string
+}
+
+// ReadTokens reads a tokens.tsv. Each row is token, form, and a note citing
+// the vendor's lexer or lexical docs; the note may be empty.
+func ReadTokens(path string) (*Tokens, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	t := &Tokens{forms: map[string]string{}}
+	for i, line := range strings.Split(string(b), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		f := strings.Split(line, "\t")
+		if len(f) < 2 || len(f) > 3 {
+			return nil, fmt.Errorf("%s:%d: want token, form, and an optional note, tab-separated", path, i+1)
+		}
+		name, form := f[0], f[1]
+		if name == "" || form == "" {
+			return nil, fmt.Errorf("%s:%d: empty token or form; write %s for a token written as nothing", path, i+1, Empty)
+		}
+		if _, dup := t.forms[name]; dup {
+			return nil, fmt.Errorf("%s:%d: %s appears twice", path, i+1, name)
+		}
+		t.forms[name] = form
+	}
+	return t, nil
+}
