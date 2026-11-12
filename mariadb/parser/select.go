@@ -864,6 +864,16 @@ func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
 			break
 		}
 
+		// The bare `*` is an arm of the list itself and its first item only:
+		// `SELECT a, *` and `SELECT *, *` are 1064s, where `SELECT *, a` and
+		// `SELECT a, t.*` parse.
+		//
+		// Ref: select_item_list, `select_item_list ',' select_item | select_item |
+		// '*'`, in MariaDB 11.8 sql/sql_yacc.yy.
+		if len(list) > 0 && p.cur.Type == '*' {
+			return nil, p.syntaxErrorAtCur()
+		}
+
 		target, err := p.parseSelectExpr()
 		if err != nil {
 			return nil, err

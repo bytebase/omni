@@ -6,15 +6,17 @@ import "testing"
 // PREPARE on mysql:8.0 on 2026-11-12.
 //
 // `*`, `tbl.*` and `db.tbl.*` are select items of their own (the '*' arm of
-// select_item_list, and table_wild) and no expr, so a select list, DO's included, is the only place one
-// stands, and it stands there whole: no operator takes one as an operand, and no other
-// clause or argument reads one. COUNT(*) is COUNT's own production. parseSelectWildcard
+// select_item_list, and table_wild) and no expr. So a select list, DO's included,
+// is the only place one stands, and it stands there whole: no operator takes one
+// as an operand, and no other clause or argument reads one. The bare `*` is the
+// list's first item only. COUNT(*) is COUNT's own production. parseSelectWildcard
 // is the one reader; parseExpr has none.
 //
 // TiDB's reject-fuzz sweep found the first of these, `select * = t`, which every
 // MySQL-family parser here read as a comparison.
 //
-// Ref: select_item_list, select_item and table_wild and do_stmt in MySQL 8.0 sql/sql_yacc.yy.
+// Ref: select_item_list, select_item, table_wild and do_stmt in MySQL 8.0
+// sql/sql_yacc.yy.
 
 var wildcardItemCases = []parserFormCase{
 	// An item of a select list.
@@ -56,6 +58,34 @@ var wildcardItemCases = []parserFormCase{
 	{"select count(all *) from t", true},
 	{"select count(*) = 1 from t", true},
 	{"select count(*) over () from t", true},
+
+	// The bare `*` is the list's first item and no other (the '*' arm of
+	// select_item_list). `tbl.*` stands anywhere.
+	{"select *, 1 from t", true},
+	{"select *, t.* from t", true},
+	{"select t.*, t.* from t", true},
+	{"select high_priority *, a from t", true},
+	{"select a, (select * from t limit 1) from t", true},
+	{"select a, exists (select * from t) from t", true},
+	{"select a, count(*) from t", true},
+	{"select a, * from t", false},
+	{"select t.*, * from t", false},
+	{"select *, * from t", false},
+	{"select *, a, * from t", false},
+	{"select count(*), * from t", false},
+	{"select 1, * from t", false},
+	{"select a as x, * from t", false},
+	{"select distinct a, * from t", false},
+	{"select all a, * from t", false},
+	{"select sql_no_cache a, * from t", false},
+	{"select * from t union select a, * from t", false},
+	{"select (select a, * from t limit 1)", false},
+	{"select a from t where exists (select a, * from t)", false},
+	{"select * from (select a, * from t) x", false},
+	{"with c as (select a, * from t) select * from c", false},
+	{"insert into t select a, * from t", false},
+	{"create view v9 as select a, * from t", false},
+	{"create table t9 as select a, * from t", false},
 
 	// No alias.
 	{"select * as x from t", false},
@@ -130,21 +160,12 @@ var wildcardItemCases = []parserFormCase{
 	{"do t.*", true},
 	{"do *, 1", true},
 	{"do 1, t.*", true},
+	{"do t.*, 1", true},
+	{"do 1, *", false},
+	{"do *, *", false},
 	{"do * = 1", false},
 	{"do 1 = *", false},
 	{"do t.* + 1", false},
-}
-
-// wildcardItemGaps are the wildcards omni still reads where MySQL 8.0 does not:
-// select_item_list takes the bare `*` as its first item only, and omni takes it in any
-// position. The oracle test fails when one starts to agree, so an entry cannot outlive
-// its gap.
-var wildcardItemGaps = []string{
-	"select a, * from t",
-	"select t.*, * from t",
-	"select *, * from t",
-	"select count(*), * from t",
-	"do 1, *",
 }
 
 // TestWildcardItemForms holds omni to the recorded verdicts without a server.
@@ -156,10 +177,5 @@ func TestWildcardItemForms(t *testing.T) {
 				t.Errorf("omni accepts=%v, want %v for %q: %v", got, c.accept, c.sql, err)
 			}
 		})
-	}
-	for _, sql := range wildcardItemGaps {
-		if _, err := Parse(sql); err != nil {
-			t.Errorf("omni now rejects %q, as MySQL 8.0 does: move it into wildcardItemCases (%v)", sql, err)
-		}
 	}
 }

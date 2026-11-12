@@ -764,8 +764,9 @@ func (p *Parser) parseHandlerStmt() (nodes.StmtNode, error) {
 //
 //	DO expr [, expr] ...
 //
-// The list is a select list's, so an item may be a wildcard: MySQL 8.0 parses
-// `DO *` and `DO t.*`, and refuses them past the parser with 1096 and 1051.
+// The list is a select list's, so an item may be a wildcard, and the bare `*`
+// its first item only: MySQL 8.0 parses `DO *` and `DO t.*`, refusing them past
+// the parser with 1096 and 1051, and answers 1064 for `DO 1, *`.
 //
 // Ref: do_stmt, `DO_SYM select_item_list`, in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
@@ -775,6 +776,9 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	stmt := &nodes.DoStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
+		if len(stmt.Exprs) > 0 && p.cur.Type == '*' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		expr, err := p.parseSelectWildcard()
 		if err == nil && expr == nil {
 			expr, err = p.parseExpr()
