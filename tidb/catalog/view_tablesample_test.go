@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -304,6 +306,26 @@ var tableSampleExpressions = []string{
 	`d.t.a`,
 }
 
+// prepareParses reports whether TiDB parses sql, from a PREPARE: a 1064 is the
+// parser's refusal, and any other answer means the text parsed. The PREPARE is
+// SQL's, not the driver's, so a tape can hold it.
+func prepareParses(t *testing.T, ctx context.Context, conn *sql.Conn, text string) bool {
+	t.Helper()
+	quoted := "'" + strings.NewReplacer(`\`, `\\`, "'", "''").Replace(text) + "'"
+	_, err := conn.ExecContext(ctx, "PREPARE omni_parses FROM "+quoted)
+	if err == nil {
+		if _, err := conn.ExecContext(ctx, "DEALLOCATE PREPARE omni_parses"); err != nil {
+			t.Fatalf("deallocate: %v", err)
+		}
+		return true
+	}
+	var myErr *gomysql.MySQLError
+	if !errors.As(err, &myErr) {
+		t.Fatalf("no verdict for %s: %v", text, err)
+	}
+	return myErr.Number != 1064
+}
+
 // TestTableSampleExpressionsReadBack holds both ways the clause leaves the catalog to
 // the server: the text DeparseQuery writes, and the view text deparse writes, must each
 // parse on TiDB v8.5.5 for every kind of expression. The verdict comes from a prepare,
@@ -317,16 +339,7 @@ func TestTableSampleExpressionsReadBack(t *testing.T) {
 	defer conn.Close()
 	parses := func(t *testing.T, sql string) bool {
 		t.Helper()
-		st, err := conn.PrepareContext(ctr.ctx, sql)
-		if err == nil {
-			_ = st.Close()
-			return true
-		}
-		var myErr *gomysql.MySQLError
-		if !errors.As(err, &myErr) {
-			t.Fatalf("no verdict for %s: %v", sql, err)
-		}
-		return myErr.Number != 1064
+		return prepareParses(t, ctr.ctx, conn, sql)
 	}
 	for _, expr := range tableSampleExpressions {
 		t.Run(expr, func(t *testing.T) {

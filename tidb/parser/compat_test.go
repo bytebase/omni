@@ -2,13 +2,11 @@ package parser
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
-
-	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/compat"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // TestCompatibility holds omni to testdata/compat.tsv: a statement for each
@@ -44,7 +42,9 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	}
 	tc := startTiDB(t)
 	assertTiDBVersion(t, tc)
-	assertImageDigest(t, tc, pin.Digest)
+	if err := testcontainer.CheckDigest(tc.ctx, tc.container, pin.Digest); err != nil {
+		t.Fatalf("%v", err)
+	}
 	previous := "<start of compat.tsv>"
 	return func(sql string) (string, error) {
 		accepts, _, err := tc.syntaxVerdict(t, sql, previous)
@@ -57,29 +57,4 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 		}
 		return compat.Reject, nil
 	}
-}
-
-// assertImageDigest fails t unless the container runs the image with the
-// pinned repository digest. A tag can be pushed again; a digest cannot.
-func assertImageDigest(t testing.TB, tc *tidbContainer, digest string) {
-	t.Helper()
-	info, err := tc.container.Inspect(tc.ctx)
-	if err != nil {
-		t.Fatalf("inspect the TiDB container: %v", err)
-	}
-	cli, err := testcontainers.NewDockerClientWithOpts(tc.ctx)
-	if err != nil {
-		t.Fatalf("docker client: %v", err)
-	}
-	defer cli.Close()
-	img, err := cli.ImageInspect(tc.ctx, info.Image)
-	if err != nil {
-		t.Fatalf("inspect the TiDB image: %v", err)
-	}
-	for _, d := range img.RepoDigests {
-		if strings.HasSuffix(d, "@"+digest) {
-			return
-		}
-	}
-	t.Fatalf("the TiDB container runs an image with digests %v, but pins.tsv pins %s", img.RepoDigests, digest)
 }

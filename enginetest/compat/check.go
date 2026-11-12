@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -70,8 +69,8 @@ func check(t testing.TB, s Suite) {
 		t.Fatalf("%v", err)
 	}
 	recording := enginetest.Recording(t)
-	run := fmt.Sprintf("go test %s -run '^%s$'", packageArg(), topName(t))
-	record := enginetest.RecordEnv + "=1 " + run
+	run := enginetest.RunCommand(t)
+	record := enginetest.RecordCommand(t)
 	changed := false
 
 	if s.Grammar != "" {
@@ -304,33 +303,6 @@ func report(t testing.TB, what string, rows []string) {
 		b.WriteString(r)
 	}
 	t.Errorf("%s", b.String())
-}
-
-// packageArg names the package under test as a go test argument from the
-// module root, such as ./tidb/parser/, so a printed command runs from there.
-func packageArg() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	for dir := wd; ; dir = filepath.Dir(dir) {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			rel, err := filepath.Rel(dir, wd)
-			if err != nil {
-				return "."
-			}
-			return "./" + filepath.ToSlash(rel) + "/"
-		}
-		if filepath.Dir(dir) == dir {
-			return "."
-		}
-	}
-}
-
-// topName is the top-level test's name, for a -run pattern.
-func topName(t testing.TB) string {
-	name, _, _ := strings.Cut(t.Name(), "/")
-	return name
 }
 
 // tally counts each kind of row by how omni and the judge answer it.

@@ -1,0 +1,127 @@
+-- pin: default pingcap/tidb:v8.5.5 sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26 v8.5.5
+
+== TestContainer_Section_2_9_RenameTable default#1
+> exec
+| DROP TABLE IF EXISTS t_ren1
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t_ren2
+< ok 0 0
+> exec
+| CREATE TABLE t_ren1 (id INT PRIMARY KEY, name VARCHAR(100))
+< ok 0 0
+> exec
+| RENAME TABLE t_ren1 TO t_ren2
+< ok 0 0
+> query
+| SHOW CREATE TABLE t_ren2
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_ren2
+: bytes
+| CREATE TABLE `t_ren2` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TABLE IF EXISTS t_ren_cross
+< ok 0 0
+> exec
+| CREATE DATABASE IF NOT EXISTS test2
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS test2.t_ren_cross
+< ok 0 0
+> exec
+| CREATE TABLE t_ren_cross (id INT PRIMARY KEY, val VARCHAR(50) NOT NULL DEFAULT '')
+< ok 0 0
+> exec
+| RENAME TABLE t_ren_cross TO test2.t_ren_cross
+< ok 0 0
+> query
+| SHOW CREATE TABLE test2.t_ren_cross
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_ren_cross
+: bytes
+| CREATE TABLE `t_ren_cross` (
+|   `id` int NOT NULL,
+|   `val` varchar(50) NOT NULL DEFAULT '',
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TABLE IF EXISTS t_mp1
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t_mp2
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t_mp3
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t_mp4
+< ok 0 0
+> exec
+| CREATE TABLE t_mp1 (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t_mp3 (val VARCHAR(100))
+< ok 0 0
+> exec
+| RENAME TABLE t_mp1 TO t_mp2, t_mp3 TO t_mp4
+< ok 0 0
+> query
+| SHOW CREATE TABLE t_mp2
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_mp2
+: bytes
+| CREATE TABLE `t_mp2` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE t_mp4
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_mp4
+: bytes
+| CREATE TABLE `t_mp4` (
+|   `val` varchar(100) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TABLE IF EXISTS t_noexist_ren
+< ok 0 0
+> exec
+| RENAME TABLE t_noexist_ren TO t_noexist_ren2
+< error
+| 1146 42S02 Table 'test.t_noexist_ren' doesn't exist
+> exec
+| DROP TABLE IF EXISTS t_ren_exist1
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS t_ren_exist2
+< ok 0 0
+> exec
+| CREATE TABLE t_ren_exist1 (id INT)
+< ok 0 0
+> exec
+| CREATE TABLE t_ren_exist2 (id INT)
+< ok 0 0
+> exec
+| RENAME TABLE t_ren_exist1 TO t_ren_exist2
+< error
+| 1050 42S01 Table 'test.t_ren_exist2' already exists

@@ -9,6 +9,7 @@ package enginetest
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -57,16 +58,60 @@ const RecordEnv = "OMNI_RECORD"
 // writes answers.
 func Recording(t testing.TB) bool {
 	t.Helper()
+	on, err := RecordingMode()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return on
+}
+
+// RecordingMode is Recording for code that has no test, such as TestMain.
+func RecordingMode() (bool, error) {
 	switch v := os.Getenv(RecordEnv); v {
 	case "":
-		return false
+		return false, nil
 	case "1":
 		if os.Getenv("CI") != "" {
-			t.Fatalf("%s=1 with CI set: CI replays committed answers and never records them", RecordEnv)
+			return false, fmt.Errorf("%s=1 with CI set: CI replays committed answers and never records them", RecordEnv)
 		}
-		return true
+		return true, nil
 	default:
-		t.Fatalf("%s=%q: want 1 to record, or unset to replay", RecordEnv, v)
-		return false
+		return false, fmt.Errorf("%s=%q: want 1 to record, or unset to replay", RecordEnv, v)
+	}
+}
+
+// RunCommand is the go test command that reruns t's top-level test from the
+// repo root, for messages that tell the reader what to run.
+func RunCommand(t testing.TB) string {
+	return fmt.Sprintf("go test %s -run '^%s$'", packageArg(), TopName(t.Name()))
+}
+
+// RecordCommand is RunCommand as a recording.
+func RecordCommand(t testing.TB) string { return RecordEnv + "=1 " + RunCommand(t) }
+
+// TopName is the top-level test of a test name: the part before any subtest.
+func TopName(name string) string {
+	top, _, _ := strings.Cut(name, "/")
+	return top
+}
+
+// packageArg names the package under test as a go test argument from the
+// repo root, such as ./tidb/parser/. Tests run in their package directory.
+func packageArg() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for dir := wd; ; dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			rel, err := filepath.Rel(dir, wd)
+			if err != nil {
+				return "."
+			}
+			return "./" + filepath.ToSlash(rel) + "/"
+		}
+		if filepath.Dir(dir) == dir {
+			return "."
+		}
 	}
 }
