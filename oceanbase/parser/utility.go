@@ -750,6 +750,9 @@ func (p *Parser) parseHandlerStmt() (nodes.StmtNode, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/do.html
 //
 //	DO expr [, expr] ...
+//
+// An item may be the bare `*`: OceanBase 4.3.5 answers 1149 for `DO *`, which
+// its SQL parser does not raise, where `DO * = 1` is the parser's 1064.
 func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	start := p.pos()
 	p.advance() // consume DO
@@ -757,9 +760,13 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	stmt := &nodes.DoStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
+		expr := p.parseBareStar()
+		if expr == nil {
+			var err error
+			expr, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()

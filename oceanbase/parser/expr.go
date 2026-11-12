@@ -553,10 +553,6 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
 		return p.parseTemporalKeyword()
 
-	case '*':
-		tok := p.advance()
-		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
-
 	// A `?` parameter marker is a simple_expr alternative in OceanBase's MySQL
 	// mode (shared with MySQL), so it is a valid operand anywhere an expression
 	// is: a bare `DO ?`, the offset of LEAD/LAG (read as an ordinary argument),
@@ -951,7 +947,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if isBareInterval(arg) {
@@ -1765,7 +1761,7 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -2782,7 +2778,7 @@ func checkRowItem(e nodes.ExprNode, start int) error {
 	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
 		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
 	}
-	return checkNotStar(e)
+	return nil
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

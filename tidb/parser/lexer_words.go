@@ -894,9 +894,10 @@ func (p *Parser) curIsGrammarIdentifier() bool {
 // tidbReservedBareWords are words TiDB v8.5.5 reserves (its ReservedKeyword
 // %token block) that omni's MySQL-forked keyword table has no token for, so the
 // lexer scans each as a bare identifier. The engine's Identifier admits no
-// reserved keyword, so none is a valid bare name: `USE TIDB_CURRENT_TSO` is a
-// 1064 on v8.5.5. Each stays usable as a function name, read through omni's
-// expression path, which the bare-name gate does not reach.
+// reserved keyword, so none is a valid bare name: `USE TIDB_CURRENT_TSO`,
+// `EXECUTE TIDB_CURRENT_TSO` and `CREATE TABLE tidb_current_tso (a int)` are
+// 1064s on v8.5.5, and parseIdent refuses them. Each stays a function name,
+// which parseIdentExpr reads.
 //
 // Ref: TIDB_CURRENT_TSO reaches the grammar only as FunctionNameOptionalBraces
 // (parser.y:8148) and never as an Identifier (parser.y:6774), so it is reserved
@@ -907,11 +908,18 @@ var tidbReservedBareWords = map[string]bool{
 
 // curIsReservedBareWord reports whether the current token is an unquoted word
 // TiDB reserves but omni's lexer scans as an identifier, so it is never a valid
-// bare Identifier (a DBName and the like). A backquoted name of the same
-// spelling is an ordinary identifier and stays accepted.
+// bare Identifier. A backquoted name of the same spelling is an ordinary
+// identifier, and so is the word beside a dot, where upstream's lexer looks no
+// keyword up: `tidb_current_tso.a`, `t.tidb_current_tso` and `t. tidb_current_tso`
+// name columns on v8.5.5, and `tidb_current_tso .a` is a 1064.
+//
+// Ref: (*Scanner).isTokenIdentifier, misc.go:1107 (tag v8.5.5)
 func (p *Parser) curIsReservedBareWord() bool {
 	if p.cur.Type != tokIDENT || p.backtickQuotedAt(p.cur.Loc) {
 		return false
 	}
-	return tidbReservedBareWords[strings.ToLower(p.cur.Str)]
+	if !tidbReservedBareWords[strings.ToLower(p.cur.Str)] {
+		return false
+	}
+	return p.lexer.inputAt(p.cur.End) != '.' && !p.lexer.afterSpacedDot(p.cur.Loc-p.lexer.baseOffset)
 }

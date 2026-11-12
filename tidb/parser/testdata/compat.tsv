@@ -4408,7 +4408,7 @@ accept	accept	engine	TiDBKeyword/HISTOGRAMS_IN_FLIGHT	EXECUTE HISTOGRAMS_IN_FLIG
 reject	reject	engine	TiDBKeyword/HISTOGRAMS_IN_FLIGHT!insert	EXECUTE HISTOGRAMS_IN_FLIGHT zzz
 accept	accept	engine	TiDBKeyword/TIDB	EXECUTE TIDB
 reject	reject	engine	TiDBKeyword/TIDB!insert	EXECUTE TIDB zzz
-accept	reject	engine	TiDBKeyword/TIDB!swap	EXECUTE TIDB_CURRENT_TSO
+reject	reject	engine	TiDBKeyword/TIDB!swap	EXECUTE TIDB_CURRENT_TSO
 accept	accept	engine	TiDBKeyword/TIFLASH	EXECUTE TIFLASH
 reject	reject	engine	TiDBKeyword/TIFLASH!insert	EXECUTE TIFLASH zzz
 accept	accept	engine	TiDBKeyword/TOPN	EXECUTE TOPN
@@ -9193,9 +9193,9 @@ reject	reject	engine	FloatOpt/Precision!drop-4	ALTER TABLE ident ADD ident DECIM
 reject	reject	engine	FloatOpt/Precision!drop-5	ALTER TABLE ident ADD ident DECIMAL(1, 1
 reject	reject	engine	FloatOpt/Precision!insert	ALTER TABLE ident ADD ident DECIMAL(1, 1) zzz
 accept	accept	engine	Precision/(_LengthNum_,_LengthNum_)	ALTER TABLE ident ADD ident DECIMAL(1, 1)
-reject	accept	engine	OptBinMod/%empty	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
+accept	accept	engine	OptBinMod/%empty	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
 reject	reject	engine	OptBinMod/%empty!insert	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' zzz
-reject	accept	engine	OptBinMod/BINARY	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY
+accept	accept	engine	OptBinMod/BINARY	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY
 reject	reject	engine	OptBinMod/BINARY!insert	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY zzz
 reject	reject	engine	OptBinMod/BINARY!swap	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINDING
 accept	accept	engine	OptVectorElementType/%empty	ALTER TABLE ident ADD ident VECTOR
@@ -9214,12 +9214,12 @@ accept	accept	engine	OptBinary/%empty	ALTER TABLE ident ADD ident CHARACTER
 accept	accept	engine	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 reject	reject	engine	OptBinary/BINARY_OptCharset!insert	ALTER TABLE ident ADD ident CHARACTER BINARY zzz
 reject	reject	engine	OptBinary/BINARY_OptCharset!swap	ALTER TABLE ident ADD ident CHARACTER BINDING
-reject	accept	engine	OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
+accept	accept	engine	OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
 reject	reject	engine	OptBinary/CharsetKw_CharsetName_OptBinMod!drop-1	ALTER TABLE ident ADD ident CHARACTER 'binary'
 reject	reject	engine	OptBinary/CharsetKw_CharsetName_OptBinMod!drop-2	ALTER TABLE ident ADD ident CHARACTER CHARSET
 reject	reject	engine	OptBinary/CharsetKw_CharsetName_OptBinMod!swap	ALTER TABLE ident ADD ident CHARACTER CHECK 'binary'
 accept	accept	engine	OptCharset/%empty	ALTER TABLE ident ADD ident CHARACTER BINARY
-reject	accept	engine	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+accept	accept	engine	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 reject	reject	engine	OptCharset/CharsetKw_CharsetName!drop-1	ALTER TABLE ident ADD ident CHARACTER BINARY 'binary'
 reject	reject	engine	OptCharset/CharsetKw_CharsetName!drop-2	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET
 reject	reject	engine	OptCharset/CharsetKw_CharsetName!insert	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary' zzz
@@ -9747,7 +9747,7 @@ accept	accept	engine	WithGrantOptionOpt/%empty	GRANT ALL ON * TO 'binary'
 accept	accept	engine	WithGrantOptionOpt/WITH_GRANT_OPTION	GRANT ALL ON * TO 'binary' WITH GRANT OPTION
 reject	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!drop-1	GRANT ALL ON * TO 'binary' GRANT OPTION
 reject	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!drop-2	GRANT ALL ON * TO 'binary' WITH OPTION
-accept	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO 'binary' WITH GRANT
+reject	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO 'binary' WITH GRANT
 reject	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!insert	GRANT ALL ON * TO 'binary' WITH GRANT OPTION zzz
 reject	reject	engine	WithGrantOptionOpt/WITH_GRANT_OPTION!swap	GRANT ALL ON * TO 'binary' WITHOUT GRANT OPTION
 accept	accept	engine	WithGrantOptionOpt/WITH_MAX_QUERIES_PER_HOUR_NUM	GRANT ALL ON * TO 'binary' WITH MAX_QUERIES_PER_HOUR 1
@@ -11060,3 +11060,6 @@ accept	accept	engine	DropQueryWatchStmt/QUERY_WATCH_REMOVE_NUM	QUERY WATCH REMOV
 reject	reject	engine	suite:cited	USE TIDB_CURRENT_TSO
 accept	accept	engine	suite:cited	USE SEND_CREDENTIALS_TO_TIKV
 reject	accept	engine	suite:cited	ALTER DATABASE COLLATE 's' zzz
+reject	reject	engine	suite:reject-fuzz	select * = t
+reject	reject	engine	suite:reject-fuzz	select * = 1 from t
+reject	reject	engine	suite:reject-fuzz	select @@@tidb_index_lookup_pushdown_policy

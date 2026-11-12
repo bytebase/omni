@@ -8,10 +8,10 @@ import "testing"
 // function name (FunctionNameOptionalBraces, parser.y:8148), so `USE
 // TIDB_CURRENT_TSO` is a 1064 while the function forms and a backquoted name
 // parse. omni's MySQL-forked keyword table has no token for the word, so the
-// lexer scans it as a bare identifier; the DBName gate in parseUseStmt is what
-// rejects it. The engine verdict is pinned by the
+// lexer scans it as a bare identifier; parseIdent, which reads the DBName, is
+// what rejects it. The engine verdict is pinned by the
 // suite:cited rows of testdata/compat.tsv, measured against
-// pingcap/tidb:v8.5.5.
+// pingcap/tidb:v8.5.5. reserved_bare_word_forms_test.go holds the other names.
 var useDBNameFormCases = []struct {
 	sql    string
 	accept bool

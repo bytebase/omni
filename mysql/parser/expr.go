@@ -561,10 +561,6 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		}
 		return p.parseTemporalKeyword()
 
-	case '*':
-		tok := p.advance()
-		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
-
 	// A `?` parameter marker is a simple_expr alternative in MySQL 8.0
 	// (sql_yacc.yy), so it is a valid operand anywhere an expression is: a bare
 	// `DO ?`, the offset of LEAD/LAG (read as an ordinary argument), and a
@@ -750,16 +746,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// table.*
-		if p.cur.Type == '*' {
-			p.advance()
-			return &nodes.ColumnRef{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Table: name,
-				Star:  true,
-			}, nil
-		}
-
 		name2, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -787,15 +773,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 
-			if p.cur.Type == '*' {
-				p.advance()
-				return &nodes.ColumnRef{
-					Loc:    nodes.Loc{Start: start, End: p.prev.End},
-					Schema: name,
-					Table:  name2,
-					Star:   true,
-				}, nil
-			}
 			name3, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -974,7 +951,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if isBareInterval(arg) {
@@ -1745,7 +1722,7 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -2764,7 +2741,7 @@ func checkRowItem(e nodes.ExprNode, start int) error {
 	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
 		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
 	}
-	return checkNotStar(e)
+	return nil
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

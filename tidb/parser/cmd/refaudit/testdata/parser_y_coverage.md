@@ -6,8 +6,8 @@
 # Regenerate with: go test ./tidb/parser/cmd/refaudit -run TestCoverageReport -update
 #
 # Grammar rules (v8.5.5):     690
-# Rules with a citation:      310
-# Rules with no citation:     380
+# Rules with a citation:      311
+# Rules with no citation:     379
 #
 # Rules with no citing production, in parser.y source order:
 Start
@@ -327,7 +327,6 @@ StringLitOrUserVariableList
 StringLitOrUserVariable
 GrantProxyStmt
 GrantRoleStmt
-WithGrantOptionOpt
 ExtendedPriv
 RoleOrPrivElem
 RoleOrPrivElemList

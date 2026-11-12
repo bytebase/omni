@@ -775,6 +775,11 @@ func (p *Parser) parseIdent() (string, int, error) {
 				return "", 0, p.syntaxErrorAtCur()
 			}
 		}
+		// Nor is a word TiDB reserves and this lexer has no token for:
+		// `EXECUTE TIDB_CURRENT_TSO` is a 1064.
+		if p.curIsReservedBareWord() {
+			return "", 0, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
@@ -1302,6 +1307,13 @@ func (p *Parser) parseSysVarName() (string, int, error) {
 	// Upstream's scanner reads @@ and the name with its dots as one token, so a space
 	// anywhere in it ends the token: `SELECT @@ a` and `SELECT @@a . b` are 1064s.
 	if p.cur.Loc != p.prev.End {
+		return "", 0, p.syntaxErrorAtCur()
+	}
+	// A third '@' starts no name. Upstream's scanner gives up the @@ token there and
+	// leaves a lone '@' (startWithAt), so `SELECT @@@a`, `SELECT @@global.@a` and
+	// `SET @@@a = 1` are 1064s. This lexer scans @a as a user variable, quoted or
+	// not, so it is refused here.
+	if p.lexer.inputAt(p.cur.Loc) == '@' {
 		return "", 0, p.syntaxErrorAtCur()
 	}
 	// A string-literal name (@@'c', @@session.'c', @@local."c") is the whole

@@ -62,15 +62,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			To:    users,
 		}
 		// [WITH ADMIN OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwADMIN {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithAdmin = true
-			}
+		stmt.WithAdmin, err = p.parseWithOption(kwADMIN)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -102,15 +96,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		stmt.To = users
 		// [WITH GRANT OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwGRANT {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithGrant = true
-			}
+		stmt.WithGrant, err = p.parseWithOption(kwGRANT)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -150,10 +138,11 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// [WITH [GRANT OPTION] [resource_option ...]]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.cur.Type == kwGRANT {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
+		if _, ok := p.match(kwGRANT); ok {
+			// GRANT takes its OPTION (grant_option, `GRANT OPTION | resource_option`):
+			// `WITH GRANT` is a 1064 on MariaDB 11.8.
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
 			}
 			stmt.WithGrant = true
 		}
@@ -228,6 +217,26 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseWithOption reads `WITH word OPTION`, the clause that closes GRANT PROXY (GRANT
+// OPTION) and a role grant (ADMIN OPTION). It reports whether the clause is there. A WITH
+// takes both words: MariaDB 11.8 answers 1064 for `GRANT PROXY ON a TO b WITH`, `GRANT
+// PROXY ON a TO b WITH GRANT` and `GRANT r TO u WITH ADMIN`. A privilege grant's WITH is
+// a list instead (opt_grant_options), which parseGrantStmt reads.
+//
+// Ref: opt_grant_option and opt_with_admin_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseWithOption(word int) (bool, error) {
+	if _, ok := p.match(kwWITH); !ok {
+		return false, nil
+	}
+	if _, err := p.expect(word); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwOPTION); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // parseRevokeStmt parses a REVOKE statement.
