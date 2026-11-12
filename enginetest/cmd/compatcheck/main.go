@@ -2,7 +2,9 @@
 // recording may make. It compares each compat.tsv the commits since <base>
 // change with the file at their merge base (see compat.Guard), and fails a
 // pin bump that also changes non-test Go code: a pin bump's diff must be
-// what the release changed, so omni's fixes go in later changes.
+// what the release changed, so omni's fixes go in later changes. A pin bump
+// is a compat.tsv recorded at a new pin, as its # pin: line shows; an edit
+// to pins.tsv alone bumps nothing.
 //
 // CI runs it on every pull request. From the repo root:
 //
@@ -28,27 +30,17 @@ func main() {
 	mergeBase := strings.TrimSpace(git("merge-base", base, "HEAD"))
 	changed := strings.Fields(git("diff", "--name-only", base+"...HEAD"))
 
+	type pair struct {
+		path          string
+		before, after *compat.File
+	}
+	var files []pair
 	bumped := map[string]bool{}
 	var code []string
 	for _, f := range changed {
-		if strings.HasSuffix(f, "/testdata/pins.tsv") {
-			// A pins.tsv that is new introduces the engine's pin; only
-			// changing one that existed bumps it.
-			if _, existed := show(mergeBase, f); existed {
-				bumped[top(f)] = true
-			}
-		}
 		if strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") {
 			code = append(code, f)
 		}
-	}
-
-	var problems []string
-	if len(bumped) > 0 && len(code) > 0 {
-		problems = append(problems, fmt.Sprintf("a pin bump changes the pin and the recorded answers only, but this change also edits %s; fix omni in a separate change",
-			strings.Join(code, ", ")))
-	}
-	for _, f := range changed {
 		if path.Base(f) != "compat.tsv" {
 			continue
 		}
@@ -68,8 +60,20 @@ func main() {
 		if err != nil {
 			fail(err)
 		}
-		for _, p := range compat.Guard(b, a, bumped[top(f)]) {
-			problems = append(problems, f+": "+p)
+		files = append(files, pair{f, b, a})
+		if compat.PinChanged(b, a) {
+			bumped[top(f)] = true
+		}
+	}
+
+	var problems []string
+	if len(bumped) > 0 && len(code) > 0 {
+		problems = append(problems, fmt.Sprintf("a pin bump changes the pin and the recorded answers only, but this change also edits %s; fix omni in a separate change",
+			strings.Join(code, ", ")))
+	}
+	for _, p := range files {
+		for _, msg := range compat.Guard(p.before, p.after) {
+			problems = append(problems, p.path+": "+msg)
 		}
 	}
 	if len(problems) > 0 {
