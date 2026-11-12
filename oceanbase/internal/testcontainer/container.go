@@ -1,8 +1,9 @@
 // Package testcontainer is how oceanbase's tests reach OceanBase. Open and its
 // kin give a test a connection through a tape (enginetest/tape), which replays
 // the pinned server's answers and starts nothing; in a recording
-// (OMNI_RECORD=1) the connection is to the pinned server itself. The packages
-// not yet on tapes ask the server directly, through DSN and Database.
+// (OMNI_RECORD=1) the connection is to the pinned server itself. The review
+// walk, which is not on tapes yet, and the compat judge ask the server
+// directly, through DSN and OpenOceanBase.
 //
 // The server is one testcontainer per test binary, started by the first test
 // that needs it and removed by Terminate, which the package's TestMain calls.
@@ -73,7 +74,7 @@ func OpenWith(t testing.TB, o Options) *sql.DB {
 // may hold several statements, and dates come back as time.Time.
 func OpenDatabase(t testing.TB, label string) *sql.DB {
 	t.Helper()
-	name := databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")
+	name := DatabaseName(label)
 	if enginetest.Recording(t) {
 		pin, err := enginetest.LoadPin(Pins, "default")
 		if err != nil {
@@ -88,6 +89,11 @@ func OpenDatabase(t testing.TB, label string) *sql.DB {
 		}
 	}
 	return OpenWith(t, Options{Database: name, MultiStatements: true, ParseTime: true})
+}
+
+// DatabaseName is the name of the database OpenDatabase selects for label.
+func DatabaseName(label string) string {
+	return databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")
 }
 
 // liveTimeout bounds one statement on the live server, so one that hangs
@@ -380,67 +386,10 @@ func waitReady(ctx context.Context, dsn string) error {
 	}
 }
 
-// Database creates a database named for label on OceanBase and returns it, with
-// a pool of root connections that start in it, pinned to one connection so that
-// USE and session state hold across statements.
-func (o *oceanBase) Database(ctx context.Context, label string) (*Database, error) {
-	dsn, err := o.DSN(ctx)
-	if err != nil {
-		return nil, err
-	}
-	name := databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")
-	admin, err := OpenOceanBase(dsn)
-	if err != nil {
-		return nil, err
-	}
-	defer admin.Close()
-	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
-		return nil, fmt.Errorf("create database %s: %w", name, err)
-	}
-	config, err := gomysql.ParseDSN(dsn)
-	if err != nil {
-		return nil, err
-	}
-	config.DBName = name
-	config.ParseTime, config.MultiStatements = true, true
-	db, err := OpenOceanBase(config.FormatDSN())
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	return &Database{DB: db, Name: name}, nil
-}
-
-// databasePrefix starts the name of every database Database creates.
+// databasePrefix starts the name of every database OpenDatabase selects.
 const databasePrefix = "omni_t_"
 
-// Database is a test's own database on OceanBase.
-type Database struct {
-	// DB is a pool of root connections that start in the database, pinned to one
-	// connection so that USE and session state hold across statements.
-	DB   *sql.DB
-	Name string
-}
-
 var labelChars = regexp.MustCompile(`[^a-z0-9_]`)
-
-// Reset empties the database and selects it, as a server of its own would be for
-// the next test.
-func (d *Database) Reset(ctx context.Context) error {
-	for _, stmt := range []string{"DROP DATABASE IF EXISTS " + d.Name, "CREATE DATABASE " + d.Name, "USE " + d.Name} {
-		if _, err := d.DB.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("%s: %w", stmt, err)
-		}
-	}
-	return nil
-}
-
-// Close drops the database and closes the pool.
-func (d *Database) Close(ctx context.Context) {
-	_, _ = d.DB.ExecContext(ctx, "DROP DATABASE IF EXISTS "+d.Name)
-	_ = d.DB.Close()
-}
 
 // OceanBaseTransient reports an error OceanBase answers while it is between
 // leaders or starved for CPU, which the same statement clears once the server

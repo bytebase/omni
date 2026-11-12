@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -91,7 +93,8 @@ func TestOracle_CastArrayStoredForms(t *testing.T) {
 	if _, err := storeAndRead(ctx, o, "zz_cast_array", "CREATE TABLE zz (a JSON)", "zz"); err != nil {
 		t.Fatal(err)
 	}
-	for written, stored := range castArrayForms {
+	for _, written := range slices.Sorted(maps.Keys(castArrayForms)) {
+		stored := castArrayForms[written]
 		t.Run(written, func(t *testing.T) {
 			if _, err := o.db.ExecContext(ctx, "CREATE OR REPLACE VIEW v AS SELECT CAST(a AS "+written+") x FROM zz"); err != nil {
 				t.Fatal(err)

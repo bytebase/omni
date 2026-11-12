@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 has begun: `oceanbase/parser` and `oceanbase/validate` replay tapes (81 tapes, 4.7 MB, recorded in three minutes) and start no server; `catalog`, `review` and `deparse` are next, with their MySQL-backed tests (D3). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 has begun: `oceanbase/parser`, `oceanbase/validate` and the 23 tests of `oceanbase/catalog` that ask OceanBase replay tapes (104 tapes, 5.1 MB) and start no server. Catalog's 163 tests that ask MySQL are next (D3; Appendix A has what they do on OceanBase today), then `review` and `deparse`. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -502,6 +502,19 @@ After step 0 the engines are independent. Order:
 - **2,679 disagreements,** untriaged. Among the alternatives only OceanBase accepts, the largest groups by leading words are `ALTER SYSTEM` (399), `EXPLAIN` (231, of which 205 are names with a leading dot), `ALTER TABLE` (175), `SELECT` (166) and `DELETE` (131).
 - **A carrier can hide its alternatives.** A row is the shortest statement that reaches an alternative, and where omni rejects that carrier, every alternative behind it disagrees for one reason. Fixing the carrier is what shows the rest.
 - **Two statements crash the server** (three rows). Their verdict comes from the probe (§2.3).
+
+**OceanBase, catalog's MySQL tests.** Measured 2026-11-12 by pointing them at the pinned OceanBase as written. Nothing of the run is committed.
+
+| Tests | Top-level | Pass | Subtests | Pass | Fail | Skip |
+| --- | --- | --- | --- | --- | --- | --- |
+| Stored form and migrations (`connectOracle`) | 56 | 20 | 708 | 295 | 357 | 56 |
+| `SHOW CREATE` text and scenarios (`startContainer`) | 106 | 15 | 873 | 335 | 537 | 1 |
+
+- **Stored form.** 184 failures are a table that differs from its own readback. Where traced, the cause is OceanBase printing `ROW_FORMAT = DYNAMIC` on every table. 45 are views that differ from theirs. 76 are readbacks omni can't load: 47 foreign keys whose referenced table comes back qualified by its database, 20 triggers, 8 multi-valued indexes printed as `json_query(... RETURNING ...)`, and a routine.
+- **Migrations.** 41 generated statements are refused: 14 for combining changes OceanBase takes one at a time (1235, 4179), 7 for dropping a key that is not there (1091), 6 for altering a geometry column's SRID (1235), 5 partition statements as syntax errors, and 9 others. 4 more apply but lose `/*!80000 INVISIBLE */`, which a server reporting 5.7.25 skips.
+- **Text.** The 48 `TestContainer_*` tests mostly compare `SHOW CREATE TABLE` with MySQL 8.0's text, which OceanBase never prints: 301 of their 378 subtests fail. The 27 view tests do the same for view text: 131 of 204 fail. The 25 scenario tests are closest: 163 of 241 pass.
+- **The hangs #808 recorded were the tests' own.** A helper asked the pool for a second connection while its test held the only one. The server sat idle each time, and the cross-object ordering test passes 5 of 5 once the pool has a second connection.
+- **Not measured:** the keyword sweep builds an index per keyword and did not finish one of its seven positions in five minutes. A tape can't hold a `uint64` yet, which `information_schema`'s unsigned columns return.
 
 **OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -186,7 +187,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	}
 	// Build a result catalog that mirrors the `to` catalog shape: parent readback + result child,
 	// so FK references resolve identically on both sides.
-	resultCat := loadResultChildSchema(t, o, logicalDB, sc, resultDDL)
+	resultCat := loadResultChildSchema(t, o, conn, logicalDB, sc, resultDDL)
 
 	if d := DiffWithNormalizer(resultCat, toCat, n); !d.IsEmpty() {
 		t.Errorf("[%s] APPLY-CORRECTNESS FAILED for %s: result != to\n  plan:\n%s\n  result child: %s\n  diff: %s",
@@ -200,11 +201,11 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 // loadResultChildSchema reads the parent `p` back from the live apply db and combines it with the
 // already-read result child DDL into a single-catalog schema (wrapped in the logical db), so the
 // result catalog has the same parent+child shape as `to` and FK references resolve on both sides.
-func loadResultChildSchema(t *testing.T, o *oracleConn, logicalDB, sc, childDDL string) *Catalog {
+func loadResultChildSchema(t *testing.T, o *oracleConn, conn *sql.Conn, logicalDB, sc, childDDL string) *Catalog {
 	t.Helper()
 	ctx := context.Background()
 	var nm, parentDDL string
-	row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.p", logicalDB))
+	row := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.p", logicalDB))
 	if err := row.Scan(&nm, &parentDDL); err != nil {
 		t.Fatalf("[%s] SHOW CREATE parent after apply: %v", o.name, err)
 	}

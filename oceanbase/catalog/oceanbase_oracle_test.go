@@ -15,8 +15,10 @@ import (
 // The OceanBase oracle for this package. The TestOracle_* family answers for the
 // behavior this engine inherits from MySQL, against live 8.0; this file is
 // the one that answers for OceanBase itself.
-// oceanBaseOracle opens this process's own OceanBase: see
-// testcontainer.OceanBase.
+// oceanBaseOracle opens the test's connection to OceanBase: a replay of its
+// tape, or the pinned server in a recording (testcontainer.Open). The pool
+// holds one connection, so the database showCreate selects with USE stays
+// selected.
 //
 // The version is MySQL80, the only one, and the probes below measure that it fits:
 // every probe either canonicalizes empty or disagrees only in the ROW_FORMAT echo.
@@ -26,20 +28,7 @@ import (
 // as a non-empty diff rather than as a phantom change in a user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
-	dsn, err := testcontainer.OceanBase.DSN(context.Background())
-	if err != nil {
-		t.Fatalf("OceanBase oracle: %v", err)
-	}
-	db, err := testcontainer.OpenOceanBase(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// showCreate selects the database with USE, which is session state, so the pool
-	// has to stay on one connection.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	t.Cleanup(func() { _ = db.Close() })
-	return &oracleConn{db: db, version: MySQL80, name: "oceanbase"}
+	return &oracleConn{db: testcontainer.Open(t), version: MySQL80, name: "oceanbase"}
 }
 
 // obUnsupportedForms are the probe ids OceanBase itself will not accept, with the
