@@ -953,7 +953,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 // parseJoinChain extends a table reference with the joins that follow it.
 //
 // MySQL's join grammar is ambiguous and yacc resolves it by precedence (parser.y
-// JoinTable, at <repo root>/tidb/parser/cmd/grammarcorpus/testdata/parser.y): a
+// JoinTable, at <repo root>/tidb/testdata/parser.y): a
 // conditionless plain/cross/inner JOIN and an outer (LEFT/RIGHT) JOIN let their
 // right operand absorb the joins that follow, so a trailing ON can bind to a
 // nested join (`a JOIN b JOIN c ON x ON y` is `a JOIN (b JOIN c ON x) ON y`),

@@ -1,0 +1,3 @@
+# The servers this engine's committed answers come from. default judges compat.tsv.
+# columns: role, image, digest, source tag
+default	pingcap/tidb:v8.5.5	sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26	v8.5.5

@@ -13,7 +13,7 @@ var update = flag.Bool("update", false, "rewrite the checked-in coverage report 
 // Paths relative to this package directory. The grammar and the TiDB source
 // tree sit above it; the report lives in this package's testdata.
 const (
-	testGrammar = "../grammarcorpus/testdata/parser.y"
+	testGrammar = "../../../testdata/parser.y"
 	testTree    = "../../.." // the tidb/ top-level directory
 	testReport  = "testdata/parser_y_coverage.md"
 )

@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Nothing is implemented. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost, so rollout step 0 rebuilds it. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 has its first half: `enginetest/compat` and `enginetest/grammar`, and TiDB's `compat.tsv` (11,094 rows, recorded on the pinned server in 9 seconds). The tape harness is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -31,7 +31,7 @@ Four terms are used throughout:
 
 **An engine is fully compatible at its pin when all four hold:**
 
-1. **Complete:** its rows cover every grammar alternative and every token form in `tokens.tsv`. They are generated, and CI regenerates them to prove none was dropped.
+1. **Complete:** its rows cover every grammar alternative and every token form in `tokens.tsv`. They are generated, and `TestCompatibility` regenerates them to prove none was dropped.
 2. **Judged:** no row is waiting for a judge.
 3. **Agreeing:** on every row, omni's answer equals the judge's.
 4. **Replaying:** every tape replays.
@@ -82,7 +82,15 @@ The test is one call. The engine supplies only its parser:
 
 ```go
 func TestCompatibility(t *testing.T) {
-	compat.Check(t, "testdata/compat.tsv", omniVerdict)
+	compat.Check(t, compat.Suite{
+		Path:    "testdata/compat.tsv",
+		Pins:    "../testdata/pins.tsv",
+		Grammar: "../testdata/parser.y",
+		Tokens:  "../testdata/tokens.tsv",
+		Omni:    omniVerdict,
+		Source:  compat.SourceEngine,
+		Judge:   compatJudge, // called only in a recording
+	})
 }
 
 func omniVerdict(sql string) string {
@@ -323,7 +331,7 @@ enginetest/                          shared by every engine, knows none of them
   grammar/                           .y and .g4 readers, converters, generator, recognizers
   compat/                            the row checker, prepareVerdict
   tape/                              record and replay
-  cmd/genrows/                       regenerates an engine's rows
+  cmd/compatcheck/                   the CI guards that compare a PR's files with its base
 
 oceanbase/
   testdata/pins.tsv                  the pinned server
@@ -382,8 +390,7 @@ OMNI_RECORD=1 go test ./oceanbase/catalog/ -run '^TestMigration_AddColumn$'
 **Bump a pin.** In a PR of its own, with no code changes:
 
 ```bash
-# edit oceanbase/testdata/pins.tsv, then:
-go run ./enginetest/cmd/genrows oceanbase
+# edit oceanbase/testdata/pins.tsv and the vendored grammar, then:
 OMNI_RECORD=1 go test ./oceanbase/...
 ```
 
@@ -391,7 +398,7 @@ The diff is what the release changed. Fix omni in later PRs.
 
 ## 7. Guards
 
-Each guard is a test or a CI step (`scripts/compat-check.sh`).
+Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/main`).
 
 | Risk | Guard |
 | --- | --- |
@@ -399,7 +406,7 @@ Each guard is a test or a CI step (`scripts/compat-check.sh`).
 | A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
 | A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
-| Generated rows are added, removed or edited by hand | CI regenerates them from the pinned grammar and diffs. |
+| Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
 | A deleted or renamed test leaves its tape behind | On a run with no `-run` or `-skip`, the harness fails on a tape no test opened. |
@@ -432,14 +439,14 @@ Progress is visible: `TestCompatibility` prints how many rows of each kind agree
 | mongo | mongosh method docs → `.g4` | docs |
 | elasticsearch | `elasticsearch-specification` → `.g4` | grammar |
 
-- **TiDB is the starting point.** It already generates rows from `parser.y` (`cmd/grammarcorpus`) and judges them on a live server (`corpus_oracle_test.go`).
+- **TiDB is the starting point.** Its `parser.y` rows were the first `compat.tsv`; its other corpora become `suite:` rows in step 1.
 - **Engines judged by grammar or docs** move up to `engine` once an image is pinned: Cassandra, DynamoDB Local, the Cosmos DB emulator, MongoDB and Elasticsearch all ship one.
 
 ## 9. Rollout
 
 | Step | What | Done when |
 | --- | --- | --- |
-| 0 | `enginetest`: generator, row checker, tape harness, `scripts/compat-check.sh` | TiDB's existing corpus runs through it |
+| 0 | `enginetest`: generator, row checker, tape harness, `compatcheck` | TiDB's existing corpus runs through it |
 | 1 | Per engine: `pins.tsv`, `tokens.tsv`, `compat.tsv`, `TestCompatibility` | Every row judged, baseline committed |
 | 2 | Per engine with a server: tapes for every live test, then `simulate.tsv` on one fixture | The engine's tests pass with Docker off |
 | 3 | Per engine: remove its server from CI | Its CI starts no container |
@@ -456,7 +463,7 @@ After step 0 the engines are independent. Order:
 - **D1. Grammar licenses.** MySQL's and MariaDB's grammars are GPL, OceanBase's is Mulan PubL, and omni is MIT. Recommended: don't commit those three. Fetch them by tag, and commit only the generated rows. Permissively licensed grammars are committed, as TiDB's already is.
 - **D2. Converted docs.** Confirm that committing `.g4` files derived from vendor docs is acceptable. Oracle's `bnf/` directory already quotes them.
 - **D3. MySQL tests in OceanBase and MariaDB.** Recommended: point them at their own engine and record, deleting only tests of MySQL-only behavior.
-- **D4. Shared `enginetest`.** It breaks "engines share only `metadata` and `review`". Recommended: allow it, like `review/walk/walktest`, rather than keep 18 copies.
+- **D4. Shared `enginetest`.** Decided: allowed, like `review/walk/walktest`, rather than 18 copies. `AGENTS.md` lists it.
 - **D5. A verify lane.** Nothing in §7 catches an engine answer written by hand. Option: a third mode, `OMNI_RECORD=verify`, asks the engine again, fails on any difference, and writes nothing. The self-hosted runner runs it on just the tests and rows a PR changed, so most PRs still start no server. The alternative is to trust review.
 - **D6. Queries.** Stored form proves omni reads DDL as the engine does. The same check reaches queries by wrapping each accepted `SELECT` row in `CREATE VIEW`: the engine's stored view text is its own reading of the query. It works where omni's catalog renders views (pg, the MySQL family), and it multiplies the size of `simulate.tsv`. Recommended: decide once step 2 has measured what a row costs.
 
@@ -504,7 +511,7 @@ The **Compatibility** section below replaces the `AGENTS.md` Tests bullets on te
 
 Other files:
 - **`AGENTS.md`:** `enginetest` joins `metadata` and `review` as shared code, and the pinned images move to `pins.tsv`.
-- **`ci.yml`:** no Docker. The Trino and OceanBase lanes and the live sweep sizes go. `scripts/compat-check.sh` is added.
+- **`ci.yml`:** no Docker. The Trino and OceanBase lanes and the live sweep sizes go. `compatcheck` is added.
 - **`docs/engine-test-matrix.md`:** becomes the §8 table, with agreement counts per engine.
 
 ## Appendix C. The tape harness

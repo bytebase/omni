@@ -63,6 +63,11 @@ jobs:
       - name: Build
         run: go build ./...
 
+      # Fails an edited judge's answer, a regression committed as omni's
+      # verdict, and a pin bump that also changes code (enginetest/compat.Guard).
+      - name: Engine answers change only by recording
+        run: go run ./enginetest/cmd/compatcheck origin/${{ github.base_ref }}
+
       - name: Affected packages
         id: affected
         run: |

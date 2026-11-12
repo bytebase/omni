@@ -1,6 +1,6 @@
 # TiDB reject-fuzz known over-acceptances (baseline). family<TAB>sql.
 # Each is a real omni-accept/TiDB-reject; to be minimised into
-# parser_y_negatives_corpus.tsv and fixed across the forks (PR e), then dropped here.
+# compat.tsv and fixed across the forks (PR e), then dropped here.
 #
 # Empty: the space-before-paren over-acceptances (`select count ( * )` and the
 # spaced aggregate/scalar forms it shared a cause with) are fixed in

@@ -1,0 +1,49 @@
+# TiDB v8.5.5 token forms for generated compat rows: the text written for each
+# terminal whose %token declaration in parser.y does not spell it. Keywords and
+# operators need no row. Sources: pkg/parser/lexer.go and pkg/parser/misc.go.
+# (empty) is a token written as nothing; (unreachable) is a token the default SQL
+# mode never lexes, so the alternatives that need it get hand-added rows.
+# columns: token, form, note
+identifier	ident
+stringLit	's'
+floatLit	1e0	an exponent makes it a float; without one TiDB lexes a decimal
+decLit	1.5
+intLit	1
+hexLit	0x1
+bitLit	b'1'
+singleAtIdentifier	@v
+doubleAtIdentifier	@@v
+underscoreCS	_utf8
+paramMarker	?
+invalid	(empty)	a lexer error token; no sentence reaches it
+hintComment	(empty)	optimizer hints are comments to the grammar
+pipesAsOr	||	how the default mode lexes ||
+pipes	(unreachable)	|| as concatenation needs PIPES_AS_CONCAT; the default mode lexes pipesAsOr
+not2	(unreachable)	high-precedence NOT needs HIGH_NOT_PRECEDENCE; the default mode lexes not
+builtinCast	CAST	builtinX: a function name read right before '('
+builtinCount	COUNT
+builtinCurDate	CURDATE
+builtinCurTime	CURTIME
+builtinNow	NOW
+builtinSysDate	SYSDATE
+builtinUser	USER
+builtinExtract	EXTRACT
+builtinPosition	POSITION
+builtinSubstring	SUBSTRING
+builtinTrim	TRIM
+builtinTranslate	TRANSLATE
+builtinDateAdd	DATE_ADD
+builtinDateSub	DATE_SUB
+builtinApproxCountDistinct	APPROX_COUNT_DISTINCT
+builtinApproxPercentile	APPROX_PERCENTILE
+builtinBitAnd	BIT_AND
+builtinBitOr	BIT_OR
+builtinBitXor	BIT_XOR
+builtinGroupConcat	GROUP_CONCAT
+builtinMax	MAX
+builtinMin	MIN
+builtinSum	SUM
+builtinStddevPop	STDDEV_POP
+builtinStddevSamp	STDDEV_SAMP
+builtinVarPop	VAR_POP
+builtinVarSamp	VAR_SAMP

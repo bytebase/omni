@@ -6,7 +6,7 @@ The differential mutation fuzz sweep of the §3.6 rejection suite
 samples at the token and byte level, runs omni and live TiDB v8.5.5 on each
 mutant, and flags every **over-acceptance** (omni accepts, TiDB rejects).
 
-Where `parser_y_negatives_corpus.tsv` enumerates one-step-off near-misses of each
+Where `compat.tsv` enumerates one-step-off near-misses of each
 grammar alternative, this sweep reaches malformed strings enumeration never will.
 
 ## How it runs
@@ -34,5 +34,6 @@ is a §3.3 completeness gap, logged not gated.
 1. Minimise is automatic; read `mismatches.txt`.
 2. Fix the over-acceptance across `mysql`/`mariadb`/`oceanbase` like a gap,
    measured on live TiDB.
-3. Pin the minimised input into `parser_y_negatives_corpus.tsv` as a permanent
-   regression row (`fuzz#N` label), and drop it from `known-mismatches.txt`.
+3. Pin the minimised input into `compat.tsv` as a permanent regression row
+   labelled `suite:reject-fuzz` (see `../README.md`), and drop it from
+   `known-mismatches.txt`.
