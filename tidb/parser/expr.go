@@ -203,7 +203,7 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			// literal on the right. `'{}'->'$.a'`, `a->3` and `a->b` are 1064s on
 			// v8.5.5.
 			op := binOp
-			if ref, ok := left.(*nodes.ColumnRef); !ok || ref.Star {
+			if _, ok := left.(*nodes.ColumnRef); !ok {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance() // consume -> or ->>
@@ -582,10 +582,6 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
 		return p.parseTemporalKeyword()
 
-	case '*':
-		tok := p.advance()
-		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
-
 	// paramMarker is a SimpleExpr alternative (parser.y:7886), so a `?`
 	// placeholder is a valid operand anywhere an expression is: a bare `DO ?`,
 	// the offset of LEAD/LAG (OptLeadLagInfo, parser.y:9827, read as an ordinary
@@ -796,9 +792,18 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtTok(p.peekNext())
 	}
 	start := p.pos()
-	name, _, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
+	var name string
+	if p.curIsReservedBareWord() {
+		// A reserved word with no token of its own is no Identifier, so parseIdent
+		// refuses it, and it is a function name here (FunctionNameOptionalBraces,
+		// parser.y:8148): `SELECT TIDB_CURRENT_TSO` and `SELECT TIDB_CURRENT_TSO()`.
+		name = p.advance().Str
+	} else {
+		var err error
+		name, _, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Check for function call: name(
@@ -829,16 +834,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// table.*
-		if p.cur.Type == '*' {
-			p.advance()
-			return &nodes.ColumnRef{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Table: name,
-				Star:  true,
-			}, nil
-		}
-
 		name2, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -860,15 +855,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				return nil, &ParseError{Message: "collecting"}
 			}
 
-			if p.cur.Type == '*' {
-				p.advance()
-				return &nodes.ColumnRef{
-					Loc:    nodes.Loc{Start: start, End: p.prev.End},
-					Schema: name,
-					Table:  name2,
-					Star:   true,
-				}, nil
-			}
 			name3, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -1052,7 +1038,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if isBareInterval(arg) {
@@ -1745,7 +1731,7 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -1922,13 +1908,6 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		}
 		row.Loc.End = p.prev.End
 		return row, nil
-	}
-
-	// A parenthesized expression is `'(' Expression ')'` (parser.y:7917); a bare
-	// `*` or `t.*` is a Field wildcard (parser.y:6464-6473), never an Expression,
-	// so TiDB v8.5.5 answers 1064 for `DO (*)` and `DO (t.*)`.
-	if err := checkNotStar(expr); err != nil {
-		return nil, err
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -2236,13 +2215,6 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 		}
 		if val == nil {
 			return nil, p.syntaxErrorAtCur()
-		}
-		// The value list is an ExpressionList (parser.y:6385, `BitExpr InOrNotOp
-		// '(' ExpressionList ')'`); a bare `*` or `t.*` is a Field wildcard
-		// (parser.y:6464-6473), not an Expression, so TiDB v8.5.5 answers 1064 for
-		// `a IN (*)`.
-		if err := checkNotStar(val); err != nil {
-			return nil, err
 		}
 		inExpr.List = append(inExpr.List, val)
 		if p.cur.Type != ',' {
@@ -2916,7 +2888,7 @@ func checkRowItem(e nodes.ExprNode, start int) error {
 	if isBareInterval(e) {
 		return &ParseError{Message: `syntax error at or near "INTERVAL"`, Position: start}
 	}
-	return checkNotStar(e)
+	return nil
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

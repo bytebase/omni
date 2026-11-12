@@ -8125,11 +8125,13 @@ func TestParseGrantWithResourceLimits(t *testing.T) {
 	t.Run("max user connections", func(t *testing.T) {
 		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10")
 	})
+	// WithGrantOptionOpt (parser.y:14476) is GRANT OPTION or one resource option, never
+	// a list: TiDB v8.5.5 answers 1064 for both, held by TestGrantFormsMatchTiDB.
 	t.Run("multiple resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100")
+		ParseExpectError(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100")
 	})
 	t.Run("grant option with resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500")
+		ParseExpectError(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500")
 	})
 	t.Run("require ssl with resource limits", func(t *testing.T) {
 		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL WITH MAX_QUERIES_PER_HOUR 90")

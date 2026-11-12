@@ -1024,9 +1024,19 @@ func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
 	return list, nil
 }
 
-// parseSelectExpr parses a single select expression (expr [AS alias]).
+// parseSelectExpr parses one item of a select list: the bare `*`, or an
+// expression and its alias (expr [AS alias]).
 func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	start := p.pos()
+
+	// The bare `*` is a projection of its own and no expr, so it takes no alias
+	// and no operator: OceanBase 4.3.5 answers 1064 for `SELECT * x`, `SELECT * =
+	// 1` and `SELECT 1 + *`.
+	//
+	// Ref: the '*' arm of projection in OceanBase 4.3.5 sql_parser_mysql_mode.y.
+	if star := p.parseBareStar(); star != nil {
+		return star, nil
+	}
 
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -1036,19 +1046,11 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
 	}
 
-	// A wildcard field takes no alias: the bare `*`, `tbl.*` and `db.tbl.*` are
-	// their own select-item forms with no select_alias, unlike `expr
-	// select_alias`. The server answers 1064 for `SELECT * x` and `SELECT t.* x`.
-	//
-	// Ref: the '*' arm of select_item_list, table_wild, and `expr select_alias`
-	// of select_item in MySQL 8.0.46 sql/sql_yacc.yy.
-	switch e := expr.(type) {
-	case *nodes.StarExpr:
-		return e, nil
-	case *nodes.ColumnRef:
-		if e.Star {
-			return e, nil
-		}
+	// `tbl.*` and `db.tbl.*` are column_ref arms, so parseExpr reads them, and
+	// alone as a select item they take no alias: the server answers 1064 for
+	// `SELECT t.* x`.
+	if ref, ok := expr.(*nodes.ColumnRef); ok && ref.Star {
+		return ref, nil
 	}
 
 	// Check for AS alias or implicit alias
@@ -1084,6 +1086,18 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	}
 
 	return expr, nil
+}
+
+// parseBareStar reads the bare `*` at the current token, and returns nil when
+// the token is not one. A select list and DO are its only readers: parseExpr
+// reads no bare `*`, which is what keeps it out of every operand, argument and
+// clause. COUNT(*) is COUNT's own production, and `tbl.*` is a column_ref.
+func (p *Parser) parseBareStar() nodes.ExprNode {
+	if p.cur.Type != '*' {
+		return nil
+	}
+	tok := p.advance()
+	return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}
 }
 
 // parseDerivedColumnList parses an optional parenthesized column alias list

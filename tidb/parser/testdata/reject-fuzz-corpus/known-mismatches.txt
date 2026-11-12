@@ -6,6 +6,9 @@
 # spaced aggregate/scalar forms it shared a cause with) are fixed in
 # checkSpacedFuncWord (tidb/parser/temporal.go), held by TestTiDBSpacedFuncWords.
 #
-# `*` as a comparison operand, which TiDB answers 1064: found 2026-11-12, when
-# compat.tsv's generated rows, the sweep's seeds, changed.
-byte-repl	select * = t
+# `*` as an operand (`select * = t`), found 2026-11-12 when compat.tsv's generated
+# rows, the sweep's seeds, changed, is fixed in parseSelectWildcard
+# (tidb/parser/select.go), held by TestWildcardFieldForms. A third `@` on a system
+# variable (`select @@@a`), found the same day when that fix's rows changed the
+# seeds again, is fixed in parseSysVarName (tidb/parser/name.go), held by
+# TestSystemVariableAtForms. compat.tsv's suite:reject-fuzz rows hold both.

@@ -59,15 +59,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			To:    users,
 		}
 		// [WITH ADMIN OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwADMIN {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithAdmin = true
-			}
+		stmt.WithAdmin, err = p.parseWithOption(kwADMIN)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -99,15 +93,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		stmt.To = users
 		// [WITH GRANT OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwGRANT {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithGrant = true
-			}
+		stmt.WithGrant, err = p.parseWithOption(kwGRANT)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -143,15 +131,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// ALL ON *.* TO u WITH MAX_QUERIES_PER_HOUR 10`, and runs both as
 	// clauses of CREATE USER. MariaDB and TiDB take them on a GRANT, which
 	// is why their forks of this file still read them here.
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.cur.Type == kwGRANT {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
-			stmt.WithGrant = true
-		}
+	stmt.WithGrant, err = p.parseWithOption(kwGRANT)
+	if err != nil {
+		return nil, err
 	}
 
 	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
@@ -163,40 +145,24 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		stmt.AsUser = asUser
 
-		// [WITH ROLE ...]
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == kwROLE {
-				p.advance() // consume ROLE
-				switch {
-				case p.cur.Type == kwDEFAULT:
-					stmt.WithRoleType = "DEFAULT"
-					p.advance()
-				case p.cur.Type == kwNONE:
-					stmt.WithRoleType = "NONE"
-					p.advance()
-				case p.cur.Type == kwALL:
-					p.advance() // consume ALL
-					if p.cur.Type == kwEXCEPT {
-						p.advance() // consume EXCEPT
-						stmt.WithRoleType = "ALL EXCEPT"
-						// Parse role list
-						for {
-							role, _, err := p.parseRoleIdent()
-							if err != nil {
-								return nil, err
-							}
-							stmt.WithRoles = append(stmt.WithRoles, role)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
-						}
-					} else {
-						stmt.WithRoleType = "ALL"
-					}
-				default:
-					// Role list
+		// [WITH ROLE ...], and a WITH takes its ROLE: `AS u WITH` is a 1064 on MySQL 8.0.
+		if _, ok := p.match(kwWITH); ok {
+			if _, err := p.expect(kwROLE); err != nil {
+				return nil, err
+			}
+			switch {
+			case p.cur.Type == kwDEFAULT:
+				stmt.WithRoleType = "DEFAULT"
+				p.advance()
+			case p.cur.Type == kwNONE:
+				stmt.WithRoleType = "NONE"
+				p.advance()
+			case p.cur.Type == kwALL:
+				p.advance() // consume ALL
+				if p.cur.Type == kwEXCEPT {
+					p.advance() // consume EXCEPT
+					stmt.WithRoleType = "ALL EXCEPT"
+					// Parse role list
 					for {
 						role, _, err := p.parseRoleIdent()
 						if err != nil {
@@ -208,6 +174,21 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 						}
 						p.advance()
 					}
+				} else {
+					stmt.WithRoleType = "ALL"
+				}
+			default:
+				// Role list
+				for {
+					role, _, err := p.parseRoleIdent()
+					if err != nil {
+						return nil, err
+					}
+					stmt.WithRoles = append(stmt.WithRoles, role)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
 				}
 			}
 		}
@@ -215,6 +196,25 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseWithOption reads `WITH word OPTION`, the clause that closes a grant: GRANT OPTION
+// on a privilege grant and on GRANT PROXY, ADMIN OPTION on a role grant. It reports
+// whether the clause is there. A WITH takes both words: MySQL 8.0 answers 1064 for
+// `GRANT ... WITH`, `GRANT ... WITH GRANT` and `GRANT r TO u WITH ADMIN`.
+//
+// Ref: grant_options, opt_grant_option and opt_with_admin_option in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseWithOption(word int) (bool, error) {
+	if _, ok := p.match(kwWITH); !ok {
+		return false, nil
+	}
+	if _, err := p.expect(word); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwOPTION); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // parseRevokeStmt parses a REVOKE statement.

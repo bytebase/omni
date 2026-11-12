@@ -68,16 +68,18 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			Roles: privNames(privs),
 			To:    users,
 		}
-		// [WITH ADMIN OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwADMIN {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithAdmin = true
+		// [WITH ADMIN OPTION] is MySQL 8.0's: GrantRoleStmt (parser.y:14462) ends at
+		// its users, and reading the clause here is a known divergence
+		// (grantKnownDivergences). A WITH takes both words all the same: `GRANT r TO u
+		// WITH` and `GRANT r TO u WITH ADMIN` are 1064s on TiDB v8.5.5.
+		if _, ok := p.match(kwWITH); ok {
+			if _, err := p.expect(kwADMIN); err != nil {
+				return nil, err
 			}
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
+			}
+			stmt.WithAdmin = true
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -91,7 +93,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	stmt.Privileges = privNames(privs)
 	stmt.AllPriv = allPriv
 
-	// GRANT PROXY ON user TO user [WITH GRANT OPTION]
+	// GRANT PROXY ON user TO user WithGrantOptionOpt
 	if len(privs) == 1 && isProxy && p.cur.Type == kwON {
 		p.advance() // consume ON
 		proxyUser, err := p.parseUserName()
@@ -108,16 +110,8 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.To = users
-		// [WITH GRANT OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwGRANT {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithGrant = true
-			}
+		if err := p.parseWithGrantOptionOpt(stmt); err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -154,24 +148,8 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		stmt.Require = req
 	}
 
-	// [WITH [GRANT OPTION] [resource_option ...]]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.cur.Type == kwGRANT {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
-			stmt.WithGrant = true
-		}
-		// resource options after GRANT OPTION or standalone
-		res, err := p.parseResourceOptions()
-		if err != nil {
-			return nil, err
-		}
-		if res != nil {
-			stmt.Resource = res
-		}
+	if err := p.parseWithGrantOptionOpt(stmt); err != nil {
+		return nil, err
 	}
 
 	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
@@ -235,6 +213,36 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseWithGrantOptionOpt reads the clause that ends a privilege grant and GRANT PROXY:
+// nothing, WITH GRANT OPTION, or WITH and one resource option with its count. It is one or
+// the other and never a list, and a WITH takes all of its words: TiDB v8.5.5 answers 1064
+// for `WITH`, `WITH GRANT`, `WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1` and
+// `WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2`.
+//
+// Ref: WithGrantOptionOpt, parser.y:14476 (TiDB v8.5.5).
+func (p *Parser) parseWithGrantOptionOpt(stmt *nodes.GrantStmt) error {
+	if _, ok := p.match(kwWITH); !ok {
+		return nil
+	}
+	if _, ok := p.match(kwGRANT); ok {
+		if _, err := p.expect(kwOPTION); err != nil {
+			return err
+		}
+		stmt.WithGrant = true
+		return nil
+	}
+	if !p.startsResourceOption() {
+		return p.syntaxErrorAtCur()
+	}
+	res := &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
+	if err := p.parseResourceOption(res); err != nil {
+		return err
+	}
+	res.Loc.End = p.prev.End
+	stmt.Resource = res
+	return nil
 }
 
 // parseRevokeStmt parses a REVOKE statement.
@@ -2195,50 +2203,51 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 // required and 2^63 is a syntax error.
 func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 	var res *nodes.ResourceOption
-	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
-		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
+	for p.startsResourceOption() {
 		if res == nil {
 			res = &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
 		}
-		switch p.cur.Type {
-		case kwMAX_QUERIES_PER_HOUR:
-			p.advance()
-			n, err := p.parseAdminInt64()
-			if err != nil {
-				return nil, err
-			}
-			res.MaxQueriesPerHour = int(n)
-			res.HasMaxQueries = true
-		case kwMAX_UPDATES_PER_HOUR:
-			p.advance()
-			n, err := p.parseAdminInt64()
-			if err != nil {
-				return nil, err
-			}
-			res.MaxUpdatesPerHour = int(n)
-			res.HasMaxUpdates = true
-		case kwMAX_CONNECTIONS_PER_HOUR:
-			p.advance()
-			n, err := p.parseAdminInt64()
-			if err != nil {
-				return nil, err
-			}
-			res.MaxConnectionsPerHour = int(n)
-			res.HasMaxConnections = true
-		case kwMAX_USER_CONNECTIONS:
-			p.advance()
-			n, err := p.parseAdminInt64()
-			if err != nil {
-				return nil, err
-			}
-			res.MaxUserConnections = int(n)
-			res.HasMaxUserConn = true
+		if err := p.parseResourceOption(res); err != nil {
+			return nil, err
 		}
 	}
 	if res != nil {
 		res.Loc.End = p.prev.End
 	}
 	return res, nil
+}
+
+// startsResourceOption reports whether the current token names a resource option.
+func (p *Parser) startsResourceOption() bool {
+	switch p.cur.Type {
+	case kwMAX_QUERIES_PER_HOUR, kwMAX_UPDATES_PER_HOUR, kwMAX_CONNECTIONS_PER_HOUR, kwMAX_USER_CONNECTIONS:
+		return true
+	}
+	return false
+}
+
+// parseResourceOption reads the resource option at the current token and its count into res.
+func (p *Parser) parseResourceOption(res *nodes.ResourceOption) error {
+	option := p.advance().Type
+	n, err := p.parseAdminInt64()
+	if err != nil {
+		return err
+	}
+	switch option {
+	case kwMAX_QUERIES_PER_HOUR:
+		res.MaxQueriesPerHour = int(n)
+		res.HasMaxQueries = true
+	case kwMAX_UPDATES_PER_HOUR:
+		res.MaxUpdatesPerHour = int(n)
+		res.HasMaxUpdates = true
+	case kwMAX_CONNECTIONS_PER_HOUR:
+		res.MaxConnectionsPerHour = int(n)
+		res.HasMaxConnections = true
+	case kwMAX_USER_CONNECTIONS:
+		res.MaxUserConnections = int(n)
+		res.HasMaxUserConn = true
+	}
+	return nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute
