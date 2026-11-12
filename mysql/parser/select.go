@@ -1056,9 +1056,10 @@ func (p *Parser) parseSelectWildcard() (nodes.ExprNode, error) {
 		}
 		ref.Schema, ref.Table = ref.Table, name
 	}
-	// A three-part wildcard holds its database to check_db_name while it parses:
-	// table_wild in MySQL 8.0 sql/sql_yacc.yy.
-	if ref.Schema != "" {
+	// A three-part wildcard holds its database to check_db_name while it parses,
+	// and an empty name is one it refuses, so the count of names decides and not
+	// the name: table_wild in MySQL 8.0 sql/sql_yacc.yy.
+	if qualifiers == 2 {
 		if err := refuseDatabaseName(ref.Schema, start); err != nil {
 			return nil, err
 		}

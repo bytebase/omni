@@ -38,6 +38,15 @@ var wildcardItemCases = []parserFormCase{
 	// included: OFF, which is false as a value.
 	{"select off.* from t", true},
 	{"select off .* from t", true},
+	// A three-part wildcard's database is held to check_db_name as it parses
+	// (table_wild), as a three-part column's is: an empty name and one that ends
+	// in a space answer 1102. A two-part wildcard names no database.
+	{"select ``.t.* from t", false},
+	{"select ``.``.* from t", false},
+	{"select `a `.t.* from t", false},
+	{"select ``.t.a from t", false},
+	{"select `a/b`.t.* from t", true},
+	{"select ``.* from t", true},
 	// A backquoted star is a name, and a star between operands is a product.
 	{"select `*` from t", true},
 	{"select a * b from t", true},
