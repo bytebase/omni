@@ -13,7 +13,12 @@ import (
 //
 //	GRANT priv_type [, priv_type] ... ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT ALL [PRIVILEGES] ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
-//	GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+//	GRANT role [, role] ... TO user [, user] ...
+//
+// MySQL 8.0 ends a role grant with WITH ADMIN OPTION and a privilege grant with AS
+// user [WITH ROLE ...]. TiDB has neither: GrantRoleStmt ends at its users and
+// GrantStmt at WithGrantOptionOpt (parser.y:14434-14474), and v8.5.5 answers 1064
+// for both.
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
@@ -54,7 +59,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		if allPriv {
 			return nil, p.syntaxErrorAtCur()
 		}
-		// Role grant: GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+		// Role grant: GRANT role [, role] ... TO user [, user] ...
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
 		}
@@ -67,19 +72,6 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			Loc:   nodes.Loc{Start: start},
 			Roles: privNames(privs),
 			To:    users,
-		}
-		// [WITH ADMIN OPTION] is MySQL 8.0's: GrantRoleStmt (parser.y:14462) ends at
-		// its users, and reading the clause here is a known divergence
-		// (grantKnownDivergences). A WITH takes both words all the same: `GRANT r TO u
-		// WITH` and `GRANT r TO u WITH ADMIN` are 1064s on TiDB v8.5.5.
-		if _, ok := p.match(kwWITH); ok {
-			if _, err := p.expect(kwADMIN); err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(kwOPTION); err != nil {
-				return nil, err
-			}
-			stmt.WithAdmin = true
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -150,65 +142,6 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	if err := p.parseWithGrantOptionOpt(stmt); err != nil {
 		return nil, err
-	}
-
-	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		asUser, err := p.parseUserName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsUser = asUser
-
-		// [WITH ROLE ...]
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == kwROLE {
-				p.advance() // consume ROLE
-				switch {
-				case p.cur.Type == kwDEFAULT:
-					stmt.WithRoleType = "DEFAULT"
-					p.advance()
-				case p.cur.Type == kwNONE:
-					stmt.WithRoleType = "NONE"
-					p.advance()
-				case p.cur.Type == kwALL:
-					p.advance() // consume ALL
-					if p.cur.Type == kwEXCEPT {
-						p.advance() // consume EXCEPT
-						stmt.WithRoleType = "ALL EXCEPT"
-						// Parse role list
-						for {
-							role, _, err := p.parseRoleIdent()
-							if err != nil {
-								return nil, err
-							}
-							stmt.WithRoles = append(stmt.WithRoles, role)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
-						}
-					} else {
-						stmt.WithRoleType = "ALL"
-					}
-				default:
-					// Role list
-					for {
-						role, _, err := p.parseRoleIdent()
-						if err != nil {
-							return nil, err
-						}
-						stmt.WithRoles = append(stmt.WithRoles, role)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
-					}
-				}
-			}
-		}
 	}
 
 	stmt.Loc.End = p.prev.End

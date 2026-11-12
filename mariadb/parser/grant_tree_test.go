@@ -221,3 +221,34 @@ func assertUserStrings(t *testing.T, field string, got, want []string) {
 		}
 	}
 }
+
+// TestGrantOptionListFolds pins what a privilege grant's list of options leaves
+// in the tree. The list holds GRANT OPTION and the resource options in any order
+// (grant_option_list in MariaDB 11.8 sql/sql_yacc.yy), and it folds into the one
+// WithGrant and the one ResourceOption, a repeated option keeping its last count.
+func TestGrantOptionListFolds(t *testing.T) {
+	sql := "GRANT ALL ON *.* TO u1 WITH MAX_USER_CONNECTIONS 1 GRANT OPTION MAX_UPDATES_PER_HOUR 2 MAX_USER_CONNECTIONS 3"
+	stmt, ok := parseOneUserStmt(t, sql).(*ast.GrantStmt)
+	if !ok {
+		t.Fatalf("Parse(%q) gave a statement of another kind", sql)
+	}
+	if !stmt.WithGrant {
+		t.Errorf("WithGrant = false, want true")
+	}
+	res := stmt.Resource
+	if res == nil {
+		t.Fatalf("Resource = nil, want the resource options")
+	}
+	if !res.HasMaxUserConn || res.MaxUserConnections != 3 || !res.HasMaxUpdates || res.MaxUpdatesPerHour != 2 {
+		t.Errorf("Resource = %+v, want MAX_USER_CONNECTIONS 3 and MAX_UPDATES_PER_HOUR 2", *res)
+	}
+	if res.HasMaxQueries || res.HasMaxConnections {
+		t.Errorf("Resource = %+v, holds an option the statement does not write", *res)
+	}
+	if got, want := sql[res.Loc.Start:res.Loc.End], "MAX_USER_CONNECTIONS 1 GRANT OPTION MAX_UPDATES_PER_HOUR 2 MAX_USER_CONNECTIONS 3"; got != want {
+		t.Errorf("Resource spans %q, want %q", got, want)
+	}
+	if got := sql[stmt.Loc.Start:stmt.Loc.End]; got != sql {
+		t.Errorf("statement spans %q, want all of it", got)
+	}
+}

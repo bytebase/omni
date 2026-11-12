@@ -200,10 +200,25 @@ var grantFormCases = []grantFormCase{
 	{"GRANT PROXY ON u1 TO u2 WITH GRANT", false},
 	{"GRANT PROXY ON u1 TO u2 WITH", false},
 	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1", false},
-	// A role grant ends at its users (GrantRoleStmt, parser.y:14462).
+	// A role grant ends at its users (GrantRoleStmt, parser.y:14462): WITH ADMIN
+	// OPTION is MySQL 8.0's.
 	{"GRANT role1 TO u1 WITH", false},
 	{"GRANT role1 TO u1 WITH ADMIN", false},
+	{"GRANT role1 TO u1 WITH ADMIN OPTION", false},
+	{"GRANT role1, role2 TO u1, u2 WITH ADMIN OPTION", false},
+	{"GRANT 'role1' TO 'u1'@'%' WITH ADMIN OPTION", false},
 	{"GRANT role1 TO u1 WITH GRANT OPTION", false},
+	// And a privilege grant at WithGrantOptionOpt (GrantStmt, parser.y:14434): AS
+	// user and its WITH ROLE are MySQL 8.0's too.
+	{"GRANT ALL ON *.* TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS 'u2'@'%'", false},
+	{"GRANT SELECT ON db1.t TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE NONE", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE ALL EXCEPT role1", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE role1, role2", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2", false},
+	{"GRANT ALL ON *.* TO u1 REQUIRE SSL AS u2", false},
 
 	// --- GRANT and REVOKE: role or privilege ---
 	// A string literal is a role name and nothing else, with or without an
@@ -438,11 +453,6 @@ var grantKnownDivergences = []grantFormCase{
 	// of the list -- a coverage gap rather than a false accept.
 	{"GRANT ALL, GRANT OPTION ON *.* TO u1", false},
 	{"GRANT ALL PRIVILEGES, GRANT OPTION ON *.* TO u1", false},
-	// WITH ADMIN OPTION and AS user are MySQL 8.0's: TiDB's GrantRoleStmt ends
-	// at its users and its GrantStmt at WithGrantOptionOpt.
-	{"GRANT role1 TO u1 WITH ADMIN OPTION", true},
-	{"GRANT ALL ON *.* TO u1 AS u2", true},
-	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", true},
 }
 
 // TestGrantKnownDivergences holds the list above to this parser, so a case
