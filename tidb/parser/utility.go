@@ -223,15 +223,13 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 
 // isWholeExpression reports whether what parseExpr returned is an Expression in the
 // grammar's sense. parseExpr also returns forms only an enclosing production allows,
-// each readable as a whole argument here: `*`, `t.*`, bare DEFAULT and an INTERVAL.
-// `KILL foo(*)`, `KILL foo(t.*)`, `KILL foo(DEFAULT)` and `KILL foo(INTERVAL 1 DAY)`
-// are 1064s, and `KILL foo(DEFAULT(a))` parses.
+// each readable as a whole argument here: bare DEFAULT and an INTERVAL.
+// `KILL foo(DEFAULT)` and `KILL foo(INTERVAL 1 DAY)` are 1064s, and
+// `KILL foo(DEFAULT(a))` parses.
 func isWholeExpression(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {
-	case *nodes.StarExpr, *nodes.IntervalExpr:
+	case *nodes.IntervalExpr:
 		return false
-	case *nodes.ColumnRef:
-		return !e.Star
 	case *nodes.DefaultExpr:
 		return e.Column != ""
 	}

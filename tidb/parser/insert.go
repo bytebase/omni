@@ -297,12 +297,6 @@ func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
 // parseValuesItem parses one value of a row: an expression or DEFAULT, which
 // parseExpr reads.
 func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
-	return p.parseExprNotStar()
-}
-
-// parseExprNotStar parses an expression, refusing the * and t.* that parseExpr also
-// reads, which only a select list takes.
-func (p *Parser) parseExprNotStar() (nodes.ExprNode, error) {
 	e, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -310,21 +304,7 @@ func (p *Parser) parseExprNotStar() (nodes.ExprNode, error) {
 	if e == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if err := checkNotStar(e); err != nil {
-		return nil, err
-	}
 	return e, nil
-}
-
-// checkNotStar refuses the stars parseExpr reads, which only a select list takes.
-func checkNotStar(e nodes.ExprNode) error {
-	if star, ok := e.(*nodes.StarExpr); ok {
-		return &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
-	}
-	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
-		return &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
-	}
-	return nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...

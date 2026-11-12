@@ -718,7 +718,7 @@ func (p *Parser) parseTextCharsetOpt(dt *nodes.DataType) error {
 	p.advance()
 	dt.Charset = cs
 	if _, ok := p.match(kwCOLLATE); ok {
-		name, err := p.parseCharsetOrCollationName()
+		name, err := p.parseCollationName()
 		if err != nil {
 			return err
 		}
@@ -738,14 +738,16 @@ func (p *Parser) parseTextCharsetOpt(dt *nodes.DataType) error {
 // Only the character types (CHAR/VARCHAR/TEXT/ENUM/SET/NCHAR/...) call this, so
 // BINARY is naturally not accepted on BLOB/VARBINARY, matching TiDB.
 //
-// charset/collation names can be `binary`, which is a reserved keyword, so we
-// use parseKeywordOrIdent to accept keyword tokens as names.
+// Each name is required and is a CharsetName or CollationName, `StringName |
+// binaryType` (parser.y): an identifier, a string literal or the reserved word
+// BINARY. `CHAR CHARSET 'binary'` and `TEXT COLLATE "utf8mb4_bin"` parse on TiDB
+// v8.5.5, and `TEXT COLLATE` and `VARCHAR(3) CHARSET NOT NULL` are 1064s.
 func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 	// Each of CHARACTER SET and the standalone BINARY modifier may appear at most
 	// once; a repeat is left for the caller to reject (TiDB rejects e.g.
 	// `BINARY BINARY` and `CHARACTER SET x CHARACTER SET y`). Note that
 	// `CHARACTER SET binary BINARY` is still valid — the first `binary` is the
-	// charset name (consumed by parseKeywordOrIdent), the second is the modifier.
+	// charset name, the second is the modifier.
 	charsetSeen := false
 	binarySeen := false
 charsetBinary:
@@ -757,7 +759,7 @@ charsetBinary:
 			}
 			charsetSeen = true
 			p.advance()
-			name, err := p.parseCharsetOrCollationName()
+			name, err := p.parseCharsetName()
 			if err != nil {
 				return err
 			}
@@ -773,7 +775,7 @@ charsetBinary:
 			charsetSeen = true
 			p.advance()
 			p.advance()
-			name, err := p.parseCharsetOrCollationName()
+			name, err := p.parseCharsetName()
 			if err != nil {
 				return err
 			}
@@ -792,25 +794,13 @@ charsetBinary:
 
 	// COLLATE collation_name — must come after any CHARACTER SET / BINARY.
 	if _, ok := p.match(kwCOLLATE); ok {
-		name, err := p.parseCharsetOrCollationName()
+		name, err := p.parseCollationName()
 		if err != nil {
 			return err
 		}
 		dt.Collate = name
 	}
 	return nil
-}
-
-// parseCharsetOrCollationName reads the name a CHARACTER SET, CHARSET or COLLATE
-// in a column type must carry: `TEXT COLLATE` and `VARCHAR(3) CHARSET NOT NULL`
-// are 1064s on TiDB v8.5.5, since CharsetName and CollationName are not optional.
-// The name may be the reserved word BINARY.
-func (p *Parser) parseCharsetOrCollationName() (string, error) {
-	if !p.isIdentToken() && p.cur.Type != kwBINARY {
-		return "", p.syntaxErrorAtCur()
-	}
-	name, _, err := p.parseKeywordOrIdent()
-	return name, err
 }
 
 // parseStringValueList parses a parenthesized list of string literals: ('a', 'b', 'c')

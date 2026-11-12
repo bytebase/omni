@@ -136,7 +136,7 @@ func (p *Parser) parseDateArgs(fc *nodes.FuncCallExpr, intervalOnly bool) error 
 	if err != nil {
 		return err
 	}
-	if first == nil || isStarArg(first) || isBareInterval(first) {
+	if first == nil || isBareInterval(first) {
 		return p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(','); err != nil {
@@ -167,7 +167,7 @@ func (p *Parser) parseDateArgs(fc *nodes.FuncCallExpr, intervalOnly bool) error 
 		if err != nil {
 			return err
 		}
-		if second == nil || isStarArg(second) || (!written && isBareInterval(second)) {
+		if second == nil || (!written && isBareInterval(second)) {
 			return p.syntaxErrorAtCur()
 		}
 	}

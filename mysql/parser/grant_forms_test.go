@@ -173,6 +173,36 @@ var grantFormCases = []grantFormCase{
 	{"REVOKE 'role1' FROM u1 IDENTIFIED BY 'notarealpw'", false},
 	{"GRANT PROXY ON u1 TO u2 IDENTIFIED BY 'notarealpw'", false},
 
+	// --- GRANT: the WITH clauses (measured 2026-11-12) ---
+	// grant_options and opt_grant_option are `WITH GRANT OPTION`,
+	// opt_with_admin_option `WITH ADMIN OPTION` and opt_with_roles `WITH ROLE`
+	// and its roles. A WITH takes all of its words.
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION", true},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH", false},
+	{"GRANT ALL ON *.* TO u1 WITH OPTION", false},
+	{"GRANT SELECT ON db1.t TO u1 WITH GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION GRANT OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION WITH GRANT OPTION", false},
+	// GRANT, ADMIN and OPTION are the words the rules name, not names.
+	{"GRANT ALL ON *.* TO u1 WITH `GRANT` OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT `OPTION`", false},
+	{"GRANT role1 TO u1 WITH `ADMIN` OPTION", false},
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION", true},
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT", false},
+	{"GRANT PROXY ON u1 TO u2 WITH", false},
+	{"GRANT role1 TO u1 WITH ADMIN OPTION", true},
+	{"GRANT role1 TO u1 WITH ADMIN", false},
+	{"GRANT role1 TO u1 WITH", false},
+	{"GRANT role1 TO u1 WITH GRANT OPTION", false},
+	{"GRANT role1 TO u1 WITH ADMIN OPTION WITH ADMIN OPTION", false},
+	{"GRANT ALL ON *.* TO u1 AS u2", true},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", true},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2 WITH ROLE role1", true},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH GRANT OPTION", false},
+
 	// --- GRANT and REVOKE: role or privilege ---
 	// A string literal is a role name and nothing else, with or without an
 	// @host of its own.

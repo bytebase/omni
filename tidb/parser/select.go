@@ -738,9 +738,21 @@ func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
 	return list, nil
 }
 
-// parseSelectExpr parses a single select expression (expr [AS alias]).
+// parseSelectExpr parses one field of a select list: a wildcard, or an
+// expression and its alias (expr [AS alias]).
 func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	start := p.pos()
+
+	// A wildcard is a Field of its own and no Expression, so it takes no alias
+	// and no operator: TiDB v8.5.5 answers 1064 for `SELECT * x`, `SELECT t.* x`,
+	// `SELECT * = 1` and `SELECT t.* + 1`.
+	//
+	// Ref: Field in TiDB v8.5.5 parser.y:6463-6483: the '*', 'tbl.*' and
+	// 'db.tbl.*' arms (6464, 6468, 6473) carry no FieldAsNameOpt, unlike
+	// Expression FieldAsNameOpt (6478).
+	if wildcard, err := p.parseSelectWildcard(); wildcard != nil || err != nil {
+		return wildcard, err
+	}
 
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -748,22 +760,6 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	}
 	if expr == nil {
 		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
-	}
-
-	// A wildcard field takes no alias: `*`, `tbl.*` and `db.tbl.*` are their own
-	// Field alternatives with no FieldAsNameOpt, unlike `Expression
-	// FieldAsNameOpt`. TiDB answers 1064 for `SELECT * x` and `SELECT t.* x`.
-	//
-	// Ref: Field in TiDB v8.5.5 parser.y:6463-6483: the '*', 'tbl.*' and
-	// 'db.tbl.*' arms (6464, 6468, 6473) carry no FieldAsNameOpt, unlike
-	// Expression FieldAsNameOpt (6478).
-	switch e := expr.(type) {
-	case *nodes.StarExpr:
-		return e, nil
-	case *nodes.ColumnRef:
-		if e.Star {
-			return e, nil
-		}
 	}
 
 	// Check for AS alias or implicit alias
@@ -799,6 +795,61 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	}
 
 	return expr, nil
+}
+
+// parseSelectWildcard reads the wildcard field at the current token: `*`, `tbl.*`
+// or `db.tbl.*`. It returns nil and consumes nothing when the tokens spell none
+// of them. The select list is the only reader of a wildcard: parseExpr reads
+// none, which is what keeps `*` and `t.*` out of every operand, argument and
+// clause. COUNT(*) is COUNT's own production.
+func (p *Parser) parseSelectWildcard() (nodes.ExprNode, error) {
+	start := p.pos()
+	if p.cur.Type == '*' {
+		p.advance()
+		return &nodes.StarExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	}
+	qualifiers := p.wildcardQualifiers()
+	if qualifiers == 0 {
+		return nil, nil
+	}
+	ref := &nodes.ColumnRef{Star: true}
+	for i := 0; i < qualifiers; i++ {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		p.advance() // consume '.'
+
+		// Completion: after "table." and "schema.table.", offer columnref
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		ref.Schema, ref.Table = ref.Table, name
+	}
+	p.advance() // consume '*'
+	ref.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return ref, nil
+}
+
+// wildcardQualifiers reports how many names qualify the `*` the next tokens
+// spell: 1 for `tbl.*`, 2 for `db.tbl.*`, and 0 when they spell neither. It
+// consumes nothing.
+func (p *Parser) wildcardQualifiers() int {
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+	for n := 1; n <= 2; n++ {
+		if !p.isIdentToken() || p.peekNext().Type != '.' {
+			return 0
+		}
+		p.advance() // the name
+		p.advance() // '.'
+		if p.cur.Type == '*' {
+			return n
+		}
+	}
+	return 0
 }
 
 // parseDerivedColumnList parses an optional parenthesized column alias list

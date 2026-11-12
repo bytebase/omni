@@ -76,19 +76,6 @@ var aggArgSpecs = map[string]aggArgSpec{
 	"JSON_OBJECTAGG": {quant: quantAll, args: 2, allPerArg: true},
 }
 
-// isStarArg reports whether expr is `*` or a qualified `t.*`. Only COUNT
-// takes a star, and only in its own production: mysql:8.0 answers 1064 for
-// sum(*), count(t.*), abs(*) and position(* in 'a').
-func isStarArg(expr nodes.ExprNode) bool {
-	switch e := expr.(type) {
-	case *nodes.StarExpr:
-		return true
-	case *nodes.ColumnRef:
-		return e.Star
-	}
-	return false
-}
-
 // parseAggQuantifier reads the [DISTINCT|DISTINCTROW] [ALL] prefix of an
 // aggregate's argument list, accepting only the forms in allowed. It consumes
 // nothing and returns AggQuantNone when no quantifier is written.
@@ -141,7 +128,7 @@ func (p *Parser) parseAggArgs(fc *nodes.FuncCallExpr, spec aggArgSpec) error {
 		if err != nil {
 			return err
 		}
-		if arg == nil || isStarArg(arg) || isBareInterval(arg) {
+		if arg == nil || isBareInterval(arg) {
 			return p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -205,7 +192,7 @@ func (p *Parser) parsePositionFunc(start int) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	if substr == nil || isStarArg(substr) {
+	if substr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(kwIN); err != nil {
@@ -215,7 +202,7 @@ func (p *Parser) parsePositionFunc(start int) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	if str == nil || isStarArg(str) {
+	if str == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(')'); err != nil {

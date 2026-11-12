@@ -23,9 +23,8 @@ import (
 // identifiers. PROXY is neither: GRANT spells it out, and REVOKE PROXY is a 1064.
 //
 // Not in this table, because omni still disagrees, all by accepting forms TiDB does not have:
-// `ALTER USER u DEFAULT ROLE r`, `CREATE USER u DEFAULT ROLE r`, `GRANT a TO u WITH ADMIN
-// OPTION`, `GRANT SELECT ON t TO u AS a WITH ROLE r`, `REVOKE IF EXISTS` and `CREATE USER IF
-// a`.
+// `ALTER USER u DEFAULT ROLE r`, `CREATE USER u DEFAULT ROLE r`, `REVOKE IF EXISTS` and
+// `CREATE USER IF a`.
 
 // roleNamePositions are the positions the oracle sweep tries every keyword in.
 var roleNamePositions = []string{

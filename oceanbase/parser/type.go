@@ -643,12 +643,8 @@ func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
 // parseCharsetCollate parses optional CHARACTER SET and COLLATE clauses.
 func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 	// CHARACTER SET charset_name | CHARSET charset_name
-	// charset/collation names can be `binary`, which is a reserved keyword,
-	// so we use parseKeywordOrIdent to accept keyword tokens as names.
 	if _, ok := p.match(kwCHARSET); ok {
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Charset, _, _ = p.parseKeywordOrIdent()
-		}
+		dt.Charset = p.parseTypeCharsetOrCollationName()
 	} else if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR) && p.peekNext().Type == kwSET {
 		// CHARACTER SET x, and MySQL's two-word CHAR SET x, which is what
 		// `long char set utf8` carries. Neither token is consumed unless SET
@@ -656,16 +652,12 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 		// name left off, and MySQL rejects `long character`.
 		p.advance()
 		p.advance()
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Charset, _, _ = p.parseKeywordOrIdent()
-		}
+		dt.Charset = p.parseTypeCharsetOrCollationName()
 	}
 
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Collate, _, _ = p.parseKeywordOrIdent()
-		}
+		dt.Collate = p.parseTypeCharsetOrCollationName()
 	}
 
 	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
@@ -675,6 +667,20 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 		p.advance()
 		dt.Binary = true
 	}
+}
+
+// parseTypeCharsetOrCollationName reads the name a column type's CHARACTER SET
+// or COLLATE carries, when one is there: an identifier, a string literal, or the
+// reserved word BINARY. OceanBase 4.3.5 parses `CHAR CHARSET 'binary'`, `CHAR
+// CHARACTER SET "utf8mb4"` and `TEXT COLLATE 'utf8mb4_bin'`.
+//
+// Ref: charset_name (NAME_OB | STRING_VALUE | BINARY) and collation_name
+// (NAME_OB | STRING_VALUE) in OceanBase 4.3.5 sql_parser_mysql_mode.y.
+func (p *Parser) parseTypeCharsetOrCollationName() string {
+	if p.cur.Type == tokSCONST || p.isIdentToken() || p.cur.Type == kwBINARY {
+		return p.advance().Str
+	}
+	return ""
 }
 
 // parseStringValueList parses a parenthesized list of string literals: ('a', 'b', 'c')

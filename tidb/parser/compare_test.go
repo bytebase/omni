@@ -6454,10 +6454,6 @@ func TestParseGrantRole(t *testing.T) {
 			sql:  "GRANT role1, role2 TO user1, user2",
 			want: "{GRANT_ROLE :loc 0 :roles ROLE1, ROLE2 :to user1, user2}",
 		},
-		{
-			sql:  "GRANT myrole TO myuser WITH ADMIN OPTION",
-			want: "{GRANT_ROLE :loc 0 :roles MYROLE :to myuser :with_admin true}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -7997,88 +7993,53 @@ func TestParseSetPasswordForUser(t *testing.T) {
 	}
 }
 
-func TestParseGrantAs(t *testing.T) {
-	tests := []string{
+// TestParseGrantMySQLOnlyClauses holds the two GRANT clauses MySQL 8.0 has and TiDB
+// does not: WITH ADMIN OPTION on a role grant and AS user [WITH ROLE ...] on a
+// privilege grant. GrantRoleStmt ends at its users and GrantStmt at
+// WithGrantOptionOpt (parser.y:14434-14474), so v8.5.5 answers 1064 for each;
+// TestGrantFormsMatchTiDB holds the same forms to the server.
+func TestParseGrantMySQLOnlyClauses(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT myrole TO myuser WITH ADMIN OPTION",
 		"GRANT SELECT ON db.* TO 'user1'@'localhost' AS 'admin'@'localhost'",
 		"GRANT INSERT ON db.t TO user1 AS admin",
-	}
-	for _, sql := range tests {
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE DEFAULT",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE NONE",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT role1, role2",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE role1, role2",
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseGrantAsWithRole(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE DEFAULT",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type DEFAULT}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE NONE",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type NONE}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT role1, role2",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL EXCEPT :with_roles role1, role2}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE role1, role2",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_roles role1, role2}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
+			ParseExpectError(t, sql)
 		})
 	}
 }
 
 // TestRoleIdentRejectsAmbiguous3 verifies that ambiguous_3 keywords (like EVENT)
 // cannot be used as role names. EVENT is allowed as a general identifier (e.g.,
-// CREATE TABLE event) but NOT as a role_ident.
+// CREATE TABLE event) but NOT as a role_ident. The reader is held directly: the
+// one statement that called it, GRANT's AS user WITH ROLE, is MySQL 8.0's.
 func TestRoleIdentRejectsAmbiguous3(t *testing.T) {
-	// EVENT as a role in GRANT WITH ROLE should fail — ambiguous_3 is excluded from role_ident.
-	t.Run("event as WITH ROLE name rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("GRANT SELECT ON db.* TO user1 AS admin WITH ROLE event")}
-		p.advance()
-		_, err := p.parseGrantStmt()
-		if err == nil {
-			t.Fatal("expected error for WITH ROLE event (EVENT is ambiguous_3, not allowed as role)")
-		}
-	})
-
-	t.Run("event as WITH ROLE ALL EXCEPT name rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT event")}
-		p.advance()
-		_, err := p.parseGrantStmt()
-		if err == nil {
-			t.Fatal("expected error for WITH ROLE ALL EXCEPT event (EVENT is ambiguous_3, not allowed as role)")
-		}
-	})
-
-	// BEGIN (ambiguous_2) should be accepted as a role name.
-	t.Run("begin as WITH ROLE name accepted", func(t *testing.T) {
-		ParseAndCompare(t,
-			"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE begin",
-			"{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_roles begin}",
-		)
-	})
-
-	t.Run("begin as WITH ROLE ALL EXCEPT name accepted", func(t *testing.T) {
-		ParseAndCompare(t,
-			"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT begin",
-			"{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL EXCEPT :with_roles begin}",
-		)
-	})
+	for _, c := range []struct {
+		word   string
+		accept bool
+	}{
+		{"event", false}, // ambiguous_3
+		{"begin", true},  // ambiguous_2
+		{"role1", true},
+	} {
+		t.Run(c.word, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(c.word)}
+			p.advance()
+			name, _, err := p.parseRoleIdent()
+			if accepts := err == nil; accepts != c.accept {
+				t.Fatalf("parseRoleIdent(%q) accepts=%v, want %v (err: %v)", c.word, accepts, c.accept, err)
+			}
+			if c.accept && name != c.word {
+				t.Errorf("parseRoleIdent(%q) = %q", c.word, name)
+			}
+		})
+	}
 }
 
 // ============================================================================
@@ -8125,11 +8086,13 @@ func TestParseGrantWithResourceLimits(t *testing.T) {
 	t.Run("max user connections", func(t *testing.T) {
 		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10")
 	})
+	// WithGrantOptionOpt (parser.y:14476) is GRANT OPTION or one resource option, never
+	// a list: TiDB v8.5.5 answers 1064 for both, held by TestGrantFormsMatchTiDB.
 	t.Run("multiple resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100")
+		ParseExpectError(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100")
 	})
 	t.Run("grant option with resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500")
+		ParseExpectError(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500")
 	})
 	t.Run("require ssl with resource limits", func(t *testing.T) {
 		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL WITH MAX_QUERIES_PER_HOUR 90")

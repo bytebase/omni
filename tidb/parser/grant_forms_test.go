@@ -171,6 +171,55 @@ var grantFormCases = []grantFormCase{
 	{"REVOKE 'role1' FROM u1 IDENTIFIED BY 'notarealpw'", false},
 	{"GRANT PROXY ON u1 TO u2 IDENTIFIED BY 'notarealpw'", false},
 
+	// --- GRANT: the WITH clause (measured 2026-11-12) ---
+	// WithGrantOptionOpt (parser.y:14476) is WITH GRANT OPTION, or WITH and one
+	// resource option with its count. A WITH takes all of its words.
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION", true},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH", false},
+	{"GRANT ALL ON *.* TO u1 WITH OPTION", false},
+	{"GRANT SELECT ON db1.t TO u1 WITH GRANT", false},
+	{"GRANT ALL ON *.* TO u1 REQUIRE SSL WITH GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_UPDATES_PER_HOUR 1", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_CONNECTIONS_PER_HOUR 1", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_USER_CONNECTIONS 1", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR", false},
+	// It is one or the other, once, and never a list.
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1", false},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR 1 GRANT OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT MAX_QUERIES_PER_HOUR 1", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION WITH GRANT OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION, GRANT OPTION", false},
+	// GRANT and OPTION are the words the rule names, not names.
+	{"GRANT ALL ON *.* TO u1 WITH `GRANT` OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT `OPTION`", false},
+	// GRANT PROXY ends with the same clause, resource option included.
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION", true},
+	{"GRANT PROXY ON u1 TO u2 WITH MAX_USER_CONNECTIONS 1", true},
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT", false},
+	{"GRANT PROXY ON u1 TO u2 WITH", false},
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1", false},
+	// A role grant ends at its users (GrantRoleStmt, parser.y:14462): WITH ADMIN
+	// OPTION is MySQL 8.0's.
+	{"GRANT role1 TO u1 WITH", false},
+	{"GRANT role1 TO u1 WITH ADMIN", false},
+	{"GRANT role1 TO u1 WITH ADMIN OPTION", false},
+	{"GRANT role1, role2 TO u1, u2 WITH ADMIN OPTION", false},
+	{"GRANT 'role1' TO 'u1'@'%' WITH ADMIN OPTION", false},
+	{"GRANT role1 TO u1 WITH GRANT OPTION", false},
+	// And a privilege grant at WithGrantOptionOpt (GrantStmt, parser.y:14434): AS
+	// user and its WITH ROLE are MySQL 8.0's too.
+	{"GRANT ALL ON *.* TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS 'u2'@'%'", false},
+	{"GRANT SELECT ON db1.t TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE NONE", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE ALL EXCEPT role1", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE role1, role2", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2", false},
+	{"GRANT ALL ON *.* TO u1 REQUIRE SSL AS u2", false},
+
 	// --- GRANT and REVOKE: role or privilege ---
 	// A string literal is a role name and nothing else, with or without an
 	// @host of its own.

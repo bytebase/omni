@@ -1966,7 +1966,7 @@ reject	reject	engine	func_expr/MOD_(_expr_,_expr_)!drop-6	SELECT MOD(a, a
 accept	accept	engine	func_expr/MOD_(_expr_,_expr_)!insert	SELECT MOD(a, a) zzz
 reject	reject	engine	func_expr/MOD_(_expr_,_expr_)!swap	SELECT MODE(a, a)
 accept	accept	engine	func_expr/COUNT_(_opt_all_*_)	SELECT COUNT(*)
-accept	reject	engine	func_expr/COUNT_(_opt_all_*_)!drop-1	SELECT(*)
+reject	reject	engine	func_expr/COUNT_(_opt_all_*_)!drop-1	SELECT(*)
 reject	reject	engine	func_expr/COUNT_(_opt_all_*_)!drop-2	SELECT COUNT *)
 reject	reject	engine	func_expr/COUNT_(_opt_all_*_)!drop-3	SELECT COUNT()
 reject	reject	engine	func_expr/COUNT_(_opt_all_*_)!drop-4	SELECT COUNT(*
@@ -12960,7 +12960,7 @@ accept	accept	engine	grant_stmt/GRANT_role_or_priv_list_TO_user_specification_wi
 accept	accept	engine	opt_with_admin_option/WITH_ADMIN_OPTION	GRANT 's' TO 's' WITH ADMIN OPTION
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!drop-1	GRANT 's' TO 's' ADMIN OPTION
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!drop-2	GRANT 's' TO 's' WITH OPTION
-accept	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!drop-3	GRANT 's' TO 's' WITH ADMIN
+reject	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!drop-3	GRANT 's' TO 's' WITH ADMIN
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!insert	GRANT 's' TO 's' WITH ADMIN OPTION zzz
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_OPTION!swap	GRANT 's' TO 's' WITHOUT ADMIN OPTION
 accept	accept	engine	opt_with_admin_option/%empty	GRANT 's' TO 's'
@@ -13227,7 +13227,7 @@ reject	reject	engine	priv_level/id_dot_id!insert	GRANT 's' ON a.a zzz TO 's'
 accept	accept	engine	grant_options/WITH_GRANT_OPTION	GRANT PROXY ON 's' TO 's' WITH GRANT OPTION
 reject	reject	engine	grant_options/WITH_GRANT_OPTION!drop-1	GRANT PROXY ON 's' TO 's' GRANT OPTION
 reject	reject	engine	grant_options/WITH_GRANT_OPTION!drop-2	GRANT PROXY ON 's' TO 's' WITH OPTION
-accept	reject	engine	grant_options/WITH_GRANT_OPTION!drop-3	GRANT PROXY ON 's' TO 's' WITH GRANT
+reject	reject	engine	grant_options/WITH_GRANT_OPTION!drop-3	GRANT PROXY ON 's' TO 's' WITH GRANT
 reject	reject	engine	grant_options/WITH_GRANT_OPTION!insert	GRANT PROXY ON 's' TO 's' WITH GRANT OPTION zzz
 reject	reject	engine	grant_options/WITH_GRANT_OPTION!swap	GRANT PROXY ON 's' TO 's' WITHOUT GRANT OPTION
 accept	accept	engine	grant_options/%empty	GRANT PROXY ON 's' TO 's'

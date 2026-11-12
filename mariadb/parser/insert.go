@@ -338,7 +338,14 @@ func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
 	if ignore, ok := p.parseIgnoreValue(); ok {
 		return ignore, nil
 	}
-	return p.parseExprNotStar()
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return e, nil
 }
 
 // parseIgnoreValue parses the IGNORE that stands for a value where the grammar reads
@@ -351,33 +358,6 @@ func (p *Parser) parseIgnoreValue() (nodes.ExprNode, bool) {
 	start := p.pos()
 	p.advance()
 	return &nodes.IgnoreExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, true
-}
-
-// parseExprNotStar parses an expression, refusing the * and t.* that parseExpr also
-// reads, which only a select list takes.
-func (p *Parser) parseExprNotStar() (nodes.ExprNode, error) {
-	e, err := p.parseExpr()
-	if err != nil {
-		return nil, err
-	}
-	if e == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	if err := checkNotStar(e); err != nil {
-		return nil, err
-	}
-	return e, nil
-}
-
-// checkNotStar refuses the stars parseExpr reads, which only a select list takes.
-func checkNotStar(e nodes.ExprNode) error {
-	if star, ok := e.(*nodes.StarExpr); ok {
-		return &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
-	}
-	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
-		return &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
-	}
-	return nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...

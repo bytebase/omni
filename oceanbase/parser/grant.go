@@ -14,6 +14,10 @@ import (
 //	GRANT priv_type [, priv_type] ... ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT ALL [PRIVILEGES] ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+//
+// MySQL 8.0 ends a privilege grant with AS user [WITH ROLE ...]. OceanBase has no
+// such clause: grant_stmt ends at grant_options in OceanBase 4.3.5
+// sql_parser_mysql_mode.y, and the server answers 1064 for it.
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
@@ -55,15 +59,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			To:    users,
 		}
 		// [WITH ADMIN OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwADMIN {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithAdmin = true
-			}
+		stmt.WithAdmin, err = p.parseWithOption(kwADMIN)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -92,15 +90,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		stmt.To = users
 		// [WITH GRANT OPTION]
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwGRANT {
-				p.advance()
-				if p.cur.Type == kwOPTION {
-					p.advance()
-				}
-				stmt.WithGrant = true
-			}
+		stmt.WithGrant, err = p.parseWithOption(kwGRANT)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -136,78 +128,32 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// ALL ON *.* TO u WITH MAX_QUERIES_PER_HOUR 10`, and runs both as
 	// clauses of CREATE USER. MariaDB and TiDB take them on a GRANT, which
 	// is why their forks of this file still read them here.
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.cur.Type == kwGRANT {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
-			stmt.WithGrant = true
-		}
-	}
-
-	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		asUser, err := p.parseUserName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsUser = asUser
-
-		// [WITH ROLE ...]
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == kwROLE {
-				p.advance() // consume ROLE
-				switch {
-				case p.cur.Type == kwDEFAULT:
-					stmt.WithRoleType = "DEFAULT"
-					p.advance()
-				case p.cur.Type == kwNONE:
-					stmt.WithRoleType = "NONE"
-					p.advance()
-				case p.cur.Type == kwALL:
-					p.advance() // consume ALL
-					if p.cur.Type == kwEXCEPT {
-						p.advance() // consume EXCEPT
-						stmt.WithRoleType = "ALL EXCEPT"
-						// Parse role list
-						for {
-							role, _, err := p.parseRoleIdent()
-							if err != nil {
-								return nil, err
-							}
-							stmt.WithRoles = append(stmt.WithRoles, role)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
-						}
-					} else {
-						stmt.WithRoleType = "ALL"
-					}
-				default:
-					// Role list
-					for {
-						role, _, err := p.parseRoleIdent()
-						if err != nil {
-							return nil, err
-						}
-						stmt.WithRoles = append(stmt.WithRoles, role)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
-					}
-				}
-			}
-		}
+	stmt.WithGrant, err = p.parseWithOption(kwGRANT)
+	if err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseWithOption reads `WITH word OPTION`, the clause that closes a grant: GRANT OPTION
+// on a privilege grant and on GRANT PROXY, ADMIN OPTION on a role grant. It reports
+// whether the clause is there. A WITH takes both words: OceanBase 4.3.5 answers 1064 for
+// `GRANT ... WITH`, `GRANT ... WITH GRANT` and `GRANT r TO u WITH ADMIN`.
+//
+// Ref: grant_options and opt_with_admin_option in OceanBase 4.3.5 sql_parser_mysql_mode.y.
+func (p *Parser) parseWithOption(word int) (bool, error) {
+	if _, ok := p.match(kwWITH); !ok {
+		return false, nil
+	}
+	if _, err := p.expect(word); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwOPTION); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // parseRevokeStmt parses a REVOKE statement.
