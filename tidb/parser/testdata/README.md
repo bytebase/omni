@@ -124,7 +124,14 @@ statement that reaches that alternative, then its near-misses: the statement
 with one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped. The rule column names the alternative by its symbols, such as
 `AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt`,
-and a near-miss adds its mutation (`!drop-2`, `!swap`).
+and a near-miss adds its mutation (`!drop-2`, `!swap`). Where several
+alternatives are equally short, a statement takes the one the grammar lists
+first, and `'binary'` stands for every string, because it is also a charset and
+a collation: TiDB looks those names up while parsing, and an unknown name
+answers before a later syntax error can.
+
+The `suite:cited` rows are added by hand and survive regeneration: statements a
+test's comment cites as measured, which the generated rows no longer hold.
 
 `TestCompatibility` (`compat_test.go`) reads it through `enginetest/compat`,
 which describes the columns and what passes. It starts no server, and it

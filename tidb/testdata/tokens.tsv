@@ -5,7 +5,7 @@
 # mode never lexes, so the alternatives that need it get hand-added rows.
 # columns: token, form, note
 identifier	ident
-stringLit	's'
+stringLit	'binary'	a string that is also a charset and a collation: TiDB looks those names up while parsing, and an unknown one answers before a later syntax error
 floatLit	1e0	an exponent makes it a float; without one TiDB lexes a decimal
 decLit	1.5
 intLit	1

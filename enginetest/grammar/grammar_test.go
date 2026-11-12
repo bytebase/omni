@@ -67,6 +67,90 @@ IfExists:
 	}
 }
 
+// statements returns the statement of each alternative row, by label.
+func statements(t *testing.T, src string, forms map[string]string) map[string]string {
+	t.Helper()
+	got, _ := rows(t, src, forms)
+	out := map[string]string{}
+	for _, r := range got {
+		if !IsNearMiss(r.Rule) {
+			out[r.Rule] = r.Statement
+		}
+	}
+	return out
+}
+
+// TestEquallyShortChoicesFollowTheGrammarsOrder pins how ties are broken,
+// because a grammar's rules do not come in dependency order. Among equally
+// short derivations the first alternative wins: here a Value is a name, as
+// the grammar lists first, though Name is defined after Value and the
+// keyword could be derived a pass earlier. Among equally short contexts the
+// first statement wins: an Option sits in ALTER, the first statement that
+// reaches it, though DROP's rule names it directly and ALTER's does not.
+func TestEquallyShortChoicesFollowTheGrammarsOrder(t *testing.T) {
+	const src = `
+%token NAME
+%%
+Stmt:
+	"ALTER" Wrapped
+|	"DROP" Option
+|	"SHOW" Value
+Value:
+	Name
+|	"DEFAULT"
+Name:
+	NAME
+Wrapped:
+	Option
+Option:
+	"FORCE"
+|	Value
+%%
+`
+	got := statements(t, src, map[string]string{"NAME": "n"})
+	for label, want := range map[string]string{
+		"Stmt/SHOW_Value":  "SHOW n",
+		"Stmt/DROP_Option": "DROP FORCE",
+		"Option/FORCE":     "ALTER FORCE",
+		"Option/Value":     "ALTER n",
+		"Value/DEFAULT":    "ALTER DEFAULT",
+	} {
+		if got[label] != want {
+			t.Errorf("%s is %q, want %q", label, got[label], want)
+		}
+	}
+}
+
+// TestRulesThatDeriveEachOtherTerminate pins the guard on a derivation that
+// would use a rule inside itself: A is first a B and B is first an A, at the
+// same cost, so each must fall through to an alternative that ends.
+func TestRulesThatDeriveEachOtherTerminate(t *testing.T) {
+	const src = `
+%%
+Stmt:
+	"DO" A
+A:
+	B
+|	"X"
+B:
+	A
+|	"Y"
+%%
+`
+	got := statements(t, src, nil)
+	for label, want := range map[string]string{
+		"Stmt/DO_A": "DO Y",
+		"A/B":       "DO Y",
+		"A/X":       "DO X",
+		"B/A":       "DO Y",
+		"B/Y":       "DO Y",
+	} {
+		if got[label] != want {
+			t.Errorf("%s is %q, want %q", label, got[label], want)
+		}
+	}
+}
+
 // TestLabelsSurviveAnAddedAlternative pins that labels name symbols, not
 // positions: a release that adds an alternative renames no other row.
 func TestLabelsSurviveAnAddedAlternative(t *testing.T) {

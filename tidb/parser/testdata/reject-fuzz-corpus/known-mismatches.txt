@@ -2,6 +2,10 @@
 # Each is a real omni-accept/TiDB-reject; to be minimised into
 # compat.tsv and fixed across the forks (PR e), then dropped here.
 #
-# Empty: the space-before-paren over-acceptances (`select count ( * )` and the
+# The space-before-paren over-acceptances (`select count ( * )` and the
 # spaced aggregate/scalar forms it shared a cause with) are fixed in
 # checkSpacedFuncWord (tidb/parser/temporal.go), held by TestTiDBSpacedFuncWords.
+#
+# `*` as a comparison operand, which TiDB answers 1064: found 2026-11-12, when
+# compat.tsv's generated rows, the sweep's seeds, changed.
+byte-repl	select * = t
