@@ -356,6 +356,100 @@
 < error
 | 1064 42000 …near 'IDENTIFIED BY 'notarealpw'' at line 1
 > exec
+| GRANT ALL ON *.* TO u1 WITH GRANT OPTION
+< ok 0 0
+> exec
+| GRANT ALL ON *.* TO u1 WITH GRANT
+< error
+| 1064 42000 …near 'GRANT' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH
+< error
+| 1064 42000 …near 'WITH' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH OPTION
+< error
+| 1064 42000 …near 'OPTION' at line 1
+> exec
+| GRANT SELECT ON db1.t TO u1 WITH GRANT
+< error
+| 1064 42000 …near 'GRANT' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH GRANT OPTION GRANT OPTION
+< error
+| 1064 42000 …near 'GRANT OPTION' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH `GRANT` OPTION
+< error
+| 1064 42000 …near '`GRANT` OPTION' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH GRANT `OPTION`
+< error
+| 1064 42000 …near '`OPTION`' at line 1
+> exec
+| GRANT role1 TO u1 WITH `ADMIN` OPTION
+< error
+| 1064 42000 …near '`ADMIN` OPTION' at line 1
+> exec
+| GRANT PROXY ON u1 TO u2 WITH GRANT OPTION
+< ok 0 0
+> exec
+| GRANT PROXY ON u1 TO u2 WITH GRANT
+< error
+| 1064 42000 …near 'GRANT' at line 1
+> exec
+| GRANT PROXY ON u1 TO u2 WITH
+< error
+| 1064 42000 …near 'WITH' at line 1
+> exec
+| GRANT role1 TO u1 WITH ADMIN OPTION
+< error
+| 3523 HY000 Unknown authorization ID `role1`@`%`
+> exec
+| GRANT role1 TO u1 WITH ADMIN
+< error
+| 1064 42000 …near 'ADMIN' at line 1
+> exec
+| GRANT role1 TO u1 WITH
+< error
+| 1064 42000 …near 'WITH' at line 1
+> exec
+| GRANT role1 TO u1 WITH GRANT OPTION
+< error
+| 1064 42000 …near 'GRANT OPTION' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS u2
+< error
+| 1064 42000 …near 'AS u2' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS 'u2'@'%'
+< error
+| 1064 42000 …near 'AS 'u2'@'%'' at line 1
+> exec
+| GRANT SELECT ON db1.t TO u1 AS u2
+< error
+| 1064 42000 …near 'AS u2' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT
+< error
+| 1064 42000 …near 'AS u2 WITH ROLE DEFAULT' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS u2 WITH ROLE NONE
+< error
+| 1064 42000 …near 'AS u2 WITH ROLE NONE' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS u2 WITH ROLE ALL EXCEPT role1
+< error
+| 1064 42000 …near 'AS u2 WITH ROLE ALL EXCEPT role1' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 AS u2 WITH ROLE role1, role2
+< error
+| 1064 42000 …near 'AS u2 WITH ROLE role1, role2' at line 1
+> exec
+| GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2
+< error
+| 1064 42000 …near 'AS u2' at line 1
+> exec
 | GRANT 'role1' TO 'u1'@'localhost'
 < error
 | 3523 HY000 Unknown authorization ID `role1`@`%`
