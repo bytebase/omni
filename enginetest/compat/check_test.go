@@ -239,6 +239,34 @@ DropStmt:
 %%
 `
 
+// A recording starts an engine's file; a replay without one says how.
+func TestRecordingStartsAMissingFile(t *testing.T) {
+	s := suite(t, "", nil)
+	dir := filepath.Dir(s.Path)
+	s.Grammar, s.Tokens = filepath.Join(dir, "g.y"), filepath.Join(dir, "tokens.tsv")
+	write(t, s.Grammar, tinyGrammar)
+	write(t, s.Tokens, "identifier\tt\n")
+	if err := os.Remove(s.Path); err != nil {
+		t.Fatal(err)
+	}
+	s.Path = filepath.Join(dir, "testdata", "compat.tsv") // in a directory not made yet
+	if rec := run(t, s); !strings.Contains(rec.fatal, "Record it") {
+		t.Errorf("a replay with no file: %q %q", rec.errors, rec.fatal)
+	}
+
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+	var asked []string
+	s.Judge = judgeOf(map[string]string{"DROP TABLE t": Accept, "DROP TABLE": Reject, "TABLE t": Reject, "DROP t": Reject, "DROP TABLE t zzz": Reject, "TABLE TABLE t": Reject}, &asked)
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	got := read(t, s.Path)
+	if !strings.HasPrefix(got, "# pin: default img:1 sha256:abc v1\n"+columnsHeader+"\n") || !strings.Contains(got, "reject\taccept\tengine\tStmt/DropStmt\tDROP TABLE t\n") {
+		t.Errorf("the recording wrote:\n%s", got)
+	}
+}
+
 func TestCheckHoldsGeneratedRowsToTheGrammar(t *testing.T) {
 	s := suite(t, "accept\taccept\tengine\tDropStmt/DROP_TABLE_identifier\tDROP TABLE t\n"+
 		"reject\treject\tengine\tsuite:corpus\tDROP\n", map[string]string{"DROP TABLE t": Accept})

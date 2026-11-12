@@ -3,6 +3,7 @@ package compat
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -199,6 +200,9 @@ func (f *File) Write(path string) error {
 			return fmt.Errorf("%s: statement holds a newline: %q", r.Rule, r.Statement)
 		}
 		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\n", r.Omni, r.Expected, r.Source, r.Rule, r.Statement)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }

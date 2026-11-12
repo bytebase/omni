@@ -5,6 +5,7 @@
 package compat
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -64,14 +65,20 @@ func check(t testing.TB, s Suite) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	f, err := ReadFile(s.Path)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	recording := enginetest.Recording(t)
 	run := enginetest.RunCommand(t)
 	record := enginetest.RecordCommand(t)
 	changed := false
+	f, err := ReadFile(s.Path)
+	switch {
+	case errors.Is(err, os.ErrNotExist) && recording:
+		// A recording starts an engine's file.
+		f, changed = &File{}, true
+	case errors.Is(err, os.ErrNotExist):
+		t.Fatalf("no %s. Record it:\n  %s", s.Path, record)
+	case err != nil:
+		t.Fatalf("%v", err)
+	}
 
 	if s.Grammar != "" {
 		generated, uncovered, err := generate(s.Grammar, s.Tokens)

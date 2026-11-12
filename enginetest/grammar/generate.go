@@ -44,9 +44,9 @@ type builtAlt struct {
 	suffix []string
 }
 
-// full renders the whole statement.
-func (a builtAlt) full() string {
-	return spaceJoin(join(a.prefix, a.body, a.suffix))
+// full returns the whole statement's tokens.
+func (a builtAlt) full() []string {
+	return join(a.prefix, a.body, a.suffix)
 }
 
 // Rows returns the generated rows: for each alternative of each rule, in
@@ -61,12 +61,12 @@ func (g *Grammar) Rows() (rows []Row, uncovered []string) {
 
 	positive := map[string]bool{}
 	for _, a := range alts {
-		positive[a.full()] = true
+		positive[g.render(a.full())] = true
 	}
 	seen := map[string]bool{}
 	for _, a := range alts {
-		rows = append(rows, Row{Rule: a.label, Statement: a.full()})
-		for _, nm := range nearMisses(a, kw) {
+		rows = append(rows, Row{Rule: a.label, Statement: g.render(a.full())})
+		for _, nm := range nearMisses(a, kw, g.render) {
 			// A mutation that lands on a valid sentence, or on another
 			// near-miss, adds nothing.
 			if nm.Statement == "" || positive[nm.Statement] || seen[nm.Statement] {
@@ -359,18 +359,19 @@ func join(prefix, mid, suffix []string) []string {
 	return out
 }
 
-// spaceJoin renders a token list as SQL, inserting a space between tokens
+// render writes a token list as SQL, inserting a space between tokens
 // except where one would be wrong: before ',', ';', ')', '.', '(' and after
 // '(' or '.'. Keeping function names and parentheses tight, and dotted
-// names unbroken, keeps a generated sentence close to how it is written.
-func spaceJoin(toks []string) string {
+// names unbroken, keeps a generated sentence close to how it is written. A
+// token the engine's table marks as spaced always stands apart.
+func (g *Grammar) render(toks []string) string {
 	var b strings.Builder
 	prev := ""
 	for _, t := range toks {
 		if t == "" {
 			continue
 		}
-		if prev != "" && needSpace(prev, t) {
+		if prev != "" && (g.spaced[prev] || g.spaced[t] || needSpace(prev, t)) {
 			b.WriteByte(' ')
 		}
 		b.WriteString(t)

@@ -15,6 +15,12 @@ const (
 	// runs in, so an alternative that needs it gets no generated row and
 	// needs a hand-added one.
 	Unreachable = "(unreachable)"
+	// Spaced: a literal the grammar writes in quotes, named here by its
+	// text, is written with a space on each side, where it would otherwise
+	// sit tight against its neighbours. OceanBase's lexer reads a word, a
+	// dot and a word as one token, so a dot that is a token of its own must
+	// stand apart.
+	Spaced = "(spaced)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
