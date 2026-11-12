@@ -151,6 +151,28 @@ B:
 	}
 }
 
+// TestSpacedTokensStandApart pins the (spaced) form: a dot is written tight
+// against its neighbours unless the engine's table says its lexer would
+// then read name.name as one token.
+func TestSpacedTokensStandApart(t *testing.T) {
+	const src = "%token NAME\n%%\nStmt:\n\t\"USE\" NAME '.' NAME\n%%\n"
+	if got := statements(t, src, map[string]string{"NAME": "a"})["Stmt/USE_NAME_._NAME"]; got != "USE a.a" {
+		t.Errorf("a dot is written %q, want it tight", got)
+	}
+	got, _ := rows(t, src, map[string]string{"NAME": "a", ".": Spaced})
+	want := strings.Join([]string{
+		"Stmt/USE_NAME_._NAME\tUSE a . a",
+		"Stmt/USE_NAME_._NAME!drop-1\ta . a",
+		"Stmt/USE_NAME_._NAME!drop-2\tUSE . a",
+		"Stmt/USE_NAME_._NAME!drop-3\tUSE a a",
+		"Stmt/USE_NAME_._NAME!drop-4\tUSE a .",
+		"Stmt/USE_NAME_._NAME!insert\tUSE a . a zzz",
+	}, "\n") + "\n"
+	if render(got) != want {
+		t.Errorf("rows:\n%s\nwant:\n%s", render(got), want)
+	}
+}
+
 // TestLabelsSurviveAnAddedAlternative pins that labels name symbols, not
 // positions: a release that adds an alternative renames no other row.
 func TestLabelsSurviveAnAddedAlternative(t *testing.T) {

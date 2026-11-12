@@ -1,0 +1,6 @@
+# The servers this engine's committed answers come from. default judges compat.tsv.
+# It is OceanBase CE in MySQL mode, and reports revision
+# 560923b02bdb9ed88dbd7940ac97a2e183c09b29 in @@version_comment: the commit of
+# the source tag.
+# columns: role, image, digest, source tag
+default	oceanbase/oceanbase-ce:4.3.5.6-106000012026040916	sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3	v4.3.5_CE_BP6

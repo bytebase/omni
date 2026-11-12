@@ -43,6 +43,11 @@ var oceanBaseSetup = [][]string{
 	{"obclient", "-S", oceanBaseSocket, "-uroot@test", "-e", "SET GLOBAL secure_file_priv = '/'"},
 }
 
+// oceanBaseStart is how the image's start script starts the observer in SLIM
+// mode (fastboot in /root/boot/start.sh): it daemonizes and reads the
+// configuration and store under /root/demo.
+var oceanBaseStart = []string{"bash", "-c", "cd /root/demo && LD_LIBRARY_PATH=/root/demo/lib bin/observer"}
+
 // OceanBase is the package's OceanBase CE in MySQL mode. Tests log in as root
 // in the test tenant, so they may create accounts, use fixed database names and
 // change server-wide settings.
@@ -65,6 +70,65 @@ func (o *oceanBase) DSN(ctx context.Context) (string, error) {
 		}
 	})
 	return o.dsn, o.err
+}
+
+// Alive reports whether the observer process is running. A statement can
+// crash it, and the container outlives it: SLIM does not start it again.
+func (o *oceanBase) Alive(ctx context.Context) (bool, error) {
+	if o.container == nil {
+		return false, errors.New("no OceanBase container: call DSN first")
+	}
+	code, _, err := o.container.Exec(ctx, []string{"pgrep", "-x", "observer"})
+	if err != nil {
+		return false, fmt.Errorf("look for the observer: %w", err)
+	}
+	return code == 0, nil
+}
+
+// Restart starts the observer again after a crash, from the store it left,
+// and waits until it answers. The container and its mapped port stay, so a
+// pool opened on DSN before the crash reconnects by itself.
+func (o *oceanBase) Restart(ctx context.Context) error {
+	if o.container == nil {
+		return errors.New("no OceanBase container: call DSN first")
+	}
+	code, out, err := o.container.Exec(ctx, oceanBaseStart)
+	if err == nil && code != 0 {
+		b, _ := io.ReadAll(out)
+		err = fmt.Errorf("exit %d: %s", code, b)
+	}
+	if err != nil {
+		return fmt.Errorf("start the observer: %w", err)
+	}
+	return waitReady(ctx, o.dsn)
+}
+
+// CheckDigest fails unless the server this process started runs the image
+// with the pinned repository digest. A tag can be pushed again; a digest
+// cannot.
+func (o *oceanBase) CheckDigest(ctx context.Context, digest string) error {
+	if o.container == nil {
+		return errors.New("no OceanBase container: call DSN first")
+	}
+	info, err := o.container.Inspect(ctx)
+	if err != nil {
+		return fmt.Errorf("inspect the OceanBase container: %w", err)
+	}
+	cli, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		return fmt.Errorf("docker client: %w", err)
+	}
+	defer cli.Close()
+	img, err := cli.ImageInspect(ctx, info.Image)
+	if err != nil {
+		return fmt.Errorf("inspect the OceanBase image: %w", err)
+	}
+	for _, d := range img.RepoDigests {
+		if strings.HasSuffix(d, "@"+digest) {
+			return nil
+		}
+	}
+	return fmt.Errorf("the OceanBase container runs an image with digests %v, but pins.tsv pins %s", img.RepoDigests, digest)
 }
 
 // Terminate removes the server, if this process started one.

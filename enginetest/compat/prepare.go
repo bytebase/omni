@@ -6,6 +6,14 @@ import "fmt"
 // on a new line so a trailing comment in the statement cannot swallow it.
 const ProbeTail = "\n; SELECT FROM"
 
+// ProbeTailInStatement is the probe's tail on a server that refuses to
+// prepare a text of two statements before it parses either, as OceanBase
+// does (1235): ProbeTail would get that one answer for every statement.
+// This tail is no statement of its own, and a syntax error wherever it
+// stands. It can miss a refusal that an action makes on the statement's
+// last reduction, when the parser reads the tail before it reduces.
+const ProbeTailInStatement = "\n @@@ ((("
+
 // lookupErrorCodes are errors a MySQL-family server raises while parsing,
 // for a name it looks up in what the server has: a system variable (1193),
 // a character set (1115) and a collation (1273, 1253). They are about that
@@ -23,8 +31,8 @@ var lookupErrorCodes = map[uint16]bool{
 // statement: whether the server accepts its syntax. err is what PREPARE
 // returned. code returns the server's error number, and false for an error
 // the server did not send (a dropped connection, a refused local file).
-// probe prepares the statement with ProbeTail after it, and is called only
-// when err leaves the verdict open.
+// probe prepares the statement with ProbeTail (or ProbeTailInStatement)
+// after it, and is called only when err leaves the verdict open.
 //
 // 1064 is the parser's rejection, and not the only one: a grammar action
 // refuses text its production read, with a code it chooses, while the parse

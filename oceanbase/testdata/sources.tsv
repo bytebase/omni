@@ -1,0 +1,6 @@
+# Vendor files oceanbase's tests read and the repo does not hold: OceanBase CE
+# 4.3.5 is under the Mulan PubL v2, which is not this repo's license. A test
+# downloads each file once (enginetest.Fetched) and checks its SHA-256 on every
+# use. Each URL names the commit of the source tag in pins.tsv, v4.3.5_CE_BP6.
+# columns: name, sha256, url
+sql_parser_mysql_mode.y	2b2e50ce0f1fea02deca0006b298c59ece4f4da4862ca510e6c647730c636709	https://raw.githubusercontent.com/oceanbase/oceanbase/560923b02bdb9ed88dbd7940ac97a2e183c09b29/src/sql/parser/sql_parser_mysql_mode.y

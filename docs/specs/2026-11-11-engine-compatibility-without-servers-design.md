@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase's step 1 is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2, the tapes, is next. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -36,7 +36,7 @@ Four terms are used throughout:
 3. **Agreeing:** on every row, omni's answer equals the judge's.
 4. **Replaying:** every tape replays.
 
-Until then, the disagreeing rows are the work list: 3,047 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
+Until then, the disagreeing rows are the work list: 2,679 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
 
 **What that does not claim:**
 - **Statements no row covers.** Rows sample an infinite language. A statement outside them is unknown until someone adds it as a row, and then it is covered for good.
@@ -137,7 +137,7 @@ index_or_heap/ORGANIZATION_HEAP: omni now says reject, engine says accept:
 **Hand-added rows** carry a label in `rule` and survive regeneration: `issue:<key>` for a bug report, `suite:<name>` for a corpus. Today's corpora become `suite:` rows: TiDB's, Doris and StarRocks conformance, Trino's differential, pg's fuzz, and the statements that completion and analysis tests check for validity.
 
 **Grammar files.** The generator reads two formats, bison `.y` and ANTLR `.g4`.
-- A vendor `.y` or `.g4` is used as published. It is committed where the license allows, as TiDB's `parser.y` already is, and fetched by tag otherwise (D1).
+- A vendor `.y` or `.g4` is used as published. It is committed where the license allows, as TiDB's `parser.y` already is, and fetched otherwise (D1): `<engine>/testdata/sources.tsv` names the file by the release's commit and its SHA-256, and `enginetest.Fetched` downloads it once per machine and checks it on every use. OceanBase's grammar is read this way.
 - Anything else is converted once per pin to a committed `.g4`, each rule citing its source: docs syntax blocks, Doris's CUP, GoogleSQL's Textmapper, ANTLR 2 and 3 (D2).
 - A community grammar is never used. Omni's Snowflake parser was ported from one, so that grammar can't judge it.
 - Mongo and Elasticsearch have no statement grammar. Their rows cover call shapes (method names, endpoints), not argument documents or request bodies.
@@ -161,6 +161,11 @@ Each engine with a server has one function that reads the server's answer as a v
 | trino, doris, starrocks, googlesql | The engine's error name or message |
 
 An answer the function can't read fails the recording. It is never guessed.
+
+OceanBase needs three things of its own, all measured on the pinned server (`oceanbase/parser/testdata/README.md`):
+- **The probe's tail stays inside the statement,** because OceanBase refuses to prepare two statements before it parses either.
+- **1064 comes in two kinds.** The parser's says where the error is. A bare "Parse error" comes from later layers, and from `PREPARE` itself for statements it does not carry, so the probe decides it.
+- **Two statements crash the server.** The judge starts it again, asks the statement again, and judges one that kills the server twice by its probe alone.
 
 The two recognizers are weaker judges, in known ways:
 - **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `grammar-overrides.tsv`.
@@ -352,6 +357,7 @@ enginetest/                          shared by every engine, knows none of them
 oceanbase/
   testdata/pins.tsv                  the pinned server
   testdata/tokens.tsv                token forms and sample values
+  testdata/sources.tsv               vendor files fetched, not committed: name, SHA-256, URL
   parser/testdata/compat.tsv
   catalog/testdata/simulate.tsv
   catalog/testdata/fixtures/         starting schemas
@@ -476,7 +482,7 @@ After step 0 the engines are independent. Order:
 
 ## 10. Decisions
 
-- **D1. Grammar licenses.** MySQL's and MariaDB's grammars are GPL, OceanBase's is Mulan PubL, and omni is MIT. Recommended: don't commit those three. Fetch them by tag, and commit only the generated rows. Permissively licensed grammars are committed, as TiDB's already is.
+- **D1. Grammar licenses.** MySQL's and MariaDB's grammars are GPL, OceanBase's is Mulan PubL at the pinned tag (its default branch has since moved to Apache-2.0), and omni is MIT. Recommended: don't commit those three. Fetch them by tag, and commit only the generated rows. OceanBase does this (§2.2); the cost is one download per machine, CI's runner included. Permissively licensed grammars are committed, as TiDB's already is.
 - **D2. Converted docs.** Confirm that committing `.g4` files derived from vendor docs is acceptable. Oracle's `bnf/` directory already quotes them.
 - **D3. MySQL tests in OceanBase and MariaDB.** Recommended: point them at their own engine and record, deleting only tests of MySQL-only behavior.
 - **D4. Shared `enginetest`.** Decided: allowed, like `review/walk/walktest`, rather than 18 copies. `AGENTS.md` lists it.
@@ -485,7 +491,18 @@ After step 0 the engines are independent. Order:
 
 ## Appendix A. Measured results
 
-**OceanBase.** `sql_parser_mysql_mode.y` has 5,123 alternatives. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
+**OceanBase, recorded.** `oceanbase/parser/testdata/compat.tsv` at `v4.3.5_CE_BP6`: 5,123 alternatives, of which 52 need a token the lexer never produces, and 15,336 near-misses. The pinned server judged all 20,407 rows in three minutes and accepts 4,995 of the 5,071 alternatives.
+
+| Statements | Total | Agree | Only engine accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| One per alternative | 5,071 | 3,306 | 1,736 | 29 |
+| Near-misses | 15,336 | 14,422 | 527 | 387 |
+
+- **2,679 disagreements,** untriaged. Among the alternatives only OceanBase accepts, the largest groups by leading words are `ALTER SYSTEM` (399), `EXPLAIN` (231, of which 205 are names with a leading dot), `ALTER TABLE` (175), `SELECT` (166) and `DELETE` (131).
+- **A carrier can hide its alternatives.** A row is the shortest statement that reaches an alternative, and where omni rejects that carrier, every alternative behind it disagrees for one reason. Fixing the carrier is what shows the rest.
+- **Two statements crash the server** (three rows). Their verdict comes from the probe (§2.3).
+
+**OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts | Server crash |
 | --- | --- | --- | --- | --- | --- |

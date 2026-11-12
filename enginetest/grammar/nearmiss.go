@@ -63,11 +63,11 @@ func neighbourKeyword(set []string, k string) string {
 }
 
 // nearMisses returns the near-misses of one alternative in a fixed order,
-// labelled <alternative>!<mutation>.
-func nearMisses(a builtAlt, kw []string) []Row {
+// labelled <alternative>!<mutation>. render writes a token list as text.
+func nearMisses(a builtAlt, kw []string, render func([]string) string) []Row {
 	var out []Row
 	emit := func(mut string, toks []string) {
-		out = append(out, Row{Rule: a.label + "!" + mut, Statement: spaceJoin(toks)})
+		out = append(out, Row{Rule: a.label + "!" + mut, Statement: render(toks)})
 	}
 
 	// Drop each body token in turn.

@@ -22,6 +22,8 @@ type Grammar struct {
 	// unreachable holds the tokens the lexer never produces in the mode the
 	// judge runs in. An alternative that needs one gets no generated row.
 	unreachable map[string]bool
+	// spaced holds the token texts written with a space on each side.
+	spaced map[string]bool
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -51,9 +53,11 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &Grammar{byName: map[string]*rule{}, termText: map[string]string{}, unreachable: map[string]bool{}}
+	g := &Grammar{byName: map[string]*rule{}, termText: map[string]string{}, unreachable: map[string]bool{}, spaced: map[string]bool{}}
 	for name, form := range tokens.forms {
 		switch form {
+		case Spaced:
+			g.spaced[name] = true
 		case Unreachable:
 			g.unreachable[name] = true
 		case Empty:
