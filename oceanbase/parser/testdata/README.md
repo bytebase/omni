@@ -64,3 +64,23 @@ judge starts the observer again, asks the statement again, and, when the
 server dies a second time, asks only the probe. Both statements answer the
 syntax error at the tail, so they parse and the crash comes after parsing:
 their rows say `accept`. Do not send them to a server other tests share.
+
+## `tapes/`: the server tests' recordings
+
+Every other test here that asks OceanBase something reaches it through
+`testcontainer.Open` and replays `tapes/<Test>.tape`: each request the test
+sends, and the pinned server's answer. `enginetest/tape` describes the format
+and what fails a replay. After changing what a test sends, record it:
+
+```bash
+OMNI_RECORD=1 go test ./oceanbase/parser/ -run '^TestName$'
+```
+
+- **The keyword sweeps walk the lexer's keywords** (`TestReservedWordSweepOceanBaseOracle`,
+  `TestKeywordFunctionNamesOceanBaseOracle`, `TestSetVariableNameSweepOceanBaseOracle`),
+  so a keyword added to the lexer changes what they send: record those three.
+- **Tapes are written compactly.** `…near` stands for the 122 characters that
+  open each of OceanBase's syntax errors, `^` for a request text repeated from
+  the request before, and a `|# sha256:` line for a statement over 64 KB.
+- **A verdict is one request,** `PREPARE x FROM ?` (`prepareAcceptsOceanBase`):
+  the three sweeps alone ask 36,500 of them.

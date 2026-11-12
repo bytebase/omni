@@ -18,20 +18,12 @@ import (
 // not a server error is no verdict, and comes back as an error rather than passing
 // a case that expects either answer.
 //
-// The statement travels as a bound parameter and through one held connection,
-// because the variable that carries it lives on the connection that set it.
+// The statement travels as the PREPARE's argument, which the connection writes
+// into it as a string literal, and a PREPARE of the same name replaces the
+// last one: the question is one request, which keeps the test's tape small.
 func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error) {
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer func() { _ = conn.Close() }()
-	if _, err := conn.ExecContext(ctx, "SET @omni_sweep = ?", stmt); err != nil {
-		return false, err
-	}
-	_, err = conn.ExecContext(ctx, "PREPARE omni_sweep_stmt FROM @omni_sweep")
+	_, err := db.ExecContext(ctx, "PREPARE omni_sweep_stmt FROM ?", stmt)
 	if err == nil {
-		_, _ = conn.ExecContext(ctx, "DEALLOCATE PREPARE omni_sweep_stmt")
 		return true, nil
 	}
 	var myErr *gomysql.MySQLError

@@ -15,24 +15,13 @@ import (
 // oracle, which still guards the grammar this engine shares with MySQL; this file
 // holds the one that answers for OceanBase itself.
 
-// oceanBaseOracle opens this process's own OceanBase: see
-// testcontainer.OceanBase.
+// oceanBaseOracle returns the test's connection to OceanBase, with no database
+// selected: a replay of the test's tape, or the pinned server in a recording
+// (see testcontainer.Open). The pool is one connection, so every statement
+// runs in the database the seed selects.
 func oceanBaseOracle(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn, err := testcontainer.OceanBase.DSN(context.Background())
-	if err != nil {
-		t.Fatalf("OceanBase oracle: %v", err)
-	}
-	db, err := testcontainer.OpenOceanBase(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The DSN names no database and USE is session state, so pin the pool to one
-	// connection: every statement then runs in the database the seed selects.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	t.Cleanup(func() { _ = db.Close() })
-	return db
+	return testcontainer.Open(t)
 }
 
 // engineAccepts reports whether OceanBase parses sql. It runs the statement and

@@ -303,7 +303,7 @@ var functionArmsNotCovered = map[string]bool{"values": true, "cube": true}
 // judgeKeywordFunctionNames sweeps every keyword the lexer has against the engine.
 func judgeKeywordFunctionNames(t *testing.T, accepts func(sql string) bool) {
 	t.Helper()
-	for word := range keywords {
+	for _, word := range registeredKeywords() {
 		var engine, omni bool
 		for _, shape := range functionNameShapes {
 			sql := "SELECT " + word + shape

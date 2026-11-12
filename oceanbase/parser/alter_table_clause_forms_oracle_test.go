@@ -39,10 +39,10 @@ func TestAlterTableClauseFormsOceanBaseOracle(t *testing.T) {
 
 // prepareAcceptsOceanBase asks the server whether sql parses, without running
 // it: the cases create and alter tables, and executing them would leave a
-// different schema behind for each later case. The statement is bound to a
-// user variable, so its own quoting stays the server's business, and the two
-// statements share one connection because a user variable lives on the
-// connection that set it.
+// different schema behind for each later case. The statement travels as the
+// PREPARE's argument, which the connection writes into it as a string
+// literal, and a PREPARE of the same name replaces the last one: the question
+// is one request, which keeps a sweep's tape small.
 //
 // PREPARE either carries the statement, refuses to carry it, or rejects its
 // syntax with 1064, and only the last of those is the parser's "no". Anything
@@ -50,17 +50,8 @@ func TestAlterTableClauseFormsOceanBaseOracle(t *testing.T) {
 // verdict at all and fails the test rather than counting as acceptance.
 func prepareAcceptsOceanBase(t *testing.T, ctx context.Context, db *sql.DB, stmt string) bool {
 	t.Helper()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("taking a connection for %q: %v", stmt, err)
-	}
-	defer conn.Close()
-	if _, err := conn.ExecContext(ctx, "SET @omni_alter_clause = ?", stmt); err != nil {
-		t.Fatalf("binding %q: %v", stmt, err)
-	}
-	_, err = conn.ExecContext(ctx, "PREPARE omni_alter_clause_stmt FROM @omni_alter_clause")
+	_, err := db.ExecContext(ctx, "PREPARE omni_alter_clause_stmt FROM ?", stmt)
 	if err == nil {
-		_, _ = conn.ExecContext(ctx, "DEALLOCATE PREPARE omni_alter_clause_stmt")
 		return true
 	}
 	var myErr *gomysql.MySQLError

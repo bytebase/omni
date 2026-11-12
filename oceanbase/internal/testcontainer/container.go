@@ -1,6 +1,11 @@
-// Package testcontainer starts the OceanBase server oceanbase's oracle tests run
-// against: one testcontainer per test binary, started by the first test that
-// asks and removed by Terminate, which the package's TestMain calls.
+// Package testcontainer is how oceanbase's tests reach OceanBase. Open and its
+// kin give a test a connection through a tape (enginetest/tape), which replays
+// the pinned server's answers and starts nothing; in a recording
+// (OMNI_RECORD=1) the connection is to the pinned server itself. The packages
+// not yet on tapes ask the server directly, through DSN and Database.
+//
+// The server is one testcontainer per test binary, started by the first test
+// that needs it and removed by Terminate, which the package's TestMain calls.
 package testcontainer
 
 import (
@@ -10,9 +15,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -20,7 +29,147 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/enginetest"
+	"github.com/bytebase/omni/enginetest/tape"
 )
+
+// Pins is oceanbase/testdata/pins.tsv.
+var Pins = func() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
+}()
+
+// Options is how a test's connection differs from the plain one.
+type Options struct {
+	// Database is selected when the connection opens. Empty selects none.
+	Database string
+	// MultiStatements lets one request hold several statements.
+	MultiStatements bool
+	// ParseTime returns DATE and DATETIME values as time.Time.
+	ParseTime bool
+}
+
+// Open returns t's connection to OceanBase, as root in the test tenant with no
+// database selected: a replay of its tape, or the pinned server in a
+// recording. Each call is a connection of its own at session defaults, and
+// the pool holds that one connection, so USE and user variables hold across
+// statements.
+func Open(t testing.TB) *sql.DB {
+	t.Helper()
+	return OpenWith(t, Options{})
+}
+
+// OpenWith is Open with other connection settings.
+func OpenWith(t testing.TB, o Options) *sql.DB {
+	t.Helper()
+	return tape.Open(t, &tape.Server{Pins: Pins, Live: o.live, Codec: Codec{}}, "default")
+}
+
+// OpenDatabase returns t's connection with a database named for label
+// selected and empty, as a server of its own would be. In a recording the
+// database is dropped and created first, on a connection the tape does not
+// see, so what a test sends never depends on what ran before it. A request
+// may hold several statements, and dates come back as time.Time.
+func OpenDatabase(t testing.TB, label string) *sql.DB {
+	t.Helper()
+	name := databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")
+	if enginetest.Recording(t) {
+		pin, err := enginetest.LoadPin(Pins, "default")
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		admin := sql.OpenDB(Options{}.live(t, pin))
+		defer admin.Close()
+		for _, stmt := range []string{"DROP DATABASE IF EXISTS " + name, "CREATE DATABASE " + name} {
+			if _, err := admin.ExecContext(context.Background(), stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+	}
+	return OpenWith(t, Options{Database: name, MultiStatements: true, ParseTime: true})
+}
+
+// liveTimeout bounds one statement on the live server, so one that hangs
+// fails its test and not the run.
+const liveTimeout = time.Minute
+
+// live connects to the pinned server, starting it on the first call. It is
+// called only in a recording. Arguments are inlined, because a tape holds no
+// driver-level prepared statement. The retrying connector sits below the
+// tape: an answer OceanBase gives while it is between leaders is asked
+// again, and never recorded.
+func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
+	t.Helper()
+	ctx := context.Background()
+	dsn, err := OceanBase.DSN(ctx)
+	if err != nil {
+		t.Fatalf("OceanBase: %v", err)
+	}
+	if err := OceanBase.CheckPin(ctx, pin); err != nil {
+		t.Fatalf("%v", err)
+	}
+	cfg, err := gomysql.ParseDSN(dsn)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	cfg.DBName, cfg.MultiStatements, cfg.ParseTime = o.Database, o.MultiStatements, o.ParseTime
+	cfg.InterpolateParams = true
+	cfg.ReadTimeout, cfg.WriteTimeout = liveTimeout, liveTimeout
+	c, err := gomysql.NewConnector(cfg)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return retryConnector{c}
+}
+
+// Codec renders go-sql-driver's *mysql.MySQLError as "<number> <sqlstate>
+// <message>", with - for a missing SQLSTATE.
+//
+// Every syntax error of OceanBase's parser opens with the same 122
+// characters, and a parser package's tapes hold tens of thousands, so a
+// tape holds "…" for them: "1064 42000 …near 'x' at line 1".
+type Codec struct{}
+
+const (
+	syntaxErrorPreamble = "You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use near "
+	syntaxErrorShort    = "…near "
+)
+
+func (Codec) EncodeError(err error) (string, bool) {
+	var me *gomysql.MySQLError
+	if !errors.As(err, &me) {
+		return "", false
+	}
+	state := string(me.SQLState[:])
+	if me.SQLState == [5]byte{} {
+		state = "-"
+	}
+	message := me.Message
+	if rest, ok := strings.CutPrefix(message, syntaxErrorPreamble); ok {
+		message = syntaxErrorShort + rest
+	}
+	return fmt.Sprintf("%d %s %s", me.Number, state, message), true
+}
+
+func (Codec) DecodeError(text string) error {
+	f := strings.SplitN(text, " ", 3)
+	if len(f) != 3 {
+		return fmt.Errorf("tape: a MySQL error %q", text)
+	}
+	n, err := strconv.ParseUint(f[0], 10, 16)
+	if err != nil {
+		return fmt.Errorf("tape: a MySQL error %q", text)
+	}
+	me := &gomysql.MySQLError{Number: uint16(n), Message: f[2]}
+	if rest, ok := strings.CutPrefix(me.Message, syntaxErrorShort); ok {
+		me.Message = syntaxErrorPreamble + rest
+	}
+	if f[1] != "-" {
+		copy(me.SQLState[:], f[1])
+	}
+	return me
+}
 
 // OceanBaseImage is the build the recorded OceanBase verdicts were read on. The
 // 4.3.5-lts tag moves with each patch release, so this names the patch.
@@ -58,6 +207,9 @@ type oceanBase struct {
 	dsn       string
 	container testcontainers.Container
 	err       error
+
+	pinOnce sync.Once
+	pinErr  error
 }
 
 // DSN returns root's DSN, naming no database, once the server answers, starting
@@ -101,6 +253,34 @@ func (o *oceanBase) Restart(ctx context.Context) error {
 		return fmt.Errorf("start the observer: %w", err)
 	}
 	return waitReady(ctx, o.dsn)
+}
+
+// CheckPin fails unless the server this process started is the one pin
+// names: the image, its digest, and the release it reports. The check runs
+// once.
+func (o *oceanBase) CheckPin(ctx context.Context, pin enginetest.Pin) error {
+	o.pinOnce.Do(func() {
+		if pin.Image != OceanBaseImage {
+			o.pinErr = fmt.Errorf("%s pins %s, but this package starts %s", Pins, pin.Image, OceanBaseImage)
+			return
+		}
+		if o.pinErr = o.CheckDigest(ctx, pin.Digest); o.pinErr != nil {
+			return
+		}
+		db, err := OpenOceanBase(o.dsn)
+		if err != nil {
+			o.pinErr = err
+			return
+		}
+		defer db.Close()
+		var version string
+		if err := db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
+			o.pinErr = fmt.Errorf("read the OceanBase version: %w", err)
+		} else if version != OceanBaseVersion {
+			o.pinErr = fmt.Errorf("the server reports %q, want %q", version, OceanBaseVersion)
+		}
+	})
+	return o.pinErr
 }
 
 // CheckDigest fails unless the server this process started runs the image

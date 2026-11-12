@@ -6,11 +6,11 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
@@ -20,36 +20,18 @@ type routineValidationOracle struct {
 	ctx context.Context
 }
 
-// oracleDatabase is this process's database on the package's OceanBase, created
-// by the first test that asks for it.
-var oracleDatabase struct {
-	once sync.Once
-	db   *testcontainer.Database
-	err  error
-}
-
-// startRoutineValidationOracle returns OceanBase with this process's database
-// empty and selected, as a server of its own would be.
+// startRoutineValidationOracle returns OceanBase with the package's database
+// empty and selected, as a server of its own would be: a replay of the test's
+// tape, or the pinned server in a recording (see testcontainer.OpenDatabase).
 func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
-	ctx := context.Background()
-	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = testcontainer.OceanBase.Database(ctx, "oceanbase_validate")
-	})
-	if oracleDatabase.err != nil {
-		t.Fatalf("OceanBase oracle: %v", oracleDatabase.err)
-	}
-	if err := oracleDatabase.db.Reset(ctx); err != nil {
-		t.Fatalf("reset the oracle's database: %v", err)
-	}
-	return &routineValidationOracle{db: oracleDatabase.db.DB, ctx: ctx}
+	return &routineValidationOracle{db: testcontainer.OpenDatabase(t, "oceanbase_validate"), ctx: context.Background()}
 }
 
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if oracleDatabase.db != nil {
-		oracleDatabase.db.Close(context.Background())
-	}
+	code := tape.Main(m)
 	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }
