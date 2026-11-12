@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,094 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase's step 1 is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase's step 1 is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -129,6 +129,8 @@ index_or_heap/ORGANIZATION_HEAP: omni now says reject, engine says accept:
 | Token | Every form of every token, in a carrier statement | ``SELECT `a``b` ``, `SELECT 0x1F`, `SELECT /*+ INDEX(t i) */ 1` | Lexing, which grammar rules never see |
 
 - **The judge decides every row.** A near-miss can still be valid: OceanBase's own grammar accepts 900 of its 15,560.
+- **Ties follow the grammar's order.** Among equally short choices a statement takes the alternative the grammar lists first, and sits in the first statement that reaches it. So an expression is a plain name, not a keyword that may stand for one, and a hint sits in `SELECT`.
+- **Samples resolve.** Where an engine's parser looks a name up while it parses, as TiDB does for charsets and collations, `tokens.tsv` samples a name that exists. An unknown name would answer before a later syntax error, and the row would read as accepted.
 - **Rule IDs are stable.** A row is named by its rule and the alternative's symbols, not by an index, so a pin bump's diff shows only what the release changed.
 - **Token forms come from a committed `tokens.tsv`,** cited to the vendor's lexer or lexical docs. It is written by hand, because the lexers of MySQL, MariaDB and TiDB are code, not grammar files. Other rows take their sample identifiers and literals from it.
 

@@ -164,92 +164,172 @@ func (g *Grammar) altTokens(alt []symbol, sd map[string]deriv) ([]string, bool) 
 }
 
 // shortestDerivations computes, for every nonterminal, the shortest string
-// it derives, by relaxing each rule to the cheapest of its alternatives
-// until no cost improves.
+// it derives. Among equally short alternatives it takes the one the grammar
+// lists first, which is its plainest form: a name before a keyword that may
+// stand for one, the first data type before the rest.
 func (g *Grammar) shortestDerivations() map[string]deriv {
-	sd := make(map[string]deriv, len(g.rules))
-	for _, r := range g.rules {
-		sd[r.name] = deriv{ok: false}
+	// Costs first: relax each rule to the cheapest of its alternatives until
+	// none improves. The cost of a shortest derivation is unique; which
+	// alternative reaches it is not, and is chosen below.
+	cost := make(map[string]int, len(g.rules))
+	known := make(map[string]bool, len(g.rules))
+	symCost := func(sym symbol) (int, bool) {
+		if sym.nonterm {
+			return cost[sym.text], known[sym.text]
+		}
+		// A token written as nothing still counts as a token consumed.
+		return 1, sym.literal || !g.unreachable[sym.text]
+	}
+	altCost := func(alt []symbol) (int, bool) {
+		total := 0
+		for _, sym := range alt {
+			c, ok := symCost(sym)
+			if !ok {
+				return 0, false
+			}
+			total += c
+		}
+		return total, true
 	}
 	for changed := true; changed; {
 		changed = false
 		for _, r := range g.rules {
-			best := deriv{ok: false}
 			for _, alt := range r.alts {
-				cost, toks, ok := 0, []string(nil), true
-				for _, sym := range alt {
-					d := g.symDeriv(sym, sd)
-					if !d.ok {
-						ok = false
-						break
-					}
-					cost += d.cost
-					toks = append(toks, d.toks...)
-				}
-				if ok && (!best.ok || cost < best.cost) {
-					best = deriv{cost: cost, toks: toks, ok: true}
-				}
-			}
-			if best.ok {
-				cur := sd[r.name]
-				if !cur.ok || best.cost < cur.cost {
-					sd[r.name] = best
+				if c, ok := altCost(alt); ok && (!known[r.name] || c < cost[r.name]) {
+					cost[r.name], known[r.name] = c, true
 					changed = true
 				}
 			}
 		}
 	}
+
+	// Then the text: the first alternative that costs the minimum, expanded
+	// the same way. A nonterminal being expanded further up cannot be used
+	// again, since that derivation would never end; the alternative that
+	// needs it is passed over for the next one.
+	sd := make(map[string]deriv, len(g.rules))
+	for _, r := range g.rules {
+		sd[r.name] = deriv{ok: false}
+	}
+	expanding := map[string]bool{}
+	var expand func(name string) ([]string, bool)
+	expand = func(name string) ([]string, bool) {
+		if d := sd[name]; d.ok {
+			return d.toks, true
+		}
+		if !known[name] || expanding[name] {
+			return nil, false
+		}
+		expanding[name] = true
+		defer delete(expanding, name)
+	alternatives:
+		for _, alt := range g.byName[name].alts {
+			if c, ok := altCost(alt); !ok || c != cost[name] {
+				continue
+			}
+			var toks []string
+			for _, sym := range alt {
+				if sym.nonterm {
+					sub, ok := expand(sym.text)
+					if !ok {
+						continue alternatives
+					}
+					toks = append(toks, sub...)
+				} else if text := g.sample(sym); text != "" {
+					toks = append(toks, text)
+				}
+			}
+			sd[name] = deriv{cost: cost[name], toks: toks, ok: true}
+			return toks, true
+		}
+		return nil, false
+	}
+	for _, r := range g.rules {
+		expand(r.name)
+	}
 	return sd
 }
 
 // shortestContexts computes, for every nonterminal, the shortest
-// surrounding text in a derivation from the start symbol. It starts the
-// start symbol at an empty context and relaxes each occurrence of a
-// nonterminal in a rule body, filling the siblings around it with their
-// shortest derivations, until no context cost improves.
+// surrounding text in a derivation from the start symbol: the siblings
+// around it filled with their shortest derivations, inside its parent's own
+// shortest context. Among equally short contexts it takes the one found
+// first walking the grammar from the start symbol, alternatives in order
+// and depth first, so a nonterminal that several statements reach equally
+// cheaply sits in the statement the grammar lists first.
 func (g *Grammar) shortestContexts(sd map[string]deriv) map[string]ctxt {
+	// derivs returns the shortest derivation of each symbol of an
+	// alternative and their total cost, or false when one never terminates.
+	derivs := func(alt []symbol) ([]deriv, int, bool) {
+		ds := make([]deriv, len(alt))
+		total := 0
+		for k, sym := range alt {
+			ds[k] = g.symDeriv(sym, sd)
+			if !ds[k].ok {
+				return nil, 0, false
+			}
+			total += ds[k].cost
+		}
+		return ds, total, true
+	}
+
+	// Costs first, as in shortestDerivations.
+	cost := map[string]int{g.start: 0}
+	for changed := true; changed; {
+		changed = false
+		for _, r := range g.rules {
+			base, ok := cost[r.name]
+			if !ok {
+				continue
+			}
+			for _, alt := range r.alts {
+				ds, total, ok := derivs(alt)
+				if !ok {
+					continue
+				}
+				for k, sym := range alt {
+					if !sym.nonterm {
+						continue
+					}
+					c := base + total - ds[k].cost
+					if cur, seen := cost[sym.text]; !seen || c < cur {
+						cost[sym.text] = c
+						changed = true
+					}
+				}
+			}
+		}
+	}
+
 	cx := make(map[string]ctxt, len(g.rules))
 	for _, r := range g.rules {
 		cx[r.name] = ctxt{ok: false}
 	}
 	cx[g.start] = ctxt{cost: 0, ok: true}
-
-	for changed := true; changed; {
-		changed = false
-		for _, r := range g.rules {
-			cm := cx[r.name]
-			if !cm.ok {
+	var walk func(name string)
+	walk = func(name string) {
+		cm := cx[name]
+		for _, alt := range g.byName[name].alts {
+			ds, total, ok := derivs(alt)
+			if !ok {
 				continue
 			}
-			for _, alt := range r.alts {
-				derivs := make([]deriv, len(alt))
-				total, ok := 0, true
-				for k, sym := range alt {
-					derivs[k] = g.symDeriv(sym, sd)
-					if !derivs[k].ok {
-						ok = false
-						break
+			var pre []string
+			for k, sym := range alt {
+				if sym.nonterm && !cx[sym.text].ok && cm.cost+total-ds[k].cost == cost[sym.text] {
+					cx[sym.text] = ctxt{
+						cost:   cost[sym.text],
+						prefix: concat(cm.prefix, pre),
+						suffix: concat(sibSuffix(ds, k), cm.suffix),
+						ok:     true,
 					}
-					total += derivs[k].cost
+					walk(sym.text)
 				}
-				if !ok {
-					continue
-				}
-				var pre []string
-				for k, sym := range alt {
-					if sym.nonterm {
-						cost := cm.cost + total - derivs[k].cost
-						prefix := concat(cm.prefix, pre)
-						suffix := concat(sibSuffix(derivs, k), cm.suffix)
-						if relaxCtx(cx, sym.text, ctxt{cost: cost, prefix: prefix, suffix: suffix, ok: true}) {
-							changed = true
-						}
-					}
-					pre = concat(pre, derivs[k].toks)
-				}
+				pre = concat(pre, ds[k].toks)
 			}
 		}
 	}
+	walk(g.start)
 	return cx
 }
 
@@ -260,17 +340,6 @@ func sibSuffix(derivs []deriv, k int) []string {
 		suf = append(suf, derivs[j].toks...)
 	}
 	return suf
-}
-
-// relaxCtx lowers a nonterminal's recorded context when the candidate is
-// cheaper, and reports whether it changed anything.
-func relaxCtx(cx map[string]ctxt, name string, cand ctxt) bool {
-	cur := cx[name]
-	if cur.ok && cur.cost <= cand.cost {
-		return false
-	}
-	cx[name] = cand
-	return true
 }
 
 // concat returns a fresh slice with b appended to a, sharing neither's array.

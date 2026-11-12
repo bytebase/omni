@@ -114,7 +114,7 @@ var databaseOptionCases = []databaseOptionCase{
 	//
 	// The one exception is a string naming a collation the server does not know:
 	// `ALTER DATABASE COLLATE 's' zzz` is accepted by TiDB v8.5.5 (and recorded
-	// as a gap at compat.tsv CollationName/StringName!insert). The
+	// as a gap in compat.tsv's suite:cited rows). The
 	// CollationName action calls GetCollationByName, and on an unknown name it
 	// returns 1, which fires the grammar's error recovery and swallows the
 	// trailing tokens; a known name parses strictly and rejects them. omni is a
