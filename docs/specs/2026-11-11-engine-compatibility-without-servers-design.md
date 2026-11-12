@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 has its first half: `enginetest/compat` and `enginetest/grammar`, and TiDB's `compat.tsv` (11,094 rows, recorded on the pinned server in 9 seconds). The tape harness is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,094 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase's step 1 is next. A spike measured OceanBase and Snowflake (Appendix A). Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -218,27 +218,38 @@ A test that talks to a server keeps its code. It opens its connection differentl
 
 ### 4.2 What a tape holds
 
-One text file per top-level test, `<package>/testdata/tapes/<Test>.tape`. Each request is followed by the engine's answer:
+One text file per top-level test, `<package>/testdata/tapes/<Test>.tape`. Each request is followed by the engine's answer. Excerpts from `tidb/catalog`:
 
 ```text
--- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:… v4.3.5_CE_BP6
+-- pin: default pingcap/tidb:v8.5.5 sha256:f2178ff6… v8.5.5
 
-== TestOracle_OceanBaseAddPartitionSubpartitions/reorganize default#1
+== TestContainerSmoke default#1
 > exec
-ALTER TABLE t REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (15), PARTITION p1b VALUES LESS THAN (20))
-< error 1235 0A000 split subpartition is not supported
+| CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL)
+< ok 0 0
 > query
-SHOW CREATE TABLE obreorg.t
-< columns Table:VARCHAR Create Table:VARCHAR
+| SHOW CREATE TABLE t1
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
 < row
-| bytes t
-| bytes
-|   CREATE TABLE `t` (
-|     `a` int(11) NOT NULL,
+: bytes
+| t1
+: bytes
+| CREATE TABLE `t1` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 ...
+
+== TestContainerCreateInvisiblePrimaryKey default#1
+...
+< error
+| 3522 HY000 A primary key index cannot be invisible
 ```
 
-A line-oriented file means a diff shows the line that changed, even inside a `SHOW CREATE`. A file per test means two PRs conflict only when they change the same test.
+Every line starts with a sigil, so SQL and values need no escaping: `|` carries a line of text, `:` a value or an argument (a request keeps its `?` placeholders), `>` a request, `<` an answer. A line-oriented file means a diff shows the line that changed, even inside a `SHOW CREATE`. A file per test means two PRs conflict only when they change the same test.
 
 ### 4.3 The rule
 
@@ -288,6 +299,9 @@ The inventory's hash replaces `Digest`. Sweeps keep their fixed seeds, and the t
 - Take names from `t.Name()`, not from counters or the clock.
 - Order every multi-row read.
 - Don't skip. Today's skips and DSN fallbacks go.
+- Probe syntax with SQL's `PREPARE ... FROM '<text>'`, not the driver's `Prepare`: a tape holds no driver-level prepared statement.
+
+A recording catches an answer that changes between runs, but not a request order that does, such as a map iterated while sending. Replay a fresh recording a few times (`-count=10`) before committing it.
 
 **A few tests have nothing to replay:** harness self-tests, timing and hang tests, and the Oracle PL/SQL dictionary test, whose input is Oracle's own source. They call `tape.Live(t)`, which skips them outside a recording. That is the only environment gate. The dictionary test keeps its known-failures manifest as it is today.
 
@@ -516,36 +530,35 @@ Other files:
 
 ## Appendix C. The tape harness
 
-`enginetest/tape` is about 500 lines. Its core:
+`enginetest/tape` is about 1,200 lines. An engine describes its server once:
 
 ```go
+type Server struct {
+	Pins  string                                                // the engine's pins.tsv
+	Live  func(t testing.TB, pin enginetest.Pin) driver.Connector // called only in a recording
+	Codec Codec                                                  // the driver's errors as tape text and back
+}
+
 // Open returns t's connection to the server in pin row role: a replay of its
 // tape, or, in a recording, the pinned server with every exchange written down.
-func Open(t testing.TB, role string, live func(testing.TB, string) driver.Connector, c Codec) *sql.DB {
-	s := stream(t, role) // in testdata/tapes/<top-level test>.tape
-	if Recording(t) {    // OMNI_RECORD=1
-		t.Cleanup(s.save)
-		return sql.OpenDB(recorder{live(t, role), s, c})
-	}
-	t.Cleanup(s.finish) // fails if recorded answers were never asked for
-	return sql.OpenDB(replayer{s, c})
-}
+func Open(t testing.TB, s *Server, role string) *sql.DB
 ```
 
-Each engine adds three small things in `<engine>/internal/testcontainer`:
+Each engine adds a few small things in `<engine>/internal/testcontainer` (TiDB's is the model):
 
 ```go
-func Open(t testing.TB) *sql.DB { return tape.Open(t, "default", liveConnector, codec{}) }
+func Open(t testing.TB) *sql.DB { return tape.Open(t, server, "default") }
+func Reset(t testing.TB, fn func(context.Context, *sql.DB) error) // in a recording only, unrecorded
 ```
 
-- **`codec`** turns the driver's error into tape text and back (`*mysql.MySQLError`, `*pgconn.PgError`), and replaces names the engine makes up, such as OceanBase's `_OBFK_\d{16}`, with placeholders.
-- **`liveConnector`** is called only in a recording. It starts the pinned image by digest, inlines arguments, and sets a 30-second statement timeout, so a hung statement fails its test and not the run.
+- **`Codec`** turns the driver's error into tape text and back (`*mysql.MySQLError`, `*pgconn.PgError`), so `errors.As` works in a replay. Not built yet: replacing names the engine makes up, such as OceanBase's `_OBFK_\d{16}`, with placeholders.
+- **`Live`** starts the pinned image, checks its digest and version, inlines arguments, and sets a 30-second read timeout, so a hung statement fails its test and not the run.
+- **`Reset`** puts a shared server into the state a tape starts from, such as dropping what earlier tests left. It runs only in a recording, outside the tape, so what a test sends never depends on what ran before it.
 
-What the harness handles, each needed by a test that exists today:
-- **Every kind of answer:** result sets with column types, several result sets, out-parameters, errors with code, SQLSTATE and position, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
-- **Streams.** Each connection a test opens is one stream, named by test, pin role and open order. Parallel subtests and sweep shards each get their own.
-- **Package setup** (`sync.Once` today) is recorded once, in `_setup.tape`.
-- **`tape.Main(m)`** lets `-count=2` replay. On a run with no `-run` or `-skip`, it fails on a tape no test opened; a focused run checks only the tapes it opened.
-- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does.
-- **Statements over 64 KB** are stored by hash.
+What the harness handles:
+- **Every kind of answer:** result sets with column types, several result sets, transactions, errors through the codec, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
+- **Streams.** Each `Open` is one stream, named by test, pin role and open order, with a pool of one connection so session state holds. A recording that sends what the committed tape holds, under the same pin, must get the same answers.
+- **`tape.Main(m)`** runs the package's tests. On a run with no `-run` or `-skip`, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A focused run checks only what it opened.
+- **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs.
+- **Not built yet:** statements over 64 KB stored by hash, `tape.Live(t)` for tests with nothing to replay, and package setup recorded once in `_setup.tape`. TiDB's catalog needed none of them.
 - **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.

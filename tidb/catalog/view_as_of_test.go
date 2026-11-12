@@ -163,16 +163,7 @@ func TestAsOfExpressionsReadBack(t *testing.T) {
 	defer conn.Close()
 	parses := func(t *testing.T, sql string) bool {
 		t.Helper()
-		st, err := conn.PrepareContext(ctr.ctx, sql)
-		if err == nil {
-			_ = st.Close()
-			return true
-		}
-		var myErr *gomysql.MySQLError
-		if !errors.As(err, &myErr) {
-			t.Fatalf("no verdict for %s: %v", sql, err)
-		}
-		return myErr.Number != 1064
+		return prepareParses(t, ctr.ctx, conn, sql)
 	}
 	for _, expr := range tableSampleExpressions {
 		t.Run(expr, func(t *testing.T) {

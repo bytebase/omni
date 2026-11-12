@@ -1,0 +1,492 @@
+package tape
+
+import (
+	"context"
+	"database/sql/driver"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/bytebase/omni/enginetest"
+)
+
+func TestMain(m *testing.M) { os.Exit(Main(m)) }
+
+// fakeT stands in for a test whose failures the harness's tests check.
+type fakeT struct {
+	testing.TB
+	name     string
+	errs     []string
+	cleanups []func()
+}
+
+func (f *fakeT) Name() string      { return f.name }
+func (f *fakeT) Helper()           {}
+func (f *fakeT) Cleanup(fn func()) { f.cleanups = append(f.cleanups, fn) }
+func (f *fakeT) Errorf(format string, args ...any) {
+	f.errs = append(f.errs, fmt.Sprintf(format, args...))
+}
+func (f *fakeT) Fatalf(format string, args ...any) {
+	f.Errorf(format, args...)
+	runtime.Goexit()
+}
+
+// run runs body as a test named name and returns what it logged and the
+// failures the harness reported.
+func run(t *testing.T, name string, body func(t testing.TB) []string) (log, errs []string) {
+	t.Helper()
+	f := &fakeT{TB: t, name: name}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		log = body(f)
+	}()
+	<-done
+	for i := len(f.cleanups) - 1; i >= 0; i-- {
+		f.cleanups[i]()
+	}
+	return log, f.errs
+}
+
+// harness points the package at a temporary tape directory and pins file,
+// and forgets what earlier tests opened, as a new process would.
+func harness(t *testing.T) (*Server, *fakeEngine) {
+	t.Helper()
+	old := dir
+	dir = t.TempDir()
+	t.Cleanup(func() { dir = old })
+	resetRegistry()
+	pins := filepath.Join(t.TempDir(), "pins.tsv")
+	if err := os.WriteFile(pins, []byte("default\timg:1\tsha256:1\t1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := &fakeEngine{}
+	return &Server{
+		Pins:  pins,
+		Live:  func(testing.TB, enginetest.Pin) driver.Connector { return fakeConnector{e} },
+		Codec: fakeCodec{},
+	}, e
+}
+
+func resetRegistry() {
+	reg.Lock()
+	defer reg.Unlock()
+	reg.files = map[string]*fileState{}
+	reg.counts = map[openKey]int{}
+}
+
+func record(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+}
+
+func replay(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "")
+	resetRegistry()
+}
+
+// session is the body most tests run: every kind of request and answer.
+func everything(srv *Server) func(t testing.TB) []string {
+	return func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		var log []string
+		res, err := db.Exec("CREATE TABLE t (a INT)\n-- a second line", 1, "two", nil, []byte("x"))
+		if err != nil {
+			return append(log, "exec: "+err.Error())
+		}
+		n, _ := res.RowsAffected()
+		log = append(log, fmt.Sprint("affected ", n))
+
+		_, err = db.Exec("BAD")
+		var fe *fakeError
+		log = append(log, fmt.Sprintf("bad: %v, as fakeError: %v", err, errors.As(err, &fe) && fe.code == 1064))
+
+		rows, err := db.Query("SELECT rows")
+		if err != nil {
+			return append(log, "query: "+err.Error())
+		}
+		for {
+			types, _ := rows.ColumnTypes()
+			for _, c := range types {
+				log = append(log, "column "+c.Name()+" "+c.DatabaseTypeName())
+			}
+			for rows.Next() {
+				vals := make([]any, len(types))
+				ptrs := make([]any, len(types))
+				for i := range vals {
+					ptrs[i] = &vals[i]
+				}
+				if err := rows.Scan(ptrs...); err != nil {
+					return append(log, "scan: "+err.Error())
+				}
+				log = append(log, fmt.Sprintf("row %q", vals))
+			}
+			if !rows.NextResultSet() {
+				break
+			}
+		}
+		rows.Close()
+
+		tx, err := db.Begin()
+		if err != nil {
+			return append(log, "begin: "+err.Error())
+		}
+		if _, err := tx.Exec("INSERT INTO t VALUES (1)"); err != nil {
+			return append(log, "tx exec: "+err.Error())
+		}
+		log = append(log, fmt.Sprint("commit: ", tx.Commit()))
+		return log
+	}
+}
+
+func TestRecordThenReplay(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	recorded, errs := run(t, "TestFake", everything(srv))
+	if len(errs) > 0 {
+		t.Fatalf("recording failed: %v", errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tape := string(b)
+	for _, want := range []string{
+		"-- pin: default img:1 sha256:1 1\n",
+		"== TestFake default#1\n> exec\n| CREATE TABLE t (a INT)\n| -- a second line\n: int64 1\n: string\n| two\n: null\n: bytes\n| x\n< ok 4 -\n",
+		"< error\n| 1064 near \"BAD\"\n| line 2\n",
+		"< row\n: int64 1\n: bytes\n| x\n| y\n",
+		"|q \"\\r\"\n",
+		"> begin\n< ok\n",
+	} {
+		if !strings.Contains(tape, want) {
+			t.Errorf("the tape lacks %q:\n%s", want, tape)
+		}
+	}
+
+	replay(t)
+	srv.Live = func(t testing.TB, _ enginetest.Pin) driver.Connector {
+		t.Fatalf("a replay reached the server")
+		return nil
+	}
+	replayed, errs := run(t, "TestFake", everything(srv))
+	if len(errs) > 0 {
+		t.Fatalf("replay failed: %v", errs)
+	}
+	if strings.Join(replayed, "\n") != strings.Join(recorded, "\n") {
+		t.Errorf("a replay differs from its recording:\nrecorded:\n%s\nreplayed:\n%s", strings.Join(recorded, "\n"), strings.Join(replayed, "\n"))
+	}
+	if !strings.Contains(strings.Join(recorded, "\n"), "as fakeError: true") {
+		t.Errorf("the codec lost the error's type: %v", recorded)
+	}
+}
+
+func TestReplayFailsOnAnUnrecordedRequest(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		_, err := db.Exec("CREATE TABLE u (a INT)")
+		_, err2 := db.Exec("CREATE TABLE t (a INT)") // the stream is broken now
+		if err == nil || err2 == nil {
+			return []string{"a request the tape doesn't hold succeeded"}
+		}
+		return nil
+	})
+	got := strings.Join(errs, "\n")
+	if len(errs) != 1 || !strings.Contains(got, `no recorded answer for exec "CREATE TABLE u (a INT)" (request 1 of stream "TestFake default#1"); the tape holds exec "CREATE TABLE t`) ||
+		!strings.Contains(got, "OMNI_RECORD=1 go test ./enginetest/tape/ -run '^TestFake$'") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+func TestReplayFailsOnRequestsNeverSent(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		_, _ = db.Exec("CREATE TABLE t (a INT)\n-- a second line", 1, "two", nil, []byte("x"))
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], `holds 5 recorded requests the test never sent, starting with exec "BAD"`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
+func TestReplayNeedsTheTapeAtThePin(t *testing.T) {
+	srv, _ := harness(t)
+	replay(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], "no tape") {
+		t.Errorf("with no tape: %q", errs)
+	}
+
+	record(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	if _, errs := run(t, "TestOther", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		return nil
+	}); len(errs) != 1 || !strings.Contains(errs[0], "no tape") {
+		t.Errorf("another test: %q", errs)
+	}
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		Open(t, srv, "default")
+		return nil
+	}); len(errs) == 0 || !strings.Contains(errs[0], `has no stream "TestFake default#2"`) {
+		t.Errorf("a second connection: %q", errs)
+	}
+
+	resetRegistry()
+	if err := os.WriteFile(srv.Pins, []byte("default\timg:2\tsha256:2\t2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], `was recorded at pin "default img:1 sha256:1 1"`) {
+		t.Errorf("a new pin: %q", errs)
+	}
+}
+
+func TestRecordingFailsOnANondeterministicAnswer(t *testing.T) {
+	srv, _ := harness(t)
+	now := func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		var n int
+		if err := db.QueryRow("SELECT now").Scan(&n); err != nil {
+			return []string{err.Error()}
+		}
+		return nil
+	}
+	record(t)
+	if _, errs := run(t, "TestFake", now); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	resetRegistry()
+	_, errs := run(t, "TestFake", now)
+	if len(errs) != 1 || !strings.Contains(errs[0], `answered request 1 (query "SELECT now") differently than the committed tape`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
+func TestPreparedStatementsAreRefused(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		var log []string
+		if _, err := db.Prepare("SELECT 1"); !errors.Is(err, errPrepared) {
+			log = append(log, fmt.Sprintf("Prepare: %v", err))
+		}
+		if _, err := db.Exec("SKIP", 1); !errors.Is(err, errPrepared) {
+			log = append(log, fmt.Sprintf("a driver that would prepare: %v", err))
+		}
+		return log
+	})
+	if len(errs) > 0 {
+		t.Error(errs)
+	}
+}
+
+func TestRecordingRefusesAnErrorTheEngineDidNotAnswer(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		_, _ = Open(t, srv, "default").Exec("TIMEOUT")
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], "i/o timeout is not an answer from the engine") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+func TestLeftovers(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		Open(t, srv, "default")
+		return nil
+	}); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	stray := filepath.Join(dir, "TestGone.tape")
+	if err := os.WriteFile(stray, []byte("-- pin: default img:1 sha256:1 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	replay(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		return nil
+	}); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	got := strings.Join(leftovers(false), "\n")
+	for _, want := range []string{"TestGone.tape belongs to no test that ran", `no test opened stream "TestFake default#2"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("leftovers lack %q: %s", want, got)
+		}
+	}
+	if got := leftovers(true); len(got) > 0 {
+		t.Errorf("a recording's leftovers: %q", got)
+	}
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Errorf("a recording kept %s", stray)
+	}
+}
+
+func TestParseRejects(t *testing.T) {
+	for _, c := range []struct{ name, tape, want string }{
+		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
+		{"no answer", "== s\n> exec\n| x\n", "want an answer"},
+		{"no text", "== s\n> exec\n< ok\n", "want text"},
+		{"an unknown request", "== s\n> fetch\n< ok\n", "unknown request"},
+		{"a bad int", "== s\n> query\n| x\n< result\n< column \"a\" \"INT\"\n< row\n: int64 x\n", "a int64 value"},
+		{"a short row", "== s\n> query\n| x\n< result\n< column \"a\" \"INT\"\n< row\n", "want a value"},
+		{"a stream twice", "== s\n== s\n", "appears twice"},
+		{"a stray line", "== s\nhello\n", "unexpected line"},
+	} {
+		if _, err := parse("x.tape", c.tape); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: got %v, want %q", c.name, err, c.want)
+		}
+	}
+}
+
+func TestFormatRoundTrips(t *testing.T) {
+	f := &tapeFile{pins: map[string]string{"default": "default a b c", "lower": "lower d e f"}, streams: []*stream{{
+		name: "TestX/sub name default#1",
+		exchanges: []exchange{
+			{request{kind: "query", text: "", args: []value{{"string", ""}, {"float64", "1.5"}, {"bool", "true"}, {"time", "2026-11-12T00:00:00Z"}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{"bytes", "\n"}}, {{"bytes", "\x00\xff"}}, {{"string", "| q"}}}}, {}}}},
+			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
+			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
+		},
+	}}}
+	text := f.encode()
+	back, err := parse("x.tape", text)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, text)
+	}
+	if again := back.encode(); again != text {
+		t.Errorf("a round trip changed the tape:\n%s\nbecame:\n%s", text, again)
+	}
+}
+
+// The fake engine.
+
+type fakeEngine struct{ now int }
+
+type fakeConnector struct{ e *fakeEngine }
+
+func (c fakeConnector) Connect(context.Context) (driver.Conn, error) { return &fakeConn{c.e}, nil }
+func (c fakeConnector) Driver() driver.Driver                        { return nil }
+
+type fakeConn struct{ e *fakeEngine }
+
+func (c *fakeConn) Prepare(string) (driver.Stmt, error) { return nil, errors.New("prepared") }
+func (c *fakeConn) Close() error                        { return nil }
+func (c *fakeConn) Begin() (driver.Tx, error)           { return fakeTx{}, nil }
+
+func (c *fakeConn) ExecContext(_ context.Context, q string, args []driver.NamedValue) (driver.Result, error) {
+	switch q {
+	case "BAD":
+		return nil, &fakeError{1064, "near \"BAD\"\nline 2"}
+	case "SKIP":
+		return nil, driver.ErrSkip
+	case "TIMEOUT":
+		return nil, errors.New("i/o timeout")
+	}
+	return driver.RowsAffected(len(args)), nil
+}
+
+func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedValue) (driver.Rows, error) {
+	switch q {
+	case "SELECT rows":
+		return &fakeRows{sets: []fakeSet{
+			{[]string{"a", "b"}, []string{"INT", "TEXT"}, [][]driver.Value{{int64(1), []byte("x\ny")}, {nil, []byte("\r")}}},
+			{[]string{"c"}, []string{"BOOL"}, [][]driver.Value{{true}}},
+		}}, nil
+	case "SELECT now":
+		c.e.now++
+		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
+	}
+	return nil, &fakeError{1146, "no such table"}
+}
+
+type fakeTx struct{}
+
+func (fakeTx) Commit() error   { return nil }
+func (fakeTx) Rollback() error { return nil }
+
+type fakeSet struct {
+	cols, types []string
+	rows        [][]driver.Value
+}
+
+type fakeRows struct {
+	sets     []fakeSet
+	set, row int
+}
+
+func (r *fakeRows) Columns() []string                       { return r.sets[r.set].cols }
+func (r *fakeRows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].types[i] }
+func (r *fakeRows) Close() error                            { return nil }
+func (r *fakeRows) HasNextResultSet() bool                  { return r.set+1 < len(r.sets) }
+func (r *fakeRows) NextResultSet() error {
+	if !r.HasNextResultSet() {
+		return io.EOF
+	}
+	r.set, r.row = r.set+1, 0
+	return nil
+}
+
+func (r *fakeRows) Next(dest []driver.Value) error {
+	s := r.sets[r.set]
+	if r.row >= len(s.rows) {
+		return io.EOF
+	}
+	copy(dest, s.rows[r.row])
+	r.row++
+	return nil
+}
+
+type fakeError struct {
+	code int
+	msg  string
+}
+
+func (e *fakeError) Error() string { return fmt.Sprintf("Error %d: %s", e.code, e.msg) }
+
+type fakeCodec struct{}
+
+func (fakeCodec) EncodeError(err error) (string, bool) {
+	var fe *fakeError
+	if !errors.As(err, &fe) {
+		return "", false
+	}
+	return fmt.Sprintf("%d %s", fe.code, fe.msg), true
+}
+
+func (fakeCodec) DecodeError(text string) error {
+	code, msg, _ := strings.Cut(text, " ")
+	n, err := strconv.Atoi(code)
+	if err != nil {
+		return errors.New(text)
+	}
+	return &fakeError{n, msg}
+}

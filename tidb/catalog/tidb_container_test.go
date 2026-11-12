@@ -3,98 +3,28 @@ package catalog
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
-// tidbCatalogContainer wraps a real TiDB instance for catalog
-// cross-validation. The catalog's in-memory model is compared to what
-// TiDB actually accepts (via its SQL layer) rather than deep-inspecting
-// information_schema — the goal is to catch regressions where omni
-// parses TiDB syntax but the catalog fails to execute, or vice versa.
+// tidbCatalogContainer is a test's connection to TiDB for catalog
+// cross-validation: a replay of the test's tape, or the pinned server in a
+// recording (tidb/internal/testcontainer). The catalog's in-memory model is
+// compared to what TiDB actually accepts (via its SQL layer) rather than
+// deep-inspecting information_schema: the goal is to catch regressions where
+// omni parses TiDB syntax but the catalog fails to execute, or vice versa.
 type tidbCatalogContainer struct {
-	container testcontainers.Container
-	db        *sql.DB
-	ctx       context.Context
+	db  *sql.DB
+	ctx context.Context
 }
 
-var (
-	tidbCatalogOnce    sync.Once
-	tidbCatalogInst    *tidbCatalogContainer
-	tidbCatalogInitErr error
-)
-
+// startTiDBForCatalog opens a connection of the test's own, at session
+// defaults with the database test selected.
 func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 	t.Helper()
-
-	tidbCatalogOnce.Do(func() {
-		ctx := context.Background()
-
-		req := testcontainers.ContainerRequest{
-			Image:        "pingcap/tidb:v8.5.5",
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-		}
-
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-		if err != nil {
-			tidbCatalogInitErr = fmt.Errorf("failed to start TiDB container: %w", err)
-			return
-		}
-
-		host, err := container.Host(ctx)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbCatalogInitErr = fmt.Errorf("failed to get host: %w", err)
-			return
-		}
-
-		port, err := container.MappedPort(ctx, "4000")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbCatalogInitErr = fmt.Errorf("failed to get port: %w", err)
-			return
-		}
-
-		connStr := fmt.Sprintf("root@tcp(%s:%s)/test?multiStatements=true", host, port.Port())
-		db, err := sql.Open("mysql", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbCatalogInitErr = fmt.Errorf("failed to open db: %w", err)
-			return
-		}
-
-		if err := pingTiDBUntilReady(ctx, db); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			tidbCatalogInitErr = fmt.Errorf("failed to ping TiDB: %w", err)
-			return
-		}
-
-		// USE and SET SESSION are per-connection state and startContainer resets
-		// them between tests: pin the pool to one connection so they stick.
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
-
-		tidbCatalogInst = &tidbCatalogContainer{container: container, db: db, ctx: ctx}
-	})
-
-	if tidbCatalogInitErr != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the container gate into a green no-op.
-		t.Fatalf("TiDB container required in CI but not available: %v", tidbCatalogInitErr)
-	}
-	return tidbCatalogInst
+	return &tidbCatalogContainer{db: testcontainer.Open(t), ctx: context.Background()}
 }
 
 // TestTiDBCatalogContainerCrossValidation executes the same DDL on real
@@ -254,23 +184,6 @@ func mustExecTiDB(t *testing.T, tc *tidbCatalogContainer, sqlStr string) {
 	t.Helper()
 	if _, err := tc.db.ExecContext(tc.ctx, sqlStr); err != nil {
 		t.Fatalf("TiDB setup exec failed for %q: %v", sqlStr, err)
-	}
-}
-
-// pingTiDBUntilReady retries the first ping. TiDB's port starts listening a
-// moment before the server accepts connections, so a single ping right after
-// wait.ForListeningPort can fail with "invalid connection" on a busy host.
-func pingTiDBUntilReady(ctx context.Context, db *sql.DB) error {
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		err := db.PingContext(ctx)
-		if err == nil {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return err
-		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 

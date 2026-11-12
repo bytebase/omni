@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
+	"github.com/bytebase/omni/enginetest/tape"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // mysqlContainer wraps a connection to the package-shared TiDB container for
@@ -46,12 +46,12 @@ type constraintInfo struct {
 
 var sharedTiDB sync.Mutex
 
-// startContainer hands the caller the package-shared TiDB container, reset to
-// the state a fresh engine would be in (no user databases or accounts, session
-// defaults), plus a cleanup func the caller must defer. One container serves
-// the whole package: booting an engine per test is what made this package take
-// ~16 minutes, while the reset takes milliseconds. Callers are serialised so a
-// test never sees another test's objects.
+// startContainer gives the test a connection of its own to TiDB, which in a
+// recording starts from the state a fresh engine would be in: no user
+// databases or accounts, session defaults. The connection is a replay of the
+// test's tape, or the pinned server in a recording
+// (tidb/internal/testcontainer). Callers are serialised and must call the
+// returned func when done, so a recording never sees another test's objects.
 //
 // The differential and walk-through tests this container serves run by default
 // as ordinary container tests, at parity with TiDB v8.5.5. Features TiDB does
@@ -59,28 +59,17 @@ var sharedTiDB sync.Mutex
 // (see docs/plans/2026-11-09-tidb-catalog-parity-residual.md).
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	tc := startTiDBForCatalog(t)
 	sharedTiDB.Lock()
-	ctr := &mysqlContainer{db: tc.db, ctx: tc.ctx}
-	if err := resetSharedContainer(ctr); err != nil {
-		sharedTiDB.Unlock()
-		t.Fatalf("failed to reset shared TiDB container: %v", err)
-	}
-	return ctr, func() { sharedTiDB.Unlock() }
+	testcontainer.Reset(t, resetServer)
+	return &mysqlContainer{db: testcontainer.Open(t), ctx: context.Background()}, sharedTiDB.Unlock
 }
 
-// resetSharedContainer drops everything a test could have created and puts
-// the session back to defaults. The system schemas are TiDB's, not MySQL's:
-// METRICS_SCHEMA exists, and root is the only built-in account.
-func resetSharedContainer(ctr *mysqlContainer) error {
-	if err := resetExec(ctr,
-		"SET SESSION foreign_key_checks = 0",
-		"SET SESSION sql_mode = DEFAULT",
-		"USE mysql",
-	); err != nil {
-		return err
-	}
-
+// resetServer drops everything a test could have created on the shared
+// server. It runs only in a recording, on a connection the tape does not
+// see. The system schemas are TiDB's, not MySQL's: METRICS_SCHEMA exists,
+// and root is the only built-in account.
+func resetServer(ctx context.Context, db *sql.DB) error {
+	ctr := &mysqlContainer{db: db, ctx: ctx}
 	dbNames, err := resetQueryStrings(ctr, `
 		SELECT SCHEMA_NAME
 		FROM information_schema.SCHEMATA
@@ -102,24 +91,7 @@ func resetSharedContainer(ctr *mysqlContainer) error {
 		_ = resetExec(ctr, "DROP ROLE IF EXISTS "+resetQuoteAccount(account.user, account.host))
 		_ = resetExec(ctr, "DROP USER IF EXISTS "+resetQuoteAccount(account.user, account.host))
 	}
-
-	// MySQL-only knobs some scenarios toggle; TiDB rejects the ones it does
-	// not know, so these are best effort.
-	for _, stmt := range []string{
-		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
-		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
-		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
-	} {
-		_, _ = ctr.db.ExecContext(ctr.ctx, stmt)
-	}
-
-	return resetExec(ctr,
-		"CREATE DATABASE IF NOT EXISTS test",
-		"USE test",
-		"SET SESSION sql_mode = DEFAULT",
-		"SET SESSION foreign_key_checks = 1",
-		"SET SESSION time_zone = DEFAULT",
-	)
+	return resetExec(ctr, "CREATE DATABASE IF NOT EXISTS test")
 }
 
 func resetExec(ctr *mysqlContainer, stmts ...string) error {
@@ -181,13 +153,8 @@ func resetQuoteAccount(user, host string) string {
 }
 
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if tidbCatalogInst != nil {
-		_ = tidbCatalogInst.db.Close()
-		if tidbCatalogInst.container != nil {
-			_ = testcontainers.TerminateContainer(tidbCatalogInst.container)
-		}
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
