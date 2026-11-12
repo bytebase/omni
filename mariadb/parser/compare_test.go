@@ -8715,88 +8715,51 @@ func TestParseSetPasswordForUser(t *testing.T) {
 	}
 }
 
-func TestParseGrantAs(t *testing.T) {
-	tests := []string{
+// TestParseGrantAsIsMySQLOnly holds the GRANT clause MySQL 8.0 has and MariaDB
+// does not: AS user [WITH ROLE ...] on a privilege grant. grant_command ends at
+// opt_grant_options in MariaDB 11.8 sql/sql_yacc.yy, so the
+// server answers 1064 for each; TestGrantFormsOracle holds the same forms to the server.
+func TestParseGrantAsIsMySQLOnly(t *testing.T) {
+	for _, sql := range []string{
 		"GRANT SELECT ON db.* TO 'user1'@'localhost' AS 'admin'@'localhost'",
 		"GRANT INSERT ON db.t TO user1 AS admin",
-	}
-	for _, sql := range tests {
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE DEFAULT",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE NONE",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT role1, role2",
+		"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE role1, role2",
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseGrantAsWithRole(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE DEFAULT",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type DEFAULT}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE NONE",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type NONE}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT role1, role2",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL EXCEPT :with_roles role1, role2}",
-		},
-		{
-			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE role1, role2",
-			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_roles role1, role2}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
+			ParseExpectError(t, sql)
 		})
 	}
 }
 
 // TestRoleIdentRejectsAmbiguous3 verifies that ambiguous_3 keywords (like EVENT)
 // cannot be used as role names. EVENT is allowed as a general identifier (e.g.,
-// CREATE TABLE event) but NOT as a role_ident.
+// CREATE TABLE event) but NOT as a role_ident. The reader is held directly: the
+// one statement that called it, GRANT's AS user WITH ROLE, is MySQL 8.0's.
 func TestRoleIdentRejectsAmbiguous3(t *testing.T) {
-	// EVENT as a role in GRANT WITH ROLE should fail — ambiguous_3 is excluded from role_ident.
-	t.Run("event as WITH ROLE name rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("GRANT SELECT ON db.* TO user1 AS admin WITH ROLE event")}
-		p.advance()
-		_, err := p.parseGrantStmt()
-		if err == nil {
-			t.Fatal("expected error for WITH ROLE event (EVENT is ambiguous_3, not allowed as role)")
-		}
-	})
-
-	t.Run("event as WITH ROLE ALL EXCEPT name rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT event")}
-		p.advance()
-		_, err := p.parseGrantStmt()
-		if err == nil {
-			t.Fatal("expected error for WITH ROLE ALL EXCEPT event (EVENT is ambiguous_3, not allowed as role)")
-		}
-	})
-
-	// BEGIN (ambiguous_2) should be accepted as a role name.
-	t.Run("begin as WITH ROLE name accepted", func(t *testing.T) {
-		ParseAndCompare(t,
-			"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE begin",
-			"{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_roles begin}",
-		)
-	})
-
-	t.Run("begin as WITH ROLE ALL EXCEPT name accepted", func(t *testing.T) {
-		ParseAndCompare(t,
-			"GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT begin",
-			"{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL EXCEPT :with_roles begin}",
-		)
-	})
+	for _, c := range []struct {
+		word   string
+		accept bool
+	}{
+		{"event", false}, // ambiguous_3
+		{"begin", true},  // ambiguous_2
+		{"role1", true},
+	} {
+		t.Run(c.word, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(c.word)}
+			p.advance()
+			name, _, err := p.parseRoleIdent()
+			if accepts := err == nil; accepts != c.accept {
+				t.Fatalf("parseRoleIdent(%q) accepts=%v, want %v (err: %v)", c.word, accepts, c.accept, err)
+			}
+			if c.accept && name != c.word {
+				t.Errorf("parseRoleIdent(%q) = %q", c.word, name)
+			}
+		})
+	}
 }
 
 // ============================================================================

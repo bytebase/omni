@@ -15,6 +15,10 @@ import (
 //	GRANT priv_type [, priv_type] ... ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT ALL [PRIVILEGES] ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+//
+// MySQL 8.0 ends a privilege grant with AS user [WITH ROLE ...]. MariaDB has no such
+// clause: grant_command ends at opt_grant_options in MariaDB 11.8 sql/sql_yacc.yy,
+// and the server answers 1064 for it.
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
@@ -135,83 +139,35 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		stmt.Require = req
 	}
 
-	// [WITH [GRANT OPTION] [resource_option ...]]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if _, ok := p.match(kwGRANT); ok {
-			// GRANT takes its OPTION (grant_option, `GRANT OPTION | resource_option`):
-			// `WITH GRANT` is a 1064 on MariaDB 11.8.
-			if _, err := p.expect(kwOPTION); err != nil {
-				return nil, err
-			}
-			stmt.WithGrant = true
-		}
-		// resource options after GRANT OPTION or standalone
-		if p.startsResourceOption() || !stmt.WithGrant {
-			res, err := p.parseResourceOptions()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Resource = res
-		}
-	}
-
-	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		asUser, err := p.parseUserName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsUser = asUser
-
-		// [WITH ROLE ...]
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == kwROLE {
-				p.advance() // consume ROLE
-				switch {
-				case p.cur.Type == kwDEFAULT:
-					stmt.WithRoleType = "DEFAULT"
-					p.advance()
-				case p.cur.Type == kwNONE:
-					stmt.WithRoleType = "NONE"
-					p.advance()
-				case p.cur.Type == kwALL:
-					p.advance() // consume ALL
-					if p.cur.Type == kwEXCEPT {
-						p.advance() // consume EXCEPT
-						stmt.WithRoleType = "ALL EXCEPT"
-						// Parse role list
-						for {
-							role, _, err := p.parseRoleIdent()
-							if err != nil {
-								return nil, err
-							}
-							stmt.WithRoles = append(stmt.WithRoles, role)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
-						}
-					} else {
-						stmt.WithRoleType = "ALL"
-					}
-				default:
-					// Role list
-					for {
-						role, _, err := p.parseRoleIdent()
-						if err != nil {
-							return nil, err
-						}
-						stmt.WithRoles = append(stmt.WithRoles, role)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
-					}
+	// [WITH grant_option ...]: GRANT OPTION and the resource options, in any
+	// order, repeated or not, and at least one of them. MariaDB 11.8 parses `WITH
+	// GRANT OPTION GRANT OPTION` and `WITH MAX_QUERIES_PER_HOUR 1 GRANT OPTION`,
+	// and answers 1064 for a bare `WITH` and for `WITH GRANT`.
+	//
+	// Ref: opt_grant_options, grant_option_list and grant_option in MariaDB 11.8
+	// sql/sql_yacc.yy.
+	if _, ok := p.match(kwWITH); ok {
+		for first := true; ; first = false {
+			if _, ok := p.match(kwGRANT); ok {
+				if _, err := p.expect(kwOPTION); err != nil {
+					return nil, err
 				}
+				stmt.WithGrant = true
+				continue
 			}
+			if !p.startsResourceOption() {
+				if first {
+					return nil, p.syntaxErrorAtCur()
+				}
+				break
+			}
+			if stmt.Resource == nil {
+				stmt.Resource = &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
+			}
+			if err := p.parseResourceOption(stmt.Resource); err != nil {
+				return nil, err
+			}
+			stmt.Resource.Loc.End = p.prev.End
 		}
 	}
 
@@ -2097,55 +2053,49 @@ func (p *Parser) startsResourceOption() bool {
 }
 
 func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
-	var res *nodes.ResourceOption
-	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
-		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
-		if res == nil {
-			res = &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
-		}
-		switch p.cur.Type {
-		case kwMAX_QUERIES_PER_HOUR:
-			p.advance()
-			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			res.MaxQueriesPerHour = int(p.cur.Ival)
-			res.HasMaxQueries = true
-			p.advance()
-		case kwMAX_UPDATES_PER_HOUR:
-			p.advance()
-			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			res.MaxUpdatesPerHour = int(p.cur.Ival)
-			res.HasMaxUpdates = true
-			p.advance()
-		case kwMAX_CONNECTIONS_PER_HOUR:
-			p.advance()
-			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			res.MaxConnectionsPerHour = int(p.cur.Ival)
-			res.HasMaxConnections = true
-			p.advance()
-		case kwMAX_USER_CONNECTIONS:
-			p.advance()
-			// NUM, where the other three are ulong_num and take any number:
-			// mariadb:11.8.8 answers 1064 for MAX_USER_CONNECTIONS 2147483648.
-			if !p.cur.isNum() {
-				return nil, p.syntaxErrorAtCur()
-			}
-			res.MaxUserConnections = int(p.cur.Ival)
-			res.HasMaxUserConn = true
-			p.advance()
-		}
-	}
 	// WITH takes at least one: `CREATE USER u WITH` is a 1064.
-	if res == nil {
+	if !p.startsResourceOption() {
 		return nil, p.syntaxErrorAtCur()
+	}
+	res := &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
+	for p.startsResourceOption() {
+		if err := p.parseResourceOption(res); err != nil {
+			return nil, err
+		}
 	}
 	res.Loc.End = p.prev.End
 	return res, nil
+}
+
+// parseResourceOption reads the resource option at the current token and its
+// count into res.
+func (p *Parser) parseResourceOption(res *nodes.ResourceOption) error {
+	option := p.advance().Type
+	if option == kwMAX_USER_CONNECTIONS {
+		// NUM, where the other three are ulong_num and take any number:
+		// mariadb:11.8.8 answers 1064 for MAX_USER_CONNECTIONS 2147483648.
+		if !p.cur.isNum() {
+			return p.syntaxErrorAtCur()
+		}
+	} else if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return p.syntaxErrorAtCur()
+	}
+	n := int(p.advance().Ival)
+	switch option {
+	case kwMAX_QUERIES_PER_HOUR:
+		res.MaxQueriesPerHour = n
+		res.HasMaxQueries = true
+	case kwMAX_UPDATES_PER_HOUR:
+		res.MaxUpdatesPerHour = n
+		res.HasMaxUpdates = true
+	case kwMAX_CONNECTIONS_PER_HOUR:
+		res.MaxConnectionsPerHour = n
+		res.HasMaxConnections = true
+	case kwMAX_USER_CONNECTIONS:
+		res.MaxUserConnections = n
+		res.HasMaxUserConn = true
+	}
+	return nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute

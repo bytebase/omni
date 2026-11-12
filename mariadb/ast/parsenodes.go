@@ -1577,9 +1577,9 @@ type GrantStmt struct {
 	On           *GrantTarget
 	To           []string
 	WithGrant    bool
-	AsUser       string          // AS user (MySQL 8.0+ role context)
-	WithRoleType string          // DEFAULT, NONE, ALL, ALL EXCEPT, or "" (roles list)
-	WithRoles    []string        // role names for WITH ROLE role, role, ...
+	AsUser       string          // AS user, MySQL 8.0's; never set, MariaDB has no such clause
+	WithRoleType string          // AS user's WITH ROLE; never set
+	WithRoles    []string        // AS user's WITH ROLE names; never set
 	Require      *RequireClause  // REQUIRE tls_option
 	Resource     *ResourceOption // WITH resource_option
 }

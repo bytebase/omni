@@ -199,6 +199,35 @@ var grantFormCases = []grantFormCase{
 	{"GRANT role1 TO u1 WITH ADMIN", false},
 	{"GRANT role1 TO u1 WITH", false},
 	{"GRANT role1 TO u1 WITH GRANT OPTION", false},
+	// The privilege grant's list holds GRANT OPTION and the resource options in
+	// any order, repeated or not (grant_option_list).
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION GRANT OPTION", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR 1 GRANT OPTION", true},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1 GRANT OPTION", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR 1 MAX_QUERIES_PER_HOUR 2", true},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_USER_CONNECTIONS 1 GRANT OPTION MAX_UPDATES_PER_HOUR 1", true},
+	{"GRANT ALL ON *.* TO u1 REQUIRE SSL WITH MAX_USER_CONNECTIONS 1 GRANT OPTION", true},
+	{"GRANT SELECT ON db1.t TO u1 WITH GRANT OPTION GRANT OPTION", true},
+	// It has no separator and no second WITH, and each element is whole.
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION, GRANT OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION WITH GRANT OPTION", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH MAX_QUERIES_PER_HOUR 1 GRANT", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION MAX_QUERIES_PER_HOUR", false},
+	// GRANT PROXY and a role grant take their one clause, once.
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION GRANT OPTION", false},
+	{"GRANT PROXY ON u1 TO u2 WITH GRANT OPTION MAX_QUERIES_PER_HOUR 1", false},
+	{"GRANT role1 TO u1 WITH ADMIN OPTION GRANT OPTION", false},
+	// AS user and its WITH ROLE are MySQL 8.0's: a privilege grant ends at its
+	// WITH clause here.
+	{"GRANT ALL ON *.* TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS 'u2'@'%'", false},
+	{"GRANT SELECT ON db1.t TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE NONE", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE ALL EXCEPT role1", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE role1, role2", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2", false},
 
 	// --- GRANT and REVOKE: role or privilege ---
 	// A string literal is a role name and nothing else, with or without an

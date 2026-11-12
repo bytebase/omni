@@ -181,6 +181,16 @@ var grantFormCases = []grantFormCase{
 	{"GRANT role1 TO u1 WITH ADMIN", false},
 	{"GRANT role1 TO u1 WITH", false},
 	{"GRANT role1 TO u1 WITH GRANT OPTION", false},
+	// AS user and its WITH ROLE are MySQL 8.0's: a privilege grant ends at its
+	// WITH clause here.
+	{"GRANT ALL ON *.* TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS 'u2'@'%'", false},
+	{"GRANT SELECT ON db1.t TO u1 AS u2", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE NONE", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE ALL EXCEPT role1", false},
+	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE role1, role2", false},
+	{"GRANT ALL ON *.* TO u1 WITH GRANT OPTION AS u2", false},
 
 	// --- GRANT and REVOKE: role or privilege ---
 	// A string literal is a role name and nothing else, with or without an
@@ -328,10 +338,6 @@ var grantKnownDivergences = []grantFormCase{
 	{"GRANT SELECT TO u1", true},
 	{"GRANT usage TO u1", true},
 	{"GRANT process TO u1", true},
-	// AS user and its WITH ROLE are MySQL 8.0's: OceanBase's grant_stmt ends
-	// at grant_options.
-	{"GRANT ALL ON *.* TO u1 AS u2", true},
-	{"GRANT ALL ON *.* TO u1 AS u2 WITH ROLE DEFAULT", true},
 }
 
 // TestGrantKnownDivergences holds the list above to this parser, so a case

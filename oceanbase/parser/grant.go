@@ -14,6 +14,10 @@ import (
 //	GRANT priv_type [, priv_type] ... ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT ALL [PRIVILEGES] ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+//
+// MySQL 8.0 ends a privilege grant with AS user [WITH ROLE ...]. OceanBase has no
+// such clause: grant_stmt ends at grant_options in OceanBase 4.3.5
+// sql_parser_mysql_mode.y, and the server answers 1064 for it.
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
@@ -127,65 +131,6 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	stmt.WithGrant, err = p.parseWithOption(kwGRANT)
 	if err != nil {
 		return nil, err
-	}
-
-	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		asUser, err := p.parseUserName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsUser = asUser
-
-		// [WITH ROLE ...]
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == kwROLE {
-				p.advance() // consume ROLE
-				switch {
-				case p.cur.Type == kwDEFAULT:
-					stmt.WithRoleType = "DEFAULT"
-					p.advance()
-				case p.cur.Type == kwNONE:
-					stmt.WithRoleType = "NONE"
-					p.advance()
-				case p.cur.Type == kwALL:
-					p.advance() // consume ALL
-					if p.cur.Type == kwEXCEPT {
-						p.advance() // consume EXCEPT
-						stmt.WithRoleType = "ALL EXCEPT"
-						// Parse role list
-						for {
-							role, _, err := p.parseRoleIdent()
-							if err != nil {
-								return nil, err
-							}
-							stmt.WithRoles = append(stmt.WithRoles, role)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
-						}
-					} else {
-						stmt.WithRoleType = "ALL"
-					}
-				default:
-					// Role list
-					for {
-						role, _, err := p.parseRoleIdent()
-						if err != nil {
-							return nil, err
-						}
-						stmt.WithRoles = append(stmt.WithRoles, role)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
-					}
-				}
-			}
-		}
 	}
 
 	stmt.Loc.End = p.prev.End
