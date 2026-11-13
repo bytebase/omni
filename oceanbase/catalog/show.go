@@ -153,6 +153,11 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		b.WriteString(showPartitioning(tbl.Partitioning))
 	}
 
+	// OceanBase prints the column groups last, after the partitioning.
+	if !tbl.ColumnGroups.IsEmpty() {
+		b.WriteString(" WITH COLUMN GROUP(" + tbl.ColumnGroups.String() + ")")
+	}
+
 	return b.String()
 }
 

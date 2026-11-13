@@ -61,6 +61,7 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 			if op, ok := tableOptionAlterOp(entry.Database, entry.Name, entry.From, entry.To, n); ok {
 				ops = append(ops, op)
 			}
+			ops = append(ops, columnGroupAlterOps(entry.Database, entry.Name, entry.From, entry.To)...)
 		}
 	}
 
@@ -150,6 +151,40 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 	}, true
 }
 
+// columnGroupAlterOps changes a table's column groups from from's to to's: a DROP
+// COLUMN GROUP for the groups to lacks, then an ADD COLUMN GROUP for the groups from
+// lacks. OceanBase takes either only as an ALTER TABLE of its own (1064 beside any other
+// action), so neither joins tableOptionAlterOp's clauses.
+func columnGroupAlterOps(database, name string, from, to *Table) []MigrationOp {
+	dropped := ColumnGroups{
+		AllColumns: from.ColumnGroups.AllColumns && !to.ColumnGroups.AllColumns,
+		EachColumn: from.ColumnGroups.EachColumn && !to.ColumnGroups.EachColumn,
+	}
+	added := ColumnGroups{
+		AllColumns: to.ColumnGroups.AllColumns && !from.ColumnGroups.AllColumns,
+		EachColumn: to.ColumnGroups.EachColumn && !from.ColumnGroups.EachColumn,
+	}
+	var ops []MigrationOp
+	for _, change := range []struct {
+		verb   string
+		groups ColumnGroups
+	}{{"DROP", dropped}, {"ADD", added}} {
+		if change.groups.IsEmpty() {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:       OpAlterTable,
+			Database:   database,
+			ObjectName: name,
+			SQL:        fmt.Sprintf("ALTER TABLE %s %s COLUMN GROUP(%s)", tableIdent(to), change.verb, change.groups),
+			Phase:      PhaseMain,
+			Priority:   priorityTable,
+			sortName:   tableSortName(database, name),
+		})
+	}
+	return ops
+}
+
 // canonicalRowFormatValue returns the ROW_FORMAT value to emit when it changed. An
 // ignorable (unstated/DEFAULT/DYNAMIC) target side yields "DEFAULT", which OceanBase
 // stores as DYNAMIC, the format of a table that declares none; any other value is emitted
@@ -206,6 +241,9 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 	if createOnlyPartitioning(tbl.Partitioning) {
 		b.WriteString(" ")
 		b.WriteString(showPartitioning(partitionSpecWithResolvedEngine(tbl, n)))
+	}
+	if !tbl.ColumnGroups.IsEmpty() {
+		b.WriteString(" WITH COLUMN GROUP(" + tbl.ColumnGroups.String() + ")")
 	}
 
 	return b.String()

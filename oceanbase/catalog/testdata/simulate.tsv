@@ -313,8 +313,8 @@ ok	1054	engine	one_table@missing	partition_option/list_partition_option	CREATE T
 ok	1054	engine	one_table@missing	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 ok	1054	engine	one_table@missing	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 ok	1054	engine	one_table@missing	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
-ok	1054	engine	one_table@missing	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
-ok	1054	engine	one_table@missing	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
+1235	1054	engine	one_table@missing	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
+1060	1054	engine	one_table@missing	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
 ok	1054	engine	one_table@missing	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 ok	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 ok	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -882,8 +882,8 @@ ok	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1050	1054	engine	one_table@table	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1050	1054	engine	one_table@table	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@table	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
-1050	1054	engine	one_table@table	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
-1050	1054	engine	one_table@table	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
+1235	1054	engine	one_table@table	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
+1060	1054	engine	one_table@table	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
 1050	1054	engine	one_table@table	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -1103,8 +1103,8 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
-ok	1235	engine	one_table@table	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
-ok	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
+1235	1235	engine	one_table@table	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
+4185	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
 1064	1210	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
@@ -1451,8 +1451,8 @@ ok	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 
 1050	1054	engine	one_table@column	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1050	1054	engine	one_table@column	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@column	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
-1050	1054	engine	one_table@column	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
-1050	1054	engine	one_table@column	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
+1235	1054	engine	one_table@column	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
+1060	1054	engine	one_table@column	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
 1050	1054	engine	one_table@column	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -1672,8 +1672,8 @@ ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_constraint_uniq_key/
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
-ok	1235	engine	one_table@column	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
-ok	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
+1235	1235	engine	one_table@column	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
+4185	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 1060	1060	engine	one_table@column	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 1060	1060	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
 1064	1210	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
@@ -2020,8 +2020,8 @@ ok	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1050	1054	engine	one_table@index	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1050	1054	engine	one_table@index	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@index	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
-1050	1054	engine	one_table@index	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
-1050	1054	engine	one_table@index	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
+1235	1054	engine	one_table@index	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
+1060	1054	engine	one_table@index	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
 1050	1054	engine	one_table@index	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1050	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -2241,8 +2241,8 @@ ok:94f0cfbec4bf	ok:94f0cfbec4bf	engine	one_table@index	add_constraint_uniq_key/C
 1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
-ok	1235	engine	one_table@index	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
-ok	4185	engine	one_table@index	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
+1235	1235	engine	one_table@index	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
+4185	4185	engine	one_table@index	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 1060	1060	engine	one_table@index	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 1060	1060	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
 1064	1210	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
