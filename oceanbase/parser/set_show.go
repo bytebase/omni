@@ -2034,64 +2034,69 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	}
 
 	// Parse the explainable statement
-	switch p.cur.Type {
-	case kwSELECT, kwVALUES, kwWITH, '(':
-		// A query expression, which parseQueryStatement reads whole: a SELECT
-		// leaf, a VALUES primary, a WITH clause in front of one, a parenthesized
-		// body, or a set operation over them.
-		sel, err := p.parseQueryStatement()
+	if inner, ok, err := p.parseExplainableStmt(); ok {
 		if err != nil {
 			return nil, err
 		}
-		stmt.Stmt = sel
-	case kwINSERT:
-		ins, err := p.parseInsertStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = ins
-	case kwUPDATE:
-		upd, err := p.parseUpdateStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = upd
-	case kwDELETE:
-		del, err := p.parseDeleteStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = del
-	case kwREPLACE:
-		rep, err := p.parseReplaceStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = rep
-	default:
-		// explain_or_desc relation_factor [STRING_VALUE | column_name], which no
-		// modifier stands in front of.
-		if modified {
-			return nil, p.syntaxErrorAtCur()
-		}
-		ref, err := p.parseRelationFactor()
-		if err != nil {
-			return nil, err
-		}
-		showStmt := &nodes.ShowStmt{
-			Loc:  nodes.Loc{Start: ref.Loc.Start, End: p.prev.End},
-			Type: "COLUMNS",
-			From: ref,
-		}
-		if err := p.parseExplainColumn(showStmt); err != nil {
-			return nil, err
-		}
-		showStmt.Loc.End = p.prev.End
-		stmt.Stmt = showStmt
+		stmt.Stmt = inner
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
+	// explain_or_desc relation_factor [STRING_VALUE | column_name], which no
+	// modifier stands in front of.
+	if modified {
+		return nil, p.syntaxErrorAtCur()
+	}
+	ref, err := p.parseRelationFactor()
+	if err != nil {
+		return nil, err
+	}
+	showStmt := &nodes.ShowStmt{
+		Loc:  nodes.Loc{Start: ref.Loc.Start, End: p.prev.End},
+		Type: "COLUMNS",
+		From: ref,
+	}
+	if err := p.parseExplainColumn(showStmt); err != nil {
+		return nil, err
+	}
+	showStmt.Loc.End = p.prev.End
+	stmt.Stmt = showStmt
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseExplainableStmt parses explainable_stmt where one opens at the current
+// token, and reports whether one did:
+//
+//	explainable_stmt: select_stmt | delete_stmt | insert_stmt | update_stmt
+//
+// A query expression is read whole by parseQueryStatement: a SELECT leaf, a
+// VALUES primary, a WITH clause in front of one, a parenthesized body, or a set
+// operation over them. insert_stmt holds REPLACE.
+func (p *Parser) parseExplainableStmt() (nodes.StmtNode, bool, error) {
+	var (
+		stmt nodes.StmtNode
+		err  error
+	)
+	switch p.cur.Type {
+	case kwSELECT, kwVALUES, kwWITH, '(':
+		stmt, err = p.parseQueryStatement()
+	case kwINSERT:
+		stmt, err = p.parseInsertStmt()
+	case kwUPDATE:
+		stmt, err = p.parseUpdateStmt()
+	case kwDELETE:
+		stmt, err = p.parseDeleteStmt()
+	case kwREPLACE:
+		stmt, err = p.parseReplaceStmt()
+	default:
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, true, err
+	}
+	return stmt, true, nil
 }
 
 // parseExplainStatementID reads SET STATEMENT_ID = literal at SET.

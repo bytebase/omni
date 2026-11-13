@@ -253,10 +253,17 @@ func (p *Parser) clusterObjectAhead() bool {
 // parseClusterDDL parses a cluster statement after verb, the word it opened
 // with, when one stands there.
 func (p *Parser) parseClusterDDL(start int, verb string) (nodes.Node, bool, error) {
-	if !p.clusterObjectAhead() {
+	forms := clusterForms[verb]
+	switch {
+	case p.ruleObjectAhead():
+		forms = ruleForms[verb]
+	case !p.clusterObjectAhead():
 		return nil, false, nil
 	}
-	object, err := p.matchSystemForms(clusterForms[verb])
+	if forms == nil {
+		return nil, true, p.syntaxErrorAtCur()
+	}
+	object, err := p.matchSystemForms(forms)
 	if err != nil {
 		return nil, true, err
 	}
