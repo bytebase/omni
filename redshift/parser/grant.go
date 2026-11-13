@@ -924,7 +924,7 @@ func (p *Parser) parsePrivilege() (*nodes.AccessPriv, error) {
 	default:
 		name, err := p.parseColId()
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		privName = name
 	}
