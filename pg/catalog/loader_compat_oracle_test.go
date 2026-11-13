@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 type loaderCompatOracle struct {
@@ -16,30 +15,11 @@ type loaderCompatOracle struct {
 	ctx context.Context
 }
 
-var (
-	loaderCompatOracleOnce     sync.Once
-	loaderCompatOracleInst     *loaderCompatOracle
-	loaderCompatOracleSetupErr error
-)
-
+// startLoaderCompatOracle returns t's connection to PostgreSQL 17: a replay
+// of its tape, or the pinned server in a recording.
 func startLoaderCompatOracle(t *testing.T) *loaderCompatOracle {
 	t.Helper()
-	loaderCompatOracleOnce.Do(func() {
-		ctx := context.Background()
-		db, err := pg17Database(ctx, "omni_loader_compat")
-		if err != nil {
-			loaderCompatOracleSetupErr = err
-			return
-		}
-		loaderCompatOracleInst = &loaderCompatOracle{db: db, ctx: ctx}
-	})
-
-	if loaderCompatOracleSetupErr != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the oracle gate into a green no-op.
-		t.Fatalf("loader compatibility oracle required in CI: %v", loaderCompatOracleSetupErr)
-	}
-	return loaderCompatOracleInst
+	return &loaderCompatOracle{db: testcontainer.Open(t), ctx: context.Background()}
 }
 
 func (o *loaderCompatOracle) execIsolated(t *testing.T, ddl string) {

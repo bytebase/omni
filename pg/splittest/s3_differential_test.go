@@ -6,27 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/pg"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 // S3 server-side differential (v1.2 S line, framework G4 proposition).
-//
-// Local runs need the build tag or the tests are silently absent:
-//
-//	S3DIFF_N=300 go test ./pg/splittest/ -run TestS3
 //
 // The server is the ultimate splitting authority: a multi-statement
 // script sent as ONE simple-query message is split by PostgreSQL
@@ -38,61 +27,13 @@ import (
 // modulo the implicit transaction of the simple-query batch, so the
 // segment side runs inside an explicit transaction; contract v1.2 #5).
 
-var (
-	s3Once    sync.Once
-	s3DB      *sql.DB
-	s3InitErr error
-)
-
+// s3Conn returns t's connection to PostgreSQL: a replay of its tape, or the
+// pinned server in a recording (pg/internal/testcontainer). The connection
+// uses the simple query protocol, which the whole-script side depends on:
+// PostgreSQL splits a multi-command string itself only there.
 func s3Conn(t *testing.T) *sql.DB {
 	t.Helper()
-	s3Once.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-		container, err := tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("s3diff"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
-		if err != nil {
-			s3InitErr = fmt.Errorf("start PG container: %w", err)
-			return
-		}
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			s3InitErr = fmt.Errorf("connection string: %w", err)
-			return
-		}
-		// Force the simple query protocol explicitly. The whole-script
-		// oracle depends on PostgreSQL splitting a multi-command string
-		// itself; pgx's default (extended, cache_statement) prepares
-		// single statements and would not exercise the server splitter.
-		// Do not rely on pgx's arg-less heuristic — pin it.
-		if strings.Contains(connStr, "?") {
-			connStr += "&default_query_exec_mode=simple_protocol"
-		} else {
-			connStr += "?default_query_exec_mode=simple_protocol"
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			s3InitErr = fmt.Errorf("open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			s3InitErr = fmt.Errorf("ping: %w", err)
-			return
-		}
-		s3DB = db
-	})
-	if s3InitErr != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the differential into a green no-op.
-		t.Fatalf("PG container required in CI: %v", s3InitErr)
-	}
-	return s3DB
+	return testcontainer.Open(t)
 }
 
 // wholeScriptError sends the script as one simple-query batch and
@@ -185,14 +126,14 @@ func segmentContaining(segs []pg.Segment, pos int) int {
 	return -1
 }
 
-func s3Scale() int {
-	if v := os.Getenv("S3DIFF_N"); v != "" {
-		if p, err := strconv.Atoi(v); err == nil {
-			return p
-		}
-	}
-	return 200
-}
+// The sweep's size and seed. Its tape holds one stream of requests for
+// exactly these, so a change to either is a recording:
+//
+//	OMNI_RECORD=1 go test ./pg/splittest/ -run '^TestS3Differential$'
+const (
+	s3DiffN    = 2000
+	s3DiffSeed = 20260716
+)
 
 // TestS3Differential is the G4 gate: generated scripts dual-run against
 // the server, modeling both the server's phase separation and the real
@@ -217,8 +158,8 @@ func s3Scale() int {
 func TestS3Differential(t *testing.T) {
 	db := s3Conn(t)
 	ctx := context.Background()
-	n := s3Scale()
-	r := rand.New(rand.NewSource(20260716))
+	n := s3DiffN
+	r := rand.New(rand.NewSource(s3DiffSeed))
 	atoms := EnabledAtoms("D2", "D3", "D5")
 	t.Logf("S3 differential: n=%d", n)
 

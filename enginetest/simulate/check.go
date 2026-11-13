@@ -75,7 +75,8 @@ func FromCompat(path string, fixtures []string, pick func(statement string) bool
 
 // Omni is what omni's catalog does with one statement on one fixture.
 type Omni struct {
-	// Code is the error code omni refuses the statement with, in decimal, or
+	// Code is the error code omni refuses the statement with, as Answer
+	// writes the engine's, or
 	// NoCode for a refusal that carries none. Empty when omni takes it.
 	Code string
 	// Same reports that omni took the statement and stores the schema the

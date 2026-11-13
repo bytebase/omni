@@ -479,7 +479,7 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 func resetOracle(t *testing.T, conn *sql.Conn) {
 	t.Helper()
 	ctx := context.Background()
-	rows, err := conn.QueryContext(ctx, `SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'`)
+	rows, err := conn.QueryContext(ctx, `SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema' ORDER BY 1`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,6 +531,20 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			}
 		}
 	}
+	// The queries asked of every table are prepared, so a tape holds their
+	// text once a sync.
+	columns := `ARRAY(SELECT a.attname FROM unnest(%[1]s) WITH ORDINALITY k(n, i) JOIN pg_attribute a ON a.attrelid = %[2]s AND a.attnum = k.n ORDER BY k.i)::text[]`
+	indexesQuery, done := prepared(t, conn, "sync_indexes", []string{"text"}, `SELECT i.relname, x.indisunique, pg_get_indexdef(x.indexrelid) FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid
+			WHERE x.indrelid = substr($1, 5)::oid AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid) ORDER BY 1`)
+	defer done()
+	columnsQuery, done := prepared(t, conn, "sync_columns", []string{"text"}, `SELECT a.attname, format_type(a.atttypid, a.atttypmod), NOT a.attnotnull FROM pg_attribute a
+			WHERE a.attrelid = substr($1, 5)::oid AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum`)
+	defer done()
+	constraintsQuery, done := prepared(t, conn, "sync_constraints", []string{"text"}, `SELECT c.conname, c.contype::text, `+fmt.Sprintf(columns, "c.conkey", "c.conrelid")+`,
+				coalesce(fn.nspname, ''), coalesce(f.relname, ''), coalesce(`+fmt.Sprintf(columns, "c.confkey", "c.confrelid")+`, '{}'), coalesce(pg_get_expr(c.conbin, c.conrelid), '')
+			FROM pg_constraint c LEFT JOIN pg_class f ON f.oid = c.confrelid LEFT JOIN pg_namespace fn ON fn.oid = f.relnamespace
+			WHERE c.conrelid = substr($1, 5)::oid ORDER BY c.conname`)
+	defer done()
 	schemas := make(map[string]*metadata.SchemaMetadata)
 	query(`SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema' ORDER BY nspname`, nil, func(rows *sql.Rows) error {
 		s := &metadata.SchemaMetadata{}
@@ -551,13 +565,14 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		schemas[schema].EnumTypes = append(schemas[schema].EnumTypes, e)
 		return nil
 	})
+	// An OID crosses the tape as text with a stand-in (testcontainer.Codec).
 	type rel struct {
-		oid    int64
+		oid    string
 		schema string
 		table  *metadata.TableMetadata
 	}
 	var rels []rel
-	query(`SELECT c.oid, n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	query(`SELECT 'oid:' || c.oid, n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind IN ('r', 'p') AND NOT c.relispartition AND n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema' ORDER BY 2, 3`, nil, func(rows *sql.Rows) error {
 		r := rel{table: &metadata.TableMetadata{}}
 		if err := rows.Scan(&r.oid, &r.schema, &r.table.Name); err != nil {
@@ -588,7 +603,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 				v.Columns = append(v.Columns, c)
 				return nil
 			})
-			query(`SELECT table_schema, table_name, column_name FROM information_schema.view_column_usage WHERE view_schema = $1 AND view_name = $2`, []any{s.Name, v.Name}, func(rows *sql.Rows) error {
+			query(`SELECT table_schema, table_name, column_name FROM information_schema.view_column_usage WHERE view_schema = $1 AND view_name = $2 ORDER BY 1, 2, 3`, []any{s.Name, v.Name}, func(rows *sql.Rows) error {
 				d := &metadata.DependencyColumn{}
 				if err := rows.Scan(&d.Schema, &d.Table, &d.Column); err != nil {
 					return err
@@ -599,8 +614,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 	}
 	for _, r := range rels {
-		query(`SELECT i.relname, x.indisunique, pg_get_indexdef(x.indexrelid) FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid
-			WHERE x.indrelid = $1 AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid) ORDER BY 1`, []any{r.oid}, func(rows *sql.Rows) error {
+		query(indexesQuery, []any{r.oid}, func(rows *sql.Rows) error {
 			i := &metadata.IndexMetadata{Type: "btree"}
 			if err := rows.Scan(&i.Name, &i.Unique, &i.Definition); err != nil {
 				return err
@@ -608,8 +622,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			r.table.Indexes = append(r.table.Indexes, i)
 			return nil
 		})
-		query(`SELECT a.attname, format_type(a.atttypid, a.atttypmod), NOT a.attnotnull FROM pg_attribute a
-			WHERE a.attrelid = $1 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum`, []any{r.oid}, func(rows *sql.Rows) error {
+		query(columnsQuery, []any{r.oid}, func(rows *sql.Rows) error {
 			c := &metadata.ColumnMetadata{}
 			if err := rows.Scan(&c.Name, &c.Type, &c.Nullable); err != nil {
 				return err
@@ -617,11 +630,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			r.table.Columns = append(r.table.Columns, c)
 			return nil
 		})
-		columns := `ARRAY(SELECT a.attname FROM unnest(%[1]s) WITH ORDINALITY k(n, i) JOIN pg_attribute a ON a.attrelid = %[2]s AND a.attnum = k.n ORDER BY k.i)::text[]`
-		query(`SELECT c.conname, c.contype::text, `+fmt.Sprintf(columns, "c.conkey", "c.conrelid")+`,
-				coalesce(fn.nspname, ''), coalesce(f.relname, ''), coalesce(`+fmt.Sprintf(columns, "c.confkey", "c.confrelid")+`, '{}'), coalesce(pg_get_expr(c.conbin, c.conrelid), '')
-			FROM pg_constraint c LEFT JOIN pg_class f ON f.oid = c.confrelid LEFT JOIN pg_namespace fn ON fn.oid = f.relnamespace
-			WHERE c.conrelid = $1 ORDER BY c.conname`, []any{r.oid}, func(rows *sql.Rows) error {
+		query(constraintsQuery, []any{r.oid}, func(rows *sql.Rows) error {
 			var name, kind, refSchema, refTable, check string
 			var cols, refCols []string
 			if err := rows.Scan(&name, &kind, (*textArray)(&cols), &refSchema, &refTable, (*textArray)(&refCols), &check); err != nil {
@@ -676,7 +685,7 @@ type oracleTable struct {
 type oracleConstraint struct {
 	name  string
 	kind  string
-	table int64
+	table string
 }
 
 // walkTruth runs the change and returns the findings the server's state
@@ -685,68 +694,78 @@ type oracleConstraint struct {
 func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 	t.Helper()
 	ctx := context.Background()
-	tables := func() map[int64]oracleTable {
-		out := make(map[int64]oracleTable)
-		rows, err := conn.QueryContext(ctx, `SELECT c.oid, n.nspname, c.relname, c.relkind::text, c.relispartition, coalesce(k.conname, ''),
-				coalesce(ARRAY(SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum = ANY(k.conkey))::text[], '{}')
+	// Tables and constraints are known by their OIDs, which cross the tape
+	// as text with a stand-in (testcontainer.Codec): a rename keeps one.
+	// Each list is one value, a line an object, read with a prepared
+	// statement: the change reads both before and after every statement.
+	tablesQuery, done := prepared(t, conn, "truth_tables", nil, `SELECT coalesce(string_agg(concat_ws(E'\t', 'oid:' || c.oid, n.nspname, c.relname, c.relkind::text, c.relispartition::text, coalesce(k.conname, ''),
+				array_to_string(ARRAY(SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum = ANY(k.conkey) ORDER BY array_position(k.conkey, a.attnum)), ',')), E'\n' ORDER BY c.oid), '')
 			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_constraint k ON k.conrelid = c.oid AND k.contype = 'p'
 			WHERE c.relkind IN ('r', 'p') AND n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var oid int64
-			var tb oracleTable
-			if err := rows.Scan(&oid, &tb.schema, &tb.name, &tb.kind, &tb.partition, &tb.keyName, (*textArray)(&tb.keyCols)); err != nil {
-				t.Fatal(err)
-			}
-			out[oid] = tb
-		}
-		return out
-	}
-	constraints := func() map[int64]oracleConstraint {
-		out := make(map[int64]oracleConstraint)
-		rows, err := conn.QueryContext(ctx, `SELECT c.oid, c.conname, c.contype::text, c.conrelid FROM pg_constraint c
+	defer done()
+	constraintsQuery, done := prepared(t, conn, "truth_constraints", nil, `SELECT coalesce(string_agg(concat_ws(E'\t', 'oid:' || c.oid, c.conname, c.contype::text, 'oid:' || c.conrelid), E'\n' ORDER BY c.oid), '') FROM pg_constraint c
 			JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace
 			WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'`)
-		if err != nil {
+	defer done()
+	lines := func(q string, fields int) [][]string {
+		var text string
+		if err := conn.QueryRowContext(ctx, q).Scan(&text); err != nil {
 			t.Fatal(err)
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var oid int64
-			var c oracleConstraint
-			if err := rows.Scan(&oid, &c.name, &c.kind, &c.table); err != nil {
-				t.Fatal(err)
+		var out [][]string
+		for line := range strings.SplitSeq(text, "\n") {
+			if line == "" {
+				continue
 			}
-			out[oid] = c
+			f := strings.Split(line, "\t")
+			if len(f) != fields {
+				t.Fatalf("%s: a line of %d fields, want %d: %q", q, len(f), fields, line)
+			}
+			out = append(out, f)
 		}
 		return out
 	}
-	resolve := func(rv *ast.RangeVar) int64 {
+	tables := func() map[string]oracleTable {
+		out := make(map[string]oracleTable)
+		for _, f := range lines(tablesQuery, 7) {
+			tb := oracleTable{schema: f[1], name: f[2], kind: f[3], partition: f[4] == "true", keyName: f[5]}
+			if f[6] != "" {
+				tb.keyCols = strings.Split(f[6], ",")
+			}
+			out[f[0]] = tb
+		}
+		return out
+	}
+	constraints := func() map[string]oracleConstraint {
+		out := make(map[string]oracleConstraint)
+		for _, f := range lines(constraintsQuery, 4) {
+			out[f[0]] = oracleConstraint{name: f[1], kind: f[2], table: f[3]}
+		}
+		return out
+	}
+	resolve := func(rv *ast.RangeVar) string {
 		name := `"` + strings.ReplaceAll(rv.Relname, `"`, `""`) + `"`
 		if rv.Schemaname != "" {
 			name = `"` + strings.ReplaceAll(rv.Schemaname, `"`, `""`) + `".` + name
 		}
-		var oid sql.NullInt64
-		if err := conn.QueryRowContext(ctx, "SELECT to_regclass($1)::oid::int8", name).Scan(&oid); err != nil {
+		var oid sql.NullString
+		if err := conn.QueryRowContext(ctx, "SELECT 'oid:' || to_regclass($1)::oid", name).Scan(&oid); err != nil {
 			t.Fatal(err)
 		}
-		return oid.Int64
+		return oid.String
 	}
 	keyed := func(tb oracleTable) bool {
 		return (tb.kind == "r" || tb.kind == "p") && !tb.partition && tb.keyName != ""
 	}
 
 	initial := constraints()
-	keyedAtStart := make(map[int64]bool)
+	keyedAtStart := make(map[string]bool)
 	for oid, tb := range tables() {
 		keyedAtStart[oid] = keyed(tb)
 	}
 	var want []string
-	created := make(map[int64]string)
-	unkeyed := make(map[int64]string)
+	created := make(map[string]string)
+	unkeyed := make(map[string]string)
 	index := 0
 	for _, seg := range pg.Split(change) {
 		if seg.Empty() {
@@ -760,7 +779,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 		}
 		node := list.Items[0].(*ast.RawStmt).Stmt
 		alter, _ := node.(*ast.AlterTableStmt)
-		var altered int64
+		var altered string
 		if alter != nil && ast.ObjectType(alter.ObjType) == ast.OBJECT_TABLE {
 			altered = resolve(alter.Relation)
 		}
@@ -772,7 +791,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 		tablesAfter, consAfter := tables(), constraints()
 		at := func(rng review.Range) string { return change[rng.Start:rng.End] }
 
-		if altered != 0 {
+		if altered != "" {
 			tb := tablesBefore[altered]
 			for _, item := range alter.Cmds.Items {
 				cmd := item.(*ast.AlterTableCmd)
@@ -817,7 +836,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 		}
 	}
 	end := tables()
-	for _, found := range []map[int64]string{created, unkeyed} {
+	for _, found := range []map[string]string{created, unkeyed} {
 		for oid, finding := range found {
 			if tb, ok := end[oid]; ok && (tb.kind == "r" || tb.kind == "p") && !tb.partition && tb.keyName == "" {
 				want = append(want, finding)

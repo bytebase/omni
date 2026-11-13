@@ -22,7 +22,6 @@ jobs:
       # Sweep sizes the old nightly used; they add ~20 s here, so every PR gets them.
       PAREN_FUZZ_SIZE: '10000'
       SPLITTEST_N: '1000000'
-      S3DIFF_N: '2000'
       WALK_SWEEP_N: '500'
     steps:
       - uses: actions/checkout@v4

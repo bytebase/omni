@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,9 +52,11 @@ var server = &tape.Server{Pins: Pins, Live: live, Codec: Codec{}}
 
 // Open returns t's connection to PostgreSQL: a replay of its tape, or the
 // pinned server in a recording. Each call is a connection of its own, at
-// session defaults, to the database of t's top-level test: a recording
-// creates that database empty before the test's first connection, so a
-// tape never holds what another test left.
+// session defaults, to the database of t's top-level test (Database). In a
+// recording each top-level test starts on a server that holds nothing
+// another test made: before its first connection the server's other
+// databases and every role the image did not start with are dropped, and
+// its database is created empty.
 func Open(t testing.TB) *sql.DB {
 	t.Helper()
 	return tape.Open(t, server, Default)
@@ -63,6 +66,18 @@ func Open(t testing.TB) *sql.DB {
 func OpenRole(t testing.TB, role string) *sql.DB {
 	t.Helper()
 	return tape.Open(t, server, role)
+}
+
+// OpenDatabase is OpenRole on a database of the given name, for a test whose
+// SQL names its database. A recording creates it empty on the test's first
+// connection to it.
+func OpenDatabase(t testing.TB, role, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		return liveDatabase(t, pin, name)
+	}}
+	return tape.Open(t, s, role)
 }
 
 // Reset runs fn on the default server before a test opens its connection,
@@ -120,8 +135,11 @@ type instance struct {
 	base      *pgx.ConnConfig
 	err       error
 
+	roles []string // the roles the image starts with
+
 	mu      sync.Mutex
-	created map[string]bool // the test databases this run made
+	emptied map[string]bool // the top-level tests the server was emptied for
+	created map[string]bool // each top-level test's databases, made for it
 }
 
 var shared = struct {
@@ -135,7 +153,7 @@ func started(t testing.TB, pin enginetest.Pin) *instance {
 	shared.Lock()
 	in := shared.byRole[pin.Role]
 	if in == nil {
-		in = &instance{pin: pin, created: map[string]bool{}}
+		in = &instance{pin: pin, emptied: map[string]bool{}, created: map[string]bool{}}
 		shared.byRole[pin.Role] = in
 	}
 	shared.Unlock()
@@ -149,29 +167,81 @@ func started(t testing.TB, pin enginetest.Pin) *instance {
 	return in
 }
 
-// live connects to the database of t's top-level test on the pinned
-// server, creating it empty on the test's first connection.
+// live connects to the database of t's top-level test on the pinned server.
 func live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
+	return liveDatabase(t, pin, Database(t))
+}
+
+// liveDatabase connects to the named database on the pinned server. On t's
+// top-level test's first connection to the server it drops what other tests
+// made, and on its first connection to the database it creates it empty.
+func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connector {
+	t.Helper()
 	in := started(t, pin)
-	name := Database(t)
+	top := enginetest.TopName(t.Name())
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if !in.created[name] {
+	if !in.emptied[top] || !in.created[top+"\x00"+name] {
 		db := sql.OpenDB(stdlib.GetConnector(*in.config("postgres")))
 		defer db.Close()
-		for _, stmt := range []string{
-			"DROP DATABASE IF EXISTS " + name + " WITH (FORCE)",
-			"CREATE DATABASE " + name,
-		} {
+		var stmts []string
+		if !in.emptied[top] {
+			stmts = in.emptying(t, db)
+			in.emptied[top] = true
+		}
+		stmts = append(stmts, "DROP DATABASE IF EXISTS "+quote(name)+" WITH (FORCE)", "CREATE DATABASE "+quote(name))
+		for _, stmt := range stmts {
 			if _, err := db.ExecContext(context.Background(), stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
 		}
-		in.created[name] = true
+		in.created[top+"\x00"+name] = true
 	}
 	return connector{stdlib.GetConnector(*in.config(name))}
 }
+
+// emptying returns the statements that drop every database but the image's
+// own and every role the image did not start with: what a test before this
+// one made, which a role, a server-wide object, would let this test see.
+func (in *instance) emptying(t testing.TB, db *sql.DB) []string {
+	t.Helper()
+	var stmts []string
+	for _, d := range names(t, db, "SELECT datname FROM pg_database WHERE datname NOT IN ('postgres', 'template0', 'template1') ORDER BY 1") {
+		stmts = append(stmts, "DROP DATABASE "+quote(d)+" WITH (FORCE)")
+	}
+	for _, r := range names(t, db, "SELECT rolname FROM pg_roles ORDER BY 1") {
+		if !slices.Contains(in.roles, r) {
+			stmts = append(stmts, "DROP ROLE "+quote(r))
+		}
+	}
+	return stmts
+}
+
+// names reads a query's one column of names.
+func names(t testing.TB, db *sql.DB, q string) []string {
+	t.Helper()
+	rows, err := db.QueryContext(context.Background(), q)
+	if err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+		out = append(out, n)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	return out
+}
+
+// quote writes a name as a quoted identifier.
+func quote(name string) string { return `"` + strings.ReplaceAll(name, `"`, `""`) + `"` }
 
 // Database is the name of the database Open connects t to: one per
 // top-level test, named for it, so that a test reads the same
@@ -246,7 +316,19 @@ func (in *instance) start(ctx context.Context) (err error) {
 	if want := Version(in.pin.Tag); version != want {
 		return fmt.Errorf("the server reports %q, but pins.tsv pins PostgreSQL %s (%s)", version, want, in.pin.Tag)
 	}
-	return nil
+	rows, err := db.QueryContext(ctx, "SELECT rolname FROM pg_roles ORDER BY 1")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r string
+		if err := rows.Scan(&r); err != nil {
+			return err
+		}
+		in.roles = append(in.roles, r)
+	}
+	return rows.Err()
 }
 
 // Version is the server_version of a source tag: 17.12 for REL_17_12.
@@ -352,6 +434,24 @@ func (r rows) NextResultSet() error {
 	return errors.New("no next result set")
 }
 
+// An object's OID is the server's next free one when it was made, so it
+// differs with everything the server made before: a test recorded alone gets
+// other OIDs than the same test in a run of its package. A test that needs
+// one reads it as text, 'oid:' || c.oid, and Codec, a tape.Renamer, gives
+// each OID a test reads a stand-in, oid:0 and a number, which the server
+// never writes. A request that sends the stand-in back, as
+// substr($1, 5)::oid, reaches the server with the OID it stands for.
+var madeUpOID = regexp.MustCompile(`\boid:[0-9]+\b`)
+
+// catalogOID matches an OID in the detail of an error on a system catalog.
+var catalogOID = regexp.MustCompile(`\b[0-9]{5,}\b`)
+
+// MadeUp matches an OID read as text.
+func (Codec) MadeUp() *regexp.Regexp { return madeUpOID }
+
+// StandIn is the nth OID's stand-in: no OID's text starts with a 0.
+func (Codec) StandIn(_ string, n int) string { return fmt.Sprintf("oid:0%d", n) }
+
 // Codec renders pgx's *pgconn.PgError as its SQLSTATE and message on one
 // line, then a line for each other field the server sent:
 //
@@ -394,6 +494,14 @@ func (Codec) EncodeError(err error) (string, bool) {
 	var pe *pgconn.PgError
 	if !errors.As(err, &pe) {
 		return "", false
+	}
+	if pe.SchemaName == "pg_catalog" {
+		// A violation of a system catalog's key quotes the OIDs in it
+		// (Key (enumtypid, enumlabel)=(52831, a)), which differ from run to
+		// run; see madeUpOID. User objects' OIDs have five digits or more.
+		c := *pe
+		c.Detail = catalogOID.ReplaceAllString(c.Detail, "…")
+		pe = &c
 	}
 	var b strings.Builder
 	b.WriteString(pe.Code + " " + escaper.Replace(pe.Message))
