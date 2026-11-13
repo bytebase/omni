@@ -12912,15 +12912,15 @@ accept	accept	docs	alterFailoverGroup(IMMEDIATE)?/%empty	ALTER FAILOVER GROUP a 
 accept	accept	docs	alterFailoverGroup(IMMEDIATE)?/IMMEDIATE	ALTER FAILOVER GROUP a SUSPEND IMMEDIATE
 reject	undocumented	docs	alterFailoverGroup(IMMEDIATE)?/IMMEDIATE!insert	ALTER FAILOVER GROUP a SUSPEND IMMEDIATE zzz
 reject	undocumented	docs	alterFailoverGroup(IMMEDIATE)?/IMMEDIATE!swap	ALTER FAILOVER GROUP a SUSPEND IMMEDIATELY
-reject	accept	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29	ALTER FEATURE POLICY a SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-1	FEATURE POLICY a SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-2	ALTER POLICY a SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-3	ALTER FEATURE a SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-4	ALTER FEATURE POLICY SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-6	ALTER FEATURE POLICY a SET 's'
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!drop-7	ALTER FEATURE POLICY a SET AS
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!insert	ALTER FEATURE POLICY a SET AS 's' zzz
-reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~3e46ea29!swap	ALWAYS FEATURE POLICY a SET AS 's'
+reject	accept	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e	ALTER FEATURE POLICY a SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-1	FEATURE POLICY a SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-2	ALTER POLICY a SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-3	ALTER FEATURE a SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-4	ALTER FEATURE POLICY SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-6	ALTER FEATURE POLICY a SET 's'
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!drop-7	ALTER FEATURE POLICY a SET AS
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!insert	ALTER FEATURE POLICY a SET AS 's' zzz
+reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_SET_(BLOCKED_OBJEC~7dd4f18e!swap	ALWAYS FEATURE POLICY a SET AS 's'
 reject	accept	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_AS_STRING	ALTER FEATURE POLICY a AS 's'
 reject	accept	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_UNSET_(BLOCKED_OBJ~abf5f8bf	ALTER FEATURE POLICY a UNSET BLOCKED_OBJECT_TYPES_FOR_CREATION
 reject	undocumented	docs	alterFeaturePolicy/ALTER_FEATURE_POLICY_(IF_EXISTS)?_ID_UNSET_(BLOCKED_OBJ~abf5f8bf!drop-1	FEATURE POLICY a UNSET BLOCKED_OBJECT_TYPES_FOR_CREATION
@@ -12968,33 +12968,33 @@ reject	undocumented	docs	alterFeaturePolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER F
 reject	undocumented	docs	alterFeaturePolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER FEATURE POLICY IF
 reject	undocumented	docs	alterFeaturePolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER FEATURE POLICY IF EXISTS zzz a AS 's'
 reject	undocumented	docs	alterFeaturePolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER FEATURE POLICY IGNORE EXISTS a AS 's'
-reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =()
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!drop-1	ALTER FEATURE POLICY a SET =()
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!drop-2	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION()
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!drop-3	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =)
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!drop-4	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =() zzz
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(DATA_TYPE_(,_DAT~aaacd931!swap	ALTER FEATURE POLICY a SET BLOCKED_ROLES_LIST =()
-reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?	ALTER FEATURE POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?!drop-1	ALTER FEATURE POLICY a SET = 's'
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?!drop-2	ALTER FEATURE POLICY a SET COMMENT 's'
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?!drop-3	ALTER FEATURE POLICY a SET COMMENT =
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?!insert	ALTER FEATURE POLICY a SET COMMENT = 's' zzz
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/COMMENT_=_STRING_(AS_STRING)?!swap	ALTER FEATURE POLICY a SET COMMENTS = 's'
-reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/AS_STRING	ALTER FEATURE POLICY a SET AS 's'
-reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~c2aff916)/AS_STRING!swap	ALTER FEATURE POLICY a SET ASC 's'
-reject	accept	docs	alterFeaturePolicy(DATA_TYPE_(,_DATA_TYPE)*)?/%empty	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =()
-reject	undocumented	docs	alterFeaturePolicy(DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(zzz)
-reject	accept	docs	alterFeaturePolicy(DATA_TYPE_(,_DATA_TYPE)*)?/DATA_TYPE_(,_DATA_TYPE)*	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT)
-reject	undocumented	docs	alterFeaturePolicy(DATA_TYPE_(,_DATA_TYPE)*)?/DATA_TYPE_(,_DATA_TYPE)*!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT zzz)
-reject	undocumented	docs	alterFeaturePolicy(DATA_TYPE_(,_DATA_TYPE)*)?/DATA_TYPE_(,_DATA_TYPE)*!swap	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INTEGER)
-reject	accept	docs	alterFeaturePolicy(,_DATA_TYPE)*/%empty	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT)
-reject	accept	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INT)
-reject	undocumented	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT INT)
-reject	undocumented	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT,)
-reject	undocumented	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT,
-reject	undocumented	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INT zzz)
-reject	undocumented	docs	alterFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INTEGER)
+reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =()
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!drop-1	ALTER FEATURE POLICY a SET =()
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!drop-2	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION()
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!drop-3	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =)
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!drop-4	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =() zzz
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_(OBJECT_TYPES_(,_~ba5711d6!swap	ALTER FEATURE POLICY a SET BLOCKED_ROLES_LIST =()
+reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?	ALTER FEATURE POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?!drop-1	ALTER FEATURE POLICY a SET = 's'
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?!drop-2	ALTER FEATURE POLICY a SET COMMENT 's'
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?!drop-3	ALTER FEATURE POLICY a SET COMMENT =
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?!insert	ALTER FEATURE POLICY a SET COMMENT = 's' zzz
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/COMMENT_=_STRING_(AS_STRING)?!swap	ALTER FEATURE POLICY a SET COMMENTS = 's'
+reject	accept	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/AS_STRING	ALTER FEATURE POLICY a SET AS 's'
+reject	undocumented	docs	alterFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~fdf5c84c)/AS_STRING!swap	ALTER FEATURE POLICY a SET ASC 's'
+reject	accept	docs	alterFeaturePolicy(OBJECT_TYPES_(,_OBJECT_TYPES)*)?/%empty	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =()
+reject	undocumented	docs	alterFeaturePolicy(OBJECT_TYPES_(,_OBJECT_TYPES)*)?/%empty!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(zzz)
+reject	accept	docs	alterFeaturePolicy(OBJECT_TYPES_(,_OBJECT_TYPES)*)?/OBJECT_TYPES_(,_OBJECT_TYPES)*	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES)
+reject	undocumented	docs	alterFeaturePolicy(OBJECT_TYPES_(,_OBJECT_TYPES)*)?/OBJECT_TYPES_(,_OBJECT_TYPES)*!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES zzz)
+reject	undocumented	docs	alterFeaturePolicy(OBJECT_TYPES_(,_OBJECT_TYPES)*)?/OBJECT_TYPES_(,_OBJECT_TYPES)*!swap	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLE_FORMAT)
+reject	accept	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/%empty	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES)
+reject	accept	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLES)
+reject	undocumented	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!drop-1	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES TABLES)
+reject	undocumented	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!drop-2	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES,)
+reject	undocumented	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!truncate	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES,
+reject	undocumented	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!insert	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLES zzz)
+reject	undocumented	docs	alterFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!swap	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLE_FORMAT)
 reject	accept	docs	alterFeaturePolicy(COMMENT_=_STRING)?/%empty	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =()
 reject	accept	docs	alterFeaturePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =() COMMENT = 's'
 reject	undocumented	docs	alterFeaturePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER FEATURE POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =() = 's'
@@ -27489,7 +27489,7 @@ reject	undocumented	docs	copyFiles(TRUE|FALSE)/TRUE!swap	COPY FILES INTO @a FROM
 reject	accept	docs	copyFiles(TRUE|FALSE)/FALSE	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!insert	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FALSE zzz
 reject	undocumented	docs	copyFiles(TRUE|FALSE)/FALSE!swap	COPY FILES INTO @a FROM @a DETAILED_OUTPUT = FAMILIES
-accept	accept	docs	copyIntoLocation/COPY_INTO_(copyIntoLocation_internalStage|copyI~187452c~8b5ede6a	COPY INTO @a FROM a
+accept	accept	docs	copyIntoLocation/COPY_INTO_(copyIntoLocation_internalStage|copyI~187452c~f7c60262	COPY INTO @a FROM a
 accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage	COPY INTO @a FROM a
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!truncate	COPY INTO
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!insert	COPY INTO @a zzz FROM a
@@ -27567,10 +27567,17 @@ accept	undocumented	docs	copyIntoLocation(VALIDATION_MODE_=_RETURN_ROWS)?/VALIDA
 reject	undocumented	docs	copyIntoLocation(VALIDATION_MODE_=_RETURN_ROWS)?/VALIDATION_MODE_=_RETURN_ROWS!drop-3	COPY INTO @a FROM a VALIDATION_MODE =
 accept	undocumented	docs	copyIntoLocation(VALIDATION_MODE_=_RETURN_ROWS)?/VALIDATION_MODE_=_RETURN_ROWS!insert	COPY INTO @a FROM a VALIDATION_MODE = RETURN_ROWS zzz
 accept	undocumented	docs	copyIntoLocation(VALIDATION_MODE_=_RETURN_ROWS)?/VALIDATION_MODE_=_RETURN_ROWS!swap	COPY INTO @a FROM a VALUE = RETURN_ROWS
-accept	accept	docs	copyIntoLocation(HEADER)?/%empty	COPY INTO @a FROM a
-accept	accept	docs	copyIntoLocation(HEADER)?/HEADER	COPY INTO @a FROM a HEADER
-accept	undocumented	docs	copyIntoLocation(HEADER)?/HEADER!insert	COPY INTO @a FROM a HEADER zzz
-accept	undocumented	docs	copyIntoLocation(HEADER)?/HEADER!swap	COPY INTO @a FROM a HEADERS
+accept	accept	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/%empty	COPY INTO @a FROM a
+accept	accept	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/HEADER_=_(TRUE|FALSE)	COPY INTO @a FROM a HEADER = TRUE
+accept	undocumented	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/HEADER_=_(TRUE|FALSE)!drop-2	COPY INTO @a FROM a HEADER TRUE
+reject	undocumented	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/HEADER_=_(TRUE|FALSE)!drop-3	COPY INTO @a FROM a HEADER =
+accept	undocumented	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/HEADER_=_(TRUE|FALSE)!insert	COPY INTO @a FROM a HEADER = TRUE zzz
+accept	undocumented	docs	copyIntoLocation(HEADER_=_(TRUE|FALSE))?/HEADER_=_(TRUE|FALSE)!swap	COPY INTO @a FROM a HEADERS = TRUE
+accept	accept	docs	copyIntoLocation(TRUE|FALSE)/TRUE	COPY INTO @a FROM a HEADER = TRUE
+accept	undocumented	docs	copyIntoLocation(TRUE|FALSE)/TRUE!swap	COPY INTO @a FROM a HEADER = TRUNCATE
+accept	accept	docs	copyIntoLocation(TRUE|FALSE)/FALSE	COPY INTO @a FROM a HEADER = FALSE
+accept	undocumented	docs	copyIntoLocation(TRUE|FALSE)/FALSE!insert	COPY INTO @a FROM a HEADER = FALSE zzz
+accept	undocumented	docs	copyIntoLocation(TRUE|FALSE)/FALSE!swap	COPY INTO @a FROM a HEADER = FAMILIES
 accept	accept	docs	copyIntoLocation_internalStage/STAGE	COPY INTO @a FROM a
 accept	accept	docs	copyIntoLocation_externalStage/STAGE	COPY INTO @a FROM a
 reject	accept	docs	copyIntoLocation_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?~407f6802	COPY INTO 's' FROM a
@@ -33213,7 +33220,7 @@ accept	undocumented	docs	createFailoverGroup(ERROR_INTEGRATION_=_ID)?/ERROR_INTE
 reject	undocumented	docs	createFailoverGroup(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-3	CREATE FAILOVER GROUP a OBJECT_TYPES = TABLE ALLOWED_ACCOUNTS = a.a ERROR_INTEGRATION =
 accept	undocumented	docs	createFailoverGroup(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!insert	CREATE FAILOVER GROUP a OBJECT_TYPES = TABLE ALLOWED_ACCOUNTS = a.a ERROR_INTEGRATION = a zzz
 accept	undocumented	docs	createFailoverGroup(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!swap	CREATE FAILOVER GROUP a OBJECT_TYPES = TABLE ALLOWED_ACCOUNTS = a.a ERROR_LOGGING = a
-reject	accept	docs	createFeaturePolicy/CREATE_(OR_REPLACE)?_FEATURE_POLICY_(IF_NOT_EXISTS)?_ID~64cffa2f	CREATE FEATURE POLICY a
+reject	accept	docs	createFeaturePolicy/CREATE_(OR_REPLACE)?_FEATURE_POLICY_(IF_NOT_EXISTS)?_ID~dee4e55f	CREATE FEATURE POLICY a
 reject	accept	docs	createFeaturePolicy(OR_REPLACE)?/%empty	CREATE FEATURE POLICY a
 reject	undocumented	docs	createFeaturePolicy(OR_REPLACE)?/%empty!insert	CREATE zzz FEATURE POLICY a
 reject	accept	docs	createFeaturePolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE FEATURE POLICY a
@@ -33230,23 +33237,23 @@ reject	undocumented	docs	createFeaturePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-
 reject	undocumented	docs	createFeaturePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE FEATURE POLICY IF NOT
 reject	undocumented	docs	createFeaturePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE FEATURE POLICY IF NOT EXISTS zzz a
 reject	undocumented	docs	createFeaturePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE FEATURE POLICY IGNORE NOT EXISTS a
-reject	accept	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/%empty	CREATE FEATURE POLICY a
-reject	accept	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT)
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-1	CREATE FEATURE POLICY a =(INT)
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-2	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION(INT)
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-3	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION = INT)
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-4	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =()
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-5	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT) zzz
-reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~0c6250f2)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_DATA_TYPE_(,_DATA_TYPE)*_)!swap	CREATE FEATURE POLICY a BLOCKED_ROLES_LIST =(INT)
-reject	accept	docs	createFeaturePolicy(,_DATA_TYPE)*/%empty	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT)
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/%empty!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT zzz)
-reject	accept	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INT)
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT INT)
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT,)
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT,
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INT zzz)
-reject	undocumented	docs	createFeaturePolicy(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(INT, INTEGER)
+reject	accept	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/%empty	CREATE FEATURE POLICY a
+reject	accept	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES)
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!drop-1	CREATE FEATURE POLICY a =(TABLES)
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!drop-2	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION(TABLES)
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!drop-3	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION = TABLES)
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!drop-4	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =()
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!drop-5	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES) zzz
+reject	undocumented	docs	createFeaturePolicy(BLOCKED_OBJECT_TYPES_FOR_CREATION_=_~49d8c58a)?/BLOCKED_OBJECT_TYPES_FOR_CREATION_=_(_OBJECT_TYPES_(,_O~230afaee!swap	CREATE FEATURE POLICY a BLOCKED_ROLES_LIST =(TABLES)
+reject	accept	docs	createFeaturePolicy(,_OBJECT_TYPES)*/%empty	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES)
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/%empty!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES zzz)
+reject	accept	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLES)
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!drop-1	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES TABLES)
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!drop-2	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES,)
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!truncate	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES,
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!insert	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLES zzz)
+reject	undocumented	docs	createFeaturePolicy(,_OBJECT_TYPES)*/,_OBJECT_TYPES_(,_OBJECT_TYPES)*!swap	CREATE FEATURE POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =(TABLES, TABLE_FORMAT)
 reject	accept	docs	createFeaturePolicy(COMMENT_=_STRING)?/%empty	CREATE FEATURE POLICY a
 reject	accept	docs	createFeaturePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE FEATURE POLICY a COMMENT = 's'
 reject	undocumented	docs	createFeaturePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE FEATURE POLICY a = 's'
@@ -33577,43 +33584,43 @@ accept	accept	docs	createFileFormat_formatTypeOptions(AUTO|LZO|SNAPPY|NONE)/SNAP
 accept	undocumented	docs	createFileFormat_formatTypeOptions(AUTO|LZO|SNAPPY|NONE)/SNAPPY!insert	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = SNAPPY zzz
 accept	undocumented	docs	createFileFormat_formatTypeOptions(AUTO|LZO|SNAPPY|NONE)/SNAPPY!swap	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = SNAPPY_COMPRESSION
 accept	accept	docs	createFileFormat_formatTypeOptions(AUTO|LZO|SNAPPY|NONE)/NONE	CREATE FILE FORMAT a TYPE = CSV COMPRESSION = NONE
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-2	CREATE a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-6	CREATE FUNCTION a() INT LANGUAGE JAVA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE JAVA HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-8	CREATE FUNCTION a() RETURNS INT JAVA HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~0a31784a!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-2	CREATE a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-6	CREATE FUNCTION a() INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-8	CREATE FUNCTION a() RETURNS INT JAVA IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS = 's') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =() HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s' HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER =
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~64acfe3a!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-2	CREATE a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-6	CREATE FUNCTION a() INT LANGUAGE JAVA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE JAVA HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-8	CREATE FUNCTION a() RETURNS INT JAVA HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~01015646!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-2	CREATE a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-6	CREATE FUNCTION a() INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-8	CREATE FUNCTION a() RETURNS INT JAVA IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS = 's') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =() HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s' HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER =
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~3fbf7224!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE JAVA IMPORTS =('s') HANDLER = 's'
 accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8!drop-1	FUNCTION a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8!drop-2	CREATE a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
@@ -33628,84 +33635,84 @@ reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVASCRIPT AS
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVASCRIPT AS 's' zzz
 reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8f099ca8!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE JAVASCRIPT AS 's'
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-1	FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-2	CREATE a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-6	CREATE FUNCTION a() INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-8	CREATE FUNCTION a() RETURNS INT PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~109a66c0!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-1	FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-2	CREATE a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-6	CREATE FUNCTION a() INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-8	CREATE FUNCTION a() RETURNS INT PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON = a IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION a IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS = 's') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =() HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s' HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-18	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-19	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!drop-20	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER =
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~3734469d!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a IMPORTS =('s') HANDLER = 's'
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-1	FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-2	CREATE a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-6	CREATE FUNCTION a() INT LANGUAGE SCALA HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE SCALA HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-8	CREATE FUNCTION a() RETURNS INT SCALA HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA = 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER 's' AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = AS 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8a874032!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
-accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-1	FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-2	CREATE a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-6	CREATE FUNCTION a() INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-8	CREATE FUNCTION a() RETURNS INT SCALA IMPORTS =('s') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA =('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS('s') HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS = 's') HANDLER = 's'
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =() HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s' HANDLER = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') = 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER 's'
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER =
-accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's' zzz
-reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~8dd4b472!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-1	FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-2	CREATE a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-6	CREATE FUNCTION a() INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-8	CREATE FUNCTION a() RETURNS INT PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~bc0c616b!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-1	FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-2	CREATE a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-6	CREATE FUNCTION a() INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-8	CREATE FUNCTION a() RETURNS INT PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-9	CREATE FUNCTION a() RETURNS INT LANGUAGE RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON = 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION 's' IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS = 's') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =() HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s' HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-18	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-19	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!drop-20	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER =
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_(AGG~7a6c85c4!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' IMPORTS =('s') HANDLER = 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-1	FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-2	CREATE a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-6	CREATE FUNCTION a() INT LANGUAGE SCALA HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE SCALA HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-8	CREATE FUNCTION a() RETURNS INT SCALA HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA = 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER 's' AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = AS 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~45241ba6!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE SCALA HANDLER = 's' AS 's'
+accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-1	FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-2	CREATE a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-3	CREATE FUNCTION() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-4	CREATE FUNCTION a) RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-5	CREATE FUNCTION a(RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-6	CREATE FUNCTION a() INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-7	CREATE FUNCTION a() RETURNS LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-8	CREATE FUNCTION a() RETURNS INT SCALA IMPORTS =('s') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-10	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA =('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-11	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS('s') HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-12	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS = 's') HANDLER = 's'
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-13	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =() HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-14	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s' HANDLER = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-15	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') = 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-16	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER 's'
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!drop-17	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER =
+accept	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's' zzz
+reject	undocumented	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~690b3042!swap	CREATION FUNCTION a() RETURNS INT LANGUAGE SCALA IMPORTS =('s') HANDLER = 's'
 accept	accept	docs	createFunction/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_FUNC~d9f8aaea	CREATE FUNCTION a() RETURNS INT AS 's'
 accept	accept	docs	createFunction(OR_REPLACE)?/%empty	CREATE FUNCTION a() RETURNS INT AS 's'
 reject	undocumented	docs	createFunction(OR_REPLACE)?/%empty!insert	CREATE zzz FUNCTION a() RETURNS INT AS 's'
@@ -33831,15 +33838,15 @@ accept	accept	docs	createFunction(VOLATILE|IMMUTABLE)/VOLATILE	CREATE FUNCTION a
 accept	accept	docs	createFunction(VOLATILE|IMMUTABLE)/IMMUTABLE	CREATE FUNCTION a() RETURNS INT IMMUTABLE AS 's'
 accept	undocumented	docs	createFunction(VOLATILE|IMMUTABLE)/IMMUTABLE!insert	CREATE FUNCTION a() RETURNS INT IMMUTABLE zzz AS 's'
 accept	undocumented	docs	createFunction(VOLATILE|IMMUTABLE)/IMMUTABLE!swap	CREATE FUNCTION a() RETURNS INT IMPERSONATE AS 's'
-accept	accept	docs	createFunction(RUNTIME_VERSION_=_ID)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/%empty!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA zzz HANDLER = 's' AS 's'
-accept	accept	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!drop-1	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!drop-2	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!drop-3	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!truncate	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION =
-accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = a zzz HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_ID)?/RUNTIME_VERSION_=_ID!swap	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUN_AS_ROLE = a HANDLER = 's' AS 's'
+accept	accept	docs	createFunction(RUNTIME_VERSION_=_STRING)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/%empty!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA zzz HANDLER = 's' AS 's'
+accept	accept	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!drop-1	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!drop-2	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!drop-3	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!truncate	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION =
+accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUNTIME_VERSION = 's' zzz HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction(RUNTIME_VERSION_=_STRING)?/RUNTIME_VERSION_=_STRING!swap	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA RUN_AS_ROLE = 's' HANDLER = 's' AS 's'
 accept	accept	docs	createFunction(COMMENT_=_STRING)?/%empty	CREATE FUNCTION a() RETURNS INT AS 's'
 accept	accept	docs	createFunction(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE FUNCTION a() RETURNS INT COMMENT = 's' AS 's'
 reject	undocumented	docs	createFunction(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE FUNCTION a() RETURNS INT = 's' AS 's'
@@ -33931,20 +33938,20 @@ reject	undocumented	docs	createFunction(TARGET_PATH_=_STRING)?/TARGET_PATH_=_STR
 reject	undocumented	docs	createFunction(TARGET_PATH_=_STRING)?/TARGET_PATH_=_STRING!truncate	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' TARGET_PATH =
 accept	undocumented	docs	createFunction(TARGET_PATH_=_STRING)?/TARGET_PATH_=_STRING!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' TARGET_PATH = 's' zzz AS 's'
 accept	undocumented	docs	createFunction(TARGET_PATH_=_STRING)?/TARGET_PATH_=_STRING!swap	CREATE FUNCTION a() RETURNS INT LANGUAGE JAVA HANDLER = 's' TASK = 's' AS 's'
-accept	accept	docs	createFunction(AGGREGATE)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(AGGREGATE)?/%empty!insert	CREATE zzz FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	accept	docs	createFunction(AGGREGATE)?/AGGREGATE	CREATE AGGREGATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(AGGREGATE)?/AGGREGATE!insert	CREATE AGGREGATE zzz FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(AGGREGATE)?/AGGREGATE!swap	CREATE AGGREGATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	accept	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a HANDLER = 's' AS 's'
-accept	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/%empty!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a zzz HANDLER = 's' AS 's'
-accept	accept	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a ARTIFACT_REPOSITORY = 's' HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-1	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a = 's' HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-2	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a ARTIFACT_REPOSITORY 's' HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-3	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a ARTIFACT_REPOSITORY = HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!truncate	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a ARTIFACT_REPOSITORY =
-accept	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a ARTIFACT_REPOSITORY = 's' zzz HANDLER = 's' AS 's'
-reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!swap	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = a AS = 's' HANDLER = 's' AS 's'
+accept	accept	docs	createFunction(AGGREGATE)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(AGGREGATE)?/%empty!insert	CREATE zzz FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	accept	docs	createFunction(AGGREGATE)?/AGGREGATE	CREATE AGGREGATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(AGGREGATE)?/AGGREGATE!insert	CREATE AGGREGATE zzz FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(AGGREGATE)?/AGGREGATE!swap	CREATE AGGREGATION FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	accept	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/%empty	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' HANDLER = 's' AS 's'
+accept	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/%empty!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' zzz HANDLER = 's' AS 's'
+accept	accept	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' ARTIFACT_REPOSITORY = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-1	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' = 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-2	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' ARTIFACT_REPOSITORY 's' HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!drop-3	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' ARTIFACT_REPOSITORY = HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!truncate	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' ARTIFACT_REPOSITORY =
+accept	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!insert	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' ARTIFACT_REPOSITORY = 's' zzz HANDLER = 's' AS 's'
+reject	undocumented	docs	createFunction(ARTIFACT_REPOSITORY_=_STRING)?/ARTIFACT_REPOSITORY_=_STRING!swap	CREATE FUNCTION a() RETURNS INT LANGUAGE PYTHON RUNTIME_VERSION = 's' AS = 's' HANDLER = 's' AS 's'
 accept	accept	docs	createFunction(MEMOIZABLE)?/%empty	CREATE FUNCTION a() RETURNS INT AS 's'
 accept	accept	docs	createFunction(MEMOIZABLE)?/MEMOIZABLE	CREATE FUNCTION a() RETURNS INT MEMOIZABLE AS 's'
 accept	undocumented	docs	createFunction(MEMOIZABLE)?/MEMOIZABLE!insert	CREATE FUNCTION a() RETURNS INT MEMOIZABLE zzz AS 's'
@@ -44518,7 +44525,7 @@ reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE OR ALTER VERSIONED SCHEMA a COMMENT =
 reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE OR ALTER VERSIONED SCHEMA a COMMENT = 's' zzz
 reject	undocumented	docs	createVersionedSchema(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE OR ALTER VERSIONED SCHEMA a COMMENTS = 's'
-accept	accept	docs	createView/CREATE_(OR_REPLACE)?_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP~c188f97c	CREATE VIEW a AS SELECT 1
+accept	accept	docs	createView/CREATE_(OR_REPLACE)?_(SECURE)?_((((LOCAL|GLOBAL))?_TEMP~f5a7fa93	CREATE VIEW a AS SELECT 1
 accept	accept	docs	createView(OR_REPLACE)?/%empty	CREATE VIEW a AS SELECT 1
 reject	undocumented	docs	createView(OR_REPLACE)?/%empty!insert	CREATE zzz VIEW a AS SELECT 1
 accept	accept	docs	createView(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE VIEW a AS SELECT 1
@@ -44563,56 +44570,64 @@ reject	undocumented	docs	createView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE 
 reject	undocumented	docs	createView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE VIEW IF NOT
 reject	undocumented	docs	createView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE VIEW IF NOT EXISTS zzz a AS SELECT 1
 reject	undocumented	docs	createView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE VIEW IGNORE NOT EXISTS a AS SELECT 1
-accept	accept	docs	createView((_ID_))?/%empty	CREATE VIEW a AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/%empty!insert	CREATE VIEW a zzz AS SELECT 1
-accept	accept	docs	createView((_ID_))?/(_ID_)	CREATE VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!drop-1	CREATE VIEW a a) AS SELECT 1
-accept	undocumented	docs	createView((_ID_))?/(_ID_)!drop-2	CREATE VIEW a() AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!drop-3	CREATE VIEW a(a AS SELECT 1
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!truncate	CREATE VIEW a(a
-reject	undocumented	docs	createView((_ID_))?/(_ID_)!insert	CREATE VIEW a(a) zzz AS SELECT 1
-accept	accept	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/%empty	CREATE VIEW a AS SELECT 1
-reject	accept	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-1	CREATE VIEW a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-2	CREATE VIEW a a POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-3	CREATE VIEW a a MASKING a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-4	CREATE VIEW a a MASKING POLICY PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-5	CREATE VIEW a a MASKING POLICY a POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-6	CREATE VIEW a a MASKING POLICY a PROJECTION a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-7	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-8	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-9	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG a = 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-10	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(= 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-11	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a 's') AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-12	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a =) AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-13	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a = 's' AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!truncate	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a = 's'
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!insert	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') zzz AS SELECT 1
-reject	undocumented	docs	createView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!swap	CREATE VIEW a a MASTER_KEY POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
+accept	accept	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/%empty	CREATE VIEW a AS SELECT 1
+reject	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/%empty!insert	CREATE VIEW a zzz AS SELECT 1
+accept	accept	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9	CREATE VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-1	CREATE VIEW a a) AS SELECT 1
+accept	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-2	CREATE VIEW a() AS SELECT 1
+reject	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-3	CREATE VIEW a(a AS SELECT 1
+reject	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!truncate	CREATE VIEW a(a
+reject	undocumented	docs	createView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!insert	CREATE VIEW a(a) zzz AS SELECT 1
+accept	accept	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/%empty	CREATE VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/%empty!insert	CREATE VIEW a(a zzz) AS SELECT 1
+reject	accept	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?	CREATE VIEW a(a MASKING POLICY a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-1	CREATE VIEW a(a POLICY a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-2	CREATE VIEW a(a MASKING a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-3	CREATE VIEW a(a MASKING POLICY) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!truncate	CREATE VIEW a(a MASKING POLICY
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!insert	CREATE VIEW a(a MASKING POLICY a zzz) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!swap	CREATE VIEW a(a MASTER_KEY POLICY a) AS SELECT 1
 reject	accept	docs	createView(WITH)?/%empty	CREATE VIEW a AGGREGATION POLICY a AS SELECT 1
 reject	undocumented	docs	createView(WITH)?/%empty!insert	CREATE VIEW a zzz AGGREGATION POLICY a AS SELECT 1
 reject	accept	docs	createView(WITH)?/WITH	CREATE VIEW a WITH AGGREGATION POLICY a AS SELECT 1
 reject	undocumented	docs	createView(WITH)?/WITH!truncate	CREATE VIEW a
 reject	undocumented	docs	createView(WITH)?/WITH!insert	CREATE VIEW a WITH zzz AGGREGATION POLICY a AS SELECT 1
 reject	undocumented	docs	createView(WITH)?/WITH!swap	CREATE VIEW a WITHIN AGGREGATION POLICY a AS SELECT 1
-reject	accept	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/%empty	CREATE VIEW a a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/%empty!insert	CREATE VIEW a a MASKING POLICY a zzz PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	accept	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)	CREATE VIEW a a MASKING POLICY a USING(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-1	CREATE VIEW a a MASKING POLICY a(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-2	CREATE VIEW a a MASKING POLICY a USING a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-3	CREATE VIEW a a MASKING POLICY a USING(, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-4	CREATE VIEW a a MASKING POLICY a USING(a a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-5	CREATE VIEW a a MASKING POLICY a USING(a,) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-6	CREATE VIEW a a MASKING POLICY a USING(a, a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!truncate	CREATE VIEW a a MASKING POLICY a USING(a, a
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!insert	CREATE VIEW a a MASKING POLICY a USING(a, a) zzz PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!swap	CREATE VIEW a a MASKING POLICY a UTF8(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-accept	accept	docs	createView(,_ID)*/%empty	CREATE VIEW a AS SELECT 1
-reject	accept	docs	createView(,_ID)*/,_ID_(,_ID)*	CREATE VIEW a, a AS SELECT 1
-reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE VIEW a a AS SELECT 1
-reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE VIEW a, AS SELECT 1
-reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!truncate	CREATE VIEW a,
-reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!insert	CREATE VIEW a, a zzz AS SELECT 1
+reject	accept	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/%empty	CREATE VIEW a(a MASKING POLICY a) AS SELECT 1
+reject	accept	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)	CREATE VIEW a(a MASKING POLICY a USING(a, a)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-1	CREATE VIEW a(a MASKING POLICY a(a, a)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-2	CREATE VIEW a(a MASKING POLICY a USING a, a)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-3	CREATE VIEW a(a MASKING POLICY a USING(, a)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-4	CREATE VIEW a(a MASKING POLICY a USING(a a)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-5	CREATE VIEW a(a MASKING POLICY a USING(a,)) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-6	CREATE VIEW a(a MASKING POLICY a USING(a, a) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!truncate	CREATE VIEW a(a MASKING POLICY a USING(a, a
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!insert	CREATE VIEW a(a MASKING POLICY a USING(a, a) zzz) AS SELECT 1
+reject	undocumented	docs	createView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!swap	CREATE VIEW a(a MASKING POLICY a UTF8(a, a)) AS SELECT 1
+accept	accept	docs	createView(,_ID)*/%empty	CREATE VIEW a(a) AS SELECT 1
+accept	accept	docs	createView(,_ID)*/,_ID_(,_ID)*	CREATE VIEW a(a, a) AS SELECT 1
+reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE VIEW a(a a) AS SELECT 1
+accept	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE VIEW a(a,) AS SELECT 1
+reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!truncate	CREATE VIEW a(a,
+reject	undocumented	docs	createView(,_ID)*/,_ID_(,_ID)*!insert	CREATE VIEW a(a, a zzz) AS SELECT 1
+accept	accept	docs	createView(WITH?_PROJECTION_POLICY_ID)?/%empty	CREATE VIEW a(a) AS SELECT 1
+reject	accept	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID	CREATE VIEW a(a PROJECTION POLICY a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!drop-2	CREATE VIEW a(a PROJECTION a) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!drop-3	CREATE VIEW a(a PROJECTION POLICY) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!truncate	CREATE VIEW a(a PROJECTION POLICY
+reject	undocumented	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!insert	CREATE VIEW a(a PROJECTION POLICY a zzz) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!swap	CREATE VIEW a(a PROJECTION_CONSTRAINT POLICY a) AS SELECT 1
+accept	accept	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE VIEW a AS SELECT 1
+accept	accept	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE VIEW a TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE VIEW a(a = 's') AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE VIEW a TAG a = 's') AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE VIEW a TAG(= 's') AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE VIEW a TAG(a 's') AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE VIEW a TAG(a =) AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE VIEW a TAG(a = 's' AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE VIEW a TAG(a = 's'
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE VIEW a TAG(a = 's') zzz AS SELECT 1
+reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE VIEW a TAGS(a = 's') AS SELECT 1
 accept	accept	docs	createView(,_ID_=_STRING)*/%empty	CREATE VIEW a TAG(a = 's') AS SELECT 1
 reject	undocumented	docs	createView(,_ID_=_STRING)*/%empty!insert	CREATE VIEW a TAG(a = 's' zzz) AS SELECT 1
 accept	accept	docs	createView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE VIEW a TAG(a = 's', a = 's') AS SELECT 1
@@ -44635,17 +44650,6 @@ reject	undocumented	docs	createView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)
 reject	undocumented	docs	createView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!truncate	CREATE VIEW a ROW ACCESS POLICY a ON(a
 reject	undocumented	docs	createView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!insert	CREATE VIEW a ROW ACCESS POLICY a ON(a) zzz AS SELECT 1
 reject	undocumented	docs	createView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!swap	CREATE VIEW a ROWS_PER_RESULTSET ACCESS POLICY a ON(a) AS SELECT 1
-accept	accept	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE VIEW a AS SELECT 1
-accept	accept	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE VIEW a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE VIEW a(a = 's') AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE VIEW a TAG a = 's') AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE VIEW a TAG(= 's') AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE VIEW a TAG(a 's') AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE VIEW a TAG(a =) AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE VIEW a TAG(a = 's' AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE VIEW a TAG(a = 's'
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE VIEW a TAG(a = 's') zzz AS SELECT 1
-reject	undocumented	docs	createView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE VIEW a TAGS(a = 's') AS SELECT 1
 accept	accept	docs	createView(CHANGE_TRACKING_=_(TRUE|FALSE))?/%empty	CREATE VIEW a AS SELECT 1
 accept	accept	docs	createView(CHANGE_TRACKING_=_(TRUE|FALSE))?/CHANGE_TRACKING_=_(TRUE|FALSE)	CREATE VIEW a CHANGE_TRACKING = TRUE AS SELECT 1
 reject	undocumented	docs	createView(CHANGE_TRACKING_=_(TRUE|FALSE))?/CHANGE_TRACKING_=_(TRUE|FALSE)!drop-1	CREATE VIEW a = TRUE AS SELECT 1
@@ -54083,14 +54087,13 @@ reject	undocumented	docs	showCortexBaseModels(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1
 reject	undocumented	docs	showCortexBaseModels(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW CORTEX BASE MODELS LIMIT
 reject	undocumented	docs	showCortexBaseModels(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW CORTEX BASE MODELS LIMIT 1 zzz
 reject	undocumented	docs	showCortexBaseModels(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW CORTEX BASE MODELS LINKED_CATALOG 1
-accept	accept	docs	showCortexSearch/SHOW_CORTEX_SEARCH_SERVICES_(LIKE_PATTERN_STRING)?_(STA~89d6b8fd	SHOW CORTEX SEARCH SERVICES
-accept	accept	docs	showCortexSearch(LIKE_PATTERN_STRING)?/%empty	SHOW CORTEX SEARCH SERVICES
-reject	accept	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING	SHOW CORTEX SEARCH SERVICES LIKE PATTERN 's'
-reject	undocumented	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING!drop-1	SHOW CORTEX SEARCH SERVICES PATTERN 's'
-accept	undocumented	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING!drop-2	SHOW CORTEX SEARCH SERVICES LIKE 's'
-reject	undocumented	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING!drop-3	SHOW CORTEX SEARCH SERVICES LIKE PATTERN
-reject	undocumented	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING!insert	SHOW CORTEX SEARCH SERVICES LIKE PATTERN 's' zzz
-reject	undocumented	docs	showCortexSearch(LIKE_PATTERN_STRING)?/LIKE_PATTERN_STRING!swap	SHOW CORTEX SEARCH SERVICES LIMIT PATTERN 's'
+accept	accept	docs	showCortexSearch/SHOW_CORTEX_SEARCH_SERVICES_(LIKE_STRING)?_(STARTS_WITH~497bde72	SHOW CORTEX SEARCH SERVICES
+accept	accept	docs	showCortexSearch(LIKE_STRING)?/%empty	SHOW CORTEX SEARCH SERVICES
+accept	accept	docs	showCortexSearch(LIKE_STRING)?/LIKE_STRING	SHOW CORTEX SEARCH SERVICES LIKE 's'
+reject	undocumented	docs	showCortexSearch(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW CORTEX SEARCH SERVICES 's'
+reject	undocumented	docs	showCortexSearch(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW CORTEX SEARCH SERVICES LIKE
+reject	undocumented	docs	showCortexSearch(LIKE_STRING)?/LIKE_STRING!insert	SHOW CORTEX SEARCH SERVICES LIKE 's' zzz
+reject	undocumented	docs	showCortexSearch(LIKE_STRING)?/LIKE_STRING!swap	SHOW CORTEX SEARCH SERVICES LIMIT 's'
 accept	accept	docs	showCortexSearch(STARTS_WITH_STRING)?/%empty	SHOW CORTEX SEARCH SERVICES
 accept	accept	docs	showCortexSearch(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW CORTEX SEARCH SERVICES STARTS WITH 's'
 reject	undocumented	docs	showCortexSearch(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW CORTEX SEARCH SERVICES WITH 's'
