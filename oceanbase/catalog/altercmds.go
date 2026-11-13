@@ -582,6 +582,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return checkConstraintNameExists(tbl.Database, nil, name)
 			})
 		}
+		if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+			return err
+		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
 		}
