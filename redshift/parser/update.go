@@ -239,6 +239,9 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) (*nodes.MergeStmt,
 	if err != nil {
 		return nil, err
 	}
+	if sourceRelation == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.collectMode() {
 		p.addTokenCandidate(ON)
@@ -252,6 +255,9 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) (*nodes.MergeStmt,
 	joinCondition, err := p.parseAExpr(0)
 	if err != nil {
 		return nil, err
+	}
+	if joinCondition == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.collectMode() {
@@ -302,18 +308,25 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) (*nodes.MergeStmt,
 //	merge_when_list:
 //	    merge_when_clause [merge_when_clause ...]
 func (p *Parser) parseMergeWhenList() (*nodes.List, error) {
+	if _, err := p.expect(WHEN); err != nil {
+		return nil, err
+	}
 	var items []nodes.Node
-	for p.cur.Type == WHEN {
-		clause, err := p.parseMergeWhenClause()
+	for {
+		clause, err := p.parseMergeWhenClause(p.prev.Loc)
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, clause)
+		if p.cur.Type != WHEN {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance() // consume WHEN
 	}
-	return &nodes.List{Items: items}, nil
 }
 
 // parseMergeWhenClause parses a single WHEN clause in a MERGE statement.
+// The WHEN keyword, at whenLoc, has been consumed.
 //
 //	merge_when_clause:
 //	    merge_when_tgt_matched opt_merge_when_condition THEN merge_update
@@ -321,37 +334,45 @@ func (p *Parser) parseMergeWhenList() (*nodes.List, error) {
 //	    | merge_when_tgt_not_matched opt_merge_when_condition THEN merge_insert
 //	    | merge_when_tgt_matched opt_merge_when_condition THEN DO NOTHING
 //	    | merge_when_tgt_not_matched opt_merge_when_condition THEN DO NOTHING
-func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
-	whenLoc := p.pos()
-	p.advance() // consume WHEN
-
+//
+//	merge_when_tgt_matched: WHEN MATCHED | WHEN NOT MATCHED BY SOURCE
+//	merge_when_tgt_not_matched: WHEN NOT MATCHED | WHEN NOT MATCHED BY TARGET
+func (p *Parser) parseMergeWhenClause(whenLoc int) (*nodes.MergeWhenClause, error) {
 	// Determine match kind
 	var kind nodes.MergeMatchKind
-	if p.cur.Type == MATCHED {
+	switch p.cur.Type {
+	case MATCHED:
 		// WHEN MATCHED
 		p.advance()
 		kind = nodes.MERGE_WHEN_MATCHED
-	} else if p.cur.Type == NOT {
+	case NOT:
 		p.advance() // consume NOT
 		if _, err := p.expect(MATCHED); err != nil {
 			return nil, err
 		}
+		kind = nodes.MERGE_WHEN_NOT_MATCHED_BY_TARGET
 		// Check for BY SOURCE or BY TARGET
 		if p.cur.Type == BY {
 			p.advance() // consume BY
-			if p.cur.Type == SOURCE {
+			switch p.cur.Type {
+			case SOURCE:
 				p.advance()
 				kind = nodes.MERGE_WHEN_NOT_MATCHED_BY_SOURCE
-			} else {
-				// TARGET
-				p.advance()
-				kind = nodes.MERGE_WHEN_NOT_MATCHED_BY_TARGET
+			default:
+				if _, err := p.expect(TARGET); err != nil {
+					return nil, err
+				}
 			}
-		} else {
-			// WHEN NOT MATCHED (no BY clause) = BY TARGET
-			kind = nodes.MERGE_WHEN_NOT_MATCHED_BY_TARGET
 		}
+	default:
+		if p.collectMode() {
+			p.addTokenCandidate(MATCHED)
+			p.addTokenCandidate(NOT)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
+	matched := kind != nodes.MERGE_WHEN_NOT_MATCHED_BY_TARGET
 
 	// opt_merge_when_condition: AND a_expr | EMPTY
 	var condition nodes.Node
@@ -362,6 +383,9 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 		if err != nil {
 			return nil, err
 		}
+		if condition == nil && !p.collectMode() {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// THEN
@@ -369,12 +393,38 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 		return nil, err
 	}
 
-	// Dispatch based on action keyword
+	// Dispatch based on action keyword: UPDATE and DELETE act on a matched
+	// target row, INSERT on a not-matched one.
 	if p.collectMode() {
-		for _, t := range []int{UPDATE, DELETE_P, INSERT, DO} {
+		actions := []int{INSERT, DO}
+		if matched {
+			actions = []int{UPDATE, DELETE_P, DO}
+		}
+		for _, t := range actions {
 			p.addTokenCandidate(t)
 		}
 		return nil, errCollecting
+	}
+	switch {
+	case p.cur.Type == DO:
+		// DO NOTHING
+		p.advance()
+		if _, err := p.expect(NOTHING); err != nil {
+			return nil, err
+		}
+		return &nodes.MergeWhenClause{
+			Kind:        kind,
+			Condition:   condition,
+			CommandType: nodes.CMD_NOTHING,
+			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
+		}, nil
+
+	case !matched:
+		if p.cur.Type != INSERT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// merge_insert
+		return p.parseMergeInsert(whenLoc, kind, condition)
 	}
 	switch p.cur.Type {
 	case UPDATE:
@@ -407,29 +457,8 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
 		}, nil
 
-	case INSERT:
-		// merge_insert
-		return p.parseMergeInsert(whenLoc, kind, condition)
-
-	case DO:
-		// DO NOTHING
-		p.advance()
-		if _, err := p.expect(NOTHING); err != nil {
-			return nil, err
-		}
-		return &nodes.MergeWhenClause{
-			Kind:        kind,
-			Condition:   condition,
-			CommandType: nodes.CMD_NOTHING,
-			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
-		}, nil
-
 	default:
-		return &nodes.MergeWhenClause{
-			Kind:      kind,
-			Condition: condition,
-			Loc:       nodes.Loc{Start: whenLoc, End: p.prev.End},
-		}, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

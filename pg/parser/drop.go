@@ -554,7 +554,10 @@ func (p *Parser) parseTruncateStmt() (nodes.Node, error) {
 	}
 
 	// opt_restart_seqs
-	restartSeqs := p.parseOptRestartSeqs()
+	restartSeqs, err := p.parseOptRestartSeqs()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_drop_behavior
 	behavior := p.parseOptDropBehavior()
@@ -609,18 +612,16 @@ func (p *Parser) parseRelationExprList() (*nodes.List, error) {
 //	    CONTINUE_P IDENTITY_P  -> false
 //	    | RESTART IDENTITY_P   -> true
 //	    | /* EMPTY */          -> false
-func (p *Parser) parseOptRestartSeqs() bool {
-	if p.cur.Type == RESTART {
-		p.advance()
-		p.expect(IDENTITY_P)
-		return true
+func (p *Parser) parseOptRestartSeqs() (bool, error) {
+	if p.cur.Type != RESTART && p.cur.Type != CONTINUE_P {
+		return false, nil
 	}
-	if p.cur.Type == CONTINUE_P {
-		p.advance()
-		p.expect(IDENTITY_P)
-		return false
+	restart := p.cur.Type == RESTART
+	p.advance()
+	if _, err := p.expect(IDENTITY_P); err != nil {
+		return false, err
 	}
-	return false
+	return restart, nil
 }
 
 // parseDropOperatorClassOrFamily parses DROP OPERATOR CLASS/FAMILY.

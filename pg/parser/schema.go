@@ -451,7 +451,8 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(ON); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == DOMAIN_P {
+		// DOMAIN is unreserved: with no name after it, it is the table's name.
+		if p.cur.Type == DOMAIN_P && p.keywordLeads(isColIdToken) {
 			p.advance()
 			stmt.Objtype = nodes.OBJECT_DOMCONSTRAINT
 			anyName, err := p.parseAnyName()

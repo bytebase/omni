@@ -1660,7 +1660,19 @@ func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of ALTER keyword
 	p.advance()       // consume POLICY
-	policyName, _ := p.parseName()
+	// gram.y has IF EXISTS only in ALTER POLICY ... RENAME TO.
+	missingOk := false
+	if p.cur.Type == IF_P {
+		p.advance()
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
+		missingOk = true
+	}
+	policyName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
@@ -1671,17 +1683,23 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	}
 	table := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	// ALTER POLICY name ON qualified_name RENAME TO name
-	if p.cur.Type == RENAME {
-		p.advance()
+	if p.cur.Type == RENAME || missingOk {
+		if _, err := p.expect(RENAME); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_POLICY,
 			Relation:   table,
 			Subname:    policyName,
 			Newname:    newname,
+			MissingOk:  missingOk,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}

@@ -81,15 +81,12 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) (*nodes.InsertStm
 		return nil, errCollecting
 	}
 
-	// opt_on_conflict
+	// opt_on_conflict: nothing else after insert_rest starts with ON.
 	if p.cur.Type == ON {
-		next := p.peekNext()
-		if next.Type == CONFLICT {
-			var err error
-			stmt.OnConflictClause, err = p.parseOnConflict()
-			if err != nil {
-				return nil, err
-			}
+		var err error
+		stmt.OnConflictClause, err = p.parseOnConflict()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -194,7 +191,9 @@ func (p *Parser) parseInsertRest() (*nodes.InsertStmt, error) {
 	}
 }
 
-// parseOverriding parses OVERRIDING {USER|SYSTEM} VALUE.
+// parseOverriding parses OVERRIDING override_kind VALUE.
+//
+//	override_kind: USER | SYSTEM_P
 func (p *Parser) parseOverriding() (nodes.OverridingKind, error) {
 	p.advance() // consume OVERRIDING
 	var kind nodes.OverridingKind
@@ -205,6 +204,13 @@ func (p *Parser) parseOverriding() (nodes.OverridingKind, error) {
 	case SYSTEM_P:
 		p.advance()
 		kind = nodes.OVERRIDING_SYSTEM_VALUE
+	default:
+		if p.collectMode() {
+			p.addTokenCandidate(USER)
+			p.addTokenCandidate(SYSTEM_P)
+			return kind, errCollecting
+		}
+		return kind, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(VALUE_P); err != nil {
 		return kind, err
@@ -213,11 +219,27 @@ func (p *Parser) parseOverriding() (nodes.OverridingKind, error) {
 }
 
 // parseSelectStmt parses SelectStmt: select_no_parens | select_with_parens.
+// insert_rest requires one, so a token that starts neither is a syntax
+// error, except in collect mode.
 func (p *Parser) parseSelectStmt() (nodes.Node, error) {
-	if p.cur.Type == '(' {
-		return p.parseSelectWithParens()
+	if p.cur.Type != '(' {
+		stmt, err := p.parseRequiredSelectNoParens()
+		if err != nil || stmt == nil {
+			return nil, err
+		}
+		return stmt, nil
 	}
-	return p.parseSelectNoParens()
+	stmt, err := p.parseSelectWithParens()
+	if err != nil {
+		return nil, err
+	}
+	if stmt == nil {
+		if p.collectMode() {
+			return nil, nil
+		}
+		return nil, p.syntaxErrorAtTok(p.prev)
+	}
+	return stmt, nil
 }
 
 // parseInsertColumnList parses a comma-separated list of insert columns.
@@ -276,7 +298,9 @@ func (p *Parser) parseInsertColumnItem() (*nodes.ResTarget, error) {
 func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 	loc := p.pos()
 	p.advance() // consume ON
-	p.advance() // consume CONFLICT
+	if _, err := p.expect(CONFLICT); err != nil {
+		return nil, err
+	}
 
 	occ := &nodes.OnConflictClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -302,13 +326,8 @@ func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 		}
 
 		// Optional WHERE clause for partial index predicate
-		if p.cur.Type == WHERE {
-			p.advance()
-			var err error
-			infer.WhereClause, err = p.parseAExpr(0)
-			if err != nil {
-				return nil, err
-			}
+		if infer.WhereClause, err = p.parseWhereClause(); err != nil {
+			return nil, err
 		}
 
 		infer.Loc.End = p.pos()
@@ -338,10 +357,11 @@ func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 	if _, err := p.expect(DO); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == NOTHING {
+	switch p.cur.Type {
+	case NOTHING:
 		p.advance()
 		occ.Action = 1 // ONCONFLICT_NOTHING
-	} else if p.cur.Type == UPDATE {
+	case UPDATE:
 		p.advance()
 		if _, err := p.expect(SET); err != nil {
 			return nil, err
@@ -356,6 +376,13 @@ func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 		if err != nil {
 			return nil, err
 		}
+	default:
+		if p.collectMode() {
+			p.addTokenCandidate(NOTHING)
+			p.addTokenCandidate(UPDATE)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	occ.Loc.End = p.pos()
@@ -372,7 +399,15 @@ func (p *Parser) parseReturningClause() (*nodes.List, error) {
 		return nil, nil
 	}
 	p.advance()
-	return p.parseTargetList()
+	list, err := p.parseTargetList()
+	if err != nil {
+		return nil, err
+	}
+	// target_list has no empty alternative.
+	if list == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return list, nil
 }
 
 // parseSetClauseList parses a comma-separated list of SET clauses (for UPDATE/ON CONFLICT).
@@ -426,6 +461,9 @@ func (p *Parser) parseSetClause() ([]nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil && !p.collectMode() {
+			return nil, p.syntaxErrorAtCur()
+		}
 
 		ncolumns := len(targets.Items)
 		var result []nodes.Node
@@ -453,6 +491,9 @@ func (p *Parser) parseSetClause() ([]nodes.Node, error) {
 	rt.Val, err = p.parseAExpr(0)
 	if err != nil {
 		return nil, err
+	}
+	if rt.Val == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return []nodes.Node{rt}, nil
 }

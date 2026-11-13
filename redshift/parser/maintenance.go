@@ -16,11 +16,17 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 	// VACUUM '(' utility_option_list ')' opt_vacuum_relation_list
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		opts := p.parseUtilityOptionList()
+		opts, err := p.parseUtilityOptionList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		rels := p.parseOptVacuumRelationList()
+		rels, err := p.parseOptVacuumRelationList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VacuumStmt{
 			Options:     opts,
 			Rels:        rels,
@@ -80,7 +86,11 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 	}
 
 	if !p.redshiftVacuumOptionStart() {
-		n.Rels = p.parseOptVacuumRelationList()
+		rels, err := p.parseOptVacuumRelationList()
+		if err != nil {
+			return nil, err
+		}
+		n.Rels = rels
 	}
 	n.Options = p.parseRedshiftVacuumOptions(n.Options)
 	n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -122,11 +132,17 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	// analyze_keyword '(' utility_option_list ')' opt_vacuum_relation_list
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		opts := p.parseUtilityOptionList()
+		opts, err := p.parseUtilityOptionList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		rels := p.parseOptVacuumRelationList()
+		rels, err := p.parseOptVacuumRelationList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VacuumStmt{
 			Options:     opts,
 			Rels:        rels,
@@ -149,7 +165,11 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	}
 
 	if !p.redshiftAnalyzeOptionStart() {
-		n.Rels = p.parseOptVacuumRelationList()
+		rels, err := p.parseOptVacuumRelationList()
+		if err != nil {
+			return nil, err
+		}
+		n.Rels = rels
 	}
 	n.Options = p.parseRedshiftAnalyzeOptions(n.Options)
 	n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -186,10 +206,10 @@ func (p *Parser) parseRedshiftAnalyzeOptions(options *nodes.List) *nodes.List {
 //	opt_vacuum_relation_list:
 //	    vacuum_relation_list
 //	    | /* EMPTY */
-func (p *Parser) parseOptVacuumRelationList() *nodes.List {
+func (p *Parser) parseOptVacuumRelationList() (*nodes.List, error) {
 	// Check if current token could start a vacuum_relation (i.e. a qualified_name).
 	if !p.isColId() {
-		return nil
+		return nil, nil
 	}
 	return p.parseVacuumRelationList()
 }
@@ -199,39 +219,41 @@ func (p *Parser) parseOptVacuumRelationList() *nodes.List {
 //	vacuum_relation_list:
 //	    vacuum_relation
 //	    | vacuum_relation_list ',' vacuum_relation
-func (p *Parser) parseVacuumRelationList() *nodes.List {
-	rel := p.parseVacuumRelation()
-	if rel == nil {
-		return nil
-	}
-	items := []nodes.Node{rel}
-	for p.cur.Type == ',' {
-		p.advance()
-		r := p.parseVacuumRelation()
-		if r != nil {
-			items = append(items, r)
+func (p *Parser) parseVacuumRelationList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		rel, err := p.parseVacuumRelation()
+		if err != nil {
+			return nil, err
 		}
+		items = append(items, rel)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseVacuumRelation parses vacuum_relation.
 //
 //	vacuum_relation:
-//	    qualified_name opt_column_list
-func (p *Parser) parseVacuumRelation() *nodes.VacuumRelation {
+//	    qualified_name opt_name_list
+func (p *Parser) parseVacuumRelation() (*nodes.VacuumRelation, error) {
 	loc := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
-	cols, _ := p.parseOptColumnList()
+	cols, err := p.parseOptColumnList()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.VacuumRelation{
 		Relation: rv,
 		VaCols:   cols,
 		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // parseClusterStmt parses a CLUSTER statement.
@@ -249,7 +271,10 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 	// CLUSTER '(' utility_option_list ')' [qualified_name cluster_index_specification]
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		params := p.parseUtilityOptionList()
+		params, err := p.parseUtilityOptionList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -264,7 +289,10 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 				return nil, err
 			}
 			rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
-			idxName := p.parseClusterIndexSpecification()
+			idxName, err := p.parseClusterIndexSpecification()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.ClusterStmt{
 				Relation:  rv,
 				Indexname: idxName,
@@ -335,7 +363,10 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 
 	// CLUSTER [VERBOSE] qualified_name [USING name]
 	rv := makeRangeVarFromNames(names, nameLoc)
-	idxName := p.parseClusterIndexSpecification()
+	idxName, err := p.parseClusterIndexSpecification()
+	if err != nil {
+		return nil, err
+	}
 	n := &nodes.ClusterStmt{
 		Relation:  rv,
 		Indexname: idxName,
@@ -352,13 +383,12 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 //	cluster_index_specification:
 //	    USING name
 //	    | /* EMPTY */
-func (p *Parser) parseClusterIndexSpecification() string {
-	if p.cur.Type == USING {
-		p.advance()
-		name, _ := p.parseName()
-		return name
+func (p *Parser) parseClusterIndexSpecification() (string, error) {
+	if p.cur.Type != USING {
+		return "", nil
 	}
-	return ""
+	p.advance()
+	return p.parseName()
 }
 
 // parseReindexStmt parses a REINDEX statement.
@@ -366,7 +396,7 @@ func (p *Parser) parseClusterIndexSpecification() string {
 //	ReindexStmt:
 //	    REINDEX opt_reindex_option_list reindex_target_type opt_concurrently qualified_name
 //	    | REINDEX opt_reindex_option_list SCHEMA opt_concurrently name
-//	    | REINDEX opt_reindex_option_list reindex_target_multitable opt_concurrently name
+//	    | REINDEX opt_reindex_option_list reindex_target_all opt_concurrently opt_single_name
 func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume REINDEX
@@ -375,7 +405,10 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 	var params *nodes.List
 	if p.cur.Type == '(' {
 		p.advance()
-		params = p.parseUtilityOptionList()
+		var err error
+		if params, err = p.parseUtilityOptionList(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -418,7 +451,10 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			params = appendParamsList(params, makeDefElem("concurrently", nil))
 		}
 
-		name, _ := p.parseName()
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.ReindexStmt{
 			Kind:   nodes.REINDEX_OBJECT_SCHEMA,
 			Name:   name,
@@ -440,7 +476,14 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			params = appendParamsList(params, makeDefElem("concurrently", nil))
 		}
 
-		name, _ := p.parseName()
+		// opt_single_name: ColId | /* EMPTY */
+		name := ""
+		if p.isColId() {
+			var err error
+			if name, err = p.parseColId(); err != nil {
+				return nil, err
+			}
+		}
 		return &nodes.ReindexStmt{
 			Kind:   kind,
 			Name:   name,
@@ -462,95 +505,88 @@ func appendParamsList(list *nodes.List, item nodes.Node) *nodes.List {
 	return list
 }
 
-// parseUtilityOptionList parses utility_option_list.
-func (p *Parser) parseUtilityOptionList() *nodes.List {
-	elem := p.parseUtilityOptionElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
+// parseUtilityOptionList parses utility_option_list, the parenthesized
+// options of EXPLAIN, VACUUM, ANALYZE, CLUSTER and REINDEX.
+//
+//	utility_option_list: utility_option_elem | utility_option_list ',' utility_option_elem
+//	utility_option_elem: utility_option_name utility_option_arg
+func (p *Parser) parseUtilityOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		name, err := p.parseUtilityOptionName()
+		if err != nil {
+			return nil, err
+		}
+		arg, err := p.parseUtilityOptionArg()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, &nodes.DefElem{Defname: name, Arg: arg, Loc: nodes.NoLoc()})
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseUtilityOptionElem())
 	}
-	return &nodes.List{Items: items}
-}
-
-// parseUtilityOptionElem parses utility_option_elem.
-func (p *Parser) parseUtilityOptionElem() *nodes.DefElem {
-	name := p.parseUtilityOptionName()
-	arg := p.parseUtilityOptionArg()
-	return &nodes.DefElem{Defname: name, Arg: arg, Loc: nodes.NoLoc()}
 }
 
 // parseUtilityOptionName parses utility_option_name.
-func (p *Parser) parseUtilityOptionName() string {
-	switch p.cur.Type {
-	case ANALYZE, ANALYSE:
+//
+//	utility_option_name: NonReservedWord | analyze_keyword | FORMAT_LA
+//
+// FORMAT is an unreserved keyword, so NonReservedWord reads it.
+func (p *Parser) parseUtilityOptionName() (string, error) {
+	if p.cur.Type == ANALYZE || p.cur.Type == ANALYSE {
 		p.advance()
-		return "analyze"
-	case FORMAT:
-		p.advance()
-		return "format"
-	case DEFAULT:
-		p.advance()
-		return "default"
-	default:
-		s := p.cur.Str
-		p.advance()
-		return s
+		return "analyze", nil
 	}
+	return p.parseNonReservedWord()
 }
 
-// parseUtilityOptionArg parses utility_option_arg.
-func (p *Parser) parseUtilityOptionArg() nodes.Node {
+// parseUtilityOptionArg parses utility_option_arg, the argument of an
+// option, which may be missing.
+//
+//	utility_option_arg: opt_boolean_or_string | NumericOnly | /* EMPTY */
+func (p *Parser) parseUtilityOptionArg() (nodes.Node, error) {
 	switch p.cur.Type {
-	case '*':
-		starLoc := p.pos()
-		p.advance()
-		return &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}
-	case DEFAULT:
-		p.advance()
-		return &nodes.String{Str: "default"}
-	case '(':
-		p.advance()
-		list := p.parseUtilityOptionArgList()
-		p.expect(')')
-		return list
-	case ICONST, FCONST:
-		return p.parseNumericOnly()
-	case '+', '-':
-		return p.parseNumericOnly()
-	case TRUE_P:
-		p.advance()
-		return &nodes.String{Str: "true"}
-	case FALSE_P:
-		p.advance()
-		return &nodes.String{Str: "false"}
-	case ON:
-		p.advance()
-		return &nodes.String{Str: "on"}
-	case SCONST:
-		s := p.cur.Str
-		p.advance()
-		return &nodes.String{Str: s}
+	case ICONST, FCONST, '+', '-':
+		return p.parseNumericOnlyRequired()
+	case TRUE_P, FALSE_P, ON, SCONST:
+		s, err := p.parseBooleanOrString()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.String{Str: s}, nil
 	default:
 		if p.isNonReservedWord() {
 			s := p.cur.Str
 			p.advance()
-			return &nodes.String{Str: s}
+			return &nodes.String{Str: s}, nil
 		}
-		return nil
+		return nil, nil
 	}
 }
 
-// parseUtilityOptionArgList parses utility_option_arg_list.
-func (p *Parser) parseUtilityOptionArgList() *nodes.List {
-	s := p.parseOptBooleanOrString()
-	items := []nodes.Node{&nodes.String{Str: s}}
-	for p.cur.Type == ',' {
+// parseBooleanOrString parses opt_boolean_or_string and fails where none
+// is.
+//
+//	opt_boolean_or_string: TRUE_P | FALSE_P | ON | NonReservedWord_or_Sconst
+func (p *Parser) parseBooleanOrString() (string, error) {
+	switch p.cur.Type {
+	case TRUE_P:
 		p.advance()
-		s = p.parseOptBooleanOrString()
-		items = append(items, &nodes.String{Str: s})
+		return "true", nil
+	case FALSE_P:
+		p.advance()
+		return "false", nil
+	case ON:
+		p.advance()
+		return "on", nil
+	case SCONST:
+		s := p.cur.Str
+		p.advance()
+		return s, nil
 	}
-	return &nodes.List{Items: items}
+	return p.parseNonReservedWord()
 }
 
 // parseOptBooleanOrString parses opt_boolean_or_string.

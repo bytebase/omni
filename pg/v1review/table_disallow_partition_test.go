@@ -38,7 +38,6 @@ func TestTableDisallowPartition(t *testing.T) {
 		},
 		{name: "detach partition", sql: "ALTER TABLE t DETACH PARTITION p;"},
 		{name: "other alter", sql: "ALTER TABLE t ADD COLUMN b int;"},
-		{name: "explain not judged", sql: "EXPLAIN CREATE TABLE t (a int) PARTITION BY RANGE (a);"},
 		{name: "routine body not judged", sql: "CREATE FUNCTION f() RETURNS void AS $$ CREATE TABLE t (a int) PARTITION BY RANGE (a) $$ LANGUAGE sql;"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

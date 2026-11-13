@@ -237,7 +237,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	// Check for RENAME (produces RenameStmt, uses makeRangeVarFromAnyName)
@@ -290,8 +293,21 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		}, nil
 	}
 
-	// OWNER TO goes through alter_table_cmds in the yacc grammar
-	if p.cur.Type == OWNER {
+	if p.collectMode() {
+		// Offer both alternatives at the cursor: alter_table_cmds and the
+		// SeqOptList.
+		if _, err := p.parseAlterTableCmds(); err != nil && err != errCollecting {
+			return nil, err
+		}
+		for _, t := range seqOptElemLeadTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+
+	// Anything but a SeqOptElem goes through alter_table_cmds in the yacc
+	// grammar (OWNER TO, DROP, ...).
+	if !p.isSeqOptElemStart() {
 		rv := makeRangeVarFromAnyName(names, nameLoc)
 		cmds, err := p.parseAlterTableCmds()
 		if err != nil {
