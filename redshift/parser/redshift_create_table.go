@@ -125,16 +125,6 @@ func (p *Parser) parseRedshiftCreateTableAttributesInto(options *nodes.List) (*n
 	return appendNodeLists(options, attrs), nil
 }
 
-func (p *Parser) isRedshiftCreateTableAttributeStart() bool {
-	return p.redshiftWordEqual("diststyle") ||
-		p.redshiftWordEqual("distkey") ||
-		p.redshiftWordEqual("compound") ||
-		p.redshiftWordEqual("interleaved") ||
-		p.redshiftWordEqual("sortkey") ||
-		p.redshiftWordEqual("encode") ||
-		p.redshiftWordEqual("backup")
-}
-
 func (p *Parser) parseRedshiftColumnAttribute() (nodes.Node, error) {
 	switch {
 	case p.consumeRedshiftWord("encode"):

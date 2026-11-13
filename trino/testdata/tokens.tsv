@@ -1,0 +1,18 @@
+# Trino token forms for generated compat rows: the text written for each
+# token of SqlBase.g4 that is a class of texts. Keywords and punctuation spell
+# themselves and need no row. Each note cites the lexer rule in SqlBase.g4,
+# which matches keywords in any case (options { caseInsensitive = true; }).
+# columns: token, form, note
+IDENTIFIER	a	SqlBase.g4:1463 a letter or _, then letters, digits and _
+QUOTED_IDENTIFIER	"a"	SqlBase.g4:1471 a double-quoted name; "" is a quote in it
+BACKQUOTED_IDENTIFIER	`a`	SqlBase.g4:1475 a backquoted name, which AstBuilder refuses
+DIGIT_IDENTIFIER	1a	SqlBase.g4:1467 a digit, then letters, digits and _, which AstBuilder refuses
+STRING	'a'	SqlBase.g4:1427 a single-quoted string; '' is a quote in it
+UNICODE_STRING	U&'a'	SqlBase.g4:1431 U& and a single-quoted string
+DOLLAR_STRING	$$a$$	SqlBase.g4:1435 text between $$ and $$, a function definition
+BINARY_LITERAL	X'00'	SqlBase.g4:1442 X and a quoted string of hex digits
+INTEGER_VALUE	1	SqlBase.g4:1446 decimal, hex (0X), octal (0O) or binary (0B) digits
+DECIMAL_VALUE	1.5	SqlBase.g4:1453 digits with a point; 1. would sit against the next word
+DOUBLE_VALUE	1E1	SqlBase.g4:1458 digits with an exponent
+DELIMITER	(unreachable)	SqlBase.g4:27 declared in tokens { }, produced only by the CLI's DelimiterLexer
+.	ALTER	SqlBase.g4:1056 methodName : {isKeyword()}? . ; any keyword, so a reserved one

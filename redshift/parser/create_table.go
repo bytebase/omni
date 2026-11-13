@@ -20,7 +20,10 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	p.advance() // consume CREATE
 
 	// OptTemp
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(TABLE); err != nil {
 		return nil, err
@@ -90,16 +93,24 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	stmt.Partspec = partspec
 
 	// OptAccessMethod (USING name) -- but only for table AM, not constraint/index
-	stmt.AccessMethod = p.parseOptAccessMethod()
+	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+		return nil, err
+	}
 
 	// OptWith
-	stmt.Options = p.parseOptWith()
+	if stmt.Options, err = p.parseOptWith(); err != nil {
+		return nil, err
+	}
 
 	// OnCommitOption
-	stmt.OnCommit = p.parseOnCommitOption()
+	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+		return nil, err
+	}
 
 	// OptTableSpace
-	stmt.Tablespacename = p.parseOptTableSpace()
+	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+		return nil, err
+	}
 	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
 	if err != nil {
 		return nil, err
@@ -112,22 +123,24 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 // parseOptTemp parses OptTemp production.
 //
 //	OptTemp: TEMPORARY | TEMP | LOCAL TEMPORARY | LOCAL TEMP | UNLOGGED | /* EMPTY */
-func (p *Parser) parseOptTemp() byte {
+func (p *Parser) parseOptTemp() (byte, error) {
 	switch p.cur.Type {
 	case TEMPORARY, TEMP:
 		p.advance()
-		return 't'
-	case LOCAL:
+		return 't', nil
+	case LOCAL, GLOBAL:
+		// GLOBAL is accepted and ignored, as gram.y does with a warning.
 		p.advance()
-		if p.cur.Type == TEMPORARY || p.cur.Type == TEMP {
-			p.advance()
+		if p.cur.Type != TEMPORARY && p.cur.Type != TEMP {
+			return 0, p.syntaxErrorAtCur()
 		}
-		return 't'
+		p.advance()
+		return 't', nil
 	case UNLOGGED:
 		p.advance()
-		return 'u'
+		return 'u', nil
 	default:
-		return 'p'
+		return 'p', nil
 	}
 }
 
@@ -167,16 +180,24 @@ func (p *Parser) parseCreateStmtPartitionOf(stmt *nodes.CreateStmt, relpersisten
 	stmt.Partspec = partspec
 
 	// OptAccessMethod
-	stmt.AccessMethod = p.parseOptAccessMethod()
+	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+		return nil, err
+	}
 
 	// OptWith
-	stmt.Options = p.parseOptWith()
+	if stmt.Options, err = p.parseOptWith(); err != nil {
+		return nil, err
+	}
 
 	// OnCommitOption
-	stmt.OnCommit = p.parseOnCommitOption()
+	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+		return nil, err
+	}
 
 	// OptTableSpace
-	stmt.Tablespacename = p.parseOptTableSpace()
+	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+		return nil, err
+	}
 	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
 	if err != nil {
 		return nil, err
@@ -208,16 +229,24 @@ func (p *Parser) parseCreateStmtOf(stmt *nodes.CreateStmt) (*nodes.CreateStmt, e
 	}
 
 	// OptAccessMethod
-	stmt.AccessMethod = p.parseOptAccessMethod()
+	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+		return nil, err
+	}
 
 	// OptWith
-	stmt.Options = p.parseOptWith()
+	if stmt.Options, err = p.parseOptWith(); err != nil {
+		return nil, err
+	}
 
 	// OnCommitOption
-	stmt.OnCommit = p.parseOnCommitOption()
+	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+		return nil, err
+	}
 
 	// OptTableSpace
-	stmt.Tablespacename = p.parseOptTableSpace()
+	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+		return nil, err
+	}
 	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
 	if err != nil {
 		return nil, err
@@ -1895,63 +1924,69 @@ func (p *Parser) parsePartElem() (*nodes.PartitionElem, error) {
 // parseOptAccessMethod parses OptAccessMethod.
 //
 //	OptAccessMethod: USING name | /* EMPTY */
-func (p *Parser) parseOptAccessMethod() string {
+func (p *Parser) parseOptAccessMethod() (string, error) {
 	if p.cur.Type == USING {
 		p.advance()
-		name, _ := p.parseName()
-		return name
+		return p.parseName()
 	}
-	return ""
+	return "", nil
 }
 
 // parseOptWith parses OptWith for CREATE TABLE.
 //
 //	OptWith: WITH reloptions | WITH OIDS | WITHOUT OIDS | /* EMPTY */
-func (p *Parser) parseOptWith() *nodes.List {
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == '(' {
+func (p *Parser) parseOptWith() (*nodes.List, error) {
+	switch p.cur.Type {
+	case WITH:
+		switch p.peekNext().Type {
+		case '(':
 			p.advance() // WITH
 			return p.parseReloptions()
+		case OIDS:
+			p.advance()     // WITH
+			p.advance()     // OIDS
+			return nil, nil // deprecated
 		}
-		if next.Type == OIDS {
-			p.advance() // WITH
-			p.advance() // OIDS
-			return nil  // deprecated
-		}
-		return nil
-	}
-	if p.cur.Type == WITHOUT {
-		next := p.peekNext()
-		if next.Type == OIDS {
-			p.advance() // WITHOUT
-			p.advance() // OIDS
-			return nil
+	case WITHOUT:
+		p.advance() // WITHOUT
+		if _, err := p.expect(OIDS); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // parseReloptions parses reloptions.
 //
 //	reloptions: '(' reloption_list ')'
-func (p *Parser) parseReloptions() *nodes.List {
-	p.expect('(')
-	list := p.parseReloptionList()
-	p.expect(')')
-	return list
+func (p *Parser) parseReloptions() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseReloptionList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // parseReloptionList parses reloption_list.
-func (p *Parser) parseReloptionList() *nodes.List {
-	elem := p.parseReloptionElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
+func (p *Parser) parseReloptionList() (*nodes.List, error) {
+	list := &nodes.List{}
+	for {
+		elem, err := p.parseReloptionElem()
+		if err != nil {
+			return nil, err
+		}
+		list.Items = append(list.Items, elem)
+		if p.cur.Type != ',' {
+			return list, nil
+		}
 		p.advance()
-		elem = p.parseReloptionElem()
-		items = append(items, elem)
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseReloptionElem parses a single reloption_elem.
@@ -1961,84 +1996,70 @@ func (p *Parser) parseReloptionList() *nodes.List {
 //	    | ColLabel
 //	    | ColLabel '.' ColLabel '=' def_arg
 //	    | ColLabel '.' ColLabel
-func (p *Parser) parseReloptionElem() *nodes.DefElem {
-	label, _ := p.parseColLabel()
-
+func (p *Parser) parseReloptionElem() (*nodes.DefElem, error) {
+	elem := &nodes.DefElem{Loc: nodes.NoLoc()}
+	label, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
+	elem.Defname = label
 	if p.cur.Type == '.' {
 		p.advance()
-		sublabel, _ := p.parseColLabel()
-		if p.cur.Type == '=' {
-			p.advance()
-			arg, _ := p.parseDefArg()
-			return &nodes.DefElem{
-				Defnamespace: label,
-				Defname:      sublabel,
-				Arg:          arg,
-				Loc:          nodes.NoLoc(),
-			}
+		sublabel, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
 		}
-		return &nodes.DefElem{
-			Defnamespace: label,
-			Defname:      sublabel,
-			Loc:          nodes.NoLoc(),
-		}
+		elem.Defnamespace, elem.Defname = label, sublabel
 	}
-
 	if p.cur.Type == '=' {
 		p.advance()
-		arg, _ := p.parseDefArg()
-		return &nodes.DefElem{
-			Defname: label,
-			Arg:     arg,
-			Loc:     nodes.NoLoc(),
+		arg, err := p.parseDefArg()
+		if err != nil {
+			return nil, err
 		}
+		elem.Arg = arg
 	}
-
-	return &nodes.DefElem{
-		Defname: label,
-		Loc:     nodes.NoLoc(),
-	}
+	return elem, nil
 }
 
 // parseOnCommitOption parses OnCommitOption.
 //
 //	OnCommitOption: ON COMMIT DROP | ON COMMIT DELETE ROWS | ON COMMIT PRESERVE ROWS | /* EMPTY */
-func (p *Parser) parseOnCommitOption() nodes.OnCommitAction {
-	if p.cur.Type != ON {
-		return nodes.ONCOMMIT_NOOP
-	}
-	next := p.peekNext()
-	if next.Type != COMMIT {
-		return nodes.ONCOMMIT_NOOP
+func (p *Parser) parseOnCommitOption() (nodes.OnCommitAction, error) {
+	if p.cur.Type != ON || p.peekNext().Type != COMMIT {
+		return nodes.ONCOMMIT_NOOP, nil
 	}
 	p.advance() // ON
 	p.advance() // COMMIT
 	switch p.cur.Type {
 	case DROP:
 		p.advance()
-		return nodes.ONCOMMIT_DROP
+		return nodes.ONCOMMIT_DROP, nil
 	case DELETE_P:
 		p.advance()
-		p.expect(ROWS)
-		return nodes.ONCOMMIT_DELETE_ROWS
+		if _, err := p.expect(ROWS); err != nil {
+			return 0, err
+		}
+		return nodes.ONCOMMIT_DELETE_ROWS, nil
 	case PRESERVE:
 		p.advance()
-		p.expect(ROWS)
-		return nodes.ONCOMMIT_PRESERVE_ROWS
+		if _, err := p.expect(ROWS); err != nil {
+			return 0, err
+		}
+		return nodes.ONCOMMIT_PRESERVE_ROWS, nil
 	}
-	return nodes.ONCOMMIT_NOOP
+	return 0, p.syntaxErrorAtCur()
 }
 
 // parseOptTableSpace parses OptTableSpace.
 //
 //	OptTableSpace: TABLESPACE name | /* EMPTY */
-func (p *Parser) parseOptTableSpace() string {
+func (p *Parser) parseOptTableSpace() (string, error) {
 	if p.cur.Type == TABLESPACE {
 		p.advance()
-		name, _ := p.parseName()
-		return name
+		return p.parseName()
 	}
-	return ""
+	return "", nil
 }
 
 // parseForValues parses ForValues (partition bound spec).

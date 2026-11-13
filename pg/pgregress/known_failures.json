@@ -41,9 +41,6 @@
     10,
     13
   ],
-  "create_table.sql": [
-    2
-  ],
   "create_type.sql": [
     4
   ],
@@ -182,9 +179,6 @@
   "rules.sql": [
     68
   ],
-  "sequence.sql": [
-    153
-  ],
   "stats_ext.sql": [
     2,
     3,
@@ -207,10 +201,6 @@
   ],
   "tablesample.sql": [
     50
-  ],
-  "tablespace.sql": [
-    70,
-    73
   ],
   "temp.sql": [
     160
