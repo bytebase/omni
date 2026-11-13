@@ -1542,10 +1542,12 @@ alterMaskingPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-materialized-view
 // fix: UNSET takes SECURE, CONTACT or COMMENT, one at a time, as the parameters say; the | after SECURE is missing
+// fix: the view's name is missing; the parameters name it
+// fix: the view's name is missing; the parameters name it
 alterMaterializedView
     : 'ALTER' 'MATERIALIZED' 'VIEW' ID ('RENAME' 'TO' ID | 'CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')' | 'DROP' 'CLUSTERING' 'KEY' | 'SUSPEND' 'RECLUSTER' | 'RESUME' 'RECLUSTER' | 'SUSPEND' | 'RESUME' | 'SET' ('SECURE' ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING) | 'UNSET' ('SECURE' | 'CONTACT' ID | 'COMMENT'))
-    | 'ALTER' 'MATERIALIZED' 'VIEW' 'SET' 'DATA_METRIC_SCHEDULE' '=' STRING
-    | 'ALTER' 'MATERIALIZED' 'VIEW' 'UNSET' 'DATA_METRIC_SCHEDULE'
+    | 'ALTER' 'MATERIALIZED' 'VIEW' ID 'SET' 'DATA_METRIC_SCHEDULE' '=' STRING
+    | 'ALTER' 'MATERIALIZED' 'VIEW' ID 'UNSET' 'DATA_METRIC_SCHEDULE'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-model
@@ -3251,9 +3253,11 @@ createModel
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-model-monitor
+// fix: read: a <..._array> of column names is ( '<name>' [ , ... ] ), as the examples write it
+// fix: read: a <..._array> of column names is ( '<name>' [ , ... ] ), as the examples write it
 createModelMonitor
-    : 'CREATE' ('OR' 'REPLACE')? 'MODEL' 'MONITOR' ('IF' 'NOT' 'EXISTS')? ID 'WITH' 'MODEL' '=' ID 'VERSION' '=' STRING 'FUNCTION' '=' STRING 'SOURCE' '=' ID 'WAREHOUSE' '=' ID 'REFRESH_INTERVAL' '=' STRING 'AGGREGATION_WINDOW' '=' STRING 'TIMESTAMP_COLUMN' '=' ID ('BASELINE' '=' ID)? ('ID_COLUMNS' '=' ID)? ('PREDICTION_CLASS_COLUMNS' '=' ID)? ('PREDICTION_SCORE_COLUMNS' '=' ID)? ('ACTUAL_CLASS_COLUMNS' '=' ID)? ('ACTUAL_SCORE_COLUMNS' '=' ID)? ('SEGMENT_COLUMNS' '=' ID)? ('CUSTOM_METRIC_COLUMNS' '=' ID)? ('COMMENT' '=' STRING)?
-    | 'CREATE' ('OR' 'REPLACE')? 'MODEL' 'MONITOR' ('IF' 'NOT' 'EXISTS')? ID 'WITH' 'MODEL' '=' ID 'GATEWAY' '=' ID 'FUNCTION' '=' STRING 'WAREHOUSE' '=' ID 'REFRESH_INTERVAL' '=' STRING 'AGGREGATION_WINDOW' '=' STRING ('GROUND_TRUTH' '=' ID)? ('ID_COLUMNS' '=' ID)? ('PREDICTION_CLASS_COLUMNS' '=' ID)? ('PREDICTION_SCORE_COLUMNS' '=' ID)? ('ACTUAL_CLASS_COLUMNS' '=' ID)? ('ACTUAL_SCORE_COLUMNS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'MODEL' 'MONITOR' ('IF' 'NOT' 'EXISTS')? ID 'WITH' 'MODEL' '=' ID 'VERSION' '=' STRING 'FUNCTION' '=' STRING 'SOURCE' '=' ID 'WAREHOUSE' '=' ID 'REFRESH_INTERVAL' '=' STRING 'AGGREGATION_WINDOW' '=' STRING 'TIMESTAMP_COLUMN' '=' ID ('BASELINE' '=' ID)? ('ID_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('PREDICTION_CLASS_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('PREDICTION_SCORE_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('ACTUAL_CLASS_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('ACTUAL_SCORE_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('SEGMENT_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('CUSTOM_METRIC_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('COMMENT' '=' STRING)?
+    | 'CREATE' ('OR' 'REPLACE')? 'MODEL' 'MONITOR' ('IF' 'NOT' 'EXISTS')? ID 'WITH' 'MODEL' '=' ID 'GATEWAY' '=' ID 'FUNCTION' '=' STRING 'WAREHOUSE' '=' ID 'REFRESH_INTERVAL' '=' STRING 'AGGREGATION_WINDOW' '=' STRING ('GROUND_TRUTH' '=' ID)? ('ID_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('PREDICTION_CLASS_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('PREDICTION_SCORE_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('ACTUAL_CLASS_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('ACTUAL_SCORE_COLUMNS' '=' '(' STRING (',' STRING)* ')')? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-multi-party-approval-policy
@@ -3301,9 +3305,14 @@ createCodeBundle
 //     [ COMMENT = '<string_literal>' ]
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-multi-queue
+// fix: the block after the statement defines <queue>, one variant per cloud provider; named here
 createNotificationIntegrationMultiQueue
-    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'MULTI_QUEUE' 'DIRECTION' '=' 'INBOUND' 'QUEUES' '=' '(' ID (',' ID)? ')' 'ACTIVE' '=' STRING ('COMMENT' '=' STRING)?
-    | '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'AWS_SNS' 'AWS_SNS_TOPIC_ARN' '=' STRING ')' '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'GCP_PUBSUB' 'GCP_PUBSUB_SUBSCRIPTION_NAME' '=' STRING ')' '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'AZURE_STORAGE_QUEUE' 'AZURE_STORAGE_QUEUE_PRIMARY_URI' '=' STRING 'AZURE_TENANT_ID' '=' STRING ')'
+    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'MULTI_QUEUE' 'DIRECTION' '=' 'INBOUND' 'QUEUES' '=' '(' createNotificationIntegrationMultiQueue_queue (',' createNotificationIntegrationMultiQueue_queue)? ')' 'ACTIVE' '=' STRING ('COMMENT' '=' STRING)?
+    ;
+createNotificationIntegrationMultiQueue_queue
+    : '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'AWS_SNS' 'AWS_SNS_TOPIC_ARN' '=' STRING ')'
+    | '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'GCP_PUBSUB' 'GCP_PUBSUB_SUBSCRIPTION_NAME' '=' STRING ')'
+    | '(' 'NAME' '=' STRING 'NOTIFICATION_PROVIDER' '=' 'AZURE_STORAGE_QUEUE' 'AZURE_STORAGE_QUEUE_PRIMARY_URI' '=' STRING 'AZURE_TENANT_ID' '=' STRING ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-azure

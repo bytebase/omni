@@ -281,6 +281,10 @@ var (
 	timeTravelStatement = regexp.MustCompile(`STATEMENT => <(id|query_id)>`)
 )
 
+// nameArray is a property set to an array of column names, as a model
+// monitor's ID_COLUMNS = <id_column_name_array> is: ( 'a' [ , ... ] ).
+var nameArray = regexp.MustCompile(`= <([a-z_-]+_array)>`)
+
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
@@ -329,6 +333,12 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	if offset {
 		pg.fixes = append(pg.fixes, "read: Time Travel's OFFSET is a negative number of seconds, -N, and its STATEMENT a quoted query ID, as the Time Travel parameters say")
+	}
+	for i, b := range blocks {
+		if fixed := nameArray.ReplaceAllString(b, "= ( '<$1>' [ , ... ] )"); fixed != b {
+			blocks[i] = fixed
+			pg.fixes = append(pg.fixes, "read: a <..._array> of column names is ( '<name>' [ , ... ] ), as the examples write it")
+		}
 	}
 	for i, b := range blocks {
 		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {

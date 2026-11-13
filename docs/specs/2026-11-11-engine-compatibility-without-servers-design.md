@@ -800,7 +800,7 @@ After step 0 the engines are independent. Order:
 - **Three connections a case,** as OceanBase's: the setup, the catalog, and the change, which sets `foreign_key_checks` itself: a new session could read the global a sweep's base had turned off before the setup turned it on again.
 - **Server state** goes through `testcontainer.Reset`: user databases dropped, `test` made again, and the global `foreign_key_checks` and `tidb_enable_check_constraint` on. The prior-backup, scan-rule and column-drop oracles stay as they were, on a tape each.
 
-**Snowflake, converted.** `snowflake/parser/cmd/docsgrammar` read the Syntax sections of the 779 pages the command index lists on 2026-11-13 and wrote `snowflake/testdata/SnowflakeDocs.g4`: 765 pages have syntax, 758 give a rule, with 1,542 statement forms and 152 fragment rules. The blocks are near-BNF and map directly:
+**Snowflake, converted.** `snowflake/parser/cmd/docsgrammar` read the Syntax sections of the 779 pages the command index lists on 2026-11-13 and wrote `snowflake/testdata/SnowflakeDocs.g4`: 765 pages have syntax, 758 give a rule, with 1,541 statement forms and 153 fragment rules. The blocks are near-BNF and map directly:
 
 ```text
 ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
@@ -813,17 +813,17 @@ alterWarehouse
 ```
 
 - **Placeholders are read by name** into twelve token classes, sampled in `tokens.tsv`: `<name>` is `ID`, `'<x>'` is `STRING`, `<num>` is `NUMBER`, `<expr>` is `EXPR`, `<query>` is `QUERY`, `<copy_statement>` is `COPY_STATEMENT`, a stage location is `STAGE`, a `file://` path is `FILE`.
-- **Docs are prose.** 91 places, mostly typos and brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. The converter's own readings include: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing; in `{ <target> SET X | UNSET X }` the `UNSET` keeps the target; a `|` outside brackets chooses what follows the object's name (`ALTER TASK <name> RESUME | SUSPEND`). And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
+- **Docs are prose.** 94 places, mostly typos and brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. The converter's own readings include: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing; in `{ <target> SET X | UNSET X }` the `UNSET` keeps the target; a `|` outside brackets chooses what follows the object's name (`ALTER TASK <name> RESUME | SUSPEND`). And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
 - **45 forms are not converted,** listed in the `.g4` under their page: 34 write `...` for text they leave out (`SELECT * ILIKE ... REPLACE ...`, or a last line of `...` after `CLONE <source>`), 6 name a fragment their page does not define (`{oauth_parameters}`) or are examples (`emp_id`), 2 hold Markdown, 1 has a bracket out of place, and CREATE and ALTER INTEGRATION write `<integration_type>` for the keyword each type's own page gives.
 
-The docs judged the 58,408 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
+The docs judged the 58,446 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
 
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
-| One per alternative | 15,659 | 9,890 | 5,769 | 0 |
-| Near-misses | 42,749 | 537 | 243 | 41,969 |
+| One per alternative | 15,663 | 9,878 | 5,785 | 0 |
+| Near-misses | 42,783 | 537 | 243 | 42,003 |
 
-- **6,012 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 308 of the 758 commands (104 `ALTER`, 81 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (330), `ALTER ICEBERG TABLE` (94), `ALTER DATABASE` (77), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
+- **6,028 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 309 of the 758 commands (104 `ALTER`, 82 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (330), `ALTER ICEBERG TABLE` (94), `ALTER DATABASE` (77), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
 - **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a file format's options are one list whatever its `TYPE`, since the converter does not tie each `-- If TYPE = CSV` section to its type; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
 - **Size.** The file is 9.3 MB. The undocumented near-misses are 6.9 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 2.4 MB.
 
