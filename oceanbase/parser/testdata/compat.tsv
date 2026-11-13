@@ -294,18 +294,18 @@ reject	reject	engine	stmt/drop_tablespace_stmt!swap	DUAL TABLESPACE a
 accept	accept	engine	stmt/alter_tablespace_stmt	ALTER TABLESPACE a WAIT
 reject	reject	engine	stmt/alter_tablespace_stmt!drop-1	TABLESPACE a WAIT
 reject	reject	engine	stmt/alter_tablespace_stmt!drop-2	ALTER a WAIT
-accept	reject	engine	stmt/alter_tablespace_stmt!drop-3	ALTER TABLESPACE WAIT
-accept	reject	engine	stmt/alter_tablespace_stmt!drop-4	ALTER TABLESPACE a
+reject	reject	engine	stmt/alter_tablespace_stmt!drop-3	ALTER TABLESPACE WAIT
+reject	reject	engine	stmt/alter_tablespace_stmt!drop-4	ALTER TABLESPACE a
 reject	reject	engine	stmt/alter_tablespace_stmt!insert	ALTER TABLESPACE a WAIT zzz
 reject	reject	engine	stmt/alter_tablespace_stmt!swap	ALWAYS TABLESPACE a WAIT
 accept	accept	engine	stmt/rotate_master_key_stmt	ALTER INSTANCE ROTATE INNODB MASTER KEY
 reject	reject	engine	stmt/rotate_master_key_stmt!drop-1	INSTANCE ROTATE INNODB MASTER KEY
 reject	reject	engine	stmt/rotate_master_key_stmt!drop-2	ALTER ROTATE INNODB MASTER KEY
-accept	reject	engine	stmt/rotate_master_key_stmt!drop-3	ALTER INSTANCE INNODB MASTER KEY
-accept	reject	engine	stmt/rotate_master_key_stmt!drop-4	ALTER INSTANCE ROTATE MASTER KEY
-accept	reject	engine	stmt/rotate_master_key_stmt!drop-5	ALTER INSTANCE ROTATE INNODB KEY
-accept	reject	engine	stmt/rotate_master_key_stmt!drop-6	ALTER INSTANCE ROTATE INNODB MASTER
-accept	reject	engine	stmt/rotate_master_key_stmt!insert	ALTER INSTANCE ROTATE INNODB MASTER KEY zzz
+reject	reject	engine	stmt/rotate_master_key_stmt!drop-3	ALTER INSTANCE INNODB MASTER KEY
+reject	reject	engine	stmt/rotate_master_key_stmt!drop-4	ALTER INSTANCE ROTATE MASTER KEY
+reject	reject	engine	stmt/rotate_master_key_stmt!drop-5	ALTER INSTANCE ROTATE INNODB KEY
+reject	reject	engine	stmt/rotate_master_key_stmt!drop-6	ALTER INSTANCE ROTATE INNODB MASTER
+reject	reject	engine	stmt/rotate_master_key_stmt!insert	ALTER INSTANCE ROTATE INNODB MASTER KEY zzz
 reject	reject	engine	stmt/rotate_master_key_stmt!swap	ALWAYS INSTANCE ROTATE INNODB MASTER KEY
 accept	accept	engine	stmt/create_index_stmt	CREATE INDEX a ON a(a)
 reject	reject	engine	stmt/create_index_stmt!drop-1	INDEX a ON a(a)
@@ -12297,7 +12297,7 @@ reject	reject	engine	help_stmt/HELP_NAME_OB!swap	HIDDEN a
 accept	accept	engine	create_tablespace_stmt/create_with_opt_hint_TABLESPACE_tablespace_permanent_tablespace	CREATE TABLESPACE a
 accept	accept	engine	permanent_tablespace/permanent_tablespace_options	CREATE TABLESPACE a ENCRYPTION 's'
 reject	reject	engine	permanent_tablespace/permanent_tablespace_options!drop-1	CREATE TABLESPACE a 's'
-accept	reject	engine	permanent_tablespace/permanent_tablespace_options!drop-2	CREATE TABLESPACE a ENCRYPTION
+reject	reject	engine	permanent_tablespace/permanent_tablespace_options!drop-2	CREATE TABLESPACE a ENCRYPTION
 reject	reject	engine	permanent_tablespace/permanent_tablespace_options!insert	CREATE TABLESPACE a ENCRYPTION 's' zzz
 reject	reject	engine	permanent_tablespace/permanent_tablespace_options!swap	CREATE TABLESPACE a END 's'
 accept	accept	engine	permanent_tablespace/opt_tablespace_options	CREATE TABLESPACE a WAIT
@@ -12307,17 +12307,17 @@ accept	accept	engine	permanent_tablespace/%empty	CREATE TABLESPACE a
 accept	accept	engine	permanent_tablespace_option/ENCRYPTION_opt_equal_mark_STRING_VALUE	CREATE TABLESPACE a ENCRYPTION 's'
 accept	accept	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE	CREATE TABLESPACE a ADD DATAFILE 's'
 reject	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-1	CREATE TABLESPACE a DATAFILE 's'
-accept	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-2	CREATE TABLESPACE a ADD 's'
+reject	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-2	CREATE TABLESPACE a ADD 's'
 reject	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-3	CREATE TABLESPACE a ADD DATAFILE
 reject	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!insert	CREATE TABLESPACE a ADD DATAFILE 's' zzz
 reject	reject	engine	opt_tablespace_option/ADD_DATAFILE_STRING_VALUE!swap	CREATE TABLESPACE a ADDDATE DATAFILE 's'
 accept	accept	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM	CREATE TABLESPACE a FILE_BLOCK_SIZE = 1
 reject	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!drop-1	CREATE TABLESPACE a = 1
-accept	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!drop-2	CREATE TABLESPACE a FILE_BLOCK_SIZE 1
-accept	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!drop-3	CREATE TABLESPACE a FILE_BLOCK_SIZE =
+reject	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!drop-2	CREATE TABLESPACE a FILE_BLOCK_SIZE 1
+reject	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!drop-3	CREATE TABLESPACE a FILE_BLOCK_SIZE =
 reject	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!insert	CREATE TABLESPACE a FILE_BLOCK_SIZE = 1 zzz
 reject	reject	engine	opt_tablespace_option/FILE_BLOCK_SIZE_COMP_EQ_INTNUM!swap	CREATE TABLESPACE a FILE_EXTENSION = 1
-reject	accept	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE	CREATE TABLESPACE a USE LOGFILE GROUP 's'
+accept	accept	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE	CREATE TABLESPACE a USE LOGFILE GROUP 's'
 reject	reject	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE!drop-1	CREATE TABLESPACE a LOGFILE GROUP 's'
 reject	reject	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE!drop-2	CREATE TABLESPACE a USE GROUP 's'
 reject	reject	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE!drop-3	CREATE TABLESPACE a USE LOGFILE 's'
@@ -12326,23 +12326,23 @@ reject	reject	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE!insert
 reject	reject	engine	opt_tablespace_option/USE_LOGFILE_GROUP_STRING_VALUE!swap	CREATE TABLESPACE a USER LOGFILE GROUP 's'
 accept	accept	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM	CREATE TABLESPACE a EXTENT_SIZE 1
 reject	reject	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM!drop-1	CREATE TABLESPACE a 1
-accept	reject	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a EXTENT_SIZE
+reject	reject	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a EXTENT_SIZE
 reject	reject	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM!insert	CREATE TABLESPACE a EXTENT_SIZE 1 zzz
 reject	reject	engine	opt_tablespace_option/EXTENT_SIZE_opt_equal_mark_INTNUM!swap	CREATE TABLESPACE a EXTERNAL 1
 accept	accept	engine	opt_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM	CREATE TABLESPACE a INITIAL_SIZE 1
-accept	reject	engine	opt_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a INITIAL_SIZE
+reject	reject	engine	opt_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a INITIAL_SIZE
 reject	reject	engine	opt_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!insert	CREATE TABLESPACE a INITIAL_SIZE 1 zzz
 reject	reject	engine	opt_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!swap	CREATE TABLESPACE a INLINE 1
 accept	accept	engine	opt_tablespace_option/AUTOEXTEND_SIZE_opt_equal_mark_INTNUM	CREATE TABLESPACE a AUTOEXTEND_SIZE 1
-accept	reject	engine	opt_tablespace_option/AUTOEXTEND_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a AUTOEXTEND_SIZE
+reject	reject	engine	opt_tablespace_option/AUTOEXTEND_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a AUTOEXTEND_SIZE
 reject	reject	engine	opt_tablespace_option/AUTOEXTEND_SIZE_opt_equal_mark_INTNUM!insert	CREATE TABLESPACE a AUTOEXTEND_SIZE 1 zzz
 reject	reject	engine	opt_tablespace_option/AUTOEXTEND_SIZE_opt_equal_mark_INTNUM!swap	CREATE TABLESPACE a AUTO_INCREMENT 1
 accept	accept	engine	opt_tablespace_option/MAX_SIZE_opt_equal_mark_INTNUM	CREATE TABLESPACE a MAX_SIZE 1
-accept	reject	engine	opt_tablespace_option/MAX_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a MAX_SIZE
+reject	reject	engine	opt_tablespace_option/MAX_SIZE_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a MAX_SIZE
 reject	reject	engine	opt_tablespace_option/MAX_SIZE_opt_equal_mark_INTNUM!insert	CREATE TABLESPACE a MAX_SIZE 1 zzz
 reject	reject	engine	opt_tablespace_option/MAX_SIZE_opt_equal_mark_INTNUM!swap	CREATE TABLESPACE a MAX_TOKEN_SIZE 1
 accept	accept	engine	opt_tablespace_option/NODEGROUP_opt_equal_mark_INTNUM	CREATE TABLESPACE a NODEGROUP 1
-accept	reject	engine	opt_tablespace_option/NODEGROUP_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a NODEGROUP
+reject	reject	engine	opt_tablespace_option/NODEGROUP_opt_equal_mark_INTNUM!drop-2	CREATE TABLESPACE a NODEGROUP
 reject	reject	engine	opt_tablespace_option/NODEGROUP_opt_equal_mark_INTNUM!insert	CREATE TABLESPACE a NODEGROUP 1 zzz
 reject	reject	engine	opt_tablespace_option/NODEGROUP_opt_equal_mark_INTNUM!swap	CREATE TABLESPACE a NOMAXVALUE 1
 accept	accept	engine	opt_tablespace_option/WAIT	CREATE TABLESPACE a WAIT
@@ -12367,16 +12367,16 @@ reject	reject	engine	drop_tablespace_stmt/DROP_TABLESPACE_tablespace_opt_tablesp
 reject	reject	engine	drop_tablespace_stmt/DROP_TABLESPACE_tablespace_opt_tablespace_engine!swap	DUAL TABLESPACE a ENGINE a
 accept	accept	engine	alter_tablespace_options/alter_tablespace_actions	ALTER TABLESPACE a ENCRYPTION 's'
 reject	reject	engine	alter_tablespace_options/alter_tablespace_actions!drop-1	ALTER TABLESPACE a 's'
-accept	reject	engine	alter_tablespace_options/alter_tablespace_actions!drop-2	ALTER TABLESPACE a ENCRYPTION
+reject	reject	engine	alter_tablespace_options/alter_tablespace_actions!drop-2	ALTER TABLESPACE a ENCRYPTION
 reject	reject	engine	alter_tablespace_options/alter_tablespace_actions!insert	ALTER TABLESPACE a ENCRYPTION 's' zzz
 reject	reject	engine	alter_tablespace_options/alter_tablespace_actions!swap	ALTER TABLESPACE a END 's'
 accept	accept	engine	alter_tablespace_options/opt_alter_tablespace_options	ALTER TABLESPACE a WAIT
 reject	reject	engine	alter_tablespace_options/opt_alter_tablespace_options!swap	ALTER TABLESPACE a WARNINGS
 accept	accept	engine	alter_tablespace_actions/alter_tablespace_action	ALTER TABLESPACE a ENCRYPTION 's'
-reject	accept	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action	ALTER TABLESPACE a ENCRYPTION 's', ENCRYPTION 's'
+accept	accept	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action	ALTER TABLESPACE a ENCRYPTION 's', ENCRYPTION 's'
 reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-1	ALTER TABLESPACE a 's', ENCRYPTION 's'
 reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-2	ALTER TABLESPACE a ENCRYPTION, ENCRYPTION 's'
-accept	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-3	ALTER TABLESPACE a ENCRYPTION 's' ENCRYPTION 's'
+reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-3	ALTER TABLESPACE a ENCRYPTION 's' ENCRYPTION 's'
 reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-4	ALTER TABLESPACE a ENCRYPTION 's', 's'
 reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!drop-5	ALTER TABLESPACE a ENCRYPTION 's', ENCRYPTION
 reject	reject	engine	alter_tablespace_actions/alter_tablespace_action_,_alter_tablespace_action!insert	ALTER TABLESPACE a ENCRYPTION 's', ENCRYPTION 's' zzz
@@ -12388,18 +12388,18 @@ reject	reject	engine	opt_alter_tablespace_options/opt_alter_tablespace_options_o
 accept	accept	engine	alter_tablespace_action/opt_set_permanent_tablespace_option	ALTER TABLESPACE a ENCRYPTION 's'
 accept	accept	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE	ALTER TABLESPACE a ADD DATAFILE 's'
 reject	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-1	ALTER TABLESPACE a DATAFILE 's'
-accept	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-2	ALTER TABLESPACE a ADD 's'
+reject	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-2	ALTER TABLESPACE a ADD 's'
 reject	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!drop-3	ALTER TABLESPACE a ADD DATAFILE
 reject	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!insert	ALTER TABLESPACE a ADD DATAFILE 's' zzz
 reject	reject	engine	opt_alter_tablespace_option/ADD_DATAFILE_STRING_VALUE!swap	ALTER TABLESPACE a ADDDATE DATAFILE 's'
 accept	accept	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE	ALTER TABLESPACE a DROP DATAFILE 's'
-accept	reject	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE!drop-2	ALTER TABLESPACE a DROP 's'
+reject	reject	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE!drop-2	ALTER TABLESPACE a DROP 's'
 reject	reject	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE!drop-3	ALTER TABLESPACE a DROP DATAFILE
 reject	reject	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE!insert	ALTER TABLESPACE a DROP DATAFILE 's' zzz
 reject	reject	engine	opt_alter_tablespace_option/DROP_DATAFILE_STRING_VALUE!swap	ALTER TABLESPACE a DUAL DATAFILE 's'
 accept	accept	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM	ALTER TABLESPACE a INITIAL_SIZE 1
 reject	reject	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!drop-1	ALTER TABLESPACE a 1
-accept	reject	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!drop-2	ALTER TABLESPACE a INITIAL_SIZE
+reject	reject	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!drop-2	ALTER TABLESPACE a INITIAL_SIZE
 reject	reject	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!insert	ALTER TABLESPACE a INITIAL_SIZE 1 zzz
 reject	reject	engine	opt_alter_tablespace_option/INITIAL_SIZE_opt_equal_mark_INTNUM!swap	ALTER TABLESPACE a INLINE 1
 accept	accept	engine	opt_alter_tablespace_option/WAIT	ALTER TABLESPACE a WAIT
@@ -12411,10 +12411,10 @@ reject	reject	engine	opt_alter_tablespace_option/opt_tablespace_engine!swap	ALTE
 accept	accept	engine	alter_tablespace_stmt/alter_with_opt_hint_TABLESPACE_tablespace_alter_tablespace_options	ALTER TABLESPACE a WAIT
 accept	accept	engine	rotate_master_key_stmt/alter_with_opt_hint_INSTANCE_ROTATE_INNODB_MASTER_KEY	ALTER INSTANCE ROTATE INNODB MASTER KEY
 accept	accept	engine	permanent_tablespace_options/permanent_tablespace_option	CREATE TABLESPACE a ENCRYPTION 's'
-reject	accept	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option	CREATE TABLESPACE a ENCRYPTION 's', ENCRYPTION 's'
+accept	accept	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option	CREATE TABLESPACE a ENCRYPTION 's', ENCRYPTION 's'
 reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-1	CREATE TABLESPACE a 's', ENCRYPTION 's'
 reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-2	CREATE TABLESPACE a ENCRYPTION, ENCRYPTION 's'
-accept	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-3	CREATE TABLESPACE a ENCRYPTION 's' ENCRYPTION 's'
+reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-3	CREATE TABLESPACE a ENCRYPTION 's' ENCRYPTION 's'
 reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-4	CREATE TABLESPACE a ENCRYPTION 's', 's'
 reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!drop-5	CREATE TABLESPACE a ENCRYPTION 's', ENCRYPTION
 reject	reject	engine	permanent_tablespace_options/permanent_tablespace_options_,_permanent_tablespace_option!insert	CREATE TABLESPACE a ENCRYPTION 's', ENCRYPTION 's' zzz
@@ -16429,15 +16429,15 @@ accept	accept	engine	mock_stmt/create_server_stmt	CREATE SERVER a FOREIGN DATA W
 reject	reject	engine	mock_stmt/create_server_stmt!drop-1	SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/create_server_stmt!drop-2	CREATE a FOREIGN DATA WRAPPER a OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/create_server_stmt!drop-3	CREATE SERVER FOREIGN DATA WRAPPER a OPTIONS(USER 's')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's')
+reject	reject	engine	mock_stmt/create_server_stmt!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's')
+reject	reject	engine	mock_stmt/create_server_stmt!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's')
+reject	reject	engine	mock_stmt/create_server_stmt!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/create_server_stmt!drop-7	CREATE SERVER a FOREIGN DATA WRAPPER OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/create_server_stmt!drop-8	CREATE SERVER a FOREIGN DATA WRAPPER a(USER 's')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s')
-accept	reject	engine	mock_stmt/create_server_stmt!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER)
-accept	reject	engine	mock_stmt/create_server_stmt!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
+reject	reject	engine	mock_stmt/create_server_stmt!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's')
+reject	reject	engine	mock_stmt/create_server_stmt!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s')
+reject	reject	engine	mock_stmt/create_server_stmt!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER)
+reject	reject	engine	mock_stmt/create_server_stmt!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
 reject	reject	engine	mock_stmt/create_server_stmt!insert	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's') zzz
 reject	reject	engine	mock_stmt/create_server_stmt!swap	CREATE_TIMESTAMP SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's')
 accept	accept	engine	mock_stmt/alter_server_stmt	ALTER SERVER a OPTIONS(USER 's')
@@ -16445,10 +16445,10 @@ reject	reject	engine	mock_stmt/alter_server_stmt!drop-1	SERVER a OPTIONS(USER 's
 reject	reject	engine	mock_stmt/alter_server_stmt!drop-2	ALTER a OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/alter_server_stmt!drop-3	ALTER SERVER OPTIONS(USER 's')
 reject	reject	engine	mock_stmt/alter_server_stmt!drop-4	ALTER SERVER a(USER 's')
-accept	reject	engine	mock_stmt/alter_server_stmt!drop-5	ALTER SERVER a OPTIONS USER 's')
-accept	reject	engine	mock_stmt/alter_server_stmt!drop-6	ALTER SERVER a OPTIONS('s')
-accept	reject	engine	mock_stmt/alter_server_stmt!drop-7	ALTER SERVER a OPTIONS(USER)
-accept	reject	engine	mock_stmt/alter_server_stmt!drop-8	ALTER SERVER a OPTIONS(USER 's'
+reject	reject	engine	mock_stmt/alter_server_stmt!drop-5	ALTER SERVER a OPTIONS USER 's')
+reject	reject	engine	mock_stmt/alter_server_stmt!drop-6	ALTER SERVER a OPTIONS('s')
+reject	reject	engine	mock_stmt/alter_server_stmt!drop-7	ALTER SERVER a OPTIONS(USER)
+reject	reject	engine	mock_stmt/alter_server_stmt!drop-8	ALTER SERVER a OPTIONS(USER 's'
 reject	reject	engine	mock_stmt/alter_server_stmt!insert	ALTER SERVER a OPTIONS(USER 's') zzz
 reject	reject	engine	mock_stmt/alter_server_stmt!swap	ALWAYS SERVER a OPTIONS(USER 's')
 accept	accept	engine	mock_stmt/drop_server_stmt	DROP SERVER a
@@ -16459,26 +16459,26 @@ reject	reject	engine	mock_stmt/drop_server_stmt!swap	DUAL SERVER a
 accept	accept	engine	mock_stmt/create_logfile_group_stmt	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-1	LOGFILE GROUP a ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-2	CREATE GROUP a ADD UNDOFILE 's'
-accept	reject	engine	mock_stmt/create_logfile_group_stmt!drop-3	CREATE LOGFILE a ADD UNDOFILE 's'
+reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-3	CREATE LOGFILE a ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-4	CREATE LOGFILE GROUP ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-5	CREATE LOGFILE GROUP a UNDOFILE 's'
-accept	reject	engine	mock_stmt/create_logfile_group_stmt!drop-6	CREATE LOGFILE GROUP a ADD 's'
-accept	reject	engine	mock_stmt/create_logfile_group_stmt!drop-7	CREATE LOGFILE GROUP a ADD UNDOFILE
+reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-6	CREATE LOGFILE GROUP a ADD 's'
+reject	reject	engine	mock_stmt/create_logfile_group_stmt!drop-7	CREATE LOGFILE GROUP a ADD UNDOFILE
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' zzz
 reject	reject	engine	mock_stmt/create_logfile_group_stmt!swap	CREATE_TIMESTAMP LOGFILE GROUP a ADD UNDOFILE 's'
 accept	accept	engine	mock_stmt/alter_logfile_group_stmt	ALTER LOGFILE GROUP a ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-2	ALTER GROUP a ADD UNDOFILE 's'
-accept	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-3	ALTER LOGFILE a ADD UNDOFILE 's'
+reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-3	ALTER LOGFILE a ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-4	ALTER LOGFILE GROUP ADD UNDOFILE 's'
 reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-5	ALTER LOGFILE GROUP a UNDOFILE 's'
-accept	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-6	ALTER LOGFILE GROUP a ADD 's'
-accept	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-7	ALTER LOGFILE GROUP a ADD UNDOFILE
+reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-6	ALTER LOGFILE GROUP a ADD 's'
+reject	reject	engine	mock_stmt/alter_logfile_group_stmt!drop-7	ALTER LOGFILE GROUP a ADD UNDOFILE
 reject	reject	engine	mock_stmt/alter_logfile_group_stmt!insert	ALTER LOGFILE GROUP a ADD UNDOFILE 's' zzz
 reject	reject	engine	mock_stmt/alter_logfile_group_stmt!swap	ALWAYS LOGFILE GROUP a ADD UNDOFILE 's'
 accept	accept	engine	mock_stmt/drop_logfile_group_stmt	DROP LOGFILE GROUP a
 reject	reject	engine	mock_stmt/drop_logfile_group_stmt!drop-1	LOGFILE GROUP a
 reject	reject	engine	mock_stmt/drop_logfile_group_stmt!drop-2	DROP GROUP a
-accept	reject	engine	mock_stmt/drop_logfile_group_stmt!drop-3	DROP LOGFILE a
+reject	reject	engine	mock_stmt/drop_logfile_group_stmt!drop-3	DROP LOGFILE a
 reject	reject	engine	mock_stmt/drop_logfile_group_stmt!drop-4	DROP LOGFILE GROUP
 reject	reject	engine	mock_stmt/drop_logfile_group_stmt!insert	DROP LOGFILE GROUP a zzz
 reject	reject	engine	mock_stmt/drop_logfile_group_stmt!swap	DUAL LOGFILE GROUP a
@@ -16643,65 +16643,65 @@ reject	reject	engine	opt_empty_table_list/table_list!insert	ALTER TABLE a UNION(
 accept	accept	engine	show_plugin_stmt/SHOW_PLUGINS	SHOW PLUGINS
 accept	accept	engine	create_server_stmt/CREATE_SERVER_NAME_OB_FOREIGN_DATA_WRAPPER_NAME_OB_OPTIONS_(_server_options_list_)	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's')
 accept	accept	engine	server_options_list/server_option	ALTER SERVER a OPTIONS(USER 's')
-accept	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
-accept	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz)
-accept	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's')
+reject	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
+reject	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz)
+reject	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's')
 accept	accept	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER a OPTIONS(USER 's', USER 's')
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's')
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's')
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's')
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's')
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER)
-accept	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
-accept	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz)
-accept	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's')
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's')
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's')
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's')
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's')
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER)
+reject	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
+reject	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz)
+reject	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's')
 accept	accept	engine	server_option/USER_STRING_VALUE	ALTER SERVER a OPTIONS(USER 's')
 accept	accept	engine	server_option/HOST_STRING_VALUE	ALTER SERVER a OPTIONS(HOST 's')
-accept	reject	engine	server_option/HOST_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(HOST)
-accept	reject	engine	server_option/HOST_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(HOST
-accept	reject	engine	server_option/HOST_STRING_VALUE!insert	ALTER SERVER a OPTIONS(HOST 's' zzz)
-accept	reject	engine	server_option/HOST_STRING_VALUE!swap	ALTER SERVER a OPTIONS(HOSTS 's')
+reject	reject	engine	server_option/HOST_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(HOST)
+reject	reject	engine	server_option/HOST_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(HOST
+reject	reject	engine	server_option/HOST_STRING_VALUE!insert	ALTER SERVER a OPTIONS(HOST 's' zzz)
+reject	reject	engine	server_option/HOST_STRING_VALUE!swap	ALTER SERVER a OPTIONS(HOSTS 's')
 accept	accept	engine	server_option/DATABASE_STRING_VALUE	ALTER SERVER a OPTIONS(DATABASE 's')
-accept	reject	engine	server_option/DATABASE_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(DATABASE)
-accept	reject	engine	server_option/DATABASE_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(DATABASE
-accept	reject	engine	server_option/DATABASE_STRING_VALUE!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz)
-accept	reject	engine	server_option/DATABASE_STRING_VALUE!swap	ALTER SERVER a OPTIONS(DATABASES 's')
+reject	reject	engine	server_option/DATABASE_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(DATABASE)
+reject	reject	engine	server_option/DATABASE_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(DATABASE
+reject	reject	engine	server_option/DATABASE_STRING_VALUE!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz)
+reject	reject	engine	server_option/DATABASE_STRING_VALUE!swap	ALTER SERVER a OPTIONS(DATABASES 's')
 accept	accept	engine	server_option/OWNER_STRING_VALUE	ALTER SERVER a OPTIONS(OWNER 's')
-accept	reject	engine	server_option/OWNER_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(OWNER)
-accept	reject	engine	server_option/OWNER_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(OWNER
-accept	reject	engine	server_option/OWNER_STRING_VALUE!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz)
-accept	reject	engine	server_option/OWNER_STRING_VALUE!swap	ALTER SERVER a OPTIONS(PACK_KEYS 's')
+reject	reject	engine	server_option/OWNER_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(OWNER)
+reject	reject	engine	server_option/OWNER_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(OWNER
+reject	reject	engine	server_option/OWNER_STRING_VALUE!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz)
+reject	reject	engine	server_option/OWNER_STRING_VALUE!swap	ALTER SERVER a OPTIONS(PACK_KEYS 's')
 accept	accept	engine	server_option/PASSWORD_STRING_VALUE	ALTER SERVER a OPTIONS(PASSWORD 's')
-accept	reject	engine	server_option/PASSWORD_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(PASSWORD)
-accept	reject	engine	server_option/PASSWORD_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(PASSWORD
-accept	reject	engine	server_option/PASSWORD_STRING_VALUE!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz)
-accept	reject	engine	server_option/PASSWORD_STRING_VALUE!swap	ALTER SERVER a OPTIONS(PATH 's')
+reject	reject	engine	server_option/PASSWORD_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(PASSWORD)
+reject	reject	engine	server_option/PASSWORD_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(PASSWORD
+reject	reject	engine	server_option/PASSWORD_STRING_VALUE!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz)
+reject	reject	engine	server_option/PASSWORD_STRING_VALUE!swap	ALTER SERVER a OPTIONS(PATH 's')
 accept	accept	engine	server_option/SOCKET_STRING_VALUE	ALTER SERVER a OPTIONS(SOCKET 's')
-accept	reject	engine	server_option/SOCKET_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(SOCKET)
-accept	reject	engine	server_option/SOCKET_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(SOCKET
-accept	reject	engine	server_option/SOCKET_STRING_VALUE!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz)
-accept	reject	engine	server_option/SOCKET_STRING_VALUE!swap	ALTER SERVER a OPTIONS(SOME 's')
+reject	reject	engine	server_option/SOCKET_STRING_VALUE!drop-2	ALTER SERVER a OPTIONS(SOCKET)
+reject	reject	engine	server_option/SOCKET_STRING_VALUE!truncate	ALTER SERVER a OPTIONS(SOCKET
+reject	reject	engine	server_option/SOCKET_STRING_VALUE!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz)
+reject	reject	engine	server_option/SOCKET_STRING_VALUE!swap	ALTER SERVER a OPTIONS(SOME 's')
 accept	accept	engine	server_option/PORT_INTNUM	ALTER SERVER a OPTIONS(PORT 1)
-accept	reject	engine	server_option/PORT_INTNUM!drop-1	ALTER SERVER a OPTIONS(1)
-accept	reject	engine	server_option/PORT_INTNUM!drop-2	ALTER SERVER a OPTIONS(PORT)
-accept	reject	engine	server_option/PORT_INTNUM!truncate	ALTER SERVER a OPTIONS(PORT
-accept	reject	engine	server_option/PORT_INTNUM!insert	ALTER SERVER a OPTIONS(PORT 1 zzz)
-accept	reject	engine	server_option/PORT_INTNUM!swap	ALTER SERVER a OPTIONS(POSITION 1)
+reject	reject	engine	server_option/PORT_INTNUM!drop-1	ALTER SERVER a OPTIONS(1)
+reject	reject	engine	server_option/PORT_INTNUM!drop-2	ALTER SERVER a OPTIONS(PORT)
+reject	reject	engine	server_option/PORT_INTNUM!truncate	ALTER SERVER a OPTIONS(PORT
+reject	reject	engine	server_option/PORT_INTNUM!insert	ALTER SERVER a OPTIONS(PORT 1 zzz)
+reject	reject	engine	server_option/PORT_INTNUM!swap	ALTER SERVER a OPTIONS(POSITION 1)
 accept	accept	engine	alter_server_stmt/ALTER_SERVER_NAME_OB_OPTIONS_(_server_options_list_)	ALTER SERVER a OPTIONS(USER 's')
 accept	accept	engine	drop_server_stmt/DROP_SERVER_opt_if_exists_NAME_OB	DROP SERVER a
 accept	accept	engine	create_logfile_group_stmt/CREATE_LOGFILE_GROUP_logfile_group_info	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
 accept	accept	engine	logfile_group_info/NAME_OB_add_log_file_logfile_group_option_list	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
 reject	reject	engine	logfile_group_info/NAME_OB_add_log_file_logfile_group_option_list!swap	CREATE LOGFILE GROUP a ADDDATE UNDOFILE 's'
 accept	accept	engine	add_log_file/ADD_lg_undofile	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
-reject	accept	engine	add_log_file/ADD_lg_redofile	CREATE LOGFILE GROUP a ADD REDOFILE 's'
+accept	accept	engine	add_log_file/ADD_lg_redofile	CREATE LOGFILE GROUP a ADD REDOFILE 's'
 reject	reject	engine	add_log_file/ADD_lg_redofile!drop-1	CREATE LOGFILE GROUP a REDOFILE 's'
 reject	reject	engine	add_log_file/ADD_lg_redofile!drop-3	CREATE LOGFILE GROUP a ADD REDOFILE
 reject	reject	engine	add_log_file/ADD_lg_redofile!insert	CREATE LOGFILE GROUP a ADD REDOFILE 's' zzz
 reject	reject	engine	add_log_file/ADD_lg_redofile!swap	CREATE LOGFILE GROUP a ADDDATE REDOFILE 's'
 accept	accept	engine	lg_undofile/UNDOFILE_STRING_VALUE	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
-accept	reject	engine	lg_undofile/UNDOFILE_STRING_VALUE!swap	CREATE LOGFILE GROUP a ADD UNDO_BUFFER_SIZE 's'
-reject	accept	engine	lg_redofile/REDOFILE_STRING_VALUE	CREATE LOGFILE GROUP a ADD REDOFILE 's'
-accept	reject	engine	lg_redofile/REDOFILE_STRING_VALUE!swap	CREATE LOGFILE GROUP a ADD REDO_BUFFER_SIZE 's'
+reject	reject	engine	lg_undofile/UNDOFILE_STRING_VALUE!swap	CREATE LOGFILE GROUP a ADD UNDO_BUFFER_SIZE 's'
+accept	accept	engine	lg_redofile/REDOFILE_STRING_VALUE	CREATE LOGFILE GROUP a ADD REDOFILE 's'
+reject	reject	engine	lg_redofile/REDOFILE_STRING_VALUE!swap	CREATE LOGFILE GROUP a ADD REDO_BUFFER_SIZE 's'
 accept	accept	engine	logfile_group_option_list/%empty	CREATE LOGFILE GROUP a ADD UNDOFILE 's'
 accept	accept	engine	logfile_group_option_list/logfile_group_options	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT
 reject	reject	engine	logfile_group_option_list/logfile_group_options!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT zzz
@@ -16710,26 +16710,26 @@ accept	accept	engine	logfile_group_options/logfile_group_option	CREATE LOGFILE G
 accept	accept	engine	logfile_group_options/logfile_group_options_logfile_group_option	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT WAIT
 reject	reject	engine	logfile_group_options/logfile_group_options_logfile_group_option!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT WAIT zzz
 reject	reject	engine	logfile_group_options/logfile_group_options_logfile_group_option!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WARNINGS WAIT
-reject	accept	engine	logfile_group_options/logfile_group_options_,_logfile_group_option	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT
+accept	accept	engine	logfile_group_options/logfile_group_options_,_logfile_group_option	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT
 reject	reject	engine	logfile_group_options/logfile_group_options_,_logfile_group_option!drop-1	CREATE LOGFILE GROUP a ADD UNDOFILE 's', WAIT
 reject	reject	engine	logfile_group_options/logfile_group_options_,_logfile_group_option!drop-3	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT,
 reject	reject	engine	logfile_group_options/logfile_group_options_,_logfile_group_option!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT zzz
 reject	reject	engine	logfile_group_options/logfile_group_options_,_logfile_group_option!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WARNINGS, WAIT
 accept	accept	engine	logfile_group_option/opt_ts_initial_size	CREATE LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE 1
 reject	reject	engine	logfile_group_option/opt_ts_initial_size!drop-1	CREATE LOGFILE GROUP a ADD UNDOFILE 's' 1
-accept	reject	engine	logfile_group_option/opt_ts_initial_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE
+reject	reject	engine	logfile_group_option/opt_ts_initial_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE
 reject	reject	engine	logfile_group_option/opt_ts_initial_size!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE 1 zzz
 reject	reject	engine	logfile_group_option/opt_ts_initial_size!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' INLINE 1
 accept	accept	engine	logfile_group_option/opt_ts_undo_buffer_size	CREATE LOGFILE GROUP a ADD UNDOFILE 's' UNDO_BUFFER_SIZE 1
-accept	reject	engine	logfile_group_option/opt_ts_undo_buffer_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' UNDO_BUFFER_SIZE
+reject	reject	engine	logfile_group_option/opt_ts_undo_buffer_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' UNDO_BUFFER_SIZE
 reject	reject	engine	logfile_group_option/opt_ts_undo_buffer_size!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' UNDO_BUFFER_SIZE 1 zzz
 reject	reject	engine	logfile_group_option/opt_ts_undo_buffer_size!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' UNICODE 1
 accept	accept	engine	logfile_group_option/opt_ts_redo_buffer_size	CREATE LOGFILE GROUP a ADD UNDOFILE 's' REDO_BUFFER_SIZE 1
-accept	reject	engine	logfile_group_option/opt_ts_redo_buffer_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' REDO_BUFFER_SIZE
+reject	reject	engine	logfile_group_option/opt_ts_redo_buffer_size!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' REDO_BUFFER_SIZE
 reject	reject	engine	logfile_group_option/opt_ts_redo_buffer_size!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' REDO_BUFFER_SIZE 1 zzz
 reject	reject	engine	logfile_group_option/opt_ts_redo_buffer_size!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' REDO_TRANSPORT_OPTIONS 1
 accept	accept	engine	logfile_group_option/opt_ts_nodegroup	CREATE LOGFILE GROUP a ADD UNDOFILE 's' NODEGROUP 1
-accept	reject	engine	logfile_group_option/opt_ts_nodegroup!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' NODEGROUP
+reject	reject	engine	logfile_group_option/opt_ts_nodegroup!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' NODEGROUP
 reject	reject	engine	logfile_group_option/opt_ts_nodegroup!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' NODEGROUP 1 zzz
 reject	reject	engine	logfile_group_option/opt_ts_nodegroup!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' NOMAXVALUE 1
 accept	accept	engine	logfile_group_option/opt_ts_engine	CREATE LOGFILE GROUP a ADD UNDOFILE 's' ENGINE a
@@ -16739,7 +16739,7 @@ reject	reject	engine	logfile_group_option/opt_ts_engine!insert	CREATE LOGFILE GR
 reject	reject	engine	logfile_group_option/opt_ts_engine!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' ENGINES a
 accept	accept	engine	logfile_group_option/ts_wait	CREATE LOGFILE GROUP a ADD UNDOFILE 's' WAIT
 accept	accept	engine	logfile_group_option/opt_ts_comment	CREATE LOGFILE GROUP a ADD UNDOFILE 's' COMMENT 's'
-reject	accept	engine	logfile_group_option/opt_ts_comment!drop-1	CREATE LOGFILE GROUP a ADD UNDOFILE 's' 's'
+accept	accept	engine	logfile_group_option/opt_ts_comment!drop-1	CREATE LOGFILE GROUP a ADD UNDOFILE 's' 's'
 reject	reject	engine	logfile_group_option/opt_ts_comment!drop-2	CREATE LOGFILE GROUP a ADD UNDOFILE 's' COMMENT
 reject	reject	engine	logfile_group_option/opt_ts_comment!insert	CREATE LOGFILE GROUP a ADD UNDOFILE 's' COMMENT 's' zzz
 reject	reject	engine	logfile_group_option/opt_ts_comment!swap	CREATE LOGFILE GROUP a ADD UNDOFILE 's' COMMIT 's'
@@ -16759,14 +16759,14 @@ accept	accept	engine	alter_logfile_group_options/alter_logfile_group_option	ALTE
 accept	accept	engine	alter_logfile_group_options/alter_logfile_group_options_alter_logfile_group_option	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT WAIT
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_alter_logfile_group_option!insert	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT WAIT zzz
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_alter_logfile_group_option!swap	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WARNINGS WAIT
-reject	accept	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT
+accept	accept	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option!drop-1	ALTER LOGFILE GROUP a ADD UNDOFILE 's', WAIT
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option!drop-3	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT,
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option!insert	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT, WAIT zzz
 reject	reject	engine	alter_logfile_group_options/alter_logfile_group_options_,_alter_logfile_group_option!swap	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WARNINGS, WAIT
 accept	accept	engine	alter_logfile_group_option/opt_ts_initial_size	ALTER LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE 1
 reject	reject	engine	alter_logfile_group_option/opt_ts_initial_size!drop-1	ALTER LOGFILE GROUP a ADD UNDOFILE 's' 1
-accept	reject	engine	alter_logfile_group_option/opt_ts_initial_size!drop-2	ALTER LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE
+reject	reject	engine	alter_logfile_group_option/opt_ts_initial_size!drop-2	ALTER LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE
 reject	reject	engine	alter_logfile_group_option/opt_ts_initial_size!insert	ALTER LOGFILE GROUP a ADD UNDOFILE 's' INITIAL_SIZE 1 zzz
 reject	reject	engine	alter_logfile_group_option/opt_ts_initial_size!swap	ALTER LOGFILE GROUP a ADD UNDOFILE 's' INLINE 1
 accept	accept	engine	alter_logfile_group_option/opt_ts_engine	ALTER LOGFILE GROUP a ADD UNDOFILE 's' ENGINE a
@@ -16777,14 +16777,14 @@ reject	reject	engine	alter_logfile_group_option/opt_ts_engine!swap	ALTER LOGFILE
 accept	accept	engine	alter_logfile_group_option/ts_wait	ALTER LOGFILE GROUP a ADD UNDOFILE 's' WAIT
 accept	accept	engine	drop_logfile_group_stmt/DROP_LOGFILE_GROUP_NAME_OB_drop_ts_options_list	DROP LOGFILE GROUP a
 accept	accept	engine	drop_ts_options_list/%empty	DROP LOGFILE GROUP a
-reject	accept	engine	drop_ts_options_list/drop_ts_options	DROP LOGFILE GROUP a WAIT
+accept	accept	engine	drop_ts_options_list/drop_ts_options	DROP LOGFILE GROUP a WAIT
 reject	reject	engine	drop_ts_options_list/drop_ts_options!insert	DROP LOGFILE GROUP a WAIT zzz
 reject	reject	engine	drop_ts_options_list/drop_ts_options!swap	DROP LOGFILE GROUP a WARNINGS
-reject	accept	engine	drop_ts_options/drop_ts_option	DROP LOGFILE GROUP a WAIT
-reject	accept	engine	drop_ts_options/drop_ts_options_drop_ts_option	DROP LOGFILE GROUP a WAIT WAIT
+accept	accept	engine	drop_ts_options/drop_ts_option	DROP LOGFILE GROUP a WAIT
+accept	accept	engine	drop_ts_options/drop_ts_options_drop_ts_option	DROP LOGFILE GROUP a WAIT WAIT
 reject	reject	engine	drop_ts_options/drop_ts_options_drop_ts_option!insert	DROP LOGFILE GROUP a WAIT WAIT zzz
 reject	reject	engine	drop_ts_options/drop_ts_options_drop_ts_option!swap	DROP LOGFILE GROUP a WARNINGS WAIT
-reject	accept	engine	drop_ts_options/drop_ts_options_list_,_drop_ts_option	DROP LOGFILE GROUP a, WAIT
+accept	accept	engine	drop_ts_options/drop_ts_options_list_,_drop_ts_option	DROP LOGFILE GROUP a, WAIT
 reject	reject	engine	drop_ts_options/drop_ts_options_list_,_drop_ts_option!drop-2	DROP LOGFILE GROUP a,
 reject	reject	engine	drop_ts_options/drop_ts_options_list_,_drop_ts_option!insert	DROP LOGFILE GROUP a, WAIT zzz
 reject	reject	engine	drop_ts_options/drop_ts_options_list_,_drop_ts_option!swap	DROP LOGFILE GROUP a, WARNINGS
@@ -16793,13 +16793,13 @@ reject	reject	engine	drop_ts_option/opt_ts_engine!drop-1	DROP LOGFILE GROUP a a
 reject	reject	engine	drop_ts_option/opt_ts_engine!drop-2	DROP LOGFILE GROUP a ENGINE
 reject	reject	engine	drop_ts_option/opt_ts_engine!insert	DROP LOGFILE GROUP a ENGINE a zzz
 reject	reject	engine	drop_ts_option/opt_ts_engine!swap	DROP LOGFILE GROUP a ENGINES a
-reject	accept	engine	drop_ts_option/ts_wait	DROP LOGFILE GROUP a WAIT
-reject	accept	engine	ts_wait/WAIT	DROP LOGFILE GROUP a WAIT
-reject	accept	engine	ts_wait/NO_WAIT	DROP LOGFILE GROUP a NO_WAIT
+accept	accept	engine	drop_ts_option/ts_wait	DROP LOGFILE GROUP a WAIT
+accept	accept	engine	ts_wait/WAIT	DROP LOGFILE GROUP a WAIT
+accept	accept	engine	ts_wait/NO_WAIT	DROP LOGFILE GROUP a NO_WAIT
 reject	reject	engine	ts_wait/NO_WAIT!insert	DROP LOGFILE GROUP a NO_WAIT zzz
 reject	reject	engine	ts_wait/NO_WAIT!swap	DROP LOGFILE GROUP a NO_WIN_MAGIC
 accept	accept	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_NAME_OB	DROP LOGFILE GROUP a ENGINE a
-reject	accept	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE	DROP LOGFILE GROUP a ENGINE 's'
+accept	accept	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE	DROP LOGFILE GROUP a ENGINE 's'
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!drop-1	DROP LOGFILE GROUP a 's'
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!insert	DROP LOGFILE GROUP a ENGINE 's' zzz
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!swap	DROP LOGFILE GROUP a ENGINES 's'
