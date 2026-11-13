@@ -47,9 +47,12 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		g.termText["EOF"] = ""
 	}
 	// The tokens that match a class of texts, such as an identifier.
+	// A fragment is no token, and a token the token table marks
+	// unreachable is never produced: neither takes a word from another.
+	inactive := func(name string) bool { return p.fragments[name] || g.unreachable[name] }
 	var classes []int
 	for i, name := range p.lexerOrder {
-		if p.fragments[name] {
+		if inactive(name) {
 			continue
 		}
 		if _, finite := p.lexerTexts(name, map[string]bool{}); !finite {
@@ -68,7 +71,7 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		return false
 	}
 	for i, name := range p.lexerOrder {
-		if p.fragments[name] {
+		if inactive(name) {
 			continue
 		}
 		text, _, sampled := p.lexerSample(name, map[string]bool{})
@@ -116,6 +119,9 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		// rule, so a word written as one is reserved.
 		spelledBy := map[string]int{}
 		for i, name := range p.lexerOrder {
+			if inactive(name) {
+				continue
+			}
 			if text, ok := p.literalRule(name); ok {
 				if _, seen := spelledBy[text]; !seen {
 					spelledBy[text] = i
