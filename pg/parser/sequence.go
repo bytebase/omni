@@ -272,30 +272,38 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 //	    FCONST | '+' FCONST | '-' FCONST
 //	    | SignedIconst
 func (p *Parser) parseNumericOnly() nodes.Node {
-	negative := false
-	if p.cur.Type == '+' {
-		p.advance()
-	} else if p.cur.Type == '-' {
-		p.advance()
-		negative = true
+	n, err := p.parseNumericOnlyRequired()
+	if err != nil {
+		// Callers that predate parseNumericOnlyRequired read a missing number as 0.
+		return &nodes.Integer{Ival: 0}
 	}
-	if p.cur.Type == ICONST {
+	return n
+}
+
+// parseNumericOnlyRequired parses a NumericOnly and fails where none is.
+func (p *Parser) parseNumericOnlyRequired() (nodes.Node, error) {
+	negative := false
+	if p.cur.Type == '+' || p.cur.Type == '-' {
+		negative = p.cur.Type == '-'
+		p.advance()
+	}
+	switch p.cur.Type {
+	case ICONST:
 		val := p.cur.Ival
 		p.advance()
 		if negative {
 			val = -val
 		}
-		return &nodes.Integer{Ival: val}
-	}
-	if p.cur.Type == FCONST {
+		return &nodes.Integer{Ival: val}, nil
+	case FCONST:
 		str := p.cur.Str
 		p.advance()
 		if negative {
 			str = "-" + str
 		}
-		return &nodes.Float{Fval: str}
+		return &nodes.Float{Fval: str}, nil
 	}
-	return &nodes.Integer{Ival: 0}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseOptEnumValList parses an optional enum value list.
