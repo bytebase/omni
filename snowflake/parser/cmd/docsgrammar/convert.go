@@ -222,6 +222,51 @@ func hasCode(lines []codeLine) bool {
 
 // bracketDepth returns how far a line opens brackets, outside quotes and
 // comments.
+// repeatChoice reads a definition of choices whose last line is only
+// [ , ... ],
+//
+//	schemaPrivileges ::=
+//	    ADD SEARCH OPTIMIZATION | APPLYBUDGET
+//	  | MODIFY | MONITOR | USAGE
+//	  [ , ... ]
+//
+// as a list of the whole choice, not of its last alternative.
+func repeatChoice(lines []codeLine) []codeLine {
+	last := len(lines) - 1
+	for last >= 0 && (lines[last].comment || strings.TrimSpace(lines[last].text) == "") {
+		last--
+	}
+	if last < 1 || strings.TrimSpace(lines[last].text) != "[ , ... ]" {
+		return lines
+	}
+	depth, bar := 0, false
+	for _, l := range lines[:last] {
+		if l.comment {
+			return lines
+		}
+		t := strings.TrimSpace(l.text)
+		if depth == 0 && (strings.HasPrefix(t, "|") || strings.HasSuffix(t, "|")) {
+			bar = true
+		}
+		depth += bracketDepth(l.text)
+	}
+	if !bar || depth != 0 {
+		return lines
+	}
+	out := append([]codeLine(nil), lines...)
+	first := 0
+	for strings.TrimSpace(out[first].text) == "" {
+		first++
+	}
+	out[first].text = "{ " + out[first].text
+	prev := last - 1
+	for strings.TrimSpace(out[prev].text) == "" {
+		prev--
+	}
+	out[prev].text += " }"
+	return out
+}
+
 func bracketDepth(line string) int {
 	d := 0
 	var quote rune
@@ -291,6 +336,13 @@ var (
 // monitor's ID_COLUMNS = <id_column_name_array> is: ( 'a' [ , ... ] ).
 var nameArray = regexp.MustCompile(`= <([a-z_-]+_array)>`)
 
+// constraintProperties is what [ <constraint_properties> ] stands for, from
+// https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint.
+const constraintProperties = "[ [ NOT ] ENFORCED ] [ [ NOT ] DEFERRABLE ] [ INITIALLY { DEFERRED | IMMEDIATE } ] [ { ENABLE | DISABLE } ] [ { VALIDATE | NOVALIDATE } ] [ { RELY | NORELY } ]"
+
+// templateValue is a template argument, USING ( <key> => <value> ).
+var templateValue = regexp.MustCompile(`=> <value>`)
+
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
@@ -339,6 +391,16 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	if offset {
 		pg.fixes = append(pg.fixes, "read: Time Travel's OFFSET is a negative number of seconds, -N, and its STATEMENT a quoted query ID, as the Time Travel parameters say")
+	}
+	for i, b := range blocks {
+		if fixed := strings.ReplaceAll(b, "[ <constraint_properties> ]", constraintProperties); fixed != b {
+			blocks[i] = fixed
+			pg.fixes = append(pg.fixes, "read: <constraint_properties> is the properties CREATE TABLE's constraint page lists")
+		}
+		if fixed := templateValue.ReplaceAllString(blocks[i], "=> <expr>"); fixed != blocks[i] {
+			blocks[i] = fixed
+			pg.fixes = append(pg.fixes, "read: a template argument's <value> is a constant, a string or JSON value, as the USING parameters say")
+		}
 	}
 	for i, b := range blocks {
 		if fixed := nameArray.ReplaceAllString(b, "= ( '<$1>' [ , ... ] )"); fixed != b {
@@ -525,6 +587,7 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 		text    string
 		comment bool
 	}
+	lines = repeatChoice(lines)
 	var items []item
 	depth := 0
 	for _, l := range lines {

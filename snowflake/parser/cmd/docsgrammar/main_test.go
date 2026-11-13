@@ -321,3 +321,17 @@ func TestPlaceholderClasses(t *testing.T) {
 		}
 	}
 }
+
+// TestATrailingListRepeatsTheWholeChoice pins that a definition of choices
+// whose last line is only [ , ... ] is a list of the choice, not of its
+// last alternative.
+func TestATrailingListRepeatsTheWholeChoice(t *testing.T) {
+	pg := convertPage("grant-privilege-user", []string{
+		"GRANT schemaPrivileges ON SCHEMA <s> TO USER <u>",
+		"schemaPrivileges ::=\n    ADD SEARCH OPTIMIZATION | APPLYBUDGET\n  | MODIFY | MONITOR | USAGE\n  [ , ... ]",
+	}, nil)
+	want := "('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE'))*"
+	if len(pg.frags) != 1 || strings.Join(pg.frags[0].alts, " | ") != want {
+		t.Errorf("fragments %+v, failed %+v\nwant %s", pg.frags, pg.failed, want)
+	}
+}
