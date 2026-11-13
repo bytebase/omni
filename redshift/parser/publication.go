@@ -34,7 +34,10 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 			if _, err := p.expect(TABLES); err != nil {
 				return nil, err
 			}
-			options := p.parseOptDefinition()
+			options, err := p.parseOptDefinition()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.CreatePublicationStmt{
 				Pubname:      name,
 				Options:      options,
@@ -48,7 +51,10 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
+		options, err := p.parseOptDefinition()
+		if err != nil {
+			return nil, err
+		}
 		if err := p.checkPubObjList(pubobjects, shapes); err != nil {
 			return nil, err
 		}
@@ -61,7 +67,10 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 	}
 
 	// Just name with optional definition
-	options := p.parseOptDefinition()
+	options, err := p.parseOptDefinition()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreatePublicationStmt{
 		Pubname: name,
 		Options: options,
@@ -449,7 +458,10 @@ func (p *Parser) parseCreateSubscriptionStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := p.parseOptDefinition()
+	options, err := p.parseOptDefinition()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.CreateSubscriptionStmt{
 		Subname:     name,
@@ -534,7 +546,10 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 		if _, err := p.expect(PUBLICATION); err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
+		options, err := p.parseOptDefinition()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterSubscriptionStmt{
 			Kind:    nodes.ALTER_SUBSCRIPTION_REFRESH,
 			Subname: name,
@@ -611,7 +626,10 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			options := p.parseOptDefinition()
+			options, err := p.parseOptDefinition()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.AlterSubscriptionStmt{
 				Kind:        nodes.ALTER_SUBSCRIPTION_SET_PUBLICATION,
 				Subname:     name,
@@ -637,7 +655,10 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
+		options, err := p.parseOptDefinition()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterSubscriptionStmt{
 			Kind:        nodes.ALTER_SUBSCRIPTION_ADD_PUBLICATION,
 			Subname:     name,
@@ -655,7 +676,10 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
+		options, err := p.parseOptDefinition()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterSubscriptionStmt{
 			Kind:        nodes.ALTER_SUBSCRIPTION_DROP_PUBLICATION,
 			Subname:     name,

@@ -640,7 +640,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			return stmt, nil
 		}
 		stmt.Objtype = nodes.OBJECT_OPERATOR
-		stmt.Object = p.parseOperatorWithArgtypesForComment()
+		obj, err := p.parseOperatorWithArgtypes()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -654,7 +658,7 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		obj, err := p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesLocal()
 		if err != nil {
 			return nil, err
 		}
@@ -672,7 +676,7 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -690,7 +694,7 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -708,7 +712,7 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -939,101 +943,6 @@ func appendNodeToList(list *nodes.List, n nodes.Node) *nodes.List {
 	return list
 }
 
-// parseFunctionWithArgtypesForComment parses function_with_argtypes for COMMENT ON.
-func (p *Parser) parseFunctionWithArgtypesForComment() (nodes.Node, error) {
-	funcName, err := p.parseFuncName()
-	if err != nil {
-		return nil, err
-	}
-	owa := &nodes.ObjectWithArgs{Objname: funcName}
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == ')' {
-			p.advance()
-		} else {
-			owa.Objargs = p.parseCommentFuncArgsList()
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		owa.ArgsUnspecified = true
-	}
-	return owa, nil
-}
-
-// parseCommentFuncArgsList parses a comma-separated list of function argument types.
-func (p *Parser) parseCommentFuncArgsList() *nodes.List {
-	var items []nodes.Node
-	for {
-		arg := p.parseFuncArg()
-		if arg != nil && arg.ArgType != nil {
-			items = append(items, arg.ArgType)
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: items}
-}
-
-// parseAggregateWithArgtypesForComment parses aggregate_with_argtypes.
-//
-// aggr_args in gram.y is '(' '*' ')' or a non-empty aggr_args_list, so an empty
-// "()" is a syntax error at the ")" token.
-func (p *Parser) parseAggregateWithArgtypesForComment() (nodes.Node, error) {
-	funcName, _ := p.parseFuncName()
-	owa := &nodes.ObjectWithArgs{Objname: funcName}
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == '*' {
-			p.advance()
-			p.expect(')')
-			owa.Objargs = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "*"}}}
-		} else if p.cur.Type == ')' {
-			return nil, p.syntaxErrorAtCur()
-		} else {
-			owa.Objargs = p.parseCommentFuncArgsList()
-			p.expect(')')
-		}
-	} else {
-		owa.ArgsUnspecified = true
-	}
-	return owa, nil
-}
-
-// parseOperatorWithArgtypesForComment parses operator_with_argtypes.
-func (p *Parser) parseOperatorWithArgtypesForComment() nodes.Node {
-	opName, _ := p.parseAnyOperator()
-	owa := &nodes.ObjectWithArgs{Objname: opName}
-	if p.cur.Type == '(' {
-		p.advance()
-		var left, right nodes.Node
-		if p.cur.Type == NONE {
-			p.advance()
-			p.expect(',')
-			right, _ = p.parseTypename()
-		} else {
-			left, _ = p.parseTypename()
-			if p.cur.Type == ',' {
-				p.advance()
-				if p.cur.Type == NONE {
-					p.advance()
-				} else {
-					right, _ = p.parseTypename()
-				}
-			}
-		}
-		owa.Objargs = &nodes.List{Items: []nodes.Node{left, right}}
-		p.expect(')')
-	}
-	return owa
-}
-
 // parseSecLabelStmt parses a SECURITY LABEL statement.
 // SECURITY has already been consumed. Current token is LABEL.
 func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
@@ -1137,7 +1046,7 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		obj, err := p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesLocal()
 		if err != nil {
 			return nil, err
 		}
@@ -1155,7 +1064,7 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -1173,7 +1082,7 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}
@@ -1191,7 +1100,7 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		obj, err := p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypes()
 		if err != nil {
 			return nil, err
 		}

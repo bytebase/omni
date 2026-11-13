@@ -1049,34 +1049,14 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 	}
 
 	// '(' OptTableElementList ')'
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	// Check for immediate ')' (empty table)
 	if p.cur.Type == ')' {
 		p.advance()
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Partspec = partspec
-		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
-			return nil, err
-		}
-		if stmt.Options, err = p.parseOptWith(); err != nil {
-			return nil, err
-		}
-		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
-			return nil, err
-		}
-		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
-			return nil, err
-		}
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Check if this is a CTAS column list by looking at what the first identifier
@@ -1091,30 +1071,10 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.TableElts = tableElts
-		p.expect(')')
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
+		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		stmt.Partspec = partspec
-		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
-			return nil, err
-		}
-		if stmt.Options, err = p.parseOptWith(); err != nil {
-			return nil, err
-		}
-		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
-			return nil, err
-		}
-		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
-			return nil, err
-		}
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Might be CTAS with column list, but we need to verify.
@@ -1141,11 +1101,13 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 				p.advance()
 				name, err := p.parseName()
 				if err != nil {
-					break
+					return nil, err
 				}
 				colNames = append(colNames, &nodes.String{Str: name})
 			}
-			p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			colList := &nodes.List{Items: colNames}
 			return p.finishCTAS(names, nameLoc, colList, relpersistence, ifNotExists)
 		}
@@ -1162,30 +1124,10 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.TableElts = tableElts
-		p.expect(')')
-		stmt.InhRelations = p.parseOptInherit()
-		partspec, err := p.parseOptPartitionSpec()
-		if err != nil {
+		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		stmt.Partspec = partspec
-		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
-			return nil, err
-		}
-		if stmt.Options, err = p.parseOptWith(); err != nil {
-			return nil, err
-		}
-		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
-			return nil, err
-		}
-		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
-			return nil, err
-		}
-		stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
+		return p.finishCreateStmtTail(stmt)
 	}
 
 	// Fallback: parse as CREATE TABLE
@@ -1194,30 +1136,10 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 		return nil, err
 	}
 	stmt.TableElts = tableElts
-	p.expect(')')
-	stmt.InhRelations = p.parseOptInherit()
-	partspec, err := p.parseOptPartitionSpec()
-	if err != nil {
+	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	stmt.Partspec = partspec
-	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
-		return nil, err
-	}
-	if stmt.Options, err = p.parseOptWith(); err != nil {
-		return nil, err
-	}
-	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
-		return nil, err
-	}
-	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
-		return nil, err
-	}
-	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-	if err != nil {
-		return nil, err
-	}
-	return stmt, nil
+	return p.finishCreateStmtTail(stmt)
 }
 
 // isCreateTableElement returns true if the current token starts a table element
@@ -1330,7 +1252,9 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 	switch p.cur.Type {
 	case PARTITION:
 		p.advance()
-		p.expect(OF)
+		if _, err := p.expect(OF); err != nil {
+			return nil, err
+		}
 		return p.parseCreateStmtPartitionOf(stmt, relpersistence)
 	case OF:
 		p.advance()
@@ -1338,36 +1262,18 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 	}
 
 	// Should have '(' but we already handled that case
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	tableElts, err := p.parseOptTableElementList()
 	if err != nil {
 		return nil, err
 	}
 	stmt.TableElts = tableElts
-	p.expect(')')
-	stmt.InhRelations = p.parseOptInherit()
-	partspec, err := p.parseOptPartitionSpec()
-	if err != nil {
+	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	stmt.Partspec = partspec
-	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
-		return nil, err
-	}
-	if stmt.Options, err = p.parseOptWith(); err != nil {
-		return nil, err
-	}
-	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
-		return nil, err
-	}
-	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
-		return nil, err
-	}
-	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-	if err != nil {
-		return nil, err
-	}
-	return stmt, nil
+	return p.finishCreateStmtTail(stmt)
 }
 
 // parseWithStmt parses a WITH clause followed by SELECT, INSERT, UPDATE, DELETE, or MERGE.

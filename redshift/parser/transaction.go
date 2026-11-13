@@ -367,6 +367,12 @@ func (p *Parser) parseIsoLevel() (string, error) {
 		p.advance()
 		return "serializable", nil
 	default:
-		return "", nil
+		if p.collectMode() {
+			for _, t := range []int{READ, REPEATABLE, SERIALIZABLE} {
+				p.addTokenCandidate(t)
+			}
+			return "", errCollecting
+		}
+		return "", p.syntaxErrorAtCur()
 	}
 }

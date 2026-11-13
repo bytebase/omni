@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -82,41 +83,43 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 		return nil, err
 	}
 
-	// OptInherit
-	stmt.InhRelations = p.parseOptInherit()
-
-	// OptPartitionSpec
-	partspec, err := p.parseOptPartitionSpec()
-	if err != nil {
+	if _, err := p.finishCreateStmtTail(stmt); err != nil {
 		return nil, err
 	}
-	stmt.Partspec = partspec
+	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	return stmt, nil
+}
 
-	// OptAccessMethod (USING name) -- but only for table AM, not constraint/index
+// finishCreateStmtTail parses what follows CreateStmt's
+// '(' OptTableElementList ')':
+//
+//	OptInherit OptPartitionSpec table_access_method_clause OptWith
+//	OnCommitOption OptTableSpace
+//
+// and Redshift's table attributes after them.
+func (p *Parser) finishCreateStmtTail(stmt *nodes.CreateStmt) (*nodes.CreateStmt, error) {
+	var err error
+	if stmt.InhRelations, err = p.parseOptInherit(); err != nil {
+		return nil, err
+	}
+	if stmt.Partspec, err = p.parseOptPartitionSpec(); err != nil {
+		return nil, err
+	}
 	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
 		return nil, err
 	}
-
-	// OptWith
 	if stmt.Options, err = p.parseOptWith(); err != nil {
 		return nil, err
 	}
-
-	// OnCommitOption
 	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
 		return nil, err
 	}
-
-	// OptTableSpace
 	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
 		return nil, err
 	}
-	stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options)
-	if err != nil {
+	if stmt.Options, err = p.parseRedshiftCreateTableAttributesInto(stmt.Options); err != nil {
 		return nil, err
 	}
-
-	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 
@@ -542,7 +545,12 @@ func (p *Parser) parseColConstraintBody() (nodes.Node, error) {
 				Loc:     nodes.NoLoc(),
 			}, nil
 		}
-		return nil, nil
+		if p.collectMode() {
+			p.addTokenCandidate(DEFERRED)
+			p.addTokenCandidate(IMMEDIATE)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	// optional-probe: ColConstraint loop terminator — parseOptColumnConstraints breaks on nil
 	default:
 		if attr, err := p.parseRedshiftColumnAttribute(); attr != nil || err != nil {
@@ -580,9 +588,14 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		}, nil
 	case UNIQUE:
 		p.advance()
-		nullsNotDistinct := p.parseOptUniqueNullTreatment()
-		options := p.parseOptDefinition()
-		indexspace := p.parseOptConsTableSpace()
+		nullsNotDistinct, err := p.parseOptUniqueNullTreatment()
+		if err != nil {
+			return nil, err
+		}
+		options, indexspace, err := p.parseIndexOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.Constraint{
 			Contype:          nodes.CONSTR_UNIQUE,
 			NullsNotDistinct: nullsNotDistinct,
@@ -595,8 +608,10 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		if _, err := p.expect(KEY); err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
-		indexspace := p.parseOptConsTableSpace()
+		options, indexspace, err := p.parseIndexOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.Constraint{
 			Contype:    nodes.CONSTR_PRIMARY,
 			Options:    options,
@@ -661,7 +676,10 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		updAction, delAction, delSetCols := p.parseKeyActions()
+		updAction, delAction, delSetCols, err := p.parseKeyActions()
+		if err != nil {
+			return nil, err
+		}
 		// The column's DEFERRABLE and INITIALLY clauses that follow are
 		// kept on the key; NOT VALID and NO INHERIT do not follow a
 		// column's constraint.
@@ -795,7 +813,9 @@ func (p *Parser) parseOptParenthesizedSeqOptList() (*nodes.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return opts, nil
 }
 
@@ -854,7 +874,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 	switch p.cur.Type {
 	case UNIQUE:
 		p.advance()
-		nullsNotDistinct := p.parseOptUniqueNullTreatment()
+		nullsNotDistinct, err := p.parseOptUniqueNullTreatment()
+		if err != nil {
+			return nil, err
+		}
 
 		// Check for ExistingIndex: USING INDEX name
 		if p.cur.Type == USING {
@@ -893,8 +916,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		if err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
-		indexspace := p.parseOptConsTableSpace()
+		options, indexspace, err := p.parseIndexOptions()
+		if err != nil {
+			return nil, err
+		}
 		attrs, err := p.parseKindAttributes("UNIQUE", true, false, false)
 		if err != nil {
 			return nil, err
@@ -955,8 +980,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		if err != nil {
 			return nil, err
 		}
-		options := p.parseOptDefinition()
-		indexspace := p.parseOptConsTableSpace()
+		options, indexspace, err := p.parseIndexOptions()
+		if err != nil {
+			return nil, err
+		}
 		attrs, err := p.parseKindAttributes("PRIMARY KEY", true, false, false)
 		if err != nil {
 			return nil, err
@@ -1029,7 +1056,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		if err != nil {
 			return nil, err
 		}
-		updAction, delAction, delSetCols := p.parseKeyActions()
+		updAction, delAction, delSetCols, err := p.parseKeyActions()
+		if err != nil {
+			return nil, err
+		}
 		attrs, err := p.parseKindAttributes("FOREIGN KEY", true, true, false)
 		if err != nil {
 			return nil, err
@@ -1064,7 +1094,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 // parseExclusionConstraint parses EXCLUDE constraint.
 func (p *Parser) parseExclusionConstraint() (*nodes.Constraint, error) {
 	p.advance() // EXCLUDE
-	am := p.parseAccessMethodClause()
+	am, err := p.parseAccessMethodClause()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -1079,8 +1112,10 @@ func (p *Parser) parseExclusionConstraint() (*nodes.Constraint, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := p.parseOptDefinition()
-	indexspace := p.parseOptConsTableSpace()
+	options, indexspace, err := p.parseIndexOptions()
+	if err != nil {
+		return nil, err
+	}
 	where, err := p.parseWhereClauseOpt()
 	if err != nil {
 		return nil, err
@@ -1107,13 +1142,12 @@ func (p *Parser) parseExclusionConstraint() (*nodes.Constraint, error) {
 // parseAccessMethodClause parses access_method_clause.
 //
 //	access_method_clause: USING name | /* EMPTY */
-func (p *Parser) parseAccessMethodClause() string {
-	if p.cur.Type == USING {
-		p.advance()
-		name, _ := p.parseName()
-		return name
+func (p *Parser) parseAccessMethodClause() (string, error) {
+	if p.cur.Type != USING {
+		return "", nil
 	}
-	return ""
+	p.advance()
+	return p.parseName()
 }
 
 // parseExclusionConstraintList parses ExclusionConstraintList.
@@ -1169,13 +1203,12 @@ func (p *Parser) parseExclusionConstraintElem() (*nodes.List, error) {
 // parseOptCollate parses opt_collate.
 //
 //	opt_collate: COLLATE any_name | /* EMPTY */
-func (p *Parser) parseOptCollate() *nodes.List {
-	if p.cur.Type == COLLATE {
-		p.advance()
-		name, _ := p.parseAnyName()
-		return name
+func (p *Parser) parseOptCollate() (*nodes.List, error) {
+	if p.cur.Type != COLLATE {
+		return nil, nil
 	}
-	return nil
+	p.advance()
+	return p.parseAnyName()
 }
 
 // parseOptQualifiedName parses opt_qualified_name.
@@ -1186,12 +1219,11 @@ func (p *Parser) parseOptCollate() *nodes.List {
 // downstream, which rejects TypeFuncNameKeyword. PG's any_name
 // production is `ColId | ColId attrs`, also using ColId. The
 // previous `|| p.isTypeFunctionName()` was dead code.
-func (p *Parser) parseOptQualifiedName() *nodes.List {
-	if p.isColId() {
-		name, _ := p.parseAnyName()
-		return name
+func (p *Parser) parseOptQualifiedName() (*nodes.List, error) {
+	if !p.isColId() {
+		return nil, nil
 	}
-	return nil
+	return p.parseAnyName()
 }
 
 // parseOptAscDesc parses opt_asc_desc.
@@ -1259,7 +1291,10 @@ func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 	for p.cur.Type == INCLUDING || p.cur.Type == EXCLUDING {
 		isIncluding := p.cur.Type == INCLUDING
 		p.advance()
-		opt := p.parseTableLikeOption()
+		opt, err := p.parseTableLikeOption()
+		if err != nil {
+			return nil, err
+		}
 		if isIncluding {
 			opts |= opt
 		} else {
@@ -1274,40 +1309,37 @@ func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 }
 
 // parseTableLikeOption parses a single TableLikeOption keyword.
-func (p *Parser) parseTableLikeOption() uint32 {
+//
+//	TableLikeOption: COMMENTS | COMPRESSION | CONSTRAINTS | DEFAULTS
+//	    | IDENTITY_P | GENERATED | INDEXES | STATISTICS | STORAGE | ALL
+func (p *Parser) parseTableLikeOption() (uint32, error) {
+	var opt uint32
 	switch p.cur.Type {
 	case ALL:
-		p.advance()
-		return 0xFFFFFFFF
+		opt = 0xFFFFFFFF
 	case COMMENTS:
-		p.advance()
-		return 1
+		opt = 1
 	case COMPRESSION:
-		p.advance()
-		return 2
+		opt = 2
 	case CONSTRAINTS:
-		p.advance()
-		return 4
+		opt = 4
 	case DEFAULTS:
-		p.advance()
-		return 8
+		opt = 8
 	case GENERATED:
-		p.advance()
-		return 16
+		opt = 16
 	case IDENTITY_P:
-		p.advance()
-		return 32
+		opt = 32
 	case INDEXES:
-		p.advance()
-		return 64
+		opt = 64
 	case STATISTICS:
-		p.advance()
-		return 128
+		opt = 128
 	case STORAGE:
-		p.advance()
-		return 256
+		opt = 256
+	default:
+		return 0, p.syntaxErrorAtCur()
 	}
-	return 0
+	p.advance()
+	return opt, nil
 }
 
 // parseTypedTableElementList parses a TypedTableElementList.
@@ -1368,7 +1400,9 @@ func (p *Parser) parseColumnOptions() (*nodes.ColumnDef, error) {
 
 	if p.cur.Type == WITH {
 		p.advance()
-		p.expect(OPTIONS)
+		if _, err := p.expect(OPTIONS); err != nil {
+			return nil, err
+		}
 	}
 
 	qualList, err := p.parseOptColumnConstraints()
@@ -1487,23 +1521,20 @@ func (p *Parser) parseKeyMatch() (byte, error) {
 	if p.cur.Type != MATCH {
 		return 's', nil // default SIMPLE
 	}
+	matchLoc := p.pos()
 	p.advance()
 	switch p.cur.Type {
 	case FULL:
 		p.advance()
 		return 'f', nil
 	case PARTIAL:
+		// gram.y refuses MATCH PARTIAL in its action.
 		p.advance()
-		return 'p', nil
+		return 0, &ParseError{Code: "0A000", Message: "MATCH PARTIAL not yet implemented", Position: matchLoc}
 	case SIMPLE:
 		p.advance()
 		return 's', nil
 	default:
-		// SIMPLE
-		if p.cur.Type == IDENT && strings.EqualFold(p.cur.Str, "simple") {
-			p.advance()
-			return 's', nil
-		}
 		return 0, p.syntaxErrorAtCur()
 	}
 }
@@ -1512,59 +1543,109 @@ func (p *Parser) parseKeyMatch() (byte, error) {
 //
 //	key_actions:
 //	    key_update | key_delete | key_update key_delete | key_delete key_update | /* EMPTY */
-func (p *Parser) parseKeyActions() (updAction byte, delAction byte, delSetCols *nodes.List) {
+//	key_update: ON UPDATE key_action
+//	key_delete: ON DELETE_P key_action
+func (p *Parser) parseKeyActions() (updAction byte, delAction byte, delSetCols *nodes.List, err error) {
 	updAction = 'a' // default NO ACTION
 	delAction = 'a' // default NO ACTION
 
-	for p.cur.Type == ON {
-		next := p.peekNext()
-		if next.Type == UPDATE {
-			p.advance() // ON
+	// Nothing else after a key's references starts with ON, so ON leads
+	// a key action until both are read.
+	var sawUpdate, sawDelete bool
+	for p.cur.Type == ON && !(sawUpdate && sawDelete) {
+		onLoc := p.pos()
+		p.advance() // ON
+		switch {
+		case p.cur.Type == UPDATE && !sawUpdate:
 			p.advance() // UPDATE
-			updAction = p.parseKeyActionType(nil)
-		} else if next.Type == DELETE_P {
-			p.advance() // ON
+			var cols *nodes.List
+			if updAction, err = p.parseKeyActionType(&cols); err != nil {
+				return
+			}
+			if cols != nil {
+				// gram.y's key_update refuses a column list.
+				what := "SET NULL"
+				if updAction == 'd' {
+					what = "SET DEFAULT"
+				}
+				err = &ParseError{Code: "0A000", Message: "a column list with " + what + " is only supported for ON DELETE actions", Position: onLoc}
+				return
+			}
+			sawUpdate = true
+		case p.cur.Type == DELETE_P && !sawDelete:
 			p.advance() // DELETE
-			delAction = p.parseKeyActionType(&delSetCols)
-		} else {
-			break
+			if delAction, err = p.parseKeyActionType(&delSetCols); err != nil {
+				return
+			}
+			sawDelete = true
+		default:
+			if p.collectMode() {
+				if !sawUpdate {
+					p.addTokenCandidate(UPDATE)
+				}
+				if !sawDelete {
+					p.addTokenCandidate(DELETE_P)
+				}
+				err = errCollecting
+				return
+			}
+			err = p.syntaxErrorAtCur()
+			return
 		}
 	}
 	return
 }
 
-// parseKeyActionType parses a key_action value.
-// If setCols is non-nil, it can receive the column list for SET NULL/SET DEFAULT.
-func (p *Parser) parseKeyActionType(setCols **nodes.List) byte {
+// parseKeyActionType parses a key_action, and the column list of SET NULL
+// or SET DEFAULT into setCols.
+//
+//	key_action: NO ACTION | RESTRICT | CASCADE
+//	    | SET NULL_P opt_column_list | SET DEFAULT opt_column_list
+func (p *Parser) parseKeyActionType(setCols **nodes.List) (byte, error) {
 	switch p.cur.Type {
 	case NO:
 		p.advance()
-		p.expect(ACTION)
-		return 'a'
+		if _, err := p.expect(ACTION); err != nil {
+			return 0, err
+		}
+		return 'a', nil
 	case RESTRICT:
 		p.advance()
-		return 'r'
+		return 'r', nil
 	case CASCADE:
 		p.advance()
-		return 'c'
+		return 'c', nil
 	case SET:
 		p.advance()
-		if p.cur.Type == NULL_P {
-			p.advance()
-			if setCols != nil {
-				*setCols, _ = p.parseOptColumnList()
+		var action byte
+		switch p.cur.Type {
+		case NULL_P:
+			action = 'n'
+		case DEFAULT:
+			action = 'd'
+		default:
+			if p.collectMode() {
+				p.addTokenCandidate(NULL_P)
+				p.addTokenCandidate(DEFAULT)
+				return 0, errCollecting
 			}
-			return 'n'
+			return 0, p.syntaxErrorAtCur()
 		}
-		// SET DEFAULT
-		p.expect(DEFAULT)
-		if setCols != nil {
-			*setCols, _ = p.parseOptColumnList()
+		p.advance()
+		cols, err := p.parseOptColumnList()
+		if err != nil {
+			return 0, err
 		}
-		return 'd'
-	default:
-		return 'a'
+		*setCols = cols
+		return action, nil
 	}
+	if p.collectMode() {
+		for _, t := range []int{NO, RESTRICT, CASCADE, SET} {
+			p.addTokenCandidate(t)
+		}
+		return 0, errCollecting
+	}
+	return 0, p.syntaxErrorAtCur()
 }
 
 // parseConstraintAttributeSpec parses ConstraintAttributeSpec and returns
@@ -1709,18 +1790,19 @@ func applyConstraintAttrs(n *nodes.Constraint, attrs int64) {
 // (for ORDER BY x NULLS FIRST/LAST), which matches omni's
 // reclassification rule. UNIQUE NULLS [NOT] DISTINCT therefore sees
 // the raw NULLS_P token and must probe for it directly.
-func (p *Parser) parseOptUniqueNullTreatment() bool {
-	if p.cur.Type == NULLS_P {
-		p.advance()
-		if p.cur.Type == NOT {
-			p.advance()
-			p.expect(DISTINCT)
-			return true
-		}
-		p.expect(DISTINCT)
-		return false
+func (p *Parser) parseOptUniqueNullTreatment() (bool, error) {
+	if p.cur.Type != NULLS_P {
+		return false, nil
 	}
-	return false
+	p.advance()
+	notDistinct := p.cur.Type == NOT
+	if notDistinct {
+		p.advance()
+	}
+	if _, err := p.expect(DISTINCT); err != nil {
+		return false, err
+	}
+	return notDistinct, nil
 }
 
 // parseOptCInclude parses opt_c_include.
@@ -1738,20 +1820,17 @@ func (p *Parser) parseOptCInclude() (*nodes.List, error) {
 //
 //	opt_definition: WITH definition | /* EMPTY */
 //	definition: '(' def_list ')'
-func (p *Parser) parseOptDefinition() *nodes.List {
+func (p *Parser) parseOptDefinition() (*nodes.List, error) {
 	if p.cur.Type != WITH {
-		return nil
+		return nil, nil
 	}
 	// Need lookahead to distinguish WITH '(' from WITH OIDS etc.
 	next := p.peekNext()
 	if next.Type != '(' {
-		return nil
+		return nil, nil
 	}
 	p.advance() // WITH
-	p.advance() // (
-	list, _ := p.parseDefList()
-	p.expect(')')
-	return list
+	return p.parseDefinition()
 }
 
 // parseDefList parses def_list.
@@ -1762,18 +1841,30 @@ func (p *Parser) parseOptDefinition() *nodes.List {
 // parseOptConsTableSpace parses OptConsTableSpace.
 //
 //	OptConsTableSpace: USING INDEX TABLESPACE name | /* EMPTY */
-func (p *Parser) parseOptConsTableSpace() string {
-	if p.cur.Type == USING {
-		next := p.peekNext()
-		if next.Type == INDEX {
-			p.advance() // USING
-			p.advance() // INDEX
-			p.expect(TABLESPACE)
-			name, _ := p.parseName()
-			return name
-		}
+func (p *Parser) parseOptConsTableSpace() (string, error) {
+	if p.cur.Type != USING || p.peekNext().Type != INDEX {
+		return "", nil
 	}
-	return ""
+	p.advance() // USING
+	p.advance() // INDEX
+	if _, err := p.expect(TABLESPACE); err != nil {
+		return "", err
+	}
+	return p.parseName()
+}
+
+// parseIndexOptions parses the opt_definition OptConsTableSpace of a key
+// or exclusion constraint.
+func (p *Parser) parseIndexOptions() (*nodes.List, string, error) {
+	options, err := p.parseOptDefinition()
+	if err != nil {
+		return nil, "", err
+	}
+	indexspace, err := p.parseOptConsTableSpace()
+	if err != nil {
+		return nil, "", err
+	}
+	return options, indexspace, nil
 }
 
 // parseNoInherit parses no_inherit.
@@ -1794,15 +1885,22 @@ func (p *Parser) parseNoInherit() bool {
 // parseOptInherit parses OptInherit.
 //
 //	OptInherit: INHERITS '(' qualified_name_list ')' | /* EMPTY */
-func (p *Parser) parseOptInherit() *nodes.List {
-	if p.cur.Type == INHERITS {
-		p.advance()
-		p.expect('(')
-		list, _ := p.parseQualifiedNameList()
-		p.expect(')')
-		return list
+func (p *Parser) parseOptInherit() (*nodes.List, error) {
+	if p.cur.Type != INHERITS {
+		return nil, nil
 	}
-	return nil
+	p.advance()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseQualifiedNameList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // parseOptPartitionSpec parses OptPartitionSpec.
@@ -1837,25 +1935,30 @@ func (p *Parser) parsePartitionSpec() (*nodes.PartitionSpec, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	code, err := parsePartitionStrategy(strategy)
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.PartitionSpec{
-		Strategy:   parsePartitionStrategy(strategy),
+		Strategy:   code,
 		PartParams: params,
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
 
 // parsePartitionStrategy converts partition strategy name to internal code.
-func parsePartitionStrategy(strategy string) string {
+// gram.y's parsePartitionStrategy refuses any other name once the
+// PartitionSpec is read, with no position.
+func parsePartitionStrategy(strategy string) (string, error) {
 	switch strings.ToLower(strategy) {
 	case "list":
-		return "l"
+		return "l", nil
 	case "range":
-		return "r"
+		return "r", nil
 	case "hash":
-		return "h"
-	default:
-		return strategy
+		return "h", nil
 	}
+	return "", &ParseError{Code: "22023", Message: fmt.Sprintf("unrecognized partitioning strategy \"%s\"", strategy), Position: -1}
 }
 
 // parsePartParams parses part_params.
@@ -1897,8 +2000,10 @@ func (p *Parser) parsePartElem() (*nodes.PartitionElem, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		collation := p.parseOptCollate()
-		opclass := p.parseOptQualifiedName()
+		collation, opclass, err := p.parsePartElemTail()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.PartitionElem{
 			Expr:      expr,
 			Collation: collation,
@@ -1915,8 +2020,10 @@ func (p *Parser) parsePartElem() (*nodes.PartitionElem, error) {
 			if err != nil {
 				return nil, err
 			}
-			collation := p.parseOptCollate()
-			opclass := p.parseOptQualifiedName()
+			collation, opclass, err := p.parsePartElemTail()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.PartitionElem{
 				Name:      name,
 				Collation: collation,
@@ -1934,14 +2041,30 @@ func (p *Parser) parsePartElem() (*nodes.PartitionElem, error) {
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	collation := p.parseOptCollate()
-	opclass := p.parseOptQualifiedName()
+	collation, opclass, err := p.parsePartElemTail()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.PartitionElem{
 		Expr:      expr,
 		Collation: collation,
 		Opclass:   opclass,
 		Loc:       nodes.NoLoc(),
 	}, nil
+}
+
+// parsePartElemTail parses the opt_collate opt_qualified_name that ends a
+// part_elem.
+func (p *Parser) parsePartElemTail() (*nodes.List, *nodes.List, error) {
+	collation, err := p.parseOptCollate()
+	if err != nil {
+		return nil, nil, err
+	}
+	opclass, err := p.parseOptQualifiedName()
+	if err != nil {
+		return nil, nil, err
+	}
+	return collation, opclass, nil
 }
 
 // parseOptAccessMethod parses OptAccessMethod.

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -854,9 +855,9 @@ func (p *Parser) parseGrantFuncArgsList() (*nodes.List, error) {
 }
 
 func (p *Parser) parseGrantFuncArg() (nodes.Node, error) {
-	arg := p.parseFuncArg()
-	if arg == nil {
-		return nil, nil
+	arg, err := p.parseFuncArg()
+	if err != nil {
+		return nil, err
 	}
 	return arg.ArgType, nil
 }
@@ -1399,8 +1400,8 @@ func (p *Parser) parseCreateOptRoleElem() (*nodes.DefElem, error) {
 		p.advance()
 		if p.cur.Type == GROUP_P {
 			p.advance()
-		} else {
-			p.expect(ROLE)
+		} else if _, err := p.expect(ROLE); err != nil {
+			return nil, err
 		}
 		roles, err := p.parseRoleList()
 		if err != nil {
@@ -1419,20 +1420,7 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 	// ALTER ROLE ALL SET/RESET/IN DATABASE ...
 	if p.cur.Type == ALL {
 		p.advance()
-		if p.cur.Type == SET || p.cur.Type == RESET {
-			n := p.parseAlterRoleSetStmtSuffix(loc, nil, "")
-			return n, nil
-		}
-		if p.cur.Type == IN_P {
-			p.advance()
-			if _, err := p.expect(DATABASE); err != nil {
-				return nil, err
-			}
-			dbname, _ := p.parseName()
-			n := p.parseAlterRoleSetStmtSuffix(loc, nil, dbname)
-			return n, nil
-		}
-		return nil, nil
+		return p.parseAlterRoleSetStmtSuffix(loc, nil)
 	}
 	var role *nodes.RoleSpec
 	var err error
@@ -1450,7 +1438,10 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_ROLE,
 			Subname:    role.Rolename,
@@ -1473,18 +1464,8 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
-	if !isUser && (p.cur.Type == SET || p.cur.Type == RESET) {
-		n := p.parseAlterRoleSetStmtSuffix(loc, role, "")
-		return n, nil
-	}
-	if p.cur.Type == IN_P {
-		p.advance()
-		if _, err := p.expect(DATABASE); err != nil {
-			return nil, err
-		}
-		dbname, _ := p.parseName()
-		n := p.parseAlterRoleSetStmtSuffix(loc, role, dbname)
-		return n, nil
+	if (!isUser && (p.cur.Type == SET || p.cur.Type == RESET)) || p.cur.Type == IN_P {
+		return p.parseAlterRoleSetStmtSuffix(loc, role)
 	}
 	options, err := p.parseOptRoleList(false)
 	if err != nil {
@@ -1494,23 +1475,30 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
-func (p *Parser) parseAlterRoleSetStmtSuffix(loc int, role *nodes.RoleSpec, dbname string) nodes.Node {
-	var setstmt *nodes.VariableSetStmt
-	if p.cur.Type == SET {
+// parseAlterRoleSetStmtSuffix parses AlterRoleSetStmt after the role.
+//
+//	AlterRoleSetStmt: ALTER ROLE RoleSpec opt_in_database SetResetClause
+//	    | ALTER ROLE ALL opt_in_database SetResetClause
+//	opt_in_database: /* EMPTY */ | IN_P DATABASE name
+//	SetResetClause: SET set_rest | VariableResetStmt
+func (p *Parser) parseAlterRoleSetStmtSuffix(loc int, role *nodes.RoleSpec) (nodes.Node, error) {
+	var dbname string
+	if p.cur.Type == IN_P {
 		p.advance()
-		result, _ := p.parseVariableSetStmt()
-		if vs, ok := result.(*nodes.VariableSetStmt); ok {
-			setstmt = vs
+		if _, err := p.expect(DATABASE); err != nil {
+			return nil, err
 		}
-	} else if p.cur.Type == RESET {
-		p.advance()
-		result, _ := p.parseVariableResetStmt()
-		if vs, ok := result.(*nodes.VariableSetStmt); ok {
-			setstmt = vs
+		var err error
+		if dbname, err = p.parseName(); err != nil {
+			return nil, err
 		}
 	}
+	setstmt, err := p.parseSetResetClause()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterRoleSetStmt{Role: role, Database: dbname, Setstmt: setstmt,
-		Loc: nodes.Loc{Start: loc, End: p.prev.End}}
+		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 func (p *Parser) parseAlterGroupStmt() (nodes.Node, error) {
@@ -1551,14 +1539,23 @@ func (p *Parser) parseAlterGroupStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseRoleId()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_ROLE,
 			Subname:    role.Rolename,
 			Newname:    newname,
 		}, nil
 	}
-	return nil, nil
+	if p.collectMode() {
+		for _, t := range []int{ADD_P, DROP, RENAME} {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+	return nil, p.syntaxErrorAtCur()
 }
 
 func (p *Parser) parseDropRoleStmt() (nodes.Node, error) {
@@ -1590,7 +1587,10 @@ func (p *Parser) parseDropRoleOptions() *nodes.List {
 func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of CREATE keyword
 	p.advance()       // consume POLICY
-	policyName, _ := p.parseName()
+	policyName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
@@ -1600,20 +1600,31 @@ func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	table := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
+	// RowSecurityDefaultPermissive: AS IDENT, whose action takes only
+	// permissive and restrictive.
 	permissive := true
 	if p.cur.Type == AS {
 		p.advance()
-		if p.isColId() && p.cur.Str == "permissive" {
-			p.advance()
-		} else if p.isColId() && p.cur.Str == "restrictive" {
-			p.advance()
-			permissive = false
+		if p.cur.Type != IDENT {
+			if _, err := p.expect(IDENT); err != nil {
+				return nil, err
+			}
 		}
+		switch p.cur.Str {
+		case "permissive":
+		case "restrictive":
+			permissive = false
+		default:
+			return nil, &ParseError{Message: fmt.Sprintf("unrecognized row security option \"%s\"", p.cur.Str), Position: p.cur.Loc}
+		}
+		p.advance()
 	}
 	cmdName := "all"
 	if p.cur.Type == FOR {
 		p.advance()
-		cmdName = p.parseRowSecurityCmd()
+		if cmdName, err = p.parseRowSecurityCmd(); err != nil {
+			return nil, err
+		}
 	}
 	var roles *nodes.List
 	if p.cur.Type == TO {
@@ -1624,31 +1635,9 @@ func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 			return nil, err
 		}
 	}
-	var qual nodes.Node
-	if p.cur.Type == USING {
-		p.advance()
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		qual, _ = p.parseAExpr(0)
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-	var withCheck nodes.Node
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == CHECK {
-			p.advance()
-			p.advance()
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			withCheck, _ = p.parseAExpr(0)
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		}
+	qual, withCheck, err := p.parseRowSecurityExprs()
+	if err != nil {
+		return nil, err
 	}
 	return &nodes.CreatePolicyStmt{
 		PolicyName: policyName, Table: table, CmdName: cmdName,
@@ -1704,8 +1693,6 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 		}, nil
 	}
 	var roles *nodes.List
-	var qual nodes.Node
-	var withCheck nodes.Node
 	if p.cur.Type == TO {
 		p.advance()
 		var err error
@@ -1714,29 +1701,9 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 			return nil, err
 		}
 	}
-	if p.cur.Type == USING {
-		p.advance()
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		qual, _ = p.parseAExpr(0)
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == CHECK {
-			p.advance()
-			p.advance()
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			withCheck, _ = p.parseAExpr(0)
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		}
+	qual, withCheck, err := p.parseRowSecurityExprs()
+	if err != nil {
+		return nil, err
 	}
 	return &nodes.AlterPolicyStmt{
 		PolicyName: policyName, Table: table, Roles: roles, Qual: qual, WithCheck: withCheck,
@@ -1744,24 +1711,69 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseRowSecurityCmd() string {
+// parseRowSecurityExprs parses the RowSecurityOptionalExpr and
+// RowSecurityOptionalWithCheck that end a policy statement.
+//
+//	RowSecurityOptionalExpr: USING '(' a_expr ')' | /* EMPTY */
+//	RowSecurityOptionalWithCheck: WITH CHECK '(' a_expr ')' | /* EMPTY */
+func (p *Parser) parseRowSecurityExprs() (qual, withCheck nodes.Node, err error) {
+	if p.cur.Type == USING {
+		p.advance()
+		if qual, err = p.parseParenRequiredAExpr(); err != nil {
+			return nil, nil, err
+		}
+	}
+	if p.cur.Type == WITH {
+		p.advance()
+		if _, err = p.expect(CHECK); err != nil {
+			return nil, nil, err
+		}
+		if withCheck, err = p.parseParenRequiredAExpr(); err != nil {
+			return nil, nil, err
+		}
+	}
+	return qual, withCheck, nil
+}
+
+// parseParenRequiredAExpr parses '(' a_expr ')'.
+func (p *Parser) parseParenRequiredAExpr() (nodes.Node, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseRequiredAExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
+}
+
+// parseRowSecurityCmd parses row_security_cmd: ALL | SELECT | INSERT |
+// UPDATE | DELETE_P.
+func (p *Parser) parseRowSecurityCmd() (string, error) {
+	var cmd string
 	switch p.cur.Type {
 	case ALL:
-		p.advance()
-		return "all"
+		cmd = "all"
 	case SELECT:
-		p.advance()
-		return "select"
+		cmd = "select"
 	case INSERT:
-		p.advance()
-		return "insert"
+		cmd = "insert"
 	case UPDATE:
-		p.advance()
-		return "update"
+		cmd = "update"
 	case DELETE_P:
-		p.advance()
-		return "delete"
+		cmd = "delete"
 	default:
-		return "all"
+		if p.collectMode() {
+			for _, t := range []int{ALL, SELECT, INSERT, UPDATE, DELETE_P} {
+				p.addTokenCandidate(t)
+			}
+			return "", errCollecting
+		}
+		return "", p.syntaxErrorAtCur()
 	}
+	p.advance()
+	return cmd, nil
 }

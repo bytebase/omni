@@ -229,7 +229,7 @@ accept	accept	engine	stmt/AlterRoleSetStmt	ALTER ROLE a SET NAMES
 reject@0	reject@0	engine	stmt/AlterRoleSetStmt!drop-1	ROLE a SET NAMES
 reject@15	reject@15	engine	stmt/AlterRoleSetStmt!drop-3	ALTER ROLE SET NAMES
 reject@13	reject@13	engine	stmt/AlterRoleSetStmt!drop-4	ALTER ROLE a NAMES
-accept	reject@16	engine	stmt/AlterRoleSetStmt!drop-5	ALTER ROLE a SET
+reject@16	reject@16	engine	stmt/AlterRoleSetStmt!drop-5	ALTER ROLE a SET
 reject@23	reject@23	engine	stmt/AlterRoleSetStmt!insert	ALTER ROLE a SET NAMES zzz
 reject@0	reject@0	engine	stmt/AlterRoleSetStmt!swap	ALWAYS ROLE a SET NAMES
 accept	accept	engine	stmt/AlterRoleStmt	ALTER ROLE a
@@ -431,9 +431,9 @@ reject@0	reject@0	engine	stmt/CreateForeignTableStmt!swap	CROSS FOREIGN TABLE a(
 accept	accept	engine	stmt/CreateFunctionStmt	CREATE FUNCTION a()
 reject@0	reject@0	engine	stmt/CreateFunctionStmt!drop-1	FUNCTION a()
 reject@7	reject@7	engine	stmt/CreateFunctionStmt!drop-2	CREATE a()
-accept	reject@15	engine	stmt/CreateFunctionStmt!drop-3	CREATE FUNCTION()
-accept	reject@17	engine	stmt/CreateFunctionStmt!drop-4	CREATE FUNCTION a)
-accept	reject@18	engine	stmt/CreateFunctionStmt!drop-5	CREATE FUNCTION a(
+reject@15	reject@15	engine	stmt/CreateFunctionStmt!drop-3	CREATE FUNCTION()
+reject@17	reject@17	engine	stmt/CreateFunctionStmt!drop-4	CREATE FUNCTION a)
+reject@18	reject@18	engine	stmt/CreateFunctionStmt!drop-5	CREATE FUNCTION a(
 reject@20	reject@20	engine	stmt/CreateFunctionStmt!insert	CREATE FUNCTION a() zzz
 reject@0	reject@0	engine	stmt/CreateFunctionStmt!swap	CROSS FUNCTION a()
 accept	accept	engine	stmt/CreateGroupStmt	CREATE GROUP a
@@ -492,7 +492,7 @@ reject@46	reject@46	engine	stmt/AlterOpFamilyStmt!insert	ALTER OPERATOR FAMILY a
 reject@0	reject@0	engine	stmt/AlterOpFamilyStmt!swap	ALWAYS OPERATOR FAMILY a USING a ADD STORAGE a
 accept	accept	engine	stmt/CreatePolicyStmt	CREATE POLICY a ON a
 reject@7	reject@7	engine	stmt/CreatePolicyStmt!drop-2	CREATE a ON a
-accept	reject@14	engine	stmt/CreatePolicyStmt!drop-3	CREATE POLICY ON a
+reject@14	reject@14	engine	stmt/CreatePolicyStmt!drop-3	CREATE POLICY ON a
 reject@16	reject@16	engine	stmt/CreatePolicyStmt!drop-4	CREATE POLICY a a
 reject@18	reject@18	engine	stmt/CreatePolicyStmt!drop-5	CREATE POLICY a ON
 reject@21	reject@21	engine	stmt/CreatePolicyStmt!insert	CREATE POLICY a ON a zzz
@@ -1041,7 +1041,7 @@ reject@19	reject@19	engine	CreateOptRoleElem/ROLE_role_list!drop-2	CREATE GROUP 
 reject@22	reject@22	engine	CreateOptRoleElem/ROLE_role_list!insert	CREATE GROUP a ROLE a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/ROLE_role_list!swap	CREATE GROUP a ROLLBACK a
 accept	accept	engine	CreateOptRoleElem/IN_P_ROLE_role_list	CREATE GROUP a IN ROLE a
-accept	reject@18	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-2	CREATE GROUP a IN a
+reject@18	reject@18	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-2	CREATE GROUP a IN a
 reject@22	reject@22	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-3	CREATE GROUP a IN ROLE
 reject@25	reject@25	engine	CreateOptRoleElem/IN_P_ROLE_role_list!insert	CREATE GROUP a IN ROLE a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/IN_P_ROLE_role_list!swap	CREATE GROUP a INCLUDE ROLE a
@@ -1062,7 +1062,7 @@ accept	accept	engine	opt_in_database/IN_P_DATABASE_name	ALTER ROLE a IN DATABASE
 reject@13	reject@13	engine	opt_in_database/IN_P_DATABASE_name!drop-1	ALTER ROLE a DATABASE a SET NAMES
 reject@16	reject@16	engine	opt_in_database/IN_P_DATABASE_name!drop-2	ALTER ROLE a IN a SET NAMES
 reject@29	reject@29	engine	opt_in_database/IN_P_DATABASE_name!drop-3	ALTER ROLE a IN DATABASE SET NAMES
-accept	reject@24	engine	opt_in_database/IN_P_DATABASE_name!truncate	ALTER ROLE a IN DATABASE
+reject@24	reject@24	engine	opt_in_database/IN_P_DATABASE_name!truncate	ALTER ROLE a IN DATABASE
 reject@27	reject@27	engine	opt_in_database/IN_P_DATABASE_name!insert	ALTER ROLE a IN DATABASE a zzz SET NAMES
 reject@13	reject@13	engine	opt_in_database/IN_P_DATABASE_name!swap	ALTER ROLE a INCLUDE DATABASE a SET NAMES
 accept	accept	engine	AlterRoleSetStmt/ALTER_ROLE_RoleSpec_opt_in_database_SetResetClause	ALTER ROLE a SET NAMES
@@ -1070,20 +1070,20 @@ accept	accept	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetCla
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!drop-1	ROLE ALL SET NAMES
 reject@6	reject@6	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!drop-2	ALTER ALL SET NAMES
 reject@15	reject@15	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!drop-4	ALTER ROLE ALL NAMES
-accept	reject@18	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!drop-5	ALTER ROLE ALL SET
+reject@18	reject@18	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!drop-5	ALTER ROLE ALL SET
 reject@25	reject@25	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!insert	ALTER ROLE ALL SET NAMES zzz
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_ROLE_ALL_opt_in_database_SetResetClause!swap	ALWAYS ROLE ALL SET NAMES
 accept	accept	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause	ALTER USER a SET NAMES
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!drop-1	USER a SET NAMES
 reject@15	reject@15	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!drop-3	ALTER USER SET NAMES
 reject@13	reject@13	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!drop-4	ALTER USER a NAMES
-accept	reject@16	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!drop-5	ALTER USER a SET
+reject@16	reject@16	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!drop-5	ALTER USER a SET
 reject@23	reject@23	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!insert	ALTER USER a SET NAMES zzz
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_USER_RoleSpec_opt_in_database_SetResetClause!swap	ALWAYS USER a SET NAMES
 accept	accept	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause	ALTER USER ALL SET NAMES
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!drop-1	USER ALL SET NAMES
 reject@15	reject@15	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!drop-4	ALTER USER ALL NAMES
-accept	reject@18	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!drop-5	ALTER USER ALL SET
+reject@18	reject@18	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!drop-5	ALTER USER ALL SET
 reject@25	reject@25	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!insert	ALTER USER ALL SET NAMES zzz
 reject@0	reject@0	engine	AlterRoleSetStmt/ALTER_USER_ALL_opt_in_database_SetResetClause!swap	ALWAYS USER ALL SET NAMES
 accept	accept	engine	DropRoleStmt/DROP_ROLE_role_list	DROP ROLE a
@@ -1229,7 +1229,7 @@ reject@20	reject@20	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_trans
 reject@12	reject@12	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!drop-2	SET SESSION AS TRANSACTION DEFERRABLE
 reject@28	reject@28	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!drop-3	SET SESSION CHARACTERISTICS TRANSACTION DEFERRABLE
 reject@31	reject@31	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!drop-4	SET SESSION CHARACTERISTICS AS DEFERRABLE
-accept	reject@42	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!drop-5	SET SESSION CHARACTERISTICS AS TRANSACTION
+reject@42	reject@42	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!drop-5	SET SESSION CHARACTERISTICS AS TRANSACTION
 reject@54	reject@54	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!insert	SET SESSION CHARACTERISTICS AS TRANSACTION DEFERRABLE zzz
 reject@4	reject@4	engine	set_rest/SESSION_CHARACTERISTICS_AS_TRANSACTION_transaction_mode_list!swap	SET SESSION_USER CHARACTERISTICS AS TRANSACTION DEFERRABLE
 accept	accept	engine	set_rest/set_rest_more	SET NAMES
@@ -1267,10 +1267,10 @@ reject@9	reject@9	engine	set_rest_more/TIME_ZONE_zone_value!drop-2	SET TIME 's'
 reject@13	reject@13	engine	set_rest_more/TIME_ZONE_zone_value!drop-3	SET TIME ZONE
 reject@18	reject@18	engine	set_rest_more/TIME_ZONE_zone_value!insert	SET TIME ZONE 's' zzz
 reject@14	reject@14	engine	set_rest_more/TIME_ZONE_zone_value!swap	SET TIMESTAMP ZONE 's'
-accept	reject@12	engine	set_rest_more/CATALOG_P_Sconst	SET CATALOG 's'
+reject@12	reject@12	engine	set_rest_more/CATALOG_P_Sconst	SET CATALOG 's'
 reject@4	reject@4	engine	set_rest_more/CATALOG_P_Sconst!drop-1	SET 's'
 reject@11	reject@11	engine	set_rest_more/CATALOG_P_Sconst!drop-2	SET CATALOG
-reject@16	reject@12	engine	set_rest_more/CATALOG_P_Sconst!insert	SET CATALOG 's' zzz
+reject@12	reject@12	engine	set_rest_more/CATALOG_P_Sconst!insert	SET CATALOG 's' zzz
 reject@10	reject@10	engine	set_rest_more/CATALOG_P_Sconst!swap	SET CHAIN 's'
 accept	accept	engine	set_rest_more/SCHEMA_Sconst	SET SCHEMA 's'
 reject@10	reject@10	engine	set_rest_more/SCHEMA_Sconst!drop-2	SET SCHEMA
@@ -1336,7 +1336,7 @@ reject@32	reject@32	engine	iso_level/REPEATABLE_READ!drop-2	BEGIN ISOLATION LEVE
 reject@38	reject@38	engine	iso_level/REPEATABLE_READ!insert	BEGIN ISOLATION LEVEL REPEATABLE READ zzz
 reject@22	reject@22	engine	iso_level/REPEATABLE_READ!swap	BEGIN ISOLATION LEVEL REPLACE READ
 accept	accept	engine	iso_level/SERIALIZABLE	BEGIN ISOLATION LEVEL SERIALIZABLE
-accept	reject@21	engine	iso_level/SERIALIZABLE!drop-1	BEGIN ISOLATION LEVEL
+reject@21	reject@21	engine	iso_level/SERIALIZABLE!drop-1	BEGIN ISOLATION LEVEL
 reject@35	reject@35	engine	iso_level/SERIALIZABLE!insert	BEGIN ISOLATION LEVEL SERIALIZABLE zzz
 reject@22	reject@22	engine	iso_level/SERIALIZABLE!swap	BEGIN ISOLATION LEVEL SERVER
 accept	accept	engine	opt_boolean_or_string/TRUE_P	SET a TO TRUE
@@ -2089,7 +2089,7 @@ reject@14	reject@14	engine	alter_table_cmd/alter_generic_options!swap	ALTER TABL
 accept	accept	engine	alter_column_default/SET_DEFAULT_a_expr	ALTER DOMAIN a SET DEFAULT a
 reject@15	reject@15	engine	alter_column_default/SET_DEFAULT_a_expr!drop-1	ALTER DOMAIN a DEFAULT a
 reject@15	reject@19	engine	alter_column_default/SET_DEFAULT_a_expr!drop-2	ALTER DOMAIN a SET a
-accept	reject@26	engine	alter_column_default/SET_DEFAULT_a_expr!drop-3	ALTER DOMAIN a SET DEFAULT
+reject@26	reject@26	engine	alter_column_default/SET_DEFAULT_a_expr!drop-3	ALTER DOMAIN a SET DEFAULT
 reject@29	reject@29	engine	alter_column_default/SET_DEFAULT_a_expr!insert	ALTER DOMAIN a SET DEFAULT a zzz
 reject@15	reject@15	engine	alter_column_default/SET_DEFAULT_a_expr!swap	ALTER DOMAIN a SETOF DEFAULT a
 accept	accept	engine	alter_column_default/DROP_DEFAULT	ALTER DOMAIN a DROP DEFAULT
@@ -2101,7 +2101,7 @@ reject@39	reject@39	engine	opt_collate_clause/COLLATE_any_name!insert	ALTER TABL
 reject@29	reject@29	engine	opt_collate_clause/COLLATE_any_name!swap	ALTER TABLE a ALTER a TYPE a COLLATION a
 accept	accept	engine	opt_collate_clause/%empty	ALTER TABLE a ALTER a TYPE a
 accept	accept	engine	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
-accept	reject@34	engine	alter_using/USING_a_expr!drop-2	ALTER TABLE a ALTER a TYPE a USING
+reject@34	reject@34	engine	alter_using/USING_a_expr!drop-2	ALTER TABLE a ALTER a TYPE a USING
 reject@37	reject@37	engine	alter_using/USING_a_expr!insert	ALTER TABLE a ALTER a TYPE a USING a zzz
 reject@29	reject@29	engine	alter_using/USING_a_expr!swap	ALTER TABLE a ALTER a TYPE a VACUUM a
 accept	accept	engine	alter_using/%empty	ALTER TABLE a ALTER a TYPE a
@@ -2460,7 +2460,7 @@ reject@8	reject@8	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITIO
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE a PARTITION OF a DEFAULT
 reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE PARTITION OF a DEFAULT
 reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE a OF a DEFAULT
-accept	reject@25	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE a PARTITION a DEFAULT
+reject@25	reject@25	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE a PARTITION a DEFAULT
 reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE a PARTITION OF DEFAULT
 reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE a PARTITION OF a
 reject@38	reject@38	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE a PARTITION OF a DEFAULT zzz
@@ -2473,7 +2473,7 @@ reject@16	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a PARTITION OF a DEFAULT
 reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE IF NOT EXISTS PARTITION OF a DEFAULT
 reject@34	reject@34	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a OF a DEFAULT
-accept	reject@39	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a PARTITION a DEFAULT
+reject@39	reject@39	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a PARTITION a DEFAULT
 reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-9	CREATE TABLE IF NOT EXISTS a PARTITION OF DEFAULT
 reject@43	reject@43	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-10	CREATE TABLE IF NOT EXISTS a PARTITION OF a
 reject@52	reject@52	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT zzz
@@ -2544,7 +2544,7 @@ accept	accept	engine	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
 reject@15	reject@15	engine	TableElement/TableConstraint!drop-1	CREATE TABLE a((a))
 reject@21	reject@21	engine	TableElement/TableConstraint!drop-2	CREATE TABLE a(CHECK a))
 reject@21	reject@21	engine	TableElement/TableConstraint!drop-3	CREATE TABLE a(CHECK())
-accept	reject@23	engine	TableElement/TableConstraint!drop-4	CREATE TABLE a(CHECK(a)
+reject@23	reject@23	engine	TableElement/TableConstraint!drop-4	CREATE TABLE a(CHECK(a)
 reject@22	reject@22	engine	TableElement/TableConstraint!truncate	CREATE TABLE a(CHECK(a
 reject@24	reject@24	engine	TableElement/TableConstraint!insert	CREATE TABLE a(CHECK(a) zzz)
 reject@25	reject@25	engine	TableElement/TableConstraint!swap	CREATE TABLE a(CHECKPOINT(a))
@@ -2562,7 +2562,7 @@ accept	accept	engine	columnOptions/ColId_ColQualList	CREATE TABLE a OF a(a)
 accept	accept	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
 reject@20	reject@20	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!drop-1	CREATE TABLE a OF a(WITH OPTIONS)
 reject@22	reject@22	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!drop-2	CREATE TABLE a OF a(a OPTIONS)
-accept	reject@26	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!drop-3	CREATE TABLE a OF a(a WITH)
+reject@26	reject@26	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!drop-3	CREATE TABLE a OF a(a WITH)
 reject@26	reject@26	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!truncate	CREATE TABLE a OF a(a WITH
 reject@35	reject@35	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!insert	CREATE TABLE a OF a(a WITH OPTIONS zzz)
 reject@22	reject@22	engine	columnOptions/ColId_WITH_OPTIONS_ColQualList!swap	CREATE TABLE a OF a(a WITHIN OPTIONS)
@@ -2652,12 +2652,12 @@ reject@31	reject@31	engine	ColConstraintElem/REFERENCES_qualified_name_opt_colum
 reject@18	reject@18	engine	ColConstraintElem/REFERENCES_qualified_name_opt_column_list_key_match_key_actions!swap	CREATE DOMAIN a a REFERENCING a
 accept	accept	engine	opt_unique_null_treatment/NULLS_P_DISTINCT	CREATE DOMAIN a a UNIQUE NULLS DISTINCT
 reject@25	reject@25	engine	opt_unique_null_treatment/NULLS_P_DISTINCT!drop-1	CREATE DOMAIN a a UNIQUE DISTINCT
-accept	reject@30	engine	opt_unique_null_treatment/NULLS_P_DISTINCT!drop-2	CREATE DOMAIN a a UNIQUE NULLS
+reject@30	reject@30	engine	opt_unique_null_treatment/NULLS_P_DISTINCT!drop-2	CREATE DOMAIN a a UNIQUE NULLS
 reject@40	reject@40	engine	opt_unique_null_treatment/NULLS_P_DISTINCT!insert	CREATE DOMAIN a a UNIQUE NULLS DISTINCT zzz
 reject@25	reject@25	engine	opt_unique_null_treatment/NULLS_P_DISTINCT!swap	CREATE DOMAIN a a UNIQUE NUMERIC DISTINCT
 accept	accept	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT	CREATE DOMAIN a a UNIQUE NULLS NOT DISTINCT
 reject@29	reject@29	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT!drop-1	CREATE DOMAIN a a UNIQUE NOT DISTINCT
-accept	reject@34	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT!drop-3	CREATE DOMAIN a a UNIQUE NULLS NOT
+reject@34	reject@34	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT!drop-3	CREATE DOMAIN a a UNIQUE NULLS NOT
 reject@44	reject@44	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT!insert	CREATE DOMAIN a a UNIQUE NULLS NOT DISTINCT zzz
 reject@25	reject@25	engine	opt_unique_null_treatment/NULLS_P_NOT_DISTINCT!swap	CREATE DOMAIN a a UNIQUE NUMERIC NOT DISTINCT
 accept	accept	engine	opt_unique_null_treatment/%empty	CREATE DOMAIN a a UNIQUE
@@ -2673,7 +2673,7 @@ accept	accept	engine	ConstraintAttr/NOT_DEFERRABLE	CREATE DOMAIN a a NOT DEFERRA
 reject@33	reject@33	engine	ConstraintAttr/NOT_DEFERRABLE!insert	CREATE DOMAIN a a NOT DEFERRABLE zzz
 reject@18	reject@18	engine	ConstraintAttr/NOT_DEFERRABLE!swap	CREATE DOMAIN a a NOTHING DEFERRABLE
 accept	accept	engine	ConstraintAttr/INITIALLY_DEFERRED	CREATE DOMAIN a a INITIALLY DEFERRED
-accept	reject@27	engine	ConstraintAttr/INITIALLY_DEFERRED!drop-2	CREATE DOMAIN a a INITIALLY
+reject@27	reject@27	engine	ConstraintAttr/INITIALLY_DEFERRED!drop-2	CREATE DOMAIN a a INITIALLY
 reject@37	reject@37	engine	ConstraintAttr/INITIALLY_DEFERRED!insert	CREATE DOMAIN a a INITIALLY DEFERRED zzz
 reject@18	reject@18	engine	ConstraintAttr/INITIALLY_DEFERRED!swap	CREATE DOMAIN a a INLINE DEFERRED
 accept	accept	engine	ConstraintAttr/INITIALLY_IMMEDIATE	CREATE DOMAIN a a INITIALLY IMMEDIATE
@@ -2683,13 +2683,13 @@ reject@18	reject@18	engine	ConstraintAttr/INITIALLY_IMMEDIATE!swap	CREATE DOMAIN
 accept	accept	engine	TableLikeClause/LIKE_qualified_name_TableLikeOptionList	CREATE TABLE a(LIKE a)
 accept	accept	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
 reject@22	reject@22	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!drop-1	CREATE TABLE a(LIKE a COMMENTS)
-accept	reject@31	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!drop-2	CREATE TABLE a(LIKE a INCLUDING)
-accept	reject@31	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!truncate	CREATE TABLE a(LIKE a INCLUDING
+reject@31	reject@31	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!drop-2	CREATE TABLE a(LIKE a INCLUDING)
+reject@31	reject@31	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!truncate	CREATE TABLE a(LIKE a INCLUDING
 reject@41	reject@41	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!insert	CREATE TABLE a(LIKE a INCLUDING COMMENTS zzz)
 reject@22	reject@22	engine	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption!swap	CREATE TABLE a(LIKE a INCREMENT COMMENTS)
 accept	accept	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
-accept	reject@31	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!drop-2	CREATE TABLE a(LIKE a EXCLUDING)
-accept	reject@31	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!truncate	CREATE TABLE a(LIKE a EXCLUDING
+reject@31	reject@31	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!drop-2	CREATE TABLE a(LIKE a EXCLUDING)
+reject@31	reject@31	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!truncate	CREATE TABLE a(LIKE a EXCLUDING
 reject@41	reject@41	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!insert	CREATE TABLE a(LIKE a EXCLUDING COMMENTS zzz)
 reject@22	reject@22	engine	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption!swap	CREATE TABLE a(LIKE a EXCLUSIVE COMMENTS)
 accept	accept	engine	TableLikeOptionList/%empty	CREATE TABLE a(LIKE a)
@@ -2797,7 +2797,7 @@ reject@19	reject@19	engine	DomainConstraint/DomainConstraintElem!swap	ALTER DOMA
 accept	accept	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec	ALTER DOMAIN a ADD CHECK(a)
 reject@18	reject@18	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-1	ALTER DOMAIN a ADD(a)
 reject@25	reject@25	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-2	ALTER DOMAIN a ADD CHECK a)
-accept	reject@25	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-3	ALTER DOMAIN a ADD CHECK()
+reject@25	reject@25	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-3	ALTER DOMAIN a ADD CHECK()
 reject@26	reject@26	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-4	ALTER DOMAIN a ADD CHECK(a
 reject@28	reject@28	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!insert	ALTER DOMAIN a ADD CHECK(a) zzz
 reject@19	reject@19	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!swap	ALTER DOMAIN a ADD CHECKPOINT(a)
@@ -2839,9 +2839,9 @@ reject@31	reject@31	engine	key_match/MATCH_FULL!drop-1	CREATE DOMAIN a a REFEREN
 reject@36	reject@36	engine	key_match/MATCH_FULL!drop-2	CREATE DOMAIN a a REFERENCES a MATCH
 reject@42	reject@42	engine	key_match/MATCH_FULL!insert	CREATE DOMAIN a a REFERENCES a MATCH FULL zzz
 reject@31	reject@31	engine	key_match/MATCH_FULL!swap	CREATE DOMAIN a a REFERENCES a MATCHED FULL
-accept	reject@31	engine	key_match/MATCH_PARTIAL	CREATE DOMAIN a a REFERENCES a MATCH PARTIAL
+reject@31	reject@31	engine	key_match/MATCH_PARTIAL	CREATE DOMAIN a a REFERENCES a MATCH PARTIAL
 reject@31	reject@31	engine	key_match/MATCH_PARTIAL!drop-1	CREATE DOMAIN a a REFERENCES a PARTIAL
-reject@45	reject@31	engine	key_match/MATCH_PARTIAL!insert	CREATE DOMAIN a a REFERENCES a MATCH PARTIAL zzz
+reject@31	reject@31	engine	key_match/MATCH_PARTIAL!insert	CREATE DOMAIN a a REFERENCES a MATCH PARTIAL zzz
 reject@31	reject@31	engine	key_match/MATCH_PARTIAL!swap	CREATE DOMAIN a a REFERENCES a MATCHED PARTIAL
 accept	accept	engine	key_match/MATCH_SIMPLE	CREATE DOMAIN a a REFERENCES a MATCH SIMPLE
 reject@31	reject@31	engine	key_match/MATCH_SIMPLE!drop-1	CREATE DOMAIN a a REFERENCES a SIMPLE
@@ -2884,31 +2884,31 @@ reject@24	reject@24	engine	OptWhereClause/WHERE_(_a_expr_)!swap	ALTER PUBLICATIO
 reject@24	reject@24	engine	OptWhereClause/%empty	ALTER PUBLICATION a ADD a
 accept	accept	engine	key_actions/key_update	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT
 reject@31	reject@31	engine	key_actions/key_update!drop-1	CREATE DOMAIN a a REFERENCES a UPDATE RESTRICT
-reject@31	reject@34	engine	key_actions/key_update!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT
-accept	reject@40	engine	key_actions/key_update!drop-3	CREATE DOMAIN a a REFERENCES a ON UPDATE
+reject@34	reject@34	engine	key_actions/key_update!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT
+reject@40	reject@40	engine	key_actions/key_update!drop-3	CREATE DOMAIN a a REFERENCES a ON UPDATE
 reject@50	reject@50	engine	key_actions/key_update!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT zzz
 reject@31	reject@31	engine	key_actions/key_update!swap	CREATE DOMAIN a a REFERENCES a ONLY UPDATE RESTRICT
 accept	accept	engine	key_actions/key_delete	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT
 reject@31	reject@31	engine	key_actions/key_delete!drop-1	CREATE DOMAIN a a REFERENCES a DELETE RESTRICT
-accept	reject@40	engine	key_actions/key_delete!drop-3	CREATE DOMAIN a a REFERENCES a ON DELETE
+reject@40	reject@40	engine	key_actions/key_delete!drop-3	CREATE DOMAIN a a REFERENCES a ON DELETE
 reject@50	reject@50	engine	key_actions/key_delete!insert	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT zzz
 reject@31	reject@31	engine	key_actions/key_delete!swap	CREATE DOMAIN a a REFERENCES a ONLY DELETE RESTRICT
 accept	accept	engine	key_actions/key_update_key_delete	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON DELETE RESTRICT
 reject@31	reject@31	engine	key_actions/key_update_key_delete!drop-1	CREATE DOMAIN a a REFERENCES a UPDATE RESTRICT ON DELETE RESTRICT
-reject@31	reject@34	engine	key_actions/key_update_key_delete!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT ON DELETE RESTRICT
-accept	reject@41	engine	key_actions/key_update_key_delete!drop-3	CREATE DOMAIN a a REFERENCES a ON UPDATE ON DELETE RESTRICT
+reject@34	reject@34	engine	key_actions/key_update_key_delete!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT ON DELETE RESTRICT
+reject@41	reject@41	engine	key_actions/key_update_key_delete!drop-3	CREATE DOMAIN a a REFERENCES a ON UPDATE ON DELETE RESTRICT
 reject@50	reject@50	engine	key_actions/key_update_key_delete!drop-4	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT DELETE RESTRICT
-reject@50	reject@53	engine	key_actions/key_update_key_delete!drop-5	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON RESTRICT
-accept	reject@59	engine	key_actions/key_update_key_delete!drop-6	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON DELETE
+reject@53	reject@53	engine	key_actions/key_update_key_delete!drop-5	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON RESTRICT
+reject@59	reject@59	engine	key_actions/key_update_key_delete!drop-6	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON DELETE
 reject@69	reject@69	engine	key_actions/key_update_key_delete!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT ON DELETE RESTRICT zzz
 reject@31	reject@31	engine	key_actions/key_update_key_delete!swap	CREATE DOMAIN a a REFERENCES a ONLY UPDATE RESTRICT ON DELETE RESTRICT
 accept	accept	engine	key_actions/key_delete_key_update	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON UPDATE RESTRICT
 reject@31	reject@31	engine	key_actions/key_delete_key_update!drop-1	CREATE DOMAIN a a REFERENCES a DELETE RESTRICT ON UPDATE RESTRICT
-reject@31	reject@34	engine	key_actions/key_delete_key_update!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT ON UPDATE RESTRICT
-accept	reject@41	engine	key_actions/key_delete_key_update!drop-3	CREATE DOMAIN a a REFERENCES a ON DELETE ON UPDATE RESTRICT
+reject@34	reject@34	engine	key_actions/key_delete_key_update!drop-2	CREATE DOMAIN a a REFERENCES a ON RESTRICT ON UPDATE RESTRICT
+reject@41	reject@41	engine	key_actions/key_delete_key_update!drop-3	CREATE DOMAIN a a REFERENCES a ON DELETE ON UPDATE RESTRICT
 reject@50	reject@50	engine	key_actions/key_delete_key_update!drop-4	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT UPDATE RESTRICT
-reject@50	reject@53	engine	key_actions/key_delete_key_update!drop-5	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON RESTRICT
-accept	reject@59	engine	key_actions/key_delete_key_update!drop-6	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON UPDATE
+reject@53	reject@53	engine	key_actions/key_delete_key_update!drop-5	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON RESTRICT
+reject@59	reject@59	engine	key_actions/key_delete_key_update!drop-6	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON UPDATE
 reject@69	reject@69	engine	key_actions/key_delete_key_update!insert	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT ON UPDATE RESTRICT zzz
 reject@31	reject@31	engine	key_actions/key_delete_key_update!swap	CREATE DOMAIN a a REFERENCES a ONLY DELETE RESTRICT ON UPDATE RESTRICT
 accept	accept	engine	key_actions/%empty	CREATE DOMAIN a a REFERENCES a
@@ -2916,7 +2916,7 @@ accept	accept	engine	key_update/ON_UPDATE_key_action	CREATE DOMAIN a a REFERENCE
 accept	accept	engine	key_delete/ON_DELETE_P_key_action	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT
 accept	accept	engine	key_action/NO_ACTION	CREATE DOMAIN a a REFERENCES a ON UPDATE NO ACTION
 reject@41	reject@41	engine	key_action/NO_ACTION!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION
-accept	reject@43	engine	key_action/NO_ACTION!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE NO
+reject@43	reject@43	engine	key_action/NO_ACTION!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE NO
 reject@51	reject@51	engine	key_action/NO_ACTION!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE NO ACTION zzz
 reject@41	reject@41	engine	key_action/NO_ACTION!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE NONE ACTION
 accept	accept	engine	key_action/RESTRICT	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT
@@ -2925,52 +2925,52 @@ accept	accept	engine	key_action/CASCADE	CREATE DOMAIN a a REFERENCES a ON UPDATE
 reject@49	reject@49	engine	key_action/CASCADE!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADE zzz
 reject@41	reject@41	engine	key_action/CASCADE!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED
 accept	accept	engine	key_action/SET_NULL_P_opt_column_list	CREATE DOMAIN a a REFERENCES a ON UPDATE SET NULL
-accept	reject@41	engine	key_action/SET_NULL_P_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE NULL
-accept	reject@44	engine	key_action/SET_NULL_P_opt_column_list!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE SET
+reject@41	reject@41	engine	key_action/SET_NULL_P_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE NULL
+reject@44	reject@44	engine	key_action/SET_NULL_P_opt_column_list!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE SET
 reject@50	reject@50	engine	key_action/SET_NULL_P_opt_column_list!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE SET NULL zzz
 reject@41	reject@41	engine	key_action/SET_NULL_P_opt_column_list!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL
 accept	accept	engine	key_action/SET_DEFAULT_opt_column_list	CREATE DOMAIN a a REFERENCES a ON UPDATE SET DEFAULT
-reject@48	reject@41	engine	key_action/SET_DEFAULT_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT
+reject@41	reject@41	engine	key_action/SET_DEFAULT_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT
 reject@53	reject@53	engine	key_action/SET_DEFAULT_opt_column_list!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE SET DEFAULT zzz
 reject@41	reject@41	engine	key_action/SET_DEFAULT_opt_column_list!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF DEFAULT
 accept	accept	engine	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
 reject@16	reject@16	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-1	CREATE TABLE a()(a)
-accept	reject@26	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-2	CREATE TABLE a() INHERITS a)
-accept	reject@26	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-3	CREATE TABLE a() INHERITS()
-accept	reject@27	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-4	CREATE TABLE a() INHERITS(a
+reject@26	reject@26	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-2	CREATE TABLE a() INHERITS a)
+reject@26	reject@26	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-3	CREATE TABLE a() INHERITS()
+reject@27	reject@27	engine	OptInherit/INHERITS_(_qualified_name_list_)!drop-4	CREATE TABLE a() INHERITS(a
 reject@29	reject@29	engine	OptInherit/INHERITS_(_qualified_name_list_)!insert	CREATE TABLE a() INHERITS(a) zzz
 reject@17	reject@17	engine	OptInherit/INHERITS_(_qualified_name_list_)!swap	CREATE TABLE a() INITIALLY(a)
 accept	accept	engine	OptInherit/%empty	CREATE TABLE a()
-accept	reject	engine	OptPartitionSpec/PartitionSpec	CREATE TABLE a() PARTITION BY a(a)
+reject	reject	engine	OptPartitionSpec/PartitionSpec	CREATE TABLE a() PARTITION BY a(a)
 reject@17	reject@17	engine	OptPartitionSpec/PartitionSpec!drop-1	CREATE TABLE a() BY a(a)
 reject@27	reject@27	engine	OptPartitionSpec/PartitionSpec!drop-2	CREATE TABLE a() PARTITION a(a)
 reject@29	reject@29	engine	OptPartitionSpec/PartitionSpec!drop-3	CREATE TABLE a() PARTITION BY(a)
 reject@32	reject@32	engine	OptPartitionSpec/PartitionSpec!drop-4	CREATE TABLE a() PARTITION BY a a)
 reject@32	reject@32	engine	OptPartitionSpec/PartitionSpec!drop-5	CREATE TABLE a() PARTITION BY a()
 reject@33	reject@33	engine	OptPartitionSpec/PartitionSpec!drop-6	CREATE TABLE a() PARTITION BY a(a
-reject@35	reject	engine	OptPartitionSpec/PartitionSpec!insert	CREATE TABLE a() PARTITION BY a(a) zzz
+reject	reject	engine	OptPartitionSpec/PartitionSpec!insert	CREATE TABLE a() PARTITION BY a(a) zzz
 reject@17	reject@17	engine	OptPartitionSpec/PartitionSpec!swap	CREATE TABLE a() PASSING BY a(a)
 accept	accept	engine	OptPartitionSpec/%empty	CREATE TABLE a()
-accept	reject	engine	PartitionSpec/PARTITION_BY_ColId_(_part_params_)	CREATE TABLE a() PARTITION BY a(a)
-accept	reject	engine	part_params/part_elem	CREATE TABLE a() PARTITION BY a(a)
+reject	reject	engine	PartitionSpec/PARTITION_BY_ColId_(_part_params_)	CREATE TABLE a() PARTITION BY a(a)
+reject	reject	engine	part_params/part_elem	CREATE TABLE a() PARTITION BY a(a)
 reject@32	reject@32	engine	part_params/part_elem!truncate	CREATE TABLE a() PARTITION BY a(
-accept	reject	engine	part_params/part_elem!insert	CREATE TABLE a() PARTITION BY a(a zzz)
-accept	reject	engine	part_params/part_params_,_part_elem	CREATE TABLE a() PARTITION BY a(a, a)
+reject	reject	engine	part_params/part_elem!insert	CREATE TABLE a() PARTITION BY a(a zzz)
+reject	reject	engine	part_params/part_params_,_part_elem	CREATE TABLE a() PARTITION BY a(a, a)
 reject@32	reject@32	engine	part_params/part_params_,_part_elem!drop-1	CREATE TABLE a() PARTITION BY a(, a)
-accept	reject	engine	part_params/part_params_,_part_elem!drop-2	CREATE TABLE a() PARTITION BY a(a a)
+reject	reject	engine	part_params/part_params_,_part_elem!drop-2	CREATE TABLE a() PARTITION BY a(a a)
 reject@34	reject@34	engine	part_params/part_params_,_part_elem!drop-3	CREATE TABLE a() PARTITION BY a(a,)
 reject@34	reject@34	engine	part_params/part_params_,_part_elem!truncate	CREATE TABLE a() PARTITION BY a(a,
-accept	reject	engine	part_params/part_params_,_part_elem!insert	CREATE TABLE a() PARTITION BY a(a, a zzz)
-accept	reject	engine	part_elem/ColId_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a(a)
-accept	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a(CURRENT_DATE)
-accept	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name!insert	CREATE TABLE a() PARTITION BY a(CURRENT_DATE zzz)
-accept	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name!swap	CREATE TABLE a() PARTITION BY a(CURRENT_ROLE)
-accept	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a((a))
-reject@34	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!drop-1	CREATE TABLE a() PARTITION BY a(a))
+reject	reject	engine	part_params/part_params_,_part_elem!insert	CREATE TABLE a() PARTITION BY a(a, a zzz)
+reject	reject	engine	part_elem/ColId_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a(a)
+reject	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a(CURRENT_DATE)
+reject	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name!insert	CREATE TABLE a() PARTITION BY a(CURRENT_DATE zzz)
+reject	reject	engine	part_elem/func_expr_windowless_opt_collate_opt_qualified_name!swap	CREATE TABLE a() PARTITION BY a(CURRENT_ROLE)
+reject	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name	CREATE TABLE a() PARTITION BY a((a))
+reject	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!drop-1	CREATE TABLE a() PARTITION BY a(a))
 reject@33	reject@33	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!drop-2	CREATE TABLE a() PARTITION BY a(())
 reject@35	reject@35	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!drop-3	CREATE TABLE a() PARTITION BY a((a)
 reject@34	reject@34	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!truncate	CREATE TABLE a() PARTITION BY a((a
-accept	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!insert	CREATE TABLE a() PARTITION BY a((a) zzz)
+reject	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!insert	CREATE TABLE a() PARTITION BY a((a) zzz)
 accept	accept	engine	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
 reject@15	reject@15	engine	table_access_method_clause/USING_name!drop-1	CREATE TABLE a a AS SELECT
 reject@21	reject@21	engine	table_access_method_clause/USING_name!drop-2	CREATE TABLE a USING AS SELECT
@@ -3026,8 +3026,8 @@ accept	accept	engine	OptTableSpace/%empty	CREATE TABLE a AS SELECT
 accept	accept	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name	CREATE DOMAIN a a UNIQUE USING INDEX TABLESPACE a
 reject@25	reject@25	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-1	CREATE DOMAIN a a UNIQUE INDEX TABLESPACE a
 reject@25	reject@31	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-2	CREATE DOMAIN a a UNIQUE USING TABLESPACE a
-accept	reject@37	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-3	CREATE DOMAIN a a UNIQUE USING INDEX a
-accept	reject@47	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-4	CREATE DOMAIN a a UNIQUE USING INDEX TABLESPACE
+reject@37	reject@37	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-3	CREATE DOMAIN a a UNIQUE USING INDEX a
+reject@47	reject@47	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-4	CREATE DOMAIN a a UNIQUE USING INDEX TABLESPACE
 reject@50	reject@50	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!insert	CREATE DOMAIN a a UNIQUE USING INDEX TABLESPACE a zzz
 reject@25	reject@25	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!swap	CREATE DOMAIN a a UNIQUE VACUUM INDEX TABLESPACE a
 accept	accept	engine	OptConsTableSpace/%empty	CREATE DOMAIN a a UNIQUE
@@ -3150,8 +3150,8 @@ reject@18	reject@18	engine	OptSeqOptList/SeqOptList!swap	CREATE SEQUENCE a DATA
 accept	accept	engine	OptSeqOptList/%empty	CREATE SEQUENCE a
 accept	accept	engine	OptParenthesizedSeqOptList/(_SeqOptList_)	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY(CYCLE)
 reject@47	reject@47	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!drop-1	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY CYCLE)
-accept	reject@47	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!drop-2	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY()
-accept	reject@52	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!drop-3	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY(CYCLE
+reject@47	reject@47	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!drop-2	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY()
+reject@52	reject@52	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!drop-3	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY(CYCLE
 reject@54	reject@54	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!insert	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY(CYCLE) zzz
 reject@47	reject@47	engine	OptParenthesizedSeqOptList/(_SeqOptList_)!swap	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY(DATA)
 accept	accept	engine	OptParenthesizedSeqOptList/%empty	CREATE DOMAIN a a GENERATED ALWAYS AS IDENTITY
@@ -3166,7 +3166,7 @@ reject@22	reject@22	engine	SeqOptElem/AS_SimpleTypename!insert	ALTER SEQUENCE a 
 reject@17	reject@17	engine	SeqOptElem/AS_SimpleTypename!swap	ALTER SEQUENCE a ASC a
 accept	accept	engine	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
 reject@17	reject@17	engine	SeqOptElem/CACHE_NumericOnly!drop-1	ALTER SEQUENCE a 1.5
-accept	reject@22	engine	SeqOptElem/CACHE_NumericOnly!drop-2	ALTER SEQUENCE a CACHE
+reject@22	reject@22	engine	SeqOptElem/CACHE_NumericOnly!drop-2	ALTER SEQUENCE a CACHE
 reject@27	reject@27	engine	SeqOptElem/CACHE_NumericOnly!insert	ALTER SEQUENCE a CACHE 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/CACHE_NumericOnly!swap	ALTER SEQUENCE a CALL 1.5
 accept	accept	engine	SeqOptElem/CYCLE	ALTER SEQUENCE a CYCLE
@@ -3175,18 +3175,18 @@ reject@19	reject@19	engine	SeqOptElem/NO_CYCLE!drop-2	ALTER SEQUENCE a NO
 reject@26	reject@26	engine	SeqOptElem/NO_CYCLE!insert	ALTER SEQUENCE a NO CYCLE zzz
 reject@17	reject@17	engine	SeqOptElem/NO_CYCLE!swap	ALTER SEQUENCE a NONE CYCLE
 accept	accept	engine	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
-accept	reject@26	engine	SeqOptElem/INCREMENT_opt_by_NumericOnly!drop-2	ALTER SEQUENCE a INCREMENT
+reject@26	reject@26	engine	SeqOptElem/INCREMENT_opt_by_NumericOnly!drop-2	ALTER SEQUENCE a INCREMENT
 reject@31	reject@31	engine	SeqOptElem/INCREMENT_opt_by_NumericOnly!insert	ALTER SEQUENCE a INCREMENT 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/INCREMENT_opt_by_NumericOnly!swap	ALTER SEQUENCE a INDENT 1.5
 accept	accept	engine	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
 reject@24	reject@24	engine	SeqOptElem/LOGGED!insert	ALTER SEQUENCE a LOGGED zzz
 reject@17	reject@17	engine	SeqOptElem/LOGGED!swap	ALTER SEQUENCE a MAPPING
 accept	accept	engine	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
-accept	reject@25	engine	SeqOptElem/MAXVALUE_NumericOnly!drop-2	ALTER SEQUENCE a MAXVALUE
+reject@25	reject@25	engine	SeqOptElem/MAXVALUE_NumericOnly!drop-2	ALTER SEQUENCE a MAXVALUE
 reject@30	reject@30	engine	SeqOptElem/MAXVALUE_NumericOnly!insert	ALTER SEQUENCE a MAXVALUE 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/MAXVALUE_NumericOnly!swap	ALTER SEQUENCE a MERGE 1.5
 accept	accept	engine	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
-accept	reject@25	engine	SeqOptElem/MINVALUE_NumericOnly!drop-2	ALTER SEQUENCE a MINVALUE
+reject@25	reject@25	engine	SeqOptElem/MINVALUE_NumericOnly!drop-2	ALTER SEQUENCE a MINVALUE
 reject@30	reject@30	engine	SeqOptElem/MINVALUE_NumericOnly!insert	ALTER SEQUENCE a MINVALUE 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/MINVALUE_NumericOnly!swap	ALTER SEQUENCE a MODE 1.5
 accept	accept	engine	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -3197,18 +3197,18 @@ reject@29	reject@29	engine	SeqOptElem/NO_MINVALUE!insert	ALTER SEQUENCE a NO MIN
 reject@17	reject@17	engine	SeqOptElem/NO_MINVALUE!swap	ALTER SEQUENCE a NONE MINVALUE
 accept	accept	engine	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
 reject@17	reject@17	engine	SeqOptElem/OWNED_BY_any_name!drop-1	ALTER SEQUENCE a BY a
-accept	reject@23	engine	SeqOptElem/OWNED_BY_any_name!drop-2	ALTER SEQUENCE a OWNED a
-accept	reject@25	engine	SeqOptElem/OWNED_BY_any_name!drop-3	ALTER SEQUENCE a OWNED BY
+reject@23	reject@23	engine	SeqOptElem/OWNED_BY_any_name!drop-2	ALTER SEQUENCE a OWNED a
+reject@25	reject@25	engine	SeqOptElem/OWNED_BY_any_name!drop-3	ALTER SEQUENCE a OWNED BY
 reject@28	reject@28	engine	SeqOptElem/OWNED_BY_any_name!insert	ALTER SEQUENCE a OWNED BY a zzz
 reject@23	reject@23	engine	SeqOptElem/OWNED_BY_any_name!swap	ALTER SEQUENCE a OWNER BY a
 accept	accept	engine	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
 reject@17	reject@17	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-1	ALTER SEQUENCE a NAME a
-accept	reject@26	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-2	ALTER SEQUENCE a SEQUENCE a
-accept	reject@30	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-3	ALTER SEQUENCE a SEQUENCE NAME
+reject@26	reject@26	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-2	ALTER SEQUENCE a SEQUENCE a
+reject@30	reject@30	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-3	ALTER SEQUENCE a SEQUENCE NAME
 reject@33	reject@33	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!insert	ALTER SEQUENCE a SEQUENCE NAME a zzz
 reject@17	reject@17	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!swap	ALTER SEQUENCE a SEQUENCES NAME a
 accept	accept	engine	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
-accept	reject@22	engine	SeqOptElem/START_opt_with_NumericOnly!drop-2	ALTER SEQUENCE a START
+reject@22	reject@22	engine	SeqOptElem/START_opt_with_NumericOnly!drop-2	ALTER SEQUENCE a START
 reject@27	reject@27	engine	SeqOptElem/START_opt_with_NumericOnly!insert	ALTER SEQUENCE a START 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/START_opt_with_NumericOnly!swap	ALTER SEQUENCE a STATEMENT 1.5
 accept	accept	engine	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
@@ -3222,7 +3222,7 @@ reject@26	reject@26	engine	SeqOptElem/UNLOGGED!insert	ALTER SEQUENCE a UNLOGGED 
 reject@17	reject@17	engine	SeqOptElem/UNLOGGED!swap	ALTER SEQUENCE a UNTIL
 accept	accept	engine	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
 reject@30	reject@30	engine	opt_by/BY!insert	ALTER SEQUENCE a INCREMENT BY zzz 1.5
-accept	reject@27	engine	opt_by/BY!swap	ALTER SEQUENCE a INCREMENT CACHE 1.5
+reject@27	reject@27	engine	opt_by/BY!swap	ALTER SEQUENCE a INCREMENT CACHE 1.5
 accept	accept	engine	opt_by/%empty	ALTER SEQUENCE a INCREMENT 1.5
 reject@27	reject@27	engine	opt_by/%empty!insert	ALTER SEQUENCE a INCREMENT zzz 1.5
 accept	accept	engine	NumericOnly/FCONST	SET a TO 1.5
@@ -3281,7 +3281,7 @@ accept	accept	engine	opt_validator/validator_clause	CREATE LANGUAGE a HANDLER a 
 accept	accept	engine	opt_validator/%empty	CREATE LANGUAGE a HANDLER a
 accept	accept	engine	opt_procedural/PROCEDURAL	CREATE PROCEDURAL LANGUAGE a
 reject@18	reject@18	engine	opt_procedural/PROCEDURAL!insert	CREATE PROCEDURAL zzz LANGUAGE a
-accept	reject@26	engine	opt_procedural/PROCEDURAL!swap	CREATE PROCEDURE LANGUAGE a
+reject@26	reject@26	engine	opt_procedural/PROCEDURAL!swap	CREATE PROCEDURE LANGUAGE a
 accept	accept	engine	opt_procedural/%empty	CREATE LANGUAGE a
 accept	accept	engine	CreateTableSpaceStmt/CREATE_TABLESPACE_name_OptTableSpaceOwner_LOCATION_Sconst_opt_reloptions	CREATE TABLESPACE a LOCATION 's'
 accept	accept	engine	OptTableSpaceOwner/OWNER_RoleSpec	CREATE TABLESPACE a OWNER a LOCATION 's'
@@ -3717,16 +3717,16 @@ accept	accept	engine	AlterPolicyStmt/ALTER_POLICY_name_ON_qualified_name_RowSecu
 accept	accept	engine	RowSecurityOptionalExpr/USING_(_a_expr_)	ALTER POLICY a ON a USING(a)
 reject@19	reject@19	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!drop-1	ALTER POLICY a ON a(a)
 reject@26	reject@26	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!drop-2	ALTER POLICY a ON a USING a)
-accept	reject@26	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!drop-3	ALTER POLICY a ON a USING()
+reject@26	reject@26	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!drop-3	ALTER POLICY a ON a USING()
 reject@27	reject@27	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!drop-4	ALTER POLICY a ON a USING(a
 reject@29	reject@29	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!insert	ALTER POLICY a ON a USING(a) zzz
 reject@20	reject@20	engine	RowSecurityOptionalExpr/USING_(_a_expr_)!swap	ALTER POLICY a ON a VACUUM(a)
 accept	accept	engine	RowSecurityOptionalExpr/%empty	ALTER POLICY a ON a
 accept	accept	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)	ALTER POLICY a ON a WITH CHECK(a)
 reject@20	reject@20	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-1	ALTER POLICY a ON a CHECK(a)
-reject@20	reject@24	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-2	ALTER POLICY a ON a WITH(a)
+reject@24	reject@24	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-2	ALTER POLICY a ON a WITH(a)
 reject@31	reject@31	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-3	ALTER POLICY a ON a WITH CHECK a)
-accept	reject@31	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-4	ALTER POLICY a ON a WITH CHECK()
+reject@31	reject@31	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-4	ALTER POLICY a ON a WITH CHECK()
 reject@32	reject@32	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!drop-5	ALTER POLICY a ON a WITH CHECK(a
 reject@34	reject@34	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!insert	ALTER POLICY a ON a WITH CHECK(a) zzz
 reject@20	reject@20	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!swap	ALTER POLICY a ON a WITHIN CHECK(a)
@@ -3744,13 +3744,13 @@ reject@25	reject@25	engine	RowSecurityOptionalToRole/TO_role_list!insert	ALTER P
 reject@20	reject@20	engine	RowSecurityOptionalToRole/TO_role_list!swap	ALTER POLICY a ON a TRAILING a
 accept	accept	engine	RowSecurityOptionalToRole/%empty	ALTER POLICY a ON a
 reject@24	reject@24	engine	RowSecurityDefaultPermissive/AS_IDENT	CREATE POLICY a ON a AS a
-accept	reject@23	engine	RowSecurityDefaultPermissive/AS_IDENT!drop-2	CREATE POLICY a ON a AS
+reject@23	reject@23	engine	RowSecurityDefaultPermissive/AS_IDENT!drop-2	CREATE POLICY a ON a AS
 reject@24	reject@24	engine	RowSecurityDefaultPermissive/AS_IDENT!insert	CREATE POLICY a ON a AS a zzz
 reject@21	reject@21	engine	RowSecurityDefaultPermissive/AS_IDENT!swap	CREATE POLICY a ON a ASC a
 accept	accept	engine	RowSecurityDefaultPermissive/%empty	CREATE POLICY a ON a
 accept	accept	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd	CREATE POLICY a ON a FOR ALL
 reject@21	reject@21	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd!drop-1	CREATE POLICY a ON a ALL
-accept	reject@24	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd!drop-2	CREATE POLICY a ON a FOR
+reject@24	reject@24	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd!drop-2	CREATE POLICY a ON a FOR
 reject@29	reject@29	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd!insert	CREATE POLICY a ON a FOR ALL zzz
 reject@21	reject@21	engine	RowSecurityDefaultForCmd/FOR_row_security_cmd!swap	CREATE POLICY a ON a FORCE ALL
 accept	accept	engine	RowSecurityDefaultForCmd/%empty	CREATE POLICY a ON a
@@ -4672,10 +4672,10 @@ accept	accept	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-1	ON AGGREGATE a(*) IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-2	COMMENT AGGREGATE a(*) IS 's'
 reject@11	reject@11	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-3	COMMENT ON a(*) IS 's'
-accept	reject@20	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-4	COMMENT ON AGGREGATE(*) IS 's'
+reject@20	reject@20	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-4	COMMENT ON AGGREGATE(*) IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-5	COMMENT ON AGGREGATE a *) IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-6	COMMENT ON AGGREGATE a() IS 's'
-accept	reject@25	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-7	COMMENT ON AGGREGATE a(* IS 's'
+reject@25	reject@25	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-7	COMMENT ON AGGREGATE a(* IS 's'
 reject@26	reject@26	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-8	COMMENT ON AGGREGATE a(*) 's'
 reject@28	reject@28	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-9	COMMENT ON AGGREGATE a(*) IS
 reject@33	reject@33	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!insert	COMMENT ON AGGREGATE a(*) IS 's' zzz
@@ -4689,17 +4689,17 @@ reject@34	reject@34	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtype
 reject@36	reject@36	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON FUNCTION AUTHORIZATION IS
 reject@41	reject@41	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!insert	COMMENT ON FUNCTION AUTHORIZATION IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!swap	COMMENTS ON FUNCTION AUTHORIZATION IS 's'
-accept	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text	COMMENT ON OPERATOR ~(a) IS 's'
+reject@23	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text	COMMENT ON OPERATOR ~(a) IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-1	ON OPERATOR ~(a) IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-2	COMMENT OPERATOR ~(a) IS 's'
 reject@11	reject@11	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-3	COMMENT ON ~(a) IS 's'
-accept	reject@19	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-4	COMMENT ON OPERATOR(a) IS 's'
+reject@19	reject@19	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-4	COMMENT ON OPERATOR(a) IS 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-5	COMMENT ON OPERATOR ~ a) IS 's'
-accept	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-6	COMMENT ON OPERATOR ~() IS 's'
-accept	reject@24	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-7	COMMENT ON OPERATOR ~(a IS 's'
-reject@25	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-8	COMMENT ON OPERATOR ~(a) 's'
-reject@27	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-9	COMMENT ON OPERATOR ~(a) IS
-reject@32	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!insert	COMMENT ON OPERATOR ~(a) IS 's' zzz
+reject@22	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-6	COMMENT ON OPERATOR ~() IS 's'
+reject@24	reject@24	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-7	COMMENT ON OPERATOR ~(a IS 's'
+reject@23	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-8	COMMENT ON OPERATOR ~(a) 's'
+reject@23	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-9	COMMENT ON OPERATOR ~(a) IS
+reject@23	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!insert	COMMENT ON OPERATOR ~(a) IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!swap	COMMENTS ON OPERATOR ~(a) IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-1	ON CONSTRAINT a ON a IS 's'
@@ -4853,10 +4853,10 @@ reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_a
 reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-2	SECURITY ON AGGREGATE a(*) IS 's'
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-3	SECURITY LABEL AGGREGATE a(*) IS 's'
 reject@18	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-4	SECURITY LABEL ON a(*) IS 's'
-accept	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON AGGREGATE(*) IS 's'
+reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON AGGREGATE(*) IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-6	SECURITY LABEL ON AGGREGATE a *) IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON AGGREGATE a() IS 's'
-accept	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-8	SECURITY LABEL ON AGGREGATE a(* IS 's'
+reject@32	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-8	SECURITY LABEL ON AGGREGATE a(* IS 's'
 reject@33	reject@33	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-9	SECURITY LABEL ON AGGREGATE a(*) 's'
 reject@35	reject@35	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-10	SECURITY LABEL ON AGGREGATE a(*) IS
 reject@40	reject@40	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!insert	SECURITY LABEL ON AGGREGATE a(*) IS 's' zzz
@@ -5397,7 +5397,7 @@ reject@31	reject@31	engine	index_including_params/index_including_params_,_index
 reject@31	reject@31	engine	index_including_params/index_including_params_,_index_elem!truncate	CREATE INDEX ON a(a) INCLUDE(a,
 accept	accept	engine	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
 accept	accept	engine	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
-accept	reject@27	engine	opt_collate/COLLATE_any_name!drop-2	CREATE INDEX ON a(a COLLATE)
+reject@27	reject@27	engine	opt_collate/COLLATE_any_name!drop-2	CREATE INDEX ON a(a COLLATE)
 reject@27	reject@27	engine	opt_collate/COLLATE_any_name!truncate	CREATE INDEX ON a(a COLLATE
 accept	accept	engine	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
 reject@20	reject@20	engine	opt_collate/COLLATE_any_name!swap	CREATE INDEX ON a(a COLLATION a)
@@ -5423,9 +5423,9 @@ accept	accept	engine	opt_nulls_order/%empty	SELECT ORDER BY a
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body	CREATE FUNCTION a() RETURNS a
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-1	FUNCTION a() RETURNS a
 reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-2	CREATE a() RETURNS a
-accept	reject@15	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE FUNCTION() RETURNS a
-accept	reject@17	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE FUNCTION a) RETURNS a
-accept	reject@27	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE FUNCTION a(RETURNS a
+reject@15	reject@15	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE FUNCTION() RETURNS a
+reject@17	reject@17	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE FUNCTION a) RETURNS a
+reject@27	reject@27	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE FUNCTION a(RETURNS a
 reject@20	reject@20	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-6	CREATE FUNCTION a() a
 reject@27	reject@27	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-7	CREATE FUNCTION a() RETURNS
 reject@30	reject@30	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!insert	CREATE FUNCTION a() RETURNS a zzz
@@ -5433,22 +5433,22 @@ reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body	CREATE FUNCTION a() RETURNS TABLE(a a)
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-1	FUNCTION a() RETURNS TABLE(a a)
 reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-2	CREATE a() RETURNS TABLE(a a)
-accept	reject@15	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE FUNCTION() RETURNS TABLE(a a)
-accept	reject@17	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE FUNCTION a) RETURNS TABLE(a a)
+reject@15	reject@15	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE FUNCTION() RETURNS TABLE(a a)
+reject@17	reject@17	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE FUNCTION a) RETURNS TABLE(a a)
 reject@26	reject@26	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE FUNCTION a(RETURNS TABLE(a a)
 reject@20	reject@20	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-6	CREATE FUNCTION a() TABLE(a a)
 reject@27	reject@27	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-7	CREATE FUNCTION a() RETURNS(a a)
 reject@34	reject@34	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-8	CREATE FUNCTION a() RETURNS TABLE a a)
-accept	reject@35	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-9	CREATE FUNCTION a() RETURNS TABLE(a)
+reject@35	reject@35	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-9	CREATE FUNCTION a() RETURNS TABLE(a)
 reject@37	reject@37	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-11	CREATE FUNCTION a() RETURNS TABLE(a a
 reject@39	reject@39	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!insert	CREATE FUNCTION a() RETURNS TABLE(a a) zzz
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!swap	CROSS FUNCTION a() RETURNS TABLE(a a)
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body	CREATE FUNCTION a()
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body	CREATE PROCEDURE a()
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-1	PROCEDURE a()
-accept	reject@16	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE PROCEDURE()
-accept	reject@18	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE PROCEDURE a)
-accept	reject@19	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE PROCEDURE a(
+reject@16	reject@16	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE PROCEDURE()
+reject@18	reject@18	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-4	CREATE PROCEDURE a)
+reject@19	reject@19	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE PROCEDURE a(
 reject@21	reject@21	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!insert	CREATE PROCEDURE a() zzz
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!swap	CROSS PROCEDURE a()
 accept	accept	engine	opt_or_replace/OR_REPLACE	CREATE OR REPLACE LANGUAGE a
@@ -5469,9 +5469,9 @@ reject@18	reject@18	engine	func_args/(_)!insert	DROP FUNCTION a() zzz
 accept	accept	engine	func_args_list/func_arg	DROP FUNCTION a(a)
 accept	accept	engine	func_args_list/func_arg!insert	DROP FUNCTION a(a zzz)
 accept	accept	engine	func_args_list/func_args_list_,_func_arg	DROP FUNCTION a(a, a)
-accept	reject@16	engine	func_args_list/func_args_list_,_func_arg!drop-1	DROP FUNCTION a(, a)
+reject@16	reject@16	engine	func_args_list/func_args_list_,_func_arg!drop-1	DROP FUNCTION a(, a)
 accept	accept	engine	func_args_list/func_args_list_,_func_arg!drop-2	DROP FUNCTION a(a a)
-accept	reject@18	engine	func_args_list/func_args_list_,_func_arg!drop-3	DROP FUNCTION a(a,)
+reject@18	reject@18	engine	func_args_list/func_args_list_,_func_arg!drop-3	DROP FUNCTION a(a,)
 reject@18	reject@18	engine	func_args_list/func_args_list_,_func_arg!truncate	DROP FUNCTION a(a,
 accept	accept	engine	func_args_list/func_args_list_,_func_arg!insert	DROP FUNCTION a(a, a zzz)
 accept	accept	engine	function_with_argtypes_list/function_with_argtypes	DROP FUNCTION AUTHORIZATION
@@ -5493,31 +5493,31 @@ reject@16	reject@16	engine	function_with_argtypes/ColId_indirection!drop-2	DROP 
 reject@16	reject@16	engine	function_with_argtypes/ColId_indirection!drop-3	DROP FUNCTION a.
 reject@18	reject@18	engine	function_with_argtypes/ColId_indirection!insert	DROP FUNCTION a.a zzz
 accept	accept	engine	func_args_with_defaults/(_func_args_with_defaults_list_)	CREATE FUNCTION a(a)
-accept	reject@18	engine	func_args_with_defaults/(_func_args_with_defaults_list_)!drop-1	CREATE FUNCTION a a)
-accept	reject@19	engine	func_args_with_defaults/(_func_args_with_defaults_list_)!drop-3	CREATE FUNCTION a(a
+reject@18	reject@18	engine	func_args_with_defaults/(_func_args_with_defaults_list_)!drop-1	CREATE FUNCTION a a)
+reject@19	reject@19	engine	func_args_with_defaults/(_func_args_with_defaults_list_)!drop-3	CREATE FUNCTION a(a
 reject@21	reject@21	engine	func_args_with_defaults/(_func_args_with_defaults_list_)!insert	CREATE FUNCTION a(a) zzz
 accept	accept	engine	func_args_with_defaults/(_)	CREATE FUNCTION a()
 accept	accept	engine	func_args_with_defaults_list/func_arg_with_default	CREATE FUNCTION a(a)
 accept	accept	engine	func_args_with_defaults_list/func_arg_with_default!insert	CREATE FUNCTION a(a zzz)
 accept	accept	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default	CREATE FUNCTION a(a, a)
-accept	reject@18	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!drop-1	CREATE FUNCTION a(, a)
-accept	reject@20	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!drop-3	CREATE FUNCTION a(a,)
-accept	reject@20	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!truncate	CREATE FUNCTION a(a,
+reject@18	reject@18	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!drop-1	CREATE FUNCTION a(, a)
+reject@20	reject@20	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!drop-3	CREATE FUNCTION a(a,)
+reject@20	reject@20	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!truncate	CREATE FUNCTION a(a,
 accept	accept	engine	func_args_with_defaults_list/func_args_with_defaults_list_,_func_arg_with_default!insert	CREATE FUNCTION a(a, a zzz)
 accept	accept	engine	func_arg/arg_class_param_name_func_type	CREATE FUNCTION a(IN a a)
-accept	reject@22	engine	func_arg/arg_class_param_name_func_type!truncate	CREATE FUNCTION a(IN a
+reject@22	reject@22	engine	func_arg/arg_class_param_name_func_type!truncate	CREATE FUNCTION a(IN a
 reject@25	reject@25	engine	func_arg/arg_class_param_name_func_type!insert	CREATE FUNCTION a(IN a a zzz)
 reject@28	reject@28	engine	func_arg/arg_class_param_name_func_type!swap	CREATE FUNCTION a(INCLUDE a a)
 accept	accept	engine	func_arg/param_name_arg_class_func_type	CREATE FUNCTION a(a IN a)
-accept	reject@22	engine	func_arg/param_name_arg_class_func_type!drop-3	CREATE FUNCTION a(a IN)
-accept	reject@22	engine	func_arg/param_name_arg_class_func_type!truncate	CREATE FUNCTION a(a IN
+reject@22	reject@22	engine	func_arg/param_name_arg_class_func_type!drop-3	CREATE FUNCTION a(a IN)
+reject@22	reject@22	engine	func_arg/param_name_arg_class_func_type!truncate	CREATE FUNCTION a(a IN
 reject@25	reject@25	engine	func_arg/param_name_arg_class_func_type!insert	CREATE FUNCTION a(a IN a zzz)
 reject@28	reject@28	engine	func_arg/param_name_arg_class_func_type!swap	CREATE FUNCTION a(a INCLUDE a)
 accept	accept	engine	func_arg/param_name_func_type	CREATE FUNCTION a(a a)
 reject@22	reject@22	engine	func_arg/param_name_func_type!insert	CREATE FUNCTION a(a a zzz)
 accept	accept	engine	func_arg/arg_class_func_type	CREATE FUNCTION a(IN a)
-accept	reject@20	engine	func_arg/arg_class_func_type!drop-2	CREATE FUNCTION a(IN)
-accept	reject@20	engine	func_arg/arg_class_func_type!truncate	CREATE FUNCTION a(IN
+reject@20	reject@20	engine	func_arg/arg_class_func_type!drop-2	CREATE FUNCTION a(IN)
+reject@20	reject@20	engine	func_arg/arg_class_func_type!truncate	CREATE FUNCTION a(IN
 accept	accept	engine	func_arg/arg_class_func_type!insert	CREATE FUNCTION a(IN a zzz)
 accept	accept	engine	func_arg/arg_class_func_type!swap	CREATE FUNCTION a(INCLUDE a)
 accept	accept	engine	func_arg/func_type	CREATE FUNCTION a(a)
@@ -5560,13 +5560,13 @@ reject@35	reject@35	engine	func_type/SETOF_type_function_name_attrs_%_TYPE_P!ins
 accept	accept	engine	func_type/SETOF_type_function_name_attrs_%_TYPE_P!swap	CREATE FUNCTION a(SETS a.a % TYPE)
 accept	accept	engine	func_arg_with_default/func_arg	CREATE FUNCTION a(a)
 accept	accept	engine	func_arg_with_default/func_arg_DEFAULT_a_expr	CREATE FUNCTION a(a DEFAULT a)
-accept	reject@18	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!drop-1	CREATE FUNCTION a(DEFAULT a)
+reject@18	reject@18	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!drop-1	CREATE FUNCTION a(DEFAULT a)
 reject@27	reject@27	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!drop-3	CREATE FUNCTION a(a DEFAULT)
 reject@27	reject@27	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!truncate	CREATE FUNCTION a(a DEFAULT
 reject@30	reject@30	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!insert	CREATE FUNCTION a(a DEFAULT a zzz)
 reject@29	reject@29	engine	func_arg_with_default/func_arg_DEFAULT_a_expr!swap	CREATE FUNCTION a(a DEFAULTS a)
 accept	accept	engine	func_arg_with_default/func_arg_=_a_expr	CREATE FUNCTION a(a = a)
-accept	reject@18	engine	func_arg_with_default/func_arg_=_a_expr!drop-1	CREATE FUNCTION a(= a)
+reject@18	reject@18	engine	func_arg_with_default/func_arg_=_a_expr!drop-1	CREATE FUNCTION a(= a)
 reject@21	reject@21	engine	func_arg_with_default/func_arg_=_a_expr!drop-3	CREATE FUNCTION a(a =)
 reject@21	reject@21	engine	func_arg_with_default/func_arg_=_a_expr!truncate	CREATE FUNCTION a(a =
 reject@24	reject@24	engine	func_arg_with_default/func_arg_=_a_expr!insert	CREATE FUNCTION a(a = a zzz)
@@ -5756,8 +5756,8 @@ reject@30	reject@30	engine	transform_type_list/transform_type_list_,_FOR_TYPE_P_
 accept	accept	engine	opt_definition/WITH_definition	CREATE PUBLICATION a WITH(a)
 reject@20	reject@20	engine	opt_definition/WITH_definition!drop-1	CREATE PUBLICATION a(a)
 reject@21	reject@26	engine	opt_definition/WITH_definition!drop-2	CREATE PUBLICATION a WITH a)
-accept	reject@26	engine	opt_definition/WITH_definition!drop-3	CREATE PUBLICATION a WITH()
-accept	reject@27	engine	opt_definition/WITH_definition!drop-4	CREATE PUBLICATION a WITH(a
+reject@26	reject@26	engine	opt_definition/WITH_definition!drop-3	CREATE PUBLICATION a WITH()
+reject@27	reject@27	engine	opt_definition/WITH_definition!drop-4	CREATE PUBLICATION a WITH(a
 reject@29	reject@29	engine	opt_definition/WITH_definition!insert	CREATE PUBLICATION a WITH(a) zzz
 reject@21	reject@21	engine	opt_definition/WITH_definition!swap	CREATE PUBLICATION a WITHIN(a)
 accept	accept	engine	opt_definition/%empty	CREATE PUBLICATION a
@@ -5766,9 +5766,9 @@ reject@35	reject@35	engine	table_func_column/param_name_func_type!truncate	CREAT
 reject@38	reject@38	engine	table_func_column/param_name_func_type!insert	CREATE FUNCTION a() RETURNS TABLE(a a zzz)
 accept	accept	engine	table_func_column_list/table_func_column	CREATE FUNCTION a() RETURNS TABLE(a a)
 accept	accept	engine	table_func_column_list/table_func_column_list_,_table_func_column	CREATE FUNCTION a() RETURNS TABLE(a a, a a)
-accept	reject@35	engine	table_func_column_list/table_func_column_list_,_table_func_column!drop-1	CREATE FUNCTION a() RETURNS TABLE(a, a a)
+reject@35	reject@35	engine	table_func_column_list/table_func_column_list_,_table_func_column!drop-1	CREATE FUNCTION a() RETURNS TABLE(a, a a)
 reject@38	reject@38	engine	table_func_column_list/table_func_column_list_,_table_func_column!drop-3	CREATE FUNCTION a() RETURNS TABLE(a a a a)
-accept	reject@40	engine	table_func_column_list/table_func_column_list_,_table_func_column!drop-4	CREATE FUNCTION a() RETURNS TABLE(a a, a)
+reject@40	reject@40	engine	table_func_column_list/table_func_column_list_,_table_func_column!drop-4	CREATE FUNCTION a() RETURNS TABLE(a a, a)
 reject@40	reject@40	engine	table_func_column_list/table_func_column_list_,_table_func_column!truncate	CREATE FUNCTION a() RETURNS TABLE(a a, a
 reject@43	reject@43	engine	table_func_column_list/table_func_column_list_,_table_func_column!insert	CREATE FUNCTION a() RETURNS TABLE(a a, a a zzz)
 accept	accept	engine	AlterFunctionStmt/ALTER_FUNCTION_function_with_argtypes_alterfunc_opt_list_opt_restrict	ALTER FUNCTION AUTHORIZATION STRICT
@@ -6103,7 +6103,7 @@ reject@0	reject@0	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-1
 reject@19	reject@19	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-3	ALTER GROUP RENAME TO a
 reject@14	reject@14	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-4	ALTER GROUP a TO a
 reject@21	reject@21	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-5	ALTER GROUP a RENAME a
-accept	reject@23	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-6	ALTER GROUP a RENAME TO
+reject@23	reject@23	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!drop-6	ALTER GROUP a RENAME TO
 reject@26	reject@26	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!insert	ALTER GROUP a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_GROUP_P_RoleId_RENAME_TO_RoleId!swap	ALWAYS GROUP a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_TO_name	ALTER LANGUAGE a RENAME TO a
@@ -6231,7 +6231,7 @@ reject@0	reject@0	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name
 reject@22	reject@22	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!drop-3	ALTER SEQUENCE RENAME TO a
 reject@17	reject@17	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!drop-4	ALTER SEQUENCE a TO a
 reject@24	reject@24	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!drop-5	ALTER SEQUENCE a RENAME a
-accept	reject@26	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!drop-6	ALTER SEQUENCE a RENAME TO
+reject@26	reject@26	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!drop-6	ALTER SEQUENCE a RENAME TO
 reject@29	reject@29	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!insert	ALTER SEQUENCE a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name!swap	ALWAYS SEQUENCE a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
@@ -6241,7 +6241,7 @@ reject@18	reject@18	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_
 reject@32	reject@32	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!drop-5	ALTER SEQUENCE IF EXISTS RENAME TO a
 reject@27	reject@27	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!drop-6	ALTER SEQUENCE IF EXISTS a TO a
 reject@34	reject@34	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!drop-7	ALTER SEQUENCE IF EXISTS a RENAME a
-accept	reject@36	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!drop-8	ALTER SEQUENCE IF EXISTS a RENAME TO
+reject@36	reject@36	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!drop-8	ALTER SEQUENCE IF EXISTS a RENAME TO
 reject@39	reject@39	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!insert	ALTER SEQUENCE IF EXISTS a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name!swap	ALWAYS SEQUENCE IF EXISTS a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
@@ -6454,7 +6454,7 @@ reject@0	reject@0	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-1	RO
 reject@18	reject@18	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-3	ALTER ROLE RENAME TO a
 reject@13	reject@13	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-4	ALTER ROLE a TO a
 reject@20	reject@20	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-5	ALTER ROLE a RENAME a
-accept	reject@22	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-6	ALTER ROLE a RENAME TO
+reject@22	reject@22	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!drop-6	ALTER ROLE a RENAME TO
 reject@25	reject@25	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!insert	ALTER ROLE a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_ROLE_RoleId_RENAME_TO_RoleId!swap	ALWAYS ROLE a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId	ALTER USER a RENAME TO a
@@ -6462,7 +6462,7 @@ reject@0	reject@0	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-1	US
 reject@18	reject@18	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-3	ALTER USER RENAME TO a
 reject@13	reject@13	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-4	ALTER USER a TO a
 reject@20	reject@20	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-5	ALTER USER a RENAME a
-accept	reject@22	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-6	ALTER USER a RENAME TO
+reject@22	reject@22	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!drop-6	ALTER USER a RENAME TO
 reject@25	reject@25	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!insert	ALTER USER a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_USER_RoleId_RENAME_TO_RoleId!swap	ALWAYS USER a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_TABLESPACE_name_RENAME_TO_name	ALTER TABLESPACE a RENAME TO a
@@ -6778,7 +6778,7 @@ reject@0	reject@0	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET
 reject@19	reject@19	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!drop-3	ALTER SEQUENCE SET SCHEMA a
 reject@17	reject@17	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!drop-4	ALTER SEQUENCE a SCHEMA a
 reject@21	reject@21	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!drop-5	ALTER SEQUENCE a SET a
-accept	reject@27	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!drop-6	ALTER SEQUENCE a SET SCHEMA
+reject@27	reject@27	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!drop-6	ALTER SEQUENCE a SET SCHEMA
 reject@30	reject@30	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!insert	ALTER SEQUENCE a SET SCHEMA a zzz
 reject@0	reject@0	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name!swap	ALWAYS SEQUENCE a SET SCHEMA a
 accept	accept	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
@@ -6788,7 +6788,7 @@ reject@18	reject@18	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qual
 reject@29	reject@29	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!drop-5	ALTER SEQUENCE IF EXISTS SET SCHEMA a
 reject@27	reject@27	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!drop-6	ALTER SEQUENCE IF EXISTS a SCHEMA a
 reject@31	reject@31	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!drop-7	ALTER SEQUENCE IF EXISTS a SET a
-accept	reject@37	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!drop-8	ALTER SEQUENCE IF EXISTS a SET SCHEMA
+reject@37	reject@37	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!drop-8	ALTER SEQUENCE IF EXISTS a SET SCHEMA
 reject@40	reject@40	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!insert	ALTER SEQUENCE IF EXISTS a SET SCHEMA a zzz
 reject@0	reject@0	engine	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name!swap	ALWAYS SEQUENCE IF EXISTS a SET SCHEMA a
 accept	accept	engine	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
@@ -7558,7 +7558,7 @@ reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_li
 reject@5	reject@5	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-2	DROP a(FORCE)
 reject@13	reject@13	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-3	DROP DATABASE(FORCE)
 reject@16	reject@16	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-4	DROP DATABASE a FORCE)
-reject@17	reject@16	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-5	DROP DATABASE a()
+reject@16	reject@16	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-5	DROP DATABASE a()
 reject@21	reject@21	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-6	DROP DATABASE a(FORCE
 reject@23	reject@23	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!insert	DROP DATABASE a(FORCE) zzz
 reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!swap	EACH DATABASE a(FORCE)
@@ -7569,21 +7569,21 @@ reject@21	reject@21	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_
 reject@17	reject@17	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-4	DROP DATABASE IF a(FORCE)
 reject@23	reject@23	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-5	DROP DATABASE IF EXISTS(FORCE)
 reject@26	reject@26	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-6	DROP DATABASE IF EXISTS a FORCE)
-reject@27	reject@26	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-7	DROP DATABASE IF EXISTS a()
+reject@26	reject@26	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-7	DROP DATABASE IF EXISTS a()
 reject@31	reject@31	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-8	DROP DATABASE IF EXISTS a(FORCE
 reject@33	reject@33	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!insert	DROP DATABASE IF EXISTS a(FORCE) zzz
 reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!swap	EACH DATABASE IF EXISTS a(FORCE)
 accept	accept	engine	drop_option_list/drop_option	DROP DATABASE a(FORCE)
 reject@16	reject@16	engine	drop_option_list/drop_option!truncate	DROP DATABASE a(
 reject@22	reject@22	engine	drop_option_list/drop_option!insert	DROP DATABASE a(FORCE zzz)
-accept	reject@16	engine	drop_option_list/drop_option!swap	DROP DATABASE a(FOREIGN)
+reject@16	reject@16	engine	drop_option_list/drop_option!swap	DROP DATABASE a(FOREIGN)
 accept	accept	engine	drop_option_list/drop_option_list_,_drop_option	DROP DATABASE a(FORCE, FORCE)
-reject@18	reject@16	engine	drop_option_list/drop_option_list_,_drop_option!drop-1	DROP DATABASE a(, FORCE)
+reject@16	reject@16	engine	drop_option_list/drop_option_list_,_drop_option!drop-1	DROP DATABASE a(, FORCE)
 reject@22	reject@22	engine	drop_option_list/drop_option_list_,_drop_option!drop-2	DROP DATABASE a(FORCE FORCE)
-reject@23	reject@22	engine	drop_option_list/drop_option_list_,_drop_option!drop-3	DROP DATABASE a(FORCE,)
+reject@22	reject@22	engine	drop_option_list/drop_option_list_,_drop_option!drop-3	DROP DATABASE a(FORCE,)
 reject@22	reject@22	engine	drop_option_list/drop_option_list_,_drop_option!truncate	DROP DATABASE a(FORCE,
 reject@29	reject@29	engine	drop_option_list/drop_option_list_,_drop_option!insert	DROP DATABASE a(FORCE, FORCE zzz)
-accept	reject@16	engine	drop_option_list/drop_option_list_,_drop_option!swap	DROP DATABASE a(FOREIGN, FORCE)
+reject@16	reject@16	engine	drop_option_list/drop_option_list_,_drop_option!swap	DROP DATABASE a(FOREIGN, FORCE)
 accept	accept	engine	drop_option/FORCE	DROP DATABASE a(FORCE)
 accept	accept	engine	AlterCollationStmt/ALTER_COLLATION_any_name_REFRESH_VERSION_P	ALTER COLLATION a REFRESH VERSION
 accept	accept	engine	AlterSystemStmt/ALTER_SYSTEM_P_SET_generic_set	ALTER SYSTEM SET a TO TRUE
