@@ -23,6 +23,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if err := c.resolveQueryFirst(stmt.Select); err != nil {
+		return err
+	}
 
 	// Check for duplicate table or view with the same name.
 	if db.Tables[key] != nil {

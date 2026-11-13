@@ -23,6 +23,36 @@ type analyzerScope struct {
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
 	markedJoins map[*JoinExprNodeQ]map[string]bool
+
+	// aliases maps the lowered names of the select list to their entries, once
+	// GROUP BY, HAVING and ORDER BY are being read: those clauses may name a
+	// select item by its alias, as WHERE may not. A name a table in scope has
+	// keeps meaning that column (selectAlias).
+	aliases map[string]*TargetEntryQ
+}
+
+// selectAliases maps the names of the select list's items to them, the first of
+// each name.
+func selectAliases(tl []*TargetEntryQ) map[string]*TargetEntryQ {
+	m := make(map[string]*TargetEntryQ, len(tl))
+	for _, te := range tl {
+		if te.ResJunk || te.ResName == "" {
+			continue
+		}
+		if _, ok := m[strings.ToLower(te.ResName)]; !ok {
+			m[strings.ToLower(te.ResName)] = te
+		}
+	}
+	return m
+}
+
+// selectAlias returns the select item an unqualified name that no table in scope
+// has reads, when the clause being read may name one.
+func (s *analyzerScope) selectAlias(name string) *TargetEntryQ {
+	if s.aliases == nil {
+		return nil
+	}
+	return s.aliases[strings.ToLower(name)]
 }
 
 func newScope() *analyzerScope {

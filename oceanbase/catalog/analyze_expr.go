@@ -85,6 +85,9 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
+		if te := scope.selectAlias(ref.Column); te != nil {
+			return te.Expr, nil
+		}
 		return nil, err
 	}
 	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil

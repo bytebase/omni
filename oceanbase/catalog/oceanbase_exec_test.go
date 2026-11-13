@@ -264,3 +264,36 @@ func TestOracle_OceanBaseRefusals(t *testing.T) {
 		}},
 	})
 }
+
+// TestOracle_OceanBaseQueryFirst holds resolveQueryFirst to the engine: CREATE VIEW,
+// ALTER VIEW and CREATE TABLE ... SELECT resolve the query before they look at the
+// name, and the clauses after the select list may name its aliases.
+func TestOracle_OceanBaseQueryFirst(t *testing.T) {
+	runExecSteps(t, "oceanbase_catalog_query_first", []struct {
+		name  string
+		steps []engineStep
+	}{
+		{"before the name", []engineStep{
+			{"CREATE TABLE a (b INT PRIMARY KEY, c INT)", taken},
+			{"CREATE VIEW a AS SELECT 1", 1050},
+			{"CREATE VIEW a AS SELECT zz FROM a", 1054},
+			{"CREATE VIEW a AS SELECT * FROM zz", 1146},
+			{"CREATE OR REPLACE VIEW a AS SELECT a", 1054},
+			{"CREATE TABLE a AS SELECT zz FROM a", 1054},
+			{"CREATE TABLE IF NOT EXISTS a AS SELECT zz", 1054},
+			{"CREATE TABLE IF NOT EXISTS a AS SELECT 1", taken},
+			{"ALTER VIEW zz AS SELECT a", 1054},
+			{"ALTER VIEW zz AS SELECT * FROM qq", 1146},
+		}},
+		{"names in the query", []engineStep{
+			{"CREATE TABLE a (b INT PRIMARY KEY, c INT)", taken},
+			{"CREATE VIEW v1 AS SELECT b FROM a ORDER BY zz", 1054},
+			{"CREATE VIEW v2 AS SELECT b FROM a GROUP BY zz", 1054},
+			{"CREATE VIEW v3 AS SELECT (SELECT zz) FROM a", 1054},
+			{"CREATE VIEW v4 AS SELECT b AS q FROM a ORDER BY q", taken},
+			{"CREATE VIEW v5 AS SELECT b + 1 AS q, count(*) AS n FROM a GROUP BY q HAVING n > 0", taken},
+			{"CREATE VIEW v6 AS (SELECT b AS q FROM a) ORDER BY q", taken},
+			{"CREATE VIEW v7 AS SELECT b AS q FROM a WHERE q > 0", 1054},
+		}},
+	})
+}

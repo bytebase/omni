@@ -147,11 +147,12 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		// long-standing form for ALL qualified functions — the engine stores
 		// them backticked (oracle 8.0.32), a separate pre-existing gap.
 		{"qualified-get-format", "select `mydb`.`get_format`('a','b') AS `x`", "select mydb.get_format('a','b') AS `x`"},
-		{"qualified-timestampdiff", "select `mydb`.`timestampdiff`(`c`,'a','b') AS `x`", "select mydb.timestampdiff(`c`,'a','b') AS `x`"},
+		{"qualified-timestampdiff", "select `mydb`.`timestampdiff`(`c`,'a','b') AS `x` from `t`", "select mydb.timestampdiff(`t`.`c`,'a','b') AS `x` from `t`"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.id, func(t *testing.T) {
-			sdl := "CREATE DATABASE d;\nUSE d;\nCREATE OR REPLACE VIEW `v` AS " + tc.user + ";\n"
+			// t holds the column c a case reads.
+			sdl := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE t (c INT);\nCREATE OR REPLACE VIEW `v` AS " + tc.user + ";\n"
 			cat, err := LoadSDL(sdl)
 			if err != nil {
 				t.Fatalf("LoadSDL(user form) failed: %v", err)

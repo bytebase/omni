@@ -187,7 +187,7 @@ func TestGenerateView_AliasMatchingViewNameNoFalseEdge(t *testing.T) {
 		`CREATE TABLE t (id INT, x INT);`,
 		`CREATE TABLE t (id INT, x INT);
 CREATE VIEW a AS SELECT id AS b FROM t;
-CREATE VIEW b AS SELECT x FROM a;`)
+CREATE VIEW b AS SELECT b FROM a;`)
 	ops := viewOps(plan)
 	posA, posB := -1, -1
 	for i, op := range ops {

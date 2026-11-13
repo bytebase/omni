@@ -27,6 +27,9 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	if stmt.SetOp != nodes.SetOpNone {
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
 	}
+	if stmt.ParenSource != nil && len(stmt.CTEs) == 0 {
+		return c.analyzeParenthesized(stmt, parentScope, inheritedCTEMap)
+	}
 
 	q := &Query{
 		CommandType: CmdSelect,
@@ -71,6 +74,9 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		}
 		q.JoinTree.Quals = analyzed
 	}
+
+	// GROUP BY, HAVING and ORDER BY may name a select item by its alias.
+	scope.aliases = selectAliases(q.TargetList)
 
 	// Step 4: GROUP BY
 	if len(stmt.GroupBy) > 0 {
@@ -538,6 +544,10 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
+				if te := scope.selectAlias(n.Column); te != nil && te.Expr == analyzed {
+					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
+					continue
+				}
 				return fmt.Errorf("GROUP BY column reference resolved to unexpected type %T", analyzed)
 			}
 			targetIdx := findMatchingTarget(q.TargetList, varExpr)
@@ -702,6 +712,10 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
+				if te := scope.selectAlias(n.Column); te != nil && te.Expr == analyzed {
+					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: te.ResNo, Descending: desc, NullsFirst: nullsFirst})
+					continue
+				}
 				return fmt.Errorf("ORDER BY column reference resolved to unexpected type %T", analyzed)
 			}
 			targetIdx := findMatchingTarget(q.TargetList, varExpr)
@@ -1042,4 +1056,36 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.ExprNode, table *Table) (Anal
 	// Register the table's columns into the scope at RTE index 0.
 	scope.add(table.Name, 0, table.Columns)
 	return analyzeExpr(c, expr, scope)
+}
+
+// analyzeParenthesized analyzes ( query ) ORDER BY ... LIMIT ...: the inner query,
+// then the outer clauses against its result columns, as a set operation's are read.
+// The outer clauses are checked and not kept: the Query is the inner one's.
+func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	inner, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, inheritedCTEMap)
+	if err != nil || (len(stmt.OrderBy) == 0 && stmt.Limit == nil) {
+		return inner, err
+	}
+	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	var cols []*Column
+	for _, te := range inner.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		outer.TargetList = append(outer.TargetList, &TargetEntryQ{Expr: te.Expr, ResNo: te.ResNo, ResName: te.ResName})
+		cols = append(cols, &Column{Position: len(cols) + 1, Name: te.ResName})
+	}
+	resultScope := newScope()
+	resultScope.add("__paren__", 0, cols)
+	if len(stmt.OrderBy) > 0 {
+		if err := c.analyzeOrderBy(stmt.OrderBy, outer, resultScope); err != nil {
+			return nil, err
+		}
+	}
+	if stmt.Limit != nil {
+		if err := c.analyzeLimitOffset(stmt.Limit, outer, resultScope); err != nil {
+			return nil, err
+		}
+	}
+	return inner, nil
 }

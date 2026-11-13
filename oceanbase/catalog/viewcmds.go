@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -18,6 +19,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
+	}
+	if checkBody {
+		if err := c.resolveQueryFirst(stmt.Select); err != nil {
+			return err
+		}
 	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
@@ -135,6 +141,9 @@ func rowsHaveParamMarker(rows [][]nodes.ExprNode) bool {
 func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
+		return err
+	}
+	if err := c.resolveQueryFirst(stmt.Select); err != nil {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
@@ -1177,4 +1186,24 @@ func showCreateView(v *View) string {
 	}
 
 	return b.String()
+}
+
+// resolveQueryFirst refuses a view's or CREATE TABLE ... SELECT's query that names a
+// table (1146) or a column (1054) that does not exist. OceanBase resolves the query
+// before it looks at the name being created or altered, so these come before 1050,
+// and before ALTER VIEW's 1146 or 1347 for a name that is no view: CREATE VIEW a AS
+// SELECT zz FROM a, with a a table, answers 1054 (TestOracle_OceanBaseQueryFirst).
+//
+// The analyzer's other errors are left alone, as createView has always left them:
+// it does not yet read every query OceanBase takes.
+func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt) error {
+	if sel == nil {
+		return nil
+	}
+	_, err := c.AnalyzeSelectStmt(sel)
+	var refusal *Error
+	if errors.As(err, &refusal) && (refusal.Code == ErrNoSuchTable || refusal.Code == ErrNoSuchColumn) {
+		return refusal
+	}
+	return nil
 }
