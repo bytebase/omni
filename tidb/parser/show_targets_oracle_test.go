@@ -366,24 +366,19 @@ var showTargetCases = []showTargetCase{
 // and any other server error means the text parsed and failed later.
 func TestShowTargetsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, stc := range showTargetCases {
+	for _, stc := range showTargetCases {
 		t.Run(stc.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = showTargetCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, stc.sql, previous)
+			accepts, err := tc.prepareSyntax(stc.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != stc.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, stc.accept, stc.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, stc.accept, stc.sql)
 			}
 			_, perr := Parse(stc.sql)
 			if omniAccepts := perr == nil; omniAccepts != stc.accept {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, stc.accept, stc.sql, perr)
+					omniAccepts, tidbRelease, stc.accept, stc.sql, perr)
 			}
 		})
 	}

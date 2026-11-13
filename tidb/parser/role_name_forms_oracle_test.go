@@ -10,24 +10,19 @@ import (
 // running it.
 func TestRoleNameFormsTiDBOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, c := range roleNameCases {
+	for _, c := range roleNameCases {
 		t.Run(c.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = roleNameCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, c.sql, previous)
+			accepts, err := tc.prepareSyntax(c.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != c.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, c.accept, c.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, c.accept, c.sql)
 			}
 			omniAccepts, perr := parsesAsOneStatement(c.sql)
 			if omniAccepts != c.accept {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, c.accept, c.sql, perr)
+					omniAccepts, tidbRelease, c.accept, c.sql, perr)
 			}
 		})
 	}
@@ -38,20 +33,17 @@ func TestRoleNameFormsTiDBOracle(t *testing.T) {
 // the lexer that TiDB does not have fails here until it is listed.
 func TestRoleNameSweepTiDBOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	previous := "<start of sweep>"
 	for _, position := range roleNamePositions {
 		for _, word := range registeredKeywords() {
 			sql := strings.ReplaceAll(position, "%s", word)
-			accepts, _, err := tc.syntaxVerdict(t, sql, previous)
+			accepts, err := tc.prepareSyntax(sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
-			previous = sql
 			omniAccepts, perr := parsesAsOneStatement(sql)
 			if accepts != omniAccepts {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, accepts, sql, perr)
+					omniAccepts, tidbRelease, accepts, sql, perr)
 			}
 		}
 	}

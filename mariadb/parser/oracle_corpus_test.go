@@ -1,19 +1,12 @@
 package parser
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	mariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
-
-	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // ============================================================================
@@ -30,46 +23,6 @@ import (
 // RETURNING, sql_mode=ORACLE, system-versioning → Phase-0 mdbcheck) and to
 // feature-gated (1235) rejections. "Inventory pinned" != "MariaDB parity".
 // ============================================================================
-
-// startMariaDB returns the shared mariadb:11.8.8 oracle with an empty `test`
-// database selected. The testcontainers mariadb module's wait strategy handles
-// MariaDB's double-start entrypoint (temp init server → shutdown → real server)
-// that a bare port-wait would race.
-func startMariaDB(t *testing.T) *parserOracle {
-	t.Helper()
-	return sharedMariaDB118.acquire(t, func(ctx context.Context) (testcontainers.Container, *sql.DB, error) {
-		c, err := mariadb.Run(ctx, testcontainer.Image,
-			mariadb.WithDatabase("test"),
-			mariadb.WithPassword("test"),
-			// no WithUsername("root"): root is the module default; setting it errors.
-		)
-		if err != nil {
-			return nil, nil, fmt.Errorf("start MariaDB container: %w", err)
-		}
-		// Server-side guards (seconds) on every pooled conn via DSN system-vars: the
-		// server aborts a slow/locked statement so the conn stays healthy (a client
-		// context cancel leaves the query running server-side and poisons the pool).
-		connStr, err := c.ConnectionString(ctx,
-			"multiStatements=true", "parseTime=true",
-			"max_statement_time=5", "lock_wait_timeout=2",
-		)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(c)
-			return nil, nil, fmt.Errorf("connection string: %w", err)
-		}
-		db, err := sql.Open("mysql", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(c)
-			return nil, nil, fmt.Errorf("open db: %w", err)
-		}
-		if err := db.PingContext(ctx); err != nil {
-			_ = db.Close()
-			_ = testcontainers.TerminateContainer(c)
-			return nil, nil, fmt.Errorf("ping: %w", err)
-		}
-		return c, db, nil
-	})
-}
 
 type verdict int
 

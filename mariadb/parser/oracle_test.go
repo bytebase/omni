@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"os"
-	"sync"
 	"testing"
 
-	"github.com/testcontainers/testcontainers-go"
+	"github.com/bytebase/omni/enginetest/tape"
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -15,61 +15,29 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-// sharedMariaDB118 is the MariaDB 11.8 oracle (startMariaDB) the divergence
-// inventory and the routine alignment oracle share.
-var sharedMariaDB118 sharedEngine
-
-// sharedEngine is an engine started once per test process and handed to every
-// test that asks for it, with the `test` database dropped and recreated in
-// between. Booting MariaDB costs ~10s; the reset costs milliseconds and gives
-// each test the same empty schema a fresh container would.
-type sharedEngine struct {
-	once      sync.Once
-	container testcontainers.Container
-	db        *sql.DB
-	err       error
-}
-
-// acquire returns the shared engine as a parserOracle, starting it on first
-// use via start. It fails the test in CI when the engine cannot start and
-// skips locally, so a laptop without Docker still runs the rest of the package.
-func (e *sharedEngine) acquire(t *testing.T, start func(ctx context.Context) (testcontainers.Container, *sql.DB, error)) *parserOracle {
+// startMariaDB returns the MariaDB oracle with an empty `test` database
+// selected, as a server of its own would be: a replay of the test's tape, or
+// the pinned server in a recording (see testcontainer.OpenEmpty). It connects
+// as root, so a case it runs must not change the server under the tests that
+// follow in a way OpenEmpty does not undo: no SET GLOBAL, no KILL.
+//
+// The server aborts a slow or locked statement itself (max_statement_time,
+// lock_wait_timeout), so the connection stays usable after one.
+func startMariaDB(t *testing.T) *parserOracle {
 	t.Helper()
-	ctx := context.Background()
-	e.once.Do(func() {
-		container, db, err := start(ctx)
-		if err != nil {
-			e.err = err
-			return
-		}
-		// USE is session state: pin the pool to one connection so every
-		// statement runs in the freshly reset database.
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
-		e.container, e.db = container, db
+	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{
+		Database:        "test",
+		MultiStatements: true,
+		ParseTime:       true,
+		Session:         map[string]string{"max_statement_time": "5", "lock_wait_timeout": "2"},
 	})
-	if e.err != nil {
-		t.Fatalf("container required in CI but unavailable: %v", e.err)
-	}
-	for _, stmt := range []string{"DROP DATABASE IF EXISTS test", "CREATE DATABASE test", "USE test"} {
-		if _, err := e.db.ExecContext(ctx, stmt); err != nil {
-			t.Fatalf("reset test database (%s): %v", stmt, err)
-		}
-	}
-	return &parserOracle{db: e.db, ctx: ctx}
+	return &parserOracle{db: db, ctx: context.Background()}
 }
 
-func (e *sharedEngine) terminate() {
-	if e.db != nil {
-		_ = e.db.Close()
-	}
-	if e.container != nil {
-		_ = testcontainers.TerminateContainer(e.container)
-	}
-}
-
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	sharedMariaDB118.terminate()
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
