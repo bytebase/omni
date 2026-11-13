@@ -81,6 +81,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	}
 
 	// Parenthesized create definitions (columns and constraints)
+	hasDefinitions := false
 	if p.cur.Type == '(' {
 		next := p.peekNext()
 		// Check for CREATE TABLE ... (query) — query source without AS: a
@@ -119,6 +120,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		hasDefinitions = true
 	}
 
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
@@ -191,6 +193,12 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		}
 		stmt.Select = sel
 	case stmt.Ignore || stmt.Replace:
+		return nil, p.syntaxErrorAtCur()
+	case !hasDefinitions:
+		// A table with no definitions is made from a query: every alternative of
+		// create_table_stmt without '(' table_element_list ')' ends in a
+		// select_stmt, so CREATE TABLE t NOPARALLEL and a bare CREATE TABLE t are
+		// 1064s.
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1652,7 +1660,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	return nil, false, nil
+	return p.parseOceanBaseTableOption(start)
 }
 
 // oceanBaseOptionValue maps each OceanBase storage option to the token types its
