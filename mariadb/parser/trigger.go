@@ -302,11 +302,12 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		sched.Every = expr
-		// Consume optional interval unit (HOUR, DAY, MINUTE, SECOND, WEEK, MONTH, YEAR, QUARTER)
-		// Consume optional interval unit (HOUR, DAY, MINUTE, SECOND, WEEK, MONTH, YEAR, QUARTER)
-		if isIntervalUnitToken(p.cur) {
-			p.advance()
+		// The interval unit is required: ev_schedule_time is `EVERY_SYM expr
+		// interval`.
+		if !isIntervalUnitToken(p.cur) {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 
 		// Optional STARTS
 		if p.cur.Type == kwSTARTS {

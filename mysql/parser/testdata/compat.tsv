@@ -25,7 +25,7 @@ reject	reject	engine	simple_statement/alter_database_stmt!drop-4	ALTER DATABASE 
 reject	reject	engine	simple_statement/alter_database_stmt!truncate	ALTER DATABASE COLLATE
 reject	accept	engine	simple_statement/alter_database_stmt!insert	ALTER DATABASE COLLATE utf8mb4 zzz;
 reject	reject	engine	simple_statement/alter_database_stmt!swap	ALWAYS DATABASE COLLATE utf8mb4;
-accept	reject	engine	simple_statement/alter_event_stmt	ALTER EVENT utf8mb4;
+reject	reject	engine	simple_statement/alter_event_stmt	ALTER EVENT utf8mb4;
 reject	reject	engine	simple_statement/alter_event_stmt!drop-1	EVENT utf8mb4;
 reject	reject	engine	simple_statement/alter_event_stmt!drop-2	ALTER utf8mb4;
 reject	reject	engine	simple_statement/alter_event_stmt!drop-3	ALTER EVENT;
@@ -1656,9 +1656,9 @@ reject	reject	engine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHED
 reject	reject	engine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!swap	CREATE EVENTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 accept	accept	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-1	ALTER EVENT utf8mb4 ON SCHEDULE utf8mb4 DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT utf8mb4 ON SCHEDULE EVERY DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT utf8mb4 ON SCHEDULE EVERY DAY;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!insert	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY zzz;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!swap	ALTER EVENT utf8mb4 ON SCHEDULE EXCEPT utf8mb4 DAY;
 accept	accept	engine	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
@@ -1667,9 +1667,9 @@ reject	reject	engine	ev_schedule_time/AT_SYM_expr!drop-2	ALTER EVENT utf8mb4 ON 
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!truncate	ALTER EVENT utf8mb4 ON SCHEDULE AT
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!insert	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 zzz;
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!swap	ALTER EVENT utf8mb4 ON SCHEDULE ATTRIBUTE utf8mb4;
-accept	reject	engine	opt_ev_status/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	opt_ev_status/%empty	ALTER EVENT utf8mb4;
 accept	accept	engine	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
-accept	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT utf8mb4
+reject	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT utf8mb4
 reject	reject	engine	opt_ev_status/ENABLE_SYM!insert	ALTER EVENT utf8mb4 ENABLE zzz;
 reject	reject	engine	opt_ev_status/ENABLE_SYM!swap	ALTER EVENT utf8mb4 ENCLOSED;
 accept	accept	engine	opt_ev_status/DISABLE_SYM_ON_SYM_SLAVE	ALTER EVENT utf8mb4 DISABLE ON SLAVE;
@@ -1707,18 +1707,18 @@ reject	reject	engine	opt_ev_on_completion/ev_on_completion!swap	CREATE EVENT utf
 accept	accept	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!drop-1	ALTER EVENT utf8mb4 COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!drop-2	ALTER EVENT utf8mb4 ON PRESERVE;
-accept	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!drop-3	ALTER EVENT utf8mb4 ON COMPLETION;
-accept	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!truncate	ALTER EVENT utf8mb4 ON COMPLETION
+reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!drop-3	ALTER EVENT utf8mb4 ON COMPLETION;
+reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!truncate	ALTER EVENT utf8mb4 ON COMPLETION
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!insert	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM!swap	ALTER EVENT utf8mb4 ONE COMPLETION PRESERVE;
 accept	accept	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!drop-1	ALTER EVENT utf8mb4 COMPLETION NOT PRESERVE;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!drop-2	ALTER EVENT utf8mb4 ON NOT PRESERVE;
-accept	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!drop-4	ALTER EVENT utf8mb4 ON COMPLETION NOT;
-accept	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!truncate	ALTER EVENT utf8mb4 ON COMPLETION NOT
+reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!drop-4	ALTER EVENT utf8mb4 ON COMPLETION NOT;
+reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!truncate	ALTER EVENT utf8mb4 ON COMPLETION NOT
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!insert	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE zzz;
 reject	reject	engine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM!swap	ALTER EVENT utf8mb4 ONE COMPLETION NOT PRESERVE;
-accept	reject	engine	opt_ev_comment/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	opt_ev_comment/%empty	ALTER EVENT utf8mb4;
 accept	accept	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-1	ALTER EVENT utf8mb4 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-2	ALTER EVENT utf8mb4 COMMENT;
@@ -4337,7 +4337,7 @@ reject	reject	engine	alter_view_stmt/ALTER_view_algorithm_definer_opt_view_tail!
 accept	accept	engine	alter_view_stmt/ALTER_view_algorithm_definer_opt_view_tail!insert	ALTER ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 reject	reject	engine	alter_view_stmt/ALTER_view_algorithm_definer_opt_view_tail!swap	ALWAYS ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 accept	accept	engine	alter_view_stmt/ALTER_definer_opt_view_tail	ALTER VIEW utf8mb4 AS SELECT utf8mb4;
-accept	reject	engine	alter_event_stmt/ALTER_definer_opt_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT utf8mb4;
+reject	reject	engine	alter_event_stmt/ALTER_definer_opt_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT utf8mb4;
 accept	accept	engine	alter_logfile_stmt/ALTER_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_alter_logfile_group_options	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 accept	accept	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_alter_tablespace_options	ALTER TABLESPACE utf8mb4 ADD DATAFILE 's';
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_alter_tablespace_options!drop-1	TABLESPACE utf8mb4 ADD DATAFILE 's';
@@ -4618,7 +4618,7 @@ accept	accept	engine	user_func/USER_(_)	ALTER USER USER() IDENTIFIED BY 's';
 accept	reject	engine	user_func/USER_(_)!truncate	ALTER USER USER(
 reject	reject	engine	user_func/USER_(_)!insert	ALTER USER USER() zzz IDENTIFIED BY 's';
 reject	reject	engine	user_func/USER_(_)!swap	ALTER USER USER_RESOURCES() IDENTIFIED BY 's';
-accept	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT utf8mb4;
 accept	accept	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time!drop-1	ALTER EVENT utf8mb4 SCHEDULE AT utf8mb4;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time!drop-2	ALTER EVENT utf8mb4 ON AT utf8mb4;
@@ -4631,19 +4631,19 @@ reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_sche
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-4	ALTER EVENT utf8mb4 ON SCHEDULE AT ON COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-5	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-6	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON PRESERVE;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION;
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!insert	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!swap	ALTER EVENT utf8mb4 ONE SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
-accept	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT utf8mb4;
 accept	accept	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-1	ALTER EVENT utf8mb4 TO utf8mb4;
-accept	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT utf8mb4 RENAME utf8mb4;
+reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT utf8mb4 RENAME utf8mb4;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-3	ALTER EVENT utf8mb4 RENAME TO;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!truncate	ALTER EVENT utf8mb4 RENAME TO
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!insert	ALTER EVENT utf8mb4 RENAME TO utf8mb4 zzz;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!swap	ALTER EVENT utf8mb4 REORGANIZE TO utf8mb4;
-accept	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT utf8mb4;
 accept	accept	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt	ALTER EVENT utf8mb4 DO COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!drop-1	ALTER EVENT utf8mb4 COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!swap	ALTER EVENT utf8mb4 DOUBLE COMMIT;
@@ -11943,17 +11943,17 @@ reject	reject	engine	no_definer_tail/udf_tail!truncate	CREATE FUNCTION utf8mb4 R
 reject	reject	engine	no_definer_tail/udf_tail!insert	CREATE FUNCTION utf8mb4 RETURNS STRING SONAME 's' zzz;
 reject	reject	engine	no_definer_tail/udf_tail!swap	CREATE GENERAL utf8mb4 RETURNS STRING SONAME 's';
 accept	accept	engine	no_definer_tail/event_tail	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
-accept	reject	engine	definer_opt/no_definer	ALTER EVENT utf8mb4;
+reject	reject	engine	definer_opt/no_definer	ALTER EVENT utf8mb4;
 reject	reject	engine	definer_opt/no_definer!insert	ALTER zzz EVENT utf8mb4;
-accept	reject	engine	definer_opt/definer	ALTER DEFINER = utf8mb4 EVENT utf8mb4;
+reject	reject	engine	definer_opt/definer	ALTER DEFINER = utf8mb4 EVENT utf8mb4;
 reject	reject	engine	definer_opt/definer!drop-1	ALTER = utf8mb4 EVENT utf8mb4;
-accept	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER utf8mb4 EVENT utf8mb4;
+reject	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER utf8mb4 EVENT utf8mb4;
 reject	reject	engine	definer_opt/definer!drop-3	ALTER DEFINER = EVENT utf8mb4;
 reject	reject	engine	definer_opt/definer!truncate	ALTER DEFINER =
 reject	reject	engine	definer_opt/definer!insert	ALTER DEFINER = utf8mb4 zzz EVENT utf8mb4;
 reject	reject	engine	definer_opt/definer!swap	ALTER DEFINITION = utf8mb4 EVENT utf8mb4;
-accept	reject	engine	no_definer/%empty	ALTER EVENT utf8mb4;
-accept	reject	engine	definer/DEFINER_SYM_EQ_user	ALTER DEFINER = utf8mb4 EVENT utf8mb4;
+reject	reject	engine	no_definer/%empty	ALTER EVENT utf8mb4;
+reject	reject	engine	definer/DEFINER_SYM_EQ_user	ALTER DEFINER = utf8mb4 EVENT utf8mb4;
 accept	accept	engine	view_replace_or_algorithm/view_replace	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 reject	reject	engine	view_replace_or_algorithm/view_replace!truncate	CREATE OR
 reject	reject	engine	view_replace_or_algorithm/view_replace!insert	CREATE OR REPLACE zzz VIEW utf8mb4 AS SELECT utf8mb4;
