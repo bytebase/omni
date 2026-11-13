@@ -572,13 +572,14 @@ reject	undocumented	docs	statement/alterGitRepository!drop-4	ALTER GIT REPOSITOR
 reject	undocumented	docs	statement/alterGitRepository!drop-5	ALTER GIT REPOSITORY a
 reject	undocumented	docs	statement/alterGitRepository!insert	ALTER GIT REPOSITORY a FETCH zzz
 reject	undocumented	docs	statement/alterGitRepository!swap	ALWAYS GIT REPOSITORY a FETCH
-reject	accept	docs	statement/alterIcebergTable	ALTER ICEBERG TABLE a ALTER
-reject	undocumented	docs	statement/alterIcebergTable!drop-1	ICEBERG TABLE a ALTER
-reject	undocumented	docs	statement/alterIcebergTable!drop-3	ALTER ICEBERG a ALTER
-reject	undocumented	docs	statement/alterIcebergTable!drop-4	ALTER ICEBERG TABLE ALTER
-reject	undocumented	docs	statement/alterIcebergTable!drop-5	ALTER ICEBERG TABLE a
-reject	undocumented	docs	statement/alterIcebergTable!insert	ALTER ICEBERG TABLE a ALTER zzz
-reject	undocumented	docs	statement/alterIcebergTable!swap	ALWAYS ICEBERG TABLE a ALTER
+reject	accept	docs	statement/alterIcebergTable	ALTER ICEBERG TABLE a SUSPEND RECLUSTER
+reject	undocumented	docs	statement/alterIcebergTable!drop-1	ICEBERG TABLE a SUSPEND RECLUSTER
+reject	undocumented	docs	statement/alterIcebergTable!drop-3	ALTER ICEBERG a SUSPEND RECLUSTER
+reject	undocumented	docs	statement/alterIcebergTable!drop-4	ALTER ICEBERG TABLE SUSPEND RECLUSTER
+reject	undocumented	docs	statement/alterIcebergTable!drop-5	ALTER ICEBERG TABLE a RECLUSTER
+reject	undocumented	docs	statement/alterIcebergTable!drop-6	ALTER ICEBERG TABLE a SUSPEND
+reject	undocumented	docs	statement/alterIcebergTable!insert	ALTER ICEBERG TABLE a SUSPEND RECLUSTER zzz
+reject	undocumented	docs	statement/alterIcebergTable!swap	ALWAYS ICEBERG TABLE a SUSPEND RECLUSTER
 reject	accept	docs	statement/alterIcebergTableAlterColumnSetDataType	ALTER ICEBERG TABLE a ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-1	ICEBERG TABLE a ALTER COLUMN a SET DATA TYPE INT
 accept	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-2	ALTER TABLE a ALTER COLUMN a SET DATA TYPE INT
@@ -631,6 +632,7 @@ reject	accept	docs	statement/alterIcebergTableRefresh	ALTER ICEBERG TABLE a REFR
 reject	undocumented	docs	statement/alterIcebergTableRefresh!drop-1	ICEBERG TABLE a REFRESH
 reject	undocumented	docs	statement/alterIcebergTableRefresh!drop-3	ALTER ICEBERG a REFRESH
 reject	undocumented	docs	statement/alterIcebergTableRefresh!drop-4	ALTER ICEBERG TABLE REFRESH
+reject	undocumented	docs	statement/alterIcebergTableRefresh!drop-5	ALTER ICEBERG TABLE a
 reject	undocumented	docs	statement/alterIcebergTableRefresh!insert	ALTER ICEBERG TABLE a REFRESH zzz
 reject	undocumented	docs	statement/alterIcebergTableRefresh!swap	ALWAYS ICEBERG TABLE a REFRESH
 reject	accept	docs	statement/alterIcebergTableVersionTag	ALTER ICEBERG TABLE a CREATE VERSION_TAG a
@@ -1511,20 +1513,20 @@ reject	undocumented	docs	statement/createAiFunction!drop-9	CREATE AI FUNCTION a(
 reject	undocumented	docs	statement/createAiFunction!drop-10	CREATE AI FUNCTION a() RETURNS INT AS
 reject	undocumented	docs	statement/createAiFunction!insert	CREATE AI FUNCTION a() RETURNS INT AS 's' zzz
 reject	undocumented	docs	statement/createAiFunction!swap	CREATION AI FUNCTION a() RETURNS INT AS 's'
-accept	accept	docs	statement/createAlert	CREATE ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-1	ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-2	CREATE a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-3	CREATE ALERT IF(EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-4	CREATE ALERT a(EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-5	CREATE ALERT a IF EXISTS(1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-6	CREATE ALERT a IF((1)) THEN a
-reject	undocumented	docs	statement/createAlert!drop-7	CREATE ALERT a IF(EXISTS 1)) THEN a
-accept	undocumented	docs	statement/createAlert!drop-8	CREATE ALERT a IF(EXISTS()) THEN a
-reject	undocumented	docs	statement/createAlert!drop-9	CREATE ALERT a IF(EXISTS(1) THEN a
-reject	undocumented	docs	statement/createAlert!drop-11	CREATE ALERT a IF(EXISTS(1)) a
-reject	undocumented	docs	statement/createAlert!drop-12	CREATE ALERT a IF(EXISTS(1)) THEN
-accept	undocumented	docs	statement/createAlert!insert	CREATE ALERT a IF(EXISTS(1)) THEN a zzz
-reject	undocumented	docs	statement/createAlert!swap	CREATION ALERT a IF(EXISTS(1)) THEN a
+accept	accept	docs	statement/createAlert	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-1	ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-2	CREATE a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-3	CREATE ALERT IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-4	CREATE ALERT a(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-5	CREATE ALERT a IF EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-6	CREATE ALERT a IF((SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-7	CREATE ALERT a IF(EXISTS SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	statement/createAlert!drop-8	CREATE ALERT a IF(EXISTS()) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-9	CREATE ALERT a IF(EXISTS(SELECT 1) THEN SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-11	CREATE ALERT a IF(EXISTS(SELECT 1)) SELECT 1
+reject	undocumented	docs	statement/createAlert!drop-12	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN
+accept	undocumented	docs	statement/createAlert!insert	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1 zzz
+reject	undocumented	docs	statement/createAlert!swap	CREATION ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
 accept	accept	docs	statement/createApiIntegration	CREATE API INTEGRATION a API_PROVIDER = git_https_api API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
 reject	undocumented	docs	statement/createApiIntegration!drop-1	API INTEGRATION a API_PROVIDER = git_https_api API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
 reject	undocumented	docs	statement/createApiIntegration!drop-2	CREATE INTEGRATION a API_PROVIDER = git_https_api API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
@@ -1940,21 +1942,19 @@ reject	undocumented	docs	statement/createDatabase!drop-1	DATABASE a
 reject	undocumented	docs	statement/createDatabase!drop-3	CREATE DATABASE
 reject	undocumented	docs	statement/createDatabase!insert	CREATE DATABASE a zzz
 reject	undocumented	docs	statement/createDatabase!swap	CREATION DATABASE a
-reject	accept	docs	statement/createDatabaseCatalogLinked	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-1	DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-2	CREATE a LINKED_CATALOG =(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-3	CREATE DATABASE LINKED_CATALOG =(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-4	CREATE DATABASE a =(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-5	CREATE DATABASE a LINKED_CATALOG(CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-6	CREATE DATABASE a LINKED_CATALOG = CATALOG = 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-7	CREATE DATABASE a LINKED_CATALOG =(= 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-8	CREATE DATABASE a LINKED_CATALOG =(CATALOG 's',),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-9	CREATE DATABASE a LINKED_CATALOG =(CATALOG =,),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-10	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's'),
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-11	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',,
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-12	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',)
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), zzz
-reject	undocumented	docs	statement/createDatabaseCatalogLinked!swap	CREATION DATABASE a LINKED_CATALOG =(CATALOG = 's',),
+reject	accept	docs	statement/createDatabaseCatalogLinked	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-1	DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-2	CREATE a LINKED_CATALOG =(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-3	CREATE DATABASE LINKED_CATALOG =(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-4	CREATE DATABASE a =(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-5	CREATE DATABASE a LINKED_CATALOG(CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-6	CREATE DATABASE a LINKED_CATALOG = CATALOG = 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-7	CREATE DATABASE a LINKED_CATALOG =(= 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-8	CREATE DATABASE a LINKED_CATALOG =(CATALOG 's')
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-9	CREATE DATABASE a LINKED_CATALOG =(CATALOG =)
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!drop-10	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's'
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') zzz
+reject	undocumented	docs	statement/createDatabaseCatalogLinked!swap	CREATION DATABASE a LINKED_CATALOG =(CATALOG = 's')
 accept	accept	docs	statement/createDatabaseRole	CREATE DATABASE ROLE a
 reject	undocumented	docs	statement/createDatabaseRole!drop-1	DATABASE ROLE a
 reject	accept	docs	statement/createDatabaseRole!drop-4	CREATE DATABASE ROLE
@@ -14035,7 +14035,7 @@ accept	undocumented	docs	alterGitRepository(,_(GIT_CREDENTIALS|COMMENT))*/,_(GIT
 reject	undocumented	docs	alterGitRepository(,_(GIT_CREDENTIALS|COMMENT))*/,_(GIT_CREDENTIALS|COMMENT)_(,_(GIT_CREDENTIALS|COMMENT))*!drop-2	ALTER GIT REPOSITORY a UNSET GIT_CREDENTIALS,
 accept	undocumented	docs	alterGitRepository(,_(GIT_CREDENTIALS|COMMENT))*/,_(GIT_CREDENTIALS|COMMENT)_(,_(GIT_CREDENTIALS|COMMENT))*!insert	ALTER GIT REPOSITORY a UNSET GIT_CREDENTIALS, GIT_CREDENTIALS zzz
 accept	undocumented	docs	alterGitRepository(,_(GIT_CREDENTIALS|COMMENT))*/,_(GIT_CREDENTIALS|COMMENT)_(,_(GIT_CREDENTIALS|COMMENT))*!swap	ALTER GIT REPOSITORY a UNSET GIT_CREDENTIALS, GLOBAL
-reject	accept	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_(alterIcebergTable_~fa7fbeac	ALTER ICEBERG TABLE a ALTER
+reject	accept	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_(alterIcebergTable_~fa7fbeac	ALTER ICEBERG TABLE a SUSPEND RECLUSTER
 reject	accept	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_SET_(REPLACE_INVALI~1879f96f	ALTER ICEBERG TABLE a SET REPLACE_INVALID_CHARACTERS = TRUE
 reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_SET_(REPLACE_INVALI~1879f96f!drop-1	ICEBERG TABLE a SET REPLACE_INVALID_CHARACTERS = TRUE
 reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_SET_(REPLACE_INVALI~1879f96f!drop-2	ALTER TABLE a SET REPLACE_INVALID_CHARACTERS = TRUE
@@ -14086,21 +14086,21 @@ reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_a
 reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_alterIcebergTable_s~731f0239!drop-7	ALTER ICEBERG TABLE a ADD SEARCH
 reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_alterIcebergTable_s~731f0239!insert	ALTER ICEBERG TABLE a ADD SEARCH OPTIMIZATION zzz
 reject	undocumented	docs	alterIcebergTable/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_alterIcebergTable_s~731f0239!swap	ALWAYS ICEBERG TABLE a ADD SEARCH OPTIMIZATION
-reject	accept	docs	alterIcebergTable(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a ALTER
-reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/%empty!insert	ALTER ICEBERG TABLE zzz a ALTER
-reject	accept	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS	ALTER ICEBERG TABLE IF EXISTS a ALTER
-reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ICEBERG TABLE EXISTS a ALTER
-reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ICEBERG TABLE IF a ALTER
+reject	accept	docs	alterIcebergTable(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a SUSPEND RECLUSTER
+reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/%empty!insert	ALTER ICEBERG TABLE zzz a SUSPEND RECLUSTER
+reject	accept	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS	ALTER ICEBERG TABLE IF EXISTS a SUSPEND RECLUSTER
+reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ICEBERG TABLE EXISTS a SUSPEND RECLUSTER
+reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ICEBERG TABLE IF a SUSPEND RECLUSTER
 reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ICEBERG TABLE IF
-reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!insert	ALTER ICEBERG TABLE IF EXISTS zzz a ALTER
-reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!swap	ALTER ICEBERG TABLE IGNORE EXISTS a ALTER
+reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!insert	ALTER ICEBERG TABLE IF EXISTS zzz a SUSPEND RECLUSTER
+reject	undocumented	docs	alterIcebergTable(IF_EXISTS)?/IF_EXISTS!swap	ALTER ICEBERG TABLE IGNORE EXISTS a SUSPEND RECLUSTER
 reject	accept	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_clusteringAction	ALTER ICEBERG TABLE a SUSPEND RECLUSTER
-reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_clusteringAction!drop-1	ALTER ICEBERG TABLE a RECLUSTER
-reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_clusteringAction!drop-2	ALTER ICEBERG TABLE a SUSPEND
-reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_clusteringAction!insert	ALTER ICEBERG TABLE a SUSPEND RECLUSTER zzz
 reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_clusteringAction!swap	ALTER ICEBERG TABLE a SUSPENDED RECLUSTER
-reject	accept	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction	ALTER ICEBERG TABLE a ALTER
-reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction!swap	ALTER ICEBERG TABLE a ALWAYS
+reject	accept	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction	ALTER ICEBERG TABLE a DROP a
+reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction!drop-1	ALTER ICEBERG TABLE a a
+reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction!drop-2	ALTER ICEBERG TABLE a DROP
+reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction!insert	ALTER ICEBERG TABLE a DROP a zzz
+reject	undocumented	docs	alterIcebergTable(alterIcebergTable_clusteringAction|a~802a30a5)/alterIcebergTable_tableColumnAction!swap	ALTER ICEBERG TABLE a DROP_FROM_SOURCE_CATALOG a
 reject	accept	docs	alterIcebergTable(REPLACE_INVALID_CHARACTERS_=_(TRUE|F~7980d5e4)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)_(CATALOG_SYNC~53720c27	ALTER ICEBERG TABLE a SET REPLACE_INVALID_CHARACTERS = TRUE
 reject	undocumented	docs	alterIcebergTable(REPLACE_INVALID_CHARACTERS_=_(TRUE|F~7980d5e4)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)_(CATALOG_SYNC~53720c27!swap	ALTER ICEBERG TABLE a SET REPLICA = TRUE
 reject	accept	docs	alterIcebergTable(REPLACE_INVALID_CHARACTERS_=_(TRUE|F~7980d5e4)/CATALOG_SYNC_=_STRING_(DATA_RETENTION_TIME_IN_DAYS_=_NU~20757d3a	ALTER ICEBERG TABLE a SET CATALOG_SYNC = 's'
@@ -14458,57 +14458,52 @@ reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/SUSP
 reject	accept	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME	ALTER ICEBERG TABLE a RESUME RECLUSTER
 reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME!insert	ALTER ICEBERG TABLE a RESUME zzz RECLUSTER
 reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME!swap	ALTER ICEBERG TABLE a RETAIN RECLUSTER
-reject	accept	docs	alterIcebergTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)	ALTER ICEBERG TABLE a ALTER
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a	ALTER ICEBERG TABLE a ADD a INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-1	ALTER ICEBERG TABLE a a INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-2	ALTER ICEBERG TABLE a ADD INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-3	ALTER ICEBERG TABLE a ADD a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!insert	ALTER ICEBERG TABLE a ADD a INT zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!swap	ALTER ICEBERG TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID	ALTER ICEBERG TABLE a RENAME COLUMN a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER ICEBERG TABLE a COLUMN a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER ICEBERG TABLE a RENAME a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER ICEBERG TABLE a RENAME COLUMN TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER ICEBERG TABLE a RENAME COLUMN a a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER ICEBERG TABLE a RENAME COLUMN a TO
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!insert	ALTER ICEBERG TABLE a RENAME COLUMN a TO a zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/RENAME_COLUMN_ID_TO_ID!swap	ALTER ICEBERG TABLE a REPLACE COLUMN a TO a
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/ALTER	ALTER ICEBERG TABLE a ALTER
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-1	ALTER ICEBERG TABLE a, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-2	ALTER ICEBERG TABLE a MODIFY a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-3	ALTER ICEBERG TABLE a MODIFY, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-4	ALTER ICEBERG TABLE a MODIFY, a NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-5	ALTER ICEBERG TABLE a MODIFY, a NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-6	ALTER ICEBERG TABLE a MODIFY, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-7	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-8	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-9	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-10	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-11	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-12	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-13	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-14	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-15	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-16	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-17	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-18	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-19	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-20	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-21	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-22	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-23	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-24	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-25	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-26	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!drop-27	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/MODIFY_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL~d31c6877!swap	ALTER ICEBERG TABLE a MONITOR, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER ICEBERG TABLE a DROP a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*!drop-1	ALTER ICEBERG TABLE a a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*!drop-2	ALTER ICEBERG TABLE a DROP
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*!insert	ALTER ICEBERG TABLE a DROP a zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~c8fa09de)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*!swap	ALTER ICEBERG TABLE a DROP_FROM_SOURCE_CATALOG a
+reject	accept	docs	alterIcebergTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)	ALTER ICEBERG TABLE a DROP a
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a	ALTER ICEBERG TABLE a ADD a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-1	ALTER ICEBERG TABLE a a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-2	ALTER ICEBERG TABLE a ADD INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-3	ALTER ICEBERG TABLE a ADD a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!insert	ALTER ICEBERG TABLE a ADD a INT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!swap	ALTER ICEBERG TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID	ALTER ICEBERG TABLE a RENAME COLUMN a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER ICEBERG TABLE a COLUMN a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER ICEBERG TABLE a RENAME a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER ICEBERG TABLE a RENAME COLUMN TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER ICEBERG TABLE a RENAME COLUMN a a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER ICEBERG TABLE a RENAME COLUMN a TO
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!insert	ALTER ICEBERG TABLE a RENAME COLUMN a TO a zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/RENAME_COLUMN_ID_TO_ID!swap	ALTER ICEBERG TABLE a REPLACE COLUMN a TO a
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-1	ALTER ICEBERG TABLE a, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-2	ALTER ICEBERG TABLE a ALTER a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-3	ALTER ICEBERG TABLE a ALTER, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-4	ALTER ICEBERG TABLE a ALTER, a NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-5	ALTER ICEBERG TABLE a ALTER, a NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-6	ALTER ICEBERG TABLE a ALTER, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-7	ALTER ICEBERG TABLE a ALTER, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-8	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-9	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-10	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-11	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-12	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-13	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-14	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-15	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-16	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-17	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-18	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-19	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-20	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-21	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-22	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-23	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-24	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-25	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-26	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!drop-27	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/(ALTER|MODIFY)_(()?_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_~1b142f5a!swap	ALTER ICEBERG TABLE a ALWAYS, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~8f4c9afe)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER ICEBERG TABLE a DROP a
 reject	accept	docs	alterIcebergTable_tableColumnAction(COLUMN)?/%empty	ALTER ICEBERG TABLE a DROP a
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLUMN)?/%empty!insert	ALTER ICEBERG TABLE a DROP zzz a
 reject	accept	docs	alterIcebergTable_tableColumnAction(COLUMN)?/COLUMN	ALTER ICEBERG TABLE a DROP COLUMN a
@@ -14539,54 +14534,58 @@ reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/CO
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!drop-2	ALTER ICEBERG TABLE a ADD a INT COLLATE
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!insert	ALTER ICEBERG TABLE a ADD a INT COLLATE 's' zzz
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!swap	ALTER ICEBERG TABLE a ADD a INT COLUMN 's'
-reject	accept	docs	alterIcebergTable_tableColumnAction(()?/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(()?/%empty!insert	ALTER ICEBERG TABLE a MODIFY zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(()?/(	ALTER ICEBERG TABLE a MODIFY(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(()?/(!truncate	ALTER ICEBERG TABLE a MODIFY
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(()?/(!insert	ALTER ICEBERG TABLE a MODIFY(zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER ICEBERG TABLE a MODIFY, a NOT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER ICEBERG TABLE a MODIFY, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER ICEBERG TABLE a MODIFY, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER ICEBERG TABLE a MODIFY, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER ICEBERG TABLE a MODIFY, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER ICEBERG TABLE a MODIFY, a DROP NOT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER ICEBERG TABLE a MODIFY, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER ICEBERG TABLE a MODIFY, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/%empty!insert	ALTER ICEBERG TABLE a MODIFY, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/SET	ALTER ICEBERG TABLE a MODIFY, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!truncate	ALTER ICEBERG TABLE a MODIFY, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!insert	ALTER ICEBERG TABLE a MODIFY, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!swap	ALTER ICEBERG TABLE a MODIFY, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a SET
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT,
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a zzz
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!drop-1	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT zzz
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!swap	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT_DBT_VERSION
-reject	accept	docs	alterIcebergTable_tableColumnAction())?/%empty	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction())?/)	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction())?/)!insert	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT) zzz
+reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER ICEBERG TABLE a ALTER zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER ICEBERG TABLE a MODIFY zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER ICEBERG TABLE a MONITOR, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(()?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(()?/(	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(()?/(!truncate	ALTER ICEBERG TABLE a ALTER
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(()?/(!insert	ALTER ICEBERG TABLE a ALTER(zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER ICEBERG TABLE a ALTER, a NOT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER ICEBERG TABLE a ALTER, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER ICEBERG TABLE a ALTER, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER ICEBERG TABLE a ALTER, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER ICEBERG TABLE a ALTER, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER ICEBERG TABLE a ALTER, a DROP NOT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER ICEBERG TABLE a ALTER, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER ICEBERG TABLE a ALTER, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/SET	ALTER ICEBERG TABLE a ALTER, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!truncate	ALTER ICEBERG TABLE a ALTER, a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!insert	ALTER ICEBERG TABLE a ALTER, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!swap	ALTER ICEBERG TABLE a ALTER, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT,
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a zzz
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT zzz
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT_DBT_VERSION
+reject	accept	docs	alterIcebergTable_tableColumnAction())?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction())?/)	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
+reject	undocumented	docs	alterIcebergTable_tableColumnAction())?/)!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT) zzz
 reject	accept	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a DROP a
 reject	accept	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS	ALTER ICEBERG TABLE a DROP IF EXISTS a
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ICEBERG TABLE a DROP EXISTS a
@@ -23566,9 +23565,8 @@ reject	undocumented	docs	alterTable(IF_EXISTS)?/IF_EXISTS!insert	ALTER TABLE IF 
 reject	undocumented	docs	alterTable(IF_EXISTS)?/IF_EXISTS!swap	ALTER TABLE IGNORE EXISTS a RECLUSTER
 accept	accept	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_clusteringAction	ALTER TABLE a RECLUSTER
 reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_clusteringAction!swap	ALTER TABLE a RECORD_DELIMITER
-reject	accept	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_tableColumnAction	ALTER TABLE a ALTER
-reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_tableColumnAction!insert	ALTER TABLE a ALTER zzz
-reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_tableColumnAction!swap	ALTER TABLE a ALWAYS
+accept	accept	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_tableColumnAction	ALTER TABLE a DROP a
+reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_tableColumnAction!swap	ALTER TABLE a DROP_FROM_SOURCE_CATALOG a
 reject	accept	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_constraintAction	ALTER TABLE a ADD UNIQUE
 reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_constraintAction!drop-1	ALTER TABLE a UNIQUE
 reject	undocumented	docs	alterTable(alterTable_clusteringAction|alterTab~fe4d8965)/alterTable_constraintAction!drop-2	ALTER TABLE a ADD
@@ -23782,52 +23780,24 @@ reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/SUSPEND!ins
 accept	accept	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME	ALTER TABLE a RESUME RECLUSTER
 reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME!insert	ALTER TABLE a RESUME zzz RECLUSTER
 reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME!swap	ALTER TABLE a RETAIN RECLUSTER
-reject	accept	docs	alterTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)	ALTER TABLE a ALTER
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f	ALTER TABLE a ADD a INT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-1	ALTER TABLE a a INT
-accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-2	ALTER TABLE a ADD INT
-accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-3	ALTER TABLE a ADD a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!insert	ALTER TABLE a ADD a INT zzz
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!swap	ALTER TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID	ALTER TABLE a RENAME COLUMN a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER TABLE a COLUMN a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER TABLE a RENAME a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER TABLE a RENAME COLUMN TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER TABLE a RENAME COLUMN a a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER TABLE a RENAME COLUMN a TO
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/RENAME_COLUMN_ID_TO_ID!swap	ALTER TABLE a REPLACE COLUMN a TO a
-reject	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/ALTER	ALTER TABLE a ALTER
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-2	ALTER TABLE a MODIFY DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-3	ALTER TABLE a MODIFY a DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-4	ALTER TABLE a MODIFY a DROP, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-5	ALTER TABLE a MODIFY a DROP DEFAULT a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-6	ALTER TABLE a MODIFY a DROP DEFAULT, SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-7	ALTER TABLE a MODIFY a DROP DEFAULT, a DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-8	ALTER TABLE a MODIFY a DROP DEFAULT, a SET a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-9	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-10	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-11	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a., a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-12	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-13	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-14	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-15	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-16	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-17	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-18	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-19	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-20	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-21	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-22	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-23	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-24	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-25	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!drop-26	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT zzz
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/MODIFY_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SE~f17ffd2b!swap	ALTER TABLE a MONITOR a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER TABLE a DROP a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~a6366009)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*!swap	ALTER TABLE a DROP_FROM_SOURCE_CATALOG a
+accept	accept	docs	alterTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)	ALTER TABLE a DROP a
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f	ALTER TABLE a ADD a INT
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-1	ALTER TABLE a a INT
+accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-2	ALTER TABLE a ADD INT
+accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-3	ALTER TABLE a ADD a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!insert	ALTER TABLE a ADD a INT zzz
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!swap	ALTER TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID	ALTER TABLE a RENAME COLUMN a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER TABLE a COLUMN a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER TABLE a RENAME a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER TABLE a RENAME COLUMN TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER TABLE a RENAME COLUMN a a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER TABLE a RENAME COLUMN a TO
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/RENAME_COLUMN_ID_TO_ID!swap	ALTER TABLE a REPLACE COLUMN a TO a
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/(ALTER|MODIFY)_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN~5340b75d	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/(ALTER|MODIFY)_(()?_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN~5340b75d!swap	ALTER TABLE a ALWAYS a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~95ab7691)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER TABLE a DROP a
 accept	accept	docs	alterTable_tableColumnAction(COLUMN)?/%empty	ALTER TABLE a DROP a
 reject	undocumented	docs	alterTable_tableColumnAction(COLUMN)?/%empty!insert	ALTER TABLE a DROP zzz a
 accept	accept	docs	alterTable_tableColumnAction(COLUMN)?/COLUMN	ALTER TABLE a DROP COLUMN a
@@ -23910,54 +23880,58 @@ reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_S
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!drop-2	ALTER TABLE a ADD a INT COLLATE
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!insert	ALTER TABLE a ADD a INT COLLATE 's' zzz
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!swap	ALTER TABLE a ADD a INT COLUMN 's'
-accept	accept	docs	alterTable_tableColumnAction(()?/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(()?/%empty!insert	ALTER TABLE a MODIFY zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction(()?/(	ALTER TABLE a MODIFY(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(()?/(!truncate	ALTER TABLE a MODIFY
-reject	undocumented	docs	alterTable_tableColumnAction(()?/(!insert	ALTER TABLE a MODIFY(zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET)?/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/%empty!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET)?/SET	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!truncate	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT,
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a zzz
-accept	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!drop-1	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT zzz
-reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!swap	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENTS
-accept	accept	docs	alterTable_tableColumnAction())?/%empty	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction())?/)	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction())?/)!insert	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT) zzz
+accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER TABLE a MODIFY zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER TABLE a MONITOR a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(()?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	accept	docs	alterTable_tableColumnAction(()?/(	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(()?/(!truncate	ALTER TABLE a ALTER
+reject	undocumented	docs	alterTable_tableColumnAction(()?/(!insert	ALTER TABLE a ALTER(zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET)?/SET	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT,
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a zzz
+accept	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT zzz
+reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENTS
+accept	accept	docs	alterTable_tableColumnAction())?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+reject	accept	docs	alterTable_tableColumnAction())?/)	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
+reject	undocumented	docs	alterTable_tableColumnAction())?/)!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT) zzz
 accept	accept	docs	alterTable_tableColumnAction(IF_EXISTS)?/%empty	ALTER TABLE a DROP a
 accept	accept	docs	alterTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS	ALTER TABLE a DROP IF EXISTS a
 reject	undocumented	docs	alterTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER TABLE a DROP EXISTS a
@@ -24689,59 +24663,27 @@ reject	undocumented	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID
 reject	undocumented	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID|EXPR)_(,_(ID|EXPR))*!insert	ALTER TABLE a DROP SEARCH OPTIMIZATION ON a, a zzz
 accept	accept	docs	alterTableColumn/ALTER_TABLE_ID_(ALTER|MODIFY)_(()?_(COLUMN)?_ID_DROP_DE~564fdfee	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(ALTER|MODIFY)/ALTER!swap	ALTER TABLE a ALWAYS a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(()?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	accept	docs	alterTableColumn(()?/(	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(()?/(!insert	ALTER TABLE a ALTER(zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(COLUMN)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(COLUMN)?/COLUMN	ALTER TABLE a ALTER COLUMN a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!insert	ALTER TABLE a ALTER COLUMN zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!swap	ALTER TABLE a ALTER COLUMNS a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET)?/SET	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET)?/SET!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a
-reject	undocumented	docs	alterTableColumn(SET)?/SET!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET)?/SET!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn((SET_DATA)?_TYPE)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a
-reject	undocumented	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET_DATA)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/SET_DATA!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/SET_DATA!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/SET_DATA!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/SET_DATA!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(SET_DATA)?/SET_DATA!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
 accept	accept	docs	alterTableColumn(,_COLUMN?_ID)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	accept	docs	alterTableColumn(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a
-reject	undocumented	docs	alterTableColumn(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a
-reject	undocumented	docs	alterTableColumn(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT,
-reject	undocumented	docs	alterTableColumn(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a zzz
 accept	accept	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	accept	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT
-reject	undocumented	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT COMMENT
-reject	undocumented	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT zzz
-reject	accept	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENTS
 accept	accept	docs	alterTableColumn())?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
 reject	accept	docs	alterTableColumn())?/)	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTableColumn())?/)!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT) zzz
 accept	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER TABLE a RENAME TO a
 accept	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_alterTableEventTable_cluste~9372cd43	ALTER TABLE a SUSPEND RECLUSTER
 reject	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_alterTableEventTable_dataGo~94d5fbed	ALTER TABLE a UNSET TAG a
@@ -29057,95 +28999,95 @@ reject	undocumented	docs	createAiFunction(COMMENT_=_STRING)?/COMMENT_=_STRING!dr
 reject	undocumented	docs	createAiFunction(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE AI FUNCTION a() RETURNS INT COMMENT =
 reject	undocumented	docs	createAiFunction(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE AI FUNCTION a() RETURNS INT COMMENT = 's' zzz AS 's'
 reject	undocumented	docs	createAiFunction(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE AI FUNCTION a() RETURNS INT COMMENTS = 's' AS 's'
-accept	accept	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_(IF_NOT_EXISTS)?_ID_(WITH?_T~590495c0	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(OR_REPLACE)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(OR_REPLACE)?/%empty!insert	CREATE zzz ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz ALERT a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(IF_NOT_EXISTS)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/%empty!insert	CREATE ALERT zzz a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ALERT IF NOT EXISTS a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ALERT NOT EXISTS a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ALERT IF EXISTS a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ALERT IF NOT a IF(EXISTS(1)) THEN a
+accept	accept	docs	createAlert/CREATE_(OR_REPLACE)?_ALERT_(IF_NOT_EXISTS)?_ID_(WITH?_T~733d896c	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(OR_REPLACE)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(OR_REPLACE)?/%empty!insert	CREATE zzz ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(IF_NOT_EXISTS)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/%empty!insert	CREATE ALERT zzz a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ALERT IF NOT EXISTS a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ALERT NOT EXISTS a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ALERT IF EXISTS a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ALERT IF NOT a IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE ALERT IF NOT
-accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ALERT IF NOT EXISTS zzz a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ALERT IGNORE NOT EXISTS a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty!insert	CREATE ALERT a zzz IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE ALERT a TAG(a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE ALERT a(a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE ALERT a TAG a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE ALERT a TAG(= 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE ALERT a TAG(a 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE ALERT a TAG(a =) IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE ALERT a TAG(a = 's' IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ALERT IF NOT EXISTS zzz a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ALERT IGNORE NOT EXISTS a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty!insert	CREATE ALERT a zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE ALERT a TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE ALERT a(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE ALERT a TAG a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE ALERT a TAG(= 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE ALERT a TAG(a 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE ALERT a TAG(a =) IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE ALERT a TAG(a = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE ALERT a TAG(a = 's'
-accept	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE ALERT a TAG(a = 's') zzz IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE ALERT a TAGS(a = 's') IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WITH)?/%empty	CREATE ALERT a TAG(a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH)?/%empty!insert	CREATE ALERT a zzz TAG(a = 's') IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WITH)?/WITH	CREATE ALERT a WITH TAG(a = 's') IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE ALERT a TAG(a = 's') zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE ALERT a TAGS(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WITH)?/%empty	CREATE ALERT a TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH)?/%empty!insert	CREATE ALERT a zzz TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WITH)?/WITH	CREATE ALERT a WITH TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(WITH)?/WITH!truncate	CREATE ALERT a
-reject	undocumented	docs	createAlert(WITH)?/WITH!insert	CREATE ALERT a WITH zzz TAG(a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WITH)?/WITH!swap	CREATE ALERT a WITHIN TAG(a = 's') IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(,_ID_=_STRING)*/%empty	CREATE ALERT a TAG(a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/%empty!insert	CREATE ALERT a TAG(a = 's' zzz) IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE ALERT a TAG(a = 's', a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE ALERT a TAG(a = 's' a = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE ALERT a TAG(a = 's', = 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE ALERT a TAG(a = 's', a 's') IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE ALERT a TAG(a = 's', a =) IF(EXISTS(1)) THEN a
+reject	undocumented	docs	createAlert(WITH)?/WITH!insert	CREATE ALERT a WITH zzz TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WITH)?/WITH!swap	CREATE ALERT a WITHIN TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(,_ID_=_STRING)*/%empty	CREATE ALERT a TAG(a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/%empty!insert	CREATE ALERT a TAG(a = 's' zzz) IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE ALERT a TAG(a = 's', a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE ALERT a TAG(a = 's' a = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE ALERT a TAG(a = 's', = 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE ALERT a TAG(a = 's', a 's') IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE ALERT a TAG(a = 's', a =) IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE ALERT a TAG(a = 's', a =
-reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE ALERT a TAG(a = 's', a = 's' zzz) IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(SCHEDULE_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE ALERT a SCHEDULE = 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	CREATE ALERT a = 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE ALERT a SCHEDULE 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE ALERT a SCHEDULE = IF(EXISTS(1)) THEN a
+reject	undocumented	docs	createAlert(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE ALERT a TAG(a = 's', a = 's' zzz) IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(SCHEDULE_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE ALERT a SCHEDULE = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	CREATE ALERT a = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE ALERT a SCHEDULE 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE ALERT a SCHEDULE = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!truncate	CREATE ALERT a SCHEDULE =
-accept	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE ALERT a SCHEDULE = 's' zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE ALERT a SCHEDULER = 's' IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WAREHOUSE_=_ID)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID	CREATE ALERT a WAREHOUSE = a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-1	CREATE ALERT a = a IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-2	CREATE ALERT a WAREHOUSE a IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-3	CREATE ALERT a WAREHOUSE = IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE ALERT a SCHEDULE = 's' zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE ALERT a SCHEDULER = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WAREHOUSE_=_ID)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID	CREATE ALERT a WAREHOUSE = a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-1	CREATE ALERT a = a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-2	CREATE ALERT a WAREHOUSE a IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-3	CREATE ALERT a WAREHOUSE = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!truncate	CREATE ALERT a WAREHOUSE =
-accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!insert	CREATE ALERT a WAREHOUSE = a zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	CREATE ALERT a WAREHOUSES = a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(COMMENT_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE ALERT a COMMENT = 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE ALERT a COMMENT 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ALERT a COMMENT = IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!insert	CREATE ALERT a WAREHOUSE = a zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	CREATE ALERT a WAREHOUSES = a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(COMMENT_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE ALERT a COMMENT = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE ALERT a COMMENT 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ALERT a COMMENT = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE ALERT a COMMENT =
-accept	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE ALERT a COMMENT = 's' zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE ALERT a COMMENTS = 's' IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(CONFIG_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING	CREATE ALERT a CONFIG = 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-2	CREATE ALERT a CONFIG 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-3	CREATE ALERT a CONFIG = IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE ALERT a COMMENT = 's' zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE ALERT a COMMENTS = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(CONFIG_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING	CREATE ALERT a CONFIG = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-2	CREATE ALERT a CONFIG 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-3	CREATE ALERT a CONFIG = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!truncate	CREATE ALERT a CONFIG =
-accept	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!insert	CREATE ALERT a CONFIG = 's' zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!swap	CREATE ALERT a CONFIGURATION = 's' IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(RUNBOOK_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING	CREATE ALERT a RUNBOOK = 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!drop-2	CREATE ALERT a RUNBOOK 's' IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!drop-3	CREATE ALERT a RUNBOOK = IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!insert	CREATE ALERT a CONFIG = 's' zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(CONFIG_=_STRING)?/CONFIG_=_STRING!swap	CREATE ALERT a CONFIGURATION = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(RUNBOOK_=_STRING)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING	CREATE ALERT a RUNBOOK = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!drop-2	CREATE ALERT a RUNBOOK 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!drop-3	CREATE ALERT a RUNBOOK = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!truncate	CREATE ALERT a RUNBOOK =
-accept	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!insert	CREATE ALERT a RUNBOOK = 's' zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!swap	CREATE ALERT a RUNS = 's' IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/%empty	CREATE ALERT a IF(EXISTS(1)) THEN a
-accept	accept	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = 1 IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-1	CREATE ALERT a = 1 IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-2	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES 1 IF(EXISTS(1)) THEN a
-reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-3	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!insert	CREATE ALERT a RUNBOOK = 's' zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(RUNBOOK_=_STRING)?/RUNBOOK_=_STRING!swap	CREATE ALERT a RUNS = 's' IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/%empty	CREATE ALERT a IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	accept	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = 1 IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-1	CREATE ALERT a = 1 IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-2	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES 1 IF(EXISTS(SELECT 1)) THEN SELECT 1
+reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!drop-3	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = IF(EXISTS(SELECT 1)) THEN SELECT 1
 reject	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!truncate	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES =
-accept	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!insert	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = 1 zzz IF(EXISTS(1)) THEN a
-accept	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!swap	CREATE ALERT a SUSPEND_IMMEDIATE = 1 IF(EXISTS(1)) THEN a
+accept	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!insert	CREATE ALERT a SUSPEND_ALERT_AFTER_NUM_FAILURES = 1 zzz IF(EXISTS(SELECT 1)) THEN SELECT 1
+accept	undocumented	docs	createAlert(SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_ALERT_AFTER_NUM_FAILURES_=_NUMBER!swap	CREATE ALERT a SUSPEND_IMMEDIATE = 1 IF(EXISTS(SELECT 1)) THEN SELECT 1
 accept	accept	docs	createApiIntegration/CREATE_(OR_REPLACE)?_API_INTEGRATION_(IF_NOT_EXISTS)?_I~7db68270	CREATE API INTEGRATION a API_PROVIDER = aws_api_gateway API_AWS_ROLE_ARN = 's' API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
 reject	undocumented	docs	createApiIntegration/CREATE_(OR_REPLACE)?_API_INTEGRATION_(IF_NOT_EXISTS)?_I~7db68270!drop-1	API INTEGRATION a API_PROVIDER = aws_api_gateway API_AWS_ROLE_ARN = 's' API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
 reject	undocumented	docs	createApiIntegration/CREATE_(OR_REPLACE)?_API_INTEGRATION_(IF_NOT_EXISTS)?_I~7db68270!drop-2	CREATE INTEGRATION a API_PROVIDER = aws_api_gateway API_AWS_ROLE_ARN = 's' API_ALLOWED_PREFIXES =('s') ENABLED = TRUE
@@ -31681,147 +31623,153 @@ reject	undocumented	docs	createDatabase(OAUTH_SCOPES_SUPPORTED_=_STRING)?/OAUTH_
 reject	undocumented	docs	createDatabase(OAUTH_SCOPES_SUPPORTED_=_STRING)?/OAUTH_SCOPES_SUPPORTED_=_STRING!drop-3	CREATE DATABASE a OAUTH_SCOPES_SUPPORTED =
 reject	undocumented	docs	createDatabase(OAUTH_SCOPES_SUPPORTED_=_STRING)?/OAUTH_SCOPES_SUPPORTED_=_STRING!insert	CREATE DATABASE a OAUTH_SCOPES_SUPPORTED = 's' zzz
 reject	undocumented	docs	createDatabase(OAUTH_SCOPES_SUPPORTED_=_STRING)?/OAUTH_SCOPES_SUPPORTED_=_STRING!swap	CREATE DATABASE a OAUTH_SINGLE_USE_REFRESH_TOKENS_REQUIRED = 's'
-reject	accept	docs	createDatabaseCatalogLinked/CREATE_DATABASE_ID_LINKED_CATALOG_=_(_createDatabaseCat~ff9a6325	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), EXTERNAL_VOLUME = 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), = 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), EXTERNAL_VOLUME 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), EXTERNAL_VOLUME =
-reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), EXTERNAL_VOLUME = 's' zzz
-reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), EXTERNAL_VOLUME_CREDENTIALS = 's'
-reject	accept	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), COMMENT = 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), COMMENT 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), COMMENT =
-reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), COMMENT = 's' zzz
-reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), COMMENTS = 's'
-reject	accept	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(= 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a =)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's'
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's') zzz
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAGS(a = 's')
-reject	accept	docs	createDatabaseCatalogLinked(WITH)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), zzz TAG(a = 's')
-reject	accept	docs	createDatabaseCatalogLinked(WITH)?/WITH	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH TAG(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/WITH!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH zzz TAG(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/WITH!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITHIN TAG(a = 's')
-reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's' zzz)
-reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's' a = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', = 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', a 's')
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', a =)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', a =
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE
-reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), = CASE_SENSITIVE
-reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY CASE_SENSITIVE
-reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY =
-reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE zzz
-reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_NAME = CASE_SENSITIVE
-reject	accept	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_SENSITIVE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE
-reject	undocumented	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_SENSITIVE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CATALOG
-reject	accept	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_INSENSITIVE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CASE_INSENSITIVE
-reject	undocumented	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_INSENSITIVE!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CATALOG_CASE_SENSITIVITY = CASE_INSENSITIVE zzz
-reject	accept	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), CONTACT(a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH(a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(= a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a a)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a =)
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a) zzz
-reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITHIN CONTACT(a = a)
-reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a zzz)
-reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a a = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, = a)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, a a)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, a =)
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, a =
-reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',), WITH CONTACT(a = a, a = a zzz)
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_,_(ALLOWED_NAMESPACES_=_(_STRING_(,_ST~f539a2b5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_,_(ALLOWED_NAMESPACES_=_(_STRING_(,_ST~f539a2b5!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's'
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_,_(ALLOWED_NAMESPACES_=_(_STRING_(,_ST~f539a2b5!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_,_(ALLOWED_NAMESPACES_=_(_STRING_(,_ST~f539a2b5!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG_API_TYPE = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', =('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES = 's')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =()),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s'),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s'
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s') zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NETWORK_RULES =('s')),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s' zzz)),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s', 's')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s' 's')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s',)),
+reject	accept	docs	createDatabaseCatalogLinked/CREATE_DATABASE_ID_LINKED_CATALOG_=_(_createDatabaseCat~85668394	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME = 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') = 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME =
+reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME = 's' zzz
+reject	undocumented	docs	createDatabaseCatalogLinked(EXTERNAL_VOLUME_=_STRING)?/EXTERNAL_VOLUME_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') EXTERNAL_VOLUME_CREDENTIALS = 's'
+reject	accept	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') COMMENT = 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') COMMENT 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') COMMENT =
+reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') COMMENT = 's' zzz
+reject	undocumented	docs	createDatabaseCatalogLinked(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') COMMENTS = 's'
+reject	accept	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(= 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a =)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's'
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's') zzz
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAGS(a = 's')
+reject	accept	docs	createDatabaseCatalogLinked(WITH)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') zzz TAG(a = 's')
+reject	accept	docs	createDatabaseCatalogLinked(WITH)?/WITH	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH TAG(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/WITH!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH zzz TAG(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH)?/WITH!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITHIN TAG(a = 's')
+reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's' zzz)
+reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's' a = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', a 's')
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', a =)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', a =
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') TAG(a = 's', a = 's' zzz)
+reject	accept	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE
+reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') = CASE_SENSITIVE
+reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY CASE_SENSITIVE
+reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY =
+reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE zzz
+reject	undocumented	docs	createDatabaseCatalogLinked(CATALOG_CASE_SENSITIVITY_=_(CASE_SEN~7cf5a7de)?/CATALOG_CASE_SENSITIVITY_=_(CASE_SENSITIVE|CASE_INSENSITIVE)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_NAME = CASE_SENSITIVE
+reject	accept	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_SENSITIVE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE
+reject	undocumented	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_SENSITIVE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CATALOG
+reject	accept	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_INSENSITIVE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CASE_INSENSITIVE
+reject	undocumented	docs	createDatabaseCatalogLinked(CASE_SENSITIVE|CASE_INSENSITIVE)/CASE_INSENSITIVE!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CATALOG_CASE_SENSITIVITY = CASE_INSENSITIVE zzz
+reject	accept	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') CONTACT(a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH(a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(= a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a a)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a =)
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a) zzz
+reject	undocumented	docs	createDatabaseCatalogLinked(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITHIN CONTACT(a = a)
+reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a zzz)
+reject	accept	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a a = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, = a)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, a a)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, a =)
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, a =
+reject	undocumented	docs	createDatabaseCatalogLinked(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's') WITH CONTACT(a = a, a = a zzz)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_(,_ALLOWED_NAMESPACES_=_(_STRING_(,_ST~1415c0de	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_(,_ALLOWED_NAMESPACES_=_(_STRING_(,_ST~1415c0de!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG =
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_(,_ALLOWED_NAMESPACES_=_(_STRING_(,_ST~1415c0de!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams/CATALOG_=_STRING_(,_ALLOWED_NAMESPACES_=_(_STRING_(,_ST~1415c0de!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG_API_TYPE = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' ALLOWED_NAMESPACES =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES = 's'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =())
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s'
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s') zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_ALLOWED_NAMESPACES_=_(_STRING_(,_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NETWORK_RULES =('s'))
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/%empty!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s' zzz))
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s', 's'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s' 's'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s',))
 reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s',
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s', 's' zzz)),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES('s')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES = 's')),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =()),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s'),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s'
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s') zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NETWORK_RULE_LIST =('s')),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = NONE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS NONE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS =),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS =
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWLIST = NONE),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/NONE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/NONE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NOORDER),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALL),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALL zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALLOWED),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = IGNORE_NESTED_NAMESPACE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE IGNORE_NESTED_NAMESPACE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE =),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE =
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_MODE_=_(IGNORE_NESTED_NAME~f2529a80)?/NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NEST = IGNORE_NESTED_NAMESPACE),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/IGNORE_NESTED_NAMESPACE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/IGNORE_NESTED_NAMESPACE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_UTF8_ERRORS),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FLATTEN_NESTED_NAMESPACE),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FLATTEN_NESTED_NAMESPACE zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FOR),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER = 's'),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = 's'),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER 's'),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER =),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER =
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER = 's' zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/NAMESPACE_FLATTEN_DELIMITER_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = 's'),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's',),
-reject	accept	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS = a),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = a),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS a),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS =),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS =
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS = a zzz),
-reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(SYNC_INTERVAL_SECONDS_=_ID)?/SYNC_INTERVAL_SECONDS_=_ID!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_PASSWORD = a),
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_NAMESPACES =('s', 's' zzz))
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' BLOCKED_NAMESPACES =('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES('s'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES = 's'))
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-5	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =())
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!drop-6	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s'
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NAMESPACES =('s') zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_))?/,_BLOCKED_NAMESPACES_=_(_STRING_(,_STRING)*_)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', BLOCKED_NETWORK_RULE_LIST =('s'))
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' ALLOWED_WRITE_OPERATIONS = NONE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = NONE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS NONE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS =)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS =
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL))?/,_ALLOWED_WRITE_OPERATIONS_=_(NONE|ALL)!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWLIST = NONE)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/NONE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NONE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/NONE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = NOORDER)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALL)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALL zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(NONE|ALL)/ALL!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', ALLOWED_WRITE_OPERATIONS = ALLOWED)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = IGNORE_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE IGNORE_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE =)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE =
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_MODE_=_(IGNORE_NESTED_NA~f6cef366)?/,_NAMESPACE_MODE_=_(IGNORE_NESTED_NAMESPACE|FLATTEN_NES~2ea05eb0!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NEST = IGNORE_NESTED_NAMESPACE)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/IGNORE_NESTED_NAMESPACE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/IGNORE_NESTED_NAMESPACE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = IGNORE_UTF8_ERRORS)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FLATTEN_NESTED_NAMESPACE)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FLATTEN_NESTED_NAMESPACE zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(IGNORE_NESTED_NAMESPACE|FLATTEN_NEST~4669fb23)/FLATTEN_NESTED_NAMESPACE!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = FOR)
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' NAMESPACE_FLATTEN_DELIMITER = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = 's')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER 's')
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER =)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER =
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_FLATTEN_DELIMITER = 's' zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_NAMESPACE_FLATTEN_DELIMITER_=_STRING)?/,_NAMESPACE_FLATTEN_DELIMITER_=_STRING!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', NAMESPACE_MODE = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/%empty	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's')
+reject	accept	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS = a)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!drop-1	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's' SYNC_INTERVAL_SECONDS = a)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!drop-2	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', = a)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!drop-3	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS a)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!drop-4	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS =)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!truncate	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS =
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!insert	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_INTERVAL_SECONDS = a zzz)
+reject	undocumented	docs	createDatabaseCatalogLinked_catalogParams(,_SYNC_INTERVAL_SECONDS_=_ID)?/,_SYNC_INTERVAL_SECONDS_=_ID!swap	CREATE DATABASE a LINKED_CATALOG =(CATALOG = 's', SYNC_PASSWORD = a)
 accept	accept	docs	createDatabaseRole/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_~f35ae9c9	CREATE DATABASE ROLE a
 accept	accept	docs	createDatabaseRole(OR_REPLACE)?/%empty	CREATE DATABASE ROLE a
 reject	undocumented	docs	createDatabaseRole(OR_REPLACE)?/%empty!insert	CREATE zzz DATABASE ROLE a
