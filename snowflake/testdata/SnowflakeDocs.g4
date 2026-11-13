@@ -1071,6 +1071,7 @@ alterContact
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-cortex-search
+// fix: the parameters say the scoring profile is a JSON string
 alterCortexSearch
     : 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID ('SUSPEND' | 'RESUME') (('INDEXING' | 'SERVING'))?
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'REFRESH'
@@ -1078,7 +1079,7 @@ alterCortexSearch
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'UNSET' 'PRIMARY' 'KEY'
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'SET' 'ATTRIBUTES' '(' ID (',' ID)* ')'
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'UNSET' 'ATTRIBUTES'
-    | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ID 'ADD' 'SCORING' 'PROFILE' ('IF' 'NOT' 'EXISTS')? ID ID
+    | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ID 'ADD' 'SCORING' 'PROFILE' ('IF' 'NOT' 'EXISTS')? ID STRING
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ID 'DROP' 'SCORING' 'PROFILE' ('IF' 'EXISTS')? ID
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'EXISTS')? ID 'UNSET' 'TAG' ID (',' ID)*
@@ -2654,6 +2655,7 @@ copyIntoLocation_copyOptions
 
 // https://docs.snowflake.com/en/sql-reference/sql/copy-into-table
 // fix: VALIDATION_MODE: RETURN_<n>_ROWS holds its number inside the keyword; written for n = 10
+// fix: the parameters list the valid METADATA$ columns
 copyIntoTable
     : 'COPY' 'INTO' (ID '.')? ID 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage | copyIntoTable_externalLocation) ('FILES' '=' '(' STRING (',' STRING)? (',' STRING (',' STRING)?)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_10_ROWS' | 'VALIDATION_MODE' '=' 'RETURN_ERRORS' | 'VALIDATION_MODE' '=' 'RETURN_ALL_ERRORS')?
     | 'COPY' 'INTO' (ID '.')? ID ('(' ID (',' ID)* ')')? 'FROM' '(' 'SELECT' (ID '.')? POSITION ('.' ID)? (',' (ID '.')? POSITION ('.' ID)?)* 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage) ')' ('FILES' '=' '(' STRING (',' STRING)? (',' STRING (',' STRING)?)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions?
@@ -2673,7 +2675,7 @@ copyIntoTable_formatTypeOptions
     : ('COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BZ2' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'RECORD_DELIMITER' '=' (STRING | 'NONE') | 'FIELD_DELIMITER' '=' (STRING | 'NONE') | 'MULTI_LINE' '=' ('TRUE' | 'FALSE') | 'PARSE_HEADER' '=' ('TRUE' | 'FALSE') | 'SKIP_HEADER' '=' NUMBER | 'SKIP_BLANK_LINES' '=' ('TRUE' | 'FALSE') | 'DATE_FORMAT' '=' (STRING | 'AUTO') | 'TIME_FORMAT' '=' (STRING | 'AUTO') | 'TIMESTAMP_FORMAT' '=' (STRING | 'AUTO') | 'BINARY_FORMAT' '=' ('HEX' | 'BASE64' | 'UTF8') | 'ESCAPE' '=' (STRING | 'NONE') | 'ESCAPE_UNENCLOSED_FIELD' '=' (STRING | 'NONE') | 'TRIM_SPACE' '=' ('TRUE' | 'FALSE') | 'FIELD_OPTIONALLY_ENCLOSED_BY' '=' (STRING | 'NONE') | 'NULL_IF' '=' '(' (STRING (',' STRING)*)? ')' | 'ERROR_ON_COLUMN_COUNT_MISMATCH' '=' ('TRUE' | 'FALSE') | 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE') | 'EMPTY_FIELD_AS_NULL' '=' ('TRUE' | 'FALSE') | 'SKIP_BYTE_ORDER_MARK' '=' ('TRUE' | 'FALSE') | 'ENCODING' '=' (STRING | 'UTF8') | 'ENABLE_OCTAL' '=' ('TRUE' | 'FALSE') | 'ALLOW_DUPLICATE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE') | 'STRIP_NULL_VALUES' '=' ('TRUE' | 'FALSE') | 'IGNORE_UTF8_ERRORS' '=' ('TRUE' | 'FALSE') | 'COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'COMPRESSION' '=' ('AUTO' | 'SNAPPY' | 'NONE') | 'BINARY_AS_TEXT' '=' ('TRUE' | 'FALSE') | 'USE_LOGICAL_TYPE' '=' ('TRUE' | 'FALSE') | 'USE_VECTORIZED_SCANNER' '=' ('TRUE' | 'FALSE') | 'PRESERVE_SPACE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ELEMENT' '=' ('TRUE' | 'FALSE') | 'DISABLE_AUTO_CONVERT' '=' ('TRUE' | 'FALSE'))+
     ;
 copyIntoTable_copyOptions
-    : ('CLUSTER_AT_INGEST_TIME' '=' ('TRUE' | 'FALSE') | 'ENFORCE_LENGTH' '=' ('TRUE' | 'FALSE') | 'FORCE' '=' ('TRUE' | 'FALSE') | 'INCLUDE_METADATA' '=' '(' ID '=' 'METADATA$a' (',' ID '=' 'METADATA$' ID)* ')' | 'LOAD_MODE' '=' ('FULL_INGEST' | 'ADD_FILES_COPY') | 'LOAD_UNCERTAIN_FILES' '=' ('TRUE' | 'FALSE') | 'MATCH_BY_COLUMN_NAME' '=' ('CASE_SENSITIVE' | 'CASE_INSENSITIVE' | 'NONE') | 'ON_ERROR' '=' ('CONTINUE' | 'SKIP_FILE' | 'SKIP_FILE_1' | STRING | 'ABORT_STATEMENT') | 'PURGE' '=' ('TRUE' | 'FALSE') | 'RETURN_FAILED_ONLY' '=' ('TRUE' | 'FALSE') | 'SIZE_LIMIT' '=' NUMBER | 'TRUNCATECOLUMNS' '=' ('TRUE' | 'FALSE'))+
+    : ('CLUSTER_AT_INGEST_TIME' '=' ('TRUE' | 'FALSE') | 'ENFORCE_LENGTH' '=' ('TRUE' | 'FALSE') | 'FORCE' '=' ('TRUE' | 'FALSE') | 'INCLUDE_METADATA' '=' '(' ID '=' ('METADATA$FILENAME' | 'METADATA$FILE_ROW_NUMBER' | 'METADATA$FILE_CONTENT_KEY' | 'METADATA$FILE_LAST_MODIFIED' | 'METADATA$START_SCAN_TIME') (',' ID '=' ('METADATA$FILENAME' | 'METADATA$FILE_ROW_NUMBER' | 'METADATA$FILE_CONTENT_KEY' | 'METADATA$FILE_LAST_MODIFIED' | 'METADATA$START_SCAN_TIME'))* ')' | 'LOAD_MODE' '=' ('FULL_INGEST' | 'ADD_FILES_COPY') | 'LOAD_UNCERTAIN_FILES' '=' ('TRUE' | 'FALSE') | 'MATCH_BY_COLUMN_NAME' '=' ('CASE_SENSITIVE' | 'CASE_INSENSITIVE' | 'NONE') | 'ON_ERROR' '=' ('CONTINUE' | 'SKIP_FILE' | 'SKIP_FILE_1' | STRING | 'ABORT_STATEMENT') | 'PURGE' '=' ('TRUE' | 'FALSE') | 'RETURN_FAILED_ONLY' '=' ('TRUE' | 'FALSE') | 'SIZE_LIMIT' '=' NUMBER | 'TRUNCATECOLUMNS' '=' ('TRUE' | 'FALSE'))+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create
@@ -5831,8 +5833,9 @@ showLocks
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-maintenance-policies
+// fix: the parameters list the entity types: DATABASE, APPLICATION PACKAGE and SCHEMA
 showMaintenancePolicies
-    : 'SHOW' 'MAINTENANCE' 'POLICIES' ('ON' | 'IN') ('ACCOUNT' | 'APPLICATION' ID | ID ID)
+    : 'SHOW' 'MAINTENANCE' 'POLICIES' ('ON' | 'IN') ('ACCOUNT' | 'APPLICATION' ID | ('DATABASE' | 'APPLICATION' 'PACKAGE' | 'SCHEMA') ID)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-managed-accounts
