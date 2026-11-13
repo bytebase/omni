@@ -344,11 +344,7 @@ var weightStringLevelBodies = []struct{ id, body string }{
 // server creates it and LoadSDL loads it.
 func TestWeightStringLevelRejectedByMySQL(t *testing.T) {
 	ctx := context.Background()
-	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_weight_string_level")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { d.Close(ctx) })
+	d := testcontainer.OpenDatabase(t, "mysql_catalog_weight_string_level")
 	createView := func(body string) string { return "CREATE OR REPLACE VIEW `v` AS " + body }
 	load := func(body string) error {
 		_, err := LoadSDL("CREATE DATABASE d;\nUSE d;\n" + createView(body) + ";\n")
@@ -357,7 +353,7 @@ func TestWeightStringLevelRejectedByMySQL(t *testing.T) {
 
 	t.Run("control", func(t *testing.T) {
 		const body = "select weight_string('ab' as char(4)) AS `x`"
-		if _, err := d.DB.ExecContext(ctx, createView(body)); err != nil {
+		if _, err := d.ExecContext(ctx, createView(body)); err != nil {
 			t.Errorf("server refused the view without LEVEL: %v", err)
 		}
 		if err := load(body); err != nil {
@@ -366,7 +362,7 @@ func TestWeightStringLevelRejectedByMySQL(t *testing.T) {
 	})
 	for _, tc := range weightStringLevelBodies {
 		t.Run(tc.id, func(t *testing.T) {
-			_, err := d.DB.ExecContext(ctx, createView(tc.body))
+			_, err := d.ExecContext(ctx, createView(tc.body))
 			var myErr *gomysql.MySQLError
 			if !errors.As(err, &myErr) || myErr.Number != 1064 {
 				t.Errorf("server answered %v, want 1064 for: %s", err, tc.body)

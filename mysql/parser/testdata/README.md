@@ -67,3 +67,25 @@ What this cannot tell:
   are near-misses. Writing names as `a` would add 34 near-misses behind
   `CHARSET a`.
 - **`?` is a parameter marker,** as `PREPARE` reads it.
+
+## `tapes/`: the server tests' recordings
+
+Every other test here that asks MySQL something reaches it through
+`testcontainer.OpenDatabase` and replays `tapes/<Test>.tape`: each request the
+test sends, and the pinned server's answer. `enginetest/tape` describes the
+format and what fails a replay. After changing what a test sends, record it:
+
+```bash
+OMNI_RECORD=1 go test ./mysql/parser/ -run '^TestName$'
+```
+
+- **The keyword sweeps walk the lexer's keywords** (`TestKeywordFunctionNamesOracle`,
+  `TestSetVariableNameSweepOracle`), so a keyword added to the lexer changes what
+  they send: record those two.
+- **The operator sweep compares the server with omni's tree** (`TestOperatorSweepMatchesEngine`):
+  a parser change that groups an expression otherwise changes what it sends.
+  Its size and seed are constants beside it.
+- **A verdict is one request,** `PREPARE x FROM ?`, and a tape writes `…near`
+  for the 134 characters that open each syntax error.
+- **The account reaches only its own database,** so a corpus that runs
+  `SHUTDOWN` or `SET GLOBAL` changes nothing for the tests recorded after it.

@@ -95,6 +95,10 @@ answers its own code again (`compat.PrepareVerdict`, held to the server by
 One class counts as read even though it is raised while parsing: a name the
 server looks up, a system variable (1193), a character set (1115) or a collation
 (1273, 1253). `Parse` holds no such list, so those are not grammar it can follow.
+It is why the one row that disagrees does: TiDB stops `ALTER DATABASE COLLATE 's'
+zzz` at the unknown collation with 1273, and never reads `zzz`, which omni
+rejects as TiDB does after a collation it knows (`suite:cited`, kept as the gap
+it is).
 
 The judge binds each statement to a user variable and prepares from it, so a
 row reaches the server byte for byte: five rows are not valid UTF-8 (pingcap's
