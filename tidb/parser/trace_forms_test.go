@@ -5,7 +5,7 @@ import "testing"
 // The forms TRACE takes, and -- the point of this file -- the forms it does
 // not.
 //
-// The corpus in testdata/pingcap_parser_corpus.tsv pins what pingcap's own
+// The corpus in compat.tsv's suite:pingcap-parser rows pins what pingcap's own
 // parser test writes, and for TRACE that is fifteen accepting rows and no
 // rejection at all. A reader that took any word after TRACE and handed the
 // rest to the statement dispatcher would turn all fifteen green while
@@ -191,7 +191,7 @@ func TestTraceForms(t *testing.T) {
 			_, err := Parse(c.sql)
 			if accepts := err == nil; accepts != c.accept {
 				t.Errorf("omni %ss %q, TiDB %s %ss it (err=%v)",
-					verdictName(accepts), c.sql, tidbCorpusVersion, verdictName(c.accept), err)
+					verdictName(accepts), c.sql, tidbRelease, verdictName(c.accept), err)
 			}
 		})
 	}

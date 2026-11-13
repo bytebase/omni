@@ -253,6 +253,15 @@ func TestEmptyTokensAreWrittenAsNothing(t *testing.T) {
 	}
 }
 
+// TestRulesRunToTheEndWithoutASecondMarker pins bison's optional epilogue:
+// MySQL's sql_yacc.yy has no second %%, and its rules run to the end.
+func TestRulesRunToTheEndWithoutASecondMarker(t *testing.T) {
+	got, _ := rows(t, "%token SELECT_SYM\n%%\nS:\n\tSELECT_SYM '1'\n", map[string]string{"SELECT_SYM": "SELECT"})
+	if len(got) == 0 || got[0].Statement != "SELECT 1" {
+		t.Errorf("got %v, want SELECT 1 first", got)
+	}
+}
+
 func TestATerminalWithNoSampleFails(t *testing.T) {
 	_, err := ReadBison("%%\nS:\n\t\"SELECT\" intLit\n%%\n", tokens(nil))
 	if err == nil || !strings.Contains(err.Error(), "intLit") {
@@ -281,4 +290,109 @@ func TestReadTokens(t *testing.T) {
 			t.Errorf("%q: no error", bad)
 		}
 	}
+}
+
+// TestARuleSampleIsWrittenWhereTheRuleStands pins a tokens.tsv row that
+// names a rule: other rows write its text for the rule, and the rule's own
+// alternatives are still written from their symbols.
+func TestARuleSampleIsWrittenWhereTheRuleStands(t *testing.T) {
+	const src = `
+%%
+Stmt:
+	"SET" "NAMES" Charset Tail
+Charset:
+	identifier
+|	"BINARY"
+Tail:
+	/* empty */
+|	"COLLATE" identifier
+`
+	got := statements(t, src, map[string]string{"identifier": "a", "Charset": "utf8mb4"})
+	for label, want := range map[string]string{
+		"Stmt/SET_NAMES_Charset_Tail": "SET NAMES utf8mb4",
+		"Charset/identifier":          "SET NAMES a",
+		"Charset/BINARY":              "SET NAMES BINARY",
+		"Tail/COLLATE_identifier":     "SET NAMES utf8mb4 COLLATE a",
+	} {
+		if got[label] != want {
+			t.Errorf("%s: got %q, want %q", label, got[label], want)
+		}
+	}
+	if _, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "Charset": Empty})); err == nil {
+		t.Errorf("a rule sampled as %s: no error", Empty)
+	}
+}
+
+// TestConditional pins the %ifdef lines of MariaDB's sql_yacc.yy: one file
+// holds the default grammar and the Oracle-mode one, and has no second %%.
+func TestConditional(t *testing.T) {
+	const src = `%ifdef MARIADB
+%token one "ONE"
+%else
+%token one "UNO"
+%endif
+%%
+S:
+	one Tail
+%ifdef ORACLE
+|	"ORACLE" Tail
+%endif ORACLE
+Tail:
+%ifdef MARIADB
+	"M"
+%endif
+%ifdef ORACLE
+	"O"
+%endif
+`
+	for defined, want := range map[string]string{
+		"MARIADB": "S/one_Tail\tONE M\nTail/M\tONE M\n",
+		"ORACLE":  "S/one_Tail\tUNO O\nS/ORACLE_Tail\tORACLE O\nTail/O\tUNO O\n",
+	} {
+		g, err := ReadBison(src, tokens(nil), defined)
+		if err != nil {
+			t.Fatalf("%s: %v", defined, err)
+		}
+		var alts []Row
+		rows, _ := g.Rows()
+		for _, r := range rows {
+			if !IsNearMiss(r.Rule) {
+				alts = append(alts, r)
+			}
+		}
+		if render(alts) != want {
+			t.Errorf("%s:\n%s\nwant:\n%s", defined, render(alts), want)
+		}
+	}
+
+	resolved, err := Conditional(src, "MARIADB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Count(resolved, "\n"), strings.Count(src, "\n"); got != want {
+		t.Errorf("the resolved text has %d lines, the source %d: every line keeps its number", got, want)
+	}
+	if plain := "%%\nS:\n\t\"A\"\n%%\n"; mustConditional(t, plain) != plain {
+		t.Errorf("a file with no %%ifdef changed")
+	}
+	for _, bad := range []string{
+		"%ifdef A\n%ifdef B\n%endif\n%endif\n",
+		"%ifdef A\n",
+		"%ifdef\n%endif\n",
+		"%else\n",
+		"%endif\n",
+	} {
+		if _, err := Conditional(bad, "A"); err == nil {
+			t.Errorf("%q: no error", bad)
+		}
+	}
+}
+
+func mustConditional(t *testing.T, src string, defined ...string) string {
+	t.Helper()
+	out, err := Conditional(src, defined...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

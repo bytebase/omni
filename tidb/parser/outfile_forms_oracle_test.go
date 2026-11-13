@@ -9,7 +9,6 @@ import "testing"
 // expectation behind.
 func TestOutfileFieldsFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range outfileFieldsFormCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)

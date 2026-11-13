@@ -343,19 +343,14 @@ func TestCastTypeForms(t *testing.T) {
 
 func TestCastTypeFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, c := range castTypeFormCases {
+	for _, c := range castTypeFormCases {
 		t.Run(c.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = castTypeFormCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, c.sql, previous)
+			accepts, err := tc.prepareSyntax(c.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != c.accept {
-				t.Errorf("TiDB %s accepts=%v, the record says %v for %q", tidbCorpusVersion, accepts, c.accept, c.sql)
+				t.Errorf("TiDB %s accepts=%v, the record says %v for %q", tidbRelease, accepts, c.accept, c.sql)
 			}
 		})
 	}
