@@ -394,10 +394,8 @@ func scopeValueChoice(alts [][]*node) [][]*node {
 		if len(alt) == 0 {
 			return alts
 		}
-		for _, n := range alt {
-			if n.tok != nil && isLiteral(*n.tok, "=") {
-				return alts
-			}
+		if hasEquals(alt) {
+			return alts
 		}
 		if alt[0].tok != nil && alt[0].tok.text == head[0].tok.text {
 			return alts
@@ -408,6 +406,22 @@ func scopeValueChoice(alts [][]*node) [][]*node {
 		out = append(out, append(append([]*node(nil), head[:2]...), alt...))
 	}
 	return out
+}
+
+// hasEquals reports whether a sequence assigns anything, at any depth:
+// such an alternative is not a bare value.
+func hasEquals(seq []*node) bool {
+	for _, n := range seq {
+		if n.tok != nil && isLiteral(*n.tok, "=") {
+			return true
+		}
+		for _, alt := range n.alts {
+			if hasEquals(alt) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func resolveSeq(seq []*node) ([]*node, error) {

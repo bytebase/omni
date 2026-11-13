@@ -360,6 +360,98 @@ var moreColumns = regexp.MustCompile(`(?s)(--\s*Column definition[^\n]*\n)(.*?)(
 // says.
 var outOfLineKeys = regexp.MustCompile(`\[ \( <col_name> \[ , <col_name> , \.\.\. \] \) \]`)
 
+// typeSection starts a section of formatTypeOptions for one file format
+// type: -- If TYPE = CSV, or -- If FILE_FORMAT = ( TYPE = CSV ... ).
+var typeSection = regexp.MustCompile(`^\s*--\s*If\s+(?:FILE_FORMAT\s*=\s*\(\s*)?TYPE\s*=\s*([A-Z0-9_]+)`)
+
+// typeOptionsRef is a choice of TYPE followed by the options, which the
+// pages write once for every type.
+var typeOptionsRef = regexp.MustCompile(`TYPE = \{ ([A-Z0-9_ |]+) \} \[ formatTypeOptions \]`)
+
+// typeOptionsName is formatTypeOptions named anywhere else, as ALTER FILE
+// FORMAT ... SET [ formatTypeOptions ] does.
+var typeOptionsName = regexp.MustCompile(`formatTypeOptions([^_A-Za-z0-9]|$)`)
+
+// typeOptions splits formatTypeOptions ::= into one definition for each of
+// its -- If TYPE = X sections, formatTypeOptions_X ::=, and has each
+// reference choose a TYPE with its own options:
+//
+//	TYPE = { CSV | JSON } [ formatTypeOptions ]
+//
+// reads as { TYPE = CSV [ formatTypeOptions_CSV ] | TYPE = JSON
+// [ formatTypeOptions_JSON ] }, since the pages list each option under
+// the one type it applies to.
+func typeOptions(blocks []string) ([]string, bool) {
+	at := -1
+	for i, b := range blocks {
+		if strings.Contains(b, "formatTypeOptions ::=") {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return blocks, false
+	}
+	lines := strings.Split(blocks[at], "\n")
+	var out []string
+	var types []string
+	in, done := false, false
+	for _, l := range lines {
+		switch {
+		case done:
+			out = append(out, l)
+		case strings.Contains(l, "formatTypeOptions ::="):
+			in = true
+		case !in:
+			out = append(out, l)
+		case typeSection.MatchString(l):
+			t := typeSection.FindStringSubmatch(l)[1]
+			types = append(types, t)
+			out = append(out, "formatTypeOptions_"+t+" ::=")
+		case defHead.MatchString(l):
+			done = true
+			out = append(out, l)
+		case len(types) == 0:
+			if strings.TrimSpace(l) != "" {
+				// Options before any section apply to every type: not
+				// this shape.
+				return blocks, false
+			}
+		default:
+			out = append(out, l)
+		}
+	}
+	if len(types) == 0 {
+		return blocks, false
+	}
+	has := map[string]bool{}
+	for _, t := range types {
+		has[t] = true
+	}
+	each := "{ formatTypeOptions_" + strings.Join(types, " | formatTypeOptions_") + " }"
+	res := append([]string(nil), blocks...)
+	res[at] = strings.Join(out, "\n")
+	for i, b := range res {
+		if i == at {
+			continue
+		}
+		b = typeOptionsRef.ReplaceAllStringFunc(b, func(m string) string {
+			var alts []string
+			for _, t := range strings.Split(typeOptionsRef.FindStringSubmatch(m)[1], "|") {
+				t = strings.TrimSpace(t)
+				if has[t] {
+					alts = append(alts, "TYPE = "+t+" [ formatTypeOptions_"+t+" ]")
+				} else {
+					alts = append(alts, "TYPE = "+t)
+				}
+			}
+			return "{ " + strings.Join(alts, " | ") + " }"
+		})
+		res[i] = typeOptionsName.ReplaceAllString(b, each+"$1")
+	}
+	return res, true
+}
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -440,6 +532,10 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	if outOfLine {
 		pg.fixes = append(pg.fixes, "read: an out-of-line key constraint names its columns, as the constraint page says")
+	}
+	if split, ok := typeOptions(blocks); ok {
+		blocks = split
+		pg.fixes = append(pg.fixes, "read: each -- If TYPE = X section of formatTypeOptions is the options of TYPE = X alone, and TYPE = { ... } [ formatTypeOptions ] chooses a TYPE with its own options")
 	}
 	columns := false
 	for i, b := range blocks {

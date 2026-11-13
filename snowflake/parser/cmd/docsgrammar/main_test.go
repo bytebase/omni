@@ -347,3 +347,23 @@ func TestAdditionalColumnsTakeTheWholeDefinition(t *testing.T) {
 		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
 	}
 }
+
+// TestTypeOptionsFollowTheirType pins that each -- If TYPE = X section of
+// formatTypeOptions follows only TYPE = X.
+func TestTypeOptionsFollowTheirType(t *testing.T) {
+	pg := convertPage("create-file-format", []string{
+		"CREATE FILE FORMAT <name>\n  [ TYPE = { CSV | JSON | CUSTOM } [ formatTypeOptions ] ]",
+		"formatTypeOptions ::=\n-- If TYPE = CSV\n     FIELD_DELIMITER = '<string>'\n-- If TYPE = JSON\n     STRIP_OUTER_ARRAY = TRUE | FALSE",
+	}, nil)
+	want := "'CREATE' 'FILE' 'FORMAT' ID (('TYPE' '=' 'CSV' createFileFormat_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createFileFormat_formatTypeOptions_JSON? | 'TYPE' '=' 'CUSTOM'))?"
+	if len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
+	}
+	frags := map[string]string{}
+	for _, f := range pg.frags {
+		frags[f.name] = strings.Join(f.alts, " | ")
+	}
+	if got := frags["createFileFormat_formatTypeOptions_JSON"]; got != "'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE')" {
+		t.Errorf("JSON options: %q (fragments %v)", got, frags)
+	}
+}
