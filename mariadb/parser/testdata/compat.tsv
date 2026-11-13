@@ -7510,7 +7510,7 @@ accept	accept	engine	window_frame_units/RANGE_SYM	DO ROW_NUMBER() OVER(RANGE UNB
 reject	reject	engine	window_frame_units/RANGE_SYM!insert	DO ROW_NUMBER() OVER(RANGE zzz UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_units/RANGE_SYM!swap	DO ROW_NUMBER() OVER(RANK UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_extent/window_frame_start	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_extent/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS UNCOMMITTED PRECEDING);
+reject	reject	engine	window_frame_extent/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS UNCOMMITTED PRECEDING);
 accept	accept	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound!drop-2	DO ROW_NUMBER() OVER(ROWS BETWEEN PRECEDING AND UNBOUNDED PRECEDING);
@@ -7524,7 +7524,7 @@ reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_
 accept	accept	engine	window_frame_start/UNBOUNDED_SYM_PRECEDING_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_start/CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS CURRENT ROW);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS ROW);
-accept	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS CURRENT);
+reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS CURRENT);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!truncate	DO ROW_NUMBER() OVER(ROWS CURRENT
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!insert	DO ROW_NUMBER() OVER(ROWS CURRENT ROW zzz);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!swap	DO ROW_NUMBER() OVER(ROWS CURRENT_DATE ROW);
@@ -7536,35 +7536,35 @@ reject	reject	engine	window_frame_start/literal_PRECEDING_SYM!swap	DO ROW_NUMBER
 accept	accept	engine	window_frame_bound/window_frame_start	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/window_frame_start!truncate	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED
 reject	reject	engine	window_frame_bound/window_frame_start!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING zzz AND UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_bound/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED PRECEDING AND UNBOUNDED PRECEDING);
+reject	reject	engine	window_frame_bound/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED PRECEDING AND UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING zzz AND UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED FOLLOWING AND UNBOUNDED PRECEDING);
+reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED FOLLOWING AND UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_bound/literal_FOLLOWING_SYM	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!truncate	DO ROW_NUMBER() OVER(ROWS BETWEEN 's'
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWING zzz AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWS AND UNBOUNDED PRECEDING);
 accept	accept	engine	opt_window_frame_exclusion/%empty	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING CURRENT ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-3	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!truncate	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE CURRENT ROW);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING GROUP);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!truncate	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE GROUP);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING TIES);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE TIES);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING NO OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-3	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO);

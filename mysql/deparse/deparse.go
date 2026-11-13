@@ -799,6 +799,7 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
+		writeFuncWindowOptions(b, n)
 		if n.Over != nil {
 			b.WriteString(" ")
 			writeWindowDefAlias(b, n.Over)
@@ -2496,6 +2497,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(")")
 	}
 
+	writeFuncWindowOptions(b, n)
 	// Append OVER clause for window functions
 	if n.Over != nil {
 		b.WriteString(" ")
@@ -2591,6 +2593,23 @@ func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 		// Single bound form
 		b.WriteString(" ")
 		writeWindowFrameBound(b, f.Start)
+	}
+	if f.Exclude != "" {
+		b.WriteString(" EXCLUDE ")
+		b.WriteString(f.Exclude)
+	}
+}
+
+// writeFuncWindowOptions writes a window function's FROM FIRST | FROM LAST and
+// RESPECT NULLS | IGNORE NULLS, which come between its ')' and its OVER.
+func writeFuncWindowOptions(b *strings.Builder, n *ast.FuncCallExpr) {
+	if n.FromFirstLast != "" {
+		b.WriteString(" ")
+		b.WriteString(n.FromFirstLast)
+	}
+	if n.NullTreatment != "" {
+		b.WriteString(" ")
+		b.WriteString(n.NullTreatment)
 	}
 }
 

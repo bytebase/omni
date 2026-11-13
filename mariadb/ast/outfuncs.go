@@ -2746,6 +2746,9 @@ func writeWindowFrame(sb *strings.Builder, n *WindowFrame) {
 		sb.WriteString(" :end ")
 		writeNode(sb, n.End)
 	}
+	if n.Exclude != "" {
+		fmt.Fprintf(sb, " :exclude %s", n.Exclude)
+	}
 	sb.WriteString("}")
 }
 

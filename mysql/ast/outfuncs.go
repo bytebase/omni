@@ -2188,6 +2188,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Using != "" {
 		fmt.Fprintf(sb, " :using %s", n.Using)
 	}
+	if n.FromFirstLast != "" {
+		fmt.Fprintf(sb, " :from %s", n.FromFirstLast)
+	}
+	if n.NullTreatment != "" {
+		fmt.Fprintf(sb, " :nulls %s", n.NullTreatment)
+	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
@@ -2666,6 +2672,9 @@ func writeWindowFrame(sb *strings.Builder, n *WindowFrame) {
 	if n.End != nil {
 		sb.WriteString(" :end ")
 		writeNode(sb, n.End)
+	}
+	if n.Exclude != "" {
+		fmt.Fprintf(sb, " :exclude %s", n.Exclude)
 	}
 	sb.WriteString("}")
 }
