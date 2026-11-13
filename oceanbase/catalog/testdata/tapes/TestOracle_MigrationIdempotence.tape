@@ -428,6 +428,32 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
+| DROP DATABASE IF EXISTS gen_idem_binary_modifier_before_charset
+< ok 0 0
+> exec
+| CREATE DATABASE gen_idem_binary_modifier_before_charset
+< ok 1 0
+> exec
+| USE gen_idem_binary_modifier_before_charset
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) BINARY CHARACTER SET ascii) DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE gen_idem_binary_modifier_before_charset.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `ac` varchar(10) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
 | DROP DATABASE IF EXISTS gen_idem_binary_modifier_after_charset
 < ok 0 0
 > exec

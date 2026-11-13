@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 has begun: `oceanbase/parser`, `oceanbase/validate` and the 23 tests of `oceanbase/catalog` that ask OceanBase replay tapes (106 tapes, 5.1 MB) and start no server. Catalog's 163 tests that ask MySQL are next (D3; Appendix A has what they do on OceanBase today), then `review` and `deparse`. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 has begun: `oceanbase/parser`, `oceanbase/validate` and 66 tests of `oceanbase/catalog` replay tapes (149 tapes, 5.9 MB) and start no server. The 66 are the tests that always asked OceanBase and 40 of the 56 oracle tests written against MySQL, moved with the fixes they needed (Appendix A). Catalog's other 16 oracle tests and its 107 container tests still ask MySQL (D3), then `review` and `deparse`. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -305,7 +305,9 @@ The inventory's hash replaces `Digest`. Sweeps keep their fixed seeds, and the t
 - Use the test's own database. Read no server-wide state outside package setup.
 - Take names from `t.Name()`, not from counters or the clock.
 - Order every multi-row read.
-- Don't skip. Today's skips and DSN fallbacks go.
+- Don't skip. Today's skips and DSN fallbacks go. A probe the engine refuses, or one omni fails, is recorded with what it must do instead: `obRefused` and `obGaps` in `oceanbase/catalog/oceanbase_oracle_test.go` each fail an entry that no longer holds.
+- Keep a test on one connection. A tape's stream is one, and a helper that asks the pool while its test holds that connection waits forever.
+- Read the stored form from the database the change is applied to. A name the engine makes up differs in every database.
 - Probe syntax with SQL's `PREPARE ... FROM '<text>'`, not the driver's `Prepare`: a tape holds no driver-level prepared statement.
 - Ask a verdict in one request, `PREPARE x FROM ?` with the statement as its argument. Setting a variable, preparing from it and deallocating is three requests, and a sweep of ten thousand statements pays for each: OceanBase's parser tapes went from 13.5 MB to 4.7 MB on this and the two forms below.
 
@@ -516,6 +518,12 @@ After step 0 the engines are independent. Order:
 - **The hangs #808 recorded were the tests' own.** A helper asked the pool for a second connection while its test held the only one. The server sat idle each time, and the cross-object ordering test passes 5 of 5 once the pool has a second connection.
 - **Not measured:** the keyword sweep builds an index per keyword and did not finish one of its seven positions in five minutes. A tape can't hold a `uint64` yet, which `information_schema`'s unsigned columns return.
 
+**OceanBase, catalog's oracle tests moved.** 40 of the 56 now ask OceanBase (2026-11-13): 66 tapes with the tests that always did, 1.1 MB, 6,287 requests, recorded in 4m20s and replayed in 0.2 s.
+
+- **Six rules changed in the diff,** each measured on the pinned server: `ROW_FORMAT = DYNAMIC` is what an undeclared table stores; a CHECK or foreign key OceanBase named is matched by its definition; an index column's `DESC`, an index's `USING`, a table's `ENGINE` and a view's `ALGORITHM` and `SQL SECURITY` are taken and not stored; `PARTITIONS n` is stored as the partitions it stands for.
+- **21 probes are recorded gaps** (`obGaps`): `BETWEEN` stored as two comparisons, the default collation of `utf8mb4`, two forms the parser cannot read (`BINARY` before `CHARACTER SET`, and a multi-valued index as OceanBase prints it), seven rewrites of a view's body, and two routine comments `SHOW CREATE FUNCTION` prints unescaped. 16 are recorded refusals (`obRefused`).
+- **Left:** the migration tests, where 41 generated statements are refused, and the event tests: OceanBase has no `SHOW CREATE EVENT`.
+
 **OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts | Server crash |
@@ -584,7 +592,8 @@ func Open(t testing.TB) *sql.DB { return tape.Open(t, server, "default") }
 func Reset(t testing.TB, fn func(context.Context, *sql.DB) error) // in a recording only, unrecorded
 ```
 
-- **`Codec`** turns the driver's error into tape text and back (`*mysql.MySQLError`, `*pgconn.PgError`), so `errors.As` works in a replay. It may shorten what repeats: OceanBase's writes `…` for the 122 characters that open every syntax error. A recording compares a committed answer as the codec spells it today, so a new spelling is not a different answer. Not built yet: replacing names the engine makes up, such as OceanBase's `_OBFK_\d{16}`, with placeholders.
+- **`Codec`** turns the driver's error into tape text and back (`*mysql.MySQLError`, `*pgconn.PgError`), so `errors.As` works in a replay. It may shorten what repeats: OceanBase's writes `…` for the 122 characters that open every syntax error. A recording compares a committed answer as the codec spells it today, so a new spelling is not a different answer.
+- **`Renamer`** is a `Codec` for an engine that makes up names, as OceanBase does for a foreign key or a CHECK written without one (`c_OBFK_1794529609863994`, the time in microseconds). A recording keeps a stand-in for each (`c_OBFK_0000000000000001`) in answers and errors, puts the engine's own name back where the test sends the stand-in, and hands the test the stand-in too. So a test reads the same text in a recording as in a replay, and a second recording writes the same tape.
 - **`Live`** starts the pinned image, checks its digest and version, inlines arguments, and sets a 30-second read timeout, so a hung statement fails its test and not the run.
 - **`Reset`** puts a shared server into the state a tape starts from, such as dropping what earlier tests left. It runs only in a recording, outside the tape, so what a test sends never depends on what ran before it.
 

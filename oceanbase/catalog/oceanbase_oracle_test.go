@@ -156,6 +156,12 @@ var obGaps = map[string]gap{
 		[]string{`PHANTOM DIFF on column "a"`},
 	},
 
+	// BINARY before CHARACTER SET is OceanBase's order (`VARCHAR string_length_i
+	// opt_binary opt_charset`), and the parser here reads only the order OceanBase
+	// refuses, so it cannot load a column OceanBase takes.
+	"TestOracle_DiffIdempotence/oceanbase/binary-modifier-before-charset":      binaryBeforeCharset,
+	"TestOracle_MigrationIdempotence/oceanbase/binary-modifier-before-charset": binaryBeforeCharset,
+
 	// A multi-valued index. The parser does not read json_query's RETURNING clause, so a
 	// table that has such an index does not load from its own readback.
 	"TestOracle_IndexDiffIdempotence/oceanbase/mv-unsigned":  multiValuedIndex,
@@ -190,6 +196,11 @@ var obGaps = map[string]gap{
 		"OceanBase prints WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0), which the parser does not read",
 		[]string{"load stored SDL failed"},
 	},
+}
+
+var binaryBeforeCharset = gap{
+	"OceanBase takes VARCHAR(10) BINARY CHARACTER SET ascii and refuses CHARACTER SET ascii BINARY; the parser reads the second and not the first",
+	[]string{"LoadSQL failed"},
 }
 
 var multiValuedIndex = gap{

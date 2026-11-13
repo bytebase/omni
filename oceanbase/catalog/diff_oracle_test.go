@@ -141,10 +141,10 @@ func diffIdempotenceProbes() []diffProbe {
 		// text/tinytext on a utf8mb4 table (-> utf8mb4_bin) plus an explicit ascii column
 		// (-> ascii_bin). (entry char-binary-attribute)
 		{"binary-modifier-utf8mb4", "CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY) DEFAULT CHARSET=utf8mb4", "t"},
-		// OceanBase refuses BINARY after CHARACTER SET: its grammar puts BINARY first
-		// (`VARCHAR string_length_i opt_binary opt_charset`). The parser here has the
-		// order the other way round, so the form OceanBase does take, BINARY CHARACTER
-		// SET ascii, cannot be a probe until the parser reads it.
+		// OceanBase's grammar puts BINARY before the charset (`VARCHAR string_length_i
+		// opt_binary opt_charset`): it takes the first of these and refuses the second.
+		// The parser here has the order the other way round (obGaps, obRefused).
+		{"binary-modifier-before-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) BINARY CHARACTER SET ascii) DEFAULT CHARSET=utf8mb4", "t"},
 		{"binary-modifier-after-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4", "t"},
 		// latin1 table -> latin1_bin.
 		{"binary-modifier-latin1", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(50) BINARY) DEFAULT CHARSET=latin1", "t"},
