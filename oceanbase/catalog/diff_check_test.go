@@ -47,6 +47,13 @@ func checkDiffProbes() []diffProbe {
 		{"compound-or", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, CHECK (a = 1 OR b = 2))", "t"},
 		// BETWEEN / IN — operator keywords lowercased in the stored form.
 		{"between", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CHECK (a BETWEEN 1 AND 10))", "t"},
+		// OceanBase stores BETWEEN over constant bounds as two comparisons and NOT BETWEEN
+		// as their negation, in a CHECK and in a generated column, and keeps BETWEEN
+		// where a bound reads a column.
+		{"between-forms", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c INT, d DATE, " +
+			"CHECK (a NOT BETWEEN 20 AND 30), CHECK (a BETWEEN b AND c), CHECK (a BETWEEN b AND 10), " +
+			"CHECK (a + 1 BETWEEN 1 AND 2 * 5), CHECK (d BETWEEN '2020-01-01' AND '2021-01-01'), " +
+			"g INT GENERATED ALWAYS AS (a BETWEEN 1 AND 10) VIRTUAL)", "t"},
 		{"in-list", "CREATE TABLE t (id INT PRIMARY KEY, a INT, CHECK (a IN (1, 2, 3)))", "t"},
 		// String literal → 8.0 injects the `_utf8mb4` charset introducer on storage; CanonicalCheckExpr
 		// must strip it so the user form (no introducer) and the readback compare equal.

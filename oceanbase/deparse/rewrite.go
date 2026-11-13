@@ -91,6 +91,16 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		n.Expr = rewriteExpr(n.Expr)
 		n.Low = rewriteExpr(n.Low)
 		n.High = rewriteExpr(n.High)
+		// BETWEEN over two constant bounds is stored as two comparisons,
+		// ((x >= lo) and (x <= hi)), and NOT BETWEEN as their negation. A bound that
+		// reads a column keeps BETWEEN (catalog's TestOracle_CheckDiffIdempotence,
+		// between and between-forms).
+		if both, folded := foldBetween(n); folded {
+			if n.Not {
+				return rewriteNot(&ast.ParenExpr{Loc: n.Loc, Expr: both})
+			}
+			return both
+		}
 		return n
 
 	case *ast.LikeExpr:
@@ -170,6 +180,80 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		// Leaf nodes (literals, column refs, etc.) — no rewriting needed
 		return node
 	}
+}
+
+// foldBetween returns the two comparisons OceanBase stores for a BETWEEN over constant
+// bounds, without the negation of a NOT BETWEEN.
+func foldBetween(n *ast.BetweenExpr) (ast.ExprNode, bool) {
+	if !isConstantBound(n.Low) || !isConstantBound(n.High) {
+		return nil, false
+	}
+	return &ast.BinaryExpr{
+		Loc:   n.Loc,
+		Op:    ast.BinOpAnd,
+		Left:  &ast.BinaryExpr{Loc: n.Loc, Op: ast.BinOpGe, Left: n.Expr, Right: n.Low},
+		Right: &ast.BinaryExpr{Loc: n.Loc, Op: ast.BinOpLe, Left: n.Expr, Right: n.High},
+	}, true
+}
+
+// FoldBetween rewrites every BETWEEN over constant bounds in an expression as OceanBase
+// stores it, and nothing else: the one rewrite it makes of a CHECK and of a generated
+// column's expression too, which RewriteExpr is not applied to.
+func FoldBetween(node ast.ExprNode) ast.ExprNode {
+	switch n := node.(type) {
+	case *ast.BetweenExpr:
+		n.Expr, n.Low, n.High = FoldBetween(n.Expr), FoldBetween(n.Low), FoldBetween(n.High)
+		both, folded := foldBetween(n)
+		switch {
+		case !folded:
+			return n
+		case n.Not:
+			return &ast.UnaryExpr{Loc: n.Loc, Op: ast.UnaryNot, Operand: &ast.ParenExpr{Loc: n.Loc, Expr: both}}
+		}
+		return both
+	case *ast.BinaryExpr:
+		n.Left, n.Right = FoldBetween(n.Left), FoldBetween(n.Right)
+	case *ast.UnaryExpr:
+		n.Operand = FoldBetween(n.Operand)
+	case *ast.ParenExpr:
+		n.Expr = FoldBetween(n.Expr)
+	case *ast.IsExpr:
+		n.Expr = FoldBetween(n.Expr)
+	case *ast.CaseExpr:
+		if n.Operand != nil {
+			n.Operand = FoldBetween(n.Operand)
+		}
+		for _, w := range n.Whens {
+			w.Cond, w.Result = FoldBetween(w.Cond), FoldBetween(w.Result)
+		}
+		if n.Default != nil {
+			n.Default = FoldBetween(n.Default)
+		}
+	case *ast.FuncCallExpr:
+		for i, arg := range n.Args {
+			n.Args[i] = FoldBetween(arg)
+		}
+	}
+	return node
+}
+
+// isConstantBound reports whether a bound of BETWEEN is a literal, or arithmetic over
+// literals: what OceanBase folds the BETWEEN for.
+func isConstantBound(node ast.ExprNode) bool {
+	switch n := node.(type) {
+	case *ast.IntLit, *ast.FloatLit, *ast.StringLit, *ast.BoolLit:
+		return true
+	case *ast.ParenExpr:
+		return isConstantBound(n.Expr)
+	case *ast.UnaryExpr:
+		return n.Op != ast.UnaryNot && isConstantBound(n.Operand)
+	case *ast.BinaryExpr:
+		switch n.Op {
+		case ast.BinOpAdd, ast.BinOpSub, ast.BinOpMul, ast.BinOpDiv:
+			return isConstantBound(n.Left) && isConstantBound(n.Right)
+		}
+	}
+	return false
 }
 
 // rewriteDateArith folds the date-arithmetic function family into INTERVAL

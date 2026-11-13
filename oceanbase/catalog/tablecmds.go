@@ -1970,6 +1970,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		}
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
+		// A binary operation is written in parentheses of its own, so the pair written
+		// around it adds nothing: ((`a` >= 1)) is (`a` >= 1), as in a CHECK and a view.
+		if _, binary := n.Expr.(*nodes.BinaryExpr); binary {
+			return nodeToSQLGenerated(n.Expr, charset)
+		}
 		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
 	case *nodes.KeywordArg:
 		// Bare keyword argument (timestampdiff unit, get_format type) —
@@ -2094,8 +2099,14 @@ func castTypeToSQLGenerated(dt *nodes.DataType) string {
 	return result
 }
 
+// nodeToSQL writes an expression as the catalog stores it: a CHECK, a generated column, a
+// default, an index's key part. BETWEEN over constant bounds is two comparisons there,
+// as OceanBase stores it (deparse.FoldBetween).
 func nodeToSQL(node nodes.ExprNode) string {
-	return deparse.Deparse(node)
+	if node == nil {
+		return deparse.Deparse(node)
+	}
+	return deparse.Deparse(deparse.FoldBetween(node))
 }
 
 func binaryOpToString(op nodes.BinaryOp) string {

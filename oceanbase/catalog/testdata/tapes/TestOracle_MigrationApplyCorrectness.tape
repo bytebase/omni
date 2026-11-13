@@ -665,8 +665,8 @@
 | CREATE TABLE `pa_create_generated_54d6a56e`.`t` (
 |   `id` int NOT NULL,
 |   `a` int DEFAULT NULL,
-|   `b` int GENERATED ALWAYS AS (((`a` + 1))) VIRTUAL,
-|   `c` int GENERATED ALWAYS AS (((`a` * 2))) STORED,
+|   `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+|   `c` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
@@ -1322,7 +1322,7 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_add_generated_column_eb62683a`.`t` ADD COLUMN `b` int GENERATED ALWAYS AS (((`a` + 1))) STORED
+| ALTER TABLE `pa_add_generated_column_eb62683a`.`t` ADD COLUMN `b` int GENERATED ALWAYS AS ((`a` + 1)) STORED
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_add_generated_column_eb62683a.t
@@ -2436,7 +2436,7 @@
 | ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
+| ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_modify_generated_expr_3ab763b0.t
@@ -2523,7 +2523,7 @@
 | ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) VIRTUAL
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD KEY `kg` (`g`) LOCAL
@@ -2612,7 +2612,7 @@
 | ALTER TABLE `pa_modify_generated_expr_stored_by_index_a0abc62f`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_modify_generated_expr_stored_by_index_a0abc62f`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
+| ALTER TABLE `pa_modify_generated_expr_stored_by_index_a0abc62f`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED
 < ok 0 0
 > exec
 | ALTER TABLE `pa_modify_generated_expr_stored_by_index_a0abc62f`.`t` ADD KEY `k` (`a`) STORING (`g`) LOCAL
@@ -2690,7 +2690,7 @@
 |   CONSTRAINT `c_g` CHECK ((`g` > 0))
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_modify_generated_expr_under_check_760670ca`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
+| ALTER TABLE `pa_modify_generated_expr_under_check_760670ca`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED
 < error
 | 1235 0A000 Modify generated column definition not supported
 > exec
@@ -3077,7 +3077,7 @@
 | ALTER TABLE `pa_gen_storage_flip_e1491f60`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_gen_storage_flip_e1491f60`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 1))) STORED
+| ALTER TABLE `pa_gen_storage_flip_e1491f60`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 1)) STORED
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_gen_storage_flip_e1491f60.t
@@ -3226,7 +3226,7 @@
 | ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` MODIFY COLUMN `z` bigint DEFAULT NULL
 < ok 0 0
 > exec
-| ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`z` + 1))) STORED
+| ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`z` + 1)) STORED
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_gen_flip_with_base_modify_98b424d4.t

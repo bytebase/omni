@@ -2009,6 +2009,51 @@
 : bytes
 | utf8mb4_general_ci
 > exec
+| DROP DATABASE IF EXISTS videm_between_forms
+< ok 0 0
+> exec
+| CREATE DATABASE videm_between_forms DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_between_forms
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT, c INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT a BETWEEN 1 AND 10 AS x, a NOT BETWEEN 1 AND 10 AS y, a BETWEEN b AND c AS z FROM t WHERE a BETWEEN 2 AND 3
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_between_forms.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_between_forms.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select ((`videm_between_forms`.`t`.`a` >= 1) and (`videm_between_forms`.`t`.`a` <= 10)) AS `x`,(not(((`videm_between_forms`.`t`.`a` >= 1) and (`videm_between_forms`.`t`.`a` <= 10)))) AS `y`,(`videm_between_forms`.`t`.`a` between `videm_between_forms`.`t`.`b` and `videm_between_forms`.`t`.`c`) AS `z` from `videm_between_forms`.`t` where (`videm_between_forms`.`t`.`a` >= 2) and (`videm_between_forms`.`t`.`a` <= 3)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
 | DROP DATABASE IF EXISTS videm_paren_exists_depth2
 < ok 0 0
 > exec
