@@ -192,8 +192,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance() // consume ','
 		if p.cur.Type == kwGRANT {
 			p.advance() // consume GRANT
-			if p.cur.Type == kwOPTION {
-				p.advance() // consume OPTION
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(kwFROM); err != nil {
 				return nil, err
@@ -210,15 +210,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 				From:        users,
 			}
 			// [IGNORE UNKNOWN USER]
-			if p.cur.Type == kwIGNORE {
-				p.advance()
-				if p.cur.Type == kwUNKNOWN {
-					p.advance()
-				}
-				if p.cur.Type == kwUSER {
-					p.advance()
-				}
-				stmt.IgnoreUnknownUser = true
+			if stmt.IgnoreUnknownUser, err = p.parseIgnoreUnknownUser(); err != nil {
+				return nil, err
 			}
 			stmt.Loc.End = p.prev.End
 			return stmt, nil
@@ -243,15 +236,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			From:     users,
 		}
 		// [IGNORE UNKNOWN USER]
-		if p.cur.Type == kwIGNORE {
-			p.advance()
-			if p.cur.Type == kwUNKNOWN {
-				p.advance()
-			}
-			if p.cur.Type == kwUSER {
-				p.advance()
-			}
-			stmt.IgnoreUnknownUser = true
+		if stmt.IgnoreUnknownUser, err = p.parseIgnoreUnknownUser(); err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -278,15 +264,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			From:       users,
 		}
 		// [IGNORE UNKNOWN USER]
-		if p.cur.Type == kwIGNORE {
-			p.advance()
-			if p.cur.Type == kwUNKNOWN {
-				p.advance()
-			}
-			if p.cur.Type == kwUSER {
-				p.advance()
-			}
-			stmt.IgnoreUnknownUser = true
+		if stmt.IgnoreUnknownUser, err = p.parseIgnoreUnknownUser(); err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -321,19 +300,27 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	stmt.From = users
 
 	// [IGNORE UNKNOWN USER]
-	if p.cur.Type == kwIGNORE {
-		p.advance()
-		if p.cur.Type == kwUNKNOWN {
-			p.advance()
-		}
-		if p.cur.Type == kwUSER {
-			p.advance()
-		}
-		stmt.IgnoreUnknownUser = true
+	if stmt.IgnoreUnknownUser, err = p.parseIgnoreUnknownUser(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseIgnoreUnknownUser parses opt_ignore_unknown_user: IGNORE UNKNOWN USER,
+// all three words, or nothing.
+func (p *Parser) parseIgnoreUnknownUser() (bool, error) {
+	if p.cur.Type != kwIGNORE {
+		return false, nil
+	}
+	p.advance()
+	for _, kw := range []int{kwUNKNOWN, kwUSER} {
+		if _, err := p.expect(kw); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 // privOrRole is one element of the list GRANT and REVOKE read before the ON,
@@ -414,8 +401,7 @@ func (p *Parser) parsePrivilegeList() ([]privOrRole, bool, error) {
 // spelling is role-only the way it is on TiDB.
 func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if p.cur.Type == tokSCONST {
-		name := p.cur.Str
-		p.advance()
+		name := p.parseStringRun()
 		host, hasHost, err := p.parseUserHostOpt()
 		if err != nil {
 			return privOrRole{}, err
@@ -439,9 +425,19 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 			return privOrRole{name: name + "@" + host}, nil
 		}
 	}
+	// role_or_priv reads these words as privileges before it reads them as a
+	// role name, so a role grant that names one is refused: GRANT DELETE TO u,
+	// GRANT SUPER TO u. A backquoted word is a name.
+	privWord := !p.backtickQuotedAt(p.cur.Loc) && rolePrivilegeWords[strings.ToUpper(p.cur.Str)]
+	// A role is NAME_OB or unreserved_keyword_for_role_name: a reserved word,
+	// or one of the words a role may not be called, is none.
+	notRole := p.cur.Type >= 700 && !isRoleKeyword(p.cur.Type)
 	name, word, err := p.parsePrivilegeName()
 	if err != nil {
 		return privOrRole{}, err
+	}
+	if privWord || notRole || p.prev.Type == ')' {
+		word.multiToken = true // a privilege, or one with columns: no role either way
 	}
 	// GRANT on its own is no privilege name, and the word GRANT is no role
 	// name either, so a bare GRANT is neither: the server answers 1064 for
@@ -450,6 +446,17 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 		return privOrRole{}, p.syntaxErrorAtCur()
 	}
 	return privOrRole{name: name, privOnly: word.multiToken}, nil
+}
+
+// rolePrivilegeWords are the first words of role_or_priv's privilege
+// alternatives (sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6). FILE is
+// the grammar's FILEX and LOCK its LOCK_.
+var rolePrivilegeWords = map[string]bool{
+	"ALTER": true, "CREATE": true, "DECRYPT": true, "DELETE": true, "DROP": true, "ENCRYPT": true,
+	"EVENT": true, "EXECUTE": true, "FILE": true, "GRANT": true, "INDEX": true, "INSERT": true,
+	"LOCK": true, "PLAINACCESS": true, "PROCESS": true, "REFERENCES": true, "RELOAD": true,
+	"REPLICATION": true, "SELECT": true, "SHOW": true, "SHUTDOWN": true, "SUPER": true,
+	"TRIGGER": true, "UPDATE": true, "USAGE": true, "USE": true,
 }
 
 // privWord records what parsePrivilegeName read. The caller needs it because
@@ -618,7 +625,7 @@ func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, priv
 // parseGrantTarget parses the ON clause target of a GRANT/REVOKE.
 //
 //	[object_type] priv_level
-//	object_type: TABLE | FUNCTION | PROCEDURE
+//	object_type: TABLE | FUNCTION | PROCEDURE | CATALOG | SENSITIVE RULE
 //	priv_level: *.* | db_name.* | db_name.tbl_name | tbl_name | *
 func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 	start := p.pos()
@@ -642,6 +649,17 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 	case kwPROCEDURE:
 		target.Type = "PROCEDURE"
 		p.advance()
+	default:
+		// CATALOG and SENSITIVE RULE are unreserved, so before TO or FROM
+		// CATALOG is the name the grant is on.
+		if p.isBareWord("CATALOG") && p.peekNext().Type != kwTO && p.peekNext().Type != kwFROM {
+			target.Type = "CATALOG"
+			p.advance()
+		} else if p.isBareWord("SENSITIVE") && p.nextIsBareWord("RULE") {
+			target.Type = "SENSITIVE RULE"
+			p.advance()
+			p.advance()
+		}
 	}
 
 	// Parse priv_level: *.* | db.* | db.tbl | tbl | *
@@ -843,8 +861,7 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 		}
 		return "CURRENT_USER", "", false, nil
 	case p.cur.Type == tokSCONST:
-		name = p.cur.Str
-		p.advance()
+		name = p.parseStringRun()
 	case p.isIdentToken():
 		name, _, err = p.parseIdent()
 		if err != nil {
@@ -2117,4 +2134,14 @@ func (p *Parser) parseUserAccountOptions(
 			return nil
 		}
 	}
+}
+
+// parseStringRun reads a string literal at the current token, and those that
+// stand beside it: OceanBase's lexer reads `'a' 'b'` as one STRING_VALUE, ab.
+func (p *Parser) parseStringRun() string {
+	var b strings.Builder
+	for p.cur.Type == tokSCONST {
+		b.WriteString(p.advance().Str)
+	}
+	return b.String()
 }
