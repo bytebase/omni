@@ -685,15 +685,6 @@ func showPartitioning(pi *PartitionInfo) string {
 		}
 	}
 
-	// A RANGE partitioning's split size, and automatic partitioning, which takes
-	// no partition list (opt_range_partition_info and auto_partition_option).
-	if pi.SplitSize != "" {
-		b.WriteString(" SIZE (" + quoteSplitSize(pi.SplitSize) + ")")
-	}
-	if pi.AutoSize != "" {
-		b.WriteString(" PARTITION SIZE " + pi.AutoSize + " PARTITIONS AUTO")
-	}
-
 	// Subpartition clause.
 	if pi.SubType != "" {
 		b.WriteString("\n")
@@ -718,6 +709,16 @@ func showPartitioning(pi *PartitionInfo) string {
 		if pi.UseDefaultSubpartitions && !pi.UseDefaultNumSubpartitions && pi.NumSubParts > 0 {
 			b.WriteString(fmt.Sprintf("\nSUBPARTITIONS %d", pi.NumSubParts))
 		}
+	}
+
+	// A RANGE partitioning's split size, after its subpartitioning and before its
+	// partition list as the parser reads it, and automatic partitioning, which takes
+	// neither (opt_range_partition_info and auto_partition_option).
+	if pi.SplitSize != "" {
+		b.WriteString(" SIZE (" + quoteSplitSize(pi.SplitSize) + ")")
+	}
+	if pi.AutoSize != "" {
+		b.WriteString(" PARTITION SIZE " + pi.AutoSize + " PARTITIONS AUTO")
 	}
 
 	// Partition definitions.

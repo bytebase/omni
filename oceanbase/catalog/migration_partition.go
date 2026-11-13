@@ -50,7 +50,11 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 		switch entry.Action {
 		case DiffAdd:
 			// A freshly created table carries its partitioning via a follow-up ALTER (the CREATE
-			// from generate-core renders only columns + PK, not the partition clause).
+			// from generate-core renders only columns + PK, not the partition clause), unless
+			// its partitioning is one only CREATE TABLE takes, which formatCreateTable writes.
+			if entry.To != nil && createOnlyPartitioning(entry.To.Partitioning) {
+				continue
+			}
 			if op, ok := partitionByOp(entry, entry.To, n); ok {
 				ops = append(ops, op)
 			}
@@ -87,6 +91,9 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	op, ok := partitionByOp(entry, entry.To, n)
 	if !ok {
 		return nil
+	}
+	if createOnlyPartitioning(entry.To.Partitioning) {
+		op.Warning = fmt.Sprintf("OceanBase takes SIZE (...) and PARTITIONS AUTO only in CREATE TABLE (error 1064 in ALTER TABLE): create table %s again with its partitioning", tableIdent(entry.To))
 	}
 	if repartitionsBeforeKeys(entry) {
 		op.Priority = priorityRepartitionBeforeKeys
@@ -150,6 +157,13 @@ func droppedColumnSet(entry *TableDiffEntry) map[string]bool {
 		}
 	}
 	return set
+}
+
+// createOnlyPartitioning reports whether a partitioning has a clause OceanBase takes
+// only in CREATE TABLE: a RANGE split size, SIZE ('size'), or automatic partitioning.
+// ALTER TABLE's PARTITION BY refuses both (1064, simulate.tsv).
+func createOnlyPartitioning(pi *PartitionInfo) bool {
+	return pi != nil && (pi.SplitSize != "" || pi.AutoSize != "")
 }
 
 // partitionByOp builds an ALTER TABLE ... PARTITION BY ... op that (re)defines tbl's
