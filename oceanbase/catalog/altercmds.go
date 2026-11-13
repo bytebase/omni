@@ -27,6 +27,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if err := checkKeyOptions(alterKeys(stmt.Commands)); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
@@ -444,6 +447,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		return nil
 	}
 
+	if kind, ok := constraintKeyKind(con); ok {
+		if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+			return err
+		}
+	}
 	cols := extractColumnNames(con)
 	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
 	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
@@ -579,6 +587,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return checkConstraintNameExists(tbl.Database, nil, name)
 			})
 		}
+		if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+			return err
+		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
 		}
@@ -643,6 +654,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(ftIdx, con.IndexOptions)
+		if err := checkIndexOptions(con.IndexOptions, false); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
