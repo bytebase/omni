@@ -1,0 +1,8 @@
+# The grammar this engine's committed answers come from. Cosmos DB for NoSQL
+# has no server CI can start, so default is no image: it is Microsoft's own
+# grammar of the query language, sql.g4, as the .NET SDK publishes it
+# (Microsoft.Azure.Cosmos/src/Query/Core/Parser/sql.g4) at the commit of the
+# release in the source tag. The digest is the SHA-256 of testdata/sql.g4,
+# which is that file byte for byte.
+# columns: role, image, digest, source tag
+default	github.com/Azure/azure-cosmos-dotnet-v3@2e0cc9f2549053887ea3e9091b4f438a7a0bb443	sha256:936de164cde4ada3584fa008117b075d5b3edf02018d08d808341d4451e621de	3.64.0
