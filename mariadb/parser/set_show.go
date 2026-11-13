@@ -177,14 +177,20 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 
 		// Password value: either a string literal or PASSWORD('string')
 		if p.cur.Type == kwPASSWORD {
-			// PASSWORD('auth_string') form
+			// PASSWORD('auth_string') form, whole.
+			//
+			// Ref: text_or_password in MariaDB 11.8 sql/sql_yacc.yy.
 			p.advance() // consume PASSWORD
-			p.match('(')
-			if p.cur.Type == tokSCONST {
-				stmt.Password = "PASSWORD(" + p.cur.Str + ")"
-				p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-			p.match(')')
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Password = "PASSWORD(" + p.advance().Str + ")"
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == tokSCONST {
 			stmt.Password = p.cur.Str
 			p.advance()
@@ -983,6 +989,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
+		case kwSERVER:
+			// SHOW CREATE SERVER server_name, the name an ident_or_text.
+			//
+			// Ref: show_param, `CREATE SERVER_SYM ident_or_text`, in MariaDB
+			// 11.8 sql/sql_yacc.yy.
+			stmt.Type = "CREATE SERVER"
+			p.advance()
+			at := p.pos()
+			name, _, err := p.parseIdentOrText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = &nodes.TableRef{Loc: nodes.Loc{Start: at, End: p.prev.End}, Name: name}
 		case kwUSER:
 			stmt.Type = "CREATE USER"
 			p.advance()

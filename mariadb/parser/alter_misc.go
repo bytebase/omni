@@ -193,8 +193,8 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 			} else {
 				stmt.OnCompletion = "PRESERVE"
 			}
-			if p.cur.Type == kwPRESERVE {
-				p.advance()
+			if _, err := p.expect(kwPRESERVE); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -202,7 +202,9 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	// Optional: RENAME TO new_event_name
 	if p.cur.Type == kwRENAME {
 		p.advance()
-		p.match(kwTO)
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		renameSchema, newName, err := p.parseSpName()
 		if err != nil {
 			return nil, err
@@ -229,7 +231,8 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	}
 
 	// Optional: COMMENT 'string'
-	if p.cur.Type == kwCOMMENT {
+	hasComment := p.cur.Type == kwCOMMENT
+	if hasComment {
 		p.advance()
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
@@ -249,6 +252,16 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 		bodyEnd := p.pos()
 		stmt.Body = body
 		stmt.BodyText = p.inputText(bodyStart, bodyEnd)
+	}
+
+	// The action refuses an ALTER EVENT that changes nothing.
+	//
+	// Ref: alter_event_stmt, `if (!($6 || $7 || $8 || $9 || $10))
+	// syntax_error()`, in MySQL 8.0 sql/sql_yacc.yy, and the same check in
+	// MariaDB's alter.
+	if stmt.Schedule == nil && stmt.OnCompletion == "" && stmt.RenameTo == "" &&
+		stmt.Enable == "" && !hasComment && stmt.Body == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
