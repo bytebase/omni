@@ -435,8 +435,8 @@ accept	accept	engine	simple_statement/lock	LOCK TABLE utf8mb4 READ;
 reject	reject	engine	simple_statement/lock!drop-1	TABLE utf8mb4 READ;
 reject	reject	engine	simple_statement/lock!drop-2	LOCK utf8mb4 READ;
 reject	reject	engine	simple_statement/lock!drop-3	LOCK TABLE READ;
-accept	reject	engine	simple_statement/lock!drop-4	LOCK TABLE utf8mb4;
-accept	reject	engine	simple_statement/lock!truncate	LOCK TABLE utf8mb4
+reject	reject	engine	simple_statement/lock!drop-4	LOCK TABLE utf8mb4;
+reject	reject	engine	simple_statement/lock!truncate	LOCK TABLE utf8mb4
 reject	reject	engine	simple_statement/lock!insert	LOCK TABLE utf8mb4 READ zzz;
 reject	reject	engine	simple_statement/lock!swap	LOCKED TABLE utf8mb4 READ;
 accept	accept	engine	simple_statement/optimize_table_stmt	OPTIMIZE TABLE utf8mb4;
@@ -481,7 +481,7 @@ accept	reject	engine	simple_statement/purge!truncate	PURGE MASTER LOGS TO
 reject	reject	engine	simple_statement/purge!insert	PURGE MASTER LOGS TO 's' zzz;
 reject	reject	engine	simple_statement/purge!swap	QUARTER MASTER LOGS TO 's';
 accept	accept	engine	simple_statement/release	RELEASE SAVEPOINT utf8mb4;
-accept	reject	engine	simple_statement/release!drop-2	RELEASE utf8mb4;
+reject	reject	engine	simple_statement/release!drop-2	RELEASE utf8mb4;
 reject	reject	engine	simple_statement/release!drop-3	RELEASE SAVEPOINT;
 reject	reject	engine	simple_statement/release!truncate	RELEASE SAVEPOINT
 reject	reject	engine	simple_statement/release!insert	RELEASE SAVEPOINT utf8mb4 zzz;
@@ -5175,25 +5175,25 @@ accept	accept	engine	start/START_SYM_TRANSACTION_SYM_opt_start_transaction_optio
 accept	accept	engine	opt_start_transaction_option_list/%empty	START TRANSACTION;
 accept	accept	engine	opt_start_transaction_option_list/start_transaction_option_list	START TRANSACTION READ ONLY;
 reject	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!drop-1	START TRANSACTION ONLY;
-accept	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!drop-2	START TRANSACTION READ;
-accept	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!truncate	START TRANSACTION READ
+reject	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!drop-2	START TRANSACTION READ;
+reject	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!truncate	START TRANSACTION READ
 reject	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!insert	START TRANSACTION READ ONLY zzz;
 reject	reject	engine	opt_start_transaction_option_list/start_transaction_option_list!swap	START TRANSACTION READS ONLY;
 accept	accept	engine	start_transaction_option_list/start_transaction_option	START TRANSACTION READ ONLY;
 accept	accept	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option	START TRANSACTION READ ONLY, READ ONLY;
 reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-1	START TRANSACTION ONLY, READ ONLY;
-accept	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-2	START TRANSACTION READ, READ ONLY;
+reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-2	START TRANSACTION READ, READ ONLY;
 reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-3	START TRANSACTION READ ONLY READ ONLY;
 reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-4	START TRANSACTION READ ONLY, ONLY;
-accept	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-5	START TRANSACTION READ ONLY, READ;
-accept	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!truncate	START TRANSACTION READ ONLY, READ
+reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!drop-5	START TRANSACTION READ ONLY, READ;
+reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!truncate	START TRANSACTION READ ONLY, READ
 reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!insert	START TRANSACTION READ ONLY, READ ONLY zzz;
 reject	reject	engine	start_transaction_option_list/start_transaction_option_list_,_start_transaction_option!swap	START TRANSACTION READS ONLY, READ ONLY;
 accept	accept	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM	START TRANSACTION WITH CONSISTENT SNAPSHOT;
 reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!drop-1	START TRANSACTION CONSISTENT SNAPSHOT;
-accept	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!drop-2	START TRANSACTION WITH SNAPSHOT;
-accept	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!drop-3	START TRANSACTION WITH CONSISTENT;
-accept	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!truncate	START TRANSACTION WITH CONSISTENT
+reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!drop-2	START TRANSACTION WITH SNAPSHOT;
+reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!drop-3	START TRANSACTION WITH CONSISTENT;
+reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!truncate	START TRANSACTION WITH CONSISTENT
 reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!insert	START TRANSACTION WITH CONSISTENT SNAPSHOT zzz;
 reject	reject	engine	start_transaction_option/WITH_CONSISTENT_SYM_SNAPSHOT_SYM!swap	START TRANSACTION WITHOUT CONSISTENT SNAPSHOT;
 accept	accept	engine	start_transaction_option/READ_SYM_ONLY_SYM	START TRANSACTION READ ONLY;
@@ -10904,27 +10904,27 @@ accept	accept	engine	table_or_tables/TABLES!insert	FLUSH TABLES zzz;
 reject	reject	engine	table_or_tables/TABLES!swap	FLUSH TABLESPACE;
 accept	accept	engine	table_lock_list/table_lock	LOCK TABLE utf8mb4 READ;
 reject	reject	engine	table_lock_list/table_lock!swap	LOCK TABLE utf8mb4 READS;
-accept	reject	engine	table_lock_list/table_lock_list_,_table_lock	LOCK TABLE utf8mb4 READ, utf8mb4 READ;
+reject	reject	engine	table_lock_list/table_lock_list_,_table_lock	LOCK TABLE utf8mb4 READ, utf8mb4 READ;
 reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-1	LOCK TABLE READ, utf8mb4 READ;
-accept	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-2	LOCK TABLE utf8mb4, utf8mb4 READ;
+reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-2	LOCK TABLE utf8mb4, utf8mb4 READ;
 reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-3	LOCK TABLE utf8mb4 READ utf8mb4 READ;
 reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-4	LOCK TABLE utf8mb4 READ, READ;
-accept	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-5	LOCK TABLE utf8mb4 READ, utf8mb4;
-accept	reject	engine	table_lock_list/table_lock_list_,_table_lock!truncate	LOCK TABLE utf8mb4 READ, utf8mb4
+reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!drop-5	LOCK TABLE utf8mb4 READ, utf8mb4;
+reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!truncate	LOCK TABLE utf8mb4 READ, utf8mb4
 reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!insert	LOCK TABLE utf8mb4 READ, utf8mb4 READ zzz;
 reject	reject	engine	table_lock_list/table_lock_list_,_table_lock!swap	LOCK TABLE utf8mb4 READS, utf8mb4 READ;
 accept	accept	engine	table_lock/table_ident_opt_table_alias_lock_option	LOCK TABLE utf8mb4 READ;
 accept	accept	engine	lock_option/READ_SYM	LOCK TABLE utf8mb4 READ;
 accept	accept	engine	lock_option/WRITE_SYM	LOCK TABLE utf8mb4 WRITE;
 reject	reject	engine	lock_option/WRITE_SYM!insert	LOCK TABLE utf8mb4 WRITE zzz;
-accept	reject	engine	lock_option/WRITE_SYM!swap	LOCK TABLE utf8mb4 X509;
+reject	reject	engine	lock_option/WRITE_SYM!swap	LOCK TABLE utf8mb4 X509;
 accept	accept	engine	lock_option/LOW_PRIORITY_WRITE_SYM	LOCK TABLE utf8mb4 LOW_PRIORITY WRITE;
-accept	reject	engine	lock_option/LOW_PRIORITY_WRITE_SYM!drop-2	LOCK TABLE utf8mb4 LOW_PRIORITY;
-accept	reject	engine	lock_option/LOW_PRIORITY_WRITE_SYM!truncate	LOCK TABLE utf8mb4 LOW_PRIORITY
+reject	reject	engine	lock_option/LOW_PRIORITY_WRITE_SYM!drop-2	LOCK TABLE utf8mb4 LOW_PRIORITY;
+reject	reject	engine	lock_option/LOW_PRIORITY_WRITE_SYM!truncate	LOCK TABLE utf8mb4 LOW_PRIORITY
 reject	reject	engine	lock_option/LOW_PRIORITY_WRITE_SYM!insert	LOCK TABLE utf8mb4 LOW_PRIORITY WRITE zzz;
 accept	accept	engine	lock_option/LOW_PRIORITY_WRITE_SYM!swap	LOCK TABLE utf8mb4 MASTER WRITE;
 accept	accept	engine	lock_option/READ_SYM_LOCAL_SYM	LOCK TABLE utf8mb4 READ LOCAL;
-accept	reject	engine	lock_option/READ_SYM_LOCAL_SYM!drop-1	LOCK TABLE utf8mb4 LOCAL;
+reject	reject	engine	lock_option/READ_SYM_LOCAL_SYM!drop-1	LOCK TABLE utf8mb4 LOCAL;
 accept	accept	engine	lock_option/READ_SYM_LOCAL_SYM!truncate	LOCK TABLE utf8mb4 READ
 reject	reject	engine	lock_option/READ_SYM_LOCAL_SYM!insert	LOCK TABLE utf8mb4 READ LOCAL zzz;
 reject	reject	engine	lock_option/READ_SYM_LOCAL_SYM!swap	LOCK TABLE utf8mb4 READS LOCAL;
@@ -11003,16 +11003,16 @@ accept	accept	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_functi
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!drop-1	utf8mb4 READ FIRST;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!drop-2	HANDLER READ FIRST;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!drop-3	HANDLER utf8mb4 FIRST;
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!drop-4	HANDLER utf8mb4 READ;
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!drop-4	HANDLER utf8mb4 READ;
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!insert	HANDLER utf8mb4 READ FIRST zzz;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_handler_scan_function_opt_where_clause_opt_limit_clause!swap	HASH utf8mb4 READ FIRST;
 accept	accept	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause	HANDLER utf8mb4 READ utf8mb4 FIRST;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!drop-1	utf8mb4 READ utf8mb4 FIRST;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!drop-2	HANDLER READ utf8mb4 FIRST;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!drop-3	HANDLER utf8mb4 utf8mb4 FIRST;
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!drop-5	HANDLER utf8mb4 READ utf8mb4;
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ utf8mb4
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!drop-5	HANDLER utf8mb4 READ utf8mb4;
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ utf8mb4
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!insert	HANDLER utf8mb4 READ utf8mb4 FIRST zzz;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_function_opt_where_clause_opt_limit_clause!swap	HASH utf8mb4 READ utf8mb4 FIRST;
 accept	accept	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4);
@@ -11022,16 +11022,16 @@ reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-4	HANDLER utf8mb4 READ =(utf8mb4);
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-5	HANDLER utf8mb4 READ utf8mb4(utf8mb4);
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-6	HANDLER utf8mb4 READ utf8mb4 = utf8mb4);
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-7	HANDLER utf8mb4 READ utf8mb4 =();
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-8	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4;
-accept	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-7	HANDLER utf8mb4 READ utf8mb4 =();
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!drop-8	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4;
+reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!truncate	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!insert	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4) zzz;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_READ_SYM_ident_handler_rkey_mode_(_values_)_opt_where_clause_opt_limit_clause!swap	HASH utf8mb4 READ utf8mb4 =(utf8mb4);
 accept	accept	engine	handler_scan_function/FIRST_SYM	HANDLER utf8mb4 READ FIRST;
 reject	reject	engine	handler_scan_function/FIRST_SYM!swap	HANDLER utf8mb4 READ FIRST_VALUE;
 accept	accept	engine	handler_scan_function/NEXT_SYM	HANDLER utf8mb4 READ NEXT;
 reject	reject	engine	handler_scan_function/NEXT_SYM!insert	HANDLER utf8mb4 READ NEXT zzz;
-accept	reject	engine	handler_scan_function/NEXT_SYM!swap	HANDLER utf8mb4 READ NO;
+reject	reject	engine	handler_scan_function/NEXT_SYM!swap	HANDLER utf8mb4 READ NO;
 accept	accept	engine	handler_rkey_function/FIRST_SYM	HANDLER utf8mb4 READ utf8mb4 FIRST;
 reject	reject	engine	handler_rkey_function/FIRST_SYM!swap	HANDLER utf8mb4 READ utf8mb4 FIRST_VALUE;
 accept	accept	engine	handler_rkey_function/NEXT_SYM	HANDLER utf8mb4 READ utf8mb4 NEXT;
@@ -11045,9 +11045,9 @@ reject	reject	engine	handler_rkey_function/LAST_SYM!insert	HANDLER utf8mb4 READ 
 reject	reject	engine	handler_rkey_function/LAST_SYM!swap	HANDLER utf8mb4 READ utf8mb4 LAST_VALUE;
 accept	accept	engine	handler_rkey_mode/EQ	HANDLER utf8mb4 READ utf8mb4 =(utf8mb4);
 reject	reject	engine	handler_rkey_mode/EQ!insert	HANDLER utf8mb4 READ utf8mb4 = zzz(utf8mb4);
-reject	accept	engine	handler_rkey_mode/GE	HANDLER utf8mb4 READ utf8mb4 >=(utf8mb4);
+accept	accept	engine	handler_rkey_mode/GE	HANDLER utf8mb4 READ utf8mb4 >=(utf8mb4);
 reject	reject	engine	handler_rkey_mode/GE!insert	HANDLER utf8mb4 READ utf8mb4 >= zzz(utf8mb4);
-reject	accept	engine	handler_rkey_mode/LE	HANDLER utf8mb4 READ utf8mb4 <=(utf8mb4);
+accept	accept	engine	handler_rkey_mode/LE	HANDLER utf8mb4 READ utf8mb4 <=(utf8mb4);
 reject	reject	engine	handler_rkey_mode/LE!insert	HANDLER utf8mb4 READ utf8mb4 <= zzz(utf8mb4);
 accept	accept	engine	handler_rkey_mode/GT_SYM	HANDLER utf8mb4 READ utf8mb4 >(utf8mb4);
 reject	reject	engine	handler_rkey_mode/GT_SYM!insert	HANDLER utf8mb4 READ utf8mb4 > zzz(utf8mb4);
@@ -11761,14 +11761,14 @@ reject	reject	engine	opt_work/WORK_SYM!swap	COMMIT WRAPPER;
 accept	accept	engine	opt_chain/%empty	COMMIT;
 accept	accept	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM	COMMIT AND NO CHAIN;
 reject	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!drop-1	COMMIT NO CHAIN;
-accept	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!drop-3	COMMIT AND NO;
-accept	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!truncate	COMMIT AND NO
+reject	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!drop-3	COMMIT AND NO;
+reject	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!truncate	COMMIT AND NO
 reject	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!insert	COMMIT AND NO CHAIN zzz;
 reject	reject	engine	opt_chain/AND_SYM_NO_SYM_CHAIN_SYM!swap	COMMIT ANY NO CHAIN;
 accept	accept	engine	opt_chain/AND_SYM_CHAIN_SYM	COMMIT AND CHAIN;
 reject	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!drop-1	COMMIT CHAIN;
-accept	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!drop-2	COMMIT AND;
-accept	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!truncate	COMMIT AND
+reject	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!drop-2	COMMIT AND;
+reject	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!truncate	COMMIT AND
 reject	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!insert	COMMIT AND CHAIN zzz;
 reject	reject	engine	opt_chain/AND_SYM_CHAIN_SYM!swap	COMMIT ANY CHAIN;
 accept	accept	engine	opt_release/%empty	COMMIT;
@@ -11776,8 +11776,8 @@ accept	accept	engine	opt_release/RELEASE_SYM	COMMIT RELEASE;
 reject	reject	engine	opt_release/RELEASE_SYM!insert	COMMIT RELEASE zzz;
 reject	reject	engine	opt_release/RELEASE_SYM!swap	COMMIT RELOAD;
 accept	accept	engine	opt_release/NO_SYM_RELEASE_SYM	COMMIT NO RELEASE;
-accept	reject	engine	opt_release/NO_SYM_RELEASE_SYM!drop-2	COMMIT NO;
-accept	reject	engine	opt_release/NO_SYM_RELEASE_SYM!truncate	COMMIT NO
+reject	reject	engine	opt_release/NO_SYM_RELEASE_SYM!drop-2	COMMIT NO;
+reject	reject	engine	opt_release/NO_SYM_RELEASE_SYM!truncate	COMMIT NO
 reject	reject	engine	opt_release/NO_SYM_RELEASE_SYM!insert	COMMIT NO RELEASE zzz;
 reject	reject	engine	opt_release/NO_SYM_RELEASE_SYM!swap	COMMIT NODEGROUP RELEASE;
 accept	accept	engine	opt_savepoint/%empty	ROLLBACK TO utf8mb4;
@@ -12090,20 +12090,20 @@ accept	accept	engine	xa/XA_SYM_RECOVER_SYM_opt_convert_xid	XA RECOVER;
 accept	accept	engine	opt_convert_xid/%empty	XA RECOVER;
 accept	accept	engine	opt_convert_xid/CONVERT_SYM_XID_SYM	XA RECOVER CONVERT XID;
 reject	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!drop-1	XA RECOVER XID;
-accept	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!drop-2	XA RECOVER CONVERT;
-accept	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!truncate	XA RECOVER CONVERT
+reject	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!drop-2	XA RECOVER CONVERT;
+reject	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!truncate	XA RECOVER CONVERT
 reject	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!insert	XA RECOVER CONVERT XID zzz;
 reject	reject	engine	opt_convert_xid/CONVERT_SYM_XID_SYM!swap	XA RECOVER COUNT XID;
 accept	accept	engine	xid/text_string	XA BEGIN 's';
 accept	accept	engine	xid/text_string_,_text_string	XA BEGIN 's', 's';
 reject	reject	engine	xid/text_string_,_text_string!drop-1	XA BEGIN, 's';
-accept	reject	engine	xid/text_string_,_text_string!drop-2	XA BEGIN 's' 's';
+reject	reject	engine	xid/text_string_,_text_string!drop-2	XA BEGIN 's' 's';
 reject	reject	engine	xid/text_string_,_text_string!drop-3	XA BEGIN 's',;
 reject	reject	engine	xid/text_string_,_text_string!truncate	XA BEGIN 's',
 reject	reject	engine	xid/text_string_,_text_string!insert	XA BEGIN 's', 's' zzz;
 accept	accept	engine	xid/text_string_,_text_string_,_ulong_num	XA BEGIN 's', 's', 1;
 reject	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-1	XA BEGIN, 's', 1;
-accept	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-2	XA BEGIN 's' 's', 1;
+reject	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-2	XA BEGIN 's' 's', 1;
 reject	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-3	XA BEGIN 's',, 1;
 reject	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-4	XA BEGIN 's', 's' 1;
 reject	reject	engine	xid/text_string_,_text_string_,_ulong_num!drop-5	XA BEGIN 's', 's',;
@@ -12126,8 +12126,8 @@ reject	reject	engine	opt_join_or_resume/RESUME_SYM!swap	XA BEGIN 's' RETAIN;
 accept	accept	engine	opt_one_phase/%empty	XA COMMIT 's';
 accept	accept	engine	opt_one_phase/ONE_SYM_PHASE_SYM	XA COMMIT 's' ONE PHASE;
 reject	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!drop-1	XA COMMIT 's' PHASE;
-accept	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!drop-2	XA COMMIT 's' ONE;
-accept	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!truncate	XA COMMIT 's' ONE
+reject	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!drop-2	XA COMMIT 's' ONE;
+reject	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!truncate	XA COMMIT 's' ONE
 reject	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!insert	XA COMMIT 's' ONE PHASE zzz;
 reject	reject	engine	opt_one_phase/ONE_SYM_PHASE_SYM!swap	XA COMMIT 's' ONLY PHASE;
 accept	accept	engine	opt_suspend/%empty	XA END 's';
@@ -12138,8 +12138,8 @@ reject	reject	engine	opt_suspend/SUSPEND_SYM!swap	XA END 's' SWAPS;
 accept	accept	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM	XA END 's' SUSPEND FOR MIGRATE;
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!drop-1	XA END 's' FOR MIGRATE;
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!drop-2	XA END 's' SUSPEND MIGRATE;
-accept	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!drop-3	XA END 's' SUSPEND FOR;
-accept	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!truncate	XA END 's' SUSPEND FOR
+reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!drop-3	XA END 's' SUSPEND FOR;
+reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!truncate	XA END 's' SUSPEND FOR
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!insert	XA END 's' SUSPEND FOR MIGRATE zzz;
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!swap	XA END 's' SWAPS FOR MIGRATE;
 accept	accept	engine	install_option_type/%empty	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;

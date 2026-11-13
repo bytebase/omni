@@ -82,8 +82,7 @@ func (p *Parser) parseOptArrayBounds() (*nodes.List, error) {
 			p.advance()
 			items = append(items, &nodes.Integer{Ival: -1})
 		} else {
-			// Not an array bound; caller will handle
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	if len(items) == 0 {
@@ -128,6 +127,11 @@ func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 		p.advance()
 		return p.parseOptFloat()
 	case DOUBLE_P:
+		// DOUBLE_P PRECISION, or the unreserved word double as a GenericType.
+		// With completion's cursor after DOUBLE, PRECISION is offered.
+		if p.peekNext().Type != PRECISION && !p.completingAtNext() {
+			return p.parseGenericType()
+		}
 		p.advance()
 		if _, err := p.expect(PRECISION); err != nil {
 			return nil, err
@@ -529,7 +533,10 @@ func (p *Parser) parseTimestampType() (*nodes.TypeName, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		tz := p.parseOptTimezone()
+		tz, err := p.parseOptTimezone()
+		if err != nil {
+			return nil, err
+		}
 		if tz {
 			tn := makeTypeName("timestamptz")
 			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
@@ -539,7 +546,10 @@ func (p *Parser) parseTimestampType() (*nodes.TypeName, error) {
 		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
 		return tn, nil
 	}
-	tz := p.parseOptTimezone()
+	tz, err := p.parseOptTimezone()
+	if err != nil {
+		return nil, err
+	}
 	if tz {
 		return makeTypeName("timestamptz"), nil
 	}
@@ -562,7 +572,10 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		tz := p.parseOptTimezone()
+		tz, err := p.parseOptTimezone()
+		if err != nil {
+			return nil, err
+		}
 		if tz {
 			tn := makeTypeName("timetz")
 			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
@@ -572,7 +585,10 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
 		return tn, nil
 	}
-	tz := p.parseOptTimezone()
+	tz, err := p.parseOptTimezone()
+	if err != nil {
+		return nil, err
+	}
 	if tz {
 		return makeTypeName("timetz"), nil
 	}
@@ -585,20 +601,19 @@ func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
 //	    WITH_LA TIME ZONE
 //	    | WITHOUT_LA TIME ZONE
 //	    | /* EMPTY */
-func (p *Parser) parseOptTimezone() bool {
-	if p.cur.Type == WITH_LA {
-		p.advance()
-		p.expect(TIME)
-		p.expect(ZONE)
-		return true
+func (p *Parser) parseOptTimezone() (bool, error) {
+	if p.cur.Type != WITH_LA && p.cur.Type != WITHOUT_LA {
+		return false, nil
 	}
-	if p.cur.Type == WITHOUT_LA {
-		p.advance()
-		p.expect(TIME)
-		p.expect(ZONE)
-		return false
+	with := p.cur.Type == WITH_LA
+	p.advance()
+	if _, err := p.expect(TIME); err != nil {
+		return false, err
 	}
-	return false
+	if _, err := p.expect(ZONE); err != nil {
+		return false, err
+	}
+	return with, nil
 }
 
 // parseIntervalType parses INTERVAL type with optional qualifiers.
@@ -688,6 +703,8 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 				}
 				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_DAY | nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
 				return secs, nil
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		return &nodes.List{Items: []nodes.Node{
@@ -709,6 +726,8 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 				}
 				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
 				return secs, nil
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		return &nodes.List{Items: []nodes.Node{
@@ -717,14 +736,15 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 	case MINUTE_P:
 		p.advance()
 		if _, ok := p.match(TO); ok {
-			if p.cur.Type == SECOND_P {
-				secs, err := p.parseIntervalSecond()
-				if err != nil {
-					return nil, err
-				}
-				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
-				return secs, nil
+			if p.cur.Type != SECOND_P {
+				return nil, p.syntaxErrorAtCur()
 			}
+			secs, err := p.parseIntervalSecond()
+			if err != nil {
+				return nil, err
+			}
+			secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
+			return secs, nil
 		}
 		return &nodes.List{Items: []nodes.Node{
 			makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE)),
@@ -746,6 +766,9 @@ func (p *Parser) parseIntervalSecond() (*nodes.List, error) {
 	p.advance() // consume SECOND_P
 	if p.cur.Type == '(' {
 		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ival := p.cur.Ival
 		p.advance() // consume ICONST
 		if _, err := p.expect(')'); err != nil {

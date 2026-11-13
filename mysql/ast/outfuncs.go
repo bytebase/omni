@@ -3640,6 +3640,16 @@ func writeHandlerReadStmt(sb *strings.Builder, n *HandlerReadStmt) {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
 	}
+	if n.KeyMode != "" {
+		fmt.Fprintf(sb, " :key_mode %s :key_values (", n.KeyMode)
+		for i, v := range n.KeyValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
 	sb.WriteString("}")
 }
 
