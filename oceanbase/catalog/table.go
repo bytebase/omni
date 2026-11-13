@@ -1,6 +1,10 @@
 package catalog
 
-import "slices"
+import (
+	"slices"
+
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+)
 
 type Table struct {
 	Name             string
@@ -94,6 +98,11 @@ type Column struct {
 	Name       string
 	DataType   string // normalized (int, varchar, etc.)
 	ColumnType string // full type string (varchar(100), int unsigned)
+	// typeNode is the type as the parser read it, kept so a later statement can
+	// check a value against it without parsing the column's text again. A synced
+	// column has one too, from metadataColumnDef. Nil only where no definition
+	// was seen, as for a column a CREATE TABLE ... SELECT invents.
+	typeNode *nodes.DataType
 	Nullable   bool
 	// NullExplicit records whether the user wrote an explicit NULL or NOT NULL clause on
 	// the column. The diff-time canonicalizer needs it to apply MySQL's

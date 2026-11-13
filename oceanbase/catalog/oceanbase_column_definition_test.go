@@ -48,5 +48,23 @@ func TestOracle_OceanBaseColumnDefinition(t *testing.T) {
 			{"ALTER TABLE a MODIFY c TINYINT DEFAULT 's'", 1067},
 			{"CREATE TABLE t2 (b INT PRIMARY KEY, c TINYINT DEFAULT 's')", 1067},
 		}},
+		{"a value's range, its width and its quotes", []engineStep{
+			{table, taken},
+			// ZEROFILL makes a column unsigned, so the signed range is not its range.
+			{"ALTER TABLE a ADD z1 TINYINT ZEROFILL DEFAULT 255", taken},
+			{"ALTER TABLE a ADD z2 TINYINT ZEROFILL DEFAULT -1", 1067},
+			{"ALTER TABLE a ADD z3 TINYINT ZEROFILL DEFAULT 256", 1067},
+			// A member is matched as written, quotes and all.
+			{"ALTER TABLE a ADD q1 ENUM('''a') DEFAULT '''a'", taken},
+			{"ALTER TABLE a ADD q2 ENUM('''a') DEFAULT 'a'", 1067},
+			// Rounding is half away from zero, and an exponent no column can hold is
+			// refused without expanding the number (integerInRange).
+			{"ALTER TABLE a ADD r1 TINYINT DEFAULT 127.4", taken},
+			{"ALTER TABLE a ADD r2 TINYINT DEFAULT 127.5", 1067},
+			{"ALTER TABLE a ADD r3 TINYINT DEFAULT -128.4", taken},
+			{"ALTER TABLE a ADD r4 TINYINT DEFAULT -128.5", 1067},
+			{"ALTER TABLE a ADD r5 TINYINT DEFAULT '1e10000000'", 1067},
+			{"ALTER TABLE a ADD r6 BIGINT UNSIGNED DEFAULT 18446744073709551615", taken},
+		}},
 	})
 }

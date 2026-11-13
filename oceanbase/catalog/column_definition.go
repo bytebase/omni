@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
-	obparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 // OceanBase reads a column's definition before it looks at the column's name, so
@@ -144,7 +143,7 @@ func literalDefaultFits(dt *nodes.DataType, expr nodes.ExprNode) bool {
 		if !ok {
 			return false
 		}
-		return integerInRange(n, typeName, dt.Unsigned)
+		return integerInRange(n, typeName, dt.Unsigned || dt.Zerofill)
 	case "decimal", "numeric", "dec", "fixed":
 		n, ok := literalNumber(text)
 		if !ok {
@@ -241,36 +240,53 @@ func literalText(expr nodes.ExprNode) (string, bool, bool) {
 	return "", false, false
 }
 
+// numberPrec is the mantissa a default's number is read and compared with: wide
+// enough to hold any integer bound exactly, and fixed so a value's own size never
+// sets it.
+const numberPrec = 256
+
 func literalNumber(text string) (*big.Float, bool) {
 	text = strings.TrimSpace(text)
 	if !numericText.MatchString(text) {
 		return nil, false
 	}
-	n, _, err := big.ParseFloat(text, 10, 256, big.ToNearestEven)
+	n, _, err := big.ParseFloat(text, 10, numberPrec, big.ToNearestEven)
 	return n, err == nil
 }
 
 // integerInRange reports whether n, rounded half away from zero, fits the type.
+// The bounds are compared as floats and n is never materialized as an integer: a
+// literal of a few bytes, '"'"'1e10000000'"'"', expands to megabytes as one.
 func integerInRange(n *big.Float, typeName string, unsigned bool) bool {
 	bits := map[string]uint{"tinyint": 8, "smallint": 16, "mediumint": 24, "int": 32, "integer": 32, "bigint": 64}[typeName]
-	half := big.NewFloat(0.5)
-	if n.Sign() < 0 {
-		half.Neg(half)
-	}
-	rounded, _ := new(big.Float).Add(n, half).Int(nil) // Int truncates toward zero
-	var lo, hi *big.Int
+	var lo, hi *big.Float
 	if unsigned {
-		lo, hi = big.NewInt(0), new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits), big.NewInt(1))
+		lo = new(big.Float)
+		hi = new(big.Float).SetInt(new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits), big.NewInt(1)))
 	} else {
-		hi = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits-1), big.NewInt(1))
-		lo = new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), bits-1))
+		hi = new(big.Float).SetInt(new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits-1), big.NewInt(1)))
+		lo = new(big.Float).Neg(new(big.Float).SetInt(new(big.Int).Lsh(big.NewInt(1), bits-1)))
 	}
-	return rounded.Cmp(lo) >= 0 && rounded.Cmp(hi) <= 0
+	// Rounding half away from zero holds every value within half a unit of a bound,
+	// so the bounds move by half, not n: adding to n allocates a mantissa as wide as
+	// the gap between the exponents, megabytes for a literal like '1e100000000',
+	// while the bounds are small and Cmp allocates nothing.
+	// SetInt gives a bound only as many bits as it needs, so the half would round
+	// away at a bound of 64 bits: -2^63 - 0.5 came back as -2^63 and refused
+	// BIGINT DEFAULT '-9223372036854775808'. The sum is taken at the precision
+	// literalNumber reads a value with, where 65 bits are exact.
+	half := big.NewFloat(0.5)
+	upper := new(big.Float).SetPrec(numberPrec).Add(hi, half)
+	lower := new(big.Float).SetPrec(numberPrec).Sub(lo, half)
+	return n.Cmp(upper) < 0 && n.Cmp(lower) > 0
 }
 
+// memberFold reports whether v is one of an ENUM's or SET's members. The members
+// are decoded, as parseStringValueList leaves them, so a member that holds a quote
+// is compared as it stands: ENUM('"'"'a') has the one member '"'"'a.
 func memberFold(members []string, v string) bool {
 	for _, m := range members {
-		if strings.EqualFold(strings.Trim(m, "'"), v) {
+		if strings.EqualFold(m, v) {
 			return true
 		}
 	}
@@ -321,19 +337,6 @@ func validTimeText(text string) bool {
 		}
 	}
 	return true
-}
-
-// columnTypeOf reads a column's type back from its catalog form, or nil.
-func columnTypeOf(col *Column) *nodes.DataType {
-	list, err := obparser.Parse("CREATE TABLE t (x " + col.ColumnType + ")")
-	if err != nil || list == nil || len(list.Items) != 1 {
-		return nil
-	}
-	stmt, ok := list.Items[0].(*nodes.CreateTableStmt)
-	if !ok || len(stmt.Columns) != 1 {
-		return nil
-	}
-	return stmt.Columns[0].TypeName
 }
 
 // checkAddedGeneratedCheck refuses a generated column with a CHECK in ALTER TABLE

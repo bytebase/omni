@@ -936,7 +936,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		if err := checkDefault(col.Name, columnTypeOf(col), cmd.DefaultExpr); err != nil {
+		if err := checkDefault(col.Name, col.typeNode, cmd.DefaultExpr); err != nil {
 			return err
 		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
@@ -1014,6 +1014,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 
 	// Type info.
 	if colDef.TypeName != nil {
+		col.typeNode = colDef.TypeName
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {

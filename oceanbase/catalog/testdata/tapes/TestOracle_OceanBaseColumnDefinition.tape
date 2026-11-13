@@ -1,5 +1,49 @@
 -- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
 
+== TestOracle_OceanBaseColumnDefinition/a_value's_range,_its_width_and_its_quotes default#1
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD z1 TINYINT ZEROFILL DEFAULT 255
+< ok 0 0
+> exec
+| ALTER TABLE a ADD z2 TINYINT ZEROFILL DEFAULT -1
+< error
+| 1067 42000 Invalid default value for 'z2'
+> exec
+| ALTER TABLE a ADD z3 TINYINT ZEROFILL DEFAULT 256
+< error
+| 1067 42000 Invalid default value for 'z3'
+> exec
+| ALTER TABLE a ADD q1 ENUM('''a') DEFAULT '''a'
+< ok 0 0
+> exec
+| ALTER TABLE a ADD q2 ENUM('''a') DEFAULT 'a'
+< error
+| 1067 42000 Invalid default value for 'q2'
+> exec
+| ALTER TABLE a ADD r1 TINYINT DEFAULT 127.4
+< ok 0 0
+> exec
+| ALTER TABLE a ADD r2 TINYINT DEFAULT 127.5
+< error
+| 1067 42000 Invalid default value for 'r2'
+> exec
+| ALTER TABLE a ADD r3 TINYINT DEFAULT -128.4
+< ok 0 0
+> exec
+| ALTER TABLE a ADD r4 TINYINT DEFAULT -128.5
+< error
+| 1067 42000 Invalid default value for 'r4'
+> exec
+| ALTER TABLE a ADD r5 TINYINT DEFAULT '1e10000000'
+< error
+| 1067 42000 Invalid default value for 'r5'
+> exec
+| ALTER TABLE a ADD r6 BIGINT UNSIGNED DEFAULT 18446744073709551615
+< ok 0 0
+
 == TestOracle_OceanBaseColumnDefinition/before_the_name default#1
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT)
