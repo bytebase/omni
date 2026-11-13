@@ -13,14 +13,24 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+
+	"github.com/bytebase/omni/enginetest"
 )
+
+// Pins is mysql/testdata/pins.tsv.
+var Pins = func() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
+}()
 
 const (
 	// The test account and the prefix of its databases. The underscores are
@@ -43,9 +53,51 @@ type Server struct {
 	err       error
 }
 
-// MySQL80 is mysql:8.0. The binary log stays off so the restricted account can
-// create routines (1419 otherwise).
-var MySQL80 = &Server{Image: "mysql:8.0", Args: []string{"--skip-log-bin"}}
+// MySQL80 is the default row of pins.tsv, mysql:8.0.46. The binary log stays
+// off so the restricted account can create routines (1419 otherwise).
+var MySQL80 = &Server{Image: "mysql:8.0.46", Args: []string{"--skip-log-bin"}}
+
+// CheckPin fails unless the server this process started is the one pin names:
+// the image, its repository digest, and the release it reports. A tag can be
+// pushed again; a digest cannot.
+func (s *Server) CheckPin(ctx context.Context, pin enginetest.Pin) error {
+	if pin.Image != s.Image {
+		return fmt.Errorf("%s pins %s, but this package starts %s", Pins, pin.Image, s.Image)
+	}
+	admin, err := s.admin(ctx)
+	if err != nil {
+		return err
+	}
+	defer admin.Close()
+	info, err := s.container.Inspect(ctx)
+	if err != nil {
+		return fmt.Errorf("inspect the MySQL container: %w", err)
+	}
+	cli, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		return fmt.Errorf("docker client: %w", err)
+	}
+	defer cli.Close()
+	img, err := cli.ImageInspect(ctx, info.Image)
+	if err != nil {
+		return fmt.Errorf("inspect the MySQL image: %w", err)
+	}
+	found := false
+	for _, d := range img.RepoDigests {
+		found = found || strings.HasSuffix(d, "@"+pin.Digest)
+	}
+	if !found {
+		return fmt.Errorf("the MySQL container runs an image with digests %v, but %s pins %s", img.RepoDigests, Pins, pin.Digest)
+	}
+	var version string
+	if err := admin.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
+		return fmt.Errorf("read the MySQL version: %w", err)
+	}
+	if "mysql-"+version != pin.Tag {
+		return fmt.Errorf("the server reports %q, but %s pins %s", version, Pins, pin.Tag)
+	}
+	return nil
+}
 
 // admin returns a connection that can create databases, starting the server on
 // the first call of this process.
@@ -136,6 +188,9 @@ func (s *Server) Database(ctx context.Context, label string) (*Database, error) 
 	config := s.config.Clone()
 	config.User, config.Passwd, config.DBName = account, accountSecret, name
 	config.ParseTime, config.MultiStatements = true, true
+	// Arguments are inlined, so a statement such as PREPARE, which the server
+	// does not take as a prepared statement, can take one.
+	config.InterpolateParams = true
 	db, err := sql.Open("mysql", config.FormatDSN())
 	if err != nil {
 		return nil, err
