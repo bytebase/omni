@@ -124,8 +124,9 @@ func (p *Parser) parseOceanBaseTableOption(start int) (*nodes.TableOption, bool,
 var sysTTLColumn sysPat = func(p *Parser, k func() bool) bool {
 	s := p.saveScan()
 	kept := len(p.sys.ttlColumns)
+	// column_definition_ref takes at most three parts, db.table.column.
 	name, _, err := p.parseIdent()
-	for err == nil && p.cur.Type == '.' {
+	for parts := 1; err == nil && parts < 3 && p.cur.Type == '.'; parts++ {
 		p.advance()
 		name, _, err = p.parseIdent()
 	}

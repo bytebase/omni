@@ -40,3 +40,22 @@ func TestTTLColumnsComeFromTheParse(t *testing.T) {
 		}
 	}
 }
+
+// A column_definition_ref takes at most three parts, as the grammar has it, and
+// the engine answers 1064 for a fourth.
+func TestTTLColumnRefStopsAtThreeParts(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		parses bool
+	}{
+		{"ALTER TABLE a TTL (dt + INTERVAL 1 DAY)", true},
+		{"ALTER TABLE a TTL (a.dt + INTERVAL 1 DAY)", true},
+		{"ALTER TABLE a TTL (d.a.dt + INTERVAL 1 DAY)", true},
+		{"ALTER TABLE a TTL (x.d.a.dt + INTERVAL 1 DAY)", false},
+	} {
+		_, err := obparser.Parse(tc.sql)
+		if (err == nil) != tc.parses {
+			t.Errorf("%s: parses=%v, want %v (%v)", tc.sql, err == nil, tc.parses, err)
+		}
+	}
+}
