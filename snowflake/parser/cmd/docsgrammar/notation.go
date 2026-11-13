@@ -460,9 +460,24 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 					return nil, errElided
 				}
 				prev := out[len(out)-1]
-				if comma {
-					out = append(out, repeatAfterComma(prev))
-				} else {
+				switch {
+				case comma && prev.tok == nil && !prev.brace && prev.op == '?':
+					// [ X ] [ , ... ]: no X, or a list of them; a comma
+					// always has an X after it.
+					x := &node{alts: prev.alts, brace: true}
+					out[len(out)-1] = &node{alts: [][]*node{{x, repeatAfterComma(x)}}, op: '?'}
+				case comma:
+					// X [ , ... ] repeats the element before it: the run of
+					// values back to a keyword, <arg_name> <arg_data_type>
+					// or <col> = <value>, or else the one node before.
+					k := valueRun(out)
+					x := prev
+					if k > 1 {
+						x = &node{alts: [][]*node{append([]*node(nil), out[len(out)-k:]...)}, brace: true}
+						out = append(out[:len(out)-k], x)
+					}
+					out = append(out, repeatAfterComma(x))
+				default:
 					out[len(out)-1] = repeat(prev, '+')
 				}
 				continue
@@ -554,6 +569,33 @@ func optionalList(n *node) bool {
 
 // isRepeatable reports whether X ... can repeat X: a value or a group, not
 // punctuation or a keyword, which ... after reads as text left out.
+// valueRun returns how many nodes at the end of seq are values or
+// punctuation, back to a keyword, a group, a comma or an unmatched (. A
+// parenthesised part, ( ... ), counts whole, whatever it holds.
+func valueRun(seq []*node) int {
+	k, depth := 0, 0
+	for i := len(seq) - 1; i >= 0; i-- {
+		n := seq[i]
+		switch {
+		case n.tok != nil && isLiteral(*n.tok, ")"):
+			depth++
+		case n.tok != nil && isLiteral(*n.tok, "("):
+			if depth == 0 {
+				return k
+			}
+			depth--
+		case depth > 0:
+		case n.tok == nil || n.tok.kind == nKeyword || n.tok.kind == nFragment || isComma(n):
+			return k
+		}
+		k++
+	}
+	if depth > 0 {
+		return 0
+	}
+	return k
+}
+
 // repeatedElement returns the length of the list element seq ends with
 // when the docs spell it twice, E , E, the longest such E, or 0.
 func repeatedElement(seq []*node) int {

@@ -34,6 +34,12 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"TYPE = 'SNOWPARK-OPTIMIZED'", "'TYPE' '=' '\\'SNOWPARK-OPTIMIZED\\''"},
 		{"FROM @[<namespace>.]<stage_name>[/<path>/]", "'FROM' STAGE"},
 		{"START = <initial_value>", "'START' '=' NUMBER"},
+		{"AS SELECT <query>", "'AS' QUERY"},
+		{"F ( [ <arg_name> <arg_data_type> [ , ... ] ] )", "'F' '(' (ID DATA_TYPE (',' ID DATA_TYPE)*)? ')'"},
+		{"UPDATE <t> SET <col_name> = <value> [ , ... ]", "'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)*"},
+		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
+		// [ X ] [ , ... ]: an optional list, a comma always before an X.
+		{"F ( [ <arg_name> <arg_data_type> ] [ , ... ] )", "'F' '(' (ID DATA_TYPE (',' ID DATA_TYPE)*)? ')'"},
 		// [ X , ... ] is an optional list, commas kept.
 		{"DROP FUNCTION <name> ( [ <arg_data_type> , ... ] )", "'DROP' 'FUNCTION' ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')'"},
 		// [ KEY = A | B ]: each choice is a value of KEY.

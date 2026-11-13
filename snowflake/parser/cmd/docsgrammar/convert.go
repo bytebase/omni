@@ -602,6 +602,12 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	if err := c.checkWords(toks); err != nil {
 		return nil, err
 	}
+	// AS SELECT <query>: the query's sample starts with its own SELECT.
+	for i := len(toks) - 2; i >= 0; i-- {
+		if toks[i].kind == nKeyword && toks[i].text == "SELECT" && toks[i+1].kind == nPlaceholder && placeholderClass(toks[i+1].text) == tQuery {
+			toks = append(toks[:i], toks[i+1:]...)
+		}
+	}
 	tree, err := parseNotation(toks)
 	if err != nil {
 		return nil, err
