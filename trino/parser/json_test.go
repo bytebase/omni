@@ -14,7 +14,7 @@ import (
 //     edge cases, each tagged accept or reject.
 //  2. Oracle differential (TestJSON_OracleDifferential) — the authoritative
 //     gate: omni's ParseExpression accept/reject MUST equal Trino 481's
-//     accept/reject of `SELECT <expr>`. Skipped when no oracle is reachable.
+//     accept/reject of `SELECT <expr>`.
 //  3. Structural assertions (TestJSON_Structure) — for representative forms, the
 //     produced AST has the expected shape (function kind, behavior spellings,
 //     member separators, null-handling, RETURNING type), catching wrong
@@ -236,7 +236,7 @@ func TestJSON_RejectCorpusRejected(t *testing.T) {
 
 // TestJSON_OracleDifferential is the authoritative accept/reject gate: for every
 // form in both corpora, omni's ParseExpression accept/reject must equal Trino
-// 481's accept/reject of `SELECT <expr>`. Skipped when no oracle is reachable.
+// 481's accept/reject of `SELECT <expr>`.
 func TestJSON_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 
@@ -244,10 +244,7 @@ func TestJSON_OracleDifferential(t *testing.T) {
 		_, errs := ParseExpression(expr)
 		omniAccepts := len(errs) == 0
 
-		trinoAccepts, ok := oracleAccepts(t, o, wrapExpr(expr))
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
+		trinoAccepts := oracleAccepts(t, o, wrapExpr(expr))
 		if omniAccepts != trinoAccepts {
 			t.Errorf("MISMATCH expr=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
 				expr, omniAccepts, errs, trinoAccepts)

@@ -32,27 +32,27 @@ import (
 //  3. Robustness. Parse/Diagnose must terminate without panic on every
 //     accepted corpus statement and never invent a lex error there.
 //
-// All oracle-backed subtests skip cleanly when no Trino is reachable, matching
-// the harness convention; the robustness sweep runs oracle-free too.
+// The oracle-backed tests read Trino's answers from their tapes; the
+// robustness sweep runs oracle-free.
 
-// connectOracle dials the live Trino oracle, skipping the test when it is
-// unreachable. Shared by the oracle-backed subtests below.
+// connectOracle opens the test's Trino: its tape, or the server in a
+// recording. Shared by the oracle-backed tests below.
 func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return testcontainer.ForTest(t)
+	return testcontainer.Open(t)
 }
 
 // oracleAccepts asks the oracle whether Trino syntactically accepts sql,
-// treating an oracle transport error as a skip signal (returns ok=false).
-func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
+// failing t when Trino gives no answer.
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) bool {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	res, err := o.CheckSyntax(ctx, sql)
 	if err != nil {
-		return false, false
+		t.Fatalf("Trino gave no answer for %q: %v", sql, err)
 	}
-	return res.Accepted, true
+	return res.Accepted
 }
 
 // qualifiedNameCandidates spans the foundation's identifier/qualifiedName
@@ -96,10 +96,7 @@ func TestFoundation_QualifiedNameDifferential(t *testing.T) {
 			_, errs := ParseQualifiedName(name)
 			omniAccepts := len(errs) == 0
 
-			trinoAccepts, ok := oracleAccepts(t, o, "SELECT * FROM "+name)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			trinoAccepts := oracleAccepts(t, o, "SELECT * FROM "+name)
 			if omniAccepts != trinoAccepts {
 				t.Errorf("MISMATCH name=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
 					name, omniAccepts, errs, trinoAccepts)
@@ -210,17 +207,14 @@ func TestFoundation_SplitMatchesCount(t *testing.T) {
 
 // TestFoundation_SplitRoundTripOracle verifies each statement Split produces is
 // independently accepted by Trino — proving Split cut on real boundaries and
-// never mid-statement. Skipped without an oracle.
+// never mid-statement.
 func TestFoundation_SplitRoundTripOracle(t *testing.T) {
 	o := connectOracle(t)
 	for _, tc := range multiStatementCorpus {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			for _, seg := range Split(tc.input) {
-				accepted, ok := oracleAccepts(t, o, seg.Text)
-				if !ok {
-					t.Skip("oracle unreachable for this case")
-				}
+				accepted := oracleAccepts(t, o, seg.Text)
 				if !accepted {
 					t.Errorf("Split produced a segment Trino rejects: %q (from input %q)", seg.Text, tc.input)
 				}

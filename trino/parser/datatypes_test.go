@@ -26,7 +26,7 @@ import (
 //     still be accepted by the oracle. This is the structural gate (no
 //     reference parser exists for Trino types).
 //
-// All oracle-backed subtests skip cleanly when no Trino is reachable.
+// The oracle-backed tests read Trino's answers from their tapes.
 
 // ---------------------------------------------------------------------------
 // Layer 1 — structural unit tests
@@ -633,7 +633,7 @@ func TestDataType_RejectCorpusRejected(t *testing.T) {
 
 // TestDataType_OracleDifferential is the authoritative gate: for every type in
 // both corpora, omni's ParseDataType accept/reject must equal Trino 481's
-// accept/reject of `CAST(NULL AS <type>)`. Skipped when no oracle is reachable.
+// accept/reject of `CAST(NULL AS <type>)`.
 func TestDataType_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 
@@ -641,10 +641,7 @@ func TestDataType_OracleDifferential(t *testing.T) {
 		_, errs := ParseDataType(typ)
 		omniAccepts := len(errs) == 0
 
-		trinoAccepts, ok := oracleAccepts(t, o, wrapType(typ))
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
+		trinoAccepts := oracleAccepts(t, o, wrapType(typ))
 		if omniAccepts != trinoAccepts {
 			t.Errorf("MISMATCH type=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
 				typ, omniAccepts, errs, trinoAccepts)
@@ -694,7 +691,7 @@ func TestDataType_RoundTrip(t *testing.T) {
 
 // TestDataType_RoundTripOracle verifies the String() rendering of every
 // accepted type is itself accepted by Trino — proving deparse emits valid Trino
-// type syntax. Skipped without an oracle.
+// type syntax.
 func TestDataType_RoundTripOracle(t *testing.T) {
 	o := connectOracle(t)
 	for _, typ := range typeAcceptCorpus {
@@ -705,10 +702,7 @@ func TestDataType_RoundTripOracle(t *testing.T) {
 				t.Fatalf("parse of %q failed: %v", typ, errs)
 			}
 			rendered := dt.String()
-			accepted, ok := oracleAccepts(t, o, wrapType(rendered))
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			accepted := oracleAccepts(t, o, wrapType(rendered))
 			if !accepted {
 				t.Errorf("deparse produced a type Trino rejects: %q -> %q", typ, rendered)
 			}

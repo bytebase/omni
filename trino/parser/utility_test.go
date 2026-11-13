@@ -393,17 +393,14 @@ func TestUtility_RejectCorpusRejected(t *testing.T) {
 
 // TestUtility_OracleDifferential is the authoritative accept/reject gate: for
 // every form in both corpora, this node's accept/reject must equal Trino 481's
-// accept/reject of the same statement. Skipped when no oracle is reachable.
+// accept/reject of the same statement.
 func TestUtility_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 
 	check := func(t *testing.T, sql string) {
 		_, omniAccepts := parseUtility(sql)
 
-		trinoAccepts, ok := oracleAccepts(t, o, sql)
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
+		trinoAccepts := oracleAccepts(t, o, sql)
 		if omniAccepts != trinoAccepts {
 			_, errs := parseForTest(sql)
 			t.Errorf("MISMATCH sql=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
@@ -432,10 +429,7 @@ func TestUtility_OracleDifferential(t *testing.T) {
 			sql := sql
 			t.Run(truncateName(sql), func(t *testing.T) {
 				v, _, errs := classifyUtility(sql)
-				trinoAccepts, ok := oracleAccepts(t, o, sql)
-				if !ok {
-					t.Skip("oracle unreachable for this case")
-				}
+				trinoAccepts := oracleAccepts(t, o, sql)
 				if !trinoAccepts {
 					t.Errorf("expected Trino to accept %q (pending-inner corpus), but it rejected", sql)
 				}

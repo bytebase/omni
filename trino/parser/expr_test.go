@@ -317,7 +317,7 @@ func TestExpr_RejectCorpusRejected(t *testing.T) {
 
 // TestExpr_OracleDifferential is the authoritative accept/reject gate: for every
 // form in both corpora, omni's ParseExpression accept/reject must equal Trino
-// 481's accept/reject of `SELECT <expr>`. Skipped when no oracle is reachable.
+// 481's accept/reject of `SELECT <expr>`.
 func TestExpr_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 
@@ -325,10 +325,7 @@ func TestExpr_OracleDifferential(t *testing.T) {
 		_, errs := ParseExpression(expr)
 		omniAccepts := len(errs) == 0
 
-		trinoAccepts, ok := oracleAccepts(t, o, wrapExpr(expr))
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
+		trinoAccepts := oracleAccepts(t, o, wrapExpr(expr))
 		if omniAccepts != trinoAccepts {
 			t.Errorf("MISMATCH expr=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
 				expr, omniAccepts, errs, trinoAccepts)

@@ -626,7 +626,7 @@ func TestExpr_RoundTrip(t *testing.T) {
 
 // TestExpr_RoundTripOracle verifies the rendered form of every accepted corpus
 // expression is itself accepted by Trino — proving the render emits valid Trino
-// expression syntax. Skipped without an oracle. JSON forms are not in the corpus
+// expression syntax. JSON forms are not in the corpus
 // (deferred), so every entry is expected to render to valid SQL.
 func TestExpr_RoundTripOracle(t *testing.T) {
 	o := connectOracle(t)
@@ -638,10 +638,7 @@ func TestExpr_RoundTripOracle(t *testing.T) {
 				t.Fatalf("parse of %q failed: %v", expr, errs)
 			}
 			rendered := renderExpr(node)
-			accepted, ok := oracleAccepts(t, o, wrapExpr(rendered))
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			accepted := oracleAccepts(t, o, wrapExpr(rendered))
 			if !accepted {
 				t.Errorf("render produced an expression Trino rejects: %q -> %q", expr, rendered)
 			}

@@ -24,23 +24,23 @@ import (
 //     (unquoted => lower-cased; quoting needed to preserve case or use a
 //     reserved word) is the rule Trino 481 actually enforces.
 //
-// All subtests skip cleanly when no Trino is reachable, matching the harness
-// convention (analysis/oracle_test.go, trinooracle/oracle_test.go).
+// Trino's answers come from the test's tape (testcontainer.Open); a recording
+// asks the pinned server.
 
 func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return testcontainer.ForTest(t)
+	return testcontainer.Open(t)
 }
 
-func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) bool {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	res, err := o.CheckSyntax(ctx, sql)
 	if err != nil {
-		return false, false
+		t.Fatalf("Trino gave no answer for %q: %v", sql, err)
 	}
-	return res.Accepted, true
+	return res.Accepted
 }
 
 // oracleCatalog builds a completion catalog that mirrors the schema this test
@@ -80,7 +80,7 @@ func seedMemorySchema(t *testing.T, o *testcontainer.Oracle) {
 		"CREATE TABLE memory.default.customer (custkey bigint, name varchar)",
 	} {
 		if _, err := o.CheckSyntax(ctx, s); err != nil {
-			t.Skipf("oracle setup failed (%q): %v", s, err)
+			t.Fatalf("oracle setup failed (%q): %v", s, err)
 		}
 	}
 }
@@ -134,10 +134,7 @@ func TestCompletion_ContextsAreValidSyntax(t *testing.T) {
 			if tc.want == CandidateKeyword {
 				substituted = cand + " 1"
 			}
-			accepted, ok := oracleAccepts(t, o, substituted)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			accepted := oracleAccepts(t, o, substituted)
 			if !accepted {
 				t.Errorf("Trino 481 REJECTED %q (candidate %q substituted into %q@%d)",
 					substituted, cand, tc.sql, tc.pos)
@@ -178,12 +175,12 @@ func TestCompletion_ContextNegativesMatchOracle(t *testing.T) {
 		if cols := pickCandidate(got, CandidateColumn, ""); cols != "" {
 			t.Errorf("USING context offered a bare column %q; that completes to invalid syntax", cols)
 		}
-		bad, ok1 := oracleAccepts(t, o, "SELECT * FROM orders o JOIN customer c USING custkey")
-		good, ok2 := oracleAccepts(t, o, "SELECT * FROM orders o JOIN customer c USING (custkey)")
-		if ok1 && bad {
+		bad := oracleAccepts(t, o, "SELECT * FROM orders o JOIN customer c USING custkey")
+		good := oracleAccepts(t, o, "SELECT * FROM orders o JOIN customer c USING (custkey)")
+		if bad {
 			t.Errorf("oracle unexpectedly accepted bare 'USING custkey'")
 		}
-		if ok2 && !good {
+		if !good {
 			t.Errorf("oracle rejected 'USING (custkey)' — the valid shape")
 		}
 	}
@@ -197,27 +194,27 @@ func TestCompletion_ContextNegativesMatchOracle(t *testing.T) {
 				t.Errorf("SET context offered expression keyword %q; SET <expr> is invalid", kw)
 			}
 		}
-		bad, ok := oracleAccepts(t, o, "UPDATE orders SET CASE")
-		if ok && bad {
+		bad := oracleAccepts(t, o, "UPDATE orders SET CASE")
+		if bad {
 			t.Errorf("oracle unexpectedly accepted 'UPDATE orders SET CASE'")
 		}
 	}
 
 	// (3) UPDATE/DELETE targets are NOT aliasable; MERGE targets are.
 	{
-		updAlias, ok1 := oracleAccepts(t, o, "UPDATE orders o SET totalprice = 1")
-		delAlias, ok2 := oracleAccepts(t, o, "DELETE FROM orders o WHERE orderkey = 1")
-		if ok1 && updAlias {
+		updAlias := oracleAccepts(t, o, "UPDATE orders o SET totalprice = 1")
+		delAlias := oracleAccepts(t, o, "DELETE FROM orders o WHERE orderkey = 1")
+		if updAlias {
 			t.Errorf("oracle unexpectedly accepted an UPDATE target alias")
 		}
-		if ok2 && delAlias {
+		if delAlias {
 			t.Errorf("oracle unexpectedly accepted a DELETE target alias")
 		}
 		// MERGE alias is accepted (NOT_SUPPORTED on the memory connector is a
 		// semantic, not syntactic, outcome — still "accepted" by CheckSyntax).
-		mergeAlias, ok3 := oracleAccepts(t, o,
+		mergeAlias := oracleAccepts(t, o,
 			"MERGE INTO orders o USING customer c ON o.custkey = c.custkey WHEN MATCHED THEN UPDATE SET totalprice = c.custkey")
-		if ok3 && !mergeAlias {
+		if !mergeAlias {
 			t.Errorf("oracle rejected a MERGE target alias — it should be syntactically valid")
 		}
 	}
@@ -246,12 +243,12 @@ func TestCompletion_QuotingRuleMatchesOracle(t *testing.T) {
 	{
 		bare := "SELECT 1 AS select"
 		quoted := `SELECT 1 AS "select"`
-		bareAccepted, ok1 := oracleAccepts(t, o, bare)
-		quotedAccepted, ok2 := oracleAccepts(t, o, quoted)
-		if ok1 && bareAccepted {
+		bareAccepted := oracleAccepts(t, o, bare)
+		quotedAccepted := oracleAccepts(t, o, quoted)
+		if bareAccepted {
 			t.Errorf("Trino 481 unexpectedly ACCEPTED reserved word as bare alias %q — quoting would be unnecessary", bare)
 		}
-		if ok2 && !quotedAccepted {
+		if !quotedAccepted {
 			t.Errorf("Trino 481 REJECTED the quoted reserved-word alias %q — quoting should make it valid", quoted)
 		}
 	}
@@ -269,8 +266,8 @@ func TestCompletion_QuotingRuleMatchesOracle(t *testing.T) {
 		// an UPPER-case unquoted column name there works only because Trino folds
 		// it — proving the fold. (table_name exists; TABLE_NAME folds to it.)
 		folded := "SELECT TABLE_NAME FROM information_schema.columns"
-		accepted, ok := oracleAccepts(t, o, folded)
-		if ok && !accepted {
+		accepted := oracleAccepts(t, o, folded)
+		if !accepted {
 			t.Errorf("expected Trino to fold unquoted TABLE_NAME -> table_name and accept %q", folded)
 		}
 		// The quoted upper-case name does NOT exist (column is lower-case), so it
@@ -278,11 +275,8 @@ func TestCompletion_QuotingRuleMatchesOracle(t *testing.T) {
 		// name. This is the asymmetry that forces the completer to quote a
 		// case-bearing name rather than emit it bare.
 		quotedUpper := `SELECT "TABLE_NAME" FROM information_schema.columns`
-		res, ok := oracleAccepts(t, o, quotedUpper)
-		_ = res
-		if !ok {
-			t.Skip("oracle unreachable")
+		if !oracleAccepts(t, o, quotedUpper) {
+			t.Errorf("Trino rejected %q; a quoted name is syntax it accepts", quotedUpper)
 		}
-		// Accepted-as-syntax is all we assert here (the semantic miss is expected).
 	}
 }

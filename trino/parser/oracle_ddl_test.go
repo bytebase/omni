@@ -1,16 +1,8 @@
 package parser
 
-import (
-	"testing"
-)
-
-// This file is the parser-ddl node's differential-oracle gate
-// (correctness-protocol.md): for every statement in the corpus below, omni's
-// Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
-// reject and every other outcome — success or a semantic error like
-// TABLE_NOT_FOUND / SCHEMA_NOT_FOUND / NOT_SUPPORTED / TYPE_NOT_FOUND — as
-// accept).
+// The corpus below is the suite:ddl rows of testdata/compat.tsv: Trino judged
+// each statement, and TestCompatibility holds omni's Parse to that verdict with
+// no server (TestCompatibilitySuitesAreTheCorpora keeps the two the same).
 //
 // The corpus is the oracle's to adjudicate: each case runs through both omni
 // and Trino and the two verdicts are compared. It covers the legacy grammar
@@ -26,8 +18,6 @@ import (
 // Out of this node's scope (dispatched/owned elsewhere, NOT in this corpus):
 // CREATE/DROP FUNCTION (parser-routines), CREATE/DROP ROLE (parser-dcl-tcl),
 // TRUNCATE TABLE (parser-dml). Those have their own gates.
-//
-// Skipped cleanly when no Trino oracle is reachable.
 
 // ddlOracleCorpus is the full DDL statement corpus for the differential gate.
 var ddlOracleCorpus = []string{
@@ -421,26 +411,4 @@ var ddlOracleCorpus = []string{
 	"ANALYZE",             // missing name
 	"ANALYZE a.b.c.d",     // D-AN1: 4-part name
 	"ANALYZE foo WITH ()", // empty property list
-}
-
-// TestDDL_OracleDifferential is the authoritative accept/reject gate: omni's
-// Parse verdict must equal Trino 481's verdict for every corpus statement.
-func TestDDL_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	for _, sql := range ddlOracleCorpus {
-		sql := sql
-		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := parseForTest(sql)
-			omniAccepts := len(errs) == 0
-
-			trinoAccepts, ok := oracleAccepts(t, o, sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
-			if omniAccepts != trinoAccepts {
-				t.Errorf("MISMATCH %q: omni accepts=%v (errs=%v), Trino accepts=%v",
-					sql, omniAccepts, errs, trinoAccepts)
-			}
-		})
-	}
 }

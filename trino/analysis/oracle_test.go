@@ -18,24 +18,24 @@ import (
 // for the whole corpus and cross-checks the read-only classification against
 // Trino's own verdict.
 //
-// All subtests skip cleanly when no Trino is reachable, matching the harness
-// convention (oracle_foundation_test.go).
+// Trino's answers come from the test's tape (testcontainer.Open); a recording
+// asks the pinned server.
 
-// connectOracle dials the live Trino oracle, skipping the test when unreachable.
+// connectOracle opens the test's Trino: its tape, or the server in a recording.
 func connectOracle(t *testing.T) *testcontainer.Oracle {
 	t.Helper()
-	return testcontainer.ForTest(t)
+	return testcontainer.Open(t)
 }
 
-func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) (accepted, ok bool) {
+func oracleAccepts(t *testing.T, o *testcontainer.Oracle, sql string) bool {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	res, err := o.CheckSyntax(ctx, sql)
 	if err != nil {
-		return false, false
+		t.Fatalf("Trino gave no answer for %q: %v", sql, err)
 	}
-	return res.Accepted, true
+	return res.Accepted
 }
 
 // readOnlyCorpus pairs each statement with whether Trino should accept it AND
@@ -95,17 +95,14 @@ func TestAnalysis_ClassificationDifferential(t *testing.T) {
 	defer cancel()
 	for _, s := range setup {
 		if _, err := o.CheckSyntax(ctx, s); err != nil {
-			t.Skipf("oracle setup failed (%q): %v", s, err)
+			t.Fatalf("oracle setup failed (%q): %v", s, err)
 		}
 	}
 
 	for _, tc := range readOnlyCorpus {
 		tc := tc
 		t.Run(tc.sql, func(t *testing.T) {
-			accepted, ok := oracleAccepts(t, o, tc.sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			accepted := oracleAccepts(t, o, tc.sql)
 			if !accepted {
 				t.Errorf("Trino 481 REJECTED corpus statement %q — the analysis assertions on it are built on invalid syntax", tc.sql)
 				return

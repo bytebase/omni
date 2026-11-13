@@ -4840,3 +4840,983 @@ accept	accept	engine	nonReserved/YEAR	SELECT YEAR
 accept	accept	engine	nonReserved/YEAR!insert	SELECT YEAR zzz
 accept	accept	engine	nonReserved/ZONE	SELECT ZONE
 accept	accept	engine	nonReserved/ZONE!insert	SELECT ZONE zzz
+accept	accept	engine	suite:cte	WITH t AS (SELECT 1) SELECT * FROM t
+accept	accept	engine	suite:cte	WITH t AS (SELECT 1) TABLE t
+accept	accept	engine	suite:cte	WITH t (a, b) AS (SELECT 1, 2) SELECT * FROM t
+accept	accept	engine	suite:cte	WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a, b
+accept	accept	engine	suite:cte	WITH a AS (SELECT 1), b AS (SELECT 2), c AS (SELECT 3) SELECT * FROM a, b, c
+accept	accept	engine	suite:cte	WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM t WHERE n<5) SELECT * FROM t
+accept	accept	engine	suite:cte	WITH RECURSIVE a AS (SELECT * FROM x) TABLE y
+accept	accept	engine	suite:cte	WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM y) TABLE z
+accept	accept	engine	suite:cte	WITH t AS (SELECT 1 UNION SELECT 2) SELECT * FROM t
+accept	accept	engine	suite:cte	WITH t AS (SELECT 1 ORDER BY 1 LIMIT 1) SELECT * FROM t
+accept	accept	engine	suite:cte	WITH outer_cte AS (WITH inner_cte AS (SELECT 1) SELECT * FROM inner_cte) SELECT * FROM outer_cte
+accept	accept	engine	suite:cte	WITH t AS (SELECT 1) SELECT * FROM t UNION SELECT 2
+accept	accept	engine	suite:cte	WITH t AS (VALUES 1, 2) SELECT * FROM t
+reject@5	reject@5	engine	suite:cte	WITH SELECT 1
+reject@7	reject@7	engine	suite:cte	WITH t SELECT 1
+reject@10	reject@10	engine	suite:cte	WITH t AS SELECT 1
+reject@11	reject@11	engine	suite:cte	WITH t AS () SELECT 1
+reject@20	reject@20	engine	suite:cte	WITH t AS (SELECT 1)
+reject@21	reject@21	engine	suite:cte	WITH t AS (SELECT 1),
+reject@15	reject@15	engine	suite:cte	WITH RECURSIVE SELECT 1
+reject@8	reject@8	engine	suite:cte	WITH t () AS (SELECT 1) SELECT * FROM t
+accept	accept	engine	suite:relation	SELECT * FROM a, b
+accept	accept	engine	suite:relation	SELECT * FROM a, b, c
+accept	accept	engine	suite:relation	SELECT * FROM a JOIN b ON a.x = b.x
+accept	accept	engine	suite:relation	SELECT * FROM a INNER JOIN b ON a.x = b.x
+accept	accept	engine	suite:relation	SELECT * FROM a LEFT JOIN b ON a.x = b.x
+accept	accept	engine	suite:relation	SELECT * FROM a LEFT OUTER JOIN b ON a.x = b.x
+accept	accept	engine	suite:relation	SELECT * FROM a RIGHT JOIN b ON true
+accept	accept	engine	suite:relation	SELECT * FROM a RIGHT OUTER JOIN b ON true
+accept	accept	engine	suite:relation	SELECT * FROM a FULL JOIN b ON true
+accept	accept	engine	suite:relation	SELECT * FROM a FULL OUTER JOIN b ON true
+accept	accept	engine	suite:relation	SELECT * FROM a JOIN b USING (x)
+accept	accept	engine	suite:relation	SELECT * FROM a JOIN b USING (x, y)
+accept	accept	engine	suite:relation	SELECT * FROM a CROSS JOIN b
+accept	accept	engine	suite:relation	SELECT * FROM a NATURAL JOIN b
+accept	accept	engine	suite:relation	SELECT * FROM a NATURAL LEFT JOIN b
+accept	accept	engine	suite:relation	SELECT * FROM a NATURAL FULL OUTER JOIN b
+accept	accept	engine	suite:relation	SELECT * FROM a JOIN b ON a.x=b.x JOIN c ON b.y=c.y
+accept	accept	engine	suite:relation	SELECT * FROM a CROSS JOIN b LEFT JOIN c ON true
+accept	accept	engine	suite:relation	SELECT * FROM a CROSS JOIN b NATURAL JOIN c CROSS JOIN d NATURAL JOIN e
+accept	accept	engine	suite:relation	SELECT * FROM t1 a JOIN t2 b ON a.id=b.id JOIN t3 c ON b.id=c.id
+accept	accept	engine	suite:relation	SELECT * FROM (a JOIN b ON a.x=b.x)
+accept	accept	engine	suite:relation	SELECT * FROM (a CROSS JOIN b) JOIN c ON true
+accept	accept	engine	suite:relation	SELECT * FROM ((a JOIN b ON true) JOIN c ON true)
+accept	accept	engine	suite:relation	SELECT * FROM (((a)))
+accept	accept	engine	suite:relation	SELECT * FROM ((SELECT 1))
+accept	accept	engine	suite:relation	SELECT * FROM t a
+accept	accept	engine	suite:relation	SELECT * FROM t AS a
+accept	accept	engine	suite:relation	SELECT * FROM t AS a (x, y)
+accept	accept	engine	suite:relation	SELECT * FROM t a (x, y)
+accept	accept	engine	suite:relation	SELECT * FROM nation AS n CROSS JOIN region AS r
+accept	accept	engine	suite:relation	SELECT * FROM (SELECT 1)
+accept	accept	engine	suite:relation	SELECT * FROM (SELECT 1) t
+accept	accept	engine	suite:relation	SELECT * FROM (SELECT 1) AS t (x)
+accept	accept	engine	suite:relation	SELECT * FROM (SELECT a FROM u WHERE a > 1) t
+accept	accept	engine	suite:relation	SELECT * FROM (VALUES (1, '1'), (2, '2'))
+accept	accept	engine	suite:relation	SELECT * FROM (TABLE foo)
+accept	accept	engine	suite:relation	SELECT * FROM (SELECT 1 UNION SELECT 2) t
+accept	accept	engine	suite:relation	SELECT * FROM (WITH c AS (SELECT 1) SELECT * FROM c)
+accept	accept	engine	suite:relation	SELECT * FROM UNNEST(ARRAY[1,2])
+accept	accept	engine	suite:relation	SELECT * FROM UNNEST(ARRAY[1,2]) WITH ORDINALITY
+accept	accept	engine	suite:relation	SELECT * FROM UNNEST(ARRAY[1,2]) AS t(number)
+accept	accept	engine	suite:relation	SELECT * FROM UNNEST(a, b) WITH ORDINALITY AS t(x, y, ord)
+accept	accept	engine	suite:relation	SELECT * FROM t CROSS JOIN UNNEST(a)
+accept	accept	engine	suite:relation	SELECT * FROM t CROSS JOIN UNNEST(a, b) WITH ORDINALITY
+accept	accept	engine	suite:relation	SELECT * FROM t FULL JOIN UNNEST(a) AS tmp (c) ON true
+accept	accept	engine	suite:relation	SELECT * FROM LATERAL (SELECT 1)
+accept	accept	engine	suite:relation	SELECT * FROM t, LATERAL (VALUES 1) a(x)
+accept	accept	engine	suite:relation	SELECT * FROM t CROSS JOIN LATERAL (VALUES 1)
+accept	accept	engine	suite:relation	SELECT * FROM t FULL JOIN LATERAL (VALUES 1) ON true
+accept	accept	engine	suite:relation	SELECT * FROM LATERAL
+accept	accept	engine	suite:relation	SELECT * FROM LATERAL x
+accept	accept	engine	suite:relation	SELECT * FROM t TABLESAMPLE BERNOULLI (10)
+accept	accept	engine	suite:relation	SELECT * FROM t TABLESAMPLE SYSTEM (50)
+accept	accept	engine	suite:relation	SELECT * FROM t a TABLESAMPLE BERNOULLI (10)
+accept	accept	engine	suite:relation	SELECT * FROM t FOR TIMESTAMP AS OF TIMESTAMP '2020-01-01 00:00:00'
+accept	accept	engine	suite:relation	SELECT * FROM t FOR VERSION AS OF 3
+accept	accept	engine	suite:relation	SELECT * FROM cat.sch.t FOR VERSION AS OF 'snap-1'
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(my_function(1, 100))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(my_function(row_count => 100, column_count => 1))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(schema_name.my_function(1, 100))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(catalog_name.schema_name.my_function(1, 100))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(sequence(start => 1000000, stop => -2000000, step => -3))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(exclude_columns(input => TABLE(orders), columns => DESCRIPTOR(clerk, comment)))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(my_function(input => TABLE(orders) PARTITION BY orderstatus ORDER BY orderdate))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(my_function(input => TABLE(SELECT * FROM orders) PARTITION BY (a, b) PRUNE WHEN EMPTY))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(TABLE(orders) KEEP WHEN EMPTY))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(d => DESCRIPTOR(a integer, b varchar)))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(d => CAST(NULL AS DESCRIPTOR)))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(TABLE(a) PARTITION BY x, TABLE(b) PARTITION BY y COPARTITION (a, b)))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(copartition => 1))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(descriptor))
+accept	accept	engine	suite:relation	SELECT * FROM TABLE(f(descriptor => 1))
+reject@22	reject@22	engine	suite:relation	SELECT * FROM a JOIN b
+reject@28	reject@28	engine	suite:relation	SELECT * FROM a INNER JOIN b
+reject@25	reject@25	engine	suite:relation	SELECT * FROM a JOIN b ON
+reject@28	reject@28	engine	suite:relation	SELECT * FROM a JOIN b USING
+reject@30	reject@30	engine	suite:relation	SELECT * FROM a JOIN b USING ()
+reject@22	reject@22	engine	suite:relation	SELECT * FROM a CROSS b
+reject@14	reject@14	engine	suite:relation	SELECT * FROM ,
+reject@16	reject@16	engine	suite:relation	SELECT * FROM a,
+reject@20	reject@20	engine	suite:relation	SELECT * FROM UNNEST
+reject@21	reject@21	engine	suite:relation	SELECT * FROM UNNEST()
+reject@23	reject@23	engine	suite:relation	SELECT * FROM LATERAL (a)
+reject@29	reject@29	engine	suite:relation	SELECT * FROM t TABLESAMPLE (10)
+reject@37	reject@37	engine	suite:relation	SELECT * FROM t TABLESAMPLE BERNOULLI
+reject@20	reject@20	engine	suite:relation	SELECT * FROM t FOR AS OF 3
+reject@28	reject@28	engine	suite:relation	SELECT * FROM t FOR VERSION 3
+reject@18	reject@18	engine	suite:relation	SELECT * FROM t AS
+reject@60	reject@60	engine	suite:relation	SELECT * FROM TABLE(f(TABLE(a) PARTITION BY x COPARTITION (a)))
+accept	accept	engine	suite:select	SELECT 1
+accept	accept	engine	suite:select	SELECT 1, 2, 3
+accept	accept	engine	suite:select	SELECT 1 + 2 * 3
+accept	accept	engine	suite:select	SELECT 'a', TRUE, NULL
+accept	accept	engine	suite:select	SELECT a, b, c FROM t
+accept	accept	engine	suite:select	SELECT * FROM t
+accept	accept	engine	suite:select	SELECT DISTINCT a FROM t
+accept	accept	engine	suite:select	SELECT ALL a FROM t
+accept	accept	engine	suite:select	SELECT DISTINCT a, b FROM t
+accept	accept	engine	suite:select	SELECT a AS x FROM t
+accept	accept	engine	suite:select	SELECT a x FROM t
+accept	accept	engine	suite:select	SELECT a + b AS s FROM t
+accept	accept	engine	suite:select	SELECT a x, b AS y, c FROM t
+accept	accept	engine	suite:select	SELECT count(*) AS n FROM t
+accept	accept	engine	suite:select	SELECT a AS "Quoted Alias" FROM t
+accept	accept	engine	suite:select	SELECT *
+accept	accept	engine	suite:select	SELECT t.* FROM t
+accept	accept	engine	suite:select	SELECT a.b.* FROM cat.sch.tbl a
+accept	accept	engine	suite:select	SELECT r.* FROM t
+accept	accept	engine	suite:select	SELECT ROW (1, 'a', true).*
+accept	accept	engine	suite:select	SELECT ROW (1, 'a', true).* AS (f1, f2, f3)
+accept	accept	engine	suite:select	SELECT (CAST(ROW(1, true) AS ROW(field1 bigint, field2 boolean))).* AS (alias1, alias2)
+accept	accept	engine	suite:select	SELECT a.id AS hello FROM t
+accept	accept	engine	suite:select	SELECT col1.f1, col2, col3.f1.f2.f3 FROM table1
+accept	accept	engine	suite:select	SELECT col1.f1[0], col2, col3[2].f2.f3, col4[4] FROM table1
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a > 1
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a > 1 AND b < 2 OR c = 3
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a IN (1, 2, 3)
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a BETWEEN 1 AND 10
+accept	accept	engine	suite:select	SELECT a, count(*) FROM t GROUP BY a HAVING count(*) > 5
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY a
+accept	accept	engine	suite:select	SELECT a, b FROM t GROUP BY a, b
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ()
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY (a, b)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY a, b, (c, d)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP (a, b)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP ()
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY CUBE (a, b)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY GROUPING SETS (a)
+accept	accept	engine	suite:select	SELECT a, b, GROUPING(a, b) FROM t GROUP BY GROUPING SETS ((a), (b))
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY GROUPING SETS ((a), (b), ())
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ALL GROUPING SETS ((a, b), (a), ()), CUBE (c), ROLLUP (d)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY DISTINCT GROUPING SETS ((a, b), (a), ()), CUBE (c), ROLLUP (d)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ALL x
+accept	accept	engine	suite:select	SELECT count(*) FROM t GROUP BY ALL
+accept	accept	engine	suite:select	SELECT count(*) FROM t GROUP BY ALL, x
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY DISTINCT x
+accept	accept	engine	suite:select	SELECT count(*) FROM t GROUP BY AUTO
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY (a + b) * 2
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY (a) + 1
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY (a) IS NULL
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a DESC
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a ASC NULLS FIRST, b DESC NULLS LAST
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY 1, 2
+accept	accept	engine	suite:select	SELECT a FROM t LIMIT 10
+accept	accept	engine	suite:select	SELECT a FROM t LIMIT ALL
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a LIMIT 5
+accept	accept	engine	suite:select	SELECT a FROM t OFFSET 5
+accept	accept	engine	suite:select	SELECT a FROM t OFFSET 5 ROWS
+accept	accept	engine	suite:select	SELECT a FROM t OFFSET 5 ROW
+accept	accept	engine	suite:select	SELECT a FROM t OFFSET ? ROWS LIMIT ?
+accept	accept	engine	suite:select	SELECT a FROM t FETCH FIRST 3 ROWS ONLY
+accept	accept	engine	suite:select	SELECT a FROM t FETCH NEXT ROW ONLY
+accept	accept	engine	suite:select	SELECT a FROM t FETCH FIRST ROW WITH TIES
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a OFFSET 2 ROWS FETCH FIRST 3 ROWS WITH TIES
+accept	accept	engine	suite:select	SELECT a FROM t ORDER BY a OFFSET 2 ROWS FETCH NEXT 3 ROWS ONLY
+accept	accept	engine	suite:select	TABLE foo
+accept	accept	engine	suite:select	TABLE cat.sch.tbl
+accept	accept	engine	suite:select	VALUES 1, 2, 3
+accept	accept	engine	suite:select	VALUES (1, 'a'), (2, 'b')
+accept	accept	engine	suite:select	VALUES 1
+accept	accept	engine	suite:select	SELECT * FROM (VALUES 42, 13)
+accept	accept	engine	suite:select	TABLE foo ORDER BY 1 LIMIT 5
+accept	accept	engine	suite:select	VALUES (1), (2), (3) ORDER BY 1 DESC
+accept	accept	engine	suite:select	SELECT (SELECT 1)
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a IN (SELECT b FROM u)
+accept	accept	engine	suite:select	SELECT a FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.x = t.x)
+accept	accept	engine	suite:select	SELECT a FROM t WHERE a > ALL (SELECT b FROM u)
+reject@6	reject@6	engine	suite:select	SELECT
+reject@7	reject@7	engine	suite:select	SELECT FROM t
+reject@13	reject@13	engine	suite:select	SELECT 1 FROM
+reject@9	reject@9	engine	suite:select	SELECT 1,
+reject@13	reject@13	engine	suite:select	SELECT * FROM
+reject@14	reject@14	engine	suite:select	SELECT 1 WHERE
+reject@15	reject@15	engine	suite:select	SELECT 1 WHERE FROM t
+reject@17	reject@17	engine	suite:select	SELECT 1 GROUP BY
+reject@14	reject@14	engine	suite:select	SELECT 1 GROUP
+reject@17	reject@17	engine	suite:select	SELECT 1 ORDER BY
+reject@14	reject@14	engine	suite:select	SELECT 1 ORDER
+reject@15	reject@15	engine	suite:select	SELECT 1 HAVING
+reject@22	reject@22	engine	suite:select	SELECT a FROM t LIMIT x
+reject@34	reject@34	engine	suite:select	SELECT a FROM t FETCH FIRST 3 ROWS
+reject@42	reject@42	engine	suite:select	SELECT a FROM t FETCH FIRST ROW WITH TIES ORDER BY a
+reject@16	reject@16	engine	suite:select	SELECT DISTINCT FROM t
+reject@31	reject@31	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP
+reject@38	reject@38	engine	suite:select	SELECT a FROM t GROUP BY GROUPING SETS
+reject@6	reject@6	engine	suite:select	VALUES
+reject@5	reject@5	engine	suite:select	TABLE
+reject@11	reject@11	engine	suite:select	SELECT a a a FROM t
+reject@17	reject@17	engine	suite:select	SELECT 1 garbage extra
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 UNION ALL SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 UNION DISTINCT SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 INTERSECT SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 INTERSECT ALL SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 INTERSECT DISTINCT SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 EXCEPT SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 EXCEPT ALL SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 EXCEPT DISTINCT SELECT 2
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2 UNION SELECT 3
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2 UNION ALL SELECT 3
+accept	accept	engine	suite:setop	SELECT 1 INTERSECT SELECT 2 UNION SELECT 3
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2 INTERSECT SELECT 3
+accept	accept	engine	suite:setop	SELECT 1 EXCEPT SELECT 2 EXCEPT SELECT 3
+accept	accept	engine	suite:setop	SELECT 123 UNION DISTINCT SELECT 123 UNION ALL SELECT 123
+accept	accept	engine	suite:setop	SELECT 123 INTERSECT DISTINCT SELECT 123 INTERSECT ALL SELECT 123
+accept	accept	engine	suite:setop	TABLE foo UNION TABLE bar
+accept	accept	engine	suite:setop	VALUES 1, 2 UNION VALUES 3
+accept	accept	engine	suite:setop	VALUES (1) UNION ALL SELECT 2
+accept	accept	engine	suite:setop	(SELECT 1) UNION (SELECT 2)
+accept	accept	engine	suite:setop	SELECT 1 UNION (SELECT 2 INTERSECT SELECT 3)
+accept	accept	engine	suite:setop	(SELECT 1 UNION SELECT 2) INTERSECT SELECT 3
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2 ORDER BY 1
+accept	accept	engine	suite:setop	SELECT 1 UNION SELECT 2 ORDER BY 1 LIMIT 5
+accept	accept	engine	suite:setop	(SELECT 1 ORDER BY 1) UNION (SELECT 2 LIMIT 3)
+reject@14	reject@14	engine	suite:setop	SELECT 1 UNION
+reject@18	reject@18	engine	suite:setop	SELECT 1 INTERSECT
+reject@15	reject@15	engine	suite:setop	SELECT 1 EXCEPT
+reject@0	reject@0	engine	suite:setop	UNION SELECT 1
+reject@18	reject@18	engine	suite:setop	SELECT 1 UNION ALL
+reject@15	reject@15	engine	suite:setop	SELECT 1 UNION UNION SELECT 2
+reject@1	reject@1	engine	suite:setop	(WITH c AS (SELECT 1) SELECT * FROM c)
+reject@1	reject@1	engine	suite:setop	(WITH c AS (SELECT 1) SELECT * FROM c) UNION SELECT 2
+accept	accept	engine	suite:window	SELECT count(*) OVER w FROM t WINDOW w AS (PARTITION BY a ORDER BY b)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w AS ()
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w AS (PARTITION BY a)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w AS (ORDER BY a)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w AS (PARTITION BY a ORDER BY b ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w AS (RANGE UNBOUNDED PRECEDING)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW w1 AS (PARTITION BY a), w2 AS (ORDER BY b)
+accept	accept	engine	suite:window	SELECT * FROM T WINDOW someWindow AS (PARTITION BY a), otherWindow AS (someWindow ORDER BY b)
+accept	accept	engine	suite:window	SELECT 1 FROM t WINDOW
+reject@24	reject@24	engine	suite:window	SELECT 1 FROM t WINDOW w
+reject@27	reject@27	engine	suite:window	SELECT 1 FROM t WINDOW w AS
+reject@28	reject@28	engine	suite:window	SELECT 1 FROM t WINDOW w AS PARTITION BY a
+reject@39	reject@39	engine	suite:window	SELECT 1 FROM t WINDOW w AS (PARTITION a)
+accept	accept	engine	suite:ddl	CREATE SCHEMA web
+accept	accept	engine	suite:ddl	CREATE SCHEMA hive.sales
+accept	accept	engine	suite:ddl	CREATE SCHEMA IF NOT EXISTS traffic
+accept	accept	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice
+accept	accept	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION USER alice
+accept	accept	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC
+accept	accept	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice WITH ( LOCATION = '/hive/data/web' )
+accept	accept	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC WITH ( LOCATION = '/hive/data/web' )
+accept	accept	engine	suite:ddl	CREATE SCHEMA test
+accept	accept	engine	suite:ddl	CREATE SCHEMA IF NOT EXISTS test
+accept	accept	engine	suite:ddl	CREATE SCHEMA test WITH (a = 'apple', b = 123)
+accept	accept	engine	suite:ddl	CREATE SCHEMA "some name that contains space"
+reject@13	reject@13	engine	suite:ddl	CREATE SCHEMA
+reject@14	reject@0	engine	suite:ddl	CREATE SCHEMA a.b.c
+reject@24	reject@24	engine	suite:ddl	CREATE SCHEMA web WITH ()
+reject@31	reject@31	engine	suite:ddl	CREATE SCHEMA web AUTHORIZATION
+reject@31	reject@31	engine	suite:ddl	CREATE SCHEMA s WITH (a = '1') AUTHORIZATION alice
+accept	accept	engine	suite:ddl	DROP SCHEMA web
+accept	accept	engine	suite:ddl	DROP SCHEMA IF EXISTS sales
+accept	accept	engine	suite:ddl	DROP SCHEMA archive CASCADE
+accept	accept	engine	suite:ddl	DROP SCHEMA archive RESTRICT
+accept	accept	engine	suite:ddl	DROP SCHEMA test
+accept	accept	engine	suite:ddl	DROP SCHEMA test CASCADE
+accept	accept	engine	suite:ddl	DROP SCHEMA IF EXISTS test
+accept	accept	engine	suite:ddl	DROP SCHEMA IF EXISTS test RESTRICT
+accept	accept	engine	suite:ddl	DROP SCHEMA "some schema that contains space"
+accept	accept	engine	suite:ddl	DROP SCHEMA hive.sales
+reject@11	reject@11	engine	suite:ddl	DROP SCHEMA
+reject@12	reject@0	engine	suite:ddl	DROP SCHEMA a.b.c
+reject@14	reject@14	engine	suite:ddl	DROP SCHEMA a FOObar
+accept	accept	engine	suite:ddl	ALTER SCHEMA web RENAME TO traffic
+accept	accept	engine	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION alice
+accept	accept	engine	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION USER alice
+accept	accept	engine	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION ROLE PUBLIC
+accept	accept	engine	suite:ddl	ALTER SCHEMA foo RENAME TO bar
+accept	accept	engine	suite:ddl	ALTER SCHEMA foo.bar RENAME TO baz
+accept	accept	engine	suite:ddl	ALTER SCHEMA "awesome schema"."awesome table" RENAME TO "even more awesome table"
+reject@23	reject@23	engine	suite:ddl	ALTER SCHEMA web RENAME
+reject@28	reject@28	engine	suite:ddl	ALTER SCHEMA web RENAME TO a.b
+reject@20	reject@20	engine	suite:ddl	ALTER SCHEMA web SET
+reject@21	reject@21	engine	suite:ddl	ALTER SCHEMA web SET PROPERTIES x = 1
+accept	accept	engine	suite:ddl	CREATE TABLE orders (orderkey bigint, orderstatus varchar, totalprice double, orderdate date) WITH (format = 'ORC')
+accept	accept	engine	suite:ddl	CREATE TABLE IF NOT EXISTS orders (orderkey bigint, orderstatus varchar, totalprice double COMMENT 'Price in cents.', orderdate date, status varchar DEFAULT 'created') COMMENT 'A table to keep track of orders.'
+accept	accept	engine	suite:ddl	CREATE TABLE bigger_orders (another_orderkey bigint, LIKE orders, another_orderdate date)
+accept	accept	engine	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table)
+accept	accept	engine	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table INCLUDING PROPERTIES)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decimal(10, 2))
+accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
+reject@34	reject@34	engine	suite:ddl	CREATE TABLE t (a bigint NOT NULL DEFAULT 5)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
+accept	accept	engine	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
+accept	accept	engine	suite:ddl	CREATE TABLE t (a array(bigint))
+accept	accept	engine	suite:ddl	CREATE TABLE cat.sch.t (a bigint)
+accept	accept	engine	suite:ddl	CREATE TABLE t (LIKE a EXCLUDING PROPERTIES)
+accept	accept	engine	suite:ddl	CREATE OR REPLACE TABLE t (a bigint)
+reject@16	reject@16	engine	suite:ddl	CREATE TABLE t ()
+reject@14	reject@14	engine	suite:ddl	CREATE TABLE t
+reject@13	reject	engine	suite:ddl	CREATE TABLE a.b.c.d (a bigint)
+reject@13	reject@18	engine	suite:ddl	CREATE TABLE t (a)
+reject@24	reject@0	engine	suite:ddl	CREATE OR REPLACE TABLE IF NOT EXISTS t (a bigint)
+reject@34	reject@34	engine	suite:ddl	CREATE TABLE t (a bigint NOT NULL NOT NULL)
+reject@25	reject@25	engine	suite:ddl	CREATE TABLE t (a bigint,)
+reject@37	reject@37	engine	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' NOT NULL)
+reject@38	reject@38	engine	suite:ddl	CREATE TABLE t (a bigint WITH (p = 1) NOT NULL)
+accept	accept	engine	suite:ddl	CREATE TABLE orders_column_aliased (order_date, total_price) AS SELECT orderdate, totalprice FROM orders
+accept	accept	engine	suite:ddl	CREATE TABLE orders_by_date COMMENT 'Summary of orders by date' WITH (format = 'ORC') AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+accept	accept	engine	suite:ddl	CREATE TABLE IF NOT EXISTS orders_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+accept	accept	engine	suite:ddl	CREATE TABLE empty_nation AS SELECT * FROM nation WITH NO DATA
+accept	accept	engine	suite:ddl	CREATE TABLE foo AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t
+accept	accept	engine	suite:ddl	CREATE TABLE foo(x,y) AS SELECT a,b FROM t
+accept	accept	engine	suite:ddl	CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH NO DATA
+accept	accept	engine	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t WITH NO DATA
+accept	accept	engine	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH DATA
+accept	accept	engine	suite:ddl	CREATE TABLE foo WITH ( string = 'bar', long = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE TABLE foo COMMENT 'test' WITH ( string = 'bar' ) AS SELECT * FROM t WITH NO DATA
+accept	accept	engine	suite:ddl	CREATE TABLE foo(x,y) COMMENT 'test' WITH ( "string" = 'bar', "long" = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT a,b FROM t WITH NO DATA
+accept	accept	engine	suite:ddl	CREATE TABLE t AS (SELECT 1)
+accept	accept	engine	suite:ddl	CREATE TABLE t AS TABLE other
+accept	accept	engine	suite:ddl	CREATE TABLE t AS WITH c AS (SELECT 1) SELECT * FROM c
+accept	accept	engine	suite:ddl	CREATE OR REPLACE TABLE t AS SELECT * FROM x
+reject@13	reject@26	engine	suite:ddl	CREATE TABLE t (a bigint) AS SELECT * FROM x
+reject@17	reject@17	engine	suite:ddl	CREATE TABLE t AS
+reject@38	reject@38	engine	suite:ddl	CREATE TABLE t AS SELECT * FROM x WITH
+accept	accept	engine	suite:ddl	DROP TABLE orders_by_date
+accept	accept	engine	suite:ddl	DROP TABLE IF EXISTS orders_by_date
+accept	accept	engine	suite:ddl	DROP TABLE a
+accept	accept	engine	suite:ddl	DROP TABLE a.b
+accept	accept	engine	suite:ddl	DROP TABLE a.b.c
+accept	accept	engine	suite:ddl	DROP TABLE a."b/y".c
+accept	accept	engine	suite:ddl	DROP TABLE IF EXISTS a.b.c
+reject@10	reject@10	engine	suite:ddl	DROP TABLE
+reject@11	reject	engine	suite:ddl	DROP TABLE a.b.c.d
+reject@13	reject@13	engine	suite:ddl	DROP TABLE a CASCADE
+accept	accept	engine	suite:ddl	ALTER TABLE users RENAME TO people
+accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users RENAME TO people
+accept	accept	engine	suite:ddl	ALTER TABLE a.b.c RENAME TO d.e.f
+accept	accept	engine	suite:ddl	ALTER TABLE a RENAME TO b.c.d.e
+reject@24	reject@24	engine	suite:ddl	ALTER TABLE users RENAME
+reject@12	reject	engine	suite:ddl	ALTER TABLE a.b.c.d RENAME TO x
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar DEFAULT '90210'
+accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS zip varchar
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN id varchar FIRST
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER country
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar LAST
+accept	accept	engine	suite:ddl	ALTER TABLE users ADD COLUMN c bigint NOT NULL COMMENT 'x' WITH (p = 1)
+reject@32	reject@32	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip
+reject@22	reject@22	engine	suite:ddl	ALTER TABLE users ADD zip varchar
+reject@46	reject@46	engine	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER
+accept	accept	engine	suite:ddl	ALTER TABLE users DROP COLUMN zip
+accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS zip
+accept	accept	engine	suite:ddl	ALTER TABLE foo.t DROP COLUMN c
+accept	accept	engine	suite:ddl	ALTER TABLE "t x" DROP COLUMN "c d"
+accept	accept	engine	suite:ddl	ALTER TABLE foo.t DROP COLUMN IF EXISTS c
+accept	accept	engine	suite:ddl	ALTER TABLE users RENAME COLUMN id TO user_id
+accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users RENAME COLUMN IF EXISTS id TO user_id
+accept	accept	engine	suite:ddl	ALTER TABLE t DROP COLUMN a.b
+reject@29	reject@29	engine	suite:ddl	ALTER TABLE users DROP COLUMN
+reject@34	reject@34	engine	suite:ddl	ALTER TABLE users RENAME COLUMN id
+reject@39	reject@39	engine	suite:ddl	ALTER TABLE users RENAME COLUMN id TO a.b
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
+accept	accept	engine	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
+accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint
+reject@47	reject@47	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE
+reject@37	reject@37	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id SET
+reject@38	reject@38	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP
+reject@38	reject@38	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id SET TYPE bigint
+accept	accept	engine	suite:ddl	ALTER TABLE people SET AUTHORIZATION alice
+accept	accept	engine	suite:ddl	ALTER TABLE people SET AUTHORIZATION ROLE PUBLIC
+accept	accept	engine	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION qux
+accept	accept	engine	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION USER qux
+accept	accept	engine	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION ROLE qux
+accept	accept	engine	suite:ddl	ALTER TABLE people SET PROPERTIES x = 'y'
+accept	accept	engine	suite:ddl	ALTER TABLE people SET PROPERTIES foo = 123, "foo bar" = 456
+accept	accept	engine	suite:ddl	ALTER TABLE people SET PROPERTIES x = DEFAULT
+reject@33	reject@33	engine	suite:ddl	ALTER TABLE people SET PROPERTIES
+reject@35	reject@35	engine	suite:ddl	ALTER TABLE people SET PROPERTIES x
+reject@36	reject@36	engine	suite:ddl	ALTER TABLE people SET AUTHORIZATION
+reject@22	reject@24	engine	suite:ddl	ALTER TABLE IF EXISTS t SET PROPERTIES x = 1
+reject@22	reject@24	engine	suite:ddl	ALTER TABLE IF EXISTS t SET AUTHORIZATION alice
+accept	accept	engine	suite:ddl	ALTER TABLE example.test.test_table EXECUTE optimize(file_size_threshold => '16MB')
+accept	accept	engine	suite:ddl	ALTER TABLE t EXECUTE optimize
+accept	accept	engine	suite:ddl	ALTER TABLE t EXECUTE optimize()
+accept	accept	engine	suite:ddl	ALTER TABLE t EXECUTE optimize(1, 2)
+accept	accept	engine	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE x > 1
+accept	accept	engine	suite:ddl	ALTER TABLE t EXECUTE optimize(threshold => '1MB') WHERE part = 'a'
+reject@21	reject@21	engine	suite:ddl	ALTER TABLE t EXECUTE
+reject@36	reject@36	engine	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE
+reject@22	reject@24	engine	suite:ddl	ALTER TABLE IF EXISTS t EXECUTE optimize
+accept	accept	engine	suite:ddl	CREATE VIEW test AS SELECT orderkey, orderstatus, totalprice / 2 AS half FROM orders
+accept	accept	engine	suite:ddl	CREATE VIEW test_with_comment COMMENT 'A view to keep track of orders.' AS SELECT orderkey, orderstatus, totalprice FROM orders
+accept	accept	engine	suite:ddl	CREATE OR REPLACE VIEW test AS SELECT orderkey, orderstatus, totalprice / 4 AS quarter FROM orders
+accept	accept	engine	suite:ddl	CREATE VIEW a AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW a SECURITY DEFINER AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW a SECURITY INVOKER AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW a COMMENT 'comment' SECURITY DEFINER AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW a COMMENT '' AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW bar.foo AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE VIEW "awesome schema"."awesome view" AS SELECT * FROM t
+reject@13	reject@13	engine	suite:ddl	CREATE VIEW a
+reject@15	reject@15	engine	suite:ddl	CREATE VIEW IF NOT EXISTS a AS SELECT 1
+reject@23	reject@23	engine	suite:ddl	CREATE VIEW a SECURITY AS SELECT 1
+reject@16	reject@16	engine	suite:ddl	CREATE VIEW a AS
+reject@31	reject@31	engine	suite:ddl	CREATE VIEW v SECURITY DEFINER COMMENT 'c' AS SELECT 1
+accept	accept	engine	suite:ddl	DROP VIEW orders_by_date
+accept	accept	engine	suite:ddl	DROP VIEW IF EXISTS orders_by_date
+accept	accept	engine	suite:ddl	DROP VIEW a
+accept	accept	engine	suite:ddl	DROP VIEW a.b.c
+reject@9	reject@9	engine	suite:ddl	DROP VIEW
+reject@12	reject@12	engine	suite:ddl	DROP VIEW a CASCADE
+accept	accept	engine	suite:ddl	ALTER VIEW people RENAME TO users
+accept	accept	engine	suite:ddl	ALTER VIEW a RENAME TO b.c.d.e
+accept	accept	engine	suite:ddl	ALTER VIEW people REFRESH
+accept	accept	engine	suite:ddl	ALTER VIEW people SET AUTHORIZATION alice
+accept	accept	engine	suite:ddl	ALTER VIEW a RENAME TO b
+accept	accept	engine	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION qux
+accept	accept	engine	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION USER qux
+accept	accept	engine	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION ROLE qux
+reject@19	reject@19	engine	suite:ddl	ALTER VIEW a RENAME
+reject@16	reject@16	engine	suite:ddl	ALTER VIEW a SET
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW cancelled_orders AS SELECT orderkey, totalprice FROM orders WHERE orderstatus = 3
+accept	accept	engine	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW order_totals_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW orders_nation_mkgsegment COMMENT 'Orders with nation and market segment data' WITH ( partitioning = ARRAY['mktsegment', 'nationkey'] ) AS SELECT o.*, c.nationkey, c.mktsegment FROM orders AS o JOIN customer AS c ON o.custkey = c.custkey
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE INLINE AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW a AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' AS SELECT * FROM catalog2.schema2.tab
+accept	accept	engine	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS SELECT * FROM catalog2.schema2.tab
+accept	accept	engine	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A partitioned materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM a) TABLE b
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL '2' DAY AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT * FROM t
+accept	accept	engine	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT * FROM t
+reject@26	reject@26	engine	suite:ddl	CREATE MATERIALIZED VIEW a
+reject@40	reject@40	engine	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD AS SELECT 1
+reject@38	reject@38	engine	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE AS SELECT 1
+reject@32	reject@32	engine	suite:ddl	CREATE MATERIALIZED VIEW a WHEN AS SELECT 1
+reject@39	reject@39	engine	suite:ddl	CREATE MATERIALIZED VIEW m COMMENT 'c' GRACE PERIOD INTERVAL '1' HOUR AS SELECT 1
+reject@40	reject@40	engine	suite:ddl	CREATE MATERIALIZED VIEW m WITH (p = 1) COMMENT 'c' AS SELECT 1
+reject@45	reject@45	engine	suite:ddl	CREATE MATERIALIZED VIEW m WHEN STALE INLINE GRACE PERIOD INTERVAL '1' HOUR AS SELECT 1
+accept	accept	engine	suite:ddl	DROP MATERIALIZED VIEW orders_by_date
+accept	accept	engine	suite:ddl	DROP MATERIALIZED VIEW IF EXISTS orders_by_date
+accept	accept	engine	suite:ddl	DROP MATERIALIZED VIEW a.b.c
+reject@22	reject@22	engine	suite:ddl	DROP MATERIALIZED VIEW
+reject@18	reject@18	engine	suite:ddl	DROP MATERIALIZED a
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people RENAME TO users
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b.c.d.e
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people RENAME TO users
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = 'y'
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES foo = 123, "foo bar" = 456
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = DEFAULT
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION alice
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION ROLE PUBLIC
+accept	accept	engine	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION USER alice
+reject@32	reject@32	engine	suite:ddl	ALTER MATERIALIZED VIEW a RENAME
+reject@34	reject@41	engine	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people SET PROPERTIES x = 'y'
+reject@34	reject@41	engine	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people SET AUTHORIZATION alice
+reject@40	reject@40	engine	suite:ddl	ALTER MATERIALIZED VIEW a SET PROPERTIES
+accept	accept	engine	suite:ddl	REFRESH MATERIALIZED VIEW orders_by_date
+accept	accept	engine	suite:ddl	REFRESH MATERIALIZED VIEW test
+accept	accept	engine	suite:ddl	REFRESH MATERIALIZED VIEW "some name that contains space"
+reject@25	reject@25	engine	suite:ddl	REFRESH MATERIALIZED VIEW
+reject@8	reject@8	engine	suite:ddl	REFRESH VIEW a
+accept	accept	engine	suite:ddl	CREATE CATALOG tpch USING tpch
+accept	accept	engine	suite:ddl	CREATE CATALOG brain USING memory WITH ("memory.max-data-per-node" = '128MB')
+accept	accept	engine	suite:ddl	CREATE CATALOG example USING postgresql WITH ("connection-url" = 'jdbc:pg:localhost:5432', "connection-user" = 'u', "connection-password" = 'p', "case-insensitive-name-matching" = 'true')
+accept	accept	engine	suite:ddl	CREATE CATALOG IF NOT EXISTS c USING tpch
+accept	accept	engine	suite:ddl	CREATE CATALOG c USING tpch COMMENT 'my catalog'
+accept	accept	engine	suite:ddl	CREATE CATALOG c USING tpch AUTHORIZATION alice
+accept	accept	engine	suite:ddl	CREATE CATALOG c USING tpch COMMENT 'x' AUTHORIZATION alice WITH (a = '1')
+reject@16	reject@16	engine	suite:ddl	CREATE CATALOG c
+reject@16	reject@16	engine	suite:ddl	CREATE CATALOG a.b USING t
+reject@22	reject@22	engine	suite:ddl	CREATE CATALOG c USING
+reject@14	reject@14	engine	suite:ddl	CREATE CATALOG
+reject@48	reject@48	engine	suite:ddl	CREATE CATALOG c USING tpch AUTHORIZATION alice COMMENT 'x'
+reject@43	reject@43	engine	suite:ddl	CREATE CATALOG c USING tpch WITH (a = '1') COMMENT 'x'
+accept	accept	engine	suite:ddl	DROP CATALOG example
+accept	accept	engine	suite:ddl	DROP CATALOG IF EXISTS example
+accept	accept	engine	suite:ddl	DROP CATALOG example CASCADE
+accept	accept	engine	suite:ddl	DROP CATALOG example RESTRICT
+reject@12	reject@12	engine	suite:ddl	DROP CATALOG
+reject@14	reject@14	engine	suite:ddl	DROP CATALOG a.b
+accept	accept	engine	suite:ddl	COMMENT ON TABLE users IS 'master table'
+accept	accept	engine	suite:ddl	COMMENT ON TABLE users IS NULL
+accept	accept	engine	suite:ddl	COMMENT ON VIEW users IS 'master view'
+accept	accept	engine	suite:ddl	COMMENT ON VIEW users IS NULL
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN users.name IS 'full name'
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN users.name IS NULL
+accept	accept	engine	suite:ddl	COMMENT ON TABLE a IS ''
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN a.b IS 'test'
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN a IS 'test'
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN a.b.c IS 'test'
+accept	accept	engine	suite:ddl	COMMENT ON COLUMN a.b.c.d IS 'test'
+accept	accept	engine	suite:ddl	COMMENT ON TABLE cat.sch.t IS 'x'
+reject@22	reject@22	engine	suite:ddl	COMMENT ON TABLE a IS 5
+reject@18	reject@18	engine	suite:ddl	COMMENT ON TABLE a
+reject@11	reject@11	engine	suite:ddl	COMMENT ON SCHEMA a IS 'x'
+reject@8	reject@8	engine	suite:ddl	COMMENT TABLE a IS 'x'
+reject@17	reject	engine	suite:ddl	COMMENT ON TABLE a.b.c.d IS 'x'
+accept	accept	engine	suite:ddl	ANALYZE web
+accept	accept	engine	suite:ddl	ANALYZE hive.default.stores
+accept	accept	engine	suite:ddl	ANALYZE hive.default.sales WITH (partitions = ARRAY[ARRAY['1992-01-01'], ARRAY['1992-01-02']])
+accept	accept	engine	suite:ddl	ANALYZE hive.default.customers WITH (partitions = ARRAY[ARRAY['CA', 'San Francisco'], ARRAY['NY', 'NY']])
+accept	accept	engine	suite:ddl	ANALYZE hive.default.sales WITH (partitions = ARRAY[ARRAY['1992-01-01'], ARRAY['1992-01-02']], columns = ARRAY['department', 'product_id'])
+accept	accept	engine	suite:ddl	ANALYZE foo
+accept	accept	engine	suite:ddl	ANALYZE foo WITH ( "string" = 'bar', "long" = 42, computed = concat('ban', 'ana'), a = ARRAY[ 'v1', 'v2' ] )
+reject@7	reject@7	engine	suite:ddl	ANALYZE
+reject@8	reject	engine	suite:ddl	ANALYZE a.b.c.d
+reject@18	reject@18	engine	suite:ddl	ANALYZE foo WITH ()
+accept	accept	engine	suite:dml	INSERT INTO orders SELECT * FROM new_orders
+accept	accept	engine	suite:dml	INSERT INTO cities VALUES (1, 'San Francisco')
+accept	accept	engine	suite:dml	INSERT INTO cities VALUES (2, 'San Jose'), (3, 'Oakland')
+accept	accept	engine	suite:dml	INSERT INTO nation (nationkey, name, regionkey, comment) SELECT 1, 'a', 2, 'c'
+accept	accept	engine	suite:dml	INSERT INTO nation (nationkey, name, regionkey) VALUES (1, 'a', 2)
+accept	accept	engine	suite:dml	INSERT INTO a."b/c".d SELECT * FROM t
+accept	accept	engine	suite:dml	INSERT INTO a."b/c".d (c1, c2) SELECT * FROM t
+accept	accept	engine	suite:dml	INSERT INTO t (SELECT 1)
+accept	accept	engine	suite:dml	INSERT INTO t VALUES (1), (2), (3)
+accept	accept	engine	suite:dml	INSERT INTO t SELECT a FROM b UNION SELECT c FROM d
+accept	accept	engine	suite:dml	INSERT INTO t SELECT * FROM a ORDER BY 1 LIMIT 5
+accept	accept	engine	suite:dml	INSERT INTO t TABLE other
+accept	accept	engine	suite:dml	INSERT INTO t WITH cte AS (SELECT 1) SELECT * FROM cte
+accept	accept	engine	suite:dml	INSERT INTO cat.sch.t VALUES (1)
+reject@13	reject@13	engine	suite:dml	INSERT INTO t
+reject@20	reject@20	engine	suite:dml	INSERT INTO t (a, b)
+reject@12	reject	engine	suite:dml	INSERT INTO a.b.c.d VALUES (1)
+reject@7	reject@7	engine	suite:dml	INSERT t VALUES (1)
+reject@11	reject@11	engine	suite:dml	INSERT INTO
+reject@20	reject@20	engine	suite:dml	INSERT INTO t VALUES
+accept	accept	engine	suite:dml	TRUNCATE TABLE orders
+accept	accept	engine	suite:dml	TRUNCATE TABLE a
+accept	accept	engine	suite:dml	TRUNCATE TABLE a.b
+accept	accept	engine	suite:dml	TRUNCATE TABLE a.b.c
+accept	accept	engine	suite:dml	TRUNCATE TABLE "My Table"
+reject@9	reject@9	engine	suite:dml	TRUNCATE orders
+reject@15	reject	engine	suite:dml	TRUNCATE TABLE a.b.c.d
+reject@22	reject@22	engine	suite:dml	TRUNCATE TABLE orders extra
+reject@14	reject@14	engine	suite:dml	TRUNCATE TABLE
+accept	accept	engine	suite:dml	DELETE FROM orders
+accept	accept	engine	suite:dml	DELETE FROM lineitem WHERE shipmode = 'AIR'
+accept	accept	engine	suite:dml	DELETE FROM lineitem WHERE orderkey IN (SELECT orderkey FROM orders WHERE totalprice > 100)
+accept	accept	engine	suite:dml	DELETE FROM t
+accept	accept	engine	suite:dml	DELETE FROM "awesome table"
+accept	accept	engine	suite:dml	DELETE FROM t WHERE a = b
+accept	accept	engine	suite:dml	DELETE FROM cat.sch.orders WHERE x = 1
+accept	accept	engine	suite:dml	DELETE FROM orders WHERE a = 1 AND b > 2 OR c IS NULL
+reject@7	reject@7	engine	suite:dml	DELETE orders
+reject@24	reject@24	engine	suite:dml	DELETE FROM orders WHERE
+reject@12	reject	engine	suite:dml	DELETE FROM a.b.c.d
+reject@19	reject@19	engine	suite:dml	DELETE FROM orders garbage
+reject@11	reject@11	engine	suite:dml	DELETE FROM
+accept	accept	engine	suite:dml	UPDATE purchases SET status = 'OVERDUE' WHERE ship_date IS NULL
+accept	accept	engine	suite:dml	UPDATE customers SET account_manager = 'John Henry', assign_date = now()
+accept	accept	engine	suite:dml	UPDATE new_hires SET manager = (SELECT e.name FROM employees e WHERE e.employee_id = new_hires.manager_id)
+accept	accept	engine	suite:dml	UPDATE foo_tablen SET bar = 23, baz = 3.1415E0, bletch = 'barf' WHERE (nothing = 'fun')
+accept	accept	engine	suite:dml	UPDATE foo_tablen SET bar = 23
+accept	accept	engine	suite:dml	UPDATE t SET "col one" = a + b * 2, x = CASE WHEN y THEN 1 ELSE 2 END
+accept	accept	engine	suite:dml	UPDATE cat.sch.t SET a = 1
+reject@9	reject@9	engine	suite:dml	UPDATE t a = 1
+reject@12	reject@12	engine	suite:dml	UPDATE t SET
+reject@13	reject@13	engine	suite:dml	UPDATE t SET (a, b) = (1, 2)
+reject@19	reject@19	engine	suite:dml	UPDATE t SET a = 1 garbage
+reject@11	reject@11	engine	suite:dml	UPDATE SET a = 1
+reject@14	reject@14	engine	suite:dml	UPDATE t SET a
+accept	accept	engine	suite:dml	MERGE INTO accounts t USING monthly_accounts_update s ON t.customer = s.customer WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO accounts t USING monthly_accounts_update s ON (t.customer = s.customer) WHEN MATCHED THEN UPDATE SET purchases = s.purchases + t.purchases WHEN NOT MATCHED THEN INSERT (customer, purchases, address) VALUES (s.customer, s.purchases, s.address)
+accept	accept	engine	suite:dml	MERGE INTO accounts t USING monthly_accounts_update s ON (t.customer = s.customer) WHEN MATCHED AND s.address = 'Centreville' THEN DELETE WHEN MATCHED THEN UPDATE SET purchases = s.purchases + t.purchases, address = s.address WHEN NOT MATCHED THEN INSERT (customer, purchases, address) VALUES (s.customer, s.purchases, s.address)
+accept	accept	engine	suite:dml	MERGE INTO inventory AS i USING changes AS c ON i.part = c.part WHEN MATCHED AND c.action = 'mod' THEN UPDATE SET qty = qty + c.qty, ts = CURRENT_TIMESTAMP WHEN MATCHED AND c.action = 'del' THEN DELETE WHEN NOT MATCHED AND c.action = 'new' THEN INSERT (part, qty) VALUES (c.part, c.qty)
+accept	accept	engine	suite:dml	MERGE INTO accounts USING src s ON accounts.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO accounts AS t USING src s ON t.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc data USING src s ON data.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc t USING (SELECT * FROM src) s ON t.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc t USING (SELECT * FROM src) AS s ON t.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO cat.sch.acc t USING src s ON t.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc t USING cat.sch.src s ON t.c = s.c WHEN MATCHED THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN INSERT VALUES (s.c, s.p)
+accept	accept	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN MATCHED AND s.x > 0 THEN DELETE
+accept	accept	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED AND s.x > 0 THEN INSERT VALUES (1)
+accept	accept	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT VALUES (1)
+accept	accept	engine	suite:dml	MERGE INTO acc t USING src CROSS JOIN other ON t.c = 1 WHEN MATCHED THEN DELETE
+reject@46	reject@46	engine	suite:dml	MERGE INTO accounts t USING src s ON t.c = s.c
+reject@76	reject@76	engine	suite:dml	MERGE INTO accounts t USING src s ON t.c = s.c WHEN MATCHED THEN UPDATE SET (p = s.p)
+reject@76	reject@76	engine	suite:dml	MERGE INTO accounts t USING src s ON t.c = s.c WHEN MATCHED THEN UPDATE SET (p = s.p, a = s.a)
+reject@79	reject@79	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN INSERT VALUES ()
+reject@11	reject	engine	suite:dml	MERGE INTO a.b.c.d t USING s ON t.c = s.c WHEN MATCHED THEN DELETE
+reject@45	reject@45	engine	suite:dml	MERGE INTO acc t USING a JOIN b ON a.k = b.k s ON t.c = a.c WHEN MATCHED THEN DELETE
+reject@29	reject@29	engine	suite:dml	MERGE INTO acc t USING src s WHEN MATCHED THEN DELETE
+reject@6	reject@6	engine	suite:dml	MERGE acc t USING src s ON t.c = s.c WHEN MATCHED THEN DELETE
+reject@60	reject@60	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN MATCHED THEN INSERT VALUES (1)
+reject@64	reject@64	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN DELETE
+reject@64	reject@64	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN UPDATE SET p = 1
+reject@64	reject@64	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN DELETE VALUES (1)
+reject@64	reject@64	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN UPDATE VALUES (1)
+reject@64	reject@64	engine	suite:dml	MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN foo VALUES (1)
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE admin
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE moderator WITH ADMIN USER bob
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE admin IN hive
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE r WITH ADMIN ROLE other
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE r WITH ADMIN CURRENT_USER
+accept	accept	engine	suite:dcl-tcl	CREATE ROLE r WITH ADMIN CURRENT_ROLE IN hive
+accept	accept	engine	suite:dcl-tcl	DROP ROLE admin
+accept	accept	engine	suite:dcl-tcl	DROP ROLE IF EXISTS analyst
+accept	accept	engine	suite:dcl-tcl	DROP ROLE IF EXISTS analyst IN hive
+accept	accept	engine	suite:dcl-tcl	DROP ROLE analyst IN hive
+reject@11	reject@11	engine	suite:dcl-tcl	CREATE ROLE
+reject@9	reject@9	engine	suite:dcl-tcl	DROP ROLE
+reject@12	reject@12	engine	suite:dcl-tcl	CREATE ROLE WITH ADMIN USER bob
+reject@13	reject@13	engine	suite:dcl-tcl	DROP ROLE IF analyst
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo
+accept	accept	engine	suite:dcl-tcl	GRANT bar, foo TO USER baz, ROLE qux WITH ADMIN OPTION
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO foo
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO ROLE qux
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo GRANTED BY CURRENT_USER
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo GRANTED BY ROLE admin
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo GRANTED BY USER carol
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo IN hive
+accept	accept	engine	suite:dcl-tcl	GRANT bar TO USER foo WITH ADMIN OPTION GRANTED BY CURRENT_USER IN hive
+accept	accept	engine	suite:dcl-tcl	GRANT zone TO USER foo
+accept	accept	engine	suite:dcl-tcl	GRANT ALL TO foo
+accept	accept	engine	suite:dcl-tcl	GRANT "my role" TO USER foo
+accept	accept	engine	suite:dcl-tcl	GRANT r TO USER
+accept	accept	engine	suite:dcl-tcl	GRANT r TO ROLE
+accept	accept	engine	suite:dcl-tcl	GRANT r TO ROLE, bar
+accept	accept	engine	suite:dcl-tcl	GRANT r TO USER WITH ADMIN OPTION
+accept	accept	engine	suite:dcl-tcl	GRANT r TO foo GRANTED BY USER
+reject@6	reject@6	engine	suite:dcl-tcl	GRANT SELECT TO foo
+reject@6	reject@6	engine	suite:dcl-tcl	GRANT select TO foo
+reject@6	reject@6	engine	suite:dcl-tcl	GRANT CREATE TO foo
+reject@6	reject@6	engine	suite:dcl-tcl	GRANT SELECT, INSERT TO foo
+reject@17	reject@22	engine	suite:dcl-tcl	GRANT bar TO foo WITH GRANT OPTION
+reject@12	reject@12	engine	suite:dcl-tcl	GRANT bar TO
+accept	accept	engine	suite:dcl-tcl	GRANT INSERT, SELECT ON orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT DELETE ON SCHEMA finance TO bob
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON nation TO alice WITH GRANT OPTION
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON orders TO ROLE PUBLIC
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON TABLE orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT ALL PRIVILEGES ON test TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT ALL ON test TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT UPDATE ON orders TO USER alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON cat.sch.tbl TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT INSERT ON BRANCH audit IN orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT INSERT ON BRANCH audit IN TABLE orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT INSERT ON BRANCH audit IN cat.s.t TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT mypriv ON test TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT "My Priv" ON test TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT TO ON t TO alice
+reject@6	reject@6	engine	suite:dcl-tcl	GRANT FROM ON t TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON VIEW v TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON a b TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON branch TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON branch orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON BRANCH orders TO alice
+accept	accept	engine	suite:dcl-tcl	GRANT SELECT ON x a.b.c TO alice
+reject@10	reject@21	engine	suite:dcl-tcl	GRANT ALL PRIVILEGES TO foo
+reject@30	reject@30	engine	suite:dcl-tcl	GRANT SELECT ON test TO alice IN hive
+reject@30	reject@35	engine	suite:dcl-tcl	GRANT SELECT ON test TO alice WITH ADMIN OPTION
+reject@30	reject@30	engine	suite:dcl-tcl	GRANT SELECT ON test TO alice GRANTED BY CURRENT_USER
+reject@13	reject@13	engine	suite:dcl-tcl	GRANT CREATE TABLE ON SCHEMA s TO alice
+reject@24	reject@24	engine	suite:dcl-tcl	GRANT SELECT ON TO alice
+reject@13	reject@13	engine	suite:dcl-tcl	GRANT SELECT orders TO alice
+reject@20	reject@20	engine	suite:dcl-tcl	GRANT SELECT ON a b c TO alice
+reject@16	reject@20	engine	suite:dcl-tcl	GRANT SELECT ON a.b c TO alice
+reject@16	reject@16	engine	suite:dcl-tcl	GRANT SELECT ON SELECT orders TO alice
+reject@27	reject@27	engine	suite:dcl-tcl	GRANT SELECT ON BRANCH a.b IN orders TO alice
+reject@23	reject@23	engine	suite:dcl-tcl	GRANT SELECT ON BRANCH IN orders TO alice
+accept	accept	engine	suite:dcl-tcl	REVOKE bar FROM USER foo
+accept	accept	engine	suite:dcl-tcl	REVOKE ADMIN OPTION FOR bar, foo FROM USER baz, ROLE qux
+accept	accept	engine	suite:dcl-tcl	REVOKE bar FROM foo GRANTED BY CURRENT_ROLE IN hive
+accept	accept	engine	suite:dcl-tcl	REVOKE bar, foo FROM USER baz
+reject@7	reject@7	engine	suite:dcl-tcl	REVOKE select FROM foo
+reject@15	reject@15	engine	suite:dcl-tcl	REVOKE bar FROM
+accept	accept	engine	suite:dcl-tcl	REVOKE INSERT, SELECT ON orders FROM alice
+accept	accept	engine	suite:dcl-tcl	REVOKE DELETE ON SCHEMA finance FROM bob
+accept	accept	engine	suite:dcl-tcl	REVOKE GRANT OPTION FOR SELECT ON nation FROM ROLE PUBLIC
+accept	accept	engine	suite:dcl-tcl	REVOKE ALL PRIVILEGES ON test FROM alice
+accept	accept	engine	suite:dcl-tcl	REVOKE INSERT ON BRANCH audit IN orders FROM alice
+accept	accept	engine	suite:dcl-tcl	REVOKE ALL ON test FROM alice
+reject@33	reject@33	engine	suite:dcl-tcl	REVOKE SELECT ON test FROM alice CASCADE
+reject@33	reject@33	engine	suite:dcl-tcl	REVOKE SELECT ON test FROM alice RESTRICT
+reject@28	reject@28	engine	suite:dcl-tcl	REVOKE GRANT OPTION FOR bar FROM foo
+accept	accept	engine	suite:dcl-tcl	DENY INSERT, SELECT ON orders TO alice
+accept	accept	engine	suite:dcl-tcl	DENY DELETE ON SCHEMA finance TO bob
+accept	accept	engine	suite:dcl-tcl	DENY SELECT ON orders TO ROLE PUBLIC
+accept	accept	engine	suite:dcl-tcl	DENY ALL PRIVILEGES ON test TO alice
+accept	accept	engine	suite:dcl-tcl	DENY INSERT ON BRANCH audit IN orders TO alice
+reject@9	reject@9	engine	suite:dcl-tcl	DENY bar TO foo
+reject@22	reject@22	engine	suite:dcl-tcl	DENY SELECT ON orders FROM alice
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION ISOLATION LEVEL REPEATABLE READ
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION READ WRITE
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION READ ONLY
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE
+accept	accept	engine	suite:dcl-tcl	START TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+accept	accept	engine	suite:dcl-tcl	COMMIT
+accept	accept	engine	suite:dcl-tcl	COMMIT WORK
+accept	accept	engine	suite:dcl-tcl	ROLLBACK
+accept	accept	engine	suite:dcl-tcl	ROLLBACK WORK
+reject@34	reject@34	engine	suite:dcl-tcl	START TRANSACTION ISOLATION LEVEL BOGUS
+reject@22	reject@22	engine	suite:dcl-tcl	START TRANSACTION READ
+reject@28	reject@28	engine	suite:dcl-tcl	START TRANSACTION ISOLATION REPEATABLE READ
+reject@49	reject@49	engine	suite:dcl-tcl	START TRANSACTION ISOLATION LEVEL READ COMMITTED,
+reject@7	reject@7	engine	suite:dcl-tcl	COMMIT TRANSACTION
+reject@9	reject@9	engine	suite:dcl-tcl	ROLLBACK TO sp
+accept	accept	engine	suite:dcl-tcl	PREPARE my_select1 FROM SELECT * FROM nation
+accept	accept	engine	suite:dcl-tcl	PREPARE my_select2 FROM SELECT name FROM nation WHERE regionkey = ? AND nationkey < ?
+accept	accept	engine	suite:dcl-tcl	PREPARE my_insert FROM INSERT INTO cities VALUES (1, 'San Francisco')
+accept	accept	engine	suite:dcl-tcl	PREPARE my_create FROM CREATE TABLE foo AS SELECT * FROM nation
+accept	accept	engine	suite:dcl-tcl	DEALLOCATE PREPARE my_query
+accept	accept	engine	suite:dcl-tcl	EXECUTE my_select1
+accept	accept	engine	suite:dcl-tcl	EXECUTE my_select2 USING 1, 3
+accept	accept	engine	suite:dcl-tcl	EXECUTE IMMEDIATE 'SELECT name FROM nation'
+accept	accept	engine	suite:dcl-tcl	EXECUTE IMMEDIATE 'SELECT name FROM nation WHERE regionkey = ? AND nationkey < ?' USING 1, 3
+accept	accept	engine	suite:dcl-tcl	EXECUTE IMMEDIATE
+accept	accept	engine	suite:dcl-tcl	EXECUTE IMMEDIATE USING 1
+accept	accept	engine	suite:dcl-tcl	DESCRIBE INPUT my_select1
+accept	accept	engine	suite:dcl-tcl	DESCRIBE OUTPUT my_select1
+reject@18	reject@18	engine	suite:dcl-tcl	DESCRIBE INPUT foo.bar
+reject@19	reject@19	engine	suite:dcl-tcl	DESCRIBE OUTPUT foo.bar
+reject@14	reject@14	engine	suite:dcl-tcl	PREPARE p FROM
+reject@8	reject@8	engine	suite:dcl-tcl	PREPARE FROM SELECT 1
+reject@15	reject@15	engine	suite:dcl-tcl	PREPARE p FROM 1
+reject@15	reject@15	engine	suite:dcl-tcl	PREPARE p FROM NOTASTATEMENT
+reject@11	reject@11	engine	suite:dcl-tcl	DEALLOCATE my_query
+reject@18	reject@18	engine	suite:dcl-tcl	EXECUTE IMMEDIATE my_name
+reject@23	reject@23	engine	suite:dcl-tcl	EXECUTE my_select USING
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B) DEFINE A AS true, B AS false)
+reject@33	reject@33	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE ()
+reject@44	reject@44	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A))
+reject@33	reject@40	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (DEFINE A AS true)
+reject@41	reject@41	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN A DEFINE A AS true)
+reject@42	reject@42	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN () DEFINE A AS true)
+reject@51	reject@51	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE)
+reject@59	reject@59	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) SUBSET DEFINE A AS x)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY a ORDER BY b MEASURES c AS m ONE ROW PER MATCH AFTER MATCH SKIP TO NEXT ROW PATTERN (A B+ C) DEFINE B AS B.x > 0)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY a, b ORDER BY c DESC, d ASC NULLS LAST PATTERN (A) DEFINE A AS true)
+reject@44	reject@44	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ORDER BY b PARTITION BY a PATTERN (A) DEFINE A AS true)
+reject@49	reject@49	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES x AS m PARTITION BY a PATTERN (A) DEFINE A AS true)
+reject@45	reject@45	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) MEASURES x AS m DEFINE A AS true)
+reject@33	reject@40	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (DEFINE A AS true PATTERN (A))
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES match_number() AS mn PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES RUNNING last(A.x) AS m PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES FINAL last(A.x) AS m PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES x AS m, y AS n PATTERN (A) DEFINE A AS true)
+reject@44	reject@44	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (MEASURES x m PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ONE ROW PER MATCH PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ALL ROWS PER MATCH PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ALL ROWS PER MATCH SHOW EMPTY MATCHES PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ALL ROWS PER MATCH OMIT EMPTY MATCHES PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ALL ROWS PER MATCH WITH UNMATCHED ROWS PATTERN (A) DEFINE A AS true)
+reject@51	reject@51	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ONE ROW PER MATCH WITH UNMATCHED ROWS PATTERN (A) DEFINE A AS true)
+reject@37	reject@37	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ONE ROWS PER MATCH PATTERN (A) DEFINE A AS true)
+reject@37	reject@37	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (ALL ROW PER MATCH PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP PAST LAST ROW PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO NEXT ROW PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO FIRST A PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO LAST A PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO A PATTERN (A) DEFINE A AS true)
+reject@61	reject@61	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO PATTERN (A) DEFINE A AS true)
+reject@50	reject@50	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO next PATTERN (A) DEFINE A AS true, next AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO NEXT PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO FIRST PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO LAST PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (AFTER MATCH SKIP TO FIRST first PATTERN (A) DEFINE first AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (INITIAL PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (SEEK PATTERN (A) DEFINE A AS true)
+reject@41	reject@41	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (INITIAL SEEK PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B) SUBSET U = (A) DEFINE A AS true, B AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B) SUBSET U = (A, B) DEFINE A AS true, B AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B) SUBSET U = (A), V = (B) DEFINE A AS true, B AS true)
+reject@57	reject@57	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) SUBSET U = () DEFINE A AS true)
+reject@54	reject@54	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) SUBSET U DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) AS m
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) m
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) AS m (x, y)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) m (x, y)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t AS r MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) AS m
+accept	accept	engine	suite:match-recognize	SELECT * FROM t r MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) m
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) MATCH_RECOGNIZE (x)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) AS MATCH_RECOGNIZE (x)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) TABLESAMPLE BERNOULLI (10)
+reject@43	reject@43	engine	suite:match-recognize	SELECT * FROM t TABLESAMPLE BERNOULLI (10) MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM (SELECT 1 x) t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM (t JOIN s ON true) MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B C) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A | B) DEFINE A AS true, B AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A | B | C) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B | C D) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ((A B) | C) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ((A | B)+) DEFINE A AS true)
+reject@45	reject@45	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A |) DEFINE A AS true)
+reject@42	reject@42	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (| A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A*) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A+) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A?) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A*?) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A+?) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A??) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{3}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{1,3}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{,3}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{2,}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{2,}?) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{,}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ((A)*) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ((A*)*) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A* B* C*) DEFINE A AS true)
+reject@44	reject@44	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A**) DEFINE A AS true)
+reject@46	reject@46	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{2}{3}) DEFINE A AS true)
+reject@44	reject@44	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A{}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (^ A+ $) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (^) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ($) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (^+) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(A, B)) DEFINE A AS true, B AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(A)) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(A B, C)) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(A | B, C)) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE()) DEFINE A AS true)
+reject@50	reject@50	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(,)) DEFINE A AS true)
+reject@52	reject@52	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (PERMUTE(A,)) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (permute) DEFINE permute AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (permute A) DEFINE permute AS true, A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ({- A -} B) DEFINE A AS true, B AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ({- A B -} C) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ({- A | B -}) DEFINE A AS true)
+reject@45	reject@45	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ({- -}) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (()) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (() A) DEFINE A AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN ("quoted var") DEFINE "quoted var" AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (zone) DEFINE zone AS true)
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS A.price > PREV(A.price))
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS CLASSIFIER() = 'X')
+accept	accept	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A B) DEFINE B AS B.value > LAST(A.value))
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (PARTITION BY a ORDER BY b MEASURES x AS m ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ORDER BY b ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES x AS m ROWS CURRENT ROW PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW AFTER MATCH SKIP PAST LAST ROW PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW INITIAL PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW PATTERN (A B) SUBSET U = (A, B) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW AFTER MATCH SKIP TO FIRST A) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW AFTER MATCH SKIP TO FIRST A DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW AFTER MATCH SKIP TO LAST A SUBSET U = (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES x AS m ROWS CURRENT ROW) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (ROWS CURRENT ROW PATTERN (A)) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER w FROM t WINDOW w AS (ORDER BY b ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING PATTERN (A) DEFINE A AS true)
+reject@30	reject@30	engine	suite:match-recognize	SELECT count(*) OVER (PATTERN (A) DEFINE A AS true) FROM t
+reject@38	reject@38	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES x AS m PATTERN (A) DEFINE A AS true) FROM t
+reject@37	reject@37	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES x AS m) FROM t
+reject@33	reject@33	engine	suite:match-recognize	SELECT count(*) OVER (ORDER BY a PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES rows AS m ROWS CURRENT ROW PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES range AS m ROWS CURRENT ROW PATTERN (A) DEFINE A AS true) FROM t
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (measures ORDER BY b ROWS CURRENT ROW) FROM t WINDOW measures AS (PARTITION BY a)
+accept	accept	engine	suite:match-recognize	SELECT count(*) OVER (MEASURES ROWS CURRENT ROW) FROM t WINDOW MEASURES AS (PARTITION BY a)
+reject@63	reject@63	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true) FROM
+reject@32	reject@32	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE PATTERN (A) DEFINE A AS true
+reject@61	reject@61	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true
+reject@43	reject@43	engine	suite:match-recognize	SELECT * FROM t MATCH_RECOGNIZE (PARTITION a PATTERN (A) DEFINE A AS x)
+accept	accept	engine	suite:routines	CREATE FUNCTION meaning_of_life() RETURNS bigint RETURN 42
+accept	accept	engine	suite:routines	CREATE FUNCTION example.default.meaning_of_life() RETURNS bigint BEGIN RETURN 42; END
+accept	accept	engine	suite:routines	CREATE FUNCTION my.func(x integer) RETURNS integer RETURN x + 1
+accept	accept	engine	suite:routines	CREATE OR REPLACE FUNCTION f(x bigint) RETURNS bigint RETURN x * x
+accept	accept	engine	suite:routines	CREATE FUNCTION f(bigint) RETURNS bigint RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint, varchar, z double) RETURNS bigint RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x ROW(a int, b int)) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x ARRAY(int)) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x DECIMAL(10, 2)) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x timestamp(3) with time zone) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(double precision) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x double precision) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(interval day to second) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(comment bigint) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f("my x" bigint) RETURNS int RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS varchar(10) RETURN 'x'
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS array(int) RETURN ARRAY[1]
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint LANGUAGE SQL DETERMINISTIC RETURNS NULL ON NULL INPUT RETURN x
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint NOT DETERMINISTIC CALLED ON NULL INPUT SECURITY DEFINER COMMENT 'doc' RETURN x
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint SECURITY INVOKER RETURN x
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint COMMENT 'a' LANGUAGE SQL DETERMINISTIC RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint DETERMINISTIC DETERMINISTIC RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint LANGUAGE PYTHON RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint COMMENT U&'doc' RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int LANGUAGE PYTHON WITH (handler = 'myfunc') RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int WITH (handler = 'x') RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int WITH (a = 'str', b = 2.5, c = true) RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int WITH (a = ARRAY[1, 2]) RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int WITH ("quoted name" = 1) RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int COMMENT 'x' WITH (a = 1) RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int DETERMINISTIC WITH (a = 1) WITH (b = 2) RETURN 1
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint BEGIN DECLARE y bigint DEFAULT 0; SET y = x + 1; RETURN y; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN RETURN 1; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN DECLARE a, b int; SET a = 1; SET b = 2; RETURN a + b; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN BEGIN RETURN 1; END; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN DECLARE x int; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN DECLARE x int DEFAULT 1 + 2 * 3; RETURN x; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN DECLARE x int DEFAULT (SELECT 1); RETURN x; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS int BEGIN DECLARE y int; SET y = x IN (1, 2); RETURN y; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint BEGIN IF x > 0 THEN RETURN 1; ELSEIF x < 0 THEN RETURN -1; ELSE RETURN 0; END IF; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS int BEGIN IF x IN (1, 2, 3) THEN RETURN 1; END IF; RETURN 0; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS varchar BEGIN CASE x WHEN 1 THEN RETURN 'one'; WHEN 2 THEN RETURN 'two'; ELSE RETURN 'other'; END CASE; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS varchar BEGIN CASE WHEN x > 0 THEN RETURN 'pos'; ELSE RETURN 'neg'; END CASE; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS int BEGIN CASE x + 1 WHEN 2 THEN RETURN 1; END CASE; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS int BEGIN CASE WHEN x IN (1, 2) THEN RETURN 1; END CASE; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x bigint) RETURNS bigint BEGIN DECLARE i bigint DEFAULT 0; top: LOOP SET i = i + 1; IF i > 10 THEN LEAVE top; END IF; END LOOP; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(n bigint) RETURNS bigint BEGIN DECLARE i bigint DEFAULT 0; WHILE i < n DO SET i = i + 1; END WHILE; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(n bigint) RETURNS bigint BEGIN DECLARE i bigint DEFAULT 0; REPEAT SET i = i + 1; UNTIL i >= n END REPEAT; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN DECLARE i bigint DEFAULT 0; abc: WHILE i < 10 DO SET i = i + 1; ITERATE abc; END WHILE; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN LOOP RETURN 1; END LOOP; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN WHILE true DO RETURN 1; END WHILE; RETURN 0; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f(n int) RETURNS int BEGIN DECLARE i int DEFAULT 0; REPEAT SET i = i + 1; UNTIL i >= n AND i > 0 END REPEAT; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN DECLARE i int DEFAULT 0; lbl: REPEAT SET i = i + 1; UNTIL i > 3 END REPEAT; RETURN i; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN loop: LOOP LEAVE loop; END LOOP; RETURN 1; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN while: LOOP LEAVE while; END LOOP; RETURN 1; END
+accept	accept	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN set: WHILE true DO LEAVE set; END WHILE; RETURN 1; END
+accept	accept	engine	suite:routines	DROP FUNCTION f(bigint)
+accept	accept	engine	suite:routines	DROP FUNCTION IF EXISTS my.func(integer, varchar)
+accept	accept	engine	suite:routines	DROP FUNCTION meaning_of_life()
+accept	accept	engine	suite:routines	DROP FUNCTION example.default.f(bigint)
+accept	accept	engine	suite:routines	DROP FUNCTION f(x bigint)
+accept	accept	engine	suite:routines	WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(10)
+accept	accept	engine	suite:routines	WITH FUNCTION a(x int) RETURNS int RETURN x, FUNCTION b(y int) RETURNS int RETURN y SELECT a(1), b(2)
+accept	accept	engine	suite:routines	WITH FUNCTION f(x int) RETURNS int RETURN x WITH t AS (SELECT 1 AS c) SELECT f(c) FROM t
+accept	accept	engine	suite:routines	WITH FUNCTION f(x int) RETURNS int BEGIN RETURN x; END SELECT f(1)
+accept	accept	engine	suite:routines	EXPLAIN CREATE FUNCTION f() RETURNS int RETURN 1
+accept	accept	engine	suite:routines	EXPLAIN WITH FUNCTION f(x int) RETURNS int RETURN x SELECT f(1)
+accept	accept	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS int BEGIN IF x > 0 THEN IF x > 5 THEN RETURN 2; END IF; RETURN 1; END IF; RETURN 0; END
+reject@50	reject@50	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS boolean RETURN x IN (1, 2, 3)
+reject@50	reject@50	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS boolean RETURN x > 0 AND x < 10
+reject@50	reject@50	engine	suite:routines	CREATE FUNCTION f(x int) RETURNS boolean RETURN x BETWEEN 1 AND 10
+reject@66	reject@66	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN DECLARE x boolean DEFAULT 1 IN (1, 2); RETURN 1; END
+reject@73	reject@73	engine	suite:routines	CREATE FUNCTION f() RETURNS boolean BEGIN DECLARE x boolean DEFAULT true AND false; RETURN x; END
+reject@41	reject@41	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint RETURN
+reject@20	reject@20	engine	suite:routines	CREATE FUNCTION f() RETURN 1
+reject@34	reject@34	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint
+reject@24	reject@24	engine	suite:routines	CREATE FUNCTION RETURNS bigint RETURN 1
+reject@50	reject@50	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN RETURN 1 END
+reject@67	reject@67	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN IF true THEN RETURN 1; END; END
+reject@49	reject@57	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN SET x = 1; DECLARE y int; RETURN y; END
+reject@58	reject@58	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN DECLARE x int; SET x.y = 1; RETURN x; END
+reject@43	reject@43	engine	suite:routines	CREATE FUNCTION f() RETURNS int BEGIN lbl: BEGIN RETURN 1; END; END
+reject@51	reject@51	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN LOOP LEAVE; END LOOP; RETURN 1; END
+reject@53	reject@53	engine	suite:routines	CREATE FUNCTION f() RETURNS bigint BEGIN LOOP ITERATE; END LOOP; RETURN 1; END
+reject@40	reject@40	engine	suite:routines	CREATE FUNCTION f() RETURNS int COMMENT 42 RETURN 1
+reject@40	reject@40	engine	suite:routines	CREATE FUNCTION f() RETURNS int COMMENT foo RETURN 1
+reject@41	reject@41	engine	suite:routines	CREATE FUNCTION f() RETURNS int LANGUAGE 'sql' RETURN 1
+reject@41	reject@41	engine	suite:routines	CREATE FUNCTION f() RETURNS int SECURITY PUBLIC RETURN 1
+reject@0	reject@0	engine	suite:routines	FUNCTION f() RETURNS int RETURN 1
+reject@15	reject@15	engine	suite:routines	DROP FUNCTION f
+reject@17	reject@17	engine	suite:routines	DROP FUNCTION IF f(int)
+reject@43	reject@43	engine	suite:routines	WITH FUNCTION f(x int) RETURNS int RETURN x
+reject@45	reject@45	engine	suite:routines	WITH FUNCTION f(x int) RETURNS int RETURN x, SELECT 1
+reject@38	reject@38	engine	suite:routines	CREATE FUNCTION f() RETURNS int WITH () RETURN 1
+reject@15	reject@29	engine	suite:routines	SELECT * FROM (WITH FUNCTION f(x int) RETURNS int RETURN x SELECT f(1) AS c) t

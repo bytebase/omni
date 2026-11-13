@@ -1,43 +1,34 @@
-// Package testcontainer is the differential-testing oracle for the omni Trino
-// parser. It talks to a live Trino server over the REST statement protocol and
-// classifies a statement as syntactically ACCEPTED or REJECTED by Trino's own
-// parser.
+// Package testcontainer is how trino's tests reach Trino: through a tape
+// (enginetest/tape) that replays the pinned server's answers, or, in a
+// recording (OMNI_RECORD=1), through the pinned server itself. That server is
+// one testcontainer per test binary, started by the first test that records
+// and removed by Terminate, which each package's TestMain calls.
 //
-// The classification rule is the heart of the oracle: Trino raises errorName
-// "SYNTAX_ERROR" (errorCode 1, errorType USER_ERROR) when, and only when, its
-// parser rejects the input. Every other outcome — success, TABLE_NOT_FOUND,
-// CATALOG_NOT_FOUND, COLUMN_NOT_FOUND, NOT_SUPPORTED, TYPE_MISMATCH, … — means
-// the grammar ACCEPTED the statement and it failed (or succeeded) at a later,
-// semantic stage. This mirrors the MySQL oracle's use of error code 1064.
+// A test asks one thing of Trino: whether its parser accepts a statement
+// (Oracle.CheckSyntax). Trino raises errorName SYNTAX_ERROR when its parser
+// rejects the input, and for a few checks after the parse that read only the
+// text, such as a name with too many parts. Every other outcome, success or a
+// semantic error (TABLE_NOT_FOUND, NOT_SUPPORTED, ...), means the grammar
+// accepted the statement. A statement may run, against the memory catalog the
+// session defaults to; in a recording each top-level test starts with that
+// catalog empty.
 //
-// A grammar node wires the differential like so (in package parser, test only):
-//
-//	func assertOracleMatch(t *testing.T, o *testcontainer.Oracle, sql string) {
-//	    _, omniErr := Parse(sql)
-//	    res, err := o.CheckSyntax(context.Background(), sql)
-//	    if err != nil { t.Skipf("oracle unreachable: %v", err) }
-//	    if (omniErr == nil) != res.Accepted {
-//	        t.Errorf("MISMATCH %q: omni accepts=%v (err=%v), trino accepts=%v (%s)",
-//	            sql, omniErr == nil, omniErr, res.Accepted, res.ErrorName)
-//	    }
-//	}
-//
-// Because classification keys on SYNTAX_ERROR, the oracle may *execute* a DDL or
-// DML statement (e.g. against the memory catalog) as a side effect; that is
-// harmless for syntax classification and the oracle container is disposable.
+// The tape is the statement endpoint's: each request is one statement, and
+// each answer ok, or the error Trino answered (QueryError).
 package testcontainer
 
 import (
 	"bytes"
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -47,73 +38,56 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/bytebase/omni/enginetest"
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
-// DefaultURL is the conventional local Trino oracle endpoint. Start one with:
-//
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
-const DefaultURL = "http://localhost:18080"
+// Pins is trino/testdata/pins.tsv.
+var Pins = func() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
+}()
 
-// EnvURL is the environment variable that overrides the oracle endpoint.
-const EnvURL = "TRINO_ORACLE_URL"
+// Default is the pin role of the one Trino the tests ask.
+const Default = "default"
 
-// syntaxErrorName is Trino's errorName for a parser rejection.
+var server = &tape.Server{Pins: Pins, Live: live, Codec: Codec{}}
+
+// syntaxErrorName is Trino's errorName for a syntax error.
 const syntaxErrorName = "SYNTAX_ERROR"
 
-// Oracle is a client for a live Trino server used as a syntax oracle.
+// An Oracle answers whether Trino accepts a statement's syntax.
 type Oracle struct {
-	baseURL string
-	user    string
-	catalog string
-	schema  string
-	client  *http.Client
+	run func(ctx context.Context, sql string) error
 }
 
-// Option configures an Oracle.
-type Option func(*Oracle)
-
-// WithUser sets the Trino user sent in X-Trino-User.
-func WithUser(user string) Option { return func(o *Oracle) { o.user = user } }
-
-// WithDefaultNamespace sets the default catalog and schema so that
-// catalog/schema-relative statements resolve far enough to distinguish syntax
-// errors from semantic ones.
-func WithDefaultNamespace(catalog, schema string) Option {
-	return func(o *Oracle) { o.catalog, o.schema = catalog, schema }
+// Open returns t's Oracle: a replay of its tape, or the pinned Trino in a
+// recording. Each call is a stream of its own.
+func Open(t testing.TB) *Oracle {
+	t.Helper()
+	db := tape.Open(t, server, Default)
+	return &Oracle{run: func(ctx context.Context, sql string) error {
+		_, err := db.ExecContext(ctx, sql)
+		return err
+	}}
 }
 
-// WithHTTPClient overrides the HTTP client (e.g. to change timeouts).
-func WithHTTPClient(c *http.Client) Option { return func(o *Oracle) { o.client = c } }
-
-// Connect returns an Oracle pointed at baseURL. If baseURL is empty it falls
-// back to $TRINO_ORACLE_URL and then to DefaultURL. Connect does not perform
-// any I/O; call Ping to verify reachability.
-func Connect(baseURL string, opts ...Option) *Oracle {
-	if baseURL == "" {
-		baseURL = URLFromEnv()
+// Judge returns the pinned Trino itself, outside any tape, for the judge of
+// compat.tsv, which runs only in a recording.
+func Judge(t testing.TB) *Oracle {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
 	}
-	if baseURL == "" {
-		baseURL = DefaultURL
+	pin, err := enginetest.LoadPin(Pins, Default)
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
-	o := &Oracle{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		user:    "omni-oracle",
-		catalog: "memory",
-		schema:  "default",
-		client:  &http.Client{Timeout: 30 * time.Second},
-	}
-	for _, opt := range opts {
-		opt(o)
-	}
-	return o
+	return &Oracle{run: newClient(started(t, pin)).run}
 }
-
-// URLFromEnv returns the value of $TRINO_ORACLE_URL (possibly empty).
-func URLFromEnv() string { return os.Getenv(EnvURL) }
 
 // Result is the outcome of a syntax check.
 type Result struct {
-	// Accepted is true if Trino's parser accepted the statement (no SYNTAX_ERROR).
+	// Accepted is true unless Trino answered SYNTAX_ERROR.
 	Accepted bool
 	// ErrorName is Trino's errorName, "" when the statement ran without error.
 	ErrorName string
@@ -123,85 +97,8 @@ type Result struct {
 	Message string
 }
 
-// info models the GET /v1/info response.
-type info struct {
-	Starting    bool `json:"starting"`
-	NodeVersion struct {
-		Version string `json:"version"`
-	} `json:"nodeVersion"`
-}
-
-// queryResp models the relevant fields of a /v1/statement response.
-type queryResp struct {
-	ID      string `json:"id"`
-	NextURI string `json:"nextUri"`
-	Stats   struct {
-		State string `json:"state"`
-	} `json:"stats"`
-	Error *struct {
-		Message       string `json:"message"`
-		ErrorCode     int    `json:"errorCode"`
-		ErrorName     string `json:"errorName"`
-		ErrorType     string `json:"errorType"`
-		ErrorLocation *struct {
-			LineNumber   int `json:"lineNumber"`
-			ColumnNumber int `json:"columnNumber"`
-		} `json:"errorLocation"`
-	} `json:"error"`
-}
-
-// QueryError is a Trino server's answer to a statement that failed, as its
-// client protocol's QueryError carries it.
-type QueryError struct {
-	// Name is errorName and Code errorCode: SYNTAX_ERROR and 1 for a
-	// rejection, TABLE_NOT_FOUND for a missing table.
-	Name string
-	Code int
-	// Line and Column are errorLocation, from 1; 0 for none.
-	Line, Column int
-	Message      string
-}
-
-func (e *QueryError) Error() string { return fmt.Sprintf("trino %s: %s", e.Name, e.Message) }
-
-// queryError reads the error of a response, or nil.
-func (r queryResp) queryError() *QueryError {
-	if r.Error == nil {
-		return nil
-	}
-	e := &QueryError{Name: r.Error.ErrorName, Code: r.Error.ErrorCode, Message: r.Error.Message}
-	if l := r.Error.ErrorLocation; l != nil {
-		e.Line, e.Column = l.LineNumber, l.ColumnNumber
-	}
-	return e
-}
-
-// Ping verifies the server is reachable and finished starting, returning the
-// server version on success.
-func (o *Oracle) Ping(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.baseURL+"/v1/info", nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := o.client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("trino /v1/info: status %d", resp.StatusCode)
-	}
-	var in info
-	if err := json.NewDecoder(resp.Body).Decode(&in); err != nil {
-		return "", err
-	}
-	if in.Starting {
-		return in.NodeVersion.Version, fmt.Errorf("trino is still starting")
-	}
-	return in.NodeVersion.Version, nil
-}
-
-// CheckSyntax submits sql to Trino and reports whether its parser accepted it.
+// CheckSyntax sends sql to Trino and reports whether it accepted its syntax.
+// An error is no answer from Trino at all.
 func (o *Oracle) CheckSyntax(ctx context.Context, sql string) (Result, error) {
 	err := o.Run(ctx, sql)
 	var qe *QueryError
@@ -220,166 +117,109 @@ func (o *Oracle) CheckSyntax(ctx context.Context, sql string) (Result, error) {
 	}
 }
 
-// Run submits sql to Trino and follows it to the point where parsing and
-// planning are known to have completed, then cancels any remaining
-// execution so large result sets are not streamed. It returns nil when the
-// statement got that far, the server's answer as a *QueryError when it
-// failed, and any other error when the server gave no answer.
-func (o *Oracle) Run(ctx context.Context, sql string) error {
-	resp, err := o.post(ctx, sql)
-	if err != nil {
-		return err
-	}
-	for i := 0; i < 10000; i++ {
-		if qe := resp.queryError(); qe != nil {
-			return qe
-		}
-		// Once the query reaches RUNNING or FINISHED, parsing+analysis+planning
-		// have all succeeded, so the statement was syntactically accepted.
-		switch resp.Stats.State {
-		case "RUNNING", "FINISHED":
-			if resp.NextURI != "" {
-				o.cancel(resp.NextURI)
-			}
-			return nil
-		}
-		if resp.NextURI == "" {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(20 * time.Millisecond):
-		}
-		if resp, err = o.get(ctx, resp.NextURI); err != nil {
-			return err
-		}
-	}
-	return fmt.Errorf("trino: statement %q did not settle", truncate(sql, 60))
+// Run sends sql to Trino. It returns nil when the statement parsed and was
+// planned, Trino's answer as a *QueryError when it failed, and any other
+// error when Trino gave no answer.
+func (o *Oracle) Run(ctx context.Context, sql string) error { return o.run(ctx, sql) }
+
+// QueryError is a Trino server's answer to a statement that failed, as its
+// client protocol's QueryError carries it.
+type QueryError struct {
+	// Name is errorName and Code errorCode: SYNTAX_ERROR and 1 for a
+	// rejection, TABLE_NOT_FOUND for a missing table.
+	Name string
+	Code int
+	// Line and Column are errorLocation, from 1; 0 for none.
+	Line, Column int
+	Message      string
 }
 
-// Accepts is a convenience wrapper returning only the accept/reject verdict.
-func (o *Oracle) Accepts(ctx context.Context, sql string) (bool, error) {
-	res, err := o.CheckSyntax(ctx, sql)
-	if err != nil {
-		return false, err
+func (e *QueryError) Error() string { return fmt.Sprintf("trino %s: %s", e.Name, e.Message) }
+
+// Codec writes a QueryError on a tape as its name, code and location on one
+// line, and its message on the lines after.
+type Codec struct{}
+
+// EncodeError implements tape.Codec.
+func (Codec) EncodeError(err error) (string, bool) {
+	var qe *QueryError
+	if !errors.As(err, &qe) {
+		return "", false
 	}
-	return res.Accepted, nil
+	return fmt.Sprintf("%s %d %d:%d\n%s", qe.Name, qe.Code, qe.Line, qe.Column, qe.Message), true
 }
 
-func (o *Oracle) post(ctx context.Context, sql string) (queryResp, error) {
-	// Trino can answer 503 SERVER_STARTING_UP briefly; retry a few times.
-	var lastErr error
-	for attempt := 0; attempt < 5; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.baseURL+"/v1/statement", bytes.NewBufferString(sql))
-		if err != nil {
-			return queryResp{}, err
-		}
-		req.Header.Set("X-Trino-User", o.user)
-		req.Header.Set("X-Trino-Catalog", o.catalog)
-		req.Header.Set("X-Trino-Schema", o.schema)
-		req.Header.Set("Content-Type", "text/plain")
-		resp, err := o.client.Do(req)
-		if err != nil {
-			return queryResp{}, err
-		}
-		if resp.StatusCode == http.StatusServiceUnavailable {
-			resp.Body.Close()
-			lastErr = fmt.Errorf("trino /v1/statement: 503")
-			select {
-			case <-ctx.Done():
-				return queryResp{}, ctx.Err()
-			case <-time.After(time.Second):
-			}
-			continue
-		}
-		return decode(resp)
+// DecodeError implements tape.Codec.
+func (Codec) DecodeError(text string) error {
+	head, msg, _ := strings.Cut(text, "\n")
+	f := strings.Fields(head)
+	if len(f) != 3 {
+		return fmt.Errorf("testcontainer: unreadable Trino error on tape: %q", text)
 	}
-	return queryResp{}, lastErr
+	code, err1 := strconv.Atoi(f[1])
+	line, col, ok := strings.Cut(f[2], ":")
+	l, err2 := strconv.Atoi(line)
+	c, err3 := strconv.Atoi(col)
+	if err1 != nil || err2 != nil || err3 != nil || !ok {
+		return fmt.Errorf("testcontainer: unreadable Trino error on tape: %q", text)
+	}
+	return &QueryError{Name: f[0], Code: code, Line: l, Column: c, Message: msg}
 }
 
-func (o *Oracle) get(ctx context.Context, uri string) (queryResp, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
-	if err != nil {
-		return queryResp{}, err
-	}
-	req.Header.Set("X-Trino-User", o.user)
-	resp, err := o.client.Do(req)
-	if err != nil {
-		return queryResp{}, err
-	}
-	return decode(resp)
-}
-
-// cancel best-effort terminates a running query so result data is not streamed.
-func (o *Oracle) cancel(uri string) {
-	req, err := http.NewRequest(http.MethodDelete, uri, nil)
-	if err != nil {
-		return
-	}
-	req.Header.Set("X-Trino-User", o.user)
-	if resp, err := o.client.Do(req); err == nil {
-		resp.Body.Close()
-	}
-}
-
-func decode(resp *http.Response) (queryResp, error) {
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return queryResp{}, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return queryResp{}, fmt.Errorf("trino: status %d: %s", resp.StatusCode, truncate(string(body), 200))
-	}
-	var qr queryResp
-	if err := json.Unmarshal(body, &qr); err != nil {
-		return queryResp{}, fmt.Errorf("trino: decode response: %w", err)
-	}
-	return qr, nil
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
-}
-
-// Pins is trino/testdata/pins.tsv.
-var Pins = func() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
-}()
+// --- the live server ---
 
 // memoryLimit caps the container: Trino sizes its JVM to the memory it
 // sees, and the box it records on is shared.
 const memoryLimit = 4 << 30
 
-// A server is the one pinned Trino this run started.
-var server struct {
+// shared is the one pinned Trino this run started.
+var shared struct {
 	once      sync.Once
 	pin       enginetest.Pin
 	container testcontainers.Container
 	url       string
 	err       error
+
+	mu      sync.Mutex
+	emptied map[string]bool // the top-level tests the memory catalog was emptied for
 }
 
 // started returns the URL of the pinned Trino, starting it on the first
 // call and failing t unless it runs pin.
 func started(t testing.TB, pin enginetest.Pin) string {
 	t.Helper()
-	server.once.Do(func() {
-		server.pin = pin
-		server.url, server.err = start(context.Background(), pin)
+	shared.once.Do(func() {
+		shared.pin = pin
+		shared.url, shared.err = start(context.Background(), pin)
 	})
-	if server.err != nil {
-		t.Fatalf("start Trino: %v", server.err)
+	if shared.err != nil {
+		t.Fatalf("start Trino: %v", shared.err)
 	}
-	if server.pin != pin {
-		t.Fatalf("this run started Trino at %s, not %s", server.pin, pin)
+	if shared.pin != pin {
+		t.Fatalf("this run started Trino at %s, not %s", shared.pin, pin)
 	}
-	return server.url
+	return shared.url
+}
+
+// live connects to the pinned Trino. On t's top-level test's first
+// connection it empties the memory catalog of what other tests made, so a
+// test reads the same answers recorded alone as in a run of its package.
+func live(t testing.TB, pin enginetest.Pin) driver.Connector {
+	t.Helper()
+	c := newClient(started(t, pin))
+	top := enginetest.TopName(t.Name())
+	shared.mu.Lock()
+	defer shared.mu.Unlock()
+	if !shared.emptied[top] {
+		if err := c.emptyMemory(context.Background()); err != nil {
+			t.Fatalf("empty Trino's memory catalog: %v", err)
+		}
+		if shared.emptied == nil {
+			shared.emptied = map[string]bool{}
+		}
+		shared.emptied[top] = true
+	}
+	return connector{c}
 }
 
 func start(ctx context.Context, pin enginetest.Pin) (url string, err error) {
@@ -400,7 +240,7 @@ func start(ctx context.Context, pin enginetest.Pin) (url string, err error) {
 		Started: true,
 	})
 	if c != nil {
-		server.container = c
+		shared.container = c
 	}
 	if err != nil {
 		return "", err
@@ -417,13 +257,13 @@ func start(ctx context.Context, pin enginetest.Pin) (url string, err error) {
 		return "", err
 	}
 	url = fmt.Sprintf("http://%s:%s", host, port.Port())
-	o := Connect(url)
+	cl := newClient(url)
 	// GenericContainer returns once the process is up; poll until Trino
 	// reports it has finished starting.
 	deadline := time.Now().Add(3 * time.Minute)
 	for {
 		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		version, perr := o.Ping(pingCtx)
+		version, perr := cl.ping(pingCtx)
 		cancel()
 		if perr == nil {
 			if version != pin.Tag {
@@ -465,66 +305,277 @@ func checkDigest(ctx context.Context, c testcontainers.Container, digest string)
 // Terminate removes the server this run started, if any. A package's
 // TestMain calls it.
 func Terminate() {
-	if server.container != nil {
-		_ = testcontainers.TerminateContainer(server.container)
+	if shared.container != nil {
+		_ = testcontainers.TerminateContainer(shared.container)
 	}
 }
 
-// Judge returns the pinned Trino itself, for the judge of compat.tsv, which
-// runs only in a recording.
-func Judge(t testing.TB) *Oracle {
-	t.Helper()
-	if !enginetest.Recording(t) {
-		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+// connector is a database/sql connector over the statement endpoint, so
+// enginetest/tape can record it: ExecContext sends one statement.
+type connector struct{ c *client }
+
+func (c connector) Connect(context.Context) (driver.Conn, error) { return conn(c), nil }
+func (c connector) Driver() driver.Driver                        { return nil }
+
+type conn struct{ c *client }
+
+var _ driver.ExecerContext = conn{}
+
+func (conn) Prepare(string) (driver.Stmt, error) {
+	return nil, errors.New("testcontainer: Trino statements are not prepared")
+}
+func (conn) Close() error              { return nil }
+func (conn) Begin() (driver.Tx, error) { return nil, errors.New("testcontainer: no transactions") }
+
+func (c conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	if len(args) > 0 {
+		return nil, errors.New("testcontainer: Trino statements take no arguments")
 	}
-	pin, err := enginetest.LoadPin(Pins, "default")
+	if err := c.c.run(ctx, query); err != nil {
+		return nil, err
+	}
+	return noCount{}, nil
+}
+
+// noCount is the result of a statement: the endpoint counts nothing the
+// tests read.
+type noCount struct{}
+
+func (noCount) LastInsertId() (int64, error) { return 0, errors.New("no id") }
+func (noCount) RowsAffected() (int64, error) { return 0, errors.New("no count") }
+
+// --- the statement endpoint ---
+
+// client talks to a Trino server over its REST statement protocol, as the
+// memory catalog's default schema.
+type client struct {
+	baseURL string
+	http    *http.Client
+}
+
+func newClient(baseURL string) *client {
+	return &client{baseURL: strings.TrimRight(baseURL, "/"), http: &http.Client{Timeout: 30 * time.Second}}
+}
+
+// queryResp models the relevant fields of a /v1/statement response.
+type queryResp struct {
+	ID         string  `json:"id"`
+	NextURI    string  `json:"nextUri"`
+	UpdateType string  `json:"updateType"`
+	Data       [][]any `json:"data"`
+	Stats      struct {
+		State string `json:"state"`
+	} `json:"stats"`
+	Error *struct {
+		Message       string `json:"message"`
+		ErrorCode     int    `json:"errorCode"`
+		ErrorName     string `json:"errorName"`
+		ErrorLocation *struct {
+			LineNumber   int `json:"lineNumber"`
+			ColumnNumber int `json:"columnNumber"`
+		} `json:"errorLocation"`
+	} `json:"error"`
+}
+
+// queryError reads the error of a response, or nil.
+func (r queryResp) queryError() *QueryError {
+	if r.Error == nil {
+		return nil
+	}
+	e := &QueryError{Name: r.Error.ErrorName, Code: r.Error.ErrorCode, Message: r.Error.Message}
+	if l := r.Error.ErrorLocation; l != nil {
+		e.Line, e.Column = l.LineNumber, l.ColumnNumber
+	}
+	return e
+}
+
+// ping verifies the server is reachable and finished starting, returning
+// its version.
+func (c *client) ping(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/v1/info", nil)
 	if err != nil {
-		t.Fatalf("%v", err)
+		return "", err
 	}
-	return Connect(started(t, pin))
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("trino /v1/info: status %d", resp.StatusCode)
+	}
+	var in struct {
+		Starting    bool `json:"starting"`
+		NodeVersion struct {
+			Version string `json:"version"`
+		} `json:"nodeVersion"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&in); err != nil {
+		return "", err
+	}
+	if in.Starting {
+		return in.NodeVersion.Version, fmt.Errorf("trino is still starting")
+	}
+	return in.NodeVersion.Version, nil
 }
 
-var forTest struct {
-	once sync.Once
-	o    *Oracle
-	err  error
+// run sends sql and follows it until it fails or is planned. A query that
+// reaches RUNNING is cancelled there, so large results are not streamed; a
+// statement that changes something (an updateType) runs to the end, so the
+// next statement finds its change made.
+func (c *client) run(ctx context.Context, sql string) error {
+	_, err := c.follow(ctx, sql, false)
+	return err
 }
 
-// ForTest returns the Oracle the differential tests run against: the server at
-// $TRINO_ORACLE_URL or the conventional localhost:18080 when one answers, else
-// a Trino testcontainer started once per test binary. Docker is assumed, so a
-// server that can be neither reached nor started fails the test.
-func ForTest(t interface {
-	Helper()
-	Fatalf(format string, args ...any)
-}) *Oracle {
-	t.Helper()
-	forTest.once.Do(func() {
-		o := Connect("")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := o.Ping(ctx)
-		cancel()
-		if err == nil {
-			forTest.o = o
-			return
+// query runs sql to the end and returns its rows.
+func (c *client) query(ctx context.Context, sql string) ([][]any, error) {
+	return c.follow(ctx, sql, true)
+}
+
+func (c *client) follow(ctx context.Context, sql string, all bool) ([][]any, error) {
+	resp, err := c.post(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+	var rows [][]any
+	for i := 0; i < 10000; i++ {
+		if qe := resp.queryError(); qe != nil {
+			return nil, qe
 		}
-		if URLFromEnv() != "" {
-			forTest.err = fmt.Errorf("trino at %s unreachable: %w", o.baseURL, err)
-			return
+		rows = append(rows, resp.Data...)
+		if resp.NextURI == "" {
+			return rows, nil
 		}
-		pin, err := enginetest.LoadPin(Pins, "default")
+		if !all && resp.UpdateType == "" && (resp.Stats.State == "RUNNING" || resp.Stats.State == "FINISHED") {
+			// Parsing, analysis and planning have all succeeded.
+			c.cancel(resp.NextURI)
+			return nil, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+		}
+		if resp, err = c.get(ctx, resp.NextURI); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("trino: statement %q did not settle", truncate(sql, 60))
+}
+
+// emptyMemory drops every table, view and schema of the memory catalog but
+// its default schema, which the image starts with empty.
+func (c *client) emptyMemory(ctx context.Context) error {
+	rows, err := c.query(ctx, "SELECT table_schema, table_name, table_type FROM memory.information_schema.tables "+
+		"WHERE table_schema <> 'information_schema' ORDER BY 1, 2")
+	if err != nil {
+		return err
+	}
+	var stmts []string
+	for _, r := range rows {
+		kind := "TABLE"
+		if r[2] == "VIEW" {
+			kind = "VIEW"
+		}
+		stmts = append(stmts, fmt.Sprintf("DROP %s memory.%s.%s", kind, quote(r[0]), quote(r[1])))
+	}
+	schemas, err := c.query(ctx, "SELECT schema_name FROM memory.information_schema.schemata "+
+		"WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1")
+	if err != nil {
+		return err
+	}
+	for _, r := range schemas {
+		stmts = append(stmts, "DROP SCHEMA memory."+quote(r[0]))
+	}
+	for _, s := range stmts {
+		if _, err := c.query(ctx, s); err != nil {
+			return fmt.Errorf("%s: %w", s, err)
+		}
+	}
+	return nil
+}
+
+// quote writes a name as a quoted identifier.
+func quote(name any) string {
+	return `"` + strings.ReplaceAll(fmt.Sprint(name), `"`, `""`) + `"`
+}
+
+func (c *client) post(ctx context.Context, sql string) (queryResp, error) {
+	// Trino can answer 503 SERVER_STARTING_UP briefly; retry a few times.
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/statement", bytes.NewBufferString(sql))
 		if err != nil {
-			forTest.err = err
-			return
+			return queryResp{}, err
 		}
-		server.once.Do(func() {
-			server.pin = pin
-			server.url, server.err = start(context.Background(), pin)
-		})
-		forTest.o, forTest.err = Connect(server.url), server.err
-	})
-	if forTest.err != nil {
-		t.Fatalf("trino oracle: %v", forTest.err)
+		req.Header.Set("X-Trino-User", "omni-oracle")
+		req.Header.Set("X-Trino-Catalog", "memory")
+		req.Header.Set("X-Trino-Schema", "default")
+		req.Header.Set("Content-Type", "text/plain")
+		resp, err := c.http.Do(req)
+		if err != nil {
+			return queryResp{}, err
+		}
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("trino /v1/statement: 503")
+			select {
+			case <-ctx.Done():
+				return queryResp{}, ctx.Err()
+			case <-time.After(time.Second):
+			}
+			continue
+		}
+		return decode(resp)
 	}
-	return forTest.o
+	return queryResp{}, lastErr
+}
+
+func (c *client) get(ctx context.Context, uri string) (queryResp, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
+	if err != nil {
+		return queryResp{}, err
+	}
+	req.Header.Set("X-Trino-User", "omni-oracle")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return queryResp{}, err
+	}
+	return decode(resp)
+}
+
+// cancel best-effort terminates a running query so result data is not streamed.
+func (c *client) cancel(uri string) {
+	req, err := http.NewRequest(http.MethodDelete, uri, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("X-Trino-User", "omni-oracle")
+	if resp, err := c.http.Do(req); err == nil {
+		resp.Body.Close()
+	}
+}
+
+func decode(resp *http.Response) (queryResp, error) {
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return queryResp{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return queryResp{}, fmt.Errorf("trino: status %d: %s", resp.StatusCode, truncate(string(body), 200))
+	}
+	var qr queryResp
+	if err := json.Unmarshal(body, &qr); err != nil {
+		return queryResp{}, fmt.Errorf("trino: decode response: %w", err)
+	}
+	return qr, nil
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }

@@ -24,10 +24,9 @@ import (
 // Conversely, lexer-level malformations (unterminated string/identifier/binary/
 // comment) are exercised in lexer_test.go and need no oracle.
 //
-// The test skips cleanly when no Trino is reachable (matching the oracle
-// harness convention), and additionally always runs an oracle-independent smoke
-// pass proving the lexer tokenizes the documented corpus without spurious
-// errors.
+// Trino's answers come from the test's tape (testcontainer.Open), and an
+// oracle-independent smoke pass proves the lexer tokenizes the documented
+// corpus without spurious errors.
 
 // oracleCorpus is a curated set of Trino 481 statements spanning every token
 // category the lexer must handle. It is drawn from the legacy example corpus
@@ -139,9 +138,9 @@ func TestLexer_CorpusNoSpuriousErrors(t *testing.T) {
 
 // TestLexer_OracleDifferential cross-checks the lexer against a live Trino: for
 // every corpus statement Trino's parser accepts (no SYNTAX_ERROR), the lexer
-// must not emit a hard error. Skipped when no Trino is reachable.
+// must not emit a hard error.
 func TestLexer_OracleDifferential(t *testing.T) {
-	o := testcontainer.ForTest(t)
+	o := testcontainer.Open(t)
 
 	for _, sql := range oracleCorpus {
 		sql := sql
@@ -150,7 +149,7 @@ func TestLexer_OracleDifferential(t *testing.T) {
 			defer cancel()
 			res, err := o.CheckSyntax(ctx, sql)
 			if err != nil {
-				t.Skipf("oracle CheckSyntax error (treated as unreachable): %v", err)
+				t.Fatalf("Trino gave no answer for %q: %v", sql, err)
 			}
 			if !res.Accepted {
 				// The statement is a genuine Trino syntax error. The corpus is
