@@ -27,6 +27,8 @@ func TestGuard(t *testing.T) {
 	}{
 		{"a closed gap", "reject\taccept\tengine\tr/A\tA\n", "accept\taccept\tengine\tr/A\tA\n", ""},
 		{"a committed regression", "accept\taccept\tengine\tr/A\tA\n", "reject\taccept\tengine\tr/A\tA\n", "a regression"},
+		{"a gap that is now another one", "accept\treject@7\tengine\tr/A\tA\n", "reject@3\treject@7\tengine\tr/A\tA\n", ""},
+		{"a regression to another byte", "reject@7\treject@7\tengine\tr/A\tA\n", "reject@3\treject@7\tengine\tr/A\tA\n", "a regression"},
 		{"a recording fills omni", "?\t?\t-\tissue:X\tA\n", "reject\taccept\tengine\tissue:X\tA\n", ""},
 		{"an edited expected", "reject\taccept\tengine\tr/A\tA\n", "reject\treject\tengine\tr/A\tA\n", "without a pin bump"},
 		{"an edited source", "reject\taccept\tengine\tr/A\tA\n", "reject\taccept\tgrammar\tr/A\tA\n", "without a pin bump"},
