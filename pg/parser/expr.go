@@ -2333,6 +2333,12 @@ func (p *Parser) parseOverlayExpr() (nodes.Node, error) {
 		}, nil
 	}
 
+	// OVERLAY '(' func_arg_list_opt ')' with a named argument first: the
+	// SQL-standard form starts with an a_expr.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("overlay")
+	}
+
 	// Try SQL-standard syntax: a_expr PLACING a_expr FROM a_expr [FOR a_expr]
 	first, err := p.parseRequiredAExpr(0)
 	if err != nil {
@@ -2437,6 +2443,11 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
 			Loc:        nodes.NoLoc(),
 		}, nil
+	}
+
+	// SUBSTRING '(' func_arg_list_opt ')' with a named argument first.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("substring")
 	}
 
 	// substr_list has a special `a_expr SIMILAR a_expr ESCAPE a_expr`
@@ -3470,8 +3481,7 @@ func (p *Parser) parseExprListFull() (*nodes.List, error) {
 func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 	// Check for named argument: name := expr or name => expr
 	if p.isColId() {
-		next := p.peekNext()
-		if next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER {
+		if p.startsNamedFuncArg() {
 			nameTok := p.advance() // consume name
 			p.advance()            // consume := or =>
 			arg, err := p.parseAExpr(0)
@@ -3490,6 +3500,35 @@ func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 		}
 	}
 	return p.parseRequiredAExpr(0)
+}
+
+// startsNamedFuncArg reports whether a named argument, name := expr or
+// name => expr, starts at the current token.
+func (p *Parser) startsNamedFuncArg() bool {
+	if p.collectMode() || !p.isColId() {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER
+}
+
+// parseSpecialFuncArgCall finishes OVERLAY '(' func_arg_list_opt ')' or
+// SUBSTRING '(' func_arg_list_opt ')', a plain call of the function named,
+// after its '('.
+func (p *Parser) parseSpecialFuncArgCall(name string) (nodes.Node, error) {
+	args, err := p.parseFuncArgListFull()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCall{
+		Funcname:   makeFuncName(name),
+		Args:       args,
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseFuncArgListFull parses a comma-separated list of func_arg_expr.
