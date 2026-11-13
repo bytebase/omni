@@ -88,6 +88,12 @@ type Finding struct {
 	// column's type, a length, a count. Rules that set it document what it
 	// holds.
 	Value string
+	// Other is a second name the advice prints beside Name: the column an
+	// index lists twice, say. Rules that set it document what it holds.
+	Other string
+	// Schema is the schema Table is in, as the V1 advisor printed it. Rules
+	// whose advice does not name a schema leave it empty.
+	Schema string
 }
 
 // NamingConfig configures a naming rule; Bytebase builds it from the V1
