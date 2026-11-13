@@ -53,3 +53,27 @@ func TestFrameAndFetchLeadPredicates(t *testing.T) {
 		}
 	}
 }
+
+// TestClauseLeadPredicates holds isJsonFormatStart, isRowsFromStart and
+// isBareAliasStart to the statements that decide them: each keyword leads
+// its clause only before the token that continues it.
+func TestClauseLeadPredicates(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT JSON_SERIALIZE(a FORMAT JSON)",
+		"SELECT format FROM t",
+		"SELECT * FROM ROWS FROM (f(1))",
+		"SELECT * FROM rows(1)",
+		"SELECT * FROM t a",
+		"SELECT * FROM t AS a(b)",
+		"SELECT * FROM t JOIN u ON true",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT JSON_SERIALIZE(a FORMAT)", "SELECT * FROM ROWS FROM f(1)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted", sql)
+		}
+	}
+}

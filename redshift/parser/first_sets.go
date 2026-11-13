@@ -404,6 +404,29 @@ func isFrameDirectionStart(tok Token) bool {
 	return tok.Type == PRECEDING || tok.Type == FOLLOWING
 }
 
+// isJsonFormatStart reports whether a json_format_clause starts at the
+// current token. PostgreSQL's lexer makes FORMAT before JSON a FORMAT_LA,
+// the token json_format_clause starts with; any other FORMAT is the
+// unreserved keyword, a name.
+func (p *Parser) isJsonFormatStart() bool {
+	return p.cur.Type == FORMAT && p.keywordLeads(func(t Token) bool { return t.Type == JSON })
+}
+
+// isRowsFromStart reports whether func_table's ROWS FROM '(' rowsfrom_list
+// ')' starts at the current token. ROWS is an unreserved keyword: before
+// any token but FROM it is a relation or function name, as in
+// FROM rows(1).
+func (p *Parser) isRowsFromStart() bool {
+	return p.cur.Type == ROWS && p.keywordLeads(func(t Token) bool { return t.Type == FROM })
+}
+
+// isBareAliasStart reports whether the current token is the ColId of an
+// alias_clause without AS: a ColId that does not lead the clause or join
+// that may follow a table_ref.
+func (p *Parser) isBareAliasStart() bool {
+	return p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword()
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

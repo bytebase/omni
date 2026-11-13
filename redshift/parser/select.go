@@ -1371,7 +1371,7 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		if p.cur.Type == ONLY {
 			return p.parseRelationExprWithAlias()
 		}
-		if p.startsRowsFrom() {
+		if p.isRowsFromStart() {
 			return p.parseRowsFromTable()
 		}
 		// A col_name_keyword before '(' starts no func_application
@@ -1684,7 +1684,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	}
 
 	// LATERAL ROWS FROM (...) — a sub-production of func_table
-	if p.startsRowsFrom() {
+	if p.isRowsFromStart() {
 		rf, err := p.parseRowsFromTable()
 		if err != nil {
 			return nil, err
@@ -1766,14 +1766,6 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	}
 	rf.Loc = nodes.Loc{Start: lateralLoc, End: p.prev.End}
 	return rf, nil
-}
-
-// startsRowsFrom reports whether func_table's ROWS FROM '(' rowsfrom_list
-// ')' starts at the current token. ROWS is an unreserved keyword: before
-// any token but FROM it is a relation or function name, as in
-// FROM rows(1).
-func (p *Parser) startsRowsFrom() bool {
-	return p.cur.Type == ROWS && p.keywordLeads(func(t Token) bool { return t.Type == FROM })
 }
 
 // parseRowsFromTable parses ROWS FROM (...) [WITH ORDINALITY].
@@ -2145,7 +2137,7 @@ func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
 //	alias_clause: AS ColId '(' name_list ')' | AS ColId
 //	    | ColId '(' name_list ')' | ColId
 func (p *Parser) parseOptAliasClause() (*nodes.Alias, error) {
-	if p.cur.Type != AS && !p.startsBareAlias() {
+	if p.cur.Type != AS && !p.isBareAliasStart() {
 		return nil, nil
 	}
 	aliasLoc := p.pos()
@@ -2170,13 +2162,6 @@ func (p *Parser) parseOptAliasClause() (*nodes.Alias, error) {
 	return alias, nil
 }
 
-// startsBareAlias reports whether the current token is the ColId of an
-// alias_clause without AS: a ColId that does not lead the clause or join
-// that may follow a table_ref.
-func (p *Parser) startsBareAlias() bool {
-	return p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword()
-}
-
 // parseFuncAliasClause parses a function alias clause and applies it to a RangeFunction.
 //
 // Ref: gram.y func_alias_clause
@@ -2188,7 +2173,7 @@ func (p *Parser) startsBareAlias() bool {
 //	    | ColId '(' TableFuncElementList ')'      (alias name + column type defs, no AS)
 //	    | /* EMPTY */
 func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) error {
-	if p.cur.Type != AS && !p.startsBareAlias() {
+	if p.cur.Type != AS && !p.isBareAliasStart() {
 		return nil
 	}
 	aliasLoc := p.pos()

@@ -72,18 +72,10 @@ func (p *Parser) parseJsonFormatClause() (*nodes.JsonFormat, error) {
 
 // parseJsonFormatClauseOpt parses an optional FORMAT clause.
 func (p *Parser) parseJsonFormatClauseOpt() (*nodes.JsonFormat, error) {
-	if p.startsJsonFormat() {
+	if p.isJsonFormatStart() {
 		return p.parseJsonFormatClause()
 	}
 	return nil, nil
-}
-
-// startsJsonFormat reports whether a json_format_clause starts at the
-// current token. PostgreSQL's lexer makes FORMAT before JSON a FORMAT_LA,
-// the token json_format_clause starts with; any other FORMAT is the
-// unreserved keyword, a name.
-func (p *Parser) startsJsonFormat() bool {
-	return p.cur.Type == FORMAT && p.keywordLeads(func(t Token) bool { return t.Type == JSON })
 }
 
 // parseJsonReturningClauseOpt parses an optional RETURNING Typename [FORMAT ...].
@@ -1339,7 +1331,7 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 	}
 
 	// ColId Typename ... FORMAT_LA starts no Typename.
-	if p.startsJsonFormat() && !p.collectMode() {
+	if p.isJsonFormatStart() && !p.collectMode() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	tn, err := p.parseTypename()
@@ -1349,7 +1341,7 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 
 	// Check for FORMAT JSON clause
 	var format *nodes.JsonFormat
-	if p.startsJsonFormat() {
+	if p.isJsonFormatStart() {
 		format, err = p.parseJsonFormatClause()
 		if err != nil {
 			return nil, err
