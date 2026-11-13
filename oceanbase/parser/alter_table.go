@@ -247,6 +247,16 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		if _, ok := p.match(kwPARTITION); ok {
 			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATTruncatePartition)
 		}
+		if _, ok := p.match(kwSUBPARTITION); ok {
+			cmd.Type = nodes.ATTruncateSubpartition
+			names, err := p.parseNameList()
+			if err != nil {
+				return nil, err
+			}
+			cmd.PartitionNames = names
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		return nil, &ParseError{
 			Message:  "expected PARTITION after TRUNCATE",
 			Position: p.cur.Loc,
@@ -598,13 +608,30 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
-	case kwPARTITION:
-		// DROP PARTITION partition_names
-		p.advance()
+	case kwPARTITION, kwSUBPARTITION:
+		// {DROP PARTITION | DROP SUBPARTITION} drop_partition_name_list, which is
+		// name_list or name_list in parentheses. SUBPARTITION is unreserved, so
+		// with no name after it, it is the column DROP drops.
+		if next := p.peekNext().Type; p.cur.Type == kwSUBPARTITION && (next == tokEOF || next == ';' || next == ',') {
+			return p.parseAlterDropColumn(cmd)
+		}
 		cmd.Type = nodes.ATDropPartition
-		names, err := p.parseIdentList()
+		if p.cur.Type == kwSUBPARTITION {
+			cmd.Type = nodes.ATDropSubpartition
+		}
+		p.advance()
+		paren := p.cur.Type == '('
+		if paren {
+			p.advance()
+		}
+		names, err := p.parseNameList()
 		if err != nil {
 			return nil, err
+		}
+		if paren {
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 		cmd.PartitionNames = names
 		cmd.Loc.End = p.prev.End
@@ -693,25 +720,30 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	default:
-		// DROP [COLUMN] col_name [RESTRICT | CASCADE]
-		cmd.Type = nodes.ATDropColumn
-		p.match(kwCOLUMN)
-		// Completion: after DROP COLUMN, offer columnref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		// opt_restrict: the grammar action ignores it.
-		p.match(kwRESTRICT, kwCASCADE)
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return p.parseAlterDropColumn(cmd)
 	}
+}
+
+// parseAlterDropColumn parses DROP [COLUMN] col_name [RESTRICT | CASCADE] after
+// DROP.
+func (p *Parser) parseAlterDropColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	cmd.Type = nodes.ATDropColumn
+	p.match(kwCOLUMN)
+	// Completion: after DROP COLUMN, offer columnref.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Name = name
+	// opt_restrict: the grammar action ignores it.
+	p.match(kwRESTRICT, kwCASCADE)
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
 }
 
 // expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
@@ -729,6 +761,60 @@ func (p *Parser) expectDropKey() error {
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].
 func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume MODIFY
+
+	// MODIFY PARTITION relation_factor ADD SUBPARTITION ( subpartitions ), whose
+	// subpartitions are all RANGE or all LIST: each has VALUES (alter_partition_option
+	// and opt_subpartition_range_or_list, sql_parser_mysql_mode.y, oceanbase
+	// v4.3.5_CE_BP6).
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		cmd.Type = nodes.ATAddSubpartition
+		ref, err := p.parseRelationFactor()
+		if err != nil {
+			return nil, err
+		}
+		cmd.Name = ref.Name
+		if _, err := p.expect(kwADD); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwSUBPARTITION); err != nil {
+			return nil, err
+		}
+		pd := &nodes.PartitionDef{Loc: nodes.Loc{Start: p.pos()}, Name: ref.Name}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		kind := noPartitionValues
+		for i := 0; ; i++ {
+			if i == 0 && p.cur.Type == kwSUBPARTITION && p.peekNext().Type != tokEOF {
+				// The first entry sets the kind, and HASH, which has no VALUES, is
+				// not one of the two.
+				save := p.saveScan()
+				p.advance()
+				if _, _, err := p.parseIdent(); err == nil && p.cur.Type != kwVALUES {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.restoreScan(save)
+			}
+			spd, got, err := p.parseSubPartitionDef(kind, i == 0)
+			if err != nil {
+				return nil, err
+			}
+			kind = got
+			pd.SubPartitions = append(pd.SubPartitions, spd)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		pd.Loc.End = p.prev.End
+		cmd.PartitionDefs = []*nodes.PartitionDef{pd}
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+	}
 	cmd.Type = nodes.ATModifyColumn
 	p.match(kwCOLUMN)
 
@@ -817,6 +903,37 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 //	ALTER INDEX index_name {VISIBLE | INVISIBLE}
 func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ALTER
+
+	// {ALTER PARTITION | ALTER SUBPARTITION} name_list STORAGE_CACHE_POLICY = 'policy'
+	// (alter_partition_option, sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6).
+	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+		cmd.Type = nodes.ATAlterPartitionStorageCachePolicy
+		cmd.Name = strings.ToUpper(p.advance().Str)
+		names, err := p.parseNameList()
+		if err != nil {
+			return nil, err
+		}
+		cmd.PartitionNames = names
+		optStart := p.pos()
+		if !p.isBareWord("STORAGE_CACHE_POLICY") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var policy strings.Builder
+		for p.cur.Type == tokSCONST {
+			policy.WriteString(p.advance().Str)
+		}
+		cmd.Option = &nodes.TableOption{Name: "STORAGE_CACHE_POLICY", Value: policy.String()}
+		cmd.Option.Loc = nodes.Loc{Start: optStart, End: p.prev.End}
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+	}
 
 	// ALTER INDEX index_name {VISIBLE | INVISIBLE}
 	if p.cur.Type == kwINDEX {
@@ -1098,7 +1215,7 @@ func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType
 		p.advance()
 		cmd.AllPartitions = true
 	} else {
-		names, err := p.parseIdentList()
+		names, err := p.parseNameList()
 		if err != nil {
 			return nil, err
 		}
@@ -1106,6 +1223,47 @@ func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType
 	}
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
+}
+
+// parseNameList parses OceanBase's name_list:
+//
+//	name_list: NAME_OB | unreserved_keyword | name_list [','] NAME_OB
+//
+// The first name may be an unreserved keyword; each one after it is NAME_OB,
+// with a comma before it or without, so `p0 p1` is two names and a comma that
+// no NAME_OB follows is left for the next action.
+//
+// Ref: name_list in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) parseNameList() ([]string, error) {
+	first, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	names := []string{first}
+	for {
+		if p.isNameOB(p.cur) {
+			names = append(names, p.advance().Str)
+			continue
+		}
+		if p.cur.Type == ',' && p.isNameOB(p.peekNext()) {
+			p.advance()
+			names = append(names, p.advance().Str)
+			continue
+		}
+		return names, nil
+	}
+}
+
+// isNameOB reports whether tok is NAME_OB: an identifier that is no keyword of
+// OceanBase's, or any backquoted name.
+func (p *Parser) isNameOB(tok Token) bool {
+	if tok.Type != tokIDENT && tok.Type < 700 {
+		return false
+	}
+	if p.backtickQuotedAt(tok.Loc) {
+		return true
+	}
+	return !oceanBaseKeywords[strings.ToLower(tok.Str)] && !strings.HasPrefix(tok.Str, "@") && !isCharsetIntroducer(tok.Str)
 }
 
 // parseAlterCoalescePartition parses COALESCE PARTITION number.

@@ -257,6 +257,16 @@ const (
 	ATSecondaryUnload
 	ATPartitionBy
 	ATDropTablegroup // DROP TABLEGROUP: the table leaves its table group
+	// DROP SUBPARTITION and TRUNCATE SUBPARTITION, with PartitionNames.
+	ATDropSubpartition
+	ATTruncateSubpartition
+	// {ALTER PARTITION | ALTER SUBPARTITION} names STORAGE_CACHE_POLICY = 'policy':
+	// Name is PARTITION or SUBPARTITION, PartitionNames the names and
+	// Option.Value the policy.
+	ATAlterPartitionStorageCachePolicy
+	// MODIFY PARTITION name ADD SUBPARTITION (...): Name is the partition and
+	// PartitionDefs holds one PartitionDef whose SubPartitions are added.
+	ATAddSubpartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
