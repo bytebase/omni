@@ -196,7 +196,7 @@ reject@8	reject@8	engine	stmt/AlterTableStmt!drop-1	TABLE a DROP a
 reject@6	reject@6	engine	stmt/AlterTableStmt!drop-2	ALTER a DROP a
 reject@17	reject@17	engine	stmt/AlterTableStmt!drop-3	ALTER TABLE DROP a
 reject@14	reject@14	engine	stmt/AlterTableStmt!drop-4	ALTER TABLE a a
-accept	reject@18	engine	stmt/AlterTableStmt!drop-5	ALTER TABLE a DROP
+reject@18	reject@18	engine	stmt/AlterTableStmt!drop-5	ALTER TABLE a DROP
 reject@21	reject@21	engine	stmt/AlterTableStmt!insert	ALTER TABLE a DROP a zzz
 reject@0	reject@0	engine	stmt/AlterTableStmt!swap	ALWAYS TABLE a DROP a
 accept	accept	engine	stmt/AlterTblSpcStmt	ALTER TABLESPACE a SET(a)
@@ -283,12 +283,12 @@ reject@11	reject@11	engine	stmt/AlterUserMappingStmt!drop-3	ALTER USER FOR a SER
 reject@19	reject@19	engine	stmt/AlterUserMappingStmt!drop-4	ALTER USER MAPPING a SERVER a OPTIONS(a 's')
 reject@30	reject@30	engine	stmt/AlterUserMappingStmt!drop-5	ALTER USER MAPPING FOR SERVER a OPTIONS(a 's')
 reject@25	reject@25	engine	stmt/AlterUserMappingStmt!drop-6	ALTER USER MAPPING FOR a a OPTIONS(a 's')
-accept	reject@39	engine	stmt/AlterUserMappingStmt!drop-7	ALTER USER MAPPING FOR a SERVER OPTIONS(a 's')
-accept	reject@33	engine	stmt/AlterUserMappingStmt!drop-8	ALTER USER MAPPING FOR a SERVER a(a 's')
-accept	reject@42	engine	stmt/AlterUserMappingStmt!drop-9	ALTER USER MAPPING FOR a SERVER a OPTIONS a 's')
-accept	reject@42	engine	stmt/AlterUserMappingStmt!drop-10	ALTER USER MAPPING FOR a SERVER a OPTIONS('s')
-accept	reject@43	engine	stmt/AlterUserMappingStmt!drop-11	ALTER USER MAPPING FOR a SERVER a OPTIONS(a)
-accept	reject@47	engine	stmt/AlterUserMappingStmt!drop-12	ALTER USER MAPPING FOR a SERVER a OPTIONS(a 's'
+reject@39	reject@39	engine	stmt/AlterUserMappingStmt!drop-7	ALTER USER MAPPING FOR a SERVER OPTIONS(a 's')
+reject@33	reject@33	engine	stmt/AlterUserMappingStmt!drop-8	ALTER USER MAPPING FOR a SERVER a(a 's')
+reject@42	reject@42	engine	stmt/AlterUserMappingStmt!drop-9	ALTER USER MAPPING FOR a SERVER a OPTIONS a 's')
+reject@42	reject@42	engine	stmt/AlterUserMappingStmt!drop-10	ALTER USER MAPPING FOR a SERVER a OPTIONS('s')
+reject@43	reject@43	engine	stmt/AlterUserMappingStmt!drop-11	ALTER USER MAPPING FOR a SERVER a OPTIONS(a)
+reject@47	reject@47	engine	stmt/AlterUserMappingStmt!drop-12	ALTER USER MAPPING FOR a SERVER a OPTIONS(a 's'
 reject@49	reject@49	engine	stmt/AlterUserMappingStmt!insert	ALTER USER MAPPING FOR a SERVER a OPTIONS(a 's') zzz
 reject@0	reject@0	engine	stmt/AlterUserMappingStmt!swap	ALWAYS USER MAPPING FOR a SERVER a OPTIONS(a 's')
 accept	accept	engine	stmt/AnalyzeStmt	ANALYZE
@@ -1482,7 +1482,7 @@ reject@19	reject@19	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_
 reject@15	reject@15	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-4	ALTER TABLE IF a DROP a
 reject@27	reject@27	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-5	ALTER TABLE IF EXISTS DROP a
 reject@24	reject@24	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-6	ALTER TABLE IF EXISTS a a
-accept	reject@28	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-7	ALTER TABLE IF EXISTS a DROP
+reject@28	reject@28	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-7	ALTER TABLE IF EXISTS a DROP
 reject@31	reject@31	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!insert	ALTER TABLE IF EXISTS a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!swap	ALWAYS TABLE IF EXISTS a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
@@ -1490,8 +1490,8 @@ reject@8	reject@8	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-2	ALTER a DETACH PARTITION a
 reject@19	reject@19	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-3	ALTER TABLE DETACH PARTITION a
 reject@14	reject@14	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-4	ALTER TABLE a PARTITION a
-accept	reject@21	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-5	ALTER TABLE a DETACH a
-accept	reject@30	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-6	ALTER TABLE a DETACH PARTITION
+reject@21	reject@21	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-5	ALTER TABLE a DETACH a
+reject@30	reject@30	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!drop-6	ALTER TABLE a DETACH PARTITION
 reject@33	reject@33	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!insert	ALTER TABLE a DETACH PARTITION a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd!swap	ALWAYS TABLE a DETACH PARTITION a
 accept	accept	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
@@ -1501,8 +1501,8 @@ reject@19	reject@19	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_
 reject@15	reject@15	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-4	ALTER TABLE IF a DETACH PARTITION a
 reject@29	reject@29	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-5	ALTER TABLE IF EXISTS DETACH PARTITION a
 reject@24	reject@24	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-6	ALTER TABLE IF EXISTS a PARTITION a
-accept	reject@31	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-7	ALTER TABLE IF EXISTS a DETACH a
-accept	reject@40	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-8	ALTER TABLE IF EXISTS a DETACH PARTITION
+reject@31	reject@31	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-7	ALTER TABLE IF EXISTS a DETACH a
+reject@40	reject@40	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!drop-8	ALTER TABLE IF EXISTS a DETACH PARTITION
 reject@43	reject@43	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!insert	ALTER TABLE IF EXISTS a DETACH PARTITION a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd!swap	ALWAYS TABLE IF EXISTS a DETACH PARTITION a
 accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
@@ -1536,7 +1536,7 @@ accept	accept	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-1	INDEX a DROP a
 reject@17	reject@17	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-3	ALTER INDEX DROP a
 reject@14	reject@14	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-4	ALTER INDEX a a
-accept	reject@18	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-5	ALTER INDEX a DROP
+reject@18	reject@18	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-5	ALTER INDEX a DROP
 reject@21	reject@21	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!insert	ALTER INDEX a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!swap	ALWAYS INDEX a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
@@ -1545,7 +1545,7 @@ reject@19	reject@19	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name
 reject@15	reject@15	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-4	ALTER INDEX IF a DROP a
 reject@27	reject@27	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-5	ALTER INDEX IF EXISTS DROP a
 reject@24	reject@24	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-6	ALTER INDEX IF EXISTS a a
-accept	reject@28	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-7	ALTER INDEX IF EXISTS a DROP
+reject@28	reject@28	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-7	ALTER INDEX IF EXISTS a DROP
 reject@31	reject@31	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!insert	ALTER INDEX IF EXISTS a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!swap	ALWAYS INDEX IF EXISTS a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
@@ -1602,7 +1602,7 @@ accept	accept	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	A
 reject@0	reject@0	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!drop-1	VIEW a DROP a
 reject@16	reject@16	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!drop-3	ALTER VIEW DROP a
 reject@13	reject@13	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!drop-4	ALTER VIEW a a
-accept	reject@17	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!drop-5	ALTER VIEW a DROP
+reject@17	reject@17	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!drop-5	ALTER VIEW a DROP
 reject@20	reject@20	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!insert	ALTER VIEW a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds!swap	ALWAYS VIEW a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
@@ -1611,7 +1611,7 @@ reject@18	reject@18	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_
 reject@14	reject@14	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-4	ALTER VIEW IF a DROP a
 reject@26	reject@26	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-5	ALTER VIEW IF EXISTS DROP a
 reject@23	reject@23	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-6	ALTER VIEW IF EXISTS a a
-accept	reject@27	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-7	ALTER VIEW IF EXISTS a DROP
+reject@27	reject@27	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-7	ALTER VIEW IF EXISTS a DROP
 reject@30	reject@30	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!insert	ALTER VIEW IF EXISTS a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!swap	ALWAYS VIEW IF EXISTS a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
@@ -1619,7 +1619,7 @@ reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_a
 reject@19	reject@19	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!drop-3	ALTER MATERIALIZED a DROP a
 reject@29	reject@29	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!drop-4	ALTER MATERIALIZED VIEW DROP a
 reject@26	reject@26	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!drop-5	ALTER MATERIALIZED VIEW a a
-accept	reject@30	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!drop-6	ALTER MATERIALIZED VIEW a DROP
+reject@30	reject@30	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!drop-6	ALTER MATERIALIZED VIEW a DROP
 reject@33	reject@33	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!insert	ALTER MATERIALIZED VIEW a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds!swap	ALWAYS MATERIALIZED VIEW a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
@@ -1629,7 +1629,7 @@ reject@31	reject@31	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qu
 reject@27	reject@27	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-5	ALTER MATERIALIZED VIEW IF a DROP a
 reject@39	reject@39	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-6	ALTER MATERIALIZED VIEW IF EXISTS DROP a
 reject@36	reject@36	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-7	ALTER MATERIALIZED VIEW IF EXISTS a a
-accept	reject@40	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-8	ALTER MATERIALIZED VIEW IF EXISTS a DROP
+reject@40	reject@40	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-8	ALTER MATERIALIZED VIEW IF EXISTS a DROP
 reject@43	reject@43	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!insert	ALTER MATERIALIZED VIEW IF EXISTS a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds!swap	ALWAYS MATERIALIZED VIEW IF EXISTS a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
@@ -1666,7 +1666,7 @@ reject@0	reject@0	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_
 reject@14	reject@14	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-3	ALTER FOREIGN a DROP a
 reject@25	reject@25	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-4	ALTER FOREIGN TABLE DROP a
 reject@22	reject@22	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-5	ALTER FOREIGN TABLE a a
-accept	reject@26	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-6	ALTER FOREIGN TABLE a DROP
+reject@26	reject@26	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-6	ALTER FOREIGN TABLE a DROP
 reject@29	reject@29	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!insert	ALTER FOREIGN TABLE a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!swap	ALWAYS FOREIGN TABLE a DROP a
 accept	accept	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER FOREIGN TABLE IF EXISTS a DROP a
@@ -1676,31 +1676,31 @@ reject@27	reject@27	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relati
 reject@23	reject@23	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-5	ALTER FOREIGN TABLE IF a DROP a
 reject@35	reject@35	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-6	ALTER FOREIGN TABLE IF EXISTS DROP a
 reject@32	reject@32	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-7	ALTER FOREIGN TABLE IF EXISTS a a
-accept	reject@36	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-8	ALTER FOREIGN TABLE IF EXISTS a DROP
+reject@36	reject@36	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!drop-8	ALTER FOREIGN TABLE IF EXISTS a DROP
 reject@39	reject@39	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!insert	ALTER FOREIGN TABLE IF EXISTS a DROP a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds!swap	ALWAYS FOREIGN TABLE IF EXISTS a DROP a
 accept	accept	engine	alter_table_cmds/alter_table_cmd	ALTER TABLE a DROP a
 reject@14	reject@14	engine	alter_table_cmds/alter_table_cmd!swap	ALTER TABLE a EACH a
 accept	accept	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
 reject@14	reject@14	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-1	ALTER TABLE a a, DROP a
-accept	reject@18	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-2	ALTER TABLE a DROP, DROP a
+reject@18	reject@18	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-2	ALTER TABLE a DROP, DROP a
 reject@21	reject@21	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-3	ALTER TABLE a DROP a DROP a
 reject@22	reject@22	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-4	ALTER TABLE a DROP a, a
-accept	reject@26	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-5	ALTER TABLE a DROP a, DROP
+reject@26	reject@26	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!drop-5	ALTER TABLE a DROP a, DROP
 reject@29	reject@29	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!insert	ALTER TABLE a DROP a, DROP a zzz
 reject@14	reject@14	engine	alter_table_cmds/alter_table_cmds_,_alter_table_cmd!swap	ALTER TABLE a EACH a, DROP a
 accept	accept	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
 reject@14	reject@14	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-1	ALTER TABLE a PARTITION a DEFAULT
-accept	reject@21	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-2	ALTER TABLE a ATTACH a DEFAULT
-accept	reject@31	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-3	ALTER TABLE a ATTACH PARTITION DEFAULT
-accept	reject@32	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-4	ALTER TABLE a ATTACH PARTITION a
+reject@21	reject@21	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-2	ALTER TABLE a ATTACH a DEFAULT
+reject@31	reject@31	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-3	ALTER TABLE a ATTACH PARTITION DEFAULT
+reject@32	reject@32	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!drop-4	ALTER TABLE a ATTACH PARTITION a
 reject@41	reject@41	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!insert	ALTER TABLE a ATTACH PARTITION a DEFAULT zzz
 reject@14	reject@14	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!swap	ALTER TABLE a ATTRIBUTE PARTITION a DEFAULT
 accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_opt_concurrently	ALTER TABLE a DETACH PARTITION a
 reject@14	reject@14	engine	partition_cmd/DETACH_PARTITION_qualified_name_opt_concurrently!swap	ALTER TABLE a DICTIONARY PARTITION a
 accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
 reject@14	reject@14	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-1	ALTER TABLE a PARTITION a FINALIZE
-accept	reject@21	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-2	ALTER TABLE a DETACH a FINALIZE
+reject@21	reject@21	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-2	ALTER TABLE a DETACH a FINALIZE
 accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
 reject@42	reject@42	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!insert	ALTER TABLE a DETACH PARTITION a FINALIZE zzz
 reject@14	reject@14	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!swap	ALTER TABLE a DICTIONARY PARTITION a FINALIZE
@@ -1714,8 +1714,8 @@ reject@14	reject@14	engine	alter_table_cmd/ADD_P_columnDef!swap	ALTER TABLE a AD
 accept	accept	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-1	ALTER TABLE a IF NOT EXISTS a a
 reject@18	reject@18	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-2	ALTER TABLE a ADD NOT EXISTS a a
-accept	reject@21	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-3	ALTER TABLE a ADD IF EXISTS a a
-accept	reject@25	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-4	ALTER TABLE a ADD IF NOT a a
+reject@21	reject@21	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-3	ALTER TABLE a ADD IF EXISTS a a
+reject@25	reject@25	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-4	ALTER TABLE a ADD IF NOT a a
 reject@33	reject@33	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!drop-5	ALTER TABLE a ADD IF NOT EXISTS a
 reject@36	reject@36	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!insert	ALTER TABLE a ADD IF NOT EXISTS a a zzz
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef!swap	ALTER TABLE a ADMIN IF NOT EXISTS a a
@@ -1727,8 +1727,8 @@ reject@14	reject@14	engine	alter_table_cmd/ADD_P_COLUMN_columnDef!swap	ALTER TAB
 accept	accept	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-1	ALTER TABLE a COLUMN IF NOT EXISTS a a
 reject@25	reject@25	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-3	ALTER TABLE a ADD COLUMN NOT EXISTS a a
-accept	reject@28	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-4	ALTER TABLE a ADD COLUMN IF EXISTS a a
-accept	reject@32	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-5	ALTER TABLE a ADD COLUMN IF NOT a a
+reject@28	reject@28	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-4	ALTER TABLE a ADD COLUMN IF EXISTS a a
+reject@32	reject@32	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-5	ALTER TABLE a ADD COLUMN IF NOT a a
 reject@40	reject@40	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!drop-6	ALTER TABLE a ADD COLUMN IF NOT EXISTS a
 reject@43	reject@43	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!insert	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a zzz
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef!swap	ALTER TABLE a ADMIN COLUMN IF NOT EXISTS a a
@@ -1736,7 +1736,7 @@ accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-1	ALTER TABLE a a DROP DEFAULT
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-2	ALTER TABLE a ALTER DROP DEFAULT
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-3	ALTER TABLE a ALTER a DEFAULT
-accept	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-4	ALTER TABLE a ALTER a DROP
+reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-4	ALTER TABLE a ALTER a DROP
 reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!insert	ALTER TABLE a ALTER a DROP DEFAULT zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!swap	ALTER TABLE a ALWAYS a DROP DEFAULT
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
@@ -1744,14 +1744,14 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-2	ALTER TABLE a ALTER DROP NOT NULL
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-3	ALTER TABLE a ALTER a NOT NULL
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-4	ALTER TABLE a ALTER a DROP NULL
-accept	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a DROP NOT
+reject@30	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a DROP NOT
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!insert	ALTER TABLE a ALTER a DROP NOT NULL zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!swap	ALTER TABLE a ALWAYS a DROP NOT NULL
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-1	ALTER TABLE a a SET NOT NULL
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-2	ALTER TABLE a ALTER SET NOT NULL
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-4	ALTER TABLE a ALTER a SET NULL
-accept	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a SET NOT
+reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a SET NOT
 reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!insert	ALTER TABLE a ALTER a SET NOT NULL zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!swap	ALTER TABLE a ALWAYS a SET NOT NULL
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
@@ -1759,10 +1759,10 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-2	ALTER TABLE a ALTER SET EXPRESSION AS(a)
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-3	ALTER TABLE a ALTER a EXPRESSION AS(a)
 reject@26	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-4	ALTER TABLE a ALTER a SET AS(a)
-accept	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-5	ALTER TABLE a ALTER a SET EXPRESSION(a)
-accept	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-6	ALTER TABLE a ALTER a SET EXPRESSION AS a)
-accept	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-7	ALTER TABLE a ALTER a SET EXPRESSION AS()
-accept	reject@41	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-8	ALTER TABLE a ALTER a SET EXPRESSION AS(a
+reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-5	ALTER TABLE a ALTER a SET EXPRESSION(a)
+reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-6	ALTER TABLE a ALTER a SET EXPRESSION AS a)
+reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-7	ALTER TABLE a ALTER a SET EXPRESSION AS()
+reject@41	reject@41	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-8	ALTER TABLE a ALTER a SET EXPRESSION AS(a
 reject@43	reject@43	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!insert	ALTER TABLE a ALTER a SET EXPRESSION AS(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!swap	ALTER TABLE a ALWAYS a SET EXPRESSION AS(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
@@ -1777,7 +1777,7 @@ reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSIO
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-3	ALTER TABLE a ALTER a EXPRESSION IF EXISTS
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-4	ALTER TABLE a ALTER a DROP IF EXISTS
 reject@38	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-5	ALTER TABLE a ALTER a DROP EXPRESSION EXISTS
-accept	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP EXPRESSION IF
+reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP EXPRESSION IF
 reject@48	reject@48	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!insert	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!swap	ALTER TABLE a ALWAYS a DROP EXPRESSION IF EXISTS
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
@@ -1785,14 +1785,14 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-2	ALTER TABLE a ALTER SET STATISTICS 1
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-3	ALTER TABLE a ALTER a STATISTICS 1
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-4	ALTER TABLE a ALTER a SET 1
-accept	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER a SET STATISTICS
+reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER a SET STATISTICS
 reject@39	reject@39	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!insert	ALTER TABLE a ALTER a SET STATISTICS 1 zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!swap	ALTER TABLE a ALWAYS a SET STATISTICS 1
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-1	ALTER TABLE a 1 SET STATISTICS 1
-accept	reject@22	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-3	ALTER TABLE a ALTER 1 STATISTICS 1
-accept	reject@26	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-4	ALTER TABLE a ALTER 1 SET 1
-accept	reject@36	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER 1 SET STATISTICS
+reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-3	ALTER TABLE a ALTER 1 STATISTICS 1
+reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-4	ALTER TABLE a ALTER 1 SET 1
+reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER 1 SET STATISTICS
 reject@39	reject@39	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!insert	ALTER TABLE a ALTER 1 SET STATISTICS 1 zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!swap	ALTER TABLE a ALWAYS 1 SET STATISTICS 1
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
@@ -1800,16 +1800,16 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions
 reject@23	reject@23	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-2	ALTER TABLE a ALTER SET(a)
 reject@21	reject@21	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-3	ALTER TABLE a ALTER a(a)
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-4	ALTER TABLE a ALTER a SET a)
-accept	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-5	ALTER TABLE a ALTER a SET()
-accept	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-6	ALTER TABLE a ALTER a SET(a
+reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-5	ALTER TABLE a ALTER a SET()
+reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-6	ALTER TABLE a ALTER a SET(a
 reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!insert	ALTER TABLE a ALTER a SET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!swap	ALTER TABLE a ALWAYS a SET(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-1	ALTER TABLE a a RESET(a)
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-2	ALTER TABLE a ALTER RESET(a)
-accept	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-4	ALTER TABLE a ALTER a RESET a)
-accept	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-5	ALTER TABLE a ALTER a RESET()
-accept	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-6	ALTER TABLE a ALTER a RESET(a
+reject@28	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-4	ALTER TABLE a ALTER a RESET a)
+reject@28	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-5	ALTER TABLE a ALTER a RESET()
+reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-6	ALTER TABLE a ALTER a RESET(a
 reject@31	reject@31	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!insert	ALTER TABLE a ALTER a RESET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!swap	ALTER TABLE a ALWAYS a RESET(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
@@ -1817,24 +1817,24 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_sto
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-2	ALTER TABLE a ALTER SET STORAGE a
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-3	ALTER TABLE a ALTER a STORAGE a
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-4	ALTER TABLE a ALTER a SET a
-accept	reject@33	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-5	ALTER TABLE a ALTER a SET STORAGE
+reject@33	reject@33	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-5	ALTER TABLE a ALTER a SET STORAGE
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!insert	ALTER TABLE a ALTER a SET STORAGE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!swap	ALTER TABLE a ALWAYS a SET STORAGE a
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-1	ALTER TABLE a a SET COMPRESSION a
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-2	ALTER TABLE a ALTER SET COMPRESSION a
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-3	ALTER TABLE a ALTER a COMPRESSION a
-accept	reject@37	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-5	ALTER TABLE a ALTER a SET COMPRESSION
+reject@37	reject@37	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-5	ALTER TABLE a ALTER a SET COMPRESSION
 reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!insert	ALTER TABLE a ALTER a SET COMPRESSION a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!swap	ALTER TABLE a ALWAYS a SET COMPRESSION a
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-1	ALTER TABLE a a ADD GENERATED ALWAYS AS IDENTITY
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-2	ALTER TABLE a ALTER ADD GENERATED ALWAYS AS IDENTITY
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-3	ALTER TABLE a ALTER a GENERATED ALWAYS AS IDENTITY
-accept	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-4	ALTER TABLE a ALTER a ADD ALWAYS AS IDENTITY
-accept	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-5	ALTER TABLE a ALTER a ADD GENERATED AS IDENTITY
-accept	reject@43	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-6	ALTER TABLE a ALTER a ADD GENERATED ALWAYS IDENTITY
-accept	reject@45	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-7	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS
+reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-4	ALTER TABLE a ALTER a ADD ALWAYS AS IDENTITY
+reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-5	ALTER TABLE a ALTER a ADD GENERATED AS IDENTITY
+reject@43	reject@43	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-6	ALTER TABLE a ALTER a ADD GENERATED ALWAYS IDENTITY
+reject@45	reject@45	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-7	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS
 reject@55	reject@55	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!insert	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!swap	ALTER TABLE a ALWAYS a ADD GENERATED ALWAYS AS IDENTITY
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
@@ -1854,14 +1854,14 @@ reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-2	ALTER TABLE a ALTER DROP IDENTITY IF EXISTS
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-3	ALTER TABLE a ALTER a IDENTITY IF EXISTS
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-5	ALTER TABLE a ALTER a DROP IDENTITY EXISTS
-accept	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP IDENTITY IF
+reject@38	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP IDENTITY IF
 reject@46	reject@46	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!insert	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!swap	ALTER TABLE a ALWAYS a DROP IDENTITY IF EXISTS
 accept	accept	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
 reject@14	reject@14	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-1	ALTER TABLE a IF EXISTS a
 reject@26	reject@26	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-2	ALTER TABLE a DROP EXISTS a
-accept	reject@22	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-3	ALTER TABLE a DROP IF a
-accept	reject@28	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-4	ALTER TABLE a DROP IF EXISTS
+reject@22	reject@22	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-3	ALTER TABLE a DROP IF a
+reject@28	reject@28	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-4	ALTER TABLE a DROP IF EXISTS
 reject@31	reject@31	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!insert	ALTER TABLE a DROP IF EXISTS a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!swap	ALTER TABLE a EACH IF EXISTS a
 accept	accept	engine	alter_table_cmd/DROP_opt_column_ColId_opt_drop_behavior	ALTER TABLE a DROP a
@@ -1876,10 +1876,10 @@ accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_option
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-1	ALTER TABLE a a OPTIONS(a 's')
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-2	ALTER TABLE a ALTER OPTIONS(a 's')
 reject@21	reject@21	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-3	ALTER TABLE a ALTER a(a 's')
-accept	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-4	ALTER TABLE a ALTER a OPTIONS a 's')
-accept	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-5	ALTER TABLE a ALTER a OPTIONS('s')
-accept	reject@31	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-6	ALTER TABLE a ALTER a OPTIONS(a)
-accept	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-7	ALTER TABLE a ALTER a OPTIONS(a 's'
+reject@30	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-4	ALTER TABLE a ALTER a OPTIONS a 's')
+reject@30	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-5	ALTER TABLE a ALTER a OPTIONS('s')
+reject@31	reject@31	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-6	ALTER TABLE a ALTER a OPTIONS(a)
+reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-7	ALTER TABLE a ALTER a OPTIONS(a 's'
 reject@37	reject@37	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!insert	ALTER TABLE a ALTER a OPTIONS(a 's') zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!swap	ALTER TABLE a ALWAYS a OPTIONS(a 's')
 accept	accept	engine	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
@@ -1892,23 +1892,23 @@ reject@27	reject@27	engine	alter_table_cmd/ADD_P_TableConstraint!insert	ALTER TA
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_TableConstraint!swap	ALTER TABLE a ADMIN CHECK(a)
 accept	accept	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
 reject@14	reject@14	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec!drop-1	ALTER TABLE a CONSTRAINT a
-accept	reject@30	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec!drop-3	ALTER TABLE a ALTER CONSTRAINT
+reject@30	reject@30	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec!drop-3	ALTER TABLE a ALTER CONSTRAINT
 reject@33	reject@33	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec!insert	ALTER TABLE a ALTER CONSTRAINT a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec!swap	ALTER TABLE a ALWAYS CONSTRAINT a
 accept	accept	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
-accept	reject@23	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!drop-2	ALTER TABLE a VALIDATE a
-accept	reject@33	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!drop-3	ALTER TABLE a VALIDATE CONSTRAINT
+reject@23	reject@23	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!drop-2	ALTER TABLE a VALIDATE a
+reject@33	reject@33	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!drop-3	ALTER TABLE a VALIDATE CONSTRAINT
 reject@36	reject@36	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!insert	ALTER TABLE a VALIDATE CONSTRAINT a zzz
 reject@14	reject@14	engine	alter_table_cmd/VALIDATE_CONSTRAINT_name!swap	ALTER TABLE a VALIDATOR CONSTRAINT a
 accept	accept	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 reject@14	reject@14	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-1	ALTER TABLE a CONSTRAINT IF EXISTS a
 reject@37	reject@37	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-3	ALTER TABLE a DROP CONSTRAINT EXISTS a
-accept	reject@33	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-4	ALTER TABLE a DROP CONSTRAINT IF a
-accept	reject@39	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-5	ALTER TABLE a DROP CONSTRAINT IF EXISTS
+reject@33	reject@33	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-4	ALTER TABLE a DROP CONSTRAINT IF a
+reject@39	reject@39	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-5	ALTER TABLE a DROP CONSTRAINT IF EXISTS
 reject@42	reject@42	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!insert	ALTER TABLE a DROP CONSTRAINT IF EXISTS a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!swap	ALTER TABLE a EACH CONSTRAINT IF EXISTS a
 accept	accept	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
-accept	reject@29	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!drop-3	ALTER TABLE a DROP CONSTRAINT
+reject@29	reject@29	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!drop-3	ALTER TABLE a DROP CONSTRAINT
 reject@32	reject@32	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!insert	ALTER TABLE a DROP CONSTRAINT a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!swap	ALTER TABLE a EACH CONSTRAINT a
 accept	accept	engine	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
@@ -1919,8 +1919,8 @@ reject@31	reject@31	engine	alter_table_cmd/SET_WITHOUT_OIDS!insert	ALTER TABLE a
 reject@14	reject@14	engine	alter_table_cmd/SET_WITHOUT_OIDS!swap	ALTER TABLE a SETOF WITHOUT OIDS
 accept	accept	engine	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
 reject@14	reject@14	engine	alter_table_cmd/CLUSTER_ON_name!drop-1	ALTER TABLE a ON a
-accept	reject@22	engine	alter_table_cmd/CLUSTER_ON_name!drop-2	ALTER TABLE a CLUSTER a
-accept	reject@24	engine	alter_table_cmd/CLUSTER_ON_name!drop-3	ALTER TABLE a CLUSTER ON
+reject@22	reject@22	engine	alter_table_cmd/CLUSTER_ON_name!drop-2	ALTER TABLE a CLUSTER a
+reject@24	reject@24	engine	alter_table_cmd/CLUSTER_ON_name!drop-3	ALTER TABLE a CLUSTER ON
 reject@27	reject@27	engine	alter_table_cmd/CLUSTER_ON_name!insert	ALTER TABLE a CLUSTER ON a zzz
 reject@14	reject@14	engine	alter_table_cmd/CLUSTER_ON_name!swap	ALTER TABLE a COALESCE ON a
 accept	accept	engine	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
@@ -1940,19 +1940,19 @@ reject@14	reject@14	engine	alter_table_cmd/SET_UNLOGGED!swap	ALTER TABLE a SETOF
 accept	accept	engine	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!drop-1	ALTER TABLE a TRIGGER a
 reject@21	reject@21	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!drop-2	ALTER TABLE a ENABLE a
-accept	reject@28	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!drop-3	ALTER TABLE a ENABLE TRIGGER
+reject@28	reject@28	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!drop-3	ALTER TABLE a ENABLE TRIGGER
 reject@31	reject@31	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!insert	ALTER TABLE a ENABLE TRIGGER a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_TRIGGER_name!swap	ALTER TABLE a ENCODING TRIGGER a
 accept	accept	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!drop-1	ALTER TABLE a ALWAYS TRIGGER a
-accept	reject@28	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!drop-3	ALTER TABLE a ENABLE ALWAYS a
-accept	reject@35	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!drop-4	ALTER TABLE a ENABLE ALWAYS TRIGGER
+reject@28	reject@28	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!drop-3	ALTER TABLE a ENABLE ALWAYS a
+reject@35	reject@35	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!drop-4	ALTER TABLE a ENABLE ALWAYS TRIGGER
 reject@38	reject@38	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!insert	ALTER TABLE a ENABLE ALWAYS TRIGGER a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name!swap	ALTER TABLE a ENCODING ALWAYS TRIGGER a
 accept	accept	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
 reject@22	reject@22	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!drop-1	ALTER TABLE a REPLICA TRIGGER a
-accept	reject@29	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!drop-3	ALTER TABLE a ENABLE REPLICA a
-accept	reject@36	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!drop-4	ALTER TABLE a ENABLE REPLICA TRIGGER
+reject@29	reject@29	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!drop-3	ALTER TABLE a ENABLE REPLICA a
+reject@36	reject@36	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!drop-4	ALTER TABLE a ENABLE REPLICA TRIGGER
 reject@39	reject@39	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!insert	ALTER TABLE a ENABLE REPLICA TRIGGER a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name!swap	ALTER TABLE a ENCODING REPLICA TRIGGER a
 accept	accept	engine	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
@@ -1967,7 +1967,7 @@ reject@34	reject@34	engine	alter_table_cmd/ENABLE_P_TRIGGER_USER!insert	ALTER TA
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_TRIGGER_USER!swap	ALTER TABLE a ENCODING TRIGGER USER
 accept	accept	engine	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
 reject@22	reject@22	engine	alter_table_cmd/DISABLE_P_TRIGGER_name!drop-2	ALTER TABLE a DISABLE a
-accept	reject@29	engine	alter_table_cmd/DISABLE_P_TRIGGER_name!drop-3	ALTER TABLE a DISABLE TRIGGER
+reject@29	reject@29	engine	alter_table_cmd/DISABLE_P_TRIGGER_name!drop-3	ALTER TABLE a DISABLE TRIGGER
 reject@32	reject@32	engine	alter_table_cmd/DISABLE_P_TRIGGER_name!insert	ALTER TABLE a DISABLE TRIGGER a zzz
 reject@14	reject@14	engine	alter_table_cmd/DISABLE_P_TRIGGER_name!swap	ALTER TABLE a DISCARD TRIGGER a
 accept	accept	engine	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
@@ -1980,21 +1980,21 @@ reject@35	reject@35	engine	alter_table_cmd/DISABLE_P_TRIGGER_USER!insert	ALTER T
 reject@14	reject@14	engine	alter_table_cmd/DISABLE_P_TRIGGER_USER!swap	ALTER TABLE a DISCARD TRIGGER USER
 accept	accept	engine	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_RULE_name!drop-1	ALTER TABLE a RULE a
-accept	reject@25	engine	alter_table_cmd/ENABLE_P_RULE_name!drop-3	ALTER TABLE a ENABLE RULE
+reject@25	reject@25	engine	alter_table_cmd/ENABLE_P_RULE_name!drop-3	ALTER TABLE a ENABLE RULE
 reject@28	reject@28	engine	alter_table_cmd/ENABLE_P_RULE_name!insert	ALTER TABLE a ENABLE RULE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_RULE_name!swap	ALTER TABLE a ENCODING RULE a
 accept	accept	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name!drop-1	ALTER TABLE a ALWAYS RULE a
-accept	reject@32	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name!drop-4	ALTER TABLE a ENABLE ALWAYS RULE
+reject@32	reject@32	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name!drop-4	ALTER TABLE a ENABLE ALWAYS RULE
 reject@35	reject@35	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name!insert	ALTER TABLE a ENABLE ALWAYS RULE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name!swap	ALTER TABLE a ENCODING ALWAYS RULE a
 accept	accept	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
 reject@22	reject@22	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name!drop-1	ALTER TABLE a REPLICA RULE a
-accept	reject@33	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name!drop-4	ALTER TABLE a ENABLE REPLICA RULE
+reject@33	reject@33	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name!drop-4	ALTER TABLE a ENABLE REPLICA RULE
 reject@36	reject@36	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name!insert	ALTER TABLE a ENABLE REPLICA RULE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_REPLICA_RULE_name!swap	ALTER TABLE a ENCODING REPLICA RULE a
 accept	accept	engine	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
-accept	reject@26	engine	alter_table_cmd/DISABLE_P_RULE_name!drop-3	ALTER TABLE a DISABLE RULE
+reject@26	reject@26	engine	alter_table_cmd/DISABLE_P_RULE_name!drop-3	ALTER TABLE a DISABLE RULE
 reject@29	reject@29	engine	alter_table_cmd/DISABLE_P_RULE_name!insert	ALTER TABLE a DISABLE RULE a zzz
 reject@14	reject@14	engine	alter_table_cmd/DISABLE_P_RULE_name!swap	ALTER TABLE a DISCARD RULE a
 accept	accept	engine	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
@@ -2003,7 +2003,7 @@ reject@24	reject@24	engine	alter_table_cmd/INHERIT_qualified_name!insert	ALTER T
 reject@14	reject@14	engine	alter_table_cmd/INHERIT_qualified_name!swap	ALTER TABLE a INHERITS a
 accept	accept	engine	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
 reject@17	reject@17	engine	alter_table_cmd/NO_INHERIT_qualified_name!drop-2	ALTER TABLE a NO a
-accept	reject@24	engine	alter_table_cmd/NO_INHERIT_qualified_name!drop-3	ALTER TABLE a NO INHERIT
+reject@24	reject@24	engine	alter_table_cmd/NO_INHERIT_qualified_name!drop-3	ALTER TABLE a NO INHERIT
 reject@27	reject@27	engine	alter_table_cmd/NO_INHERIT_qualified_name!insert	ALTER TABLE a NO INHERIT a zzz
 reject@14	reject@14	engine	alter_table_cmd/NO_INHERIT_qualified_name!swap	ALTER TABLE a NONE INHERIT a
 accept	accept	engine	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
@@ -2011,7 +2011,7 @@ reject@16	reject@16	engine	alter_table_cmd/OF_any_name!drop-2	ALTER TABLE a OF
 reject@19	reject@19	engine	alter_table_cmd/OF_any_name!insert	ALTER TABLE a OF a zzz
 reject@14	reject@14	engine	alter_table_cmd/OF_any_name!swap	ALTER TABLE a OFF a
 accept	accept	engine	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
-accept	reject@17	engine	alter_table_cmd/NOT_OF!drop-2	ALTER TABLE a NOT
+reject@17	reject@17	engine	alter_table_cmd/NOT_OF!drop-2	ALTER TABLE a NOT
 reject@21	reject@21	engine	alter_table_cmd/NOT_OF!insert	ALTER TABLE a NOT OF zzz
 reject@14	reject@14	engine	alter_table_cmd/NOT_OF!swap	ALTER TABLE a NOTHING OF
 accept	accept	engine	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
@@ -2023,14 +2023,14 @@ reject@14	reject@14	engine	alter_table_cmd/OWNER_TO_RoleSpec!swap	ALTER TABLE a 
 accept	accept	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
 reject@14	reject@14	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-1	ALTER TABLE a ACCESS METHOD a
 reject@18	reject@18	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-2	ALTER TABLE a SET METHOD a
-accept	reject@25	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-3	ALTER TABLE a SET ACCESS a
-accept	reject@31	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-4	ALTER TABLE a SET ACCESS METHOD
+reject@25	reject@25	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-3	ALTER TABLE a SET ACCESS a
+reject@31	reject@31	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!drop-4	ALTER TABLE a SET ACCESS METHOD
 reject@34	reject@34	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!insert	ALTER TABLE a SET ACCESS METHOD a zzz
 reject@14	reject@14	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name!swap	ALTER TABLE a SETOF ACCESS METHOD a
 accept	accept	engine	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
 reject@14	reject@14	engine	alter_table_cmd/SET_TABLESPACE_name!drop-1	ALTER TABLE a TABLESPACE a
 reject@18	reject@18	engine	alter_table_cmd/SET_TABLESPACE_name!drop-2	ALTER TABLE a SET a
-accept	reject@28	engine	alter_table_cmd/SET_TABLESPACE_name!drop-3	ALTER TABLE a SET TABLESPACE
+reject@28	reject@28	engine	alter_table_cmd/SET_TABLESPACE_name!drop-3	ALTER TABLE a SET TABLESPACE
 reject@31	reject@31	engine	alter_table_cmd/SET_TABLESPACE_name!insert	ALTER TABLE a SET TABLESPACE a zzz
 reject@14	reject@14	engine	alter_table_cmd/SET_TABLESPACE_name!swap	ALTER TABLE a SETOF TABLESPACE a
 accept	accept	engine	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
@@ -2048,42 +2048,42 @@ reject@23	reject@23	engine	alter_table_cmd/RESET_reloptions!insert	ALTER TABLE a
 reject@14	reject@14	engine	alter_table_cmd/RESET_reloptions!swap	ALTER TABLE a RESTART(a)
 accept	accept	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
 reject@14	reject@14	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-1	ALTER TABLE a IDENTITY NOTHING
-accept	reject@22	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-2	ALTER TABLE a REPLICA NOTHING
-accept	reject@30	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-3	ALTER TABLE a REPLICA IDENTITY
+reject@22	reject@22	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-2	ALTER TABLE a REPLICA NOTHING
+reject@30	reject@30	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-3	ALTER TABLE a REPLICA IDENTITY
 reject@39	reject@39	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!insert	ALTER TABLE a REPLICA IDENTITY NOTHING zzz
 reject@20	reject@20	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!swap	ALTER TABLE a RESET IDENTITY NOTHING
 accept	accept	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-1	ALTER TABLE a ROW LEVEL SECURITY
 reject@21	reject@21	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a ENABLE LEVEL SECURITY
-accept	reject@25	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a ENABLE ROW SECURITY
-accept	reject@30	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a ENABLE ROW LEVEL
+reject@25	reject@25	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a ENABLE ROW SECURITY
+reject@30	reject@30	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a ENABLE ROW LEVEL
 reject@40	reject@40	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!insert	ALTER TABLE a ENABLE ROW LEVEL SECURITY zzz
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!swap	ALTER TABLE a ENCODING ROW LEVEL SECURITY
 accept	accept	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
 reject@22	reject@22	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a DISABLE LEVEL SECURITY
-accept	reject@26	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a DISABLE ROW SECURITY
-accept	reject@31	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a DISABLE ROW LEVEL
+reject@26	reject@26	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a DISABLE ROW SECURITY
+reject@31	reject@31	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a DISABLE ROW LEVEL
 reject@41	reject@41	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!insert	ALTER TABLE a DISABLE ROW LEVEL SECURITY zzz
 reject@14	reject@14	engine	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY!swap	ALTER TABLE a DISCARD ROW LEVEL SECURITY
 accept	accept	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
-accept	reject@20	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a FORCE LEVEL SECURITY
-accept	reject@24	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a FORCE ROW SECURITY
-accept	reject@29	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a FORCE ROW LEVEL
+reject@20	reject@20	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a FORCE LEVEL SECURITY
+reject@24	reject@24	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a FORCE ROW SECURITY
+reject@29	reject@29	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a FORCE ROW LEVEL
 reject@39	reject@39	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!insert	ALTER TABLE a FORCE ROW LEVEL SECURITY zzz
 reject@14	reject@14	engine	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY!swap	ALTER TABLE a FOREIGN ROW LEVEL SECURITY
 accept	accept	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
 reject@17	reject@17	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a NO ROW LEVEL SECURITY
-accept	reject@23	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a NO FORCE LEVEL SECURITY
-accept	reject@27	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a NO FORCE ROW SECURITY
-accept	reject@32	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-5	ALTER TABLE a NO FORCE ROW LEVEL
+reject@23	reject@23	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-3	ALTER TABLE a NO FORCE LEVEL SECURITY
+reject@27	reject@27	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-4	ALTER TABLE a NO FORCE ROW SECURITY
+reject@32	reject@32	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!drop-5	ALTER TABLE a NO FORCE ROW LEVEL
 reject@42	reject@42	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!insert	ALTER TABLE a NO FORCE ROW LEVEL SECURITY zzz
 reject@14	reject@14	engine	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY!swap	ALTER TABLE a NONE FORCE ROW LEVEL SECURITY
 accept	accept	engine	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
 reject@13	reject@13	engine	alter_table_cmd/alter_generic_options!drop-1	ALTER TABLE a(a 's')
-accept	reject@22	engine	alter_table_cmd/alter_generic_options!drop-2	ALTER TABLE a OPTIONS a 's')
-accept	reject@22	engine	alter_table_cmd/alter_generic_options!drop-3	ALTER TABLE a OPTIONS('s')
-accept	reject@23	engine	alter_table_cmd/alter_generic_options!drop-4	ALTER TABLE a OPTIONS(a)
-accept	reject@27	engine	alter_table_cmd/alter_generic_options!drop-5	ALTER TABLE a OPTIONS(a 's'
+reject@22	reject@22	engine	alter_table_cmd/alter_generic_options!drop-2	ALTER TABLE a OPTIONS a 's')
+reject@22	reject@22	engine	alter_table_cmd/alter_generic_options!drop-3	ALTER TABLE a OPTIONS('s')
+reject@23	reject@23	engine	alter_table_cmd/alter_generic_options!drop-4	ALTER TABLE a OPTIONS(a)
+reject@27	reject@27	engine	alter_table_cmd/alter_generic_options!drop-5	ALTER TABLE a OPTIONS(a 's'
 reject@29	reject@29	engine	alter_table_cmd/alter_generic_options!insert	ALTER TABLE a OPTIONS(a 's') zzz
 reject@14	reject@14	engine	alter_table_cmd/alter_generic_options!swap	ALTER TABLE a OR(a 's')
 accept	accept	engine	alter_column_default/SET_DEFAULT_a_expr	ALTER DOMAIN a SET DEFAULT a
@@ -2115,8 +2115,8 @@ reject@39	reject@39	engine	replica_identity/DEFAULT!insert	ALTER TABLE a REPLICA
 reject@31	reject@31	engine	replica_identity/DEFAULT!swap	ALTER TABLE a REPLICA IDENTITY DEFAULTS
 accept	accept	engine	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
 reject@31	reject@31	engine	replica_identity/USING_INDEX_name!drop-1	ALTER TABLE a REPLICA IDENTITY INDEX a
-accept	reject@37	engine	replica_identity/USING_INDEX_name!drop-2	ALTER TABLE a REPLICA IDENTITY USING a
-accept	reject@42	engine	replica_identity/USING_INDEX_name!drop-3	ALTER TABLE a REPLICA IDENTITY USING INDEX
+reject@37	reject@37	engine	replica_identity/USING_INDEX_name!drop-2	ALTER TABLE a REPLICA IDENTITY USING a
+reject@42	reject@42	engine	replica_identity/USING_INDEX_name!drop-3	ALTER TABLE a REPLICA IDENTITY USING INDEX
 reject@45	reject@45	engine	replica_identity/USING_INDEX_name!insert	ALTER TABLE a REPLICA IDENTITY USING INDEX a zzz
 reject@31	reject@31	engine	replica_identity/USING_INDEX_name!swap	ALTER TABLE a REPLICA IDENTITY VACUUM INDEX a
 accept	accept	engine	reloptions/(_reloption_list_)	ALTER TABLE a SET(a)
@@ -2174,7 +2174,7 @@ reject@22	reject@22	engine	alter_identity_column_option/SET_SeqOptElem!swap	ALTE
 accept	accept	engine	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
 reject@22	reject@22	engine	alter_identity_column_option/SET_GENERATED_generated_when!drop-1	ALTER TABLE a ALTER a GENERATED ALWAYS
 reject@26	reject@26	engine	alter_identity_column_option/SET_GENERATED_generated_when!drop-2	ALTER TABLE a ALTER a SET ALWAYS
-accept	reject@35	engine	alter_identity_column_option/SET_GENERATED_generated_when!drop-3	ALTER TABLE a ALTER a SET GENERATED
+reject@35	reject@35	engine	alter_identity_column_option/SET_GENERATED_generated_when!drop-3	ALTER TABLE a ALTER a SET GENERATED
 reject@43	reject@43	engine	alter_identity_column_option/SET_GENERATED_generated_when!insert	ALTER TABLE a ALTER a SET GENERATED ALWAYS zzz
 reject@22	reject@22	engine	alter_identity_column_option/SET_GENERATED_generated_when!swap	ALTER TABLE a ALTER a SETOF GENERATED ALWAYS
 accept	accept	engine	set_statistics_value/SignedIconst	ALTER STATISTICS a SET STATISTICS 1
@@ -2185,51 +2185,51 @@ accept	accept	engine	set_access_method_name/ColId	ALTER TABLE a SET ACCESS METHO
 accept	accept	engine	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
 reject@40	reject@40	engine	set_access_method_name/DEFAULT!insert	ALTER TABLE a SET ACCESS METHOD DEFAULT zzz
 accept	accept	engine	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
-accept	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
-accept	reject@33	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES WITH(a 1)
-accept	reject@37	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR WITH(a 1)
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
+reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES WITH(a 1)
+reject@37	reject@37	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR WITH(a 1)
 reject@43	reject@43	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-3	ALTER TABLE a ATTACH PARTITION a FOR VALUES(a 1)
-accept	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH a 1)
-accept	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(1)
-accept	reject@50	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a)
-accept	reject@52	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-7	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1
-reject@54	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1) zzz
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH a 1)
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(1)
+reject@50	reject@50	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a)
+reject@52	reject@52	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!drop-7	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1) zzz
 reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)!swap	ALTER TABLE a ATTACH PARTITION a FORCE VALUES WITH(a 1)
 accept	accept	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
-accept	reject@33	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES IN(a)
-accept	reject@37	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR IN(a)
+reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES IN(a)
+reject@37	reject@37	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR IN(a)
 reject@43	reject@43	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-3	ALTER TABLE a ATTACH PARTITION a FOR VALUES(a)
-accept	reject@47	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN a)
-accept	reject@47	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN()
-accept	reject@48	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a
+reject@47	reject@47	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN a)
+reject@47	reject@47	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN()
+reject@48	reject@48	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a
 reject@50	reject@50	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a) zzz
 reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)!swap	ALTER TABLE a ATTACH PARTITION a FORCE VALUES IN(a)
 accept	accept	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
-accept	reject@33	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES FROM(a) TO(a)
-accept	reject@37	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR FROM(a) TO(a)
+reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-1	ALTER TABLE a ATTACH PARTITION a VALUES FROM(a) TO(a)
+reject@37	reject@37	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-2	ALTER TABLE a ATTACH PARTITION a FOR FROM(a) TO(a)
 reject@43	reject@43	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-3	ALTER TABLE a ATTACH PARTITION a FOR VALUES(a) TO(a)
-accept	reject@49	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM a) TO(a)
-accept	reject@49	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM() TO(a)
-accept	reject@51	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a TO(a)
-accept	reject@51	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-7	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a)(a)
-accept	reject@55	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-8	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO a)
-accept	reject@55	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-9	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO()
-accept	reject@56	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-10	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM a) TO(a)
+reject@49	reject@49	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM() TO(a)
+reject@51	reject@51	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-6	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a TO(a)
+reject@51	reject@51	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-7	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a)(a)
+reject@55	reject@55	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-8	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO a)
+reject@55	reject@55	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-9	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO()
+reject@56	reject@56	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!drop-10	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a
 reject@58	reject@58	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a) zzz
 reject@33	reject@33	engine	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)!swap	ALTER TABLE a ATTACH PARTITION a FORCE VALUES FROM(a) TO(a)
 accept	accept	engine	PartitionBoundSpec/DEFAULT	ALTER TABLE a ATTACH PARTITION a DEFAULT
 reject@33	reject@33	engine	PartitionBoundSpec/DEFAULT!swap	ALTER TABLE a ATTACH PARTITION a DEFAULTS
-accept	reject@49	engine	hash_partbound_elem/NonReservedWord_Iconst	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
-accept	reject@50	engine	hash_partbound_elem/NonReservedWord_Iconst!truncate	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a
+reject@49	reject@49	engine	hash_partbound_elem/NonReservedWord_Iconst	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
+reject@50	reject@50	engine	hash_partbound_elem/NonReservedWord_Iconst!truncate	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a
 reject@53	reject@53	engine	hash_partbound_elem/NonReservedWord_Iconst!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1 zzz)
-accept	reject@49	engine	hash_partbound/hash_partbound_elem	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
-accept	reject@49	engine	hash_partbound/hash_partbound_,_hash_partbound_elem	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a 1)
-accept	reject@49	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-1	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(1, a 1)
-reject@52	reject@50	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-2	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a, a 1)
+reject@49	reject@49	engine	hash_partbound/hash_partbound_elem	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
+reject@49	reject@49	engine	hash_partbound/hash_partbound_,_hash_partbound_elem	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a 1)
+reject@49	reject@49	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-1	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(1, a 1)
+reject@50	reject@50	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-2	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a, a 1)
 reject@53	reject@53	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-3	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1 a 1)
-accept	reject@54	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, 1)
-accept	reject@55	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a)
-accept	reject@55	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!truncate	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a
+reject@54	reject@54	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-4	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, 1)
+reject@55	reject@55	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!drop-5	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a)
+reject@55	reject@55	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!truncate	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a
 reject@58	reject@58	engine	hash_partbound/hash_partbound_,_hash_partbound_elem!insert	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1, a 1 zzz)
 accept	accept	engine	AlterCompositeTypeStmt/ALTER_TYPE_P_any_name_alter_type_cmds	ALTER TYPE a DROP ATTRIBUTE a
 accept	accept	engine	alter_type_cmds/alter_type_cmd	ALTER TYPE a DROP ATTRIBUTE a
@@ -2462,7 +2462,7 @@ reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTIT
 reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE a OF a DEFAULT
 accept	reject@25	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE a PARTITION a DEFAULT
 reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE a PARTITION OF DEFAULT
-accept	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE a PARTITION OF a
+reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE a PARTITION OF a
 reject@38	reject@38	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE a PARTITION OF a DEFAULT zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE a PARTITION OF a DEFAULT
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
@@ -2475,7 +2475,7 @@ reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@34	reject@34	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a OF a DEFAULT
 accept	reject@39	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a PARTITION a DEFAULT
 reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-9	CREATE TABLE IF NOT EXISTS a PARTITION OF DEFAULT
-accept	reject@43	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-10	CREATE TABLE IF NOT EXISTS a PARTITION OF a
+reject@43	reject@43	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-10	CREATE TABLE IF NOT EXISTS a PARTITION OF a
 reject@52	reject@52	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 accept	accept	engine	OptTemp/TEMPORARY	CREATE TEMPORARY SEQUENCE a
@@ -2664,8 +2664,8 @@ accept	accept	engine	opt_unique_null_treatment/%empty	CREATE DOMAIN a a UNIQUE
 accept	accept	engine	generated_when/ALWAYS	ALTER TABLE a ALTER a SET GENERATED ALWAYS
 reject@36	reject@36	engine	generated_when/ALWAYS!swap	ALTER TABLE a ALTER a SET GENERATED ANALYSE
 accept	accept	engine	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
-accept	reject@36	engine	generated_when/BY_DEFAULT!drop-1	ALTER TABLE a ALTER a SET GENERATED DEFAULT
-accept	reject@38	engine	generated_when/BY_DEFAULT!drop-2	ALTER TABLE a ALTER a SET GENERATED BY
+reject@36	reject@36	engine	generated_when/BY_DEFAULT!drop-1	ALTER TABLE a ALTER a SET GENERATED DEFAULT
+reject@38	reject@38	engine	generated_when/BY_DEFAULT!drop-2	ALTER TABLE a ALTER a SET GENERATED BY
 reject@47	reject@47	engine	generated_when/BY_DEFAULT!insert	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT zzz
 reject@36	reject@36	engine	generated_when/BY_DEFAULT!swap	ALTER TABLE a ALTER a SET GENERATED CACHE DEFAULT
 accept	accept	engine	ConstraintAttr/DEFERRABLE	CREATE DOMAIN a a DEFERRABLE
@@ -3492,74 +3492,74 @@ reject@14	reject@14	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fd
 reject@19	reject@19	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-4	ALTER FOREIGN DATA a OPTIONS(a 's')
 reject@34	reject@34	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-5	ALTER FOREIGN DATA WRAPPER OPTIONS(a 's')
 reject@28	reject@28	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-6	ALTER FOREIGN DATA WRAPPER a(a 's')
-accept	reject@37	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-7	ALTER FOREIGN DATA WRAPPER a OPTIONS a 's')
-accept	reject@37	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-8	ALTER FOREIGN DATA WRAPPER a OPTIONS('s')
-accept	reject@38	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-9	ALTER FOREIGN DATA WRAPPER a OPTIONS(a)
-accept	reject@42	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-10	ALTER FOREIGN DATA WRAPPER a OPTIONS(a 's'
+reject@37	reject@37	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-7	ALTER FOREIGN DATA WRAPPER a OPTIONS a 's')
+reject@37	reject@37	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-8	ALTER FOREIGN DATA WRAPPER a OPTIONS('s')
+reject@38	reject@38	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-9	ALTER FOREIGN DATA WRAPPER a OPTIONS(a)
+reject@42	reject@42	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!drop-10	ALTER FOREIGN DATA WRAPPER a OPTIONS(a 's'
 reject@44	reject@44	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!insert	ALTER FOREIGN DATA WRAPPER a OPTIONS(a 's') zzz
 reject@0	reject@0	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_opt_fdw_options_alter_generic_options!swap	ALWAYS FOREIGN DATA WRAPPER a OPTIONS(a 's')
 accept	accept	engine	AlterFdwStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_fdw_options	ALTER FOREIGN DATA WRAPPER a HANDLER a
 accept	accept	engine	create_generic_options/OPTIONS_(_generic_option_list_)	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's')
 reject@29	reject@29	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-1	CREATE FOREIGN DATA WRAPPER a(a 's')
-accept	reject@38	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-2	CREATE FOREIGN DATA WRAPPER a OPTIONS a 's')
-accept	reject@38	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-3	CREATE FOREIGN DATA WRAPPER a OPTIONS('s')
-accept	reject@39	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-4	CREATE FOREIGN DATA WRAPPER a OPTIONS(a)
-accept	reject@43	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-5	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's'
+reject@38	reject@38	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-2	CREATE FOREIGN DATA WRAPPER a OPTIONS a 's')
+reject@38	reject@38	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-3	CREATE FOREIGN DATA WRAPPER a OPTIONS('s')
+reject@39	reject@39	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-4	CREATE FOREIGN DATA WRAPPER a OPTIONS(a)
+reject@43	reject@43	engine	create_generic_options/OPTIONS_(_generic_option_list_)!drop-5	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's'
 reject@45	reject@45	engine	create_generic_options/OPTIONS_(_generic_option_list_)!insert	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's') zzz
 reject@30	reject@30	engine	create_generic_options/OPTIONS_(_generic_option_list_)!swap	CREATE FOREIGN DATA WRAPPER a OR(a 's')
 accept	accept	engine	create_generic_options/%empty	CREATE FOREIGN DATA WRAPPER a
 accept	accept	engine	generic_option_list/generic_option_elem	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's')
-accept	reject@39	engine	generic_option_list/generic_option_elem!truncate	CREATE FOREIGN DATA WRAPPER a OPTIONS(a
+reject@39	reject@39	engine	generic_option_list/generic_option_elem!truncate	CREATE FOREIGN DATA WRAPPER a OPTIONS(a
 reject@44	reject@44	engine	generic_option_list/generic_option_elem!insert	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's' zzz)
 accept	accept	engine	generic_option_list/generic_option_list_,_generic_option_elem	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a 's')
-accept	reject@38	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-1	CREATE FOREIGN DATA WRAPPER a OPTIONS('s', a 's')
-reject@41	reject@39	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-2	CREATE FOREIGN DATA WRAPPER a OPTIONS(a, a 's')
+reject@38	reject@38	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-1	CREATE FOREIGN DATA WRAPPER a OPTIONS('s', a 's')
+reject@39	reject@39	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-2	CREATE FOREIGN DATA WRAPPER a OPTIONS(a, a 's')
 reject@44	reject@44	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-3	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's' a 's')
-accept	reject@45	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-4	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', 's')
-accept	reject@46	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-5	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a)
-accept	reject@46	engine	generic_option_list/generic_option_list_,_generic_option_elem!truncate	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a
+reject@45	reject@45	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-4	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', 's')
+reject@46	reject@46	engine	generic_option_list/generic_option_list_,_generic_option_elem!drop-5	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a)
+reject@46	reject@46	engine	generic_option_list/generic_option_list_,_generic_option_elem!truncate	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a
 reject@51	reject@51	engine	generic_option_list/generic_option_list_,_generic_option_elem!insert	CREATE FOREIGN DATA WRAPPER a OPTIONS(a 's', a 's' zzz)
 accept	accept	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)	ALTER SERVER a OPTIONS(a 's')
 reject@14	reject@14	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-1	ALTER SERVER a(a 's')
-accept	reject@23	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-2	ALTER SERVER a OPTIONS a 's')
-accept	reject@23	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-3	ALTER SERVER a OPTIONS('s')
-accept	reject@24	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-4	ALTER SERVER a OPTIONS(a)
-accept	reject@28	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-5	ALTER SERVER a OPTIONS(a 's'
+reject@23	reject@23	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-2	ALTER SERVER a OPTIONS a 's')
+reject@23	reject@23	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-3	ALTER SERVER a OPTIONS('s')
+reject@24	reject@24	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-4	ALTER SERVER a OPTIONS(a)
+reject@28	reject@28	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!drop-5	ALTER SERVER a OPTIONS(a 's'
 reject@30	reject@30	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!insert	ALTER SERVER a OPTIONS(a 's') zzz
 reject@15	reject@15	engine	alter_generic_options/OPTIONS_(_alter_generic_option_list_)!swap	ALTER SERVER a OR(a 's')
 accept	accept	engine	alter_generic_option_list/alter_generic_option_elem	ALTER SERVER a OPTIONS(a 's')
-accept	reject@24	engine	alter_generic_option_list/alter_generic_option_elem!truncate	ALTER SERVER a OPTIONS(a
+reject@24	reject@24	engine	alter_generic_option_list/alter_generic_option_elem!truncate	ALTER SERVER a OPTIONS(a
 reject@29	reject@29	engine	alter_generic_option_list/alter_generic_option_elem!insert	ALTER SERVER a OPTIONS(a 's' zzz)
 accept	accept	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem	ALTER SERVER a OPTIONS(a 's', a 's')
-accept	reject@23	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-1	ALTER SERVER a OPTIONS('s', a 's')
-reject@26	reject@24	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-2	ALTER SERVER a OPTIONS(a, a 's')
+reject@23	reject@23	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-1	ALTER SERVER a OPTIONS('s', a 's')
+reject@24	reject@24	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-2	ALTER SERVER a OPTIONS(a, a 's')
 reject@29	reject@29	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-3	ALTER SERVER a OPTIONS(a 's' a 's')
-accept	reject@30	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-4	ALTER SERVER a OPTIONS(a 's', 's')
-accept	reject@31	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-5	ALTER SERVER a OPTIONS(a 's', a)
-accept	reject@31	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!truncate	ALTER SERVER a OPTIONS(a 's', a
+reject@30	reject@30	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-4	ALTER SERVER a OPTIONS(a 's', 's')
+reject@31	reject@31	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!drop-5	ALTER SERVER a OPTIONS(a 's', a)
+reject@31	reject@31	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!truncate	ALTER SERVER a OPTIONS(a 's', a
 reject@36	reject@36	engine	alter_generic_option_list/alter_generic_option_list_,_alter_generic_option_elem!insert	ALTER SERVER a OPTIONS(a 's', a 's' zzz)
 accept	accept	engine	alter_generic_option_elem/generic_option_elem	ALTER SERVER a OPTIONS(a 's')
 accept	accept	engine	alter_generic_option_elem/SET_generic_option_elem	ALTER SERVER a OPTIONS(SET a 's')
 accept	accept	engine	alter_generic_option_elem/SET_generic_option_elem!drop-2	ALTER SERVER a OPTIONS(SET 's')
-accept	reject@28	engine	alter_generic_option_elem/SET_generic_option_elem!drop-3	ALTER SERVER a OPTIONS(SET a)
-accept	reject@28	engine	alter_generic_option_elem/SET_generic_option_elem!truncate	ALTER SERVER a OPTIONS(SET a
+reject@28	reject@28	engine	alter_generic_option_elem/SET_generic_option_elem!drop-3	ALTER SERVER a OPTIONS(SET a)
+reject@28	reject@28	engine	alter_generic_option_elem/SET_generic_option_elem!truncate	ALTER SERVER a OPTIONS(SET a
 reject@33	reject@33	engine	alter_generic_option_elem/SET_generic_option_elem!insert	ALTER SERVER a OPTIONS(SET a 's' zzz)
-reject@31	reject@29	engine	alter_generic_option_elem/SET_generic_option_elem!swap	ALTER SERVER a OPTIONS(SETOF a 's')
+reject@29	reject@29	engine	alter_generic_option_elem/SET_generic_option_elem!swap	ALTER SERVER a OPTIONS(SETOF a 's')
 accept	accept	engine	alter_generic_option_elem/ADD_P_generic_option_elem	ALTER SERVER a OPTIONS(ADD a 's')
 accept	accept	engine	alter_generic_option_elem/ADD_P_generic_option_elem!drop-2	ALTER SERVER a OPTIONS(ADD 's')
-accept	reject@28	engine	alter_generic_option_elem/ADD_P_generic_option_elem!drop-3	ALTER SERVER a OPTIONS(ADD a)
-accept	reject@28	engine	alter_generic_option_elem/ADD_P_generic_option_elem!truncate	ALTER SERVER a OPTIONS(ADD a
+reject@28	reject@28	engine	alter_generic_option_elem/ADD_P_generic_option_elem!drop-3	ALTER SERVER a OPTIONS(ADD a)
+reject@28	reject@28	engine	alter_generic_option_elem/ADD_P_generic_option_elem!truncate	ALTER SERVER a OPTIONS(ADD a
 reject@33	reject@33	engine	alter_generic_option_elem/ADD_P_generic_option_elem!insert	ALTER SERVER a OPTIONS(ADD a 's' zzz)
-reject@31	reject@29	engine	alter_generic_option_elem/ADD_P_generic_option_elem!swap	ALTER SERVER a OPTIONS(ADMIN a 's')
+reject@29	reject@29	engine	alter_generic_option_elem/ADD_P_generic_option_elem!swap	ALTER SERVER a OPTIONS(ADMIN a 's')
 accept	accept	engine	alter_generic_option_elem/DROP_generic_option_name	ALTER SERVER a OPTIONS(DROP a)
-accept	reject@27	engine	alter_generic_option_elem/DROP_generic_option_name!drop-2	ALTER SERVER a OPTIONS(DROP)
-accept	reject@27	engine	alter_generic_option_elem/DROP_generic_option_name!truncate	ALTER SERVER a OPTIONS(DROP
+reject@27	reject@27	engine	alter_generic_option_elem/DROP_generic_option_name!drop-2	ALTER SERVER a OPTIONS(DROP)
+reject@27	reject@27	engine	alter_generic_option_elem/DROP_generic_option_name!truncate	ALTER SERVER a OPTIONS(DROP
 reject@30	reject@30	engine	alter_generic_option_elem/DROP_generic_option_name!insert	ALTER SERVER a OPTIONS(DROP a zzz)
-accept	reject@28	engine	alter_generic_option_elem/DROP_generic_option_name!swap	ALTER SERVER a OPTIONS(EACH a)
+reject@28	reject@28	engine	alter_generic_option_elem/DROP_generic_option_name!swap	ALTER SERVER a OPTIONS(EACH a)
 accept	accept	engine	generic_option_elem/generic_option_name_generic_option_arg	ALTER SERVER a OPTIONS(a 's')
 accept	accept	engine	generic_option_name/ColLabel	ALTER SERVER a OPTIONS(a 's')
-accept	reject@23	engine	generic_option_name/ColLabel!truncate	ALTER SERVER a OPTIONS(
-reject@29	reject@25	engine	generic_option_name/ColLabel!insert	ALTER SERVER a OPTIONS(a zzz 's')
+reject@23	reject@23	engine	generic_option_name/ColLabel!truncate	ALTER SERVER a OPTIONS(
+reject@25	reject@25	engine	generic_option_name/ColLabel!insert	ALTER SERVER a OPTIONS(a zzz 's')
 accept	accept	engine	generic_option_arg/Sconst	ALTER SERVER a OPTIONS(a 's')
 accept	accept	engine	CreateForeignServerStmt/CREATE_SERVER_name_opt_type_opt_foreign_server_version_FOREIGN_DATA_P_WRAPPER_name_create_generic_options	CREATE SERVER a FOREIGN DATA WRAPPER a
 accept	accept	engine	CreateForeignServerStmt/CREATE_SERVER_IF_P_NOT_EXISTS_name_opt_type_opt_foreign_server_version_FOREIGN_DATA_P_WRAPPER_name_create_generic_options	CREATE SERVER IF NOT EXISTS a FOREIGN DATA WRAPPER a
@@ -3602,10 +3602,10 @@ reject@21	reject@21	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_serv
 reject@15	reject@15	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-4	ALTER SERVER a 's' OPTIONS(a 's')
 accept	reject@23	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-5	ALTER SERVER a VERSION OPTIONS(a 's')
 reject@26	reject@26	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-6	ALTER SERVER a VERSION 's'(a 's')
-accept	reject@35	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-7	ALTER SERVER a VERSION 's' OPTIONS a 's')
-accept	reject@35	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-8	ALTER SERVER a VERSION 's' OPTIONS('s')
-accept	reject@36	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-9	ALTER SERVER a VERSION 's' OPTIONS(a)
-accept	reject@40	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-10	ALTER SERVER a VERSION 's' OPTIONS(a 's'
+reject@35	reject@35	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-7	ALTER SERVER a VERSION 's' OPTIONS a 's')
+reject@35	reject@35	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-8	ALTER SERVER a VERSION 's' OPTIONS('s')
+reject@36	reject@36	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-9	ALTER SERVER a VERSION 's' OPTIONS(a)
+reject@40	reject@40	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!drop-10	ALTER SERVER a VERSION 's' OPTIONS(a 's'
 reject@42	reject@42	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!insert	ALTER SERVER a VERSION 's' OPTIONS(a 's') zzz
 reject@0	reject@0	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version_alter_generic_options!swap	ALWAYS SERVER a VERSION 's' OPTIONS(a 's')
 accept	accept	engine	AlterForeignServerStmt/ALTER_SERVER_name_foreign_server_version	ALTER SERVER a VERSION 's'
@@ -3637,7 +3637,7 @@ reject@31	reject@31	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified
 reject@23	reject@23	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-5	CREATE FOREIGN TABLE a OF a DEFAULT SERVER a
 reject@33	reject@33	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-6	CREATE FOREIGN TABLE a PARTITION a DEFAULT SERVER a
 reject@36	reject@36	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-7	CREATE FOREIGN TABLE a PARTITION OF DEFAULT SERVER a
-accept	reject@38	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-8	CREATE FOREIGN TABLE a PARTITION OF a SERVER a
+reject@38	reject@38	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-8	CREATE FOREIGN TABLE a PARTITION OF a SERVER a
 reject@46	reject@46	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-9	CREATE FOREIGN TABLE a PARTITION OF a DEFAULT a
 accept	reject@52	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-10	CREATE FOREIGN TABLE a PARTITION OF a DEFAULT SERVER
 reject@55	reject@55	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!insert	CREATE FOREIGN TABLE a PARTITION OF a DEFAULT SERVER a zzz
@@ -3653,7 +3653,7 @@ reject@45	reject@45	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_
 reject@37	reject@37	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-8	CREATE FOREIGN TABLE IF NOT EXISTS a OF a DEFAULT SERVER a
 reject@47	reject@47	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-9	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION a DEFAULT SERVER a
 reject@50	reject@50	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-10	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF DEFAULT SERVER a
-accept	reject@52	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-11	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF a SERVER a
+reject@52	reject@52	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-11	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF a SERVER a
 reject@60	reject@60	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-12	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF a DEFAULT a
 accept	reject@66	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!drop-13	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF a DEFAULT SERVER
 reject@69	reject@69	engine	CreateForeignTableStmt/CREATE_FOREIGN_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_SERVER_name_create_generic_options!insert	CREATE FOREIGN TABLE IF NOT EXISTS a PARTITION OF a DEFAULT SERVER a zzz
@@ -6549,7 +6549,7 @@ reject@23	reject@23	engine	opt_column/%empty!insert	ALTER TABLE a DROP zzz a
 accept	accept	engine	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
 reject@22	reject@22	engine	opt_set_data/SET_DATA_P!drop-1	ALTER TABLE a ALTER a DATA TYPE a
 reject@26	reject@26	engine	opt_set_data/SET_DATA_P!drop-2	ALTER TABLE a ALTER a SET TYPE a
-reject@35	reject@31	engine	opt_set_data/SET_DATA_P!insert	ALTER TABLE a ALTER a SET DATA zzz TYPE a
+reject@31	reject@31	engine	opt_set_data/SET_DATA_P!insert	ALTER TABLE a ALTER a SET DATA zzz TYPE a
 reject@22	reject@22	engine	opt_set_data/SET_DATA_P!swap	ALTER TABLE a ALTER a SETOF DATA TYPE a
 accept	accept	engine	opt_set_data/%empty	ALTER TABLE a ALTER a TYPE a
 reject@22	reject@22	engine	opt_set_data/%empty!insert	ALTER TABLE a ALTER a zzz TYPE a

@@ -15,7 +15,10 @@ func (p *Parser) parseCreateFdwStmt() (nodes.Node, error) {
 	}
 	name, _ := p.parseName()
 	funcOptions := p.parseOptFdwOptions()
-	options := p.parseCreateGenericOptions()
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateFdwStmt{
 		Fdwname:     name,
 		FuncOptions: funcOptions,
@@ -66,7 +69,10 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 
 	funcOptions := p.parseOptFdwOptions()
 	if p.cur.Type == OPTIONS {
-		options := p.parseAlterGenericOptions()
+		options, err := p.parseAlterGenericOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterFdwStmt{
 			Fdwname:     name,
 			FuncOptions: funcOptions,
@@ -129,26 +135,43 @@ func (p *Parser) parseOptFdwOptions() *nodes.List {
 	return &nodes.List{Items: items}
 }
 
-func (p *Parser) parseCreateGenericOptions() *nodes.List {
+// parseCreateGenericOptions parses create_generic_options.
+//
+//	create_generic_options: OPTIONS '(' generic_option_list ')' | /* EMPTY */
+func (p *Parser) parseCreateGenericOptions() (*nodes.List, error) {
 	if p.cur.Type != OPTIONS {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	p.expect('(')
-	list := p.parseGenericOptionList()
-	p.expect(')')
-	return list
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseGenericOptionList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
-func (p *Parser) parseGenericOptionList() *nodes.List {
-	elem := p.parseGenericOptionElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
-		p.advance()
-		elem = p.parseGenericOptionElem()
+// parseGenericOptionList parses generic_option_list.
+//
+//	generic_option_list: generic_option_elem | generic_option_list ',' generic_option_elem
+func (p *Parser) parseGenericOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		elem, err := p.parseGenericOptionElem()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, elem)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseHandlerName parses handler_name: name | name attrs
@@ -190,7 +213,10 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	fdwname, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateForeignServerStmt{
 		Servername:  name,
 		Servertype:  servertype,
@@ -243,7 +269,10 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 	}
 	var options *nodes.List
 	if p.cur.Type == OPTIONS {
-		options = p.parseAlterGenericOptions()
+		var err error
+		if options, err = p.parseAlterGenericOptions(); err != nil {
+			return nil, err
+		}
 	}
 	return &nodes.AlterForeignServerStmt{
 		Servername: name,
@@ -330,12 +359,18 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		partbound := p.parseForValues()
+		partbound, err := p.parseForValues()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(SERVER); err != nil {
 			return nil, err
 		}
 		servername, _ := p.parseName()
-		options := p.parseCreateGenericOptions()
+		options, err := p.parseCreateGenericOptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.CreateForeignTableStmt{
 			Base: nodes.CreateStmt{
 				Relation:     rv,
@@ -369,7 +404,10 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	servername, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateForeignTableStmt{
 		Base: nodes.CreateStmt{
 			Relation:     rv,
@@ -434,7 +472,10 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	localSchema, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ImportForeignSchemaStmt{
 		ServerName:   serverName,
 		RemoteSchema: remoteSchema,
@@ -473,7 +514,10 @@ func (p *Parser) parseCreateUserMappingIfNotExistsStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	servername, _ := p.parseName()
-	options := p.parseCreateGenericOptions()
+	options, err := p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CreateUserMappingStmt{
 		User:        user,
 		Servername:  servername,
@@ -499,7 +543,10 @@ func (p *Parser) parseAlterUserMappingStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	servername, _ := p.parseName()
-	options := p.parseAlterGenericOptions()
+	options, err := p.parseAlterGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterUserMappingStmt{
 		User:       user,
 		Servername: servername,

@@ -1057,6 +1057,13 @@ func (p *Parser) isSelectTerminator() bool {
 
 // parseTableReferenceList parses a comma-separated list of table references (with joins).
 func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
+	return p.parseTableRefList(true)
+}
+
+// parseTableRefList reads a comma-separated table reference list. escaped says
+// whether an element may be ODBC's `{ident table_ref}`: derived_table_list's
+// esc_table_ref takes it, a parenthesized nested list's table_ref does not.
+func (p *Parser) parseTableRefList(escaped bool) ([]nodes.TableExpr, error) {
 	var refs []nodes.TableExpr
 
 	for {
@@ -1068,7 +1075,13 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseTableReference()
+		var ref nodes.TableExpr
+		var err error
+		if escaped {
+			ref, err = p.parseEscTableReference()
+		} else {
+			ref, err = p.parseTableReference()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1080,6 +1093,28 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	}
 
 	return refs, nil
+}
+
+// parseEscTableReference reads esc_table_ref: a table reference, or one in
+// ODBC's escape `{ident table_ref}`, which is the reference itself.
+//
+// Ref: esc_table_ref in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseEscTableReference() (nodes.TableExpr, error) {
+	if p.cur.Type != '{' {
+		return p.parseTableReference()
+	}
+	p.advance() // consume '{'
+	if _, _, err := p.parseIdent(); err != nil {
+		return nil, err
+	}
+	ref, err := p.parseTableReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	return ref, nil
 }
 
 func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {
@@ -1682,8 +1717,9 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			return sub, nil
 		}
 
-		// Parenthesized table references use MySQL nested-join semantics.
-		refs, err := p.parseTableReferenceList()
+		// Parenthesized table references use MySQL nested-join semantics. They
+		// are table_refs, which take no ODBC escape.
+		refs, err := p.parseTableRefList(false)
 		if err != nil {
 			return nil, err
 		}
@@ -2899,9 +2935,26 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// FORCE and IGNORE take key_usage_list, which is never empty; USE takes
+	// opt_key_usage_list. An element is an ident or PRIMARY.
+	//
+	// Ref: index_hint_definition and key_usage_element in MariaDB 11.8
+	// sql/sql_yacc.yy.
+	if p.cur.Type == ')' && hint.Type != nodes.HintUse {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type != ')' {
 		// Parse comma-separated index names
 		for {
+			if p.cur.Type == kwPRIMARY {
+				p.advance()
+				hint.Indexes = append(hint.Indexes, "PRIMARY")
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+				continue
+			}
 			name, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err

@@ -170,7 +170,11 @@ func (p *Parser) parseCreateStmtPartitionOf(stmt *nodes.CreateStmt, relpersisten
 
 	// ForValues
 	stmt.InhRelations = &nodes.List{Items: []nodes.Node{parentRv}}
-	stmt.Partbound = p.parseForValues()
+	partbound, err := p.parseForValues()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Partbound = partbound
 
 	// OptPartitionSpec
 	partspec, err := p.parseOptPartitionSpec()
@@ -337,7 +341,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		Loc:      nodes.NoLoc(),
 	}
 
-	n.Fdwoptions = p.parseCreateGenericOptions()
+	n.Fdwoptions, err = p.parseCreateGenericOptions()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_column_constraints
 	qualList, err := p.parseOptColumnConstraints()
@@ -2065,13 +2072,13 @@ func (p *Parser) parseOptTableSpace() (string, error) {
 // parseForValues parses ForValues (partition bound spec).
 //
 //	ForValues: PartitionBoundSpec | DEFAULT
-func (p *Parser) parseForValues() nodes.Node {
+func (p *Parser) parseForValues() (*nodes.PartitionBoundSpec, error) {
 	if p.cur.Type == DEFAULT {
 		p.advance()
 		return &nodes.PartitionBoundSpec{
 			IsDefault: true,
 			Loc:       nodes.NoLoc(),
-		}
+		}, nil
 	}
 	return p.parsePartitionBoundSpec()
 }
@@ -2082,98 +2089,109 @@ func (p *Parser) parseForValues() nodes.Node {
 //	    FOR VALUES IN '(' expr_list ')'
 //	    | FOR VALUES FROM '(' expr_list ')' TO '(' expr_list ')'
 //	    | FOR VALUES WITH '(' hash_partbound ')'
-func (p *Parser) parsePartitionBoundSpec() *nodes.PartitionBoundSpec {
-	p.expect(FOR)
-	p.expect(VALUES)
+func (p *Parser) parsePartitionBoundSpec() (*nodes.PartitionBoundSpec, error) {
+	if _, err := p.expect(FOR); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(VALUES); err != nil {
+		return nil, err
+	}
 
 	switch p.cur.Type {
 	case IN_P:
 		p.advance()
-		p.expect('(')
-		list := p.parseAExprList()
-		p.expect(')')
+		list, err := p.parseParenExprList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.PartitionBoundSpec{
 			Strategy:   'l',
 			Listdatums: list,
 			Loc:        nodes.NoLoc(),
-		}
+		}, nil
 	case FROM:
 		p.advance()
-		p.expect('(')
-		lower := p.parseAExprList()
-		p.expect(')')
-		p.expect(TO)
-		p.expect('(')
-		upper := p.parseAExprList()
-		p.expect(')')
+		lower, err := p.parseParenExprList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+		upper, err := p.parseParenExprList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.PartitionBoundSpec{
 			Strategy:    'r',
 			Lowerdatums: lower,
 			Upperdatums: upper,
 			Loc:         nodes.NoLoc(),
-		}
+		}, nil
 	case WITH:
 		p.advance()
-		p.expect('(')
-		bounds := p.parseHashPartbound()
-		p.expect(')')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
 		spec := &nodes.PartitionBoundSpec{
 			Strategy:  'h',
 			Modulus:   -1,
 			Remainder: -1,
 			Loc:       nodes.NoLoc(),
 		}
-		for _, item := range bounds.Items {
-			opt := item.(*nodes.DefElem)
-			switch opt.Defname {
-			case "modulus":
-				spec.Modulus = int(opt.Arg.(*nodes.Integer).Ival)
-			case "remainder":
-				spec.Remainder = int(opt.Arg.(*nodes.Integer).Ival)
+		// hash_partbound: hash_partbound_elem [, ...]
+		var unknown *ParseError
+		for {
+			// hash_partbound_elem: NonReservedWord Iconst
+			nameTok := p.cur
+			name, err := p.parseNonReservedWord()
+			if err != nil {
+				return nil, err
 			}
+			val, err := p.expect(ICONST)
+			if err != nil {
+				return nil, err
+			}
+			switch name {
+			case "modulus":
+				spec.Modulus = int(val.Ival)
+			case "remainder":
+				spec.Remainder = int(val.Ival)
+			default:
+				if unknown == nil {
+					unknown = p.syntaxErrorAtTok(nameTok)
+				}
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
 		}
-		return spec
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// gram.y's action rejects any other name as a syntax error at it,
+		// once the whole bound has been read.
+		if unknown != nil {
+			return nil, unknown
+		}
+		return spec, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-	return nil
 }
 
-// parseAExprList parses a comma-separated list of a_expr.
-func (p *Parser) parseAExprList() *nodes.List {
-	expr, _ := p.parseAExpr(0)
-	items := []nodes.Node{expr}
-	for p.cur.Type == ',' {
-		p.advance()
-		expr, _ = p.parseAExpr(0)
-		items = append(items, expr)
+// parseParenExprList parses '(' expr_list ')'.
+func (p *Parser) parseParenExprList() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	return &nodes.List{Items: items}
-}
-
-// parseHashPartbound parses hash_partbound.
-//
-//	hash_partbound: hash_partbound_elem | hash_partbound ',' hash_partbound_elem
-func (p *Parser) parseHashPartbound() *nodes.List {
-	elem := p.parseHashPartboundElem()
-	items := []nodes.Node{elem}
-	for p.cur.Type == ',' {
-		p.advance()
-		elem = p.parseHashPartboundElem()
-		items = append(items, elem)
+	list, err := p.parseExprListFull()
+	if err != nil {
+		return nil, err
 	}
-	return &nodes.List{Items: items}
-}
-
-// parseHashPartboundElem parses a single hash_partbound_elem.
-//
-//	hash_partbound_elem: NonReservedWord Iconst
-func (p *Parser) parseHashPartboundElem() *nodes.DefElem {
-	// NonReservedWord is similar to ColId
-	name, _ := p.parseColId()
-	val := p.cur.Ival
-	p.advance() // ICONST
-	return &nodes.DefElem{
-		Defname: name,
-		Arg:     &nodes.Integer{Ival: val},
-		Loc:     nodes.NoLoc(),
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
+	return list, nil
 }
