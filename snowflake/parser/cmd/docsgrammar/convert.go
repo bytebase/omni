@@ -46,6 +46,9 @@ func placeholderClass(name string) string {
 		return tObjectTypes
 	case n == "copy_statement":
 		return tCopy
+	case n == "col_default" || n == "col_write_default" || n == "default_value":
+		// DEFAULT 100: a default is an expression.
+		return tExpr
 	case n == "timestamp" || n == "function_definition" || n == "procedure_definition" || n == "yaml_definition":
 		// START_TIMESTAMP = '2026-11-13'; AS '<body>' or $$<body>$$.
 		return tString
