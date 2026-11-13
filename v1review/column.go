@@ -1,5 +1,7 @@
 package v1review
 
+import "github.com/bytebase/omni/metadata"
+
 // The codes the column rules report. The V1 payloads these rules read are
 // plain values, so each rule function takes them as parameters: a number
 // payload as an int, a string list payload as a []string, and a comment
@@ -59,3 +61,17 @@ const (
 	// ColumnInIndexDropped: a statement drops a column an index uses.
 	ColumnInIndexDropped Code = "column-in-index-dropped"
 )
+
+// TableIndexesByName returns the indexes on the table of that name, one per
+// name, a later index replacing an earlier one of the same name where the
+// first stood: what Bytebase's GetTable(t).ListIndexes() holds. A
+// partition's name finds the partition, which has no indexes of its own, so
+// it returns nil, as it does for a missing schema or table; TableIndexes
+// gives a partition its table's indexes instead.
+func (s Schema) TableIndexesByName(schemaName, tableName string, indexCaseSensitive bool) []*metadata.IndexMetadata {
+	table, partition := s.table(schemaName, tableName)
+	if table == nil || partition {
+		return nil
+	}
+	return lastOfEachName(table.GetIndexes(), indexCaseSensitive, indexNameOf)
+}
