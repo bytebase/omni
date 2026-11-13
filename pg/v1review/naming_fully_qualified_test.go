@@ -105,7 +105,7 @@ func TestNamingFullyQualified(t *testing.T) {
 		},
 		{
 			name: "drop reports each unqualified object, whatever it drops",
-			sql:  "DROP TABLE a, s.b, c; DROP INDEX CONCURRENTLY i; DROP VIEW v; DROP SEQUENCE q; DROP TYPE ty; DROP SCHEMA sch; DROP EXTENSION ext;",
+			sql:  "DROP TABLE a, s.b, c; DROP INDEX CONCURRENTLY i; DROP VIEW v; DROP SEQUENCE q; DROP TYPE ty; DROP SCHEMA sch; DROP EXTENSION ext; DROP TYPE SETOF tz, s.tq[];",
 			want: []unqualifiedFinding{
 				unqualified("a", "DROP TABLE a, s.b, c"),
 				unqualified("c", "DROP TABLE a, s.b, c"),
@@ -115,6 +115,7 @@ func TestNamingFullyQualified(t *testing.T) {
 				unqualified("ty", "DROP TYPE ty"),
 				unqualified("sch", "DROP SCHEMA sch"),
 				unqualified("ext", "DROP EXTENSION ext"),
+				unqualified("tz", "DROP TYPE SETOF tz, s.tq[]"),
 			},
 		},
 		{
