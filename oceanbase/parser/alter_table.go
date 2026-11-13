@@ -625,7 +625,8 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// {DROP PARTITION | DROP SUBPARTITION} drop_partition_name_list, which is
 		// name_list or name_list in parentheses. SUBPARTITION is unreserved, so
 		// with no name after it, it is the column DROP drops.
-		if next := p.peekNext().Type; p.cur.Type == kwSUBPARTITION && (next == tokEOF || next == ';' || next == ',') {
+		if next := p.peekNext().Type; p.cur.Type == kwSUBPARTITION &&
+			(next == tokEOF || next == ';' || next == ',' || next == kwRESTRICT || next == kwCASCADE) {
 			return p.parseAlterDropColumn(cmd)
 		}
 		cmd.Type = nodes.ATDropPartition
@@ -919,7 +920,10 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 
 	// {ALTER PARTITION | ALTER SUBPARTITION} name_list STORAGE_CACHE_POLICY = 'policy'
 	// (alter_partition_option, sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6).
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+	// SUBPARTITION is unreserved, so before SET or DROP it is the column ALTER
+	// changes the default of.
+	if next := p.peekNext().Type; p.cur.Type == kwPARTITION ||
+		(p.cur.Type == kwSUBPARTITION && next != kwSET && next != kwDROP) {
 		cmd.Type = nodes.ATAlterPartitionStorageCachePolicy
 		cmd.Name = strings.ToUpper(p.advance().Str)
 		names, err := p.parseNameList()
