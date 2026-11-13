@@ -2857,8 +2857,10 @@ func nameQuotedFunction(p *Parser, schema string) bool {
 }
 
 // parseODBCEscape reads `{ident expr}`, ODBC's escape. With d, t or ts and a
-// string it is that DATE, TIME or TIMESTAMP literal; anything else is the
-// expression itself.
+// string the server makes it that DATE, TIME or TIMESTAMP literal, and keeps
+// the string when the conversion fails. omni converts only a string in the
+// canonical form with its fields in range (odbcTemporalValid) and keeps every
+// other one as the string, so it never writes a literal the server refuses.
 //
 // Ref: `'{' ident expr '}'` and PTI_odbc_date in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
@@ -2880,9 +2882,69 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 	}
 	if lit, ok := expr.(*nodes.StringLit); ok {
 		kind := map[string]string{"D": "DATE", "T": "TIME", "TS": "TIMESTAMP"}[strings.ToUpper(word)]
-		if kind != "" {
+		if kind != "" && odbcTemporalValid(kind, lit.Value) {
 			return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: kind, Value: lit.Value}, nil
 		}
 	}
 	return expr, nil
+}
+
+// odbcTemporalValid reports whether v is kind's canonical text with each field
+// in range: YYYY-MM-DD, HH:MM:SS[.fraction], or the two joined by a space.
+func odbcTemporalValid(kind, v string) bool {
+	date := func(d string) bool {
+		if len(d) != 10 || d[4] != '-' || d[7] != '-' {
+			return false
+		}
+		y, ok1 := atoiDigits(d[:4])
+		m, ok2 := atoiDigits(d[5:7])
+		day, ok3 := atoiDigits(d[8:])
+		if !ok1 || !ok2 || !ok3 || m < 1 || m > 12 || day < 1 {
+			return false
+		}
+		days := [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}[m]
+		if m == 2 && y%4 == 0 && (y%100 != 0 || y%400 == 0) {
+			days = 29
+		}
+		return day <= days
+	}
+	clock := func(t string) bool {
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			if _, ok := atoiDigits(t[i+1:]); !ok || len(t)-i-1 > 6 {
+				return false
+			}
+			t = t[:i]
+		}
+		if len(t) != 8 || t[2] != ':' || t[5] != ':' {
+			return false
+		}
+		h, ok1 := atoiDigits(t[:2])
+		mi, ok2 := atoiDigits(t[3:5])
+		sec, ok3 := atoiDigits(t[6:])
+		return ok1 && ok2 && ok3 && h <= 23 && mi <= 59 && sec <= 59
+	}
+	switch kind {
+	case "DATE":
+		return date(v)
+	case "TIME":
+		return clock(v)
+	default:
+		d, t, ok := strings.Cut(v, " ")
+		return ok && date(d) && clock(t)
+	}
+}
+
+// atoiDigits reads s as a run of decimal digits.
+func atoiDigits(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		n = n*10 + int(s[i]-'0')
+	}
+	return n, true
 }
