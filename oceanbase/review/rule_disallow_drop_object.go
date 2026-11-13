@@ -99,12 +99,16 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 					reportAt(review.DropCode("column"), rangeOf(cmd.Loc), dropsOf("column", table(v.Table), ident(cmd.Name)))
 				case dropIndex:
 					reportAt(review.DropCode("index"), rangeOf(cmd.Loc), dropsOf("index", table(v.Table), ident(cmd.Name)))
-				case dropPartition:
+				case dropPartition, dropSubpartition:
+					kind := "partition"
+					if cmd.Type == ast.ATDropSubpartition {
+						kind = "subpartition"
+					}
 					names := make([]string, len(cmd.PartitionNames))
 					for i, name := range cmd.PartitionNames {
 						names[i] = ident(name)
 					}
-					reportAt(review.DropCode("partition"), rangeOf(cmd.Loc), dropsOf("partition", table(v.Table), names...))
+					reportAt(review.DropCode(kind), rangeOf(cmd.Loc), dropsOf(kind, table(v.Table), names...))
 				}
 			}
 		}
