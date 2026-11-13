@@ -34,6 +34,7 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS SELECT d.`(1)` FROM (SELECT (1)) d", 0},
 		{"CREATE VIEW v AS SELECT d.`zz` FROM (SELECT 4) d", 1054},
 		{"CREATE VIEW v AS WITH RECURSIVE r AS (SELECT 1+1 UNION ALL SELECT 3 FROM r WHERE 0) SELECT `1+1` FROM r", 0},
+		{"CREATE VIEW v AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r", 0},
 		{"CREATE VIEW v AS SELECT x.column_0 FROM (VALUES ROW(1)) x", 0},
 		{"CREATE VIEW v AS VALUES ROW(1) ORDER BY column_0", 0},
 	} {

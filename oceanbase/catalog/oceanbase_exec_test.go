@@ -381,6 +381,7 @@ func TestOracle_OceanBaseQueryFirst(t *testing.T) {
 			{"CREATE VIEW w2 AS SELECT w1.`(1)` FROM w1", taken},
 			{"CREATE VIEW w3 AS SELECT b AS q FROM a", taken},
 			{"CREATE VIEW w4 AS SELECT w3.zz FROM w3", 1054},
+			{"CREATE VIEW w5 AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r", taken},
 		}},
 	})
 }

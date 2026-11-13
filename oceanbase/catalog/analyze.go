@@ -833,7 +833,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		var innerQ *Query
 		var err error
 
-		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
+		// A recursive body may be written in parentheses, which the set operation
+		// that makes it recursive stands inside: WITH RECURSIVE r(x) AS ((SELECT 1
+		// UNION ALL SELECT x+1 FROM r ...)). deparse's resolver unwraps it the same way.
+		if cte.Recursive && nodes.UnwrapParenSource(cte.Select).SetOp != nodes.SetOpNone {
 			// Recursive CTE: analyze the left arm first to establish columns,
 			// then register the CTE, then analyze the right arm.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
@@ -872,7 +875,7 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 // operation. The left arm establishes column signatures; the right arm may
 // reference the CTE itself.
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
-	stmt := cte.Select
+	stmt := nodes.UnwrapParenSource(cte.Select)
 
 	// Analyze left arm to establish base columns.
 	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)

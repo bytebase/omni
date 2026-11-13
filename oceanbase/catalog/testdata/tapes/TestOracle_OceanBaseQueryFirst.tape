@@ -145,3 +145,6 @@
 | CREATE VIEW w4 AS SELECT w3.zz FROM w3
 < error
 | 1054 42S22 Unknown column 'w3.zz' in 'field list'
+> exec
+| CREATE VIEW w5 AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r
+< ok 0 0
