@@ -831,9 +831,10 @@ alterAccountSetIngressPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-agent
+// fix: the specification is a quoted (or dollar-quoted) YAML or JSON string, as the parameters say
 alterAgent
     : 'ALTER' 'AGENT' ID 'SET' ('COMMENT' '=' STRING ('PROFILE' '=' STRING)? ('SECURE' '=' ('TRUE' | 'FALSE'))? | 'PROFILE' '=' STRING ('SECURE' '=' ('TRUE' | 'FALSE'))? | 'SECURE' '=' ('TRUE' | 'FALSE'))
-    | 'ALTER' 'AGENT' ID 'MODIFY' 'LIVE' 'VERSION' 'SET' 'SPECIFICATION' '=' ID
+    | 'ALTER' 'AGENT' ID 'MODIFY' 'LIVE' 'VERSION' 'SET' 'SPECIFICATION' '=' STRING
     | 'ALTER' 'AGENT' ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'AGENT' ID 'UNSET' 'TAG' ID (',' ID)*
     ;
@@ -2113,8 +2114,9 @@ alterService_fromSpecificationTemplate
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-session
+// fix: the parameters may be separated by spaces or commas, as the SET parameter says
 alterSession
-    : 'ALTER' 'SESSION' 'SET' alterSession_sessionParams
+    : 'ALTER' 'SESSION' 'SET' alterSession_sessionParams (',' alterSession_sessionParams)*
     | 'ALTER' 'SESSION' 'UNSET' ID (',' ID)*
     ;
 alterSession_sessionParams
@@ -2962,8 +2964,9 @@ createDataset
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-dbt-project
+// fix: the version is a quoted string, as the example and the ALTER and EXECUTE pages write it
 createDbtProject
-    : 'CREATE' ('OR' 'REPLACE')? 'DBT' 'PROJECT' ('IF' 'NOT' 'EXISTS')? ID 'FROM' STRING ('DBT_VERSION' '=' NUMBER)? ('DEFAULT_TARGET' '=' ID)? ('DEFAULT_ENVIRONMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('AUTO_COMPILE' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_WRITEBACK' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'DBT' 'PROJECT' ('IF' 'NOT' 'EXISTS')? ID 'FROM' STRING ('DBT_VERSION' '=' STRING)? ('DEFAULT_TARGET' '=' ID)? ('DEFAULT_ENVIRONMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('AUTO_COMPILE' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_WRITEBACK' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-dcm-project

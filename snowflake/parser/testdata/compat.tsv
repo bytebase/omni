@@ -6737,19 +6737,19 @@ reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_(COMMENT_=_STRING_(PROFIL
 reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_(COMMENT_=_STRING_(PROFILE_=_STRING)~56436dc9!drop-7	ALTER AGENT a SET COMMENT =
 reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_(COMMENT_=_STRING_(PROFILE_=_STRING)~56436dc9!insert	ALTER AGENT a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_(COMMENT_=_STRING_(PROFILE_=_STRING)~56436dc9!swap	ALWAYS AGENT a SET COMMENT = 's'
-reject	accept	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-1	AGENT a MODIFY LIVE VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-2	ALTER a MODIFY LIVE VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-3	ALTER AGENT MODIFY LIVE VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-4	ALTER AGENT a LIVE VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-5	ALTER AGENT a MODIFY VERSION SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-6	ALTER AGENT a MODIFY LIVE SET SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-7	ALTER AGENT a MODIFY LIVE VERSION SPECIFICATION = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-8	ALTER AGENT a MODIFY LIVE VERSION SET = a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-9	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION a
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!drop-10	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION =
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!insert	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION = a zzz
-reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_ID!swap	ALWAYS AGENT a MODIFY LIVE VERSION SET SPECIFICATION = a
+reject	accept	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-1	AGENT a MODIFY LIVE VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-2	ALTER a MODIFY LIVE VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-3	ALTER AGENT MODIFY LIVE VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-4	ALTER AGENT a LIVE VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-5	ALTER AGENT a MODIFY VERSION SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-6	ALTER AGENT a MODIFY LIVE SET SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-7	ALTER AGENT a MODIFY LIVE VERSION SPECIFICATION = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-8	ALTER AGENT a MODIFY LIVE VERSION SET = 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-9	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION 's'
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!drop-10	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION =
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!insert	ALTER AGENT a MODIFY LIVE VERSION SET SPECIFICATION = 's' zzz
+reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_MODIFY_LIVE_VERSION_SET_SPECIFICATION_=_STRING!swap	ALWAYS AGENT a MODIFY LIVE VERSION SET SPECIFICATION = 's'
 reject	accept	docs	alterAgent/ALTER_AGENT_ID_SET_TAG_ID_=_STRING_(,_ID_=_STRING)*	ALTER AGENT a SET TAG a = 's'
 reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-1	AGENT a SET TAG a = 's'
 reject	undocumented	docs	alterAgent/ALTER_AGENT_ID_SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-2	ALTER a SET TAG a = 's'
@@ -21849,16 +21849,23 @@ reject	undocumented	docs	alterService_fromSpecificationTemplate(,_ID_=>_EXPR)*/,
 reject	undocumented	docs	alterService_fromSpecificationTemplate(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!drop-4	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1, a =>)
 reject	undocumented	docs	alterService_fromSpecificationTemplate(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!truncate	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1, a =>
 reject	undocumented	docs	alterService_fromSpecificationTemplate(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!insert	ALTER SERVICE a FROM SPECIFICATION_TEMPLATE 's' USING(a => 1, a => 1 zzz)
-accept	accept	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-1	SESSION SET ABORT_DETACHED_QUERY = TRUE
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-2	ALTER SET ABORT_DETACHED_QUERY = TRUE
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-3	ALTER SESSION ABORT_DETACHED_QUERY = TRUE
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-4	ALTER SESSION SET = TRUE
-accept	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-5	ALTER SESSION SET ABORT_DETACHED_QUERY TRUE
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!drop-6	ALTER SESSION SET ABORT_DETACHED_QUERY =
-accept	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!insert	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE zzz
-reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams!swap	ALWAYS SESSION SET ABORT_DETACHED_QUERY = TRUE
+accept	accept	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-1	SESSION SET ABORT_DETACHED_QUERY = TRUE
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-2	ALTER SET ABORT_DETACHED_QUERY = TRUE
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-3	ALTER SESSION ABORT_DETACHED_QUERY = TRUE
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-4	ALTER SESSION SET = TRUE
+accept	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-5	ALTER SESSION SET ABORT_DETACHED_QUERY TRUE
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!drop-6	ALTER SESSION SET ABORT_DETACHED_QUERY =
+accept	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!insert	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE zzz
+reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!swap	ALWAYS SESSION SET ABORT_DETACHED_QUERY = TRUE
 accept	accept	docs	alterSession/ALTER_SESSION_UNSET_ID_(,_ID)*	ALTER SESSION UNSET a
+accept	accept	docs	alterSession(,_alterSession_sessionParams)*/%empty	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE
+reject	accept	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE
+reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-2	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, = TRUE
+reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-3	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY TRUE
+reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-4	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY =
+reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!insert	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE zzz
+reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!swap	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_STATEMENT = TRUE
 accept	accept	docs	alterSession(,_ID)*/%empty	ALTER SESSION UNSET a
 accept	accept	docs	alterSession(,_ID)*/,_ID_(,_ID)*	ALTER SESSION UNSET a, a
 reject	undocumented	docs	alterSession(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER SESSION UNSET a a
@@ -32374,7 +32381,7 @@ reject	undocumented	docs	createDataset(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREA
 reject	undocumented	docs	createDataset(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE IF NOT
 reject	undocumented	docs	createDataset(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IF NOT EXISTS zzz DATASET a
 reject	undocumented	docs	createDataset(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IGNORE NOT EXISTS DATASET a
-reject	accept	docs	createDbtProject/CREATE_(OR_REPLACE)?_DBT_PROJECT_(IF_NOT_EXISTS)?_ID_FR~2b3b6f9c	CREATE DBT PROJECT a FROM 's'
+reject	accept	docs	createDbtProject/CREATE_(OR_REPLACE)?_DBT_PROJECT_(IF_NOT_EXISTS)?_ID_FR~31a0c301	CREATE DBT PROJECT a FROM 's'
 reject	accept	docs	createDbtProject(OR_REPLACE)?/%empty	CREATE DBT PROJECT a FROM 's'
 reject	undocumented	docs	createDbtProject(OR_REPLACE)?/%empty!insert	CREATE zzz DBT PROJECT a FROM 's'
 reject	accept	docs	createDbtProject(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DBT PROJECT a FROM 's'
@@ -32391,13 +32398,13 @@ reject	undocumented	docs	createDbtProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	C
 reject	undocumented	docs	createDbtProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DBT PROJECT IF NOT
 reject	undocumented	docs	createDbtProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DBT PROJECT IF NOT EXISTS zzz a FROM 's'
 reject	undocumented	docs	createDbtProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DBT PROJECT IGNORE NOT EXISTS a FROM 's'
-reject	accept	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/%empty	CREATE DBT PROJECT a FROM 's'
-reject	accept	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER	CREATE DBT PROJECT a FROM 's' DBT_VERSION = 1
-reject	undocumented	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER!drop-1	CREATE DBT PROJECT a FROM 's' = 1
-reject	undocumented	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER!drop-2	CREATE DBT PROJECT a FROM 's' DBT_VERSION 1
-reject	undocumented	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER!drop-3	CREATE DBT PROJECT a FROM 's' DBT_VERSION =
-reject	undocumented	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER!insert	CREATE DBT PROJECT a FROM 's' DBT_VERSION = 1 zzz
-reject	undocumented	docs	createDbtProject(DBT_VERSION_=_NUMBER)?/DBT_VERSION_=_NUMBER!swap	CREATE DBT PROJECT a FROM 's' DCM = 1
+reject	accept	docs	createDbtProject(DBT_VERSION_=_STRING)?/%empty	CREATE DBT PROJECT a FROM 's'
+reject	accept	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING	CREATE DBT PROJECT a FROM 's' DBT_VERSION = 's'
+reject	undocumented	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-1	CREATE DBT PROJECT a FROM 's' = 's'
+reject	undocumented	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-2	CREATE DBT PROJECT a FROM 's' DBT_VERSION 's'
+reject	undocumented	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-3	CREATE DBT PROJECT a FROM 's' DBT_VERSION =
+reject	undocumented	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!insert	CREATE DBT PROJECT a FROM 's' DBT_VERSION = 's' zzz
+reject	undocumented	docs	createDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!swap	CREATE DBT PROJECT a FROM 's' DCM = 's'
 reject	accept	docs	createDbtProject(DEFAULT_TARGET_=_ID)?/%empty	CREATE DBT PROJECT a FROM 's'
 reject	accept	docs	createDbtProject(DEFAULT_TARGET_=_ID)?/DEFAULT_TARGET_=_ID	CREATE DBT PROJECT a FROM 's' DEFAULT_TARGET = a
 reject	undocumented	docs	createDbtProject(DEFAULT_TARGET_=_ID)?/DEFAULT_TARGET_=_ID!drop-1	CREATE DBT PROJECT a FROM 's' = a
@@ -32407,7 +32414,6 @@ reject	undocumented	docs	createDbtProject(DEFAULT_TARGET_=_ID)?/DEFAULT_TARGET_=
 reject	undocumented	docs	createDbtProject(DEFAULT_TARGET_=_ID)?/DEFAULT_TARGET_=_ID!swap	CREATE DBT PROJECT a FROM 's' DEFAULT_TENANT_TYPE = a
 reject	accept	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/%empty	CREATE DBT PROJECT a FROM 's'
 reject	accept	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/DEFAULT_ENVIRONMENT_=_STRING	CREATE DBT PROJECT a FROM 's' DEFAULT_ENVIRONMENT = 's'
-reject	undocumented	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/DEFAULT_ENVIRONMENT_=_STRING!drop-1	CREATE DBT PROJECT a FROM 's' = 's'
 reject	undocumented	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/DEFAULT_ENVIRONMENT_=_STRING!drop-2	CREATE DBT PROJECT a FROM 's' DEFAULT_ENVIRONMENT 's'
 reject	undocumented	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/DEFAULT_ENVIRONMENT_=_STRING!drop-3	CREATE DBT PROJECT a FROM 's' DEFAULT_ENVIRONMENT =
 reject	undocumented	docs	createDbtProject(DEFAULT_ENVIRONMENT_=_STRING)?/DEFAULT_ENVIRONMENT_=_STRING!insert	CREATE DBT PROJECT a FROM 's' DEFAULT_ENVIRONMENT = 's' zzz
