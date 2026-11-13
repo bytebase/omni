@@ -1,0 +1,43 @@
+# Statements of compat.tsv that the grammar does not decide as its parser
+# does, each with the verdict, the source that gives it, and what says so.
+#
+# grammar: PartiQLParser.g4 derives the statement, and the parser built from
+# it refuses it in the visitor that reads the parse tree, which a recognizer
+# over the rules does not run. Each cite is a line of
+# partiql-parser/src/main/kotlin/org/partiql/parser/internal/PartiQLParserDefault.kt
+# at the pinned release, v0.14.9, and the error it raises there.
+#
+# docs: DynamoDB's developer guide prints the statement and the grammar does
+# not derive it. No row needs one at this pin.
+# columns: verdict, source, cite, statement
+reject	grammar	PartiQLParserDefault.kt:524 "Unknown EXPLAIN parameter.": TYPE and FORMAT are the two	EXPLAIN(a a) a
+reject	grammar	PartiQLParserDefault.kt:2298 "Cannot set EXPLAIN parameter TYPE multiple times."	EXPLAIN(TYPE a, TYPE a) a
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ NULL ]
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH a)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH zzz -)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH ANY zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH ANY 1 zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH ANY SHORTEST zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH SHORTEST 1 zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH SHORTEST 1 GROUP zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH, zzz)
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	SELECT * FROM a MATCH zzz
+reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	SELECT * FROM a MATCH ANY zzz
+reject	grammar	PartiQLParserDefault.kt:1358 "Unrecognized pattern restrictor", in a parenthesized pattern	(a MATCH(a ~))
+reject	grammar	PartiQLParserDefault.kt:1358 "Unrecognized pattern restrictor", in a parenthesized pattern	(a MATCH(zzz ~))
+reject	grammar	PartiQLParserDefault.kt:1789 "Expected one of: ..." a datetime field	DATE_ADD(a, a, a)
+reject	grammar	PartiQLParserDefault.kt:1789 "Expected one of: ..." a datetime field	DATE_DIFF(a, a, a)
+reject	grammar	PartiQLParserDefault.kt:1866 "Expected one of: ..." a datetime field	EXTRACT(a FROM a)
+reject	grammar	PartiQLParserDefault.kt:1877 "Expected on of: ..." BOTH, LEADING or TRAILING before a second argument	TRIM(a zzz FROM a)
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LAG(a) OVER()
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LAG(a) OVER(PARTITION BY a)
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LAG(a) OVER(PARTITION BY a, a)
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LAG(a, a) OVER()
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LAG(a, a, a) OVER()
+reject	grammar	PartiQLParserDefault.kt:1910 "LAG requires Window ORDER BY"	LEAD(a) OVER()
+reject	grammar	PartiQLParserDefault.kt:2009 "Expected DATE string to be of the format yyyy-MM-dd"	DATE 's'
+reject	grammar	PartiQLParserDefault.kt:2027 "Invalid Date Time Literal"	TIME(1) 's'
+reject	grammar	PartiQLParserDefault.kt:2187 "Unable to parse precision.": the string is no time	TIME 's'
+reject	grammar	PartiQLParserDefault.kt:2187 "Unable to parse precision.": the string is no time	TIME WITH TIME ZONE 's'
+reject	grammar	PartiQLParserDefault.kt:2187 "Unable to parse precision.": the string is no time	TIMESTAMP 's'

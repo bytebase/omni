@@ -76,6 +76,14 @@ package catalog
 // Field ordering parallels pg/catalog/query.go::Query for ease of review;
 // MySQL-specific fields (SQLMode, LockClause) are appended last.
 type Query struct {
+	// namesUncertain marks a query with a result column the analyzer cannot name as
+	// OceanBase does: an unaliased expression, which the engine names by its source
+	// text and deriveColumnName writes as ?. It is carried here, not read off the
+	// statement, so it survives a star over such a query and a CTE or set operation
+	// that takes its names. A name a clause then fails to resolve against those
+	// result columns is not known to be missing, and its error is no refusal.
+	namesUncertain bool
+
 	// CommandType discriminates SELECT / INSERT / UPDATE / DELETE.
 	// Phase 1 only emits CmdSelect; the field exists so the IR shape is stable
 	// when DML analysis is added in Phase 8+.
@@ -524,6 +532,9 @@ type CommonTableExprQ struct {
 
 	// Recursive marks WITH RECURSIVE CTEs.
 	Recursive bool
+
+	// namesUncertain marks a CTE whose query carries the same mark.
+	namesUncertain bool
 }
 
 // =============================================================================
