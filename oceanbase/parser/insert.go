@@ -73,7 +73,7 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	}
 
 	// Parse table name
-	tbl, err := p.parseTableRef()
+	tbl, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

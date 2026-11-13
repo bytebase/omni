@@ -36,7 +36,7 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 
 	// Table list
 	for {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 		p.addRuleCandidate("table_ref")
 		return nil, &ParseError{Message: "collecting"}
 	}
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 
 	// View list
 	for {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +178,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error)
 
 	for {
 		pairStart := p.pos()
-		old, err := p.parseTableRef()
+		old, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error)
 			// No specific candidates — user defines a new name.
 			return nil, &ParseError{Message: "collecting"}
 		}
-		newRef, err := p.parseTableRef()
+		newRef, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
