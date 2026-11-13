@@ -23,7 +23,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `snowflake` | No local native database oracle | A native test account or suitable licensed emulator is needed. |
 | `starrocks` | `starrocks/allin1-ubuntu:3.4.10` | Upgrade the native baseline after checking dialect drift. |
 | `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog`, `tidb/parser` and `tidb/review` replay tapes and start no server, and the parser's corpora are `suite:` rows of its `compat.tsv`; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
-| `trino` | `trinodb/trino:482` | Shared helper: `trino/internal/testcontainer`. |
+| `trino` | `trinodb/trino:482`, pinned by digest in `trino/testdata/pins.tsv`, started only by a recording (`OMNI_RECORD=1`) | Work the disagreements down: `compat.tsv` (4,840 rows of `SqlBase.g4` at `482`, 4,106 agreeing to the byte; 183 only Trino accepts, 28 only omni, 523 both reject at another byte, and 980 `suite:` rows from the parser's corpora). Every package replays `compat.tsv` and tapes through `trino/internal/testcontainer` and starts no server: `trino/parser`, `trino/analysis`, `trino/completion` and `trino/deparse`. No `simulate.tsv`: `trino/catalog` executes no DDL. |
 
 ## Shared helper layout
 
