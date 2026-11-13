@@ -260,10 +260,18 @@ var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\
 // countKey is a property that holds a count: of seconds, days, or things.
 var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
 
-// listName is the name of a list of settings, which a fragment holds.
 // camelName is a placeholder written as a fragment's name, <tagAction>.
 var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
 
+// omittedTail is a last line holding only ..., after a line that does not
+// end in a comma: CLONE <source> ... leaves the rest of CREATE out, where
+// X ,\n ... repeats X.
+var omittedTail = regexp.MustCompile(`[^,\s][ \t]*\n[ \t]*\.\.\.\s*$`)
+
+// timeTravelOffset is Time Travel's OFFSET, a negative number of seconds.
+var timeTravelOffset = regexp.MustCompile(`OFFSET => <time_difference>`)
+
+// listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
 // missingBar finds the typo many SHOW pages share: the IN list's
@@ -299,6 +307,16 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			}
 			return m[1] + m[2] + "{ " + m[3] + " }"
 		})
+	}
+	offset := false
+	for i, b := range blocks {
+		if fixed := timeTravelOffset.ReplaceAllString(b, "OFFSET => -<seconds>"); fixed != b {
+			blocks[i] = fixed
+			offset = true
+		}
+	}
+	if offset {
+		pg.fixes = append(pg.fixes, "read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say")
 	}
 	for i, b := range blocks {
 		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {
@@ -630,6 +648,9 @@ func isName(n *node) bool {
 }
 
 func (c *converter) convert(text string, statement bool) ([]string, error) {
+	if omittedTail.MatchString(text) {
+		return nil, errElided
+	}
 	toks, err := lexNotation(text)
 	if err != nil {
 		return nil, err

@@ -158,6 +158,12 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}
+	if _, err := c.form("CREATE TABLE <name>\n  CLONE <source>\n  ..."); err != errElided {
+		t.Errorf("a last line of ...: got %v, want errElided", err)
+	}
+	if got, err := c.form("SET RULES\n  <rule> = ( <r> ),\n  ..."); err != nil || got[0] != "'SET' 'RULES' ID '=' '(' ID ')' (',' ID '=' '(' ID ')')*" {
+		t.Errorf("a last line of ... after a comma: got %v, %v", got, err)
+	}
 	for _, in := range []string{"SELECT * ILIKE ... REPLACE ...", "[ ... ] SELECT 1", "VALUES ( ... )"} {
 		if _, err := c.form(in); err != errElided {
 			t.Errorf("%s: got %v, want errElided", in, err)

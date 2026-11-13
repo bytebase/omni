@@ -291,7 +291,6 @@ statement
     | createRowAccessPolicy
     | createSchema
     | createSecret
-    | createSecurityIntegration
     | createSecurityIntegrationApiAuth
     | createSecurityIntegrationApiAuthExternalSecretProvider
     | createSecurityIntegrationAwsIam
@@ -1951,9 +1950,11 @@ alterSecret
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration
+// fix: the parameters are each integration type's, given on its own page; {parameters} leaves the form unconverted
+// not converted (form): undefined fragment "parameters": the page does not define it
+//   ALTER [ SECURITY ] INTEGRATION [ IF EXISTS ] <name> SET {parameters}
 alterSecurityIntegration
-    : 'ALTER' 'SECURITY'? 'INTEGRATION' ('IF' 'EXISTS')? ID 'SET' ID
-    | 'ALTER' 'SECURITY'? 'INTEGRATION' ('IF' 'EXISTS')? ID 'UNSET' ID
+    : 'ALTER' 'SECURITY'? 'INTEGRATION' ('IF' 'EXISTS')? ID 'UNSET' ID
     | 'ALTER' 'SECURITY'? 'INTEGRATION' ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'SECURITY'? 'INTEGRATION' ID 'UNSET' 'TAG' ID (',' ID)*
     ;
@@ -2831,14 +2832,36 @@ createCatalogIntegrationSnowflakePostgres_restConfigParams
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-clone
+// fix: read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say
+// not converted (form): ... stands for text the docs leave out
+//   CREATE [ OR REPLACE ] { DATABASE | SCHEMA } [ IF NOT EXISTS ] <object_name>
+//     CLONE <source_object_name>
+//       [ { AT | BEFORE } ( { TIMESTAMP => <timestamp> | OFFSET => -<seconds> | STATEMENT => <id> } ) ]
+//       [ IGNORE TABLES WITH INSUFFICIENT DATA RETENTION ]
+//       [ IGNORE HYBRID TABLES ]
+//       [ INCLUDE INTERNAL STAGES ]
+//     ...
+// not converted (form): ... stands for text the docs leave out
+//   CREATE [ OR REPLACE ] TABLE [ IF NOT EXISTS ] <object_name>
+//     CLONE <source_object_name>
+//       [ { AT | BEFORE } ( { TIMESTAMP => <timestamp> | OFFSET => -<seconds> | STATEMENT => <id> } ) ]
+//     ...
+// not converted (form): ... stands for text the docs leave out
+//   CREATE [ OR REPLACE ] ICEBERG TABLE [ IF NOT EXISTS ] <name>
+//     CLONE <source_iceberg_table>
+//       [ { AT | BEFORE } ( { TIMESTAMP => <timestamp> | OFFSET => -<seconds> | STATEMENT => <id> } ) ]
+//       [ COPY GRANTS ]
+//       [ COPY = ( { COMMENTS | TAGS | GRANTS } [ , ... ] ) ]
+//       ...
+// not converted (form): ... stands for text the docs leave out
+//   CREATE [ OR REPLACE ] { ALERT | FILE FORMAT | SEQUENCE | STAGE | STREAM | TASK }
+//     [ IF NOT EXISTS ] <object_name>
+//     CLONE <source_object_name>
+//     ...
 createClone
-    : 'CREATE' ('OR' 'REPLACE')? ('DATABASE' | 'SCHEMA') ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')? ('INCLUDE' 'INTERNAL' 'STAGES')*
-    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')*
-    | 'CREATE' ('OR' 'REPLACE')? 'DYNAMIC' 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')? ('TARGET_LAG' '=' (STRING | 'DOWNSTREAM') 'WAREHOUSE' '=' ID)?
-    | 'CREATE' ('OR' 'REPLACE')? 'EVENT' 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')? ('COPY' 'GRANTS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')*
+    : 'CREATE' ('OR' 'REPLACE')? 'DYNAMIC' 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID) ')')? ('TARGET_LAG' '=' (STRING | 'DOWNSTREAM') 'WAREHOUSE' '=' ID)?
+    | 'CREATE' ('OR' 'REPLACE')? 'EVENT' 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID) ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'DATABASE' 'ROLE' ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID
-    | 'CREATE' ('OR' 'REPLACE')? ('ALERT' | 'FILE' 'FORMAT' | 'SEQUENCE' | 'STAGE' | 'STREAM' | 'TASK') ('IF' 'NOT' 'EXISTS')? ID 'CLONE' ID+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-compute-pool
@@ -2879,8 +2902,9 @@ createDataMovementRule
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-database
+// fix: read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say
 createDatabase
-    : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'DATABASE' ('IF' 'NOT' 'EXISTS')? ID ('CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')?)? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('COMMENT' '=' STRING)? ('CATALOG_SYNC' '=' STRING)? ('CATALOG_SYNC_NAMESPACE_MODE' '=' ('NEST' | 'FLATTEN'))? ('CATALOG_SYNC_NAMESPACE_FLATTEN_DELIMITER' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('OBJECT_VISIBILITY' '=' (ID | 'PRIVILEGED'))? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('OAUTH_AUTHORIZATION_SERVER' '=' ID)? ('OAUTH_SCOPES_SUPPORTED' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'DATABASE' ('IF' 'NOT' 'EXISTS')? ID ('CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')?)? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('COMMENT' '=' STRING)? ('CATALOG_SYNC' '=' STRING)? ('CATALOG_SYNC_NAMESPACE_MODE' '=' ('NEST' | 'FLATTEN'))? ('CATALOG_SYNC_NAMESPACE_FLATTEN_DELIMITER' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('OBJECT_VISIBILITY' '=' (ID | 'PRIVILEGED'))? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('OAUTH_AUTHORIZATION_SERVER' '=' ID)? ('OAUTH_SCOPES_SUPPORTED' '=' STRING)?
     | 'CREATE' 'DATABASE' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     | 'CREATE' 'DATABASE' ID 'FROM' 'LISTING' STRING
     | 'CREATE' 'DATABASE' ID 'FROM' 'SHARE' ID '.' ID
@@ -2923,7 +2947,7 @@ createDynamicTable
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-event-routing-table
-// not converted (form): undefined fragment "name": the page does not define it
+// not converted (form): ... stands for text the docs leave out
 //   CREATE EVENT ROUTING TABLE <table_name>
 //     WITH RULES
 //       {rule name} = (REGION_GROUP={region group}, REGIONS=('{region1}', '{region2}', ...), DESTINATION_ACCOUNT = {organization}.{account_name})
@@ -3374,9 +3398,10 @@ createPipe
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-postgres-instance
+// fix: read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say
 createPostgresInstance
     : 'CREATE' 'POSTGRES' 'INSTANCE' ('IF' 'NOT' 'EXISTS')? ID 'COMPUTE_FAMILY' '=' STRING 'STORAGE_SIZE_GB' '=' ID 'AUTHENTICATION_AUTHORITY' '=' ('POSTGRES' | 'POSTGRES_OR_SNOWFLAKE' | 'EXTERNAL_OAUTH') ('AUTHENTICATION_PROPERTIES' '=' '(' ID ')')? ('POSTGRES_VERSION' '=' ('16' | '17' | '18'))? ('NETWORK_POLICY' '=' STRING)? ('HIGH_AVAILABILITY' '=' ('TRUE' | 'FALSE'))? ('STORAGE_INTEGRATION' '=' STRING)? ('POSTGRES_SETTINGS' '=' STRING)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
-    | 'CREATE' 'POSTGRES' 'INSTANCE' ('IF' 'NOT' 'EXISTS')? ID 'FORK' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID) ')')? ('COMPUTE_FAMILY' '=' STRING)? ('STORAGE_SIZE_GB' '=' ID)? ('HIGH_AVAILABILITY' '=' ('TRUE' | 'FALSE'))? ('POSTGRES_SETTINGS' '=' STRING)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
+    | 'CREATE' 'POSTGRES' 'INSTANCE' ('IF' 'NOT' 'EXISTS')? ID 'FORK' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER) ')')? ('COMPUTE_FAMILY' '=' STRING)? ('STORAGE_SIZE_GB' '=' ID)? ('HIGH_AVAILABILITY' '=' ('TRUE' | 'FALSE'))? ('POSTGRES_SETTINGS' '=' STRING)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-privacy-policy
@@ -3472,8 +3497,9 @@ createRowAccessPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-schema
+// fix: read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say
 createSchema
-    : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID ('CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')?)? ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('CLASSIFICATION_PROFILE' '=' STRING)? ('COMMENT' '=' STRING)? ('CATALOG_SYNC' '=' STRING)? ('OBJECT_VISIBILITY' '=' 'PRIVILEGED')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('OAUTH_AUTHORIZATION_SERVER' '=' ID)? ('OAUTH_SCOPES_SUPPORTED' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID ('CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID) ')')? ('IGNORE' 'TABLES' 'WITH' 'INSUFFICIENT' 'DATA' 'RETENTION')? ('IGNORE' 'HYBRID' 'TABLES')?)? ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('EXTERNAL_VOLUME' '=' ID)? ('CATALOG' '=' ID)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('CLASSIFICATION_PROFILE' '=' STRING)? ('COMMENT' '=' STRING)? ('CATALOG_SYNC' '=' STRING)? ('OBJECT_VISIBILITY' '=' 'PRIVILEGED')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('OAUTH_AUTHORIZATION_SERVER' '=' ID)? ('OAUTH_SCOPES_SUPPORTED' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     | 'CREATE' 'SCHEMA' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     ;
 
@@ -3489,9 +3515,11 @@ createSecret
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-security-integration
-createSecurityIntegration
-    : 'CREATE' ('OR' 'REPLACE')? 'SECURITY' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'TYPE' '=' ('API_AUTHENTICATION' | 'EXTERNAL_OAUTH' | 'OAUTH' | 'OIDC' | 'SAML2' | 'SCIM')+
-    ;
+// not converted (form): ... stands for text the docs leave out
+//   CREATE [ OR REPLACE ] SECURITY INTEGRATION [ IF NOT EXISTS ]
+//     <name>
+//     TYPE = { API_AUTHENTICATION | EXTERNAL_OAUTH | OAUTH | OIDC | SAML2 | SCIM }
+//     ...
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-api-auth
 createSecurityIntegrationApiAuth
@@ -3611,6 +3639,7 @@ createSnapshotSet
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-stage
+// fix: the bucket and path are text to fill in, as the parameters say
 createStage
     : 'CREATE' ('OR' 'REPLACE')? (('TEMP' | 'TEMPORARY'))? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID createStage_internalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') createStage_formatTypeOptions?) ')')? ('STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? (('TEMP' | 'TEMPORARY'))? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID createStage_externalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') createStage_formatTypeOptions?) ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
@@ -3623,7 +3652,7 @@ createStage_externalStageParams
     | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
     | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
     | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'') ')')?
-    | 'URL' '=' '\'s3compat://{bucket}[/{path}/]\'' 'ENDPOINT' '=' STRING ('CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ')')?
+    | 'URL' '=' STRING 'ENDPOINT' '=' STRING ('CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ')')?
     ;
 createStage_directoryTableParams
     : ('DIRECTORY' '=' '(' 'ENABLE' '=' ('TRUE' | 'FALSE') ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ')')?
@@ -3656,13 +3685,14 @@ createStorageLifecyclePolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-stream
+// fix: read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say
 createStream
-    : 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'TABLE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'TABLE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'EVENT' 'TABLE' ID ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'EXTERNAL' 'TABLE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('INSERT_ONLY' '=' 'TRUE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
+    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'EXTERNAL' 'TABLE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('INSERT_ONLY' '=' 'TRUE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'STAGE' ID ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'DYNAMIC' 'TABLE' ID ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'VIEW' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' ID | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
+    | 'CREATE' ('OR' 'REPLACE')? 'STREAM' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')? 'ON' 'VIEW' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' ID | 'STREAM' '=>' STRING) ')')? ('APPEND_ONLY' '=' 'TRUE' | 'APPEND_ONLY' '=' 'FALSE')? ('SHOW_INITIAL_ROWS' '=' 'TRUE' | 'SHOW_INITIAL_ROWS' '=' 'FALSE')? ('COMMENT' '=' STRING)? ('COPY' '=' '(' 'GRANTS' ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-streamlit

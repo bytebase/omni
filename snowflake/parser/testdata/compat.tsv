@@ -1053,14 +1053,13 @@ accept	undocumented	docs	statement/alterSecret!drop-5	ALTER SECRET a UNSET a
 reject	undocumented	docs	statement/alterSecret!drop-6	ALTER SECRET a UNSET TAG
 reject	undocumented	docs	statement/alterSecret!insert	ALTER SECRET a UNSET TAG a zzz
 reject	undocumented	docs	statement/alterSecret!swap	ALWAYS SECRET a UNSET TAG a
-accept	accept	docs	statement/alterSecurityIntegration	ALTER INTEGRATION a SET a
-reject	undocumented	docs	statement/alterSecurityIntegration!drop-1	INTEGRATION a SET a
-reject	undocumented	docs	statement/alterSecurityIntegration!drop-2	ALTER a SET a
-reject	undocumented	docs	statement/alterSecurityIntegration!drop-3	ALTER INTEGRATION SET a
+accept	accept	docs	statement/alterSecurityIntegration	ALTER INTEGRATION a UNSET a
+reject	undocumented	docs	statement/alterSecurityIntegration!drop-1	INTEGRATION a UNSET a
+reject	undocumented	docs	statement/alterSecurityIntegration!drop-2	ALTER a UNSET a
+reject	undocumented	docs	statement/alterSecurityIntegration!drop-3	ALTER INTEGRATION UNSET a
 reject	undocumented	docs	statement/alterSecurityIntegration!drop-4	ALTER INTEGRATION a a
-reject	undocumented	docs	statement/alterSecurityIntegration!drop-5	ALTER INTEGRATION a SET
-accept	undocumented	docs	statement/alterSecurityIntegration!insert	ALTER INTEGRATION a SET a zzz
-reject	undocumented	docs	statement/alterSecurityIntegration!swap	ALWAYS INTEGRATION a SET a
+accept	undocumented	docs	statement/alterSecurityIntegration!insert	ALTER INTEGRATION a UNSET a zzz
+reject	undocumented	docs	statement/alterSecurityIntegration!swap	ALWAYS INTEGRATION a UNSET a
 accept	accept	docs	statement/alterSecurityIntegrationApiAuth	ALTER INTEGRATION a UNSET TAG a
 accept	accept	docs	statement/alterSecurityIntegrationApiAuthExternalSecretProvider	ALTER SECURITY INTEGRATION a SET ENABLED = TRUE
 reject	undocumented	docs	statement/alterSecurityIntegrationApiAuthExternalSecretProvider!drop-1	SECURITY INTEGRATION a SET ENABLED = TRUE
@@ -1807,14 +1806,15 @@ reject	undocumented	docs	statement/createCatalogIntegrationSnowflakePostgres!dro
 reject	undocumented	docs	statement/createCatalogIntegrationSnowflakePostgres!drop-23	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS) ENABLED =
 reject	undocumented	docs	statement/createCatalogIntegrationSnowflakePostgres!insert	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS) ENABLED = TRUE zzz
 reject	undocumented	docs	statement/createCatalogIntegrationSnowflakePostgres!swap	CREATION CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS) ENABLED = TRUE
-accept	accept	docs	statement/createClone	CREATE DATABASE a CLONE a
-reject	undocumented	docs	statement/createClone!drop-1	DATABASE a CLONE a
-reject	undocumented	docs	statement/createClone!drop-2	CREATE a CLONE a
-reject	undocumented	docs	statement/createClone!drop-3	CREATE DATABASE CLONE a
-reject	undocumented	docs	statement/createClone!drop-4	CREATE DATABASE a a
-reject	undocumented	docs	statement/createClone!drop-5	CREATE DATABASE a CLONE
-reject	undocumented	docs	statement/createClone!insert	CREATE DATABASE a CLONE a zzz
-reject	undocumented	docs	statement/createClone!swap	CREATION DATABASE a CLONE a
+accept	accept	docs	statement/createClone	CREATE DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	statement/createClone!drop-1	DYNAMIC TABLE a CLONE a
+accept	undocumented	docs	statement/createClone!drop-2	CREATE TABLE a CLONE a
+reject	undocumented	docs	statement/createClone!drop-3	CREATE DYNAMIC a CLONE a
+reject	undocumented	docs	statement/createClone!drop-4	CREATE DYNAMIC TABLE CLONE a
+reject	undocumented	docs	statement/createClone!drop-5	CREATE DYNAMIC TABLE a a
+reject	undocumented	docs	statement/createClone!drop-6	CREATE DYNAMIC TABLE a CLONE
+reject	undocumented	docs	statement/createClone!insert	CREATE DYNAMIC TABLE a CLONE a zzz
+reject	undocumented	docs	statement/createClone!swap	CREATION DYNAMIC TABLE a CLONE a
 reject	accept	docs	statement/createComputePool	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	statement/createComputePool!drop-1	COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	statement/createComputePool!drop-2	CREATE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
@@ -2805,16 +2805,6 @@ accept	undocumented	docs	statement/createSecret!drop-5	CREATE SECRET a TYPE WORK
 reject	undocumented	docs	statement/createSecret!drop-6	CREATE SECRET a TYPE =
 accept	undocumented	docs	statement/createSecret!insert	CREATE SECRET a TYPE = WORKLOAD_IDENTITY_FEDERATION zzz
 reject	undocumented	docs	statement/createSecret!swap	CREATION SECRET a TYPE = WORKLOAD_IDENTITY_FEDERATION
-accept	accept	docs	statement/createSecurityIntegration	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-1	SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-2	CREATE INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-3	CREATE SECURITY a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-4	CREATE SECURITY INTEGRATION TYPE = API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-5	CREATE SECURITY INTEGRATION a = API_AUTHENTICATION
-accept	undocumented	docs	statement/createSecurityIntegration!drop-6	CREATE SECURITY INTEGRATION a TYPE API_AUTHENTICATION
-reject	undocumented	docs	statement/createSecurityIntegration!drop-7	CREATE SECURITY INTEGRATION a TYPE =
-accept	undocumented	docs	statement/createSecurityIntegration!insert	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION zzz
-reject	undocumented	docs	statement/createSecurityIntegration!swap	CREATION SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
 accept	accept	docs	statement/createSecurityIntegrationApiAuth	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE
 reject	undocumented	docs	statement/createSecurityIntegrationApiAuth!drop-1	SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE
 reject	undocumented	docs	statement/createSecurityIntegrationApiAuth!drop-2	CREATE INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE
@@ -17570,7 +17560,6 @@ reject	undocumented	docs	alterPipe/ALTER_PIPE_ID_UNSET_TAG_ID_(,_ID)*!insert	ALT
 reject	undocumented	docs	alterPipe/ALTER_PIPE_ID_UNSET_TAG_ID_(,_ID)*!swap	ALWAYS PIPE a UNSET TAG a
 accept	accept	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*	ALTER PIPE a UNSET a
 reject	undocumented	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*!drop-1	PIPE a UNSET a
-reject	undocumented	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*!drop-2	ALTER a UNSET a
 reject	undocumented	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*!drop-3	ALTER PIPE UNSET a
 reject	undocumented	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*!drop-4	ALTER PIPE a a
 reject	undocumented	docs	alterPipe/ALTER_PIPE_(IF_EXISTS)?_ID_UNSET_(ID|COMMENT)_(,_(ID|COMMENT))*!drop-5	ALTER PIPE a UNSET
@@ -19536,26 +19525,21 @@ accept	undocumented	docs	alterSecret(PASSWORD_=_STRING)?/PASSWORD_=_STRING!swap	
 accept	accept	docs	alterSecret(SECRET_STRING_=_STRING_(COMMENT_=_ST~a8797c20)/SECRET_STRING_=_STRING_(COMMENT_=_STRING)?	ALTER SECRET a SET SECRET_STRING = 's'
 accept	undocumented	docs	alterSecret(SECRET_STRING_=_STRING_(COMMENT_=_ST~a8797c20)/SECRET_STRING_=_STRING_(COMMENT_=_STRING)?!swap	ALTER SECRET a SET SECURE = 's'
 accept	accept	docs	alterSecret(SECRET_STRING_=_STRING_(COMMENT_=_ST~a8797c20)/COMMENT_=_STRING	ALTER SECRET a SET COMMENT = 's'
-accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_SET_ID	ALTER INTEGRATION a SET a
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID	ALTER INTEGRATION a UNSET a
-reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!drop-1	INTEGRATION a UNSET a
-reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!drop-3	ALTER INTEGRATION UNSET a
-accept	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!insert	ALTER INTEGRATION a UNSET a zzz
-reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!swap	ALWAYS INTEGRATION a UNSET a
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_ID_SET_TAG_ID_=_STRING_(,~d60bb335	ALTER INTEGRATION a SET TAG a = 's'
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_ID_UNSET_TAG_ID_(,_ID)*	ALTER INTEGRATION a UNSET TAG a
-accept	accept	docs	alterSecurityIntegration(SECURITY)?/%empty	ALTER INTEGRATION a SET a
-reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/%empty!insert	ALTER zzz INTEGRATION a SET a
-accept	accept	docs	alterSecurityIntegration(SECURITY)?/SECURITY	ALTER SECURITY INTEGRATION a SET a
-reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/SECURITY!insert	ALTER SECURITY zzz INTEGRATION a SET a
-reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/SECURITY!swap	ALTER SECURITY_INTEGRATION INTEGRATION a SET a
-accept	accept	docs	alterSecurityIntegration(IF_EXISTS)?/%empty	ALTER INTEGRATION a SET a
-reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/%empty!insert	ALTER INTEGRATION zzz a SET a
-accept	accept	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS	ALTER INTEGRATION IF EXISTS a SET a
-reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER INTEGRATION EXISTS a SET a
-reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER INTEGRATION IF a SET a
-reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!insert	ALTER INTEGRATION IF EXISTS zzz a SET a
-reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!swap	ALTER INTEGRATION IGNORE EXISTS a SET a
+accept	accept	docs	alterSecurityIntegration(SECURITY)?/%empty	ALTER INTEGRATION a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/%empty!insert	ALTER zzz INTEGRATION a UNSET a
+accept	accept	docs	alterSecurityIntegration(SECURITY)?/SECURITY	ALTER SECURITY INTEGRATION a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/SECURITY!insert	ALTER SECURITY zzz INTEGRATION a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(SECURITY)?/SECURITY!swap	ALTER SECURITY_INTEGRATION INTEGRATION a UNSET a
+accept	accept	docs	alterSecurityIntegration(IF_EXISTS)?/%empty	ALTER INTEGRATION a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/%empty!insert	ALTER INTEGRATION zzz a UNSET a
+accept	accept	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS	ALTER INTEGRATION IF EXISTS a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER INTEGRATION EXISTS a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER INTEGRATION IF a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!insert	ALTER INTEGRATION IF EXISTS zzz a UNSET a
+reject	undocumented	docs	alterSecurityIntegration(IF_EXISTS)?/IF_EXISTS!swap	ALTER INTEGRATION IGNORE EXISTS a UNSET a
 accept	accept	docs	alterSecurityIntegration(,_ID_=_STRING)*/%empty	ALTER INTEGRATION a SET TAG a = 's'
 accept	accept	docs	alterSecurityIntegration(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	ALTER INTEGRATION a SET TAG a = 's', a = 's'
 accept	accept	docs	alterSecurityIntegration(,_ID)*/%empty	ALTER INTEGRATION a UNSET TAG a
@@ -30603,38 +30587,15 @@ reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigPar
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!truncate	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAME =
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!insert	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAME = 's' zzz) ENABLED = TRUE
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!swap	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAMESPACE = 's') ENABLED = TRUE
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_(DATABASE|SCHEMA)_(IF_NOT_EXISTS)?~2df05311	CREATE DATABASE a CLONE a
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0	CREATE TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!drop-1	TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!drop-3	CREATE TABLE CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!drop-4	CREATE TABLE a a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!drop-5	CREATE TABLE a CLONE
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!insert	CREATE TABLE a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_ID_CLONE_ID~61cd93c0!swap	CREATION TABLE a CLONE a
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64	CREATE DYNAMIC TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!drop-1	DYNAMIC TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!drop-3	CREATE DYNAMIC a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!drop-4	CREATE DYNAMIC TABLE CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!drop-5	CREATE DYNAMIC TABLE a a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!drop-6	CREATE DYNAMIC TABLE a CLONE
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!insert	CREATE DYNAMIC TABLE a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~da413a64!swap	CREATION DYNAMIC TABLE a CLONE a
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e	CREATE EVENT TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!drop-1	EVENT TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!drop-3	CREATE EVENT a CLONE a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!drop-4	CREATE EVENT TABLE CLONE a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!drop-5	CREATE EVENT TABLE a a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!drop-6	CREATE EVENT TABLE a CLONE
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!insert	CREATE EVENT TABLE a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~510db48e!swap	CREATION EVENT TABLE a CLONE a
-reject	accept	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76	CREATE ICEBERG TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!drop-1	ICEBERG TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!drop-3	CREATE ICEBERG a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!drop-4	CREATE ICEBERG TABLE CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!drop-5	CREATE ICEBERG TABLE a a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!drop-6	CREATE ICEBERG TABLE a CLONE
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!insert	CREATE ICEBERG TABLE a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~d444fe76!swap	CREATION ICEBERG TABLE a CLONE a
+accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~67797772	CREATE DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0	CREATE EVENT TABLE a CLONE a
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-1	EVENT TABLE a CLONE a
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-3	CREATE EVENT a CLONE a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-4	CREATE EVENT TABLE CLONE a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-5	CREATE EVENT TABLE a a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-6	CREATE EVENT TABLE a CLONE
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!insert	CREATE EVENT TABLE a CLONE a zzz
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!swap	CREATION EVENT TABLE a CLONE a
 reject	accept	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID	CREATE DATABASE ROLE a CLONE a
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-1	DATABASE ROLE a CLONE a
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-2	CREATE ROLE a CLONE a
@@ -30643,100 +30604,47 @@ reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-6	CREATE DATABASE ROLE a CLONE
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!insert	CREATE DATABASE ROLE a CLONE a zzz
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!swap	CREATION DATABASE ROLE a CLONE a
-reject	accept	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129	CREATE ALERT a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!drop-1	ALERT a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!drop-3	CREATE ALERT CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!drop-4	CREATE ALERT a a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!drop-5	CREATE ALERT a CLONE
-reject	accept	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!insert	CREATE ALERT a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_(ALERT|FILE_FORMAT|SEQUENCE|STAGE|~3ed9e129!swap	CREATION ALERT a CLONE a
-accept	accept	docs	createClone(OR_REPLACE)?/%empty	CREATE DATABASE a CLONE a
-reject	undocumented	docs	createClone(OR_REPLACE)?/%empty!insert	CREATE zzz DATABASE a CLONE a
-accept	accept	docs	createClone(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATABASE a CLONE a
-reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE DATABASE a CLONE a
-reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR DATABASE a CLONE a
-reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz DATABASE a CLONE a
-reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE DATABASE a CLONE a
-accept	accept	docs	createClone(DATABASE|SCHEMA)/DATABASE	CREATE DATABASE a CLONE a
-reject	undocumented	docs	createClone(DATABASE|SCHEMA)/DATABASE!insert	CREATE DATABASE zzz a CLONE a
-reject	undocumented	docs	createClone(DATABASE|SCHEMA)/DATABASE!swap	CREATE DATABASES a CLONE a
-accept	accept	docs	createClone(DATABASE|SCHEMA)/SCHEMA	CREATE SCHEMA a CLONE a
-reject	undocumented	docs	createClone(DATABASE|SCHEMA)/SCHEMA!insert	CREATE SCHEMA zzz a CLONE a
-reject	undocumented	docs	createClone(DATABASE|SCHEMA)/SCHEMA!swap	CREATE SCHEMAS a CLONE a
-accept	accept	docs	createClone(IF_NOT_EXISTS)?/%empty	CREATE DATABASE a CLONE a
-accept	accept	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATABASE IF NOT EXISTS a CLONE a
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATABASE NOT EXISTS a CLONE a
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATABASE IF EXISTS a CLONE a
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATABASE IF NOT a CLONE a
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE IF NOT
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE IF NOT EXISTS zzz a CLONE a
-reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE IGNORE NOT EXISTS a CLONE a
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/%empty	CREATE DATABASE a CLONE a
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-1	CREATE DATABASE a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-2	CREATE DATABASE a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-3	CREATE DATABASE a CLONE a AT(=> 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-4	CREATE DATABASE a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-5	CREATE DATABASE a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-6	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!swap	CREATE DATABASE a CLONE a ATTACH(TIMESTAMP => 's')
-accept	accept	docs	createClone(AT|BEFORE)/AT	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone(AT|BEFORE)/AT!insert	CREATE DATABASE a CLONE a AT zzz(TIMESTAMP => 's')
-accept	accept	docs	createClone(AT|BEFORE)/BEFORE	CREATE DATABASE a CLONE a BEFORE(TIMESTAMP => 's')
-reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!insert	CREATE DATABASE a CLONE a BEFORE zzz(TIMESTAMP => 's')
-reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!swap	CREATE DATABASE a CLONE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!truncate	CREATE DATABASE a CLONE a AT(TIMESTAMP =>
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!swap	CREATE DATABASE a CLONE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID	CREATE DATABASE a CLONE a AT(OFFSET => a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-1	CREATE DATABASE a CLONE a AT(=> a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-2	CREATE DATABASE a CLONE a AT(OFFSET a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-3	CREATE DATABASE a CLONE a AT(OFFSET =>)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!truncate	CREATE DATABASE a CLONE a AT(OFFSET =>
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!insert	CREATE DATABASE a CLONE a AT(OFFSET => a zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!swap	CREATE DATABASE a CLONE a AT(OIDC => a)
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID	CREATE DATABASE a CLONE a AT(STATEMENT => a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!drop-2	CREATE DATABASE a CLONE a AT(STATEMENT a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!drop-3	CREATE DATABASE a CLONE a AT(STATEMENT =>)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!truncate	CREATE DATABASE a CLONE a AT(STATEMENT =>
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!insert	CREATE DATABASE a CLONE a AT(STATEMENT => a zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!swap	CREATE DATABASE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
-accept	accept	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/%empty	CREATE DATABASE a CLONE a
-reject	accept	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE DATABASE a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-2	CREATE DATABASE a CLONE a IGNORE WITH INSUFFICIENT DATA RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE DATABASE a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-4	CREATE DATABASE a CLONE a IGNORE TABLES WITH DATA RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-5	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT RETENTION
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-6	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!insert	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION zzz
-reject	undocumented	docs	createClone(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE TABLES WITH INSUFFICIENT DATA RETENTION
-accept	accept	docs	createClone(IGNORE_HYBRID_TABLES)?/%empty	CREATE DATABASE a CLONE a
-reject	accept	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES
-reject	undocumented	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE DATABASE a CLONE a HYBRID TABLES
-reject	undocumented	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE DATABASE a CLONE a IGNORE TABLES
-reject	undocumented	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE DATABASE a CLONE a IGNORE HYBRID
-reject	undocumented	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES zzz
-reject	undocumented	docs	createClone(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
-accept	accept	docs	createClone(INCLUDE_INTERNAL_STAGES)*/%empty	CREATE DATABASE a CLONE a
-reject	accept	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*	CREATE DATABASE a CLONE a INCLUDE INTERNAL STAGES
-reject	undocumented	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*!drop-1	CREATE DATABASE a CLONE a INTERNAL STAGES
-reject	undocumented	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*!drop-2	CREATE DATABASE a CLONE a INCLUDE STAGES
-reject	undocumented	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*!drop-3	CREATE DATABASE a CLONE a INCLUDE INTERNAL
-reject	undocumented	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*!insert	CREATE DATABASE a CLONE a INCLUDE INTERNAL STAGES zzz
-reject	undocumented	docs	createClone(INCLUDE_INTERNAL_STAGES)*/INCLUDE_INTERNAL_STAGES_(INCLUDE_INTERNAL_STAGES)*!swap	CREATE DATABASE a CLONE a INCLUDE_METADATA INTERNAL STAGES
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/%empty	CREATE TABLE a CLONE a
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b	CREATE TABLE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-1	CREATE TABLE a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-2	CREATE TABLE a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-3	CREATE TABLE a CLONE a AT(=> 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-4	CREATE TABLE a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-5	CREATE TABLE a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!drop-6	CREATE TABLE a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!insert	CREATE TABLE a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)*/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044~b83d1c2b!swap	CREATE TABLE a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createClone(OR_REPLACE)?/%empty	CREATE DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	createClone(OR_REPLACE)?/%empty!insert	CREATE zzz DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz DYNAMIC TABLE a CLONE a
+reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE DYNAMIC TABLE a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE DYNAMIC TABLE a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(=> 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE DYNAMIC TABLE a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createClone(AT|BEFORE)/AT	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createClone(AT|BEFORE)/AT!insert	CREATE DYNAMIC TABLE a CLONE a AT zzz(TIMESTAMP => 's')
+accept	accept	docs	createClone(AT|BEFORE)/BEFORE	CREATE DYNAMIC TABLE a CLONE a BEFORE(TIMESTAMP => 's')
+reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!insert	CREATE DYNAMIC TABLE a CLONE a BEFORE zzz(TIMESTAMP => 's')
+reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!swap	CREATE DYNAMIC TABLE a CLONE a BEGIN(TIMESTAMP => 's')
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a CLONE a AT(=> - 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE DYNAMIC TABLE a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => a)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE DYNAMIC TABLE a CLONE a AT(=> a)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT a)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => a zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
 accept	accept	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/%empty	CREATE DYNAMIC TABLE a CLONE a
 reject	accept	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/TARGET_LAG_=_(STRING|DOWNSTREAM)_WAREHOUSE_=_ID	CREATE DYNAMIC TABLE a CLONE a TARGET_LAG = 's' WAREHOUSE = a
 reject	undocumented	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/TARGET_LAG_=_(STRING|DOWNSTREAM)_WAREHOUSE_=_ID!drop-1	CREATE DYNAMIC TABLE a CLONE a = 's' WAREHOUSE = a
@@ -30753,62 +30661,15 @@ reject	undocumented	docs	createClone(STRING|DOWNSTREAM)/STRING!insert	CREATE DYN
 reject	accept	docs	createClone(STRING|DOWNSTREAM)/DOWNSTREAM	CREATE DYNAMIC TABLE a CLONE a TARGET_LAG = DOWNSTREAM WAREHOUSE = a
 reject	undocumented	docs	createClone(STRING|DOWNSTREAM)/DOWNSTREAM!insert	CREATE DYNAMIC TABLE a CLONE a TARGET_LAG = DOWNSTREAM zzz WAREHOUSE = a
 reject	undocumented	docs	createClone(STRING|DOWNSTREAM)/DOWNSTREAM!swap	CREATE DYNAMIC TABLE a CLONE a TARGET_LAG = DRAFT WAREHOUSE = a
-reject	accept	docs	createClone(COPY_GRANTS)?/%empty	CREATE ICEBERG TABLE a CLONE a
-reject	accept	docs	createClone(COPY_GRANTS)?/COPY_GRANTS	CREATE ICEBERG TABLE a CLONE a COPY GRANTS
-reject	undocumented	docs	createClone(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE ICEBERG TABLE a CLONE a GRANTS
-reject	undocumented	docs	createClone(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE ICEBERG TABLE a CLONE a COPY
-reject	undocumented	docs	createClone(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE ICEBERG TABLE a CLONE a COPY GRANTS zzz
-reject	undocumented	docs	createClone(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE ICEBERG TABLE a CLONE a CORE GRANTS
-reject	accept	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/%empty	CREATE ICEBERG TABLE a CLONE a
-reject	accept	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS)
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-1	CREATE ICEBERG TABLE a CLONE a =(COMMENTS)
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-2	CREATE ICEBERG TABLE a CLONE a COPY(COMMENTS)
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-3	CREATE ICEBERG TABLE a CLONE a COPY = COMMENTS)
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-4	CREATE ICEBERG TABLE a CLONE a COPY =()
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!drop-5	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!insert	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS) zzz
-reject	undocumented	docs	createClone(COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(~5bbf3e9b)*/COPY_=_(_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANT~7e7a5727!swap	CREATE ICEBERG TABLE a CLONE a CORE =(COMMENTS)
-reject	accept	docs	createClone(COMMENTS|TAGS|GRANTS)/COMMENTS	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/COMMENTS!truncate	CREATE ICEBERG TABLE a CLONE a COPY =(
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/COMMENTS!insert	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS zzz)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/COMMENTS!swap	CREATE ICEBERG TABLE a CLONE a COPY =(COMMIT)
-reject	accept	docs	createClone(COMMENTS|TAGS|GRANTS)/TAGS	CREATE ICEBERG TABLE a CLONE a COPY =(TAGS)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/TAGS!insert	CREATE ICEBERG TABLE a CLONE a COPY =(TAGS zzz)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/TAGS!swap	CREATE ICEBERG TABLE a CLONE a COPY =(TARGET)
-reject	accept	docs	createClone(COMMENTS|TAGS|GRANTS)/GRANTS	CREATE ICEBERG TABLE a CLONE a COPY =(GRANTS)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/GRANTS!insert	CREATE ICEBERG TABLE a CLONE a COPY =(GRANTS zzz)
-reject	undocumented	docs	createClone(COMMENTS|TAGS|GRANTS)/GRANTS!swap	CREATE ICEBERG TABLE a CLONE a COPY =(GRAPH)
-reject	accept	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/%empty	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS)
-reject	accept	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS, COMMENTS)
-reject	undocumented	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*!drop-1	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS COMMENTS)
-reject	undocumented	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*!drop-2	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS,)
-reject	undocumented	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*!truncate	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS,
-reject	undocumented	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*!insert	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS, COMMENTS zzz)
-reject	undocumented	docs	createClone(,_(COMMENTS|TAGS|GRANTS))*/,_(COMMENTS|TAGS|GRANTS)_(,_(COMMENTS|TAGS|GRANTS))*!swap	CREATE ICEBERG TABLE a CLONE a COPY =(COMMENTS, COMMIT)
-reject	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/ALERT	CREATE ALERT a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/ALERT!insert	CREATE ALERT zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/ALERT!swap	CREATE ALERTS a CLONE a
-accept	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT	CREATE FILE FORMAT a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT!drop-1	CREATE FORMAT a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT!drop-2	CREATE FILE a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT!truncate	CREATE FILE
-accept	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT!insert	CREATE FILE FORMAT zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/FILE_FORMAT!swap	CREATE FILES FORMAT a CLONE a
-reject	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/SEQUENCE	CREATE SEQUENCE a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/SEQUENCE!insert	CREATE SEQUENCE zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/SEQUENCE!swap	CREATE SEQUENCES a CLONE a
-accept	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STAGE	CREATE STAGE a CLONE a
-accept	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STAGE!insert	CREATE STAGE zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STAGE!swap	CREATE STAGES a CLONE a
-accept	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STREAM	CREATE STREAM a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STREAM!insert	CREATE STREAM zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/STREAM!swap	CREATE STREAMLIT a CLONE a
-accept	accept	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/TASK	CREATE TASK a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/TASK!insert	CREATE TASK zzz a CLONE a
-reject	undocumented	docs	createClone(ALERT|FILE_FORMAT|SEQUENCE|STAGE|STREAM|TASK)/TASK!swap	CREATE TASKS a CLONE a
-reject	accept	docs	createClone(ID)+/ID	CREATE ALERT a CLONE a
-reject	accept	docs	createClone(ID)+/ID_(ID)+	CREATE ALERT a CLONE a a
-reject	accept	docs	createClone(ID)+/ID_(ID)+!insert	CREATE ALERT a CLONE a a zzz
+reject	accept	docs	createClone(IF_NOT_EXISTS)?/%empty	CREATE DATABASE ROLE a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/%empty!insert	CREATE DATABASE ROLE zzz a CLONE a
+reject	accept	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATABASE ROLE IF NOT EXISTS a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATABASE ROLE NOT EXISTS a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATABASE ROLE IF EXISTS a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATABASE ROLE IF NOT a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE ROLE IF NOT
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE ROLE IF NOT EXISTS zzz a CLONE a
+reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE ROLE IGNORE NOT EXISTS a CLONE a
 reject	accept	docs	createComputePool/CREATE_COMPUTE_POOL_(IF_NOT_EXISTS)?_ID_(FOR_APPLICATIO~b011f249	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	accept	docs	createComputePool(IF_NOT_EXISTS)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/%empty!insert	CREATE COMPUTE POOL zzz a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
@@ -31266,7 +31127,7 @@ reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STR
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT =
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT = 's' zzz
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENTS = 's'
-accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DATABASE_(IF_NOT_EXIS~18617332	CREATE DATABASE a
+accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DATABASE_(IF_NOT_EXIS~e6dbbb00	CREATE DATABASE a
 reject	accept	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING	CREATE DATABASE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-1	DATABASE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-2	CREATE a FROM BACKUP SET a IDENTIFIER 's'
@@ -31328,22 +31189,66 @@ accept	accept	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATABASE 
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATABASE NOT EXISTS a
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATABASE IF EXISTS a
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATABASE IF NOT a
+reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE IF NOT
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE IF NOT EXISTS zzz a
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE IGNORE NOT EXISTS a
-accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/%empty	CREATE DATABASE a
-accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17	CREATE DATABASE a CLONE a
-reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17!swap	CREATE DATABASE a CLOUD_PROVIDER a
-accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/%empty	CREATE DATABASE a CLONE a
-accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/%empty	CREATE DATABASE a
+accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809	CREATE DATABASE a CLONE a
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-1	CREATE DATABASE a a
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-2	CREATE DATABASE a CLONE
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!insert	CREATE DATABASE a CLONE a zzz
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!swap	CREATE DATABASE a CLOUD_PROVIDER a
+accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE DATABASE a CLONE a
+accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE DATABASE a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE DATABASE a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE DATABASE a CLONE a AT(=> 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE DATABASE a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE DATABASE a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE DATABASE a CLONE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createDatabase(AT|BEFORE)/AT	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase(AT|BEFORE)/AT!insert	CREATE DATABASE a CLONE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createDatabase(AT|BEFORE)/BEFORE	CREATE DATABASE a CLONE a BEFORE(TIMESTAMP => 's')
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID	CREATE DATABASE a CLONE a AT(OFFSET => a)
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID	CREATE DATABASE a CLONE a AT(STATEMENT => a)
+reject	undocumented	docs	createDatabase(AT|BEFORE)/BEFORE!insert	CREATE DATABASE a CLONE a BEFORE zzz(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase(AT|BEFORE)/BEFORE!swap	CREATE DATABASE a CLONE a BEGIN(TIMESTAMP => 's')
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE DATABASE a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE DATABASE a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE DATABASE a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE DATABASE a CLONE a AT(=> - 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE DATABASE a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE DATABASE a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE DATABASE a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE DATABASE a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE DATABASE a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE DATABASE a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE DATABASE a CLONE a AT(STATEMENT => a)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE DATABASE a CLONE a AT(=> a)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE DATABASE a CLONE a AT(STATEMENT a)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE DATABASE a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE DATABASE a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE DATABASE a CLONE a AT(STATEMENT => a zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE DATABASE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
 accept	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/%empty	CREATE DATABASE a CLONE a
 reject	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE DATABASE a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-2	CREATE DATABASE a CLONE a IGNORE WITH INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-3	CREATE DATABASE a CLONE a IGNORE TABLES INSUFFICIENT DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-4	CREATE DATABASE a CLONE a IGNORE TABLES WITH DATA RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-5	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT RETENTION
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-6	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!insert	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION zzz
+reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE TABLES WITH INSUFFICIENT DATA RETENTION
 accept	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/%empty	CREATE DATABASE a CLONE a
 reject	accept	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-1	CREATE DATABASE a CLONE a HYBRID TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-2	CREATE DATABASE a CLONE a IGNORE TABLES
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!drop-3	CREATE DATABASE a CLONE a IGNORE HYBRID
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!insert	CREATE DATABASE a CLONE a IGNORE HYBRID TABLES zzz
+reject	undocumented	docs	createDatabase(IGNORE_HYBRID_TABLES)?/IGNORE_HYBRID_TABLES!swap	CREATE DATABASE a CLONE a IGNORE_NESTED_NAMESPACE HYBRID TABLES
 accept	accept	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/%empty	CREATE DATABASE a
 accept	accept	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER	CREATE DATABASE a DATA_RETENTION_TIME_IN_DAYS = 1
 reject	undocumented	docs	createDatabase(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-1	CREATE DATABASE a = 1
@@ -31699,7 +31604,6 @@ accept	accept	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATAB
 reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATABASE ROLE NOT EXISTS a
 reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATABASE ROLE IF EXISTS a
 reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATABASE ROLE IF NOT a
-reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE ROLE IF NOT
 reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE ROLE IF NOT EXISTS zzz a
 reject	undocumented	docs	createDatabaseRole(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE ROLE IGNORE NOT EXISTS a
 accept	accept	docs	createDatabaseRole(COMMENT_=_STRING)?/%empty	CREATE DATABASE ROLE a
@@ -34480,6 +34384,7 @@ reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_IC
 accept	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-2	CREATE TABLE a LIKE a
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-3	CREATE ICEBERG a LIKE a
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-4	CREATE ICEBERG TABLE LIKE a
+reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-5	CREATE ICEBERG TABLE a a
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!drop-6	CREATE ICEBERG TABLE a LIKE
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!insert	CREATE ICEBERG TABLE a LIKE a zzz
 reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_ICEBERG_TABLE_ID_LIKE~f768523b!swap	CREATION ICEBERG TABLE a LIKE a
@@ -38124,7 +38029,7 @@ reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT
 reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~2c2e3354!drop-13	CREATE POSTGRES INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY =
 reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~2c2e3354!insert	CREATE POSTGRES INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY = POSTGRES zzz
 reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~2c2e3354!swap	CREATION POSTGRES INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY = POSTGRES
-reject	accept	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_FORK_ID_((~feae4c22	CREATE POSTGRES INSTANCE a FORK a
+reject	accept	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_FORK_ID_((~2bdf342e	CREATE POSTGRES INSTANCE a FORK a
 reject	accept	docs	createPostgresInstance(IF_NOT_EXISTS)?/%empty	CREATE POSTGRES INSTANCE a FORK a
 reject	undocumented	docs	createPostgresInstance(IF_NOT_EXISTS)?/%empty!insert	CREATE POSTGRES INSTANCE zzz a FORK a
 reject	accept	docs	createPostgresInstance(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE POSTGRES INSTANCE IF NOT EXISTS a FORK a
@@ -38225,32 +38130,33 @@ reject	undocumented	docs	createPostgresInstance(,_ID_=_STRING)*/,_ID_=_STRING_(,
 reject	undocumented	docs	createPostgresInstance(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE POSTGRES INSTANCE a FORK a TAG(a = 's', a =)
 reject	undocumented	docs	createPostgresInstance(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE POSTGRES INSTANCE a FORK a TAG(a = 's', a =
 reject	undocumented	docs	createPostgresInstance(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE POSTGRES INSTANCE a FORK a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/%empty	CREATE POSTGRES INSTANCE a FORK a
-reject	accept	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-1	CREATE POSTGRES INSTANCE a FORK a(TIMESTAMP => 's')
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-2	CREATE POSTGRES INSTANCE a FORK a AT TIMESTAMP => 's')
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-3	CREATE POSTGRES INSTANCE a FORK a AT(=> 's')
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-4	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP 's')
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-5	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP =>)
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!drop-6	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!insert	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~3b573295)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID)_)!swap	CREATE POSTGRES INSTANCE a FORK a ATTACH(TIMESTAMP => 's')
+reject	accept	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/%empty	CREATE POSTGRES INSTANCE a FORK a
+reject	accept	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-1	CREATE POSTGRES INSTANCE a FORK a(TIMESTAMP => 's')
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-2	CREATE POSTGRES INSTANCE a FORK a AT TIMESTAMP => 's')
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-3	CREATE POSTGRES INSTANCE a FORK a AT(=> 's')
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-4	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP 's')
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-5	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP =>)
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!drop-6	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!insert	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createPostgresInstance((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~8e864b3c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)_)!swap	CREATE POSTGRES INSTANCE a FORK a ATTACH(TIMESTAMP => 's')
 reject	accept	docs	createPostgresInstance(AT|BEFORE)/AT	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createPostgresInstance(AT|BEFORE)/AT!insert	CREATE POSTGRES INSTANCE a FORK a AT zzz(TIMESTAMP => 's')
 reject	accept	docs	createPostgresInstance(AT|BEFORE)/BEFORE	CREATE POSTGRES INSTANCE a FORK a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createPostgresInstance(AT|BEFORE)/BEFORE!insert	CREATE POSTGRES INSTANCE a FORK a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createPostgresInstance(AT|BEFORE)/BEFORE!swap	CREATE POSTGRES INSTANCE a FORK a BEGIN(TIMESTAMP => 's')
-reject	accept	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/TIMESTAMP_=>_STRING	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/TIMESTAMP_=>_STRING!truncate	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP =>
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/TIMESTAMP_=>_STRING!insert	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/TIMESTAMP_=>_STRING!swap	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP_COLUMN => 's')
-reject	accept	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => a)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!drop-1	CREATE POSTGRES INSTANCE a FORK a AT(=> a)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!drop-2	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET a)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!drop-3	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET =>)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!truncate	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET =>
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!insert	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => a zzz)
-reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_ID)/OFFSET_=>_ID!swap	CREATE POSTGRES INSTANCE a FORK a AT(OIDC => a)
+reject	accept	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/TIMESTAMP_=>_STRING	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/TIMESTAMP_=>_STRING!truncate	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP =>
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/TIMESTAMP_=>_STRING!insert	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/TIMESTAMP_=>_STRING!swap	CREATE POSTGRES INSTANCE a FORK a AT(TIMESTAMP_COLUMN => 's')
+reject	accept	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => - 1)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!drop-1	CREATE POSTGRES INSTANCE a FORK a AT(=> - 1)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!drop-2	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET - 1)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!drop-3	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => 1)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!drop-4	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => -)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!truncate	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => -
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!insert	CREATE POSTGRES INSTANCE a FORK a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createPostgresInstance(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMBER)/OFFSET_=>_-_NUMBER!swap	CREATE POSTGRES INSTANCE a FORK a AT(OIDC => - 1)
 reject	accept	docs	createPostgresInstance(COMPUTE_FAMILY_=_STRING)?/%empty	CREATE POSTGRES INSTANCE a FORK a
 reject	accept	docs	createPostgresInstance(COMPUTE_FAMILY_=_STRING)?/COMPUTE_FAMILY_=_STRING	CREATE POSTGRES INSTANCE a FORK a COMPUTE_FAMILY = 's'
 reject	undocumented	docs	createPostgresInstance(COMPUTE_FAMILY_=_STRING)?/COMPUTE_FAMILY_=_STRING!drop-2	CREATE POSTGRES INSTANCE a FORK a COMPUTE_FAMILY 's'
@@ -39054,7 +38960,7 @@ reject	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENT =
 accept	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENT = 's' zzz
 accept	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENTS = 's'
-accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_(TRANSIENT)?_SCHEMA_(IF_NOT_EXISTS~56bfd061	CREATE SCHEMA a
+accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_(TRANSIENT)?_SCHEMA_(IF_NOT_EXISTS~d458f81c	CREATE SCHEMA a
 reject	accept	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING	CREATE SCHEMA a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-1	SCHEMA a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-3	CREATE SCHEMA FROM BACKUP SET a IDENTIFIER 's'
@@ -39086,44 +38992,46 @@ reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREAT
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SCHEMA IF NOT
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SCHEMA IF NOT EXISTS zzz a
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SCHEMA IGNORE NOT EXISTS a
-accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/%empty	CREATE SCHEMA a
-accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17	CREATE SCHEMA a CLONE a
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17!drop-1	CREATE SCHEMA a a
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17!drop-2	CREATE SCHEMA a CLONE
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17!insert	CREATE SCHEMA a CLONE a zzz
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~9ef1f4e9)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c~1060df17!swap	CREATE SCHEMA a CLOUD_PROVIDER a
-accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/%empty	CREATE SCHEMA a CLONE a
-accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-1	CREATE SCHEMA a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-2	CREATE SCHEMA a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-3	CREATE SCHEMA a CLONE a AT(=> 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-4	CREATE SCHEMA a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-5	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!drop-6	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9c256d7c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)_)!swap	CREATE SCHEMA a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/%empty	CREATE SCHEMA a
+accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809	CREATE SCHEMA a CLONE a
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-1	CREATE SCHEMA a a
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-2	CREATE SCHEMA a CLONE
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!insert	CREATE SCHEMA a CLONE a zzz
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!swap	CREATE SCHEMA a CLOUD_PROVIDER a
+accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE SCHEMA a CLONE a
+accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE SCHEMA a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE SCHEMA a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE SCHEMA a CLONE a AT(=> 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE SCHEMA a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE SCHEMA a CLONE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createSchema(AT|BEFORE)/AT	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/AT!insert	CREATE SCHEMA a CLONE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createSchema(AT|BEFORE)/BEFORE	CREATE SCHEMA a CLONE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/BEFORE!insert	CREATE SCHEMA a CLONE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/BEFORE!swap	CREATE SCHEMA a CLONE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!truncate	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/TIMESTAMP_=>_STRING!swap	CREATE SCHEMA a CLONE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID	CREATE SCHEMA a CLONE a AT(OFFSET => a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-1	CREATE SCHEMA a CLONE a AT(=> a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-2	CREATE SCHEMA a CLONE a AT(OFFSET a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!drop-3	CREATE SCHEMA a CLONE a AT(OFFSET =>)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!truncate	CREATE SCHEMA a CLONE a AT(OFFSET =>
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!insert	CREATE SCHEMA a CLONE a AT(OFFSET => a zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/OFFSET_=>_ID!swap	CREATE SCHEMA a CLONE a AT(OIDC => a)
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID	CREATE SCHEMA a CLONE a AT(STATEMENT => a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!drop-2	CREATE SCHEMA a CLONE a AT(STATEMENT a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!drop-3	CREATE SCHEMA a CLONE a AT(STATEMENT =>)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!truncate	CREATE SCHEMA a CLONE a AT(STATEMENT =>
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!insert	CREATE SCHEMA a CLONE a AT(STATEMENT => a zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~044b704b)/STATEMENT_=>_ID!swap	CREATE SCHEMA a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE SCHEMA a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE SCHEMA a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE SCHEMA a CLONE a AT(=> - 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE SCHEMA a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE SCHEMA a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE SCHEMA a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE SCHEMA a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE SCHEMA a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE SCHEMA a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE SCHEMA a CLONE a AT(STATEMENT => a)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE SCHEMA a CLONE a AT(=> a)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE SCHEMA a CLONE a AT(STATEMENT a)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE SCHEMA a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE SCHEMA a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE SCHEMA a CLONE a AT(STATEMENT => a zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE SCHEMA a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
 accept	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/%empty	CREATE SCHEMA a CLONE a
 reject	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE SCHEMA a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE SCHEMA a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
@@ -39473,44 +39381,6 @@ accept	undocumented	docs	createSecret(TRUE|FALSE)/TRUE!swap	CREATE SECRET a TYPE
 accept	accept	docs	createSecret(TRUE|FALSE)/FALSE	CREATE SECRET a TYPE = CLOUD_PROVIDER_TOKEN API_AUTHENTICATION = 's' ENABLED = FALSE
 accept	undocumented	docs	createSecret(TRUE|FALSE)/FALSE!insert	CREATE SECRET a TYPE = CLOUD_PROVIDER_TOKEN API_AUTHENTICATION = 's' ENABLED = FALSE zzz
 accept	undocumented	docs	createSecret(TRUE|FALSE)/FALSE!swap	CREATE SECRET a TYPE = CLOUD_PROVIDER_TOKEN API_AUTHENTICATION = 's' ENABLED = FAMILIES
-accept	accept	docs	createSecurityIntegration/CREATE_(OR_REPLACE)?_SECURITY_INTEGRATION_(IF_NOT_EXIST~d3cf8c5e	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(OR_REPLACE)?/%empty	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(OR_REPLACE)?/%empty!insert	CREATE zzz SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(IF_NOT_EXISTS)?/%empty	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/%empty!insert	CREATE SECURITY INTEGRATION zzz a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SECURITY INTEGRATION IF NOT EXISTS a TYPE = API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SECURITY INTEGRATION NOT EXISTS a TYPE = API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SECURITY INTEGRATION IF EXISTS a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SECURITY INTEGRATION IF NOT a TYPE = API_AUTHENTICATION
-reject	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SECURITY INTEGRATION IF NOT
-accept	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SECURITY INTEGRATION IF NOT EXISTS zzz a TYPE = API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SECURITY INTEGRATION IGNORE NOT EXISTS a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)+/(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)+/(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)!swap	CREATE SECURITY INTEGRATION a TYPE = API_AWS_ROLE_ARN
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)+/(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)_(API_AU~9f98c412	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION API_AUTHENTICATION
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)+/(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)_(API_AU~9f98c412!insert	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION API_AUTHENTICATION zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)+/(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)_(API_AU~9f98c412!swap	CREATE SECURITY INTEGRATION a TYPE = API_AWS_ROLE_ARN API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/API_AUTHENTICATION	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/EXTERNAL_OAUTH	CREATE SECURITY INTEGRATION a TYPE = EXTERNAL_OAUTH
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/EXTERNAL_OAUTH!insert	CREATE SECURITY INTEGRATION a TYPE = EXTERNAL_OAUTH zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/EXTERNAL_OAUTH!swap	CREATE SECURITY INTEGRATION a TYPE = EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OAUTH	CREATE SECURITY INTEGRATION a TYPE = OAUTH
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OAUTH!insert	CREATE SECURITY INTEGRATION a TYPE = OAUTH zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OAUTH!swap	CREATE SECURITY INTEGRATION a TYPE = OAUTH2
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OIDC	CREATE SECURITY INTEGRATION a TYPE = OIDC
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OIDC!insert	CREATE SECURITY INTEGRATION a TYPE = OIDC zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/OIDC!swap	CREATE SECURITY INTEGRATION a TYPE = OIDC_ALLOWED_GOOGLE_HOSTED_DOMAINS
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SAML2	CREATE SECURITY INTEGRATION a TYPE = SAML2
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SAML2!insert	CREATE SECURITY INTEGRATION a TYPE = SAML2 zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SAML2!swap	CREATE SECURITY INTEGRATION a TYPE = SAML2_ENABLE_SP_INITIATED
-accept	accept	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SCIM	CREATE SECURITY INTEGRATION a TYPE = SCIM
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SCIM!insert	CREATE SECURITY INTEGRATION a TYPE = SCIM zzz
-accept	undocumented	docs	createSecurityIntegration(API_AUTHENTICATION|EXTERNAL_OAUTH|OA~be0c684c)/SCIM!swap	CREATE SECURITY INTEGRATION a TYPE = SCIM_CLIENT
 accept	accept	docs	createSecurityIntegrationApiAuth/CREATE_SECURITY_INTEGRATION_ID_TYPE_=_API_AUTHENTICATIO~94fbcc5b	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE
 accept	accept	docs	createSecurityIntegrationApiAuth/CREATE_SECURITY_INTEGRATION_ID_TYPE_=_API_AUTHENTICATIO~4c46a22a	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE
 accept	accept	docs	createSecurityIntegrationApiAuth/CREATE_SECURITY_INTEGRATION_ID_TYPE_=_API_AUTHENTICATIO~397f50f7	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = OAUTH2 ENABLED = TRUE OAUTH_ASSERTION_ISSUER = 's'
@@ -39641,6 +39511,7 @@ accept	accept	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT
 accept	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SECURITY INTEGRATION NOT EXISTS a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
 accept	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SECURITY INTEGRATION IF EXISTS a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
 reject	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SECURITY INTEGRATION IF NOT a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
+reject	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SECURITY INTEGRATION IF NOT
 accept	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SECURITY INTEGRATION IF NOT EXISTS zzz a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
 accept	undocumented	docs	createSecurityIntegrationApiAuthExternalSecretProvider(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SECURITY INTEGRATION IGNORE NOT EXISTS a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
 accept	accept	docs	createSecurityIntegrationApiAuthExternalSecretProvider(AWS_SECRETS_MANAGER|AZURE_KEY_VAULT|~5df2e475)/AWS_SECRETS_MANAGER	CREATE SECURITY INTEGRATION a TYPE = API_AUTHENTICATION AUTH_TYPE = WORKLOAD_IDENTITY_FEDERATION API_PROVIDER = AWS_SECRETS_MANAGER ENABLED = TRUE
@@ -41840,18 +41711,17 @@ accept	undocumented	docs	createStage_externalStageParams/URL_=_STRING_(AWS_ACCES
 accept	accept	docs	createStage_externalStageParams/URL_=_STRING_(STORAGE_INTEGRATION_=_ID)?_(ENCRYPTION_=_~3370ddcf	CREATE STAGE a URL = 's'
 accept	accept	docs	createStage_externalStageParams/URL_=_STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48e~51ab721e	CREATE STAGE a URL = 's'
 accept	accept	docs	createStage_externalStageParams/URL_=_STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48e~081a7eb3	CREATE STAGE a URL = 's'
-accept	accept	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-1	CREATE STAGE a = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-2	CREATE STAGE a URL 's3compat://{bucket}[/{path}/]' ENDPOINT = 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-3	CREATE STAGE a URL = ENDPOINT = 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-4	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' = 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-5	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT 's'
-reject	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!drop-6	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT =
-accept	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!insert	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' zzz
-accept	undocumented	docs	createStage_externalStageParams/URL_=_'s3compatCOLONSLASHSLASH{bucket}[SLASH{path}SLASH~c0cb6cd3!swap	CREATE STAGE a USAGE = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's'
+accept	accept	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d	CREATE STAGE a URL = 's' ENDPOINT = 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-1	CREATE STAGE a = 's' ENDPOINT = 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-2	CREATE STAGE a URL 's' ENDPOINT = 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-3	CREATE STAGE a URL = ENDPOINT = 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-4	CREATE STAGE a URL = 's' = 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-5	CREATE STAGE a URL = 's' ENDPOINT 's'
+reject	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!drop-6	CREATE STAGE a URL = 's' ENDPOINT =
+accept	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!insert	CREATE STAGE a URL = 's' ENDPOINT = 's' zzz
+accept	undocumented	docs	createStage_externalStageParams/URL_=_STRING_ENDPOINT_=_STRING_(CREDENTIALS_=_(_AWS_KEY~e7df186d!swap	CREATE STAGE a USAGE = 's' ENDPOINT = 's'
 accept	accept	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/%empty	CREATE STAGE a URL = 's'
 accept	accept	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING	CREATE STAGE a URL = 's' AWS_ACCESS_POINT_ARN = 's'
-reject	undocumented	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-1	CREATE STAGE a URL = 's' = 's'
 reject	undocumented	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-2	CREATE STAGE a URL = 's' AWS_ACCESS_POINT_ARN 's'
 reject	undocumented	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-3	CREATE STAGE a URL = 's' AWS_ACCESS_POINT_ARN =
 accept	undocumented	docs	createStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!insert	CREATE STAGE a URL = 's' AWS_ACCESS_POINT_ARN = 's' zzz
@@ -42006,20 +41876,20 @@ reject	undocumented	docs	createStage_externalStageParams(TYPE_=_'AZURE_CSE'_MAST
 accept	undocumented	docs	createStage_externalStageParams(TYPE_=_'AZURE_CSE'_MASTER_KEY_=_STRI~2b7b0eef)/TYPE_=_'AZURE_CSE'_MASTER_KEY_=_STRING!insert	CREATE STAGE a URL = 's' ENCRYPTION =(TYPE = 'AZURE_CSE' MASTER_KEY = 's' zzz)
 accept	undocumented	docs	createStage_externalStageParams(TYPE_=_'AZURE_CSE'_MASTER_KEY_=_STRI~2b7b0eef)/TYPE_=_'AZURE_CSE'_MASTER_KEY_=_STRING!swap	CREATE STAGE a URL = 's' ENCRYPTION =(TYPES = 'AZURE_CSE' MASTER_KEY = 's')
 accept	accept	docs	createStage_externalStageParams(TYPE_=_'AZURE_CSE'_MASTER_KEY_=_STRI~2b7b0eef)/TYPE_=_'NONE'	CREATE STAGE a URL = 's' ENCRYPTION =(TYPE = 'NONE')
-accept	accept	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/%empty	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's'
-accept	accept	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-1	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-2	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-3	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-4	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's')
-accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-5	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-6	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-7	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' = 's')
-accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-8	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's')
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-9	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =)
-reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-10	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
-accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!insert	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz
-accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!swap	CREATE STAGE a URL = 's3compat://{bucket}[/{path}/]' ENDPOINT = 's' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+accept	accept	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/%empty	CREATE STAGE a URL = 's' ENDPOINT = 's'
+accept	accept	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-1	CREATE STAGE a URL = 's' ENDPOINT = 's' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-2	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-3	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-4	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's')
+accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-5	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-6	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-7	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' = 's')
+accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-8	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's')
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-9	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =)
+reject	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!drop-10	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
+accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!insert	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz
+accept	undocumented	docs	createStage_externalStageParams(CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_~dbd9905f)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_)!swap	CREATE STAGE a URL = 's' ENDPOINT = 's' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
 accept	accept	docs	createStage_directoryTableParams/(DIRECTORY_=_(_ENABLE_=_(TRUE|FALSE)_~c53fab0b)?	CREATE STAGE a
 accept	accept	docs	createStage_directoryTableParams/(DIRECTORY_=_(_ENABLE_=_(TRUE|FALSE)_~6cb48f5c)?	CREATE STAGE a
 accept	accept	docs	createStage_directoryTableParams/(DIRECTORY_=_(_ENABLE_=_(TRUE|FALSE)_~2b37d768)?	CREATE STAGE a
@@ -42584,7 +42454,7 @@ reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STR
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a =)
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a =
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a = 's' zzz)
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~296759ee	CREATE STREAM a ON TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~5c054d0a	CREATE STREAM a ON TABLE a
 reject	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8	CREATE STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-1	STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-2	CREATE a ON EVENT TABLE a
@@ -42594,15 +42464,15 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-7	CREATE STREAM a ON EVENT TABLE
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!insert	CREATE STREAM a ON EVENT TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!swap	CREATION STREAM a ON EVENT TABLE a
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f	CREATE STREAM a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-1	STREAM a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-2	CREATE a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-3	CREATE STREAM ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-4	CREATE STREAM a EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-6	CREATE STREAM a ON EXTERNAL a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!drop-7	CREATE STREAM a ON EXTERNAL TABLE
-accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!insert	CREATE STREAM a ON EXTERNAL TABLE a zzz
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~18ed931f!swap	CREATION STREAM a ON EXTERNAL TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139	CREATE STREAM a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-1	STREAM a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-2	CREATE a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-3	CREATE STREAM ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-4	CREATE STREAM a EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-6	CREATE STREAM a ON EXTERNAL a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-7	CREATE STREAM a ON EXTERNAL TABLE
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!insert	CREATE STREAM a ON EXTERNAL TABLE a zzz
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!swap	CREATION STREAM a ON EXTERNAL TABLE a
 accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538	CREATE STREAM a ON STAGE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538!drop-1	STREAM a ON STAGE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538!drop-2	CREATE a ON STAGE a
@@ -42620,14 +42490,14 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!drop-7	CREATE STREAM a ON DYNAMIC TABLE
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!insert	CREATE STREAM a ON DYNAMIC TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!swap	CREATION STREAM a ON DYNAMIC TABLE a
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680	CREATE STREAM a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!drop-1	STREAM a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!drop-2	CREATE a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!drop-3	CREATE STREAM ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!drop-4	CREATE STREAM a VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!drop-6	CREATE STREAM a ON VIEW
-accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!insert	CREATE STREAM a ON VIEW a zzz
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~e9085680!swap	CREATION STREAM a ON VIEW a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a	CREATE STREAM a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-1	STREAM a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-2	CREATE a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-3	CREATE STREAM ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-4	CREATE STREAM a VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-6	CREATE STREAM a ON VIEW
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!insert	CREATE STREAM a ON VIEW a zzz
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!swap	CREATION STREAM a ON VIEW a
 accept	accept	docs	createStream(OR_REPLACE)?/%empty	CREATE STREAM a ON TABLE a
 reject	undocumented	docs	createStream(OR_REPLACE)?/%empty!insert	CREATE zzz STREAM a ON TABLE a
 accept	accept	docs	createStream(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STREAM a ON TABLE a
@@ -42678,44 +42548,46 @@ reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE ST
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE STREAM a COPY
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE STREAM a COPY GRANTS zzz ON TABLE a
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE STREAM a CORE GRANTS ON TABLE a
-accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/%empty	CREATE STREAM a ON TABLE a
-accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-1	CREATE STREAM a ON TABLE a(TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-2	CREATE STREAM a ON TABLE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-3	CREATE STREAM a ON TABLE a AT(=> 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-4	CREATE STREAM a ON TABLE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-5	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!drop-6	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's'
-accept	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~b890d8b5)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)_)!swap	CREATE STREAM a ON TABLE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/%empty	CREATE STREAM a ON TABLE a
+accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-1	CREATE STREAM a ON TABLE a(TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-2	CREATE STREAM a ON TABLE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-3	CREATE STREAM a ON TABLE a AT(=> 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-4	CREATE STREAM a ON TABLE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-5	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-6	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's'
+accept	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!swap	CREATE STREAM a ON TABLE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createStream(AT|BEFORE)/AT	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/AT!insert	CREATE STREAM a ON TABLE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createStream(AT|BEFORE)/BEFORE	CREATE STREAM a ON TABLE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/BEFORE!insert	CREATE STREAM a ON TABLE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/BEFORE!swap	CREATE STREAM a ON TABLE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/TIMESTAMP_=>_STRING	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/TIMESTAMP_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/TIMESTAMP_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's' zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/TIMESTAMP_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID	CREATE STREAM a ON TABLE a AT(OFFSET => a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!drop-1	CREATE STREAM a ON TABLE a AT(=> a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!drop-2	CREATE STREAM a ON TABLE a AT(OFFSET a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!drop-3	CREATE STREAM a ON TABLE a AT(OFFSET =>)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!truncate	CREATE STREAM a ON TABLE a AT(OFFSET =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!insert	CREATE STREAM a ON TABLE a AT(OFFSET => a zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/OFFSET_=>_ID!swap	CREATE STREAM a ON TABLE a AT(OIDC => a)
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID	CREATE STREAM a ON TABLE a AT(STATEMENT => a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID!drop-2	CREATE STREAM a ON TABLE a AT(STATEMENT a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID!drop-3	CREATE STREAM a ON TABLE a AT(STATEMENT =>)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID!truncate	CREATE STREAM a ON TABLE a AT(STATEMENT =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID!insert	CREATE STREAM a ON TABLE a AT(STATEMENT => a zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STATEMENT_=>_ID!swap	CREATE STREAM a ON TABLE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING	CREATE STREAM a ON TABLE a AT(STREAM => 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING!drop-2	CREATE STREAM a ON TABLE a AT(STREAM 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING!drop-3	CREATE STREAM a ON TABLE a AT(STREAM =>)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(STREAM =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(STREAM => 's' zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_ID|STA~012a77d2)/STREAM_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(STREAMLIT => 's')
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's' zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER	CREATE STREAM a ON TABLE a AT(OFFSET => - 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-1	CREATE STREAM a ON TABLE a AT(=> - 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-2	CREATE STREAM a ON TABLE a AT(OFFSET - 1)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-3	CREATE STREAM a ON TABLE a AT(OFFSET => 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-4	CREATE STREAM a ON TABLE a AT(OFFSET => -)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!truncate	CREATE STREAM a ON TABLE a AT(OFFSET => -
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!insert	CREATE STREAM a ON TABLE a AT(OFFSET => - 1 zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!swap	CREATE STREAM a ON TABLE a AT(OIDC => - 1)
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID	CREATE STREAM a ON TABLE a AT(STATEMENT => a)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-1	CREATE STREAM a ON TABLE a AT(=> a)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-2	CREATE STREAM a ON TABLE a AT(STATEMENT a)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-3	CREATE STREAM a ON TABLE a AT(STATEMENT =>)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!truncate	CREATE STREAM a ON TABLE a AT(STATEMENT =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!insert	CREATE STREAM a ON TABLE a AT(STATEMENT => a zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!swap	CREATE STREAM a ON TABLE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING	CREATE STREAM a ON TABLE a AT(STREAM => 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!drop-2	CREATE STREAM a ON TABLE a AT(STREAM 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!drop-3	CREATE STREAM a ON TABLE a AT(STREAM =>)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(STREAM =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(STREAM => 's' zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(STREAMLIT => 's')
 accept	accept	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/%empty	CREATE STREAM a ON TABLE a
 accept	accept	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/APPEND_ONLY_=_TRUE	CREATE STREAM a ON TABLE a APPEND_ONLY = TRUE
 reject	undocumented	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/APPEND_ONLY_=_TRUE!drop-1	CREATE STREAM a ON TABLE a = TRUE

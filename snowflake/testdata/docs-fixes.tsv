@@ -84,3 +84,5 @@ alter-iceberg-table-partition-evolution	WITH ( <newPartitionExpression> )	WITH (
 alter-cortex-search	<profile_name>\n  <scoring_profile>	<profile_name>\n  '<scoring_profile>'	the parameters say the scoring profile is a JSON string
 show-maintenance-policies	<entity_type> <entity_name>	{ DATABASE | APPLICATION PACKAGE | SCHEMA } <entity_name>	the parameters list the entity types: DATABASE, APPLICATION PACKAGE and SCHEMA
 copy-into-table	METADATA$<field> [ , <column_name> = METADATA${field} ... ]	{ METADATA$FILENAME | METADATA$FILE_ROW_NUMBER | METADATA$FILE_CONTENT_KEY | METADATA$FILE_LAST_MODIFIED | METADATA$START_SCAN_TIME } [ , <column_name> = { METADATA$FILENAME | METADATA$FILE_ROW_NUMBER | METADATA$FILE_CONTENT_KEY | METADATA$FILE_LAST_MODIFIED | METADATA$START_SCAN_TIME } ... ]	the parameters list the valid METADATA$ columns
+alter-security-integration	SET <parameters>	SET {parameters}	the parameters are each integration type's, given on its own page; {parameters} leaves the form unconverted
+create-stage	's3compat://{bucket}[/{path}/]'	's3compat://<bucket>[/<path>/]'	the bucket and path are text to fill in, as the parameters say
