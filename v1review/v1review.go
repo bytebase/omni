@@ -62,8 +62,16 @@ type Finding struct {
 	// Pattern is the pattern the name was held to. Template rules set it,
 	// since theirs differs per object; other rules leave it empty.
 	Pattern string
-	// Detail is the compile error's text, set with PatternInvalid.
+	// Detail is the compile error's text, set with PatternInvalid. A
+	// statement code that sets it says what it holds.
 	Detail string
+	// Count is the number a statement code reports, such as how many
+	// statements altered one table; each code that sets it says so.
+	Count int
+	// Statement is the index, in the statements passed, of the statement
+	// whose text Start and End index. Only rules that judge statements
+	// together set it; a rule judging each statement alone leaves it 0.
+	Statement int
 	// Search is the text the V1 advisor searched the statement for to find
 	// the finding's line, which can differ from Name: the source spelling
 	// where Name is lower-cased, say. It is set only on a finding the V1
