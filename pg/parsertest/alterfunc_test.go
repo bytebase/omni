@@ -1,6 +1,7 @@
 package parsertest
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -270,16 +271,21 @@ func TestDropOperatorIfExistsCascade(t *testing.T) {
 	}
 }
 
-// TestOperArgTypesSingleType tests that specifying only one type in oper_argtypes
-// parses successfully (single-argument/unary operator syntax).
+// TestOperArgTypesSingleType tests that oper_argtypes rejects a single type:
+// gram.y's '(' Typename ')' alternative raises "missing argument", since a
+// unary operator names NONE for its missing side.
 func TestOperArgTypesSingleType(t *testing.T) {
 	sqls := []string{
 		`DROP OPERATOR +(integer)`,
 		`DROP OPERATOR ~(integer)`,
 	}
 	for _, sql := range sqls {
-		_, err := parse(sql)
-		if err != nil {
+		if _, err := parse(sql); err == nil || !strings.Contains(err.Error(), "missing argument") {
+			t.Errorf("Expected a missing argument error for %q, got: %v", sql, err)
+		}
+	}
+	for _, sql := range []string{`DROP OPERATOR ~(NONE, integer)`, `DROP OPERATOR ~(integer, NONE)`} {
+		if _, err := parse(sql); err != nil {
 			t.Errorf("Expected success for %q, got error: %v", sql, err)
 		}
 	}

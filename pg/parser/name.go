@@ -136,6 +136,18 @@ func (p *Parser) parseNonReservedWord() (string, error) {
 	return "", p.syntaxErrorAtCur()
 }
 
+// parseNonReservedWordOrSconstStrict parses NonReservedWord_or_Sconst and
+// fails on anything else, unlike parseNonReservedWordOrSconst, which takes
+// whatever token comes.
+//
+//	NonReservedWord_or_Sconst: NonReservedWord | Sconst
+func (p *Parser) parseNonReservedWordOrSconstStrict() (string, error) {
+	if p.cur.Type == SCONST && !p.collectMode() {
+		return p.advance().Str, nil
+	}
+	return p.parseNonReservedWord()
+}
+
 // parseColLabel parses a ColLabel (any identifier or keyword).
 //
 //	ColLabel: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword | reserved_keyword
@@ -221,11 +233,11 @@ func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-// parseAnyName parses an any_name (dot-separated list of ColId).
+// parseAnyName parses an any_name: a ColId and then any number of
+// '.' attr_name.
 //
-//	any_name:
-//	    ColId
-//	    | ColId '.' any_name
+//	any_name: ColId | ColId attrs
+//	attrs: '.' attr_name | attrs '.' attr_name
 func (p *Parser) parseAnyName() (*nodes.List, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("any_name")
@@ -249,16 +261,7 @@ func (p *Parser) parseAnyName() (*nodes.List, error) {
 			p.addRuleCandidate("qualified_name")
 			return &nodes.List{Items: items}, errCollecting
 		}
-		// The recursive any_name starts with ColId, but we need to handle
-		// the case where the next token after '.' is '*' which could be
-		// part of a different rule. Only continue if we see a ColId.
-		if !p.isColId() {
-			// Put back: this dot is not part of any_name.
-			// Since we can't unread, this shouldn't happen in practice
-			// as callers of any_name expect well-formed input.
-			break
-		}
-		id2, err := p.parseColId()
+		id2, err := p.parseAttrName()
 		if err != nil {
 			return nil, err
 		}

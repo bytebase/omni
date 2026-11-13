@@ -110,7 +110,10 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 			return nil, err
 		}
 		if stmt == nil {
-			if p.cur.Type != 0 {
+			// A statement parser that consumed tokens and built nothing
+			// stopped short of a production gram.y requires; at the end of
+			// input that is still a syntax error.
+			if p.cur.Type != 0 || p.prev.End > stmtStart {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
