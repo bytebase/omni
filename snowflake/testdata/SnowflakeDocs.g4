@@ -1183,6 +1183,7 @@ alterDcmProject
 // https://docs.snowflake.com/en/sql-reference/sql/alter-dynamic-table
 // fix: dataGovnPolicyTagAction: the UNSET TAG variant ends in } but opens no {; added
 // fix: UNSET names a property without its value, as the page's parameters say
+// fix: a search method with its targets, as the parameters write it
 // not converted (form): undefined fragment "tableColumnCommentAction": the page does not define it, or it did not convert
 //   ALTER DYNAMIC TABLE [ IF EXISTS ] <name> { tableColumnCommentAction }
 alterDynamicTable
@@ -1211,7 +1212,7 @@ alterDynamicTable_dataGovnPolicyTagAction
     | ('SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* | 'UNSET' 'TAG' ID (',' ID)*)
     ;
 alterDynamicTable_searchOptimizationAction
-    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ID (',' ID)* 'EQUALITY'?)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) 'EQUALITY'? (',' (ID | EXPR) 'EQUALITY'?)*)? | 'SUSPEND' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)? | 'RESUME' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)?)
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' (',' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')')* 'EQUALITY'?)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) 'EQUALITY'? (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) 'EQUALITY'?)*)? | 'SUSPEND' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR))*)? | 'RESUME' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR))*)?)
     ;
 alterDynamicTable_storageLifecyclePolicyAction
     : ('ADD' 'STORAGE' 'LIFECYCLE' 'POLICY' ID 'ON' '(' ID (',' ID)* ')' | 'DROP' 'STORAGE' 'LIFECYCLE' 'POLICY')
@@ -1301,10 +1302,11 @@ alterExternalVolume_cloudProviderParams
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-failover-group
 // fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
+// fix: ALLOWED_INTEGRATION_TYPES takes the integration types the parameters list
 alterFailoverGroup
     : 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
-    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
+    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS') (',' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS'))*
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'REPLICATION_SCHEDULE' '=' STRING
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE')
@@ -1411,6 +1413,7 @@ alterGitRepository
 // fix: the governance form names no table; the page's other forms take <table_name>
 // fix: tableColumnAction: ALTER and MODIFY both take the column actions after them
 // fix: the column actions are a comma-separated list of actions, each one of those the page lists, as alter-table's are
+// fix: a search method with its targets, as the parameters write it
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 alterIcebergTable
     : 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID (alterIcebergTable_clusteringAction | alterIcebergTable_tableColumnAction)
@@ -1441,7 +1444,7 @@ alterIcebergTable_dataGovnPolicyTagAction
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)* ',' 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)*
     ;
 alterIcebergTable_searchOptimizationAction
-    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ID (',' ID)*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)?)
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' (',' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')')*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR))*)?)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-alter-column-set-data-type
@@ -1883,10 +1886,11 @@ alterProjectionPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-replication-group
 // fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
+// fix: ALLOWED_INTEGRATION_TYPES takes the integration types the parameters list
 alterReplicationGroup
     : 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
-    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
+    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS') (',' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS'))*
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'REPLICATION_SCHEDULE' '=' STRING
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'ERROR_INTEGRATION' '=' ID
@@ -2244,6 +2248,7 @@ alterStreamlit
 // fix: tableColumnAction: ALTER and MODIFY both take the column actions after them
 // fix: the column actions are a comma-separated list of actions, each one of those the page lists, as its examples show
 // fix: list_of_properties is a space-delimited list of the properties the parameters name
+// fix: a search method with its targets, as the parameters write it
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: an out-of-line key constraint names its columns, as the constraint page says
@@ -2301,7 +2306,7 @@ alterTable_outoflineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 alterTable_searchOptimizationAction
-    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ID (',' ID)*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)?)
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' (',' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')')*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR))*)?)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-table-column
@@ -2313,6 +2318,7 @@ alterTableColumn
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-table-event-table
+// fix: a search method with its targets, as the parameters write it
 alterTableEventTable
     : 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID alterTableEventTable_clusteringAction
@@ -2329,7 +2335,7 @@ alterTableEventTable_dataGovnPolicyTagAction
     | ('ADD' 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')' | 'DROP' 'ROW' 'ACCESS' 'POLICY' ID | 'DROP' 'ROW' 'ACCESS' 'POLICY' ID ',' 'ADD' 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')' | 'DROP' 'ALL' 'ROW' 'ACCESS' 'POLICIES')
     ;
 alterTableEventTable_searchOptimizationAction
-    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ID (',' ID)*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)?)
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' (',' ('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')')*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR) (',' (('FULL_TEXT' | 'EQUALITY' | 'SUBSTRING' | 'GEO') '(' ID (',' ID)* (',' 'ANALYZER' '=>' STRING)? ')' | ID | EXPR))*)?)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-tag
@@ -2531,6 +2537,7 @@ alterView_dataGovnPolicyTagAction
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse
+// fix: the sizes include the synonyms the parameters list
 alterWarehouse
     : 'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID? ('SUSPEND' | 'RESUME' ('IF' 'SUSPENDED')?)
     | 'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID ('ENABLE' | 'DISABLE')
@@ -2544,7 +2551,7 @@ alterWarehouse
     | 'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID 'DROP' 'TABLES' '(' ID (',' ID)* ')'
     ;
 alterWarehouse_objectProperties
-    : ('WAREHOUSE_TYPE' '=' ('STANDARD' | '\'SNOWPARK-OPTIMIZED\'' | 'ADAPTIVE') | 'WAREHOUSE_SIZE' '=' ('XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | 'XXLARGE' | 'XXXLARGE' | 'X4LARGE' | 'X5LARGE' | 'X6LARGE') | 'GENERATION' '=' ('\'1\'' | '\'2\'') | 'RESOURCE_CONSTRAINT' '=' ('STANDARD_GEN_1' | 'STANDARD_GEN_2' | 'MEMORY_1X' | 'MEMORY_1X_x86' | 'MEMORY_16X' | 'MEMORY_16X_x86' | 'MEMORY_64X' | 'MEMORY_64X_x86') | 'WAIT_FOR_COMPLETION' '=' ('TRUE' | 'FALSE') | 'MAX_CLUSTER_COUNT' '=' NUMBER | 'MIN_CLUSTER_COUNT' '=' NUMBER | 'SCALING_POLICY' '=' ('STANDARD' | 'ECONOMY') | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') | 'RESOURCE_MONITOR' '=' ID | 'COMMENT' '=' STRING | 'ENABLE_QUERY_ACCELERATION' '=' ('TRUE' | 'FALSE') | 'QUERY_ACCELERATION_MAX_SCALE_FACTOR' '=' NUMBER)+
+    : ('WAREHOUSE_TYPE' '=' ('STANDARD' | '\'SNOWPARK-OPTIMIZED\'' | 'ADAPTIVE') | 'WAREHOUSE_SIZE' '=' ('XSMALL' | '\'X-SMALL\'' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | '\'X-LARGE\'' | 'XXLARGE' | 'X2LARGE' | '\'2X-LARGE\'' | 'XXXLARGE' | 'X3LARGE' | '\'3X-LARGE\'' | 'X4LARGE' | '\'4X-LARGE\'' | 'X5LARGE' | '\'5X-LARGE\'' | 'X6LARGE' | '\'6X-LARGE\'') | 'GENERATION' '=' ('\'1\'' | '\'2\'') | 'RESOURCE_CONSTRAINT' '=' ('STANDARD_GEN_1' | 'STANDARD_GEN_2' | 'MEMORY_1X' | 'MEMORY_1X_x86' | 'MEMORY_16X' | 'MEMORY_16X_x86' | 'MEMORY_64X' | 'MEMORY_64X_x86') | 'WAIT_FOR_COMPLETION' '=' ('TRUE' | 'FALSE') | 'MAX_CLUSTER_COUNT' '=' NUMBER | 'MIN_CLUSTER_COUNT' '=' NUMBER | 'SCALING_POLICY' '=' ('STANDARD' | 'ECONOMY') | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') | 'RESOURCE_MONITOR' '=' ID | 'COMMENT' '=' STRING | 'ENABLE_QUERY_ACCELERATION' '=' ('TRUE' | 'FALSE') | 'QUERY_ACCELERATION_MAX_SCALE_FACTOR' '=' NUMBER)+
     ;
 alterWarehouse_objectParams
     : ('MAX_CONCURRENCY_LEVEL' '=' NUMBER | 'STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER | 'STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)+
@@ -3066,8 +3073,9 @@ createExternalTable_formatTypeOptions
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-failover-group
 // fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
+// fix: ALLOWED_INTEGRATION_TYPES takes the integration types the parameters list
 createFailoverGroup
-    : 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
+    : 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS') (',' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS'))*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
     | 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'AS' 'REPLICA' 'OF' ID '.' ID '.' ID
     ;
 
@@ -3538,8 +3546,9 @@ createProvisionedThroughput
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-replication-group
 // fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
+// fix: ALLOWED_INTEGRATION_TYPES takes the integration types the parameters list
 createReplicationGroup
-    : 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
+    : 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS') (',' ('SECURITY' 'INTEGRATIONS' | 'API' 'INTEGRATIONS' | 'STORAGE' 'INTEGRATIONS' | 'EXTERNAL' 'ACCESS' 'INTEGRATIONS' | 'NOTIFICATION' 'INTEGRATIONS'))*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
     | 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'AS' 'REPLICA' 'OF' ID '.' ID '.' ID
     ;
 
@@ -3769,8 +3778,9 @@ createStream
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-streamlit
+// fix: the source is a quoted stage path, as the parameters and examples write it
 createStreamlit
-    : 'CREATE' ('OR' 'REPLACE')? 'STREAMLIT' ('IF' 'NOT' 'EXISTS')? ID ('FROM' ID)? ('MAIN_FILE' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('RUNTIME_NAME' '=' STRING)? ('COMPUTE_POOL' '=' ID)? ('COMMENT' '=' STRING)? ('TITLE' '=' STRING)? ('IMPORTS' '=' '(' STRING (',' STRING)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'STREAMLIT' ('IF' 'NOT' 'EXISTS')? ID ('FROM' STRING)? ('MAIN_FILE' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('RUNTIME_NAME' '=' STRING)? ('COMPUTE_POOL' '=' ID)? ('COMMENT' '=' STRING)? ('TITLE' '=' STRING)? ('IMPORTS' '=' '(' STRING (',' STRING)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'STREAMLIT' ('IF' 'NOT' 'EXISTS')? ID 'ROOT_LOCATION' '=' STRING 'MAIN_FILE' '=' STRING ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('TITLE' '=' STRING)? ('IMPORTS' '=' '(' STRING (',' STRING)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
     ;
 
@@ -3863,11 +3873,12 @@ createView
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-warehouse
+// fix: the sizes include the synonyms the parameters list
 createWarehouse
     : 'CREATE' ('OR' 'REPLACE')? 'WAREHOUSE' ('IF' 'NOT' 'EXISTS')? ID ('WITH'? createWarehouse_objectProperties)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? createWarehouse_objectParams?
     ;
 createWarehouse_objectProperties
-    : ('WAREHOUSE_TYPE' '=' ('STANDARD' | '\'SNOWPARK-OPTIMIZED\'' | 'ADAPTIVE') | 'WAREHOUSE_SIZE' '=' ('XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | 'XXLARGE' | 'XXXLARGE' | 'X4LARGE' | 'X5LARGE' | 'X6LARGE') | 'GENERATION' '=' ('\'1\'' | '\'2\'') | 'RESOURCE_CONSTRAINT' '=' ('STANDARD_GEN_1' | 'STANDARD_GEN_2' | 'MEMORY_1X' | 'MEMORY_1X_x86' | 'MEMORY_16X' | 'MEMORY_16X_x86' | 'MEMORY_64X' | 'MEMORY_64X_x86') | 'MAX_CLUSTER_COUNT' '=' NUMBER | 'MIN_CLUSTER_COUNT' '=' NUMBER | 'SCALING_POLICY' '=' ('STANDARD' | 'ECONOMY') | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') | 'INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE') | 'RESOURCE_MONITOR' '=' ID | 'COMMENT' '=' STRING | 'ENABLE_QUERY_ACCELERATION' '=' ('TRUE' | 'FALSE') | 'QUERY_ACCELERATION_MAX_SCALE_FACTOR' '=' NUMBER)+
+    : ('WAREHOUSE_TYPE' '=' ('STANDARD' | '\'SNOWPARK-OPTIMIZED\'' | 'ADAPTIVE') | 'WAREHOUSE_SIZE' '=' ('XSMALL' | '\'X-SMALL\'' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | '\'X-LARGE\'' | 'XXLARGE' | 'X2LARGE' | '\'2X-LARGE\'' | 'XXXLARGE' | 'X3LARGE' | '\'3X-LARGE\'' | 'X4LARGE' | '\'4X-LARGE\'' | 'X5LARGE' | '\'5X-LARGE\'' | 'X6LARGE' | '\'6X-LARGE\'') | 'GENERATION' '=' ('\'1\'' | '\'2\'') | 'RESOURCE_CONSTRAINT' '=' ('STANDARD_GEN_1' | 'STANDARD_GEN_2' | 'MEMORY_1X' | 'MEMORY_1X_x86' | 'MEMORY_16X' | 'MEMORY_16X_x86' | 'MEMORY_64X' | 'MEMORY_64X_x86') | 'MAX_CLUSTER_COUNT' '=' NUMBER | 'MIN_CLUSTER_COUNT' '=' NUMBER | 'SCALING_POLICY' '=' ('STANDARD' | 'ECONOMY') | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') | 'INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE') | 'RESOURCE_MONITOR' '=' ID | 'COMMENT' '=' STRING | 'ENABLE_QUERY_ACCELERATION' '=' ('TRUE' | 'FALSE') | 'QUERY_ACCELERATION_MAX_SCALE_FACTOR' '=' NUMBER)+
     ;
 createWarehouse_objectParams
     : ('MAX_CONCURRENCY_LEVEL' '=' NUMBER | 'STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER | 'STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)+
