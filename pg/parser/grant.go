@@ -790,6 +790,10 @@ func (p *Parser) parseAlterOptRoleElem() (*nodes.DefElem, error) {
 		}
 		return p.advance().Str, nil
 	}
+	if p.collectMode() {
+		// Offer the role option names at the cursor.
+		return p.parseRoleOptionIdent(), nil
+	}
 	start := p.pos()
 	switch p.cur.Type {
 	case PASSWORD:

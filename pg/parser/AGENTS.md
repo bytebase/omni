@@ -38,6 +38,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `isSeqOptElemStart` | `seqOptElemLeadTokens` (13) | set; NO only before CYCLE, MAXVALUE or MINVALUE | Yes — `TestSeqOptElemLeadTokensMatchPG` via `CREATE SEQUENCE s X`, plus the ALTER-only NO split |
 | `isOptTableQualifiedNameStart`, `isTempStart`, `isDeallocateTargetStart` | TABLE or a ColId; `tempLeadTokens` (2); ALL or a ColId | take a `Token` (the one after the current), for `keywordLeads` | No — each is a category or a short list; `TestKeywordLeadPredicates` checks the whole `Keywords` table |
 | `isCreateStmtTailStart` | `createStmtTailLeadTokens` (3) | set only | No — `(`, OF and PARTITION start nothing else after CREATE TABLE's name; `TestIsCreateStmtTailStartMatchesSlice` checks the whole `Keywords` table |
 | `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
@@ -55,6 +56,7 @@ The point is to ask "does PG's parser get past the lead token?", not "does the s
 
 | Production | Probe template | Grammar position |
 |---|---|---|
+| SeqOptElem | `CREATE SEQUENCE omni_probe_seq %s` (with each continuation) | gram.y SeqOptElem; subtracts SEQUENCE, refused by init_params on execution |
 | SimpleTypename | `SELECT CAST(NULL AS %s)` | gram.y:14130 (CAST → Typename) |
 | ConstTypename | (none — ambiguous with `func_name Sconst`) | n/a |
 | Typename | `CREATE FUNCTION __omni_probe() RETURNS %s AS $$ SELECT 1 $$ LANGUAGE sql` | gram.y:8488 (RETURNS func_type, FIRST sets coincide with Typename) |

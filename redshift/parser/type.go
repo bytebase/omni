@@ -813,6 +813,10 @@ func (p *Parser) parseTypeList() (*nodes.List, error) {
 //	    | type_function_name attrs '%' TYPE_P
 //	    | SETOF type_function_name attrs '%' TYPE_P
 func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
+	if p.collectMode() && p.cur.Type != SETOF {
+		// Offer the type names at the cursor, as the %TYPE form's name does.
+		p.isTypeFunctionName()
+	}
 	// The %TYPE forms need name '.' ...: try them speculatively, and roll the
 	// token stream back to parse a Typename when they do not match.
 	if !p.collectMode() {

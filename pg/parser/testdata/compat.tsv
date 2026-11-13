@@ -29,7 +29,7 @@ accept	accept	engine	stmt/AlterDatabaseStmt	ALTER DATABASE a
 reject@0	reject@0	engine	stmt/AlterDatabaseStmt!drop-1	DATABASE a
 reject@6	reject@6	engine	stmt/AlterDatabaseStmt!drop-2	ALTER a
 reject@14	reject@14	engine	stmt/AlterDatabaseStmt!drop-3	ALTER DATABASE
-accept	reject@20	engine	stmt/AlterDatabaseStmt!insert	ALTER DATABASE a zzz
+reject@20	reject@20	engine	stmt/AlterDatabaseStmt!insert	ALTER DATABASE a zzz
 reject@0	reject@0	engine	stmt/AlterDatabaseStmt!swap	ALWAYS DATABASE a
 accept	accept	engine	stmt/AlterDatabaseSetStmt	ALTER DATABASE a SET NAMES
 reject@0	reject@0	engine	stmt/AlterDatabaseSetStmt!drop-1	DATABASE a SET NAMES
@@ -612,7 +612,7 @@ reject@35	reject@35	engine	stmt/CreateUserMappingStmt!insert	CREATE USER MAPPING
 reject@0	reject@0	engine	stmt/CreateUserMappingStmt!swap	CROSS USER MAPPING FOR a SERVER a
 accept	accept	engine	stmt/CreatedbStmt	CREATE DATABASE a
 reject@15	reject@15	engine	stmt/CreatedbStmt!drop-3	CREATE DATABASE
-accept	reject@21	engine	stmt/CreatedbStmt!insert	CREATE DATABASE a zzz
+reject@21	reject@21	engine	stmt/CreatedbStmt!insert	CREATE DATABASE a zzz
 reject@0	reject@0	engine	stmt/CreatedbStmt!swap	CROSS DATABASE a
 accept	accept	engine	stmt/DeallocateStmt	DEALLOCATE a
 reject@10	reject@10	engine	stmt/DeallocateStmt!drop-2	DEALLOCATE
@@ -1407,7 +1407,7 @@ accept	accept	engine	generic_reset/ALL!swap	RESET ALSO
 accept	accept	engine	SetResetClause/SET_set_rest	ALTER DATABASE a SET NAMES
 reject@17	reject@17	engine	SetResetClause/SET_set_rest!swap	ALTER DATABASE a SETOF NAMES
 accept	accept	engine	SetResetClause/VariableResetStmt	ALTER DATABASE a RESET a
-accept	reject@18	engine	SetResetClause/VariableResetStmt!drop-1	ALTER DATABASE a a
+reject@18	reject@18	engine	SetResetClause/VariableResetStmt!drop-1	ALTER DATABASE a a
 reject@22	reject@22	engine	SetResetClause/VariableResetStmt!drop-2	ALTER DATABASE a RESET
 reject@25	reject@25	engine	SetResetClause/VariableResetStmt!insert	ALTER DATABASE a RESET a zzz
 reject@17	reject@17	engine	SetResetClause/VariableResetStmt!swap	ALTER DATABASE a RESTART a
@@ -7475,30 +7475,30 @@ accept	accept	engine	LoadStmt/LOAD_file_name	LOAD 's'
 accept	accept	engine	CreatedbStmt/CREATE_DATABASE_name_opt_with_createdb_opt_list	CREATE DATABASE a
 accept	accept	engine	createdb_opt_list/createdb_opt_items	ALTER DATABASE a a 1.5
 reject@17	reject@17	engine	createdb_opt_list/createdb_opt_items!drop-1	ALTER DATABASE a 1.5
-accept	reject@26	engine	createdb_opt_list/createdb_opt_items!insert	ALTER DATABASE a a 1.5 zzz
+reject@26	reject@26	engine	createdb_opt_list/createdb_opt_items!insert	ALTER DATABASE a a 1.5 zzz
 accept	accept	engine	createdb_opt_list/%empty	ALTER DATABASE a
 accept	accept	engine	createdb_opt_items/createdb_opt_item	ALTER DATABASE a a 1.5
 accept	accept	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item	ALTER DATABASE a a 1.5 a 1.5
 reject@17	reject@17	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!drop-1	ALTER DATABASE a 1.5 a 1.5
 reject@21	reject@21	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!drop-2	ALTER DATABASE a a a 1.5
 reject@23	reject@23	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!drop-3	ALTER DATABASE a a 1.5 1.5
-accept	reject@24	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!drop-4	ALTER DATABASE a a 1.5 a
-accept	reject@32	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!insert	ALTER DATABASE a a 1.5 a 1.5 zzz
+reject@24	reject@24	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!drop-4	ALTER DATABASE a a 1.5 a
+reject@32	reject@32	engine	createdb_opt_items/createdb_opt_items_createdb_opt_item!insert	ALTER DATABASE a a 1.5 a 1.5 zzz
 accept	accept	engine	createdb_opt_item/createdb_opt_name_opt_equal_NumericOnly	ALTER DATABASE a a 1.5
 accept	accept	engine	createdb_opt_item/createdb_opt_name_opt_equal_opt_boolean_or_string	ALTER DATABASE a a TRUE
 reject@17	reject@17	engine	createdb_opt_item/createdb_opt_name_opt_equal_opt_boolean_or_string!drop-1	ALTER DATABASE a TRUE
-accept	reject@27	engine	createdb_opt_item/createdb_opt_name_opt_equal_opt_boolean_or_string!insert	ALTER DATABASE a a TRUE zzz
+reject@27	reject@27	engine	createdb_opt_item/createdb_opt_name_opt_equal_opt_boolean_or_string!insert	ALTER DATABASE a a TRUE zzz
 accept	accept	engine	createdb_opt_item/createdb_opt_name_opt_equal_opt_boolean_or_string!swap	ALTER DATABASE a a TRUNCATE
 accept	accept	engine	createdb_opt_item/createdb_opt_name_opt_equal_DEFAULT	ALTER DATABASE a a DEFAULT
 reject@17	reject@17	engine	createdb_opt_item/createdb_opt_name_opt_equal_DEFAULT!drop-1	ALTER DATABASE a DEFAULT
-accept	reject@30	engine	createdb_opt_item/createdb_opt_name_opt_equal_DEFAULT!insert	ALTER DATABASE a a DEFAULT zzz
+reject@30	reject@30	engine	createdb_opt_item/createdb_opt_name_opt_equal_DEFAULT!insert	ALTER DATABASE a a DEFAULT zzz
 accept	accept	engine	createdb_opt_item/createdb_opt_name_opt_equal_DEFAULT!swap	ALTER DATABASE a a DEFAULTS
 accept	accept	engine	createdb_opt_name/IDENT	ALTER DATABASE a a 1.5
 reject@23	reject@23	engine	createdb_opt_name/IDENT!insert	ALTER DATABASE a a zzz 1.5
 accept	accept	engine	createdb_opt_name/CONNECTION_LIMIT	ALTER DATABASE a CONNECTION LIMIT 1.5
 reject@17	reject@17	engine	createdb_opt_name/CONNECTION_LIMIT!drop-1	ALTER DATABASE a LIMIT 1.5
-accept	reject@28	engine	createdb_opt_name/CONNECTION_LIMIT!drop-2	ALTER DATABASE a CONNECTION 1.5
-accept	reject@27	engine	createdb_opt_name/CONNECTION_LIMIT!truncate	ALTER DATABASE a CONNECTION
+reject@28	reject@28	engine	createdb_opt_name/CONNECTION_LIMIT!drop-2	ALTER DATABASE a CONNECTION 1.5
+reject@27	reject@27	engine	createdb_opt_name/CONNECTION_LIMIT!truncate	ALTER DATABASE a CONNECTION
 reject@38	reject@38	engine	createdb_opt_name/CONNECTION_LIMIT!insert	ALTER DATABASE a CONNECTION LIMIT zzz 1.5
 reject@17	reject@17	engine	createdb_opt_name/CONNECTION_LIMIT!swap	ALTER DATABASE a CONSTRAINT LIMIT 1.5
 accept	accept	engine	createdb_opt_name/ENCODING	ALTER DATABASE a ENCODING 1.5
@@ -7523,7 +7523,7 @@ accept	accept	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_lis
 reject@0	reject@0	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!drop-1	DATABASE a WITH
 reject@6	reject@6	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!drop-2	ALTER a WITH
 reject@15	reject@15	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!drop-3	ALTER DATABASE WITH
-accept	reject@25	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!insert	ALTER DATABASE a WITH zzz
+reject@25	reject@25	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!insert	ALTER DATABASE a WITH zzz
 reject@0	reject@0	engine	AlterDatabaseStmt/ALTER_DATABASE_name_WITH_createdb_opt_list!swap	ALWAYS DATABASE a WITH
 accept	accept	engine	AlterDatabaseStmt/ALTER_DATABASE_name_createdb_opt_list	ALTER DATABASE a
 accept	accept	engine	AlterDatabaseStmt/ALTER_DATABASE_name_SET_TABLESPACE_name	ALTER DATABASE a SET TABLESPACE a
