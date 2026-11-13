@@ -21,6 +21,10 @@ const (
 	// dot and a word as one token, so a dot that is a token of its own must
 	// stand apart.
 	Spaced = "(spaced)"
+	// Reserved: a word, named by itself, that the engine never reads as an
+	// identifier. A recognizer matches it only where the grammar spells it,
+	// never for a token class such as a name.
+	Reserved = "(reserved)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
