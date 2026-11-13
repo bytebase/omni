@@ -11019,9 +11019,9 @@ reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!drop-
 reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!insert	DELETE FROM a USE KEY() USE KEY() zzz
 reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!swap	DELETE FROM a USER KEY() USE KEY()
 accept	accept	engine	relation_factor/normal_relation_factor	EXPLAIN a
-reject	accept	engine	relation_factor/dot_relation_factor	EXPLAIN . a
+accept	accept	engine	relation_factor/dot_relation_factor	EXPLAIN . a
 reject	reject	engine	relation_factor/dot_relation_factor!drop-2	EXPLAIN .
-reject	accept	engine	relation_factor/dot_relation_factor!insert	EXPLAIN . a zzz
+accept	accept	engine	relation_factor/dot_relation_factor!insert	EXPLAIN . a zzz
 accept	accept	engine	relation_with_star_list/relation_factor_with_star	DELETE a FROM a
 reject	reject	engine	relation_with_star_list/relation_factor_with_star!insert	DELETE a zzz FROM a
 accept	accept	engine	relation_with_star_list/relation_with_star_list_,_relation_factor_with_star	DELETE a, a FROM a
@@ -11046,9 +11046,9 @@ accept	accept	engine	normal_relation_factor/relation_name_opt_dblink	EXPLAIN a
 accept	accept	engine	normal_relation_factor/relation_name_._relation_name_opt_dblink	EXPLAIN a . a
 reject	reject	engine	normal_relation_factor/relation_name_._relation_name_opt_dblink!drop-3	EXPLAIN a .
 accept	accept	engine	normal_relation_factor/relation_name_._relation_name_opt_dblink!insert	EXPLAIN a . a zzz
-reject	accept	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword	EXPLAIN a . ACCESSIBLE
+accept	accept	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword	EXPLAIN a . ACCESSIBLE
 reject	reject	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword!drop-2	EXPLAIN a ACCESSIBLE
-reject	accept	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword!insert	EXPLAIN a . ACCESSIBLE zzz
+accept	accept	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword!insert	EXPLAIN a . ACCESSIBLE zzz
 accept	accept	engine	normal_relation_factor/relation_name_._mysql_reserved_keyword!swap	EXPLAIN a . ACCESSID
 accept	accept	engine	normal_relation_factor/id_dot_id_opt_dblink	EXPLAIN a.a
 accept	accept	engine	normal_relation_factor/id_dot_id_opt_dblink!insert	EXPLAIN a.a zzz
@@ -11061,11 +11061,11 @@ reject	reject	engine	normal_relation_factor/relation_name_._relation_name_._rela
 accept	accept	engine	normal_relation_factor/relation_name_._relation_name_._relation_name!drop-4	EXPLAIN a . a a
 reject	reject	engine	normal_relation_factor/relation_name_._relation_name_._relation_name!drop-5	EXPLAIN a . a .
 reject	accept	engine	normal_relation_factor/relation_name_._relation_name_._relation_name!insert	EXPLAIN a . a . a zzz
-reject	accept	engine	dot_relation_factor/._relation_name	EXPLAIN . a
-reject	accept	engine	dot_relation_factor/._mysql_reserved_keyword	EXPLAIN . ACCESSIBLE
+accept	accept	engine	dot_relation_factor/._relation_name	EXPLAIN . a
+accept	accept	engine	dot_relation_factor/._mysql_reserved_keyword	EXPLAIN . ACCESSIBLE
 reject	reject	engine	dot_relation_factor/._mysql_reserved_keyword!drop-1	EXPLAIN ACCESSIBLE
-reject	accept	engine	dot_relation_factor/._mysql_reserved_keyword!insert	EXPLAIN . ACCESSIBLE zzz
-reject	accept	engine	dot_relation_factor/._mysql_reserved_keyword!swap	EXPLAIN . ACCESSID
+accept	accept	engine	dot_relation_factor/._mysql_reserved_keyword!insert	EXPLAIN . ACCESSIBLE zzz
+accept	accept	engine	dot_relation_factor/._mysql_reserved_keyword!swap	EXPLAIN . ACCESSID
 reject	accept	engine	opt_dblink/USER_VARIABLE	EXPLAIN a @v
 reject	accept	engine	opt_dblink/USER_VARIABLE!insert	EXPLAIN a @v zzz
 accept	accept	engine	opt_dblink/%empty	EXPLAIN a
@@ -19860,550 +19860,550 @@ accept	accept	engine	unreserved_keyword_ambiguous_roles/ENCRYPT	SELECT ENCRYPT
 accept	accept	engine	unreserved_keyword_ambiguous_roles/ENCRYPT!insert	SELECT ENCRYPT zzz
 accept	accept	engine	unreserved_keyword_ambiguous_roles/DECRYPT	SELECT DECRYPT
 accept	accept	engine	unreserved_keyword_ambiguous_roles/DECRYPT!insert	SELECT DECRYPT zzz
-reject	accept	engine	mysql_reserved_keyword/ACCESSIBLE	EXPLAIN . ACCESSIBLE
-reject	accept	engine	mysql_reserved_keyword/ADD	EXPLAIN . ADD
-reject	accept	engine	mysql_reserved_keyword/ADD!insert	EXPLAIN . ADD zzz
-reject	accept	engine	mysql_reserved_keyword/ADD!swap	EXPLAIN . ADDDATE
-reject	accept	engine	mysql_reserved_keyword/ALTER	EXPLAIN . ALTER
-reject	accept	engine	mysql_reserved_keyword/ALTER!insert	EXPLAIN . ALTER zzz
-reject	accept	engine	mysql_reserved_keyword/ALTER!swap	EXPLAIN . ALWAYS
-reject	accept	engine	mysql_reserved_keyword/ANALYZE	EXPLAIN . ANALYZE
-reject	accept	engine	mysql_reserved_keyword/ANALYZE!insert	EXPLAIN . ANALYZE zzz
-reject	accept	engine	mysql_reserved_keyword/AND	EXPLAIN . AND
-reject	accept	engine	mysql_reserved_keyword/AND!insert	EXPLAIN . AND zzz
-reject	accept	engine	mysql_reserved_keyword/AND!swap	EXPLAIN . ANY
-reject	accept	engine	mysql_reserved_keyword/AS	EXPLAIN . AS
-reject	accept	engine	mysql_reserved_keyword/AS!insert	EXPLAIN . AS zzz
-reject	accept	engine	mysql_reserved_keyword/ASC	EXPLAIN . ASC
-reject	accept	engine	mysql_reserved_keyword/ASC!insert	EXPLAIN . ASC zzz
-reject	accept	engine	mysql_reserved_keyword/ASC!swap	EXPLAIN . ASCII
-reject	accept	engine	mysql_reserved_keyword/ASENSITIVE	EXPLAIN . ASENSITIVE
-reject	accept	engine	mysql_reserved_keyword/ASENSITIVE!insert	EXPLAIN . ASENSITIVE zzz
-reject	accept	engine	mysql_reserved_keyword/ASENSITIVE!swap	EXPLAIN . ASIS
-reject	accept	engine	mysql_reserved_keyword/BEFORE	EXPLAIN . BEFORE
-reject	accept	engine	mysql_reserved_keyword/BEFORE!insert	EXPLAIN . BEFORE zzz
-reject	accept	engine	mysql_reserved_keyword/BEFORE!swap	EXPLAIN . BEGIN
-reject	accept	engine	mysql_reserved_keyword/BETWEEN	EXPLAIN . BETWEEN
-reject	accept	engine	mysql_reserved_keyword/BETWEEN!insert	EXPLAIN . BETWEEN zzz
-reject	accept	engine	mysql_reserved_keyword/BIGINT	EXPLAIN . BIGINT
-reject	accept	engine	mysql_reserved_keyword/BIGINT!insert	EXPLAIN . BIGINT zzz
-reject	accept	engine	mysql_reserved_keyword/BIGINT!swap	EXPLAIN . BIGINT_PRECISION
-reject	accept	engine	mysql_reserved_keyword/BINARY	EXPLAIN . BINARY
-reject	accept	engine	mysql_reserved_keyword/BINARY!insert	EXPLAIN . BINARY zzz
-reject	accept	engine	mysql_reserved_keyword/BINARY!swap	EXPLAIN . BINARY_FORMAT
-reject	accept	engine	mysql_reserved_keyword/BLOB	EXPLAIN . BLOB
-reject	accept	engine	mysql_reserved_keyword/BLOB!insert	EXPLAIN . BLOB zzz
-reject	accept	engine	mysql_reserved_keyword/BLOB!swap	EXPLAIN . BLOCK
-reject	accept	engine	mysql_reserved_keyword/BY	EXPLAIN . BY
-reject	accept	engine	mysql_reserved_keyword/BY!insert	EXPLAIN . BY zzz
-reject	accept	engine	mysql_reserved_keyword/BY!swap	EXPLAIN . BYTE
-reject	accept	engine	mysql_reserved_keyword/CALL	EXPLAIN . CALL
-reject	accept	engine	mysql_reserved_keyword/CALL!insert	EXPLAIN . CALL zzz
-reject	accept	engine	mysql_reserved_keyword/CALL!swap	EXPLAIN . CANCEL
-reject	accept	engine	mysql_reserved_keyword/CASCADE	EXPLAIN . CASCADE
-reject	accept	engine	mysql_reserved_keyword/CASCADE!insert	EXPLAIN . CASCADE zzz
-reject	accept	engine	mysql_reserved_keyword/CASCADE!swap	EXPLAIN . CASCADED
-reject	accept	engine	mysql_reserved_keyword/CASE	EXPLAIN . CASE
-reject	accept	engine	mysql_reserved_keyword/CASE!insert	EXPLAIN . CASE zzz
-reject	accept	engine	mysql_reserved_keyword/CASE!swap	EXPLAIN . CAST
-reject	accept	engine	mysql_reserved_keyword/CHANGE	EXPLAIN . CHANGE
-reject	accept	engine	mysql_reserved_keyword/CHANGE!insert	EXPLAIN . CHANGE zzz
-reject	accept	engine	mysql_reserved_keyword/CHANGE!swap	EXPLAIN . CHANGED
-reject	accept	engine	mysql_reserved_keyword/CHARACTER	EXPLAIN . CHARACTER
-reject	accept	engine	mysql_reserved_keyword/CHARACTER!insert	EXPLAIN . CHARACTER zzz
-reject	accept	engine	mysql_reserved_keyword/CHARACTER!swap	EXPLAIN . CHARSET
-reject	accept	engine	mysql_reserved_keyword/CHECK	EXPLAIN . CHECK
-reject	accept	engine	mysql_reserved_keyword/CHECK!insert	EXPLAIN . CHECK zzz
-reject	accept	engine	mysql_reserved_keyword/CHECK!swap	EXPLAIN . CHECKPOINT
-reject	accept	engine	mysql_reserved_keyword/COLLATE	EXPLAIN . COLLATE
-reject	accept	engine	mysql_reserved_keyword/COLLATE!insert	EXPLAIN . COLLATE zzz
-reject	accept	engine	mysql_reserved_keyword/COLLATE!swap	EXPLAIN . COLLATION
-reject	accept	engine	mysql_reserved_keyword/COLUMN	EXPLAIN . COLUMN
-reject	accept	engine	mysql_reserved_keyword/COLUMN!insert	EXPLAIN . COLUMN zzz
-reject	accept	engine	mysql_reserved_keyword/COLUMN!swap	EXPLAIN . COLUMNS
-reject	accept	engine	mysql_reserved_keyword/CONDITION	EXPLAIN . CONDITION
-reject	accept	engine	mysql_reserved_keyword/CONDITION!insert	EXPLAIN . CONDITION zzz
-reject	accept	engine	mysql_reserved_keyword/CONDITION!swap	EXPLAIN . CONDITIONAL
-reject	accept	engine	mysql_reserved_keyword/CONSTRAINT	EXPLAIN . CONSTRAINT
-reject	accept	engine	mysql_reserved_keyword/CONSTRAINT!insert	EXPLAIN . CONSTRAINT zzz
-reject	accept	engine	mysql_reserved_keyword/CONSTRAINT!swap	EXPLAIN . CONSTRAINT_CATALOG
-reject	accept	engine	mysql_reserved_keyword/CONTINUE	EXPLAIN . CONTINUE
-reject	accept	engine	mysql_reserved_keyword/CONTINUE!insert	EXPLAIN . CONTINUE zzz
-reject	accept	engine	mysql_reserved_keyword/CONTINUE!swap	EXPLAIN . CONTRIBUTORS
-reject	accept	engine	mysql_reserved_keyword/CONVERT	EXPLAIN . CONVERT
-reject	accept	engine	mysql_reserved_keyword/CONVERT!insert	EXPLAIN . CONVERT zzz
-reject	accept	engine	mysql_reserved_keyword/CONVERT!swap	EXPLAIN . COPY
-reject	accept	engine	mysql_reserved_keyword/CREATE	EXPLAIN . CREATE
-reject	accept	engine	mysql_reserved_keyword/CREATE!insert	EXPLAIN . CREATE zzz
-reject	accept	engine	mysql_reserved_keyword/CREATE!swap	EXPLAIN . CREATE_TIMESTAMP
-reject	accept	engine	mysql_reserved_keyword/CROSS	EXPLAIN . CROSS
-reject	accept	engine	mysql_reserved_keyword/CROSS!insert	EXPLAIN . CROSS zzz
-reject	accept	engine	mysql_reserved_keyword/CROSS!swap	EXPLAIN . CTXCAT
-reject	accept	engine	mysql_reserved_keyword/CURRENT_DATE	EXPLAIN . CURRENT_DATE
-reject	accept	engine	mysql_reserved_keyword/CURRENT_DATE!insert	EXPLAIN . CURRENT_DATE zzz
-reject	accept	engine	mysql_reserved_keyword/CURRENT_TIME	EXPLAIN . CURRENT_TIME
-reject	accept	engine	mysql_reserved_keyword/CURRENT_TIME!insert	EXPLAIN . CURRENT_TIME zzz
-reject	accept	engine	mysql_reserved_keyword/CURRENT_TIMESTAMP	EXPLAIN . CURRENT_TIMESTAMP
-reject	accept	engine	mysql_reserved_keyword/CURRENT_TIMESTAMP!insert	EXPLAIN . CURRENT_TIMESTAMP zzz
-reject	accept	engine	mysql_reserved_keyword/CURRENT_USER	EXPLAIN . CURRENT_USER
-reject	accept	engine	mysql_reserved_keyword/CURRENT_USER!insert	EXPLAIN . CURRENT_USER zzz
-reject	accept	engine	mysql_reserved_keyword/CURSOR	EXPLAIN . CURSOR
-reject	accept	engine	mysql_reserved_keyword/CURSOR!insert	EXPLAIN . CURSOR zzz
-reject	accept	engine	mysql_reserved_keyword/CURSOR!swap	EXPLAIN . CURSOR_NAME
-reject	accept	engine	mysql_reserved_keyword/DATABASE	EXPLAIN . DATABASE
-reject	accept	engine	mysql_reserved_keyword/DATABASE!insert	EXPLAIN . DATABASE zzz
-reject	accept	engine	mysql_reserved_keyword/DATABASES	EXPLAIN . DATABASES
-reject	accept	engine	mysql_reserved_keyword/DATABASES!insert	EXPLAIN . DATABASES zzz
-reject	accept	engine	mysql_reserved_keyword/DATABASES!swap	EXPLAIN . DATABASE_ID
-reject	accept	engine	mysql_reserved_keyword/DAY_HOUR	EXPLAIN . DAY_HOUR
-reject	accept	engine	mysql_reserved_keyword/DAY_HOUR!insert	EXPLAIN . DAY_HOUR zzz
-reject	accept	engine	mysql_reserved_keyword/DAY_MICROSECOND	EXPLAIN . DAY_MICROSECOND
-reject	accept	engine	mysql_reserved_keyword/DAY_MICROSECOND!insert	EXPLAIN . DAY_MICROSECOND zzz
-reject	accept	engine	mysql_reserved_keyword/DAY_MINUTE	EXPLAIN . DAY_MINUTE
-reject	accept	engine	mysql_reserved_keyword/DAY_MINUTE!insert	EXPLAIN . DAY_MINUTE zzz
-reject	accept	engine	mysql_reserved_keyword/DAY_SECOND	EXPLAIN . DAY_SECOND
-reject	accept	engine	mysql_reserved_keyword/DAY_SECOND!insert	EXPLAIN . DAY_SECOND zzz
-reject	accept	engine	mysql_reserved_keyword/DAY_SECOND!swap	EXPLAIN . DBMS_STATS
-reject	accept	engine	mysql_reserved_keyword/DECLARE	EXPLAIN . DECLARE
-reject	accept	engine	mysql_reserved_keyword/DECLARE!insert	EXPLAIN . DECLARE zzz
-reject	accept	engine	mysql_reserved_keyword/DECLARE!swap	EXPLAIN . DECORRELATE
-reject	accept	engine	mysql_reserved_keyword/DECIMAL	EXPLAIN . DECIMAL
-reject	accept	engine	mysql_reserved_keyword/DECIMAL!insert	EXPLAIN . DECIMAL zzz
-reject	accept	engine	mysql_reserved_keyword/DEFAULT	EXPLAIN . DEFAULT
-reject	accept	engine	mysql_reserved_keyword/DEFAULT!insert	EXPLAIN . DEFAULT zzz
-reject	accept	engine	mysql_reserved_keyword/DEFAULT!swap	EXPLAIN . DEFAULT_AUTH
-reject	accept	engine	mysql_reserved_keyword/DELAYED	EXPLAIN . DELAYED
-reject	accept	engine	mysql_reserved_keyword/DELAYED!insert	EXPLAIN . DELAYED zzz
-reject	accept	engine	mysql_reserved_keyword/DELAYED!swap	EXPLAIN . DELAY_KEY_WRITE
-reject	accept	engine	mysql_reserved_keyword/DELETE	EXPLAIN . DELETE
-reject	accept	engine	mysql_reserved_keyword/DELETE!insert	EXPLAIN . DELETE zzz
-reject	accept	engine	mysql_reserved_keyword/DELETE!swap	EXPLAIN . DELETE_INSERT
-reject	accept	engine	mysql_reserved_keyword/DESC	EXPLAIN . DESC
-reject	accept	engine	mysql_reserved_keyword/DESC!insert	EXPLAIN . DESC zzz
-reject	accept	engine	mysql_reserved_keyword/DESCRIBE	EXPLAIN . DESCRIBE
-reject	accept	engine	mysql_reserved_keyword/DESCRIBE!insert	EXPLAIN . DESCRIBE zzz
-reject	accept	engine	mysql_reserved_keyword/DESCRIBE!swap	EXPLAIN . DESCRIPTION
-reject	accept	engine	mysql_reserved_keyword/DETERMINISTIC	EXPLAIN . DETERMINISTIC
-reject	accept	engine	mysql_reserved_keyword/DETERMINISTIC!insert	EXPLAIN . DETERMINISTIC zzz
-reject	accept	engine	mysql_reserved_keyword/DETERMINISTIC!swap	EXPLAIN . DIAGNOSTICS
-reject	accept	engine	mysql_reserved_keyword/DIV	EXPLAIN . DIV
-reject	accept	engine	mysql_reserved_keyword/DIV!insert	EXPLAIN . DIV zzz
-reject	accept	engine	mysql_reserved_keyword/DIV!swap	EXPLAIN . DML_PARALLEL
-reject	accept	engine	mysql_reserved_keyword/DOUBLE	EXPLAIN . DOUBLE
-reject	accept	engine	mysql_reserved_keyword/DOUBLE!insert	EXPLAIN . DOUBLE zzz
-reject	accept	engine	mysql_reserved_keyword/DROP	EXPLAIN . DROP
-reject	accept	engine	mysql_reserved_keyword/DROP!insert	EXPLAIN . DROP zzz
-reject	accept	engine	mysql_reserved_keyword/DUAL	EXPLAIN . DUAL
-reject	accept	engine	mysql_reserved_keyword/DUAL!insert	EXPLAIN . DUAL zzz
-reject	accept	engine	mysql_reserved_keyword/DUAL!swap	EXPLAIN . DUMP
-reject	accept	engine	mysql_reserved_keyword/EACH	EXPLAIN . EACH
-reject	accept	engine	mysql_reserved_keyword/EACH!insert	EXPLAIN . EACH zzz
-reject	accept	engine	mysql_reserved_keyword/EACH!swap	EXPLAIN . EFFECTIVE
-reject	accept	engine	mysql_reserved_keyword/ELSE	EXPLAIN . ELSE
-reject	accept	engine	mysql_reserved_keyword/ELSE!insert	EXPLAIN . ELSE zzz
-reject	accept	engine	mysql_reserved_keyword/ELSEIF	EXPLAIN . ELSEIF
-reject	accept	engine	mysql_reserved_keyword/ELSEIF!insert	EXPLAIN . ELSEIF zzz
-reject	accept	engine	mysql_reserved_keyword/ELSEIF!swap	EXPLAIN . EMPTY
-reject	accept	engine	mysql_reserved_keyword/ENCLOSED	EXPLAIN . ENCLOSED
-reject	accept	engine	mysql_reserved_keyword/ENCLOSED!insert	EXPLAIN . ENCLOSED zzz
-reject	accept	engine	mysql_reserved_keyword/ENCLOSED!swap	EXPLAIN . ENCODING
-reject	accept	engine	mysql_reserved_keyword/ESCAPED	EXPLAIN . ESCAPED
-reject	accept	engine	mysql_reserved_keyword/ESCAPED!insert	EXPLAIN . ESCAPED zzz
-reject	accept	engine	mysql_reserved_keyword/ESCAPED!swap	EXPLAIN . ESTIMATE
-reject	accept	engine	mysql_reserved_keyword/EXISTS	EXPLAIN . EXISTS
-reject	accept	engine	mysql_reserved_keyword/EXISTS!insert	EXPLAIN . EXISTS zzz
-reject	accept	engine	mysql_reserved_keyword/EXIT	EXPLAIN . EXIT
-reject	accept	engine	mysql_reserved_keyword/EXIT!insert	EXPLAIN . EXIT zzz
-reject	accept	engine	mysql_reserved_keyword/EXIT!swap	EXPLAIN . EXPANSION
-reject	accept	engine	mysql_reserved_keyword/EXPLAIN	EXPLAIN . EXPLAIN
-reject	accept	engine	mysql_reserved_keyword/EXPLAIN!insert	EXPLAIN . EXPLAIN zzz
-reject	accept	engine	mysql_reserved_keyword/EXPLAIN!swap	EXPLAIN . EXPORT
-reject	accept	engine	mysql_reserved_keyword/FETCH	EXPLAIN . FETCH
-reject	accept	engine	mysql_reserved_keyword/FETCH!insert	EXPLAIN . FETCH zzz
-reject	accept	engine	mysql_reserved_keyword/FETCH!swap	EXPLAIN . FIELDS
-reject	accept	engine	mysql_reserved_keyword/FLOAT	EXPLAIN . FLOAT
-reject	accept	engine	mysql_reserved_keyword/FLOAT!insert	EXPLAIN . FLOAT zzz
-reject	accept	engine	mysql_reserved_keyword/FLOAT!swap	EXPLAIN . FLUSH
-reject	accept	engine	mysql_reserved_keyword/FOR	EXPLAIN . FOR
-reject	accept	engine	mysql_reserved_keyword/FOR!insert	EXPLAIN . FOR zzz
-reject	accept	engine	mysql_reserved_keyword/FORCE	EXPLAIN . FORCE
-reject	accept	engine	mysql_reserved_keyword/FORCE!insert	EXPLAIN . FORCE zzz
-reject	accept	engine	mysql_reserved_keyword/FORCE!swap	EXPLAIN . FORCE_REFRESH_LOCATION_CACHE
-reject	accept	engine	mysql_reserved_keyword/FOREIGN	EXPLAIN . FOREIGN
-reject	accept	engine	mysql_reserved_keyword/FOREIGN!insert	EXPLAIN . FOREIGN zzz
-reject	accept	engine	mysql_reserved_keyword/FOREIGN!swap	EXPLAIN . FORMAT
-reject	accept	engine	mysql_reserved_keyword/FULLTEXT	EXPLAIN . FULLTEXT
-reject	accept	engine	mysql_reserved_keyword/FULLTEXT!insert	EXPLAIN . FULLTEXT zzz
-reject	accept	engine	mysql_reserved_keyword/FULLTEXT!swap	EXPLAIN . FUNCTION
-reject	accept	engine	mysql_reserved_keyword/GENERATED	EXPLAIN . GENERATED
-reject	accept	engine	mysql_reserved_keyword/GENERATED!insert	EXPLAIN . GENERATED zzz
-reject	accept	engine	mysql_reserved_keyword/GENERATED!swap	EXPLAIN . GEOMCOLLECTION
-reject	accept	engine	mysql_reserved_keyword/GET	EXPLAIN . GET
-reject	accept	engine	mysql_reserved_keyword/GET!insert	EXPLAIN . GET zzz
-reject	accept	engine	mysql_reserved_keyword/GET!swap	EXPLAIN . GET_FORMAT
-reject	accept	engine	mysql_reserved_keyword/GRANT	EXPLAIN . GRANT
-reject	accept	engine	mysql_reserved_keyword/GRANT!insert	EXPLAIN . GRANT zzz
-reject	accept	engine	mysql_reserved_keyword/GRANT!swap	EXPLAIN . GRANTS
-reject	accept	engine	mysql_reserved_keyword/GROUP	EXPLAIN . GROUP
-reject	accept	engine	mysql_reserved_keyword/GROUP!insert	EXPLAIN . GROUP zzz
-reject	accept	engine	mysql_reserved_keyword/GROUP!swap	EXPLAIN . GROUPING
-reject	accept	engine	mysql_reserved_keyword/HAVING	EXPLAIN . HAVING
-reject	accept	engine	mysql_reserved_keyword/HAVING!insert	EXPLAIN . HAVING zzz
-reject	accept	engine	mysql_reserved_keyword/HAVING!swap	EXPLAIN . HEAP
-reject	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY	EXPLAIN . HIGH_PRIORITY
-reject	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY!insert	EXPLAIN . HIGH_PRIORITY zzz
-reject	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY!swap	EXPLAIN . HISTOGRAM
-reject	accept	engine	mysql_reserved_keyword/HOUR_MICROSECOND	EXPLAIN . HOUR_MICROSECOND
-reject	accept	engine	mysql_reserved_keyword/HOUR_MICROSECOND!insert	EXPLAIN . HOUR_MICROSECOND zzz
-reject	accept	engine	mysql_reserved_keyword/HOUR_MINUTE	EXPLAIN . HOUR_MINUTE
-reject	accept	engine	mysql_reserved_keyword/HOUR_MINUTE!insert	EXPLAIN . HOUR_MINUTE zzz
-reject	accept	engine	mysql_reserved_keyword/HOUR_SECOND	EXPLAIN . HOUR_SECOND
-reject	accept	engine	mysql_reserved_keyword/HOUR_SECOND!insert	EXPLAIN . HOUR_SECOND zzz
-reject	accept	engine	mysql_reserved_keyword/HOUR_SECOND!swap	EXPLAIN . HYBRID
-reject	accept	engine	mysql_reserved_keyword/IF	EXPLAIN . IF
-reject	accept	engine	mysql_reserved_keyword/IF!insert	EXPLAIN . IF zzz
-reject	accept	engine	mysql_reserved_keyword/IGNORE	EXPLAIN . IGNORE
-reject	accept	engine	mysql_reserved_keyword/IGNORE!insert	EXPLAIN . IGNORE zzz
-reject	accept	engine	mysql_reserved_keyword/IGNORE!swap	EXPLAIN . IGNORE_LAST_EMPTY_COLUMN
-reject	accept	engine	mysql_reserved_keyword/IN	EXPLAIN . IN
-reject	accept	engine	mysql_reserved_keyword/IN!insert	EXPLAIN . IN zzz
-reject	accept	engine	mysql_reserved_keyword/IN!swap	EXPLAIN . INCLUDING
-reject	accept	engine	mysql_reserved_keyword/INDEX	EXPLAIN . INDEX
-reject	accept	engine	mysql_reserved_keyword/INDEX!insert	EXPLAIN . INDEX zzz
-reject	accept	engine	mysql_reserved_keyword/INDEX!swap	EXPLAIN . INDEXED
-reject	accept	engine	mysql_reserved_keyword/INFILE	EXPLAIN . INFILE
-reject	accept	engine	mysql_reserved_keyword/INFILE!insert	EXPLAIN . INFILE zzz
-reject	accept	engine	mysql_reserved_keyword/INFILE!swap	EXPLAIN . INFO
-reject	accept	engine	mysql_reserved_keyword/INNER	EXPLAIN . INNER
-reject	accept	engine	mysql_reserved_keyword/INNER!insert	EXPLAIN . INNER zzz
-reject	accept	engine	mysql_reserved_keyword/INNER!swap	EXPLAIN . INNODB
-reject	accept	engine	mysql_reserved_keyword/INOUT	EXPLAIN . INOUT
-reject	accept	engine	mysql_reserved_keyword/INOUT!insert	EXPLAIN . INOUT zzz
-reject	accept	engine	mysql_reserved_keyword/INOUT!swap	EXPLAIN . INPLACE
-reject	accept	engine	mysql_reserved_keyword/INSENSITIVE	EXPLAIN . INSENSITIVE
-reject	accept	engine	mysql_reserved_keyword/INSENSITIVE!insert	EXPLAIN . INSENSITIVE zzz
-reject	accept	engine	mysql_reserved_keyword/INSERT	EXPLAIN . INSERT
-reject	accept	engine	mysql_reserved_keyword/INSERT!insert	EXPLAIN . INSERT zzz
-reject	accept	engine	mysql_reserved_keyword/INSERT!swap	EXPLAIN . INSERT_METHOD
-reject	accept	engine	mysql_reserved_keyword/INTEGER	EXPLAIN . INTEGER
-reject	accept	engine	mysql_reserved_keyword/INTEGER!insert	EXPLAIN . INTEGER zzz
-reject	accept	engine	mysql_reserved_keyword/INTEGER!swap	EXPLAIN . INTERSECT
-reject	accept	engine	mysql_reserved_keyword/INTERVAL	EXPLAIN . INTERVAL
-reject	accept	engine	mysql_reserved_keyword/INTERVAL!insert	EXPLAIN . INTERVAL zzz
-reject	accept	engine	mysql_reserved_keyword/INTO	EXPLAIN . INTO
-reject	accept	engine	mysql_reserved_keyword/INTO!insert	EXPLAIN . INTO zzz
-reject	accept	engine	mysql_reserved_keyword/INTO!swap	EXPLAIN . INVISIBLE
-reject	accept	engine	mysql_reserved_keyword/IO_AFTER_GTIDS	EXPLAIN . IO_AFTER_GTIDS
-reject	accept	engine	mysql_reserved_keyword/IO_AFTER_GTIDS!insert	EXPLAIN . IO_AFTER_GTIDS zzz
-reject	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS	EXPLAIN . IO_BEFORE_GTIDS
-reject	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS!insert	EXPLAIN . IO_BEFORE_GTIDS zzz
-reject	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS!swap	EXPLAIN . IO_THREAD
-reject	accept	engine	mysql_reserved_keyword/IS	EXPLAIN . IS
-reject	accept	engine	mysql_reserved_keyword/IS!insert	EXPLAIN . IS zzz
-reject	accept	engine	mysql_reserved_keyword/IS!swap	EXPLAIN . ISNULL
-reject	accept	engine	mysql_reserved_keyword/ITERATE	EXPLAIN . ITERATE
-reject	accept	engine	mysql_reserved_keyword/ITERATE!insert	EXPLAIN . ITERATE zzz
-reject	accept	engine	mysql_reserved_keyword/ITERATE!swap	EXPLAIN . JOB
-reject	accept	engine	mysql_reserved_keyword/JOIN	EXPLAIN . JOIN
-reject	accept	engine	mysql_reserved_keyword/JOIN!insert	EXPLAIN . JOIN zzz
-reject	accept	engine	mysql_reserved_keyword/JOIN!swap	EXPLAIN . JOIN_FIRST_UNNEST
-reject	accept	engine	mysql_reserved_keyword/KEY	EXPLAIN . KEY
-reject	accept	engine	mysql_reserved_keyword/KEY!insert	EXPLAIN . KEY zzz
-reject	accept	engine	mysql_reserved_keyword/KEYS	EXPLAIN . KEYS
-reject	accept	engine	mysql_reserved_keyword/KEYS!insert	EXPLAIN . KEYS zzz
-reject	accept	engine	mysql_reserved_keyword/KEYS!swap	EXPLAIN . KEYWORD
-reject	accept	engine	mysql_reserved_keyword/KILL	EXPLAIN . KILL
-reject	accept	engine	mysql_reserved_keyword/KILL!insert	EXPLAIN . KILL zzz
-reject	accept	engine	mysql_reserved_keyword/KILL!swap	EXPLAIN . KVCACHE
-reject	accept	engine	mysql_reserved_keyword/LEAVE	EXPLAIN . LEAVE
-reject	accept	engine	mysql_reserved_keyword/LEAVE!insert	EXPLAIN . LEAVE zzz
-reject	accept	engine	mysql_reserved_keyword/LEAVE!swap	EXPLAIN . LEAVES
-reject	accept	engine	mysql_reserved_keyword/LEFT	EXPLAIN . LEFT
-reject	accept	engine	mysql_reserved_keyword/LEFT!insert	EXPLAIN . LEFT zzz
-reject	accept	engine	mysql_reserved_keyword/LEFT!swap	EXPLAIN . LEFT_TO_ANTI
-reject	accept	engine	mysql_reserved_keyword/LIKE	EXPLAIN . LIKE
-reject	accept	engine	mysql_reserved_keyword/LIKE!insert	EXPLAIN . LIKE zzz
-reject	accept	engine	mysql_reserved_keyword/LIMIT	EXPLAIN . LIMIT
-reject	accept	engine	mysql_reserved_keyword/LIMIT!insert	EXPLAIN . LIMIT zzz
-reject	accept	engine	mysql_reserved_keyword/LINEAR	EXPLAIN . LINEAR
-reject	accept	engine	mysql_reserved_keyword/LINEAR!insert	EXPLAIN . LINEAR zzz
-reject	accept	engine	mysql_reserved_keyword/LINES	EXPLAIN . LINES
-reject	accept	engine	mysql_reserved_keyword/LINES!insert	EXPLAIN . LINES zzz
-reject	accept	engine	mysql_reserved_keyword/LINES!swap	EXPLAIN . LINESTRING
-reject	accept	engine	mysql_reserved_keyword/LOAD	EXPLAIN . LOAD
-reject	accept	engine	mysql_reserved_keyword/LOAD!insert	EXPLAIN . LOAD zzz
-reject	accept	engine	mysql_reserved_keyword/LOAD!swap	EXPLAIN . LOAD_BATCH_SIZE
-reject	accept	engine	mysql_reserved_keyword/LOCALTIME	EXPLAIN . LOCALTIME
-reject	accept	engine	mysql_reserved_keyword/LOCALTIME!insert	EXPLAIN . LOCALTIME zzz
-reject	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP	EXPLAIN . LOCALTIMESTAMP
-reject	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP!insert	EXPLAIN . LOCALTIMESTAMP zzz
-reject	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP!swap	EXPLAIN . LOCATION
-reject	accept	engine	mysql_reserved_keyword/LONGBLOB	EXPLAIN . LONGBLOB
-reject	accept	engine	mysql_reserved_keyword/LONGBLOB!insert	EXPLAIN . LONGBLOB zzz
-reject	accept	engine	mysql_reserved_keyword/LONGTEXT	EXPLAIN . LONGTEXT
-reject	accept	engine	mysql_reserved_keyword/LONGTEXT!insert	EXPLAIN . LONGTEXT zzz
-reject	accept	engine	mysql_reserved_keyword/LOOP	EXPLAIN . LOOP
-reject	accept	engine	mysql_reserved_keyword/LOOP!insert	EXPLAIN . LOOP zzz
-reject	accept	engine	mysql_reserved_keyword/LOW_PRIORITY	EXPLAIN . LOW_PRIORITY
-reject	accept	engine	mysql_reserved_keyword/LOW_PRIORITY!insert	EXPLAIN . LOW_PRIORITY zzz
-reject	accept	engine	mysql_reserved_keyword/LOW_PRIORITY!swap	EXPLAIN . LS
-reject	accept	engine	mysql_reserved_keyword/MASTER_BIND	EXPLAIN . MASTER_BIND
-reject	accept	engine	mysql_reserved_keyword/MASTER_BIND!insert	EXPLAIN . MASTER_BIND zzz
-reject	accept	engine	mysql_reserved_keyword/MASTER_BIND!swap	EXPLAIN . MASTER_CONNECT_RETRY
-reject	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT	EXPLAIN . MASTER_SSL_VERIFY_SERVER_CERT
-reject	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT!insert	EXPLAIN . MASTER_SSL_VERIFY_SERVER_CERT zzz
-reject	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT!swap	EXPLAIN . MASTER_USER
-reject	accept	engine	mysql_reserved_keyword/MATCH	EXPLAIN . MATCH
-reject	accept	engine	mysql_reserved_keyword/MATCH!insert	EXPLAIN . MATCH zzz
-reject	accept	engine	mysql_reserved_keyword/MATCH!swap	EXPLAIN . MATERIALIZE
-reject	accept	engine	mysql_reserved_keyword/MEDIUMBLOB	EXPLAIN . MEDIUMBLOB
-reject	accept	engine	mysql_reserved_keyword/MEDIUMBLOB!insert	EXPLAIN . MEDIUMBLOB zzz
-reject	accept	engine	mysql_reserved_keyword/MEDIUMINT	EXPLAIN . MEDIUMINT
-reject	accept	engine	mysql_reserved_keyword/MEDIUMINT!insert	EXPLAIN . MEDIUMINT zzz
-reject	accept	engine	mysql_reserved_keyword/MEDIUMTEXT	EXPLAIN . MEDIUMTEXT
-reject	accept	engine	mysql_reserved_keyword/MEDIUMTEXT!insert	EXPLAIN . MEDIUMTEXT zzz
-reject	accept	engine	mysql_reserved_keyword/MEDIUMTEXT!swap	EXPLAIN . MEMBER
-reject	accept	engine	mysql_reserved_keyword/MINUTE_MICROSECOND	EXPLAIN . MINUTE_MICROSECOND
-reject	accept	engine	mysql_reserved_keyword/MINUTE_MICROSECOND!insert	EXPLAIN . MINUTE_MICROSECOND zzz
-reject	accept	engine	mysql_reserved_keyword/MINUTE_SECOND	EXPLAIN . MINUTE_SECOND
-reject	accept	engine	mysql_reserved_keyword/MINUTE_SECOND!insert	EXPLAIN . MINUTE_SECOND zzz
-reject	accept	engine	mysql_reserved_keyword/MINUTE_SECOND!swap	EXPLAIN . MINVALUE
-reject	accept	engine	mysql_reserved_keyword/MOD	EXPLAIN . MOD
-reject	accept	engine	mysql_reserved_keyword/MOD!insert	EXPLAIN . MOD zzz
-reject	accept	engine	mysql_reserved_keyword/MOD!swap	EXPLAIN . MODE
-reject	accept	engine	mysql_reserved_keyword/MODIFIES	EXPLAIN . MODIFIES
-reject	accept	engine	mysql_reserved_keyword/MODIFIES!insert	EXPLAIN . MODIFIES zzz
-reject	accept	engine	mysql_reserved_keyword/MODIFIES!swap	EXPLAIN . MODIFY
-reject	accept	engine	mysql_reserved_keyword/NATURAL	EXPLAIN . NATURAL
-reject	accept	engine	mysql_reserved_keyword/NATURAL!insert	EXPLAIN . NATURAL zzz
-reject	accept	engine	mysql_reserved_keyword/NATURAL!swap	EXPLAIN . NCHAR
-reject	accept	engine	mysql_reserved_keyword/NOT	EXPLAIN . NOT
-reject	accept	engine	mysql_reserved_keyword/NOT!insert	EXPLAIN . NOT zzz
-reject	accept	engine	mysql_reserved_keyword/NOT!swap	EXPLAIN . NOW
-reject	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG	EXPLAIN . NO_WRITE_TO_BINLOG
-reject	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG!insert	EXPLAIN . NO_WRITE_TO_BINLOG zzz
-reject	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG!swap	EXPLAIN . NTH_VALUE
-reject	accept	engine	mysql_reserved_keyword/ON	EXPLAIN . ON
-reject	accept	engine	mysql_reserved_keyword/ON!insert	EXPLAIN . ON zzz
-reject	accept	engine	mysql_reserved_keyword/ON!swap	EXPLAIN . ONE
-reject	accept	engine	mysql_reserved_keyword/OPTIMIZE	EXPLAIN . OPTIMIZE
-reject	accept	engine	mysql_reserved_keyword/OPTIMIZE!insert	EXPLAIN . OPTIMIZE zzz
-reject	accept	engine	mysql_reserved_keyword/OPTIMIZE!swap	EXPLAIN . OPTIMIZER_COSTS
-reject	accept	engine	mysql_reserved_keyword/OPTION	EXPLAIN . OPTION
-reject	accept	engine	mysql_reserved_keyword/OPTION!insert	EXPLAIN . OPTION zzz
-reject	accept	engine	mysql_reserved_keyword/OPTIONALLY	EXPLAIN . OPTIONALLY
-reject	accept	engine	mysql_reserved_keyword/OPTIONALLY!insert	EXPLAIN . OPTIONALLY zzz
-reject	accept	engine	mysql_reserved_keyword/OPTIONALLY!swap	EXPLAIN . OPTIONS
-reject	accept	engine	mysql_reserved_keyword/OR	EXPLAIN . OR
-reject	accept	engine	mysql_reserved_keyword/OR!insert	EXPLAIN . OR zzz
-reject	accept	engine	mysql_reserved_keyword/ORDER	EXPLAIN . ORDER
-reject	accept	engine	mysql_reserved_keyword/ORDER!insert	EXPLAIN . ORDER zzz
-reject	accept	engine	mysql_reserved_keyword/ORDER!swap	EXPLAIN . ORDERED
-reject	accept	engine	mysql_reserved_keyword/OUT	EXPLAIN . OUT
-reject	accept	engine	mysql_reserved_keyword/OUT!insert	EXPLAIN . OUT zzz
-reject	accept	engine	mysql_reserved_keyword/OUTER	EXPLAIN . OUTER
-reject	accept	engine	mysql_reserved_keyword/OUTER!insert	EXPLAIN . OUTER zzz
-reject	accept	engine	mysql_reserved_keyword/OUTER!swap	EXPLAIN . OUTER_TO_INNER
-reject	accept	engine	mysql_reserved_keyword/OUTFILE	EXPLAIN . OUTFILE
-reject	accept	engine	mysql_reserved_keyword/OUTFILE!insert	EXPLAIN . OUTFILE zzz
-reject	accept	engine	mysql_reserved_keyword/OUTFILE!swap	EXPLAIN . OUTLINE
-reject	accept	engine	mysql_reserved_keyword/PARTITION	EXPLAIN . PARTITION
-reject	accept	engine	mysql_reserved_keyword/PARTITION!insert	EXPLAIN . PARTITION zzz
-reject	accept	engine	mysql_reserved_keyword/PARTITION!swap	EXPLAIN . PARTITIONING
-reject	accept	engine	mysql_reserved_keyword/PRECISION	EXPLAIN . PRECISION
-reject	accept	engine	mysql_reserved_keyword/PRECISION!insert	EXPLAIN . PRECISION zzz
-reject	accept	engine	mysql_reserved_keyword/PRECISION!swap	EXPLAIN . PRECREATE_TIME
-reject	accept	engine	mysql_reserved_keyword/PRIMARY	EXPLAIN . PRIMARY
-reject	accept	engine	mysql_reserved_keyword/PRIMARY!insert	EXPLAIN . PRIMARY zzz
-reject	accept	engine	mysql_reserved_keyword/PRIMARY!swap	EXPLAIN . PRIMARY_ZONE
-reject	accept	engine	mysql_reserved_keyword/PROCEDURE	EXPLAIN . PROCEDURE
-reject	accept	engine	mysql_reserved_keyword/PROCEDURE!insert	EXPLAIN . PROCEDURE zzz
-reject	accept	engine	mysql_reserved_keyword/PROCEDURE!swap	EXPLAIN . PROCESS
-reject	accept	engine	mysql_reserved_keyword/PURGE	EXPLAIN . PURGE
-reject	accept	engine	mysql_reserved_keyword/PURGE!insert	EXPLAIN . PURGE zzz
-reject	accept	engine	mysql_reserved_keyword/PURGE!swap	EXPLAIN . PUSHDOWN
-reject	accept	engine	mysql_reserved_keyword/READ	EXPLAIN . READ
-reject	accept	engine	mysql_reserved_keyword/READ!insert	EXPLAIN . READ zzz
-reject	accept	engine	mysql_reserved_keyword/READS	EXPLAIN . READS
-reject	accept	engine	mysql_reserved_keyword/READS!insert	EXPLAIN . READS zzz
+accept	accept	engine	mysql_reserved_keyword/ACCESSIBLE	EXPLAIN . ACCESSIBLE
+accept	accept	engine	mysql_reserved_keyword/ADD	EXPLAIN . ADD
+accept	accept	engine	mysql_reserved_keyword/ADD!insert	EXPLAIN . ADD zzz
+accept	accept	engine	mysql_reserved_keyword/ADD!swap	EXPLAIN . ADDDATE
+accept	accept	engine	mysql_reserved_keyword/ALTER	EXPLAIN . ALTER
+accept	accept	engine	mysql_reserved_keyword/ALTER!insert	EXPLAIN . ALTER zzz
+accept	accept	engine	mysql_reserved_keyword/ALTER!swap	EXPLAIN . ALWAYS
+accept	accept	engine	mysql_reserved_keyword/ANALYZE	EXPLAIN . ANALYZE
+accept	accept	engine	mysql_reserved_keyword/ANALYZE!insert	EXPLAIN . ANALYZE zzz
+accept	accept	engine	mysql_reserved_keyword/AND	EXPLAIN . AND
+accept	accept	engine	mysql_reserved_keyword/AND!insert	EXPLAIN . AND zzz
+accept	accept	engine	mysql_reserved_keyword/AND!swap	EXPLAIN . ANY
+accept	accept	engine	mysql_reserved_keyword/AS	EXPLAIN . AS
+accept	accept	engine	mysql_reserved_keyword/AS!insert	EXPLAIN . AS zzz
+accept	accept	engine	mysql_reserved_keyword/ASC	EXPLAIN . ASC
+accept	accept	engine	mysql_reserved_keyword/ASC!insert	EXPLAIN . ASC zzz
+accept	accept	engine	mysql_reserved_keyword/ASC!swap	EXPLAIN . ASCII
+accept	accept	engine	mysql_reserved_keyword/ASENSITIVE	EXPLAIN . ASENSITIVE
+accept	accept	engine	mysql_reserved_keyword/ASENSITIVE!insert	EXPLAIN . ASENSITIVE zzz
+accept	accept	engine	mysql_reserved_keyword/ASENSITIVE!swap	EXPLAIN . ASIS
+accept	accept	engine	mysql_reserved_keyword/BEFORE	EXPLAIN . BEFORE
+accept	accept	engine	mysql_reserved_keyword/BEFORE!insert	EXPLAIN . BEFORE zzz
+accept	accept	engine	mysql_reserved_keyword/BEFORE!swap	EXPLAIN . BEGIN
+accept	accept	engine	mysql_reserved_keyword/BETWEEN	EXPLAIN . BETWEEN
+accept	accept	engine	mysql_reserved_keyword/BETWEEN!insert	EXPLAIN . BETWEEN zzz
+accept	accept	engine	mysql_reserved_keyword/BIGINT	EXPLAIN . BIGINT
+accept	accept	engine	mysql_reserved_keyword/BIGINT!insert	EXPLAIN . BIGINT zzz
+accept	accept	engine	mysql_reserved_keyword/BIGINT!swap	EXPLAIN . BIGINT_PRECISION
+accept	accept	engine	mysql_reserved_keyword/BINARY	EXPLAIN . BINARY
+accept	accept	engine	mysql_reserved_keyword/BINARY!insert	EXPLAIN . BINARY zzz
+accept	accept	engine	mysql_reserved_keyword/BINARY!swap	EXPLAIN . BINARY_FORMAT
+accept	accept	engine	mysql_reserved_keyword/BLOB	EXPLAIN . BLOB
+accept	accept	engine	mysql_reserved_keyword/BLOB!insert	EXPLAIN . BLOB zzz
+accept	accept	engine	mysql_reserved_keyword/BLOB!swap	EXPLAIN . BLOCK
+accept	accept	engine	mysql_reserved_keyword/BY	EXPLAIN . BY
+accept	accept	engine	mysql_reserved_keyword/BY!insert	EXPLAIN . BY zzz
+accept	accept	engine	mysql_reserved_keyword/BY!swap	EXPLAIN . BYTE
+accept	accept	engine	mysql_reserved_keyword/CALL	EXPLAIN . CALL
+accept	accept	engine	mysql_reserved_keyword/CALL!insert	EXPLAIN . CALL zzz
+accept	accept	engine	mysql_reserved_keyword/CALL!swap	EXPLAIN . CANCEL
+accept	accept	engine	mysql_reserved_keyword/CASCADE	EXPLAIN . CASCADE
+accept	accept	engine	mysql_reserved_keyword/CASCADE!insert	EXPLAIN . CASCADE zzz
+accept	accept	engine	mysql_reserved_keyword/CASCADE!swap	EXPLAIN . CASCADED
+accept	accept	engine	mysql_reserved_keyword/CASE	EXPLAIN . CASE
+accept	accept	engine	mysql_reserved_keyword/CASE!insert	EXPLAIN . CASE zzz
+accept	accept	engine	mysql_reserved_keyword/CASE!swap	EXPLAIN . CAST
+accept	accept	engine	mysql_reserved_keyword/CHANGE	EXPLAIN . CHANGE
+accept	accept	engine	mysql_reserved_keyword/CHANGE!insert	EXPLAIN . CHANGE zzz
+accept	accept	engine	mysql_reserved_keyword/CHANGE!swap	EXPLAIN . CHANGED
+accept	accept	engine	mysql_reserved_keyword/CHARACTER	EXPLAIN . CHARACTER
+accept	accept	engine	mysql_reserved_keyword/CHARACTER!insert	EXPLAIN . CHARACTER zzz
+accept	accept	engine	mysql_reserved_keyword/CHARACTER!swap	EXPLAIN . CHARSET
+accept	accept	engine	mysql_reserved_keyword/CHECK	EXPLAIN . CHECK
+accept	accept	engine	mysql_reserved_keyword/CHECK!insert	EXPLAIN . CHECK zzz
+accept	accept	engine	mysql_reserved_keyword/CHECK!swap	EXPLAIN . CHECKPOINT
+accept	accept	engine	mysql_reserved_keyword/COLLATE	EXPLAIN . COLLATE
+accept	accept	engine	mysql_reserved_keyword/COLLATE!insert	EXPLAIN . COLLATE zzz
+accept	accept	engine	mysql_reserved_keyword/COLLATE!swap	EXPLAIN . COLLATION
+accept	accept	engine	mysql_reserved_keyword/COLUMN	EXPLAIN . COLUMN
+accept	accept	engine	mysql_reserved_keyword/COLUMN!insert	EXPLAIN . COLUMN zzz
+accept	accept	engine	mysql_reserved_keyword/COLUMN!swap	EXPLAIN . COLUMNS
+accept	accept	engine	mysql_reserved_keyword/CONDITION	EXPLAIN . CONDITION
+accept	accept	engine	mysql_reserved_keyword/CONDITION!insert	EXPLAIN . CONDITION zzz
+accept	accept	engine	mysql_reserved_keyword/CONDITION!swap	EXPLAIN . CONDITIONAL
+accept	accept	engine	mysql_reserved_keyword/CONSTRAINT	EXPLAIN . CONSTRAINT
+accept	accept	engine	mysql_reserved_keyword/CONSTRAINT!insert	EXPLAIN . CONSTRAINT zzz
+accept	accept	engine	mysql_reserved_keyword/CONSTRAINT!swap	EXPLAIN . CONSTRAINT_CATALOG
+accept	accept	engine	mysql_reserved_keyword/CONTINUE	EXPLAIN . CONTINUE
+accept	accept	engine	mysql_reserved_keyword/CONTINUE!insert	EXPLAIN . CONTINUE zzz
+accept	accept	engine	mysql_reserved_keyword/CONTINUE!swap	EXPLAIN . CONTRIBUTORS
+accept	accept	engine	mysql_reserved_keyword/CONVERT	EXPLAIN . CONVERT
+accept	accept	engine	mysql_reserved_keyword/CONVERT!insert	EXPLAIN . CONVERT zzz
+accept	accept	engine	mysql_reserved_keyword/CONVERT!swap	EXPLAIN . COPY
+accept	accept	engine	mysql_reserved_keyword/CREATE	EXPLAIN . CREATE
+accept	accept	engine	mysql_reserved_keyword/CREATE!insert	EXPLAIN . CREATE zzz
+accept	accept	engine	mysql_reserved_keyword/CREATE!swap	EXPLAIN . CREATE_TIMESTAMP
+accept	accept	engine	mysql_reserved_keyword/CROSS	EXPLAIN . CROSS
+accept	accept	engine	mysql_reserved_keyword/CROSS!insert	EXPLAIN . CROSS zzz
+accept	accept	engine	mysql_reserved_keyword/CROSS!swap	EXPLAIN . CTXCAT
+accept	accept	engine	mysql_reserved_keyword/CURRENT_DATE	EXPLAIN . CURRENT_DATE
+accept	accept	engine	mysql_reserved_keyword/CURRENT_DATE!insert	EXPLAIN . CURRENT_DATE zzz
+accept	accept	engine	mysql_reserved_keyword/CURRENT_TIME	EXPLAIN . CURRENT_TIME
+accept	accept	engine	mysql_reserved_keyword/CURRENT_TIME!insert	EXPLAIN . CURRENT_TIME zzz
+accept	accept	engine	mysql_reserved_keyword/CURRENT_TIMESTAMP	EXPLAIN . CURRENT_TIMESTAMP
+accept	accept	engine	mysql_reserved_keyword/CURRENT_TIMESTAMP!insert	EXPLAIN . CURRENT_TIMESTAMP zzz
+accept	accept	engine	mysql_reserved_keyword/CURRENT_USER	EXPLAIN . CURRENT_USER
+accept	accept	engine	mysql_reserved_keyword/CURRENT_USER!insert	EXPLAIN . CURRENT_USER zzz
+accept	accept	engine	mysql_reserved_keyword/CURSOR	EXPLAIN . CURSOR
+accept	accept	engine	mysql_reserved_keyword/CURSOR!insert	EXPLAIN . CURSOR zzz
+accept	accept	engine	mysql_reserved_keyword/CURSOR!swap	EXPLAIN . CURSOR_NAME
+accept	accept	engine	mysql_reserved_keyword/DATABASE	EXPLAIN . DATABASE
+accept	accept	engine	mysql_reserved_keyword/DATABASE!insert	EXPLAIN . DATABASE zzz
+accept	accept	engine	mysql_reserved_keyword/DATABASES	EXPLAIN . DATABASES
+accept	accept	engine	mysql_reserved_keyword/DATABASES!insert	EXPLAIN . DATABASES zzz
+accept	accept	engine	mysql_reserved_keyword/DATABASES!swap	EXPLAIN . DATABASE_ID
+accept	accept	engine	mysql_reserved_keyword/DAY_HOUR	EXPLAIN . DAY_HOUR
+accept	accept	engine	mysql_reserved_keyword/DAY_HOUR!insert	EXPLAIN . DAY_HOUR zzz
+accept	accept	engine	mysql_reserved_keyword/DAY_MICROSECOND	EXPLAIN . DAY_MICROSECOND
+accept	accept	engine	mysql_reserved_keyword/DAY_MICROSECOND!insert	EXPLAIN . DAY_MICROSECOND zzz
+accept	accept	engine	mysql_reserved_keyword/DAY_MINUTE	EXPLAIN . DAY_MINUTE
+accept	accept	engine	mysql_reserved_keyword/DAY_MINUTE!insert	EXPLAIN . DAY_MINUTE zzz
+accept	accept	engine	mysql_reserved_keyword/DAY_SECOND	EXPLAIN . DAY_SECOND
+accept	accept	engine	mysql_reserved_keyword/DAY_SECOND!insert	EXPLAIN . DAY_SECOND zzz
+accept	accept	engine	mysql_reserved_keyword/DAY_SECOND!swap	EXPLAIN . DBMS_STATS
+accept	accept	engine	mysql_reserved_keyword/DECLARE	EXPLAIN . DECLARE
+accept	accept	engine	mysql_reserved_keyword/DECLARE!insert	EXPLAIN . DECLARE zzz
+accept	accept	engine	mysql_reserved_keyword/DECLARE!swap	EXPLAIN . DECORRELATE
+accept	accept	engine	mysql_reserved_keyword/DECIMAL	EXPLAIN . DECIMAL
+accept	accept	engine	mysql_reserved_keyword/DECIMAL!insert	EXPLAIN . DECIMAL zzz
+accept	accept	engine	mysql_reserved_keyword/DEFAULT	EXPLAIN . DEFAULT
+accept	accept	engine	mysql_reserved_keyword/DEFAULT!insert	EXPLAIN . DEFAULT zzz
+accept	accept	engine	mysql_reserved_keyword/DEFAULT!swap	EXPLAIN . DEFAULT_AUTH
+accept	accept	engine	mysql_reserved_keyword/DELAYED	EXPLAIN . DELAYED
+accept	accept	engine	mysql_reserved_keyword/DELAYED!insert	EXPLAIN . DELAYED zzz
+accept	accept	engine	mysql_reserved_keyword/DELAYED!swap	EXPLAIN . DELAY_KEY_WRITE
+accept	accept	engine	mysql_reserved_keyword/DELETE	EXPLAIN . DELETE
+accept	accept	engine	mysql_reserved_keyword/DELETE!insert	EXPLAIN . DELETE zzz
+accept	accept	engine	mysql_reserved_keyword/DELETE!swap	EXPLAIN . DELETE_INSERT
+accept	accept	engine	mysql_reserved_keyword/DESC	EXPLAIN . DESC
+accept	accept	engine	mysql_reserved_keyword/DESC!insert	EXPLAIN . DESC zzz
+accept	accept	engine	mysql_reserved_keyword/DESCRIBE	EXPLAIN . DESCRIBE
+accept	accept	engine	mysql_reserved_keyword/DESCRIBE!insert	EXPLAIN . DESCRIBE zzz
+accept	accept	engine	mysql_reserved_keyword/DESCRIBE!swap	EXPLAIN . DESCRIPTION
+accept	accept	engine	mysql_reserved_keyword/DETERMINISTIC	EXPLAIN . DETERMINISTIC
+accept	accept	engine	mysql_reserved_keyword/DETERMINISTIC!insert	EXPLAIN . DETERMINISTIC zzz
+accept	accept	engine	mysql_reserved_keyword/DETERMINISTIC!swap	EXPLAIN . DIAGNOSTICS
+accept	accept	engine	mysql_reserved_keyword/DIV	EXPLAIN . DIV
+accept	accept	engine	mysql_reserved_keyword/DIV!insert	EXPLAIN . DIV zzz
+accept	accept	engine	mysql_reserved_keyword/DIV!swap	EXPLAIN . DML_PARALLEL
+accept	accept	engine	mysql_reserved_keyword/DOUBLE	EXPLAIN . DOUBLE
+accept	accept	engine	mysql_reserved_keyword/DOUBLE!insert	EXPLAIN . DOUBLE zzz
+accept	accept	engine	mysql_reserved_keyword/DROP	EXPLAIN . DROP
+accept	accept	engine	mysql_reserved_keyword/DROP!insert	EXPLAIN . DROP zzz
+accept	accept	engine	mysql_reserved_keyword/DUAL	EXPLAIN . DUAL
+accept	accept	engine	mysql_reserved_keyword/DUAL!insert	EXPLAIN . DUAL zzz
+accept	accept	engine	mysql_reserved_keyword/DUAL!swap	EXPLAIN . DUMP
+accept	accept	engine	mysql_reserved_keyword/EACH	EXPLAIN . EACH
+accept	accept	engine	mysql_reserved_keyword/EACH!insert	EXPLAIN . EACH zzz
+accept	accept	engine	mysql_reserved_keyword/EACH!swap	EXPLAIN . EFFECTIVE
+accept	accept	engine	mysql_reserved_keyword/ELSE	EXPLAIN . ELSE
+accept	accept	engine	mysql_reserved_keyword/ELSE!insert	EXPLAIN . ELSE zzz
+accept	accept	engine	mysql_reserved_keyword/ELSEIF	EXPLAIN . ELSEIF
+accept	accept	engine	mysql_reserved_keyword/ELSEIF!insert	EXPLAIN . ELSEIF zzz
+accept	accept	engine	mysql_reserved_keyword/ELSEIF!swap	EXPLAIN . EMPTY
+accept	accept	engine	mysql_reserved_keyword/ENCLOSED	EXPLAIN . ENCLOSED
+accept	accept	engine	mysql_reserved_keyword/ENCLOSED!insert	EXPLAIN . ENCLOSED zzz
+accept	accept	engine	mysql_reserved_keyword/ENCLOSED!swap	EXPLAIN . ENCODING
+accept	accept	engine	mysql_reserved_keyword/ESCAPED	EXPLAIN . ESCAPED
+accept	accept	engine	mysql_reserved_keyword/ESCAPED!insert	EXPLAIN . ESCAPED zzz
+accept	accept	engine	mysql_reserved_keyword/ESCAPED!swap	EXPLAIN . ESTIMATE
+accept	accept	engine	mysql_reserved_keyword/EXISTS	EXPLAIN . EXISTS
+accept	accept	engine	mysql_reserved_keyword/EXISTS!insert	EXPLAIN . EXISTS zzz
+accept	accept	engine	mysql_reserved_keyword/EXIT	EXPLAIN . EXIT
+accept	accept	engine	mysql_reserved_keyword/EXIT!insert	EXPLAIN . EXIT zzz
+accept	accept	engine	mysql_reserved_keyword/EXIT!swap	EXPLAIN . EXPANSION
+accept	accept	engine	mysql_reserved_keyword/EXPLAIN	EXPLAIN . EXPLAIN
+accept	accept	engine	mysql_reserved_keyword/EXPLAIN!insert	EXPLAIN . EXPLAIN zzz
+accept	accept	engine	mysql_reserved_keyword/EXPLAIN!swap	EXPLAIN . EXPORT
+accept	accept	engine	mysql_reserved_keyword/FETCH	EXPLAIN . FETCH
+accept	accept	engine	mysql_reserved_keyword/FETCH!insert	EXPLAIN . FETCH zzz
+accept	accept	engine	mysql_reserved_keyword/FETCH!swap	EXPLAIN . FIELDS
+accept	accept	engine	mysql_reserved_keyword/FLOAT	EXPLAIN . FLOAT
+accept	accept	engine	mysql_reserved_keyword/FLOAT!insert	EXPLAIN . FLOAT zzz
+accept	accept	engine	mysql_reserved_keyword/FLOAT!swap	EXPLAIN . FLUSH
+accept	accept	engine	mysql_reserved_keyword/FOR	EXPLAIN . FOR
+accept	accept	engine	mysql_reserved_keyword/FOR!insert	EXPLAIN . FOR zzz
+accept	accept	engine	mysql_reserved_keyword/FORCE	EXPLAIN . FORCE
+accept	accept	engine	mysql_reserved_keyword/FORCE!insert	EXPLAIN . FORCE zzz
+accept	accept	engine	mysql_reserved_keyword/FORCE!swap	EXPLAIN . FORCE_REFRESH_LOCATION_CACHE
+accept	accept	engine	mysql_reserved_keyword/FOREIGN	EXPLAIN . FOREIGN
+accept	accept	engine	mysql_reserved_keyword/FOREIGN!insert	EXPLAIN . FOREIGN zzz
+accept	accept	engine	mysql_reserved_keyword/FOREIGN!swap	EXPLAIN . FORMAT
+accept	accept	engine	mysql_reserved_keyword/FULLTEXT	EXPLAIN . FULLTEXT
+accept	accept	engine	mysql_reserved_keyword/FULLTEXT!insert	EXPLAIN . FULLTEXT zzz
+accept	accept	engine	mysql_reserved_keyword/FULLTEXT!swap	EXPLAIN . FUNCTION
+accept	accept	engine	mysql_reserved_keyword/GENERATED	EXPLAIN . GENERATED
+accept	accept	engine	mysql_reserved_keyword/GENERATED!insert	EXPLAIN . GENERATED zzz
+accept	accept	engine	mysql_reserved_keyword/GENERATED!swap	EXPLAIN . GEOMCOLLECTION
+accept	accept	engine	mysql_reserved_keyword/GET	EXPLAIN . GET
+accept	accept	engine	mysql_reserved_keyword/GET!insert	EXPLAIN . GET zzz
+accept	accept	engine	mysql_reserved_keyword/GET!swap	EXPLAIN . GET_FORMAT
+accept	accept	engine	mysql_reserved_keyword/GRANT	EXPLAIN . GRANT
+accept	accept	engine	mysql_reserved_keyword/GRANT!insert	EXPLAIN . GRANT zzz
+accept	accept	engine	mysql_reserved_keyword/GRANT!swap	EXPLAIN . GRANTS
+accept	accept	engine	mysql_reserved_keyword/GROUP	EXPLAIN . GROUP
+accept	accept	engine	mysql_reserved_keyword/GROUP!insert	EXPLAIN . GROUP zzz
+accept	accept	engine	mysql_reserved_keyword/GROUP!swap	EXPLAIN . GROUPING
+accept	accept	engine	mysql_reserved_keyword/HAVING	EXPLAIN . HAVING
+accept	accept	engine	mysql_reserved_keyword/HAVING!insert	EXPLAIN . HAVING zzz
+accept	accept	engine	mysql_reserved_keyword/HAVING!swap	EXPLAIN . HEAP
+accept	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY	EXPLAIN . HIGH_PRIORITY
+accept	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY!insert	EXPLAIN . HIGH_PRIORITY zzz
+accept	accept	engine	mysql_reserved_keyword/HIGH_PRIORITY!swap	EXPLAIN . HISTOGRAM
+accept	accept	engine	mysql_reserved_keyword/HOUR_MICROSECOND	EXPLAIN . HOUR_MICROSECOND
+accept	accept	engine	mysql_reserved_keyword/HOUR_MICROSECOND!insert	EXPLAIN . HOUR_MICROSECOND zzz
+accept	accept	engine	mysql_reserved_keyword/HOUR_MINUTE	EXPLAIN . HOUR_MINUTE
+accept	accept	engine	mysql_reserved_keyword/HOUR_MINUTE!insert	EXPLAIN . HOUR_MINUTE zzz
+accept	accept	engine	mysql_reserved_keyword/HOUR_SECOND	EXPLAIN . HOUR_SECOND
+accept	accept	engine	mysql_reserved_keyword/HOUR_SECOND!insert	EXPLAIN . HOUR_SECOND zzz
+accept	accept	engine	mysql_reserved_keyword/HOUR_SECOND!swap	EXPLAIN . HYBRID
+accept	accept	engine	mysql_reserved_keyword/IF	EXPLAIN . IF
+accept	accept	engine	mysql_reserved_keyword/IF!insert	EXPLAIN . IF zzz
+accept	accept	engine	mysql_reserved_keyword/IGNORE	EXPLAIN . IGNORE
+accept	accept	engine	mysql_reserved_keyword/IGNORE!insert	EXPLAIN . IGNORE zzz
+accept	accept	engine	mysql_reserved_keyword/IGNORE!swap	EXPLAIN . IGNORE_LAST_EMPTY_COLUMN
+accept	accept	engine	mysql_reserved_keyword/IN	EXPLAIN . IN
+accept	accept	engine	mysql_reserved_keyword/IN!insert	EXPLAIN . IN zzz
+accept	accept	engine	mysql_reserved_keyword/IN!swap	EXPLAIN . INCLUDING
+accept	accept	engine	mysql_reserved_keyword/INDEX	EXPLAIN . INDEX
+accept	accept	engine	mysql_reserved_keyword/INDEX!insert	EXPLAIN . INDEX zzz
+accept	accept	engine	mysql_reserved_keyword/INDEX!swap	EXPLAIN . INDEXED
+accept	accept	engine	mysql_reserved_keyword/INFILE	EXPLAIN . INFILE
+accept	accept	engine	mysql_reserved_keyword/INFILE!insert	EXPLAIN . INFILE zzz
+accept	accept	engine	mysql_reserved_keyword/INFILE!swap	EXPLAIN . INFO
+accept	accept	engine	mysql_reserved_keyword/INNER	EXPLAIN . INNER
+accept	accept	engine	mysql_reserved_keyword/INNER!insert	EXPLAIN . INNER zzz
+accept	accept	engine	mysql_reserved_keyword/INNER!swap	EXPLAIN . INNODB
+accept	accept	engine	mysql_reserved_keyword/INOUT	EXPLAIN . INOUT
+accept	accept	engine	mysql_reserved_keyword/INOUT!insert	EXPLAIN . INOUT zzz
+accept	accept	engine	mysql_reserved_keyword/INOUT!swap	EXPLAIN . INPLACE
+accept	accept	engine	mysql_reserved_keyword/INSENSITIVE	EXPLAIN . INSENSITIVE
+accept	accept	engine	mysql_reserved_keyword/INSENSITIVE!insert	EXPLAIN . INSENSITIVE zzz
+accept	accept	engine	mysql_reserved_keyword/INSERT	EXPLAIN . INSERT
+accept	accept	engine	mysql_reserved_keyword/INSERT!insert	EXPLAIN . INSERT zzz
+accept	accept	engine	mysql_reserved_keyword/INSERT!swap	EXPLAIN . INSERT_METHOD
+accept	accept	engine	mysql_reserved_keyword/INTEGER	EXPLAIN . INTEGER
+accept	accept	engine	mysql_reserved_keyword/INTEGER!insert	EXPLAIN . INTEGER zzz
+accept	accept	engine	mysql_reserved_keyword/INTEGER!swap	EXPLAIN . INTERSECT
+accept	accept	engine	mysql_reserved_keyword/INTERVAL	EXPLAIN . INTERVAL
+accept	accept	engine	mysql_reserved_keyword/INTERVAL!insert	EXPLAIN . INTERVAL zzz
+accept	accept	engine	mysql_reserved_keyword/INTO	EXPLAIN . INTO
+accept	accept	engine	mysql_reserved_keyword/INTO!insert	EXPLAIN . INTO zzz
+accept	accept	engine	mysql_reserved_keyword/INTO!swap	EXPLAIN . INVISIBLE
+accept	accept	engine	mysql_reserved_keyword/IO_AFTER_GTIDS	EXPLAIN . IO_AFTER_GTIDS
+accept	accept	engine	mysql_reserved_keyword/IO_AFTER_GTIDS!insert	EXPLAIN . IO_AFTER_GTIDS zzz
+accept	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS	EXPLAIN . IO_BEFORE_GTIDS
+accept	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS!insert	EXPLAIN . IO_BEFORE_GTIDS zzz
+accept	accept	engine	mysql_reserved_keyword/IO_BEFORE_GTIDS!swap	EXPLAIN . IO_THREAD
+accept	accept	engine	mysql_reserved_keyword/IS	EXPLAIN . IS
+accept	accept	engine	mysql_reserved_keyword/IS!insert	EXPLAIN . IS zzz
+accept	accept	engine	mysql_reserved_keyword/IS!swap	EXPLAIN . ISNULL
+accept	accept	engine	mysql_reserved_keyword/ITERATE	EXPLAIN . ITERATE
+accept	accept	engine	mysql_reserved_keyword/ITERATE!insert	EXPLAIN . ITERATE zzz
+accept	accept	engine	mysql_reserved_keyword/ITERATE!swap	EXPLAIN . JOB
+accept	accept	engine	mysql_reserved_keyword/JOIN	EXPLAIN . JOIN
+accept	accept	engine	mysql_reserved_keyword/JOIN!insert	EXPLAIN . JOIN zzz
+accept	accept	engine	mysql_reserved_keyword/JOIN!swap	EXPLAIN . JOIN_FIRST_UNNEST
+accept	accept	engine	mysql_reserved_keyword/KEY	EXPLAIN . KEY
+accept	accept	engine	mysql_reserved_keyword/KEY!insert	EXPLAIN . KEY zzz
+accept	accept	engine	mysql_reserved_keyword/KEYS	EXPLAIN . KEYS
+accept	accept	engine	mysql_reserved_keyword/KEYS!insert	EXPLAIN . KEYS zzz
+accept	accept	engine	mysql_reserved_keyword/KEYS!swap	EXPLAIN . KEYWORD
+accept	accept	engine	mysql_reserved_keyword/KILL	EXPLAIN . KILL
+accept	accept	engine	mysql_reserved_keyword/KILL!insert	EXPLAIN . KILL zzz
+accept	accept	engine	mysql_reserved_keyword/KILL!swap	EXPLAIN . KVCACHE
+accept	accept	engine	mysql_reserved_keyword/LEAVE	EXPLAIN . LEAVE
+accept	accept	engine	mysql_reserved_keyword/LEAVE!insert	EXPLAIN . LEAVE zzz
+accept	accept	engine	mysql_reserved_keyword/LEAVE!swap	EXPLAIN . LEAVES
+accept	accept	engine	mysql_reserved_keyword/LEFT	EXPLAIN . LEFT
+accept	accept	engine	mysql_reserved_keyword/LEFT!insert	EXPLAIN . LEFT zzz
+accept	accept	engine	mysql_reserved_keyword/LEFT!swap	EXPLAIN . LEFT_TO_ANTI
+accept	accept	engine	mysql_reserved_keyword/LIKE	EXPLAIN . LIKE
+accept	accept	engine	mysql_reserved_keyword/LIKE!insert	EXPLAIN . LIKE zzz
+accept	accept	engine	mysql_reserved_keyword/LIMIT	EXPLAIN . LIMIT
+accept	accept	engine	mysql_reserved_keyword/LIMIT!insert	EXPLAIN . LIMIT zzz
+accept	accept	engine	mysql_reserved_keyword/LINEAR	EXPLAIN . LINEAR
+accept	accept	engine	mysql_reserved_keyword/LINEAR!insert	EXPLAIN . LINEAR zzz
+accept	accept	engine	mysql_reserved_keyword/LINES	EXPLAIN . LINES
+accept	accept	engine	mysql_reserved_keyword/LINES!insert	EXPLAIN . LINES zzz
+accept	accept	engine	mysql_reserved_keyword/LINES!swap	EXPLAIN . LINESTRING
+accept	accept	engine	mysql_reserved_keyword/LOAD	EXPLAIN . LOAD
+accept	accept	engine	mysql_reserved_keyword/LOAD!insert	EXPLAIN . LOAD zzz
+accept	accept	engine	mysql_reserved_keyword/LOAD!swap	EXPLAIN . LOAD_BATCH_SIZE
+accept	accept	engine	mysql_reserved_keyword/LOCALTIME	EXPLAIN . LOCALTIME
+accept	accept	engine	mysql_reserved_keyword/LOCALTIME!insert	EXPLAIN . LOCALTIME zzz
+accept	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP	EXPLAIN . LOCALTIMESTAMP
+accept	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP!insert	EXPLAIN . LOCALTIMESTAMP zzz
+accept	accept	engine	mysql_reserved_keyword/LOCALTIMESTAMP!swap	EXPLAIN . LOCATION
+accept	accept	engine	mysql_reserved_keyword/LONGBLOB	EXPLAIN . LONGBLOB
+accept	accept	engine	mysql_reserved_keyword/LONGBLOB!insert	EXPLAIN . LONGBLOB zzz
+accept	accept	engine	mysql_reserved_keyword/LONGTEXT	EXPLAIN . LONGTEXT
+accept	accept	engine	mysql_reserved_keyword/LONGTEXT!insert	EXPLAIN . LONGTEXT zzz
+accept	accept	engine	mysql_reserved_keyword/LOOP	EXPLAIN . LOOP
+accept	accept	engine	mysql_reserved_keyword/LOOP!insert	EXPLAIN . LOOP zzz
+accept	accept	engine	mysql_reserved_keyword/LOW_PRIORITY	EXPLAIN . LOW_PRIORITY
+accept	accept	engine	mysql_reserved_keyword/LOW_PRIORITY!insert	EXPLAIN . LOW_PRIORITY zzz
+accept	accept	engine	mysql_reserved_keyword/LOW_PRIORITY!swap	EXPLAIN . LS
+accept	accept	engine	mysql_reserved_keyword/MASTER_BIND	EXPLAIN . MASTER_BIND
+accept	accept	engine	mysql_reserved_keyword/MASTER_BIND!insert	EXPLAIN . MASTER_BIND zzz
+accept	accept	engine	mysql_reserved_keyword/MASTER_BIND!swap	EXPLAIN . MASTER_CONNECT_RETRY
+accept	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT	EXPLAIN . MASTER_SSL_VERIFY_SERVER_CERT
+accept	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT!insert	EXPLAIN . MASTER_SSL_VERIFY_SERVER_CERT zzz
+accept	accept	engine	mysql_reserved_keyword/MASTER_SSL_VERIFY_SERVER_CERT!swap	EXPLAIN . MASTER_USER
+accept	accept	engine	mysql_reserved_keyword/MATCH	EXPLAIN . MATCH
+accept	accept	engine	mysql_reserved_keyword/MATCH!insert	EXPLAIN . MATCH zzz
+accept	accept	engine	mysql_reserved_keyword/MATCH!swap	EXPLAIN . MATERIALIZE
+accept	accept	engine	mysql_reserved_keyword/MEDIUMBLOB	EXPLAIN . MEDIUMBLOB
+accept	accept	engine	mysql_reserved_keyword/MEDIUMBLOB!insert	EXPLAIN . MEDIUMBLOB zzz
+accept	accept	engine	mysql_reserved_keyword/MEDIUMINT	EXPLAIN . MEDIUMINT
+accept	accept	engine	mysql_reserved_keyword/MEDIUMINT!insert	EXPLAIN . MEDIUMINT zzz
+accept	accept	engine	mysql_reserved_keyword/MEDIUMTEXT	EXPLAIN . MEDIUMTEXT
+accept	accept	engine	mysql_reserved_keyword/MEDIUMTEXT!insert	EXPLAIN . MEDIUMTEXT zzz
+accept	accept	engine	mysql_reserved_keyword/MEDIUMTEXT!swap	EXPLAIN . MEMBER
+accept	accept	engine	mysql_reserved_keyword/MINUTE_MICROSECOND	EXPLAIN . MINUTE_MICROSECOND
+accept	accept	engine	mysql_reserved_keyword/MINUTE_MICROSECOND!insert	EXPLAIN . MINUTE_MICROSECOND zzz
+accept	accept	engine	mysql_reserved_keyword/MINUTE_SECOND	EXPLAIN . MINUTE_SECOND
+accept	accept	engine	mysql_reserved_keyword/MINUTE_SECOND!insert	EXPLAIN . MINUTE_SECOND zzz
+accept	accept	engine	mysql_reserved_keyword/MINUTE_SECOND!swap	EXPLAIN . MINVALUE
+accept	accept	engine	mysql_reserved_keyword/MOD	EXPLAIN . MOD
+accept	accept	engine	mysql_reserved_keyword/MOD!insert	EXPLAIN . MOD zzz
+accept	accept	engine	mysql_reserved_keyword/MOD!swap	EXPLAIN . MODE
+accept	accept	engine	mysql_reserved_keyword/MODIFIES	EXPLAIN . MODIFIES
+accept	accept	engine	mysql_reserved_keyword/MODIFIES!insert	EXPLAIN . MODIFIES zzz
+accept	accept	engine	mysql_reserved_keyword/MODIFIES!swap	EXPLAIN . MODIFY
+accept	accept	engine	mysql_reserved_keyword/NATURAL	EXPLAIN . NATURAL
+accept	accept	engine	mysql_reserved_keyword/NATURAL!insert	EXPLAIN . NATURAL zzz
+accept	accept	engine	mysql_reserved_keyword/NATURAL!swap	EXPLAIN . NCHAR
+accept	accept	engine	mysql_reserved_keyword/NOT	EXPLAIN . NOT
+accept	accept	engine	mysql_reserved_keyword/NOT!insert	EXPLAIN . NOT zzz
+accept	accept	engine	mysql_reserved_keyword/NOT!swap	EXPLAIN . NOW
+accept	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG	EXPLAIN . NO_WRITE_TO_BINLOG
+accept	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG!insert	EXPLAIN . NO_WRITE_TO_BINLOG zzz
+accept	accept	engine	mysql_reserved_keyword/NO_WRITE_TO_BINLOG!swap	EXPLAIN . NTH_VALUE
+accept	accept	engine	mysql_reserved_keyword/ON	EXPLAIN . ON
+accept	accept	engine	mysql_reserved_keyword/ON!insert	EXPLAIN . ON zzz
+accept	accept	engine	mysql_reserved_keyword/ON!swap	EXPLAIN . ONE
+accept	accept	engine	mysql_reserved_keyword/OPTIMIZE	EXPLAIN . OPTIMIZE
+accept	accept	engine	mysql_reserved_keyword/OPTIMIZE!insert	EXPLAIN . OPTIMIZE zzz
+accept	accept	engine	mysql_reserved_keyword/OPTIMIZE!swap	EXPLAIN . OPTIMIZER_COSTS
+accept	accept	engine	mysql_reserved_keyword/OPTION	EXPLAIN . OPTION
+accept	accept	engine	mysql_reserved_keyword/OPTION!insert	EXPLAIN . OPTION zzz
+accept	accept	engine	mysql_reserved_keyword/OPTIONALLY	EXPLAIN . OPTIONALLY
+accept	accept	engine	mysql_reserved_keyword/OPTIONALLY!insert	EXPLAIN . OPTIONALLY zzz
+accept	accept	engine	mysql_reserved_keyword/OPTIONALLY!swap	EXPLAIN . OPTIONS
+accept	accept	engine	mysql_reserved_keyword/OR	EXPLAIN . OR
+accept	accept	engine	mysql_reserved_keyword/OR!insert	EXPLAIN . OR zzz
+accept	accept	engine	mysql_reserved_keyword/ORDER	EXPLAIN . ORDER
+accept	accept	engine	mysql_reserved_keyword/ORDER!insert	EXPLAIN . ORDER zzz
+accept	accept	engine	mysql_reserved_keyword/ORDER!swap	EXPLAIN . ORDERED
+accept	accept	engine	mysql_reserved_keyword/OUT	EXPLAIN . OUT
+accept	accept	engine	mysql_reserved_keyword/OUT!insert	EXPLAIN . OUT zzz
+accept	accept	engine	mysql_reserved_keyword/OUTER	EXPLAIN . OUTER
+accept	accept	engine	mysql_reserved_keyword/OUTER!insert	EXPLAIN . OUTER zzz
+accept	accept	engine	mysql_reserved_keyword/OUTER!swap	EXPLAIN . OUTER_TO_INNER
+accept	accept	engine	mysql_reserved_keyword/OUTFILE	EXPLAIN . OUTFILE
+accept	accept	engine	mysql_reserved_keyword/OUTFILE!insert	EXPLAIN . OUTFILE zzz
+accept	accept	engine	mysql_reserved_keyword/OUTFILE!swap	EXPLAIN . OUTLINE
+accept	accept	engine	mysql_reserved_keyword/PARTITION	EXPLAIN . PARTITION
+accept	accept	engine	mysql_reserved_keyword/PARTITION!insert	EXPLAIN . PARTITION zzz
+accept	accept	engine	mysql_reserved_keyword/PARTITION!swap	EXPLAIN . PARTITIONING
+accept	accept	engine	mysql_reserved_keyword/PRECISION	EXPLAIN . PRECISION
+accept	accept	engine	mysql_reserved_keyword/PRECISION!insert	EXPLAIN . PRECISION zzz
+accept	accept	engine	mysql_reserved_keyword/PRECISION!swap	EXPLAIN . PRECREATE_TIME
+accept	accept	engine	mysql_reserved_keyword/PRIMARY	EXPLAIN . PRIMARY
+accept	accept	engine	mysql_reserved_keyword/PRIMARY!insert	EXPLAIN . PRIMARY zzz
+accept	accept	engine	mysql_reserved_keyword/PRIMARY!swap	EXPLAIN . PRIMARY_ZONE
+accept	accept	engine	mysql_reserved_keyword/PROCEDURE	EXPLAIN . PROCEDURE
+accept	accept	engine	mysql_reserved_keyword/PROCEDURE!insert	EXPLAIN . PROCEDURE zzz
+accept	accept	engine	mysql_reserved_keyword/PROCEDURE!swap	EXPLAIN . PROCESS
+accept	accept	engine	mysql_reserved_keyword/PURGE	EXPLAIN . PURGE
+accept	accept	engine	mysql_reserved_keyword/PURGE!insert	EXPLAIN . PURGE zzz
+accept	accept	engine	mysql_reserved_keyword/PURGE!swap	EXPLAIN . PUSHDOWN
+accept	accept	engine	mysql_reserved_keyword/READ	EXPLAIN . READ
+accept	accept	engine	mysql_reserved_keyword/READ!insert	EXPLAIN . READ zzz
+accept	accept	engine	mysql_reserved_keyword/READS	EXPLAIN . READS
+accept	accept	engine	mysql_reserved_keyword/READS!insert	EXPLAIN . READS zzz
 reject	reject	engine	mysql_reserved_keyword/READS!swap	EXPLAIN . READ_CONSISTENCY
-reject	accept	engine	mysql_reserved_keyword/READ_WRITE	EXPLAIN . READ_WRITE
-reject	accept	engine	mysql_reserved_keyword/READ_WRITE!insert	EXPLAIN . READ_WRITE zzz
-reject	accept	engine	mysql_reserved_keyword/REAL	EXPLAIN . REAL
-reject	accept	engine	mysql_reserved_keyword/REAL!insert	EXPLAIN . REAL zzz
-reject	accept	engine	mysql_reserved_keyword/REAL!swap	EXPLAIN . REBUILD
-reject	accept	engine	mysql_reserved_keyword/REFERENCES	EXPLAIN . REFERENCES
-reject	accept	engine	mysql_reserved_keyword/REFERENCES!insert	EXPLAIN . REFERENCES zzz
-reject	accept	engine	mysql_reserved_keyword/REFERENCES!swap	EXPLAIN . REFRESH
-reject	accept	engine	mysql_reserved_keyword/REGEXP	EXPLAIN . REGEXP
-reject	accept	engine	mysql_reserved_keyword/REGEXP!insert	EXPLAIN . REGEXP zzz
-reject	accept	engine	mysql_reserved_keyword/REGEXP!swap	EXPLAIN . REGION
-reject	accept	engine	mysql_reserved_keyword/RELEASE	EXPLAIN . RELEASE
-reject	accept	engine	mysql_reserved_keyword/RELEASE!insert	EXPLAIN . RELEASE zzz
-reject	accept	engine	mysql_reserved_keyword/RELEASE!swap	EXPLAIN . RELOAD
-reject	accept	engine	mysql_reserved_keyword/RENAME	EXPLAIN . RENAME
-reject	accept	engine	mysql_reserved_keyword/RENAME!insert	EXPLAIN . RENAME zzz
-reject	accept	engine	mysql_reserved_keyword/RENAME!swap	EXPLAIN . REORGANIZE
-reject	accept	engine	mysql_reserved_keyword/REPEAT	EXPLAIN . REPEAT
-reject	accept	engine	mysql_reserved_keyword/REPEAT!insert	EXPLAIN . REPEAT zzz
-reject	accept	engine	mysql_reserved_keyword/REPEAT!swap	EXPLAIN . REPEATABLE
-reject	accept	engine	mysql_reserved_keyword/REPLACE	EXPLAIN . REPLACE
-reject	accept	engine	mysql_reserved_keyword/REPLACE!insert	EXPLAIN . REPLACE zzz
-reject	accept	engine	mysql_reserved_keyword/REPLACE!swap	EXPLAIN . REPLACE_CONST
-reject	accept	engine	mysql_reserved_keyword/REQUIRE	EXPLAIN . REQUIRE
-reject	accept	engine	mysql_reserved_keyword/REQUIRE!insert	EXPLAIN . REQUIRE zzz
-reject	accept	engine	mysql_reserved_keyword/REQUIRE!swap	EXPLAIN . RESET
-reject	accept	engine	mysql_reserved_keyword/RESIGNAL	EXPLAIN . RESIGNAL
-reject	accept	engine	mysql_reserved_keyword/RESIGNAL!insert	EXPLAIN . RESIGNAL zzz
-reject	accept	engine	mysql_reserved_keyword/RESIGNAL!swap	EXPLAIN . RESOURCE
-reject	accept	engine	mysql_reserved_keyword/RESTRICT	EXPLAIN . RESTRICT
-reject	accept	engine	mysql_reserved_keyword/RESTRICT!insert	EXPLAIN . RESTRICT zzz
-reject	accept	engine	mysql_reserved_keyword/RESTRICT!swap	EXPLAIN . RESUME
-reject	accept	engine	mysql_reserved_keyword/RETURN	EXPLAIN . RETURN
-reject	accept	engine	mysql_reserved_keyword/RETURN!insert	EXPLAIN . RETURN zzz
-reject	accept	engine	mysql_reserved_keyword/RETURN!swap	EXPLAIN . RETURNED_SQLSTATE
-reject	accept	engine	mysql_reserved_keyword/REVOKE	EXPLAIN . REVOKE
-reject	accept	engine	mysql_reserved_keyword/REVOKE!insert	EXPLAIN . REVOKE zzz
-reject	accept	engine	mysql_reserved_keyword/REVOKE!swap	EXPLAIN . REWRITE
-reject	accept	engine	mysql_reserved_keyword/RIGHT	EXPLAIN . RIGHT
-reject	accept	engine	mysql_reserved_keyword/RIGHT!insert	EXPLAIN . RIGHT zzz
-reject	accept	engine	mysql_reserved_keyword/RIGHT!swap	EXPLAIN . ROARINGBITMAP
-reject	accept	engine	mysql_reserved_keyword/SCHEMA	EXPLAIN . SCHEMA
-reject	accept	engine	mysql_reserved_keyword/SCHEMA!insert	EXPLAIN . SCHEMA zzz
-reject	accept	engine	mysql_reserved_keyword/SCHEMAS	EXPLAIN . SCHEMAS
-reject	accept	engine	mysql_reserved_keyword/SCHEMAS!insert	EXPLAIN . SCHEMAS zzz
-reject	accept	engine	mysql_reserved_keyword/SCHEMAS!swap	EXPLAIN . SCHEMA_ID
-reject	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND	EXPLAIN . SECOND_MICROSECOND
-reject	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND!insert	EXPLAIN . SECOND_MICROSECOND zzz
-reject	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND!swap	EXPLAIN . SECURITY
-reject	accept	engine	mysql_reserved_keyword/SENSITIVE	EXPLAIN . SENSITIVE
-reject	accept	engine	mysql_reserved_keyword/SENSITIVE!insert	EXPLAIN . SENSITIVE zzz
-reject	accept	engine	mysql_reserved_keyword/SEPARATOR	EXPLAIN . SEPARATOR
-reject	accept	engine	mysql_reserved_keyword/SEPARATOR!insert	EXPLAIN . SEPARATOR zzz
-reject	accept	engine	mysql_reserved_keyword/SEPARATOR!swap	EXPLAIN . SEQUENCE
-reject	accept	engine	mysql_reserved_keyword/SET	EXPLAIN . SET
-reject	accept	engine	mysql_reserved_keyword/SET!insert	EXPLAIN . SET zzz
-reject	accept	engine	mysql_reserved_keyword/SET!swap	EXPLAIN . SETS
-reject	accept	engine	mysql_reserved_keyword/SHOW	EXPLAIN . SHOW
-reject	accept	engine	mysql_reserved_keyword/SHOW!insert	EXPLAIN . SHOW zzz
-reject	accept	engine	mysql_reserved_keyword/SHOW!swap	EXPLAIN . SHUTDOWN
-reject	accept	engine	mysql_reserved_keyword/SIGNAL	EXPLAIN . SIGNAL
-reject	accept	engine	mysql_reserved_keyword/SIGNAL!insert	EXPLAIN . SIGNAL zzz
-reject	accept	engine	mysql_reserved_keyword/SIGNAL!swap	EXPLAIN . SIGNED
-reject	accept	engine	mysql_reserved_keyword/SMALLINT	EXPLAIN . SMALLINT
-reject	accept	engine	mysql_reserved_keyword/SMALLINT!insert	EXPLAIN . SMALLINT zzz
-reject	accept	engine	mysql_reserved_keyword/SMALLINT!swap	EXPLAIN . SNAPSHOT
-reject	accept	engine	mysql_reserved_keyword/SPATIAL	EXPLAIN . SPATIAL
-reject	accept	engine	mysql_reserved_keyword/SPATIAL!insert	EXPLAIN . SPATIAL zzz
-reject	accept	engine	mysql_reserved_keyword/SPECIFIC	EXPLAIN . SPECIFIC
-reject	accept	engine	mysql_reserved_keyword/SPECIFIC!insert	EXPLAIN . SPECIFIC zzz
-reject	accept	engine	mysql_reserved_keyword/SPECIFIC!swap	EXPLAIN . SPFILE
-reject	accept	engine	mysql_reserved_keyword/SQL	EXPLAIN . SQL
-reject	accept	engine	mysql_reserved_keyword/SQL!insert	EXPLAIN . SQL zzz
-reject	accept	engine	mysql_reserved_keyword/SQLEXCEPTION	EXPLAIN . SQLEXCEPTION
-reject	accept	engine	mysql_reserved_keyword/SQLEXCEPTION!insert	EXPLAIN . SQLEXCEPTION zzz
-reject	accept	engine	mysql_reserved_keyword/SQLSTATE	EXPLAIN . SQLSTATE
-reject	accept	engine	mysql_reserved_keyword/SQLSTATE!insert	EXPLAIN . SQLSTATE zzz
-reject	accept	engine	mysql_reserved_keyword/SQLWARNING	EXPLAIN . SQLWARNING
-reject	accept	engine	mysql_reserved_keyword/SQLWARNING!insert	EXPLAIN . SQLWARNING zzz
-reject	accept	engine	mysql_reserved_keyword/SQLWARNING!swap	EXPLAIN . SQL_AFTER_GTIDS
-reject	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT	EXPLAIN . SQL_BIG_RESULT
-reject	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT!insert	EXPLAIN . SQL_BIG_RESULT zzz
-reject	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT!swap	EXPLAIN . SQL_BUFFER_RESULT
-reject	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT	EXPLAIN . SQL_SMALL_RESULT
-reject	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT!insert	EXPLAIN . SQL_SMALL_RESULT zzz
-reject	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT!swap	EXPLAIN . SQL_THREAD
-reject	accept	engine	mysql_reserved_keyword/SSL	EXPLAIN . SSL
-reject	accept	engine	mysql_reserved_keyword/SSL!insert	EXPLAIN . SSL zzz
-reject	accept	engine	mysql_reserved_keyword/SSL!swap	EXPLAIN . SS_MICRO_CACHE
-reject	accept	engine	mysql_reserved_keyword/SKIP	EXPLAIN . SKIP
-reject	accept	engine	mysql_reserved_keyword/SKIP!insert	EXPLAIN . SKIP zzz
-reject	accept	engine	mysql_reserved_keyword/SKIP!swap	EXPLAIN . SKIP_BLANK_LINES
-reject	accept	engine	mysql_reserved_keyword/STARTING	EXPLAIN . STARTING
-reject	accept	engine	mysql_reserved_keyword/STARTING!insert	EXPLAIN . STARTING zzz
-reject	accept	engine	mysql_reserved_keyword/STARTING!swap	EXPLAIN . STARTS
-reject	accept	engine	mysql_reserved_keyword/STORED	EXPLAIN . STORED
-reject	accept	engine	mysql_reserved_keyword/STORED!insert	EXPLAIN . STORED zzz
-reject	accept	engine	mysql_reserved_keyword/STORED!swap	EXPLAIN . STORING
-reject	accept	engine	mysql_reserved_keyword/TABLE	EXPLAIN . TABLE
-reject	accept	engine	mysql_reserved_keyword/TABLE!insert	EXPLAIN . TABLE zzz
+accept	accept	engine	mysql_reserved_keyword/READ_WRITE	EXPLAIN . READ_WRITE
+accept	accept	engine	mysql_reserved_keyword/READ_WRITE!insert	EXPLAIN . READ_WRITE zzz
+accept	accept	engine	mysql_reserved_keyword/REAL	EXPLAIN . REAL
+accept	accept	engine	mysql_reserved_keyword/REAL!insert	EXPLAIN . REAL zzz
+accept	accept	engine	mysql_reserved_keyword/REAL!swap	EXPLAIN . REBUILD
+accept	accept	engine	mysql_reserved_keyword/REFERENCES	EXPLAIN . REFERENCES
+accept	accept	engine	mysql_reserved_keyword/REFERENCES!insert	EXPLAIN . REFERENCES zzz
+accept	accept	engine	mysql_reserved_keyword/REFERENCES!swap	EXPLAIN . REFRESH
+accept	accept	engine	mysql_reserved_keyword/REGEXP	EXPLAIN . REGEXP
+accept	accept	engine	mysql_reserved_keyword/REGEXP!insert	EXPLAIN . REGEXP zzz
+accept	accept	engine	mysql_reserved_keyword/REGEXP!swap	EXPLAIN . REGION
+accept	accept	engine	mysql_reserved_keyword/RELEASE	EXPLAIN . RELEASE
+accept	accept	engine	mysql_reserved_keyword/RELEASE!insert	EXPLAIN . RELEASE zzz
+accept	accept	engine	mysql_reserved_keyword/RELEASE!swap	EXPLAIN . RELOAD
+accept	accept	engine	mysql_reserved_keyword/RENAME	EXPLAIN . RENAME
+accept	accept	engine	mysql_reserved_keyword/RENAME!insert	EXPLAIN . RENAME zzz
+accept	accept	engine	mysql_reserved_keyword/RENAME!swap	EXPLAIN . REORGANIZE
+accept	accept	engine	mysql_reserved_keyword/REPEAT	EXPLAIN . REPEAT
+accept	accept	engine	mysql_reserved_keyword/REPEAT!insert	EXPLAIN . REPEAT zzz
+accept	accept	engine	mysql_reserved_keyword/REPEAT!swap	EXPLAIN . REPEATABLE
+accept	accept	engine	mysql_reserved_keyword/REPLACE	EXPLAIN . REPLACE
+accept	accept	engine	mysql_reserved_keyword/REPLACE!insert	EXPLAIN . REPLACE zzz
+accept	accept	engine	mysql_reserved_keyword/REPLACE!swap	EXPLAIN . REPLACE_CONST
+accept	accept	engine	mysql_reserved_keyword/REQUIRE	EXPLAIN . REQUIRE
+accept	accept	engine	mysql_reserved_keyword/REQUIRE!insert	EXPLAIN . REQUIRE zzz
+accept	accept	engine	mysql_reserved_keyword/REQUIRE!swap	EXPLAIN . RESET
+accept	accept	engine	mysql_reserved_keyword/RESIGNAL	EXPLAIN . RESIGNAL
+accept	accept	engine	mysql_reserved_keyword/RESIGNAL!insert	EXPLAIN . RESIGNAL zzz
+accept	accept	engine	mysql_reserved_keyword/RESIGNAL!swap	EXPLAIN . RESOURCE
+accept	accept	engine	mysql_reserved_keyword/RESTRICT	EXPLAIN . RESTRICT
+accept	accept	engine	mysql_reserved_keyword/RESTRICT!insert	EXPLAIN . RESTRICT zzz
+accept	accept	engine	mysql_reserved_keyword/RESTRICT!swap	EXPLAIN . RESUME
+accept	accept	engine	mysql_reserved_keyword/RETURN	EXPLAIN . RETURN
+accept	accept	engine	mysql_reserved_keyword/RETURN!insert	EXPLAIN . RETURN zzz
+accept	accept	engine	mysql_reserved_keyword/RETURN!swap	EXPLAIN . RETURNED_SQLSTATE
+accept	accept	engine	mysql_reserved_keyword/REVOKE	EXPLAIN . REVOKE
+accept	accept	engine	mysql_reserved_keyword/REVOKE!insert	EXPLAIN . REVOKE zzz
+accept	accept	engine	mysql_reserved_keyword/REVOKE!swap	EXPLAIN . REWRITE
+accept	accept	engine	mysql_reserved_keyword/RIGHT	EXPLAIN . RIGHT
+accept	accept	engine	mysql_reserved_keyword/RIGHT!insert	EXPLAIN . RIGHT zzz
+accept	accept	engine	mysql_reserved_keyword/RIGHT!swap	EXPLAIN . ROARINGBITMAP
+accept	accept	engine	mysql_reserved_keyword/SCHEMA	EXPLAIN . SCHEMA
+accept	accept	engine	mysql_reserved_keyword/SCHEMA!insert	EXPLAIN . SCHEMA zzz
+accept	accept	engine	mysql_reserved_keyword/SCHEMAS	EXPLAIN . SCHEMAS
+accept	accept	engine	mysql_reserved_keyword/SCHEMAS!insert	EXPLAIN . SCHEMAS zzz
+accept	accept	engine	mysql_reserved_keyword/SCHEMAS!swap	EXPLAIN . SCHEMA_ID
+accept	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND	EXPLAIN . SECOND_MICROSECOND
+accept	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND!insert	EXPLAIN . SECOND_MICROSECOND zzz
+accept	accept	engine	mysql_reserved_keyword/SECOND_MICROSECOND!swap	EXPLAIN . SECURITY
+accept	accept	engine	mysql_reserved_keyword/SENSITIVE	EXPLAIN . SENSITIVE
+accept	accept	engine	mysql_reserved_keyword/SENSITIVE!insert	EXPLAIN . SENSITIVE zzz
+accept	accept	engine	mysql_reserved_keyword/SEPARATOR	EXPLAIN . SEPARATOR
+accept	accept	engine	mysql_reserved_keyword/SEPARATOR!insert	EXPLAIN . SEPARATOR zzz
+accept	accept	engine	mysql_reserved_keyword/SEPARATOR!swap	EXPLAIN . SEQUENCE
+accept	accept	engine	mysql_reserved_keyword/SET	EXPLAIN . SET
+accept	accept	engine	mysql_reserved_keyword/SET!insert	EXPLAIN . SET zzz
+accept	accept	engine	mysql_reserved_keyword/SET!swap	EXPLAIN . SETS
+accept	accept	engine	mysql_reserved_keyword/SHOW	EXPLAIN . SHOW
+accept	accept	engine	mysql_reserved_keyword/SHOW!insert	EXPLAIN . SHOW zzz
+accept	accept	engine	mysql_reserved_keyword/SHOW!swap	EXPLAIN . SHUTDOWN
+accept	accept	engine	mysql_reserved_keyword/SIGNAL	EXPLAIN . SIGNAL
+accept	accept	engine	mysql_reserved_keyword/SIGNAL!insert	EXPLAIN . SIGNAL zzz
+accept	accept	engine	mysql_reserved_keyword/SIGNAL!swap	EXPLAIN . SIGNED
+accept	accept	engine	mysql_reserved_keyword/SMALLINT	EXPLAIN . SMALLINT
+accept	accept	engine	mysql_reserved_keyword/SMALLINT!insert	EXPLAIN . SMALLINT zzz
+accept	accept	engine	mysql_reserved_keyword/SMALLINT!swap	EXPLAIN . SNAPSHOT
+accept	accept	engine	mysql_reserved_keyword/SPATIAL	EXPLAIN . SPATIAL
+accept	accept	engine	mysql_reserved_keyword/SPATIAL!insert	EXPLAIN . SPATIAL zzz
+accept	accept	engine	mysql_reserved_keyword/SPECIFIC	EXPLAIN . SPECIFIC
+accept	accept	engine	mysql_reserved_keyword/SPECIFIC!insert	EXPLAIN . SPECIFIC zzz
+accept	accept	engine	mysql_reserved_keyword/SPECIFIC!swap	EXPLAIN . SPFILE
+accept	accept	engine	mysql_reserved_keyword/SQL	EXPLAIN . SQL
+accept	accept	engine	mysql_reserved_keyword/SQL!insert	EXPLAIN . SQL zzz
+accept	accept	engine	mysql_reserved_keyword/SQLEXCEPTION	EXPLAIN . SQLEXCEPTION
+accept	accept	engine	mysql_reserved_keyword/SQLEXCEPTION!insert	EXPLAIN . SQLEXCEPTION zzz
+accept	accept	engine	mysql_reserved_keyword/SQLSTATE	EXPLAIN . SQLSTATE
+accept	accept	engine	mysql_reserved_keyword/SQLSTATE!insert	EXPLAIN . SQLSTATE zzz
+accept	accept	engine	mysql_reserved_keyword/SQLWARNING	EXPLAIN . SQLWARNING
+accept	accept	engine	mysql_reserved_keyword/SQLWARNING!insert	EXPLAIN . SQLWARNING zzz
+accept	accept	engine	mysql_reserved_keyword/SQLWARNING!swap	EXPLAIN . SQL_AFTER_GTIDS
+accept	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT	EXPLAIN . SQL_BIG_RESULT
+accept	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT!insert	EXPLAIN . SQL_BIG_RESULT zzz
+accept	accept	engine	mysql_reserved_keyword/SQL_BIG_RESULT!swap	EXPLAIN . SQL_BUFFER_RESULT
+accept	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT	EXPLAIN . SQL_SMALL_RESULT
+accept	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT!insert	EXPLAIN . SQL_SMALL_RESULT zzz
+accept	accept	engine	mysql_reserved_keyword/SQL_SMALL_RESULT!swap	EXPLAIN . SQL_THREAD
+accept	accept	engine	mysql_reserved_keyword/SSL	EXPLAIN . SSL
+accept	accept	engine	mysql_reserved_keyword/SSL!insert	EXPLAIN . SSL zzz
+accept	accept	engine	mysql_reserved_keyword/SSL!swap	EXPLAIN . SS_MICRO_CACHE
+accept	accept	engine	mysql_reserved_keyword/SKIP	EXPLAIN . SKIP
+accept	accept	engine	mysql_reserved_keyword/SKIP!insert	EXPLAIN . SKIP zzz
+accept	accept	engine	mysql_reserved_keyword/SKIP!swap	EXPLAIN . SKIP_BLANK_LINES
+accept	accept	engine	mysql_reserved_keyword/STARTING	EXPLAIN . STARTING
+accept	accept	engine	mysql_reserved_keyword/STARTING!insert	EXPLAIN . STARTING zzz
+accept	accept	engine	mysql_reserved_keyword/STARTING!swap	EXPLAIN . STARTS
+accept	accept	engine	mysql_reserved_keyword/STORED	EXPLAIN . STORED
+accept	accept	engine	mysql_reserved_keyword/STORED!insert	EXPLAIN . STORED zzz
+accept	accept	engine	mysql_reserved_keyword/STORED!swap	EXPLAIN . STORING
+accept	accept	engine	mysql_reserved_keyword/TABLE	EXPLAIN . TABLE
+accept	accept	engine	mysql_reserved_keyword/TABLE!insert	EXPLAIN . TABLE zzz
 reject	reject	engine	mysql_reserved_keyword/TABLE!swap	EXPLAIN . TABLEGROUP
-reject	accept	engine	mysql_reserved_keyword/TERMINATED	EXPLAIN . TERMINATED
-reject	accept	engine	mysql_reserved_keyword/TERMINATED!insert	EXPLAIN . TERMINATED zzz
-reject	accept	engine	mysql_reserved_keyword/TERMINATED!swap	EXPLAIN . TEXT
-reject	accept	engine	mysql_reserved_keyword/THEN	EXPLAIN . THEN
-reject	accept	engine	mysql_reserved_keyword/THEN!insert	EXPLAIN . THEN zzz
-reject	accept	engine	mysql_reserved_keyword/THEN!swap	EXPLAIN . THROTTLE
-reject	accept	engine	mysql_reserved_keyword/TINYBLOB	EXPLAIN . TINYBLOB
-reject	accept	engine	mysql_reserved_keyword/TINYBLOB!insert	EXPLAIN . TINYBLOB zzz
-reject	accept	engine	mysql_reserved_keyword/TINYINT	EXPLAIN . TINYINT
-reject	accept	engine	mysql_reserved_keyword/TINYINT!insert	EXPLAIN . TINYINT zzz
-reject	accept	engine	mysql_reserved_keyword/TINYTEXT	EXPLAIN . TINYTEXT
-reject	accept	engine	mysql_reserved_keyword/TINYTEXT!insert	EXPLAIN . TINYTEXT zzz
-reject	accept	engine	mysql_reserved_keyword/TO	EXPLAIN . TO
-reject	accept	engine	mysql_reserved_keyword/TO!insert	EXPLAIN . TO zzz
-reject	accept	engine	mysql_reserved_keyword/TO!swap	EXPLAIN . TOPK
-reject	accept	engine	mysql_reserved_keyword/TRIGGER	EXPLAIN . TRIGGER
-reject	accept	engine	mysql_reserved_keyword/TRIGGER!insert	EXPLAIN . TRIGGER zzz
-reject	accept	engine	mysql_reserved_keyword/TRIGGER!swap	EXPLAIN . TRIGGERS
-reject	accept	engine	mysql_reserved_keyword/UNDO	EXPLAIN . UNDO
-reject	accept	engine	mysql_reserved_keyword/UNDO!insert	EXPLAIN . UNDO zzz
-reject	accept	engine	mysql_reserved_keyword/UNDO!swap	EXPLAIN . UNDOFILE
-reject	accept	engine	mysql_reserved_keyword/UNION	EXPLAIN . UNION
-reject	accept	engine	mysql_reserved_keyword/UNION!insert	EXPLAIN . UNION zzz
-reject	accept	engine	mysql_reserved_keyword/UNION!swap	EXPLAIN . UNION_MERGE
-reject	accept	engine	mysql_reserved_keyword/UNLOCK	EXPLAIN . UNLOCK
-reject	accept	engine	mysql_reserved_keyword/UNLOCK!insert	EXPLAIN . UNLOCK zzz
-reject	accept	engine	mysql_reserved_keyword/UNLOCK!swap	EXPLAIN . UNLOCKED
-reject	accept	engine	mysql_reserved_keyword/UNSIGNED	EXPLAIN . UNSIGNED
-reject	accept	engine	mysql_reserved_keyword/UNSIGNED!insert	EXPLAIN . UNSIGNED zzz
-reject	accept	engine	mysql_reserved_keyword/UNSIGNED!swap	EXPLAIN . UNTIL
-reject	accept	engine	mysql_reserved_keyword/UPDATE	EXPLAIN . UPDATE
-reject	accept	engine	mysql_reserved_keyword/UPDATE!insert	EXPLAIN . UPDATE zzz
-reject	accept	engine	mysql_reserved_keyword/UPDATE!swap	EXPLAIN . UPGRADE
-reject	accept	engine	mysql_reserved_keyword/USAGE	EXPLAIN . USAGE
-reject	accept	engine	mysql_reserved_keyword/USAGE!insert	EXPLAIN . USAGE zzz
-reject	accept	engine	mysql_reserved_keyword/USE	EXPLAIN . USE
-reject	accept	engine	mysql_reserved_keyword/USE!insert	EXPLAIN . USE zzz
-reject	accept	engine	mysql_reserved_keyword/USE!swap	EXPLAIN . USER
-reject	accept	engine	mysql_reserved_keyword/USING	EXPLAIN . USING
-reject	accept	engine	mysql_reserved_keyword/USING!insert	EXPLAIN . USING zzz
-reject	accept	engine	mysql_reserved_keyword/UTC_DATE	EXPLAIN . UTC_DATE
-reject	accept	engine	mysql_reserved_keyword/UTC_DATE!insert	EXPLAIN . UTC_DATE zzz
-reject	accept	engine	mysql_reserved_keyword/UTC_TIME	EXPLAIN . UTC_TIME
-reject	accept	engine	mysql_reserved_keyword/UTC_TIME!insert	EXPLAIN . UTC_TIME zzz
-reject	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP	EXPLAIN . UTC_TIMESTAMP
-reject	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP!insert	EXPLAIN . UTC_TIMESTAMP zzz
-reject	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP!swap	EXPLAIN . VALID
-reject	accept	engine	mysql_reserved_keyword/VALUES	EXPLAIN . VALUES
-reject	accept	engine	mysql_reserved_keyword/VALUES!insert	EXPLAIN . VALUES zzz
-reject	accept	engine	mysql_reserved_keyword/VARBINARY	EXPLAIN . VARBINARY
-reject	accept	engine	mysql_reserved_keyword/VARBINARY!insert	EXPLAIN . VARBINARY zzz
-reject	accept	engine	mysql_reserved_keyword/VARCHAR	EXPLAIN . VARCHAR
-reject	accept	engine	mysql_reserved_keyword/VARCHAR!insert	EXPLAIN . VARCHAR zzz
-reject	accept	engine	mysql_reserved_keyword/VARCHAR!swap	EXPLAIN . VARIABLES
-reject	accept	engine	mysql_reserved_keyword/VARYING	EXPLAIN . VARYING
-reject	accept	engine	mysql_reserved_keyword/VARYING!insert	EXPLAIN . VARYING zzz
-reject	accept	engine	mysql_reserved_keyword/VARYING!swap	EXPLAIN . VAR_POP
-reject	accept	engine	mysql_reserved_keyword/VIRTUAL	EXPLAIN . VIRTUAL
-reject	accept	engine	mysql_reserved_keyword/VIRTUAL!insert	EXPLAIN . VIRTUAL zzz
-reject	accept	engine	mysql_reserved_keyword/VIRTUAL!swap	EXPLAIN . VIRTUAL_COLUMN_ID
-reject	accept	engine	mysql_reserved_keyword/WHERE	EXPLAIN . WHERE
-reject	accept	engine	mysql_reserved_keyword/WHERE!insert	EXPLAIN . WHERE zzz
-reject	accept	engine	mysql_reserved_keyword/WHILE	EXPLAIN . WHILE
-reject	accept	engine	mysql_reserved_keyword/WHILE!insert	EXPLAIN . WHILE zzz
-reject	accept	engine	mysql_reserved_keyword/WHILE!swap	EXPLAIN . WINDOW
-reject	accept	engine	mysql_reserved_keyword/WITH	EXPLAIN . WITH
-reject	accept	engine	mysql_reserved_keyword/WITH!insert	EXPLAIN . WITH zzz
-reject	accept	engine	mysql_reserved_keyword/WITH!swap	EXPLAIN . WITHOUT
-reject	accept	engine	mysql_reserved_keyword/WRITE	EXPLAIN . WRITE
-reject	accept	engine	mysql_reserved_keyword/WRITE!insert	EXPLAIN . WRITE zzz
-reject	accept	engine	mysql_reserved_keyword/WRITE!swap	EXPLAIN . X509
-reject	accept	engine	mysql_reserved_keyword/XOR	EXPLAIN . XOR
-reject	accept	engine	mysql_reserved_keyword/XOR!insert	EXPLAIN . XOR zzz
-reject	accept	engine	mysql_reserved_keyword/XOR!swap	EXPLAIN . YEAR
-reject	accept	engine	mysql_reserved_keyword/YEAR_MONTH	EXPLAIN . YEAR_MONTH
-reject	accept	engine	mysql_reserved_keyword/YEAR_MONTH!insert	EXPLAIN . YEAR_MONTH zzz
-reject	accept	engine	mysql_reserved_keyword/ZEROFILL	EXPLAIN . ZEROFILL
-reject	accept	engine	mysql_reserved_keyword/ZEROFILL!insert	EXPLAIN . ZEROFILL zzz
-reject	accept	engine	mysql_reserved_keyword/ZEROFILL!swap	EXPLAIN . ZONE
+accept	accept	engine	mysql_reserved_keyword/TERMINATED	EXPLAIN . TERMINATED
+accept	accept	engine	mysql_reserved_keyword/TERMINATED!insert	EXPLAIN . TERMINATED zzz
+accept	accept	engine	mysql_reserved_keyword/TERMINATED!swap	EXPLAIN . TEXT
+accept	accept	engine	mysql_reserved_keyword/THEN	EXPLAIN . THEN
+accept	accept	engine	mysql_reserved_keyword/THEN!insert	EXPLAIN . THEN zzz
+accept	accept	engine	mysql_reserved_keyword/THEN!swap	EXPLAIN . THROTTLE
+accept	accept	engine	mysql_reserved_keyword/TINYBLOB	EXPLAIN . TINYBLOB
+accept	accept	engine	mysql_reserved_keyword/TINYBLOB!insert	EXPLAIN . TINYBLOB zzz
+accept	accept	engine	mysql_reserved_keyword/TINYINT	EXPLAIN . TINYINT
+accept	accept	engine	mysql_reserved_keyword/TINYINT!insert	EXPLAIN . TINYINT zzz
+accept	accept	engine	mysql_reserved_keyword/TINYTEXT	EXPLAIN . TINYTEXT
+accept	accept	engine	mysql_reserved_keyword/TINYTEXT!insert	EXPLAIN . TINYTEXT zzz
+accept	accept	engine	mysql_reserved_keyword/TO	EXPLAIN . TO
+accept	accept	engine	mysql_reserved_keyword/TO!insert	EXPLAIN . TO zzz
+accept	accept	engine	mysql_reserved_keyword/TO!swap	EXPLAIN . TOPK
+accept	accept	engine	mysql_reserved_keyword/TRIGGER	EXPLAIN . TRIGGER
+accept	accept	engine	mysql_reserved_keyword/TRIGGER!insert	EXPLAIN . TRIGGER zzz
+accept	accept	engine	mysql_reserved_keyword/TRIGGER!swap	EXPLAIN . TRIGGERS
+accept	accept	engine	mysql_reserved_keyword/UNDO	EXPLAIN . UNDO
+accept	accept	engine	mysql_reserved_keyword/UNDO!insert	EXPLAIN . UNDO zzz
+accept	accept	engine	mysql_reserved_keyword/UNDO!swap	EXPLAIN . UNDOFILE
+accept	accept	engine	mysql_reserved_keyword/UNION	EXPLAIN . UNION
+accept	accept	engine	mysql_reserved_keyword/UNION!insert	EXPLAIN . UNION zzz
+accept	accept	engine	mysql_reserved_keyword/UNION!swap	EXPLAIN . UNION_MERGE
+accept	accept	engine	mysql_reserved_keyword/UNLOCK	EXPLAIN . UNLOCK
+accept	accept	engine	mysql_reserved_keyword/UNLOCK!insert	EXPLAIN . UNLOCK zzz
+accept	accept	engine	mysql_reserved_keyword/UNLOCK!swap	EXPLAIN . UNLOCKED
+accept	accept	engine	mysql_reserved_keyword/UNSIGNED	EXPLAIN . UNSIGNED
+accept	accept	engine	mysql_reserved_keyword/UNSIGNED!insert	EXPLAIN . UNSIGNED zzz
+accept	accept	engine	mysql_reserved_keyword/UNSIGNED!swap	EXPLAIN . UNTIL
+accept	accept	engine	mysql_reserved_keyword/UPDATE	EXPLAIN . UPDATE
+accept	accept	engine	mysql_reserved_keyword/UPDATE!insert	EXPLAIN . UPDATE zzz
+accept	accept	engine	mysql_reserved_keyword/UPDATE!swap	EXPLAIN . UPGRADE
+accept	accept	engine	mysql_reserved_keyword/USAGE	EXPLAIN . USAGE
+accept	accept	engine	mysql_reserved_keyword/USAGE!insert	EXPLAIN . USAGE zzz
+accept	accept	engine	mysql_reserved_keyword/USE	EXPLAIN . USE
+accept	accept	engine	mysql_reserved_keyword/USE!insert	EXPLAIN . USE zzz
+accept	accept	engine	mysql_reserved_keyword/USE!swap	EXPLAIN . USER
+accept	accept	engine	mysql_reserved_keyword/USING	EXPLAIN . USING
+accept	accept	engine	mysql_reserved_keyword/USING!insert	EXPLAIN . USING zzz
+accept	accept	engine	mysql_reserved_keyword/UTC_DATE	EXPLAIN . UTC_DATE
+accept	accept	engine	mysql_reserved_keyword/UTC_DATE!insert	EXPLAIN . UTC_DATE zzz
+accept	accept	engine	mysql_reserved_keyword/UTC_TIME	EXPLAIN . UTC_TIME
+accept	accept	engine	mysql_reserved_keyword/UTC_TIME!insert	EXPLAIN . UTC_TIME zzz
+accept	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP	EXPLAIN . UTC_TIMESTAMP
+accept	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP!insert	EXPLAIN . UTC_TIMESTAMP zzz
+accept	accept	engine	mysql_reserved_keyword/UTC_TIMESTAMP!swap	EXPLAIN . VALID
+accept	accept	engine	mysql_reserved_keyword/VALUES	EXPLAIN . VALUES
+accept	accept	engine	mysql_reserved_keyword/VALUES!insert	EXPLAIN . VALUES zzz
+accept	accept	engine	mysql_reserved_keyword/VARBINARY	EXPLAIN . VARBINARY
+accept	accept	engine	mysql_reserved_keyword/VARBINARY!insert	EXPLAIN . VARBINARY zzz
+accept	accept	engine	mysql_reserved_keyword/VARCHAR	EXPLAIN . VARCHAR
+accept	accept	engine	mysql_reserved_keyword/VARCHAR!insert	EXPLAIN . VARCHAR zzz
+accept	accept	engine	mysql_reserved_keyword/VARCHAR!swap	EXPLAIN . VARIABLES
+accept	accept	engine	mysql_reserved_keyword/VARYING	EXPLAIN . VARYING
+accept	accept	engine	mysql_reserved_keyword/VARYING!insert	EXPLAIN . VARYING zzz
+accept	accept	engine	mysql_reserved_keyword/VARYING!swap	EXPLAIN . VAR_POP
+accept	accept	engine	mysql_reserved_keyword/VIRTUAL	EXPLAIN . VIRTUAL
+accept	accept	engine	mysql_reserved_keyword/VIRTUAL!insert	EXPLAIN . VIRTUAL zzz
+accept	accept	engine	mysql_reserved_keyword/VIRTUAL!swap	EXPLAIN . VIRTUAL_COLUMN_ID
+accept	accept	engine	mysql_reserved_keyword/WHERE	EXPLAIN . WHERE
+accept	accept	engine	mysql_reserved_keyword/WHERE!insert	EXPLAIN . WHERE zzz
+accept	accept	engine	mysql_reserved_keyword/WHILE	EXPLAIN . WHILE
+accept	accept	engine	mysql_reserved_keyword/WHILE!insert	EXPLAIN . WHILE zzz
+accept	accept	engine	mysql_reserved_keyword/WHILE!swap	EXPLAIN . WINDOW
+accept	accept	engine	mysql_reserved_keyword/WITH	EXPLAIN . WITH
+accept	accept	engine	mysql_reserved_keyword/WITH!insert	EXPLAIN . WITH zzz
+accept	accept	engine	mysql_reserved_keyword/WITH!swap	EXPLAIN . WITHOUT
+accept	accept	engine	mysql_reserved_keyword/WRITE	EXPLAIN . WRITE
+accept	accept	engine	mysql_reserved_keyword/WRITE!insert	EXPLAIN . WRITE zzz
+accept	accept	engine	mysql_reserved_keyword/WRITE!swap	EXPLAIN . X509
+accept	accept	engine	mysql_reserved_keyword/XOR	EXPLAIN . XOR
+accept	accept	engine	mysql_reserved_keyword/XOR!insert	EXPLAIN . XOR zzz
+accept	accept	engine	mysql_reserved_keyword/XOR!swap	EXPLAIN . YEAR
+accept	accept	engine	mysql_reserved_keyword/YEAR_MONTH	EXPLAIN . YEAR_MONTH
+accept	accept	engine	mysql_reserved_keyword/YEAR_MONTH!insert	EXPLAIN . YEAR_MONTH zzz
+accept	accept	engine	mysql_reserved_keyword/ZEROFILL	EXPLAIN . ZEROFILL
+accept	accept	engine	mysql_reserved_keyword/ZEROFILL!insert	EXPLAIN . ZEROFILL zzz
+accept	accept	engine	mysql_reserved_keyword/ZEROFILL!swap	EXPLAIN . ZONE

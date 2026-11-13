@@ -19,6 +19,10 @@ import (
 
 var updateCompat = flag.Bool("update-compat", false, "write omni cells that now equal their row's expected verdict")
 
+// Updating reports whether the run was given -update-compat. enginetest/simulate
+// reads it too: one flag commits the closed gaps of either file.
+func Updating() bool { return *updateCompat }
+
 // maxReported caps the rows one failure prints. Closing a grammar family
 // moves dozens of rows at once, and a thousand like lines is not a report.
 const maxReported = 25

@@ -64,7 +64,7 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 	}
 
 	// View name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

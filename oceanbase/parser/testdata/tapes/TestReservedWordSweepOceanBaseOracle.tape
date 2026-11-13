@@ -2234,6 +2234,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select no_parallel from t
+< error
+| 1064 42000 …near 'no_parallel from t' at line 1
+> exec ^
+: string
+| select no_rewrite from t
+< error
+| 1064 42000 …near 'no_rewrite from t' at line 1
+> exec ^
+: string
 | select no_wait from t
 < error
 | 1046 3D000 No database selected
@@ -2697,6 +2707,11 @@
 | select read from t
 < error
 | 1064 42000 …near 'from t' at line 1
+> exec ^
+: string
+| select read_consistency from t
+< error
+| 1064 42000 …near 'read_consistency from t' at line 1
 > exec ^
 : string
 | select read_only from t
@@ -3712,6 +3727,11 @@
 | select table_name from t
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select tablegroup from t
+< error
+| 1064 42000 …near 'tablegroup from t' at line 1
 > exec ^
 : string
 | select tables from t
@@ -6444,6 +6464,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select t.no_parallel from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select t.no_rewrite from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
 | select t.no_wait from t
 < error
 | 1046 3D000 No database selected
@@ -6905,6 +6935,11 @@
 > exec ^
 : string
 | select t.read from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select t.read_consistency from t
 < error
 | 1046 3D000 No database selected
 > exec ^
@@ -7920,6 +7955,11 @@
 > exec ^
 : string
 | select t.table_name from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select t.tablegroup from t
 < error
 | 1046 3D000 No database selected
 > exec ^
@@ -10654,6 +10694,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select a no_parallel from t
+< error
+| 1064 42000 …near 'no_parallel from t' at line 1
+> exec ^
+: string
+| select a no_rewrite from t
+< error
+| 1064 42000 …near 'no_rewrite from t' at line 1
+> exec ^
+: string
 | select a no_wait from t
 < error
 | 1046 3D000 No database selected
@@ -11117,6 +11167,11 @@
 | select a read from t
 < error
 | 1064 42000 …near 'read from t' at line 1
+> exec ^
+: string
+| select a read_consistency from t
+< error
+| 1064 42000 …near 'read_consistency from t' at line 1
 > exec ^
 : string
 | select a read_only from t
@@ -12132,6 +12187,11 @@
 | select a table_name from t
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select a tablegroup from t
+< error
+| 1064 42000 …near 'tablegroup from t' at line 1
 > exec ^
 : string
 | select a tables from t
@@ -14864,6 +14924,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select a as no_parallel from t
+< error
+| 1064 42000 …near 'no_parallel from t' at line 1
+> exec ^
+: string
+| select a as no_rewrite from t
+< error
+| 1064 42000 …near 'no_rewrite from t' at line 1
+> exec ^
+: string
 | select a as no_wait from t
 < error
 | 1046 3D000 No database selected
@@ -15327,6 +15397,11 @@
 | select a as read from t
 < error
 | 1064 42000 …near 'read from t' at line 1
+> exec ^
+: string
+| select a as read_consistency from t
+< error
+| 1064 42000 …near 'read_consistency from t' at line 1
 > exec ^
 : string
 | select a as read_only from t
@@ -16342,6 +16417,11 @@
 | select a as table_name from t
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select a as tablegroup from t
+< error
+| 1064 42000 …near 'tablegroup from t' at line 1
 > exec ^
 : string
 | select a as tables from t
@@ -19074,6 +19154,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select * from no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| select * from no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | select * from no_wait
 < error
 | 1046 3D000 No database selected
@@ -19537,6 +19627,11 @@
 | select * from read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| select * from read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | select * from read_only
@@ -20552,6 +20647,11 @@
 | select * from table_name
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select * from tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | select * from tables
@@ -23284,6 +23384,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select * from t no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| select * from t no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | select * from t no_wait
 < error
 | 1046 3D000 No database selected
@@ -23747,6 +23857,11 @@
 | select * from t read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| select * from t read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | select * from t read_only
@@ -24762,6 +24877,11 @@
 | select * from t table_name
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select * from t tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | select * from t tables
@@ -27494,6 +27614,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select * from t as no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| select * from t as no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | select * from t as no_wait
 < error
 | 1046 3D000 No database selected
@@ -27957,6 +28087,11 @@
 | select * from t as read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| select * from t as read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | select * from t as read_only
@@ -28972,6 +29107,11 @@
 | select * from t as table_name
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select * from t as tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | select * from t as tables
@@ -31704,6 +31844,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| create table no_parallel (a int)
+< error
+| 1064 42000 …near 'no_parallel (a int)' at line 1
+> exec ^
+: string
+| create table no_rewrite (a int)
+< error
+| 1064 42000 …near 'no_rewrite (a int)' at line 1
+> exec ^
+: string
 | create table no_wait (a int)
 < error
 | 1046 3D000 No database selected
@@ -32167,6 +32317,11 @@
 | create table read (a int)
 < error
 | 1064 42000 …near 'read (a int)' at line 1
+> exec ^
+: string
+| create table read_consistency (a int)
+< error
+| 1064 42000 …near 'read_consistency (a int)' at line 1
 > exec ^
 : string
 | create table read_only (a int)
@@ -33182,6 +33337,11 @@
 | create table table_name (a int)
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| create table tablegroup (a int)
+< error
+| 1064 42000 …near 'tablegroup (a int)' at line 1
 > exec ^
 : string
 | create table tables (a int)
@@ -35914,6 +36074,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| create table x (no_parallel int)
+< error
+| 1064 42000 …near 'no_parallel int)' at line 1
+> exec ^
+: string
+| create table x (no_rewrite int)
+< error
+| 1064 42000 …near 'no_rewrite int)' at line 1
+> exec ^
+: string
 | create table x (no_wait int)
 < error
 | 1046 3D000 No database selected
@@ -36377,6 +36547,11 @@
 | create table x (read int)
 < error
 | 1064 42000 …near 'read int)' at line 1
+> exec ^
+: string
+| create table x (read_consistency int)
+< error
+| 1064 42000 …near 'read_consistency int)' at line 1
 > exec ^
 : string
 | create table x (read_only int)
@@ -37392,6 +37567,11 @@
 | create table x (table_name int)
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| create table x (tablegroup int)
+< error
+| 1064 42000 …near 'tablegroup int)' at line 1
 > exec ^
 : string
 | create table x (tables int)
@@ -40124,6 +40304,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| alter table t add column no_parallel int
+< error
+| 1064 42000 …near 'no_parallel int' at line 1
+> exec ^
+: string
+| alter table t add column no_rewrite int
+< error
+| 1064 42000 …near 'no_rewrite int' at line 1
+> exec ^
+: string
 | alter table t add column no_wait int
 < error
 | 1046 3D000 No database selected
@@ -40587,6 +40777,11 @@
 | alter table t add column read int
 < error
 | 1064 42000 …near 'read int' at line 1
+> exec ^
+: string
+| alter table t add column read_consistency int
+< error
+| 1064 42000 …near 'read_consistency int' at line 1
 > exec ^
 : string
 | alter table t add column read_only int
@@ -41602,6 +41797,11 @@
 | alter table t add column table_name int
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| alter table t add column tablegroup int
+< error
+| 1064 42000 …near 'tablegroup int' at line 1
 > exec ^
 : string
 | alter table t add column tables int
@@ -44334,6 +44534,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| create index no_parallel on t (a)
+< error
+| 1064 42000 …near 'no_parallel on t (a)' at line 1
+> exec ^
+: string
+| create index no_rewrite on t (a)
+< error
+| 1064 42000 …near 'no_rewrite on t (a)' at line 1
+> exec ^
+: string
 | create index no_wait on t (a)
 < error
 | 1046 3D000 No database selected
@@ -44797,6 +45007,11 @@
 | create index read on t (a)
 < error
 | 1064 42000 …near 'read on t (a)' at line 1
+> exec ^
+: string
+| create index read_consistency on t (a)
+< error
+| 1064 42000 …near 'read_consistency on t (a)' at line 1
 > exec ^
 : string
 | create index read_only on t (a)
@@ -45812,6 +46027,11 @@
 | create index table_name on t (a)
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| create index tablegroup on t (a)
+< error
+| 1064 42000 …near 'tablegroup on t (a)' at line 1
 > exec ^
 : string
 | create index tables on t (a)
@@ -48544,6 +48764,16 @@
 | 1295 HY000 This command is not supported in the prepared statement protocol yet
 > exec ^
 : string
+| create procedure p() no_parallel: loop leave no_parallel; end loop
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
+| create procedure p() no_rewrite: loop leave no_rewrite; end loop
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
 | create procedure p() no_wait: loop leave no_wait; end loop
 < error
 | 1295 HY000 This command is not supported in the prepared statement protocol yet
@@ -49007,6 +49237,11 @@
 | create procedure p() read: loop leave read; end loop
 < error
 | 1064 42000 …near 'read: loop leave read' at line 1
+> exec ^
+: string
+| create procedure p() read_consistency: loop leave read_consistency; end loop
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
 > exec ^
 : string
 | create procedure p() read_only: loop leave read_only; end loop
@@ -50020,6 +50255,11 @@
 > exec ^
 : string
 | create procedure p() table_name: loop leave table_name; end loop
+< error
+| 1295 HY000 This command is not supported in the prepared statement protocol yet
+> exec ^
+: string
+| create procedure p() tablegroup: loop leave tablegroup; end loop
 < error
 | 1295 HY000 This command is not supported in the prepared statement protocol yet
 > exec ^
@@ -52448,6 +52688,16 @@
 < ok 0 0
 > exec ^
 : string
+| create role no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| create role no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | create role no_wait
 < ok 0 0
 > exec ^
@@ -52840,6 +53090,11 @@
 | create role read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| create role read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | create role read_only
@@ -53698,6 +53953,11 @@
 : string
 | create role table_name
 < ok 0 0
+> exec ^
+: string
+| create role tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | create role tables
@@ -56060,6 +56320,16 @@
 < ok 0 0
 > exec ^
 : string
+| set no_parallel = 1
+< error
+| 1064 42000 …near 'no_parallel = 1' at line 1
+> exec ^
+: string
+| set no_rewrite = 1
+< error
+| 1064 42000 …near 'no_rewrite = 1' at line 1
+> exec ^
+: string
 | set no_wait = 1
 < ok 0 0
 > exec ^
@@ -56454,6 +56724,11 @@
 | set read = 1
 < error
 | 1064 42000 …near 'read = 1' at line 1
+> exec ^
+: string
+| set read_consistency = 1
+< error
+| 1064 42000 …near 'read_consistency = 1' at line 1
 > exec ^
 : string
 | set read_only = 1
@@ -57312,6 +57587,11 @@
 : string
 | set table_name = 1
 < ok 0 0
+> exec ^
+: string
+| set tablegroup = 1
+< error
+| 1064 42000 …near 'tablegroup = 1' at line 1
 > exec ^
 : string
 | set tables = 1
@@ -59979,6 +60259,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select no_parallel.a from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select no_rewrite.a from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
 | select no_wait.a from t
 < error
 | 1046 3D000 No database selected
@@ -60440,6 +60730,11 @@
 > exec ^
 : string
 | select read.a from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select read_consistency.a from t
 < error
 | 1046 3D000 No database selected
 > exec ^
@@ -61455,6 +61750,11 @@
 > exec ^
 : string
 | select table_name.a from t
+< error
+| 1046 3D000 No database selected
+> exec ^
+: string
+| select tablegroup.a from t
 < error
 | 1046 3D000 No database selected
 > exec ^
@@ -64189,6 +64489,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| create table x (a int, key no_parallel (a))
+< error
+| 1064 42000 …near 'no_parallel (a))' at line 1
+> exec ^
+: string
+| create table x (a int, key no_rewrite (a))
+< error
+| 1064 42000 …near 'no_rewrite (a))' at line 1
+> exec ^
+: string
 | create table x (a int, key no_wait (a))
 < error
 | 1046 3D000 No database selected
@@ -64652,6 +64962,11 @@
 | create table x (a int, key read (a))
 < error
 | 1064 42000 …near 'read (a))' at line 1
+> exec ^
+: string
+| create table x (a int, key read_consistency (a))
+< error
+| 1064 42000 …near 'read_consistency (a))' at line 1
 > exec ^
 : string
 | create table x (a int, key read_only (a))
@@ -65667,6 +65982,11 @@
 | create table x (a int, key table_name (a))
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| create table x (a int, key tablegroup (a))
+< error
+| 1064 42000 …near 'tablegroup (a))' at line 1
 > exec ^
 : string
 | create table x (a int, key tables (a))
@@ -68399,6 +68719,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select 1 from t where a = no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| select 1 from t where a = no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | select 1 from t where a = no_wait
 < error
 | 1046 3D000 No database selected
@@ -68862,6 +69192,11 @@
 | select 1 from t where a = read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| select 1 from t where a = read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | select 1 from t where a = read_only
@@ -69877,6 +70212,11 @@
 | select 1 from t where a = table_name
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select 1 from t where a = tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | select 1 from t where a = tables
@@ -72609,6 +72949,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| update t set a = no_parallel
+< error
+| 1064 42000 …near 'no_parallel' at line 1
+> exec ^
+: string
+| update t set a = no_rewrite
+< error
+| 1064 42000 …near 'no_rewrite' at line 1
+> exec ^
+: string
 | update t set a = no_wait
 < error
 | 1046 3D000 No database selected
@@ -73072,6 +73422,11 @@
 | update t set a = read
 < error
 | 1064 42000 …near 'read' at line 1
+> exec ^
+: string
+| update t set a = read_consistency
+< error
+| 1064 42000 …near 'read_consistency' at line 1
 > exec ^
 : string
 | update t set a = read_only
@@ -74087,6 +74442,11 @@
 | update t set a = table_name
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| update t set a = tablegroup
+< error
+| 1064 42000 …near 'tablegroup' at line 1
 > exec ^
 : string
 | update t set a = tables
@@ -76819,6 +77179,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| insert into t values (no_parallel)
+< error
+| 1064 42000 …near 'no_parallel)' at line 1
+> exec ^
+: string
+| insert into t values (no_rewrite)
+< error
+| 1064 42000 …near 'no_rewrite)' at line 1
+> exec ^
+: string
 | insert into t values (no_wait)
 < error
 | 1046 3D000 No database selected
@@ -77282,6 +77652,11 @@
 | insert into t values (read)
 < error
 | 1064 42000 …near ')' at line 1
+> exec ^
+: string
+| insert into t values (read_consistency)
+< error
+| 1064 42000 …near 'read_consistency)' at line 1
 > exec ^
 : string
 | insert into t values (read_only)
@@ -78297,6 +78672,11 @@
 | insert into t values (table_name)
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| insert into t values (tablegroup)
+< error
+| 1064 42000 …near 'tablegroup)' at line 1
 > exec ^
 : string
 | insert into t values (tables)
@@ -81029,6 +81409,16 @@
 | 1046 3D000 No database selected
 > exec ^
 : string
+| select no_parallel + 1 from t
+< error
+| 1064 42000 …near 'no_parallel + 1 from t' at line 1
+> exec ^
+: string
+| select no_rewrite + 1 from t
+< error
+| 1064 42000 …near 'no_rewrite + 1 from t' at line 1
+> exec ^
+: string
 | select no_wait + 1 from t
 < error
 | 1046 3D000 No database selected
@@ -81492,6 +81882,11 @@
 | select read + 1 from t
 < error
 | 1064 42000 …near '+ 1 from t' at line 1
+> exec ^
+: string
+| select read_consistency + 1 from t
+< error
+| 1064 42000 …near 'read_consistency + 1 from t' at line 1
 > exec ^
 : string
 | select read_only + 1 from t
@@ -82507,6 +82902,11 @@
 | select table_name + 1 from t
 < error
 | 1046 3D000 No database selected
+> exec ^
+: string
+| select tablegroup + 1 from t
+< error
+| 1064 42000 …near 'tablegroup + 1 from t' at line 1
 > exec ^
 : string
 | select tables + 1 from t
