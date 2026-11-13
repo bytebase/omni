@@ -1,0 +1,23 @@
+# Statements of compat.tsv that Cql.g4 does not decide as Cassandra's parser
+# does, each with the verdict, the source that gives it, and what says so.
+#
+# grammar: Cql.g4 derives the statement and an action of Parser.g refuses it
+# while it parses, in code the conversion drops (cassandra/parser/cmd/
+# antlr3to4 notes each such action beside its rule). Each cite is the
+# Parser.g line at cassandra-5.0.9 and the Java it calls, under
+# github.com/apache/cassandra at the pin's commit. They were read for the
+# rows this file holds; a new row that reaches a noted action needs reading
+# again.
+# columns: verdict, source, cite, statement
+reject	grammar	Parser.g:793 addColumn; src/java/org/apache/cassandra/cql3/statements/schema/CreateTableStatement.java:527 "Duplicate column ... declaration"	CREATE TABLE a(a ASCII, a ASCII)
+reject	grammar	Parser.g:823 extendClusteringOrder; src/java/org/apache/cassandra/cql3/statements/schema/CreateTableStatement.java:559 "Duplicate column ... in CLUSTERING ORDER BY"	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a ASC)
+reject	grammar	Parser.g:912 extendClusteringOrder; src/java/org/apache/cassandra/cql3/statements/schema/CreateViewStatement.java:459 "Duplicate column ... in CLUSTERING ORDER BY"	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC, a ASC)
+reject	grammar	Parser.g:1755 addProperty; src/java/org/apache/cassandra/cql3/statements/PropertyDefinitions.java:44 "Multiple definitions for property"	CREATE KEYSPACE a WITH a = 'a' AND a = 'a'
+reject	grammar	Parser.g:1755 addProperty; src/java/org/apache/cassandra/cql3/statements/PropertyDefinitions.java:44 "Multiple definitions for property"	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' AND a = 'a'
+reject	grammar	Parser.g:132 convertPropertyMap "Multiple definition for property"	CREATE KEYSPACE a WITH a = { 'a' : 'a', 'a' : 'a' }
+reject	grammar	Parser.g:1379 setOption; src/java/org/apache/cassandra/auth/RoleOptions.java:43 "Multiple definition for property"	CREATE ROLE a WITH PASSWORD = 'a' AND PASSWORD = 'a'
+reject	grammar	Parser.g:1856 freeze(); src/java/org/apache/cassandra/cql3/CQL3Type.java:649 "frozen<> is only allowed on collections, tuples, and user-defined types"	ALTER TABLE a ADD a FROZEN < ASCII >
+reject	grammar	Parser.g:1868 a custom type names a class TypeParser loads, and 'a' names none: "Error setting type"	ALTER TABLE a ADD a 'a'
+reject	grammar	Parser.g:1678 addRawUpdate; Parser.g:144 and src/java/org/apache/cassandra/cql3/Operation.java:203 "Multiple incompatible setting of column"	UPDATE a SET a = 'a', a = 'a' WHERE a = 'a'
+reject	grammar	Parser.g:1166 canonicalizeObjectName; Parser.g:182 "is not a valid JMX object name": 'a' has no domain	LIST ALL ON MBEAN 'a'
+reject	grammar	Parser.g:1166 canonicalizeObjectName; Parser.g:182 "is not a valid JMX object name": 'a' has no domain	LIST ALL ON MBEANS 'a'

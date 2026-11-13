@@ -6,7 +6,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 
 | Engine | Current live test backend | Remaining work |
 | --- | --- | --- |
-| `cassandra` | No local database oracle | Add native Cassandra coverage. |
+| `cassandra` | No server. `cassandra/parser` replays `compat.tsv`, judged by Cassandra's own grammar: `cassandra/testdata/Cql.g4`, converted from `Parser.g` and `Lexer.g` at `cassandra-5.0.9` by `cassandra/parser/cmd/antlr3to4` | The 397 disagreeing rows of 2,941. Add native Cassandra coverage: an image would judge as the engine, including the parser actions the grammar judge cannot run. |
 | `cosmosdb` | No local database oracle | Add the official Cosmos DB NoSQL emulator. |
 | `doris` | `dyrnq/doris:3.1.4` | Upgrade the native baseline after checking dialect drift. |
 | `elasticsearch` | No local database oracle | Add native Elasticsearch request coverage. |
