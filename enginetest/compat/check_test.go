@@ -132,6 +132,30 @@ func TestCheckFailsARegressionAndNeverWritesIt(t *testing.T) {
 	}
 }
 
+// TestCheckCommitsAGapThatIsNowAnotherOne covers a judge that says where it
+// rejects: a row omni got wrong can move to another wrong verdict, which
+// -update-compat commits, while a row that agreed cannot.
+func TestCheckCommitsAGapThatIsNowAnotherOne(t *testing.T) {
+	s := suite(t, "accept\treject@7\tengine\tr/A\tA\nreject@7\treject@7\tengine\tr/B\tB\n",
+		map[string]string{"A": "reject@3", "B": "reject@3"})
+	rec := run(t, s)
+	if !rec.failed("a known gap is now another one") {
+		t.Errorf("a gap that moved passed: %q", rec.errors)
+	}
+	if !rec.failed("a regression") {
+		t.Errorf("an agreement that moved passed: %q", rec.errors)
+	}
+
+	*updateCompat = true
+	defer func() { *updateCompat = false }()
+	if rec := run(t, s); !rec.failed("a regression") || rec.failed("a known gap") {
+		t.Errorf("-update-compat: %q", rec.errors)
+	}
+	if got := read(t, s.Path); !strings.Contains(got, "reject@3\treject@7\tengine\tr/A\tA\nreject@7\treject@7\tengine\tr/B\tB\n") {
+		t.Errorf("-update-compat did not commit the moved gap alone:\n%s", got)
+	}
+}
+
 func TestCheckFailsAnUnjudgedRow(t *testing.T) {
 	s := suite(t, "?\t?\t-\tissue:BYT-1\tA\n", nil)
 	if rec := run(t, s); !rec.failed("not judged yet") {

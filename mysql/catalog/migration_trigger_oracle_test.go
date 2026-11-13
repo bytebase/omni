@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -72,7 +73,7 @@ func (o *oracleConn) reconstructTriggersSQL(t *testing.T, probeDB, emitDB string
 	}, schemaDDL...)
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] trigger setup failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] trigger setup failed : %q: %v", o.name, s, err)
 			return "", false
 		}
 	}
@@ -182,7 +183,7 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 				dbName := "trig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, ok := o.triggerStoredCatalog(t, dbName, dbName, probe.schema, probe.tables)
 				if !ok {
-					t.Skipf("[%s] could not obtain stored form for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not obtain stored form for %s", o.name, probe.id)
 				}
 
 				// Self-diff + self-plan must be empty (idempotence spine).
@@ -234,7 +235,7 @@ func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
 			}
 			storedCat, ok := o.triggerStoredCatalog(t, "trig_multi", "trig_multi", schema, []string{"t"})
 			if !ok {
-				t.Skipf("[%s] could not obtain stored form", o.name)
+				t.Fatalf("[%s] could not obtain stored form", o.name)
 			}
 			if d := DiffWithNormalizer(storedCat, storedCat, n); !d.IsEmpty() {
 				t.Errorf("[%s] multi-trigger self-diff not empty: %s", o.name, describeTriggerDiff(d))
@@ -372,11 +373,11 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 	// spurious DROP+CREATE table) and only the trigger set differs.
 	fromCat, ok := o.triggerStoredCatalog(t, "trig_from_"+slug, triggerOracleDB, p.fromDDL, p.fromTableSet())
 	if !ok {
-		t.Skipf("[%s] could not obtain `from` stored form for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `from` stored form for %s", o.name, p.id)
 	}
 	toCat, ok := o.triggerStoredCatalog(t, "trig_to_"+slug, triggerOracleDB, p.toDDL, p.toTableSet())
 	if !ok {
-		t.Skipf("[%s] could not obtain `to` stored form for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `to` stored form for %s", o.name, p.id)
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -385,11 +386,8 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 	// Build a real database in state `from` on a dedicated connection (so a stray USE stays on the
 	// same pooled connection as the following statements), then apply the plan.
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := append([]string{
 		"DROP DATABASE IF EXISTS " + triggerOracleDB,
@@ -398,7 +396,7 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 	}, p.fromDDL...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
 		}
 	}
 
@@ -432,7 +430,7 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 // already-applied database on a specific *sql.Conn, returning the stored-form SDL. Unlike
 // reconstructTriggersSQL it does NOT re-create the database — it inspects the just-applied state on
 // the same connection the plan ran on.
-func (o *oracleConn) reconstructTriggersFromConn(t *testing.T, conn *sql.Conn, dbName string, tables []string) (string, bool) {
+func (o *oracleConn) reconstructTriggersFromConn(t *testing.T, conn *sql.DB, dbName string, tables []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	var b strings.Builder

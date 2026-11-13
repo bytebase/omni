@@ -11,10 +11,7 @@ import (
 // TestRoutineBodyRealworld covers the realworld corpus tracked by
 // docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 //
-// Each row is either active (current scanner handles it, test must pass now)
-// or t.Skip-gated with a TODO pointing at the plan; after commit 3 of that
-// plan swaps the body scanner for parseCompoundStmtOrStmt, the Skips are
-// removed and every row passes on all branches.
+// Every row must parse.
 //
 // Sources:
 //   - existing in-repo samples (split_realworld_test.go)
@@ -25,7 +22,6 @@ func TestRoutineBodyRealworld(t *testing.T) {
 	type tc struct {
 		name string
 		sql  string
-		skip string // non-empty ⇒ t.Skip reason (TODO: clear after commit 3)
 	}
 
 	cases := []tc{
@@ -504,9 +500,6 @@ END MYBLOCK`,
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if c.skip != "" {
-				t.Skip(c.skip)
-			}
 			list, err := Parse(c.sql)
 			if err != nil {
 				t.Fatalf("Parse failed: %v\nsql:\n%s", err, c.sql)

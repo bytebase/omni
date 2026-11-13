@@ -51,6 +51,11 @@ var Pins = func() string {
 const (
 	// Default is mysql:8.0.46 as it starts: lower_case_table_names 0.
 	Default = "default"
+	// Folded is mysql:8.0.46 initialized with lower_case_table_names=1,
+	// where table and database names fold.
+	Folded = "lctn1"
+	// MySQL84 is mysql:8.4.13, the 8.4 LTS release.
+	MySQL84 = "mysql84"
 )
 
 // servers holds the server of each role, started on first use. The binary
@@ -58,6 +63,8 @@ const (
 // otherwise).
 var servers = map[string]*Server{
 	Default: {role: Default, args: []string{"--skip-log-bin"}},
+	Folded:  {role: Folded, args: []string{"--skip-log-bin", "--lower-case-table-names=1"}},
+	MySQL84: {role: MySQL84, args: []string{"--skip-log-bin"}},
 }
 
 // Options is how a test's connection differs from the plain one.
@@ -105,17 +112,13 @@ func OpenRoot(t testing.TB, o Options) *sql.DB {
 // come back as time.Time.
 func OpenEmpty(t testing.TB) *sql.DB {
 	t.Helper()
-	return OpenEmptyWith(t, Options{})
+	return OpenEmptyWith(t, Options{Database: "test", MultiStatements: true, ParseTime: true})
 }
 
-// OpenEmptyWith is OpenEmpty on another server, or with other settings.
+// OpenEmptyWith is OpenEmpty with the settings and on the server o gives.
 func OpenEmptyWith(t testing.TB, o Options) *sql.DB {
 	t.Helper()
 	Reset(t, o.role(), empty)
-	if o.Database == "" {
-		o.Database = "test"
-	}
-	o.MultiStatements, o.ParseTime = true, true
 	return OpenRoot(t, o)
 }
 
@@ -190,7 +193,8 @@ var systemAccounts = map[string]bool{"root": true, "mysql.infoschema": true, "my
 // empty drops what tests created on the server and creates the database test,
 // and puts back the global settings a test may change.
 func empty(ctx context.Context, db *sql.DB) error {
-	var stmts []string
+	// A table of one database may reference another's.
+	stmts := []string{"SET foreign_key_checks = 0"}
 	databases, err := queryPairs(ctx, db, "SELECT SCHEMA_NAME, '' FROM information_schema.SCHEMATA")
 	if err != nil {
 		return err
@@ -199,6 +203,15 @@ func empty(ctx context.Context, db *sql.DB) error {
 		if !systemDatabases[strings.ToLower(d[0])] {
 			stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(d[0], "`", "``")+"`")
 		}
+	}
+	// A loadable function is the server's, not a database's; with every
+	// database gone, DROP FUNCTION drops it.
+	functions, err := queryPairs(ctx, db, "SELECT name, '' FROM mysql.func")
+	if err != nil {
+		return err
+	}
+	for _, f := range functions {
+		stmts = append(stmts, "DROP FUNCTION `"+strings.ReplaceAll(f[0], "`", "``")+"`")
 	}
 	accounts, err := queryPairs(ctx, db, "SELECT User, Host FROM mysql.user")
 	if err != nil {
@@ -254,7 +267,10 @@ type Server struct {
 
 // liveTimeout bounds one statement on the live server, so one that hangs fails
 // its test and not the run.
-const liveTimeout = time.Minute
+//
+// The devbox shares its cores with CI, and under a load of 400 a plain
+// statement has taken over a minute.
+const liveTimeout = 5 * time.Minute
 
 // connector connects to the pinned server, starting it on the first call. It
 // is called only in a recording. Arguments are inlined, because a tape holds
@@ -275,7 +291,30 @@ func (s *Server) connector(t testing.TB, pin enginetest.Pin, o Options) driver.C
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	return c
+	return clockConnector{c}
+}
+
+// pinnedClock is the time every session starts at, 2026-01-01 00:00:00 UTC.
+// The server stamps what a statement makes with its session's time: a
+// trigger's Created, an event's STARTS when it names none, a table's
+// CREATE_TIME. With the clock pinned, a second recording reads the same
+// answers as the first.
+const pinnedClock = 1767225600
+
+// clockConnector sets each new session's clock to pinnedClock. It sits below
+// the tape, so the tape holds what the test sends and not this.
+type clockConnector struct{ driver.Connector }
+
+func (c clockConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	conn, err := c.Connector.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.(driver.ExecerContext).ExecContext(ctx, "SET timestamp = "+strconv.Itoa(pinnedClock), nil); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("pin the session's clock: %w", err)
+	}
+	return conn, nil
 }
 
 // start starts the server once, checks it is the pinned one, and creates the
