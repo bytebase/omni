@@ -36,6 +36,10 @@ type Grammar struct {
 	// fixed holds the ANTLR tokens whose sample is the only text they
 	// match, as a lexer rule spelling a keyword in any case is.
 	fixed map[string]bool
+	// patterned holds the ANTLR tokens whose sample is one text of many a
+	// lexer rule matches, as [A-Z_][A-Z0-9_]* is of identifiers, however
+	// the sample is capitalized.
+	patterned map[string]bool
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -95,6 +99,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		spaced:      map[string]bool{},
 		reserved:    map[string]bool{},
 		fixed:       map[string]bool{},
+		patterned:   map[string]bool{},
 	}
 	for name, form := range tokens.forms {
 		switch form {
