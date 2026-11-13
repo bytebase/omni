@@ -46,6 +46,9 @@ func placeholderClass(name string) string {
 		return tObjectTypes
 	case n == "copy_statement":
 		return tCopy
+	case strings.HasSuffix(n, "password"):
+		// ADMIN_PASSWORD = '<user_password>': a password is a string.
+		return tString
 	case n == "col_default" || n == "col_write_default" || n == "default_value":
 		// DEFAULT 100: a default is an expression.
 		return tExpr

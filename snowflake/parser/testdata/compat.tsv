@@ -2256,24 +2256,24 @@ reject	undocumented	docs	statement/createMaintenancePolicy!drop-6	CREATE MAINTEN
 reject	undocumented	docs	statement/createMaintenancePolicy!drop-7	CREATE MAINTENANCE POLICY a SCHEDULE =
 reject	undocumented	docs	statement/createMaintenancePolicy!insert	CREATE MAINTENANCE POLICY a SCHEDULE = 's' zzz
 reject	undocumented	docs	statement/createMaintenancePolicy!swap	CREATION MAINTENANCE POLICY a SCHEDULE = 's'
-accept	accept	docs	statement/createManagedAccount	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-1	MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-accept	undocumented	docs	statement/createManagedAccount!drop-2	CREATE ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-3	CREATE MANAGED a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-4	CREATE MANAGED ACCOUNT ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-5	CREATE MANAGED ACCOUNT a = a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-6	CREATE MANAGED ACCOUNT a ADMIN_NAME a, ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-7	CREATE MANAGED ACCOUNT a ADMIN_NAME =, ADMIN_PASSWORD = a, TYPE = READER
-accept	undocumented	docs	statement/createManagedAccount!drop-8	CREATE MANAGED ACCOUNT a ADMIN_NAME = a ADMIN_PASSWORD = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-9	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, = a, TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-10	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD a, TYPE = READER
+accept	accept	docs	statement/createManagedAccount	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-1	MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+accept	undocumented	docs	statement/createManagedAccount!drop-2	CREATE ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-3	CREATE MANAGED a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-4	CREATE MANAGED ACCOUNT ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-5	CREATE MANAGED ACCOUNT a = a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-6	CREATE MANAGED ACCOUNT a ADMIN_NAME a, ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-7	CREATE MANAGED ACCOUNT a ADMIN_NAME =, ADMIN_PASSWORD = 's', TYPE = READER
+accept	undocumented	docs	statement/createManagedAccount!drop-8	CREATE MANAGED ACCOUNT a ADMIN_NAME = a ADMIN_PASSWORD = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-9	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, = 's', TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-10	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD 's', TYPE = READER
 reject	undocumented	docs	statement/createManagedAccount!drop-11	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD =, TYPE = READER
-accept	undocumented	docs	statement/createManagedAccount!drop-12	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a TYPE = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-13	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, = READER
-reject	undocumented	docs	statement/createManagedAccount!drop-14	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE READER
-reject	undocumented	docs	statement/createManagedAccount!drop-15	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE =
-accept	undocumented	docs	statement/createManagedAccount!insert	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER zzz
-reject	undocumented	docs	statement/createManagedAccount!swap	CREATION MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
+accept	undocumented	docs	statement/createManagedAccount!drop-12	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's' TYPE = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-13	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', = READER
+reject	undocumented	docs	statement/createManagedAccount!drop-14	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE READER
+reject	undocumented	docs	statement/createManagedAccount!drop-15	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE =
+accept	undocumented	docs	statement/createManagedAccount!insert	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER zzz
+reject	undocumented	docs	statement/createManagedAccount!swap	CREATION MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
 accept	accept	docs	statement/createMaskingPolicy	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a
 reject	undocumented	docs	statement/createMaskingPolicy!drop-1	MASKING POLICY a AS(a INT) RETURNS INT -> a
 reject	undocumented	docs	statement/createMaskingPolicy!drop-2	CREATE POLICY a AS(a INT) RETURNS INT -> a
@@ -23090,12 +23090,12 @@ reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_(IF_EXISTS)?_ID_RENAME_T
 reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_(IF_EXISTS)?_ID_RENAME_TO_ID!insert	ALTER STREAMLIT a RENAME TO a zzz
 reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_(IF_EXISTS)?_ID_RENAME_TO_ID!swap	ALWAYS STREAMLIT a RENAME TO a
 reject	accept	docs	alterStreamlit/ALTER_STREAMLIT_ID_COMMIT	ALTER STREAMLIT a COMMIT
-reject	accept	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99	ALTER STREAMLIT a PUSH
-reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99!drop-1	STREAMLIT a PUSH
-reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99!drop-2	ALTER a PUSH
-reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99!drop-3	ALTER STREAMLIT PUSH
-reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99!insert	ALTER STREAMLIT a PUSH zzz
-reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~791f4b99!swap	ALWAYS STREAMLIT a PUSH
+reject	accept	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69	ALTER STREAMLIT a PUSH
+reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69!drop-1	STREAMLIT a PUSH
+reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69!drop-2	ALTER a PUSH
+reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69!drop-3	ALTER STREAMLIT PUSH
+reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69!insert	ALTER STREAMLIT a PUSH zzz
+reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_PUSH_(TO_ID)?_((GIT_CREDENTIALS_=_ID~4fdc9f69!swap	ALWAYS STREAMLIT a PUSH
 reject	accept	docs	alterStreamlit/ALTER_STREAMLIT_ID_ABORT	ALTER STREAMLIT a ABORT
 reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_ABORT!drop-1	STREAMLIT a ABORT
 reject	undocumented	docs	alterStreamlit/ALTER_STREAMLIT_ID_ABORT!drop-2	ALTER a ABORT
@@ -23300,32 +23300,32 @@ reject	undocumented	docs	alterStreamlit(TO_ID)?/TO_ID!drop-1	ALTER STREAMLIT a P
 reject	undocumented	docs	alterStreamlit(TO_ID)?/TO_ID!drop-2	ALTER STREAMLIT a PUSH TO
 reject	undocumented	docs	alterStreamlit(TO_ID)?/TO_ID!insert	ALTER STREAMLIT a PUSH TO a zzz
 reject	undocumented	docs	alterStreamlit(TO_ID)?/TO_ID!swap	ALTER STREAMLIT a PUSH TOKEN a
-reject	accept	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/%empty	ALTER STREAMLIT a PUSH
-reject	accept	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-1	ALTER STREAMLIT a PUSH = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-2	ALTER STREAMLIT a PUSH GIT_CREDENTIALS a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-3	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-4	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a = a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-5	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME a EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-6	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = EMAIL = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-7	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a = a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-8	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL a
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!drop-9	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL =
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a zzz
-reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~068e4ddf)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)_NAME_=_~01045313!swap	ALTER STREAMLIT a PUSH GLOBAL = a NAME = a EMAIL = a
-reject	accept	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/GIT_CREDENTIALS_=_ID	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/GIT_CREDENTIALS_=_ID!truncate	ALTER STREAMLIT a PUSH GIT_CREDENTIALS =
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/GIT_CREDENTIALS_=_ID!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a zzz NAME = a EMAIL = a
-reject	accept	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-1	ALTER STREAMLIT a PUSH = a PASSWORD = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-2	ALTER STREAMLIT a PUSH USERNAME a PASSWORD = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-3	ALTER STREAMLIT a PUSH USERNAME = PASSWORD = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-4	ALTER STREAMLIT a PUSH USERNAME = a = a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-5	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD a NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!drop-6	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!truncate	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD =
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!insert	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = a zzz NAME = a EMAIL = a
-reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~aa6a4265)/USERNAME_=_ID_PASSWORD_=_ID!swap	ALTER STREAMLIT a PUSH USERS = a PASSWORD = a NAME = a EMAIL = a
+reject	accept	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/%empty	ALTER STREAMLIT a PUSH
+reject	accept	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-1	ALTER STREAMLIT a PUSH = a NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-2	ALTER STREAMLIT a PUSH GIT_CREDENTIALS a NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-3	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-4	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-5	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-6	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-7	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-8	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-9	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL =
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a zzz
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!swap	ALTER STREAMLIT a PUSH GLOBAL = a NAME = a EMAIL = a
+reject	accept	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID!truncate	ALTER STREAMLIT a PUSH GIT_CREDENTIALS =
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a zzz NAME = a EMAIL = a
+reject	accept	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-1	ALTER STREAMLIT a PUSH = a PASSWORD = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-2	ALTER STREAMLIT a PUSH USERNAME a PASSWORD = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-3	ALTER STREAMLIT a PUSH USERNAME = PASSWORD = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-4	ALTER STREAMLIT a PUSH USERNAME = a = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-5	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-6	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!truncate	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD =
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!insert	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = 's' zzz NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!swap	ALTER STREAMLIT a PUSH USERS = a PASSWORD = 's' NAME = a EMAIL = a
 reject	accept	docs	alterStreamlit(COMMENT_=_ID)?/%empty	ALTER STREAMLIT a PUSH
 reject	accept	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID	ALTER STREAMLIT a PUSH COMMENT = a
 reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!drop-1	ALTER STREAMLIT a PUSH = a
@@ -25631,145 +25631,148 @@ reject	undocumented	docs	alterUser_mfaActions(COUNT_=_NUMBER)?/COUNT_=_NUMBER!dr
 reject	undocumented	docs	alterUser_mfaActions(COUNT_=_NUMBER)?/COUNT_=_NUMBER!drop-3	ALTER USER ADD MFA METHOD OTP COUNT =
 reject	undocumented	docs	alterUser_mfaActions(COUNT_=_NUMBER)?/COUNT_=_NUMBER!insert	ALTER USER ADD MFA METHOD OTP COUNT = 1 zzz
 reject	undocumented	docs	alterUser_mfaActions(COUNT_=_NUMBER)?/COUNT_=_NUMBER!swap	ALTER USER ADD MFA METHOD OTP CREATE = 1
-reject	accept	docs	alterUser_objectProperties/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+	ALTER USER SET PASSWORD = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)	ALTER USER SET PASSWORD = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19	ALTER USER SET PASSWORD = 's' PASSWORD = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-1	ALTER USER SET = 's' PASSWORD = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-2	ALTER USER SET PASSWORD 's' PASSWORD = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-3	ALTER USER SET PASSWORD = PASSWORD = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-4	ALTER USER SET PASSWORD = 's' = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-5	ALTER USER SET PASSWORD = 's' PASSWORD 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!drop-6	ALTER USER SET PASSWORD = 's' PASSWORD =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!insert	ALTER USER SET PASSWORD = 's' PASSWORD = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)_(PASSWO~7aa94c19!swap	ALTER USER SET PASSWORD_HISTORY = 's' PASSWORD = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/PASSWORD_=_STRING	ALTER USER SET PASSWORD = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LOGIN_NAME_=_STRING	ALTER USER SET LOGIN_NAME = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LOGIN_NAME_=_STRING!drop-2	ALTER USER SET LOGIN_NAME 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LOGIN_NAME_=_STRING!drop-3	ALTER USER SET LOGIN_NAME =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LOGIN_NAME_=_STRING!insert	ALTER USER SET LOGIN_NAME = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LOGIN_NAME_=_STRING!swap	ALTER USER SET LOG_EVENT_LEVEL = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISPLAY_NAME_=_STRING	ALTER USER SET DISPLAY_NAME = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISPLAY_NAME_=_STRING!drop-2	ALTER USER SET DISPLAY_NAME 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISPLAY_NAME_=_STRING!drop-3	ALTER USER SET DISPLAY_NAME =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISPLAY_NAME_=_STRING!insert	ALTER USER SET DISPLAY_NAME = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISPLAY_NAME_=_STRING!swap	ALTER USER SET DISTINCT = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/FIRST_NAME_=_STRING	ALTER USER SET FIRST_NAME = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/FIRST_NAME_=_STRING!drop-2	ALTER USER SET FIRST_NAME 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/FIRST_NAME_=_STRING!drop-3	ALTER USER SET FIRST_NAME =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/FIRST_NAME_=_STRING!insert	ALTER USER SET FIRST_NAME = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/FIRST_NAME_=_STRING!swap	ALTER USER SET FLAT = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MIDDLE_NAME_=_STRING	ALTER USER SET MIDDLE_NAME = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MIDDLE_NAME_=_STRING!drop-2	ALTER USER SET MIDDLE_NAME 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MIDDLE_NAME_=_STRING!drop-3	ALTER USER SET MIDDLE_NAME =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MIDDLE_NAME_=_STRING!insert	ALTER USER SET MIDDLE_NAME = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MIDDLE_NAME_=_STRING!swap	ALTER USER SET MINIMUM_VERSION = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LAST_NAME_=_STRING	ALTER USER SET LAST_NAME = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LAST_NAME_=_STRING!drop-2	ALTER USER SET LAST_NAME 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LAST_NAME_=_STRING!drop-3	ALTER USER SET LAST_NAME =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LAST_NAME_=_STRING!insert	ALTER USER SET LAST_NAME = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/LAST_NAME_=_STRING!swap	ALTER USER SET LAST_QUERY_ID = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/EMAIL_=_STRING	ALTER USER SET EMAIL = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/EMAIL_=_STRING!drop-2	ALTER USER SET EMAIL 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/EMAIL_=_STRING!drop-3	ALTER USER SET EMAIL =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/EMAIL_=_STRING!insert	ALTER USER SET EMAIL = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/EMAIL_=_STRING!swap	ALTER USER SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	ALTER USER SET MUST_CHANGE_PASSWORD TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	ALTER USER SET MUST_CHANGE_PASSWORD =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	ALTER USER SET NAME = TRUE
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLED_=_(TRUE|FALSE)	ALTER USER SET DISABLED = TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLED_=_(TRUE|FALSE)!drop-2	ALTER USER SET DISABLED TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLED_=_(TRUE|FALSE)!drop-3	ALTER USER SET DISABLED =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLED_=_(TRUE|FALSE)!insert	ALTER USER SET DISABLED = TRUE zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLED_=_(TRUE|FALSE)!swap	ALTER USER SET DISABLE_AUTO_CONVERT = TRUE
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)	ALTER USER SET ALLOWED_INTERFACES =(a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!drop-1	ALTER USER SET =(a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!drop-2	ALTER USER SET ALLOWED_INTERFACES(a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!drop-3	ALTER USER SET ALLOWED_INTERFACES = a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!drop-4	ALTER USER SET ALLOWED_INTERFACES =()
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!drop-5	ALTER USER SET ALLOWED_INTERFACES =(a
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!insert	ALTER USER SET ALLOWED_INTERFACES =(a) zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/ALLOWED_INTERFACES_=_(_ID_)!swap	ALTER USER SET ALLOWED_IP_LIST =(a)
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER	ALTER USER SET DAYS_TO_EXPIRY = 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER!drop-1	ALTER USER SET = 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER!drop-2	ALTER USER SET DAYS_TO_EXPIRY 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER!drop-3	ALTER USER SET DAYS_TO_EXPIRY =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER!insert	ALTER USER SET DAYS_TO_EXPIRY = 1 zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DAYS_TO_EXPIRY_=_NUMBER!swap	ALTER USER SET DBT = 1
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_UNLOCK_=_NUMBER	ALTER USER SET MINS_TO_UNLOCK = 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_UNLOCK_=_NUMBER!drop-2	ALTER USER SET MINS_TO_UNLOCK 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_UNLOCK_=_NUMBER!drop-3	ALTER USER SET MINS_TO_UNLOCK =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_UNLOCK_=_NUMBER!insert	ALTER USER SET MINS_TO_UNLOCK = 1 zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_UNLOCK_=_NUMBER!swap	ALTER USER SET MINUTES = 1
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_WAREHOUSE_=_STRING	ALTER USER SET DEFAULT_WAREHOUSE = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_WAREHOUSE_=_STRING!drop-2	ALTER USER SET DEFAULT_WAREHOUSE 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_WAREHOUSE_=_STRING!drop-3	ALTER USER SET DEFAULT_WAREHOUSE =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_WAREHOUSE_=_STRING!insert	ALTER USER SET DEFAULT_WAREHOUSE = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_WAREHOUSE_=_STRING!swap	ALTER USER SET DEFAULT_WRITEBACK = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_NAMESPACE_=_STRING	ALTER USER SET DEFAULT_NAMESPACE = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_NAMESPACE_=_STRING!drop-2	ALTER USER SET DEFAULT_NAMESPACE 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_NAMESPACE_=_STRING!drop-3	ALTER USER SET DEFAULT_NAMESPACE =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_NAMESPACE_=_STRING!insert	ALTER USER SET DEFAULT_NAMESPACE = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_NAMESPACE_=_STRING!swap	ALTER USER SET DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_ROLE_=_STRING	ALTER USER SET DEFAULT_ROLE = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_ROLE_=_STRING!drop-2	ALTER USER SET DEFAULT_ROLE 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_ROLE_=_STRING!drop-3	ALTER USER SET DEFAULT_ROLE =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_ROLE_=_STRING!insert	ALTER USER SET DEFAULT_ROLE = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_ROLE_=_STRING!swap	ALTER USER SET DEFAULT_SECONDARY_ROLES = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL')
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-1	ALTER USER SET =('ALL')
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-2	ALTER USER SET DEFAULT_SECONDARY_ROLES('ALL')
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-3	ALTER USER SET DEFAULT_SECONDARY_ROLES = 'ALL')
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-4	ALTER USER SET DEFAULT_SECONDARY_ROLES =()
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-5	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!insert	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL') zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!swap	ALTER USER SET DEFAULT_STORAGE_CONFIG =('ALL')
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_BYPASS_MFA_=_NUMBER	ALTER USER SET MINS_TO_BYPASS_MFA = 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-2	ALTER USER SET MINS_TO_BYPASS_MFA 1
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-3	ALTER USER SET MINS_TO_BYPASS_MFA =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_BYPASS_MFA_=_NUMBER!insert	ALTER USER SET MINS_TO_BYPASS_MFA = 1 zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/MINS_TO_BYPASS_MFA_=_NUMBER!swap	ALTER USER SET MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = 1
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLE_MFA_=_(TRUE|FALSE)	ALTER USER SET DISABLE_MFA = TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLE_MFA_=_(TRUE|FALSE)!drop-2	ALTER USER SET DISABLE_MFA TRUE
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLE_MFA_=_(TRUE|FALSE)!drop-3	ALTER USER SET DISABLE_MFA =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLE_MFA_=_(TRUE|FALSE)!insert	ALTER USER SET DISABLE_MFA = TRUE zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/DISABLE_MFA_=_(TRUE|FALSE)!swap	ALTER USER SET DISABLE_USER_PRIVILEGE_GRANTS = TRUE
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_=_STRING	ALTER USER SET RSA_PUBLIC_KEY = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY = 's' zzz
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_FP_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_FP = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_FP_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_FP 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_FP_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_FP =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_FP_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_FP = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_FP_=_STRING!swap	ALTER USER SET RSS = 's'
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_2 = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_2 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_2 =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_2 = 's' zzz
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_FP_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_2_FP = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_2_FP 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_2_FP =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/RSA_PUBLIC_KEY_2_FP_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_2_FP = 's' zzz
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)	ALTER USER SET TYPE = PERSON
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-1	ALTER USER SET = PERSON
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-2	ALTER USER SET TYPE PERSON
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-3	ALTER USER SET TYPE =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!insert	ALTER USER SET TYPE = PERSON zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!swap	ALTER USER SET TYPES = PERSON
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)	ALTER USER SET WORKLOAD_IDENTITY =(a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!drop-2	ALTER USER SET WORKLOAD_IDENTITY(a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!drop-3	ALTER USER SET WORKLOAD_IDENTITY = a)
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!drop-4	ALTER USER SET WORKLOAD_IDENTITY =()
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!drop-5	ALTER USER SET WORKLOAD_IDENTITY =(a
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!insert	ALTER USER SET WORKLOAD_IDENTITY =(a) zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/WORKLOAD_IDENTITY_=_(_ID_)!swap	ALTER USER SET WORKLOAD_IDENTITY_FEDERATION =(a)
-reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/COMMENT_=_STRING	ALTER USER SET COMMENT = 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/COMMENT_=_STRING!drop-2	ALTER USER SET COMMENT 's'
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/COMMENT_=_STRING!drop-3	ALTER USER SET COMMENT =
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/COMMENT_=_STRING!insert	ALTER USER SET COMMENT = 's' zzz
-reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~6f65c366)/COMMENT_=_STRING!swap	ALTER USER SET COMMENTS = 's'
+reject	accept	docs	alterUser_objectProperties/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+	ALTER USER SET PASSWORD = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)	ALTER USER SET PASSWORD = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f	ALTER USER SET PASSWORD = 's' PASSWORD = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-1	ALTER USER SET = 's' PASSWORD = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-2	ALTER USER SET PASSWORD 's' PASSWORD = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-3	ALTER USER SET PASSWORD = PASSWORD = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-4	ALTER USER SET PASSWORD = 's' = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-5	ALTER USER SET PASSWORD = 's' PASSWORD 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!drop-6	ALTER USER SET PASSWORD = 's' PASSWORD =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!insert	ALTER USER SET PASSWORD = 's' PASSWORD = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)_(PASSWO~e019d20f!swap	ALTER USER SET PASSWORD_HISTORY = 's' PASSWORD = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/PASSWORD_=_STRING	ALTER USER SET PASSWORD = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LOGIN_NAME_=_STRING	ALTER USER SET LOGIN_NAME = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LOGIN_NAME_=_STRING!drop-2	ALTER USER SET LOGIN_NAME 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LOGIN_NAME_=_STRING!drop-3	ALTER USER SET LOGIN_NAME =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LOGIN_NAME_=_STRING!insert	ALTER USER SET LOGIN_NAME = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LOGIN_NAME_=_STRING!swap	ALTER USER SET LOG_EVENT_LEVEL = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISPLAY_NAME_=_STRING	ALTER USER SET DISPLAY_NAME = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISPLAY_NAME_=_STRING!drop-2	ALTER USER SET DISPLAY_NAME 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISPLAY_NAME_=_STRING!drop-3	ALTER USER SET DISPLAY_NAME =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISPLAY_NAME_=_STRING!insert	ALTER USER SET DISPLAY_NAME = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISPLAY_NAME_=_STRING!swap	ALTER USER SET DISTINCT = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/FIRST_NAME_=_STRING	ALTER USER SET FIRST_NAME = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/FIRST_NAME_=_STRING!drop-2	ALTER USER SET FIRST_NAME 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/FIRST_NAME_=_STRING!drop-3	ALTER USER SET FIRST_NAME =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/FIRST_NAME_=_STRING!insert	ALTER USER SET FIRST_NAME = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/FIRST_NAME_=_STRING!swap	ALTER USER SET FLAT = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MIDDLE_NAME_=_STRING	ALTER USER SET MIDDLE_NAME = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MIDDLE_NAME_=_STRING!drop-2	ALTER USER SET MIDDLE_NAME 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MIDDLE_NAME_=_STRING!drop-3	ALTER USER SET MIDDLE_NAME =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MIDDLE_NAME_=_STRING!insert	ALTER USER SET MIDDLE_NAME = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MIDDLE_NAME_=_STRING!swap	ALTER USER SET MINIMUM_VERSION = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LAST_NAME_=_STRING	ALTER USER SET LAST_NAME = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LAST_NAME_=_STRING!drop-2	ALTER USER SET LAST_NAME 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LAST_NAME_=_STRING!drop-3	ALTER USER SET LAST_NAME =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LAST_NAME_=_STRING!insert	ALTER USER SET LAST_NAME = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/LAST_NAME_=_STRING!swap	ALTER USER SET LAST_QUERY_ID = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/EMAIL_=_STRING	ALTER USER SET EMAIL = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/EMAIL_=_STRING!drop-2	ALTER USER SET EMAIL 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/EMAIL_=_STRING!drop-3	ALTER USER SET EMAIL =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/EMAIL_=_STRING!insert	ALTER USER SET EMAIL = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/EMAIL_=_STRING!swap	ALTER USER SET EMAIL_DISTRIBUTION_LIST = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	ALTER USER SET MUST_CHANGE_PASSWORD TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	ALTER USER SET MUST_CHANGE_PASSWORD =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	ALTER USER SET NAME = TRUE
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLED_=_(TRUE|FALSE)	ALTER USER SET DISABLED = TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLED_=_(TRUE|FALSE)!drop-2	ALTER USER SET DISABLED TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLED_=_(TRUE|FALSE)!drop-3	ALTER USER SET DISABLED =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLED_=_(TRUE|FALSE)!insert	ALTER USER SET DISABLED = TRUE zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLED_=_(TRUE|FALSE)!swap	ALTER USER SET DISABLE_AUTO_CONVERT = TRUE
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)	ALTER USER SET ALLOWED_INTERFACES =(a)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!drop-1	ALTER USER SET =(a)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!drop-2	ALTER USER SET ALLOWED_INTERFACES(a)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!drop-3	ALTER USER SET ALLOWED_INTERFACES = a)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!drop-4	ALTER USER SET ALLOWED_INTERFACES =()
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!drop-5	ALTER USER SET ALLOWED_INTERFACES =(a
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!insert	ALTER USER SET ALLOWED_INTERFACES =(a) zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/ALLOWED_INTERFACES_=_(_ID_)!swap	ALTER USER SET ALLOWED_IP_LIST =(a)
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER	ALTER USER SET DAYS_TO_EXPIRY = 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER!drop-1	ALTER USER SET = 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER!drop-2	ALTER USER SET DAYS_TO_EXPIRY 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER!drop-3	ALTER USER SET DAYS_TO_EXPIRY =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER!insert	ALTER USER SET DAYS_TO_EXPIRY = 1 zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DAYS_TO_EXPIRY_=_NUMBER!swap	ALTER USER SET DBT = 1
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_UNLOCK_=_NUMBER	ALTER USER SET MINS_TO_UNLOCK = 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_UNLOCK_=_NUMBER!drop-2	ALTER USER SET MINS_TO_UNLOCK 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_UNLOCK_=_NUMBER!drop-3	ALTER USER SET MINS_TO_UNLOCK =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_UNLOCK_=_NUMBER!insert	ALTER USER SET MINS_TO_UNLOCK = 1 zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_UNLOCK_=_NUMBER!swap	ALTER USER SET MINUTES = 1
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_WAREHOUSE_=_STRING	ALTER USER SET DEFAULT_WAREHOUSE = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_WAREHOUSE_=_STRING!drop-2	ALTER USER SET DEFAULT_WAREHOUSE 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_WAREHOUSE_=_STRING!drop-3	ALTER USER SET DEFAULT_WAREHOUSE =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_WAREHOUSE_=_STRING!insert	ALTER USER SET DEFAULT_WAREHOUSE = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_WAREHOUSE_=_STRING!swap	ALTER USER SET DEFAULT_WRITEBACK = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_NAMESPACE_=_STRING	ALTER USER SET DEFAULT_NAMESPACE = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_NAMESPACE_=_STRING!drop-2	ALTER USER SET DEFAULT_NAMESPACE 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_NAMESPACE_=_STRING!drop-3	ALTER USER SET DEFAULT_NAMESPACE =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_NAMESPACE_=_STRING!insert	ALTER USER SET DEFAULT_NAMESPACE = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_NAMESPACE_=_STRING!swap	ALTER USER SET DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_ROLE_=_STRING	ALTER USER SET DEFAULT_ROLE = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_ROLE_=_STRING!drop-2	ALTER USER SET DEFAULT_ROLE 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_ROLE_=_STRING!drop-3	ALTER USER SET DEFAULT_ROLE =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_ROLE_=_STRING!insert	ALTER USER SET DEFAULT_ROLE = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_ROLE_=_STRING!swap	ALTER USER SET DEFAULT_SECONDARY_ROLES = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL')
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-1	ALTER USER SET =('ALL')
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-2	ALTER USER SET DEFAULT_SECONDARY_ROLES('ALL')
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-3	ALTER USER SET DEFAULT_SECONDARY_ROLES = 'ALL')
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-4	ALTER USER SET DEFAULT_SECONDARY_ROLES =()
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!drop-5	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!insert	ALTER USER SET DEFAULT_SECONDARY_ROLES =('ALL') zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DEFAULT_SECONDARY_ROLES_=_(_'ALL'_)!swap	ALTER USER SET DEFAULT_STORAGE_CONFIG =('ALL')
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_BYPASS_MFA_=_NUMBER	ALTER USER SET MINS_TO_BYPASS_MFA = 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-2	ALTER USER SET MINS_TO_BYPASS_MFA 1
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-3	ALTER USER SET MINS_TO_BYPASS_MFA =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_BYPASS_MFA_=_NUMBER!insert	ALTER USER SET MINS_TO_BYPASS_MFA = 1 zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/MINS_TO_BYPASS_MFA_=_NUMBER!swap	ALTER USER SET MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = 1
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLE_MFA_=_(TRUE|FALSE)	ALTER USER SET DISABLE_MFA = TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLE_MFA_=_(TRUE|FALSE)!drop-2	ALTER USER SET DISABLE_MFA TRUE
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLE_MFA_=_(TRUE|FALSE)!drop-3	ALTER USER SET DISABLE_MFA =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLE_MFA_=_(TRUE|FALSE)!insert	ALTER USER SET DISABLE_MFA = TRUE zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/DISABLE_MFA_=_(TRUE|FALSE)!swap	ALTER USER SET DISABLE_USER_PRIVILEGE_GRANTS = TRUE
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_=_STRING	ALTER USER SET RSA_PUBLIC_KEY = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY = 's' zzz
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_FP_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_FP = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_FP_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_FP 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_FP_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_FP =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_FP_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_FP = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_FP_=_STRING!swap	ALTER USER SET RSS = 's'
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_2 = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_2 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_2 =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_2 = 's' zzz
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_FP_=_STRING	ALTER USER SET RSA_PUBLIC_KEY_2_FP = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-2	ALTER USER SET RSA_PUBLIC_KEY_2_FP 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-3	ALTER USER SET RSA_PUBLIC_KEY_2_FP =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/RSA_PUBLIC_KEY_2_FP_=_STRING!insert	ALTER USER SET RSA_PUBLIC_KEY_2_FP = 's' zzz
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)	ALTER USER SET TYPE = PERSON
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-1	ALTER USER SET = PERSON
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-2	ALTER USER SET TYPE PERSON
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-3	ALTER USER SET TYPE =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!insert	ALTER USER SET TYPE = PERSON zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!swap	ALTER USER SET TYPES = PERSON
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-1	ALTER USER SET =(TYPE = AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-2	ALTER USER SET WORKLOAD_IDENTITY(TYPE = AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-3	ALTER USER SET WORKLOAD_IDENTITY = TYPE = AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-4	ALTER USER SET WORKLOAD_IDENTITY =(= AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-5	ALTER USER SET WORKLOAD_IDENTITY =(TYPE AWS)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-6	ALTER USER SET WORKLOAD_IDENTITY =(TYPE =)
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-7	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS) zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!swap	ALTER USER SET WORKLOAD_IDENTITY_FEDERATION =(TYPE = AWS)
+reject	accept	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/COMMENT_=_STRING	ALTER USER SET COMMENT = 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/COMMENT_=_STRING!drop-2	ALTER USER SET COMMENT 's'
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/COMMENT_=_STRING!drop-3	ALTER USER SET COMMENT =
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/COMMENT_=_STRING!insert	ALTER USER SET COMMENT = 's' zzz
+reject	undocumented	docs	alterUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~b8fd9753)/COMMENT_=_STRING!swap	ALTER USER SET COMMENTS = 's'
 reject	accept	docs	alterUser_objectProperties(TRUE|FALSE)/TRUE	ALTER USER SET MUST_CHANGE_PASSWORD = TRUE
 reject	undocumented	docs	alterUser_objectProperties(TRUE|FALSE)/TRUE!swap	ALTER USER SET MUST_CHANGE_PASSWORD = TRUNCATE
 reject	accept	docs	alterUser_objectProperties(TRUE|FALSE)/FALSE	ALTER USER SET MUST_CHANGE_PASSWORD = FALSE
@@ -25786,6 +25789,58 @@ reject	undocumented	docs	alterUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT
 reject	accept	docs	alterUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE	ALTER USER SET TYPE = LEGACY_SERVICE
 reject	undocumented	docs	alterUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE!insert	ALTER USER SET TYPE = LEGACY_SERVICE zzz
 reject	undocumented	docs	alterUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE!swap	ALTER USER SET TYPE = LEGAL
+reject	accept	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE =
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS zzz)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWSVPCEID)
+reject	accept	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AZURE)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AZURE zzz)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AZURELINKID)
+reject	accept	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = GCP)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = GCP zzz)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = GCPPSCID)
+reject	accept	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = OIDC)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = OIDC zzz)
+reject	undocumented	docs	alterUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = OIDC_ALLOWED_GOOGLE_HOSTED_DOMAINS)
+reject	accept	docs	alterUser_objectProperties(ARN_=_STRING)?/%empty	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	accept	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARN = 's')
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-1	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS = 's')
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-2	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARN 's')
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-3	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARN =)
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARN =
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARN = 's' zzz)
+reject	undocumented	docs	alterUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ARTIFACT = 's')
+reject	accept	docs	alterUser_objectProperties(ISSUER_=_STRING)?/%empty	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	accept	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ISSUER = 's')
+reject	undocumented	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!drop-2	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ISSUER 's')
+reject	undocumented	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!drop-3	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ISSUER =)
+reject	undocumented	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ISSUER =
+reject	undocumented	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS ISSUER = 's' zzz)
+reject	undocumented	docs	alterUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS IS_AGENTIC = 's')
+reject	accept	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/%empty	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	accept	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT = 's')
+reject	undocumented	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!drop-2	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT 's')
+reject	undocumented	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!drop-3	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT =)
+reject	undocumented	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT =
+reject	undocumented	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT = 's' zzz)
+reject	undocumented	docs	alterUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS SUCCESS_INTEGRATION = 's')
+reject	accept	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/%empty	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	accept	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'))
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-1	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS =('s'))
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-2	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST('s'))
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-3	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST = 's'))
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-4	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =())
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-5	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s')
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s') zzz)
+reject	undocumented	docs	alterUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!swap	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUTHORIZATION_ENDPOINT =('s'))
+reject	accept	docs	alterUser_objectProperties(,_STRING)*/%empty	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'))
+reject	undocumented	docs	alterUser_objectProperties(,_STRING)*/%empty!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s' zzz))
+reject	accept	docs	alterUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s', 's'))
+reject	undocumented	docs	alterUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s' 's'))
+reject	undocumented	docs	alterUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s',))
+reject	undocumented	docs	alterUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s',
+reject	undocumented	docs	alterUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER USER SET WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s', 's' zzz))
 reject	accept	docs	alterUser_objectParams/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d9cf358a)+	ALTER USER SET ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE
 reject	accept	docs	alterUser_objectParams(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d9cf358a)+/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d9cf358a)	ALTER USER SET ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE
 reject	accept	docs	alterUser_objectParams(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d9cf358a)+/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d9cf358a)_(ENABLE~de63c747	ALTER USER SET ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE
@@ -36436,15 +36491,15 @@ reject	undocumented	docs	createMaintenancePolicy(COMMENT_=_STRING)?/COMMENT_=_ST
 reject	undocumented	docs	createMaintenancePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE MAINTENANCE POLICY a SCHEDULE = 's' COMMENT =
 reject	undocumented	docs	createMaintenancePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE MAINTENANCE POLICY a SCHEDULE = 's' COMMENT = 's' zzz
 reject	undocumented	docs	createMaintenancePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE MAINTENANCE POLICY a SCHEDULE = 's' COMMENTS = 's'
-accept	accept	docs	createManagedAccount/CREATE_MANAGED_ACCOUNT_ID_ADMIN_NAME_=_ID_,_ADMIN_PASSW~5cfa854c	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-accept	accept	docs	createManagedAccount(,_COMMENT_=_STRING)?/%empty	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER
-accept	accept	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, COMMENT = 's'
-accept	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-1	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER COMMENT = 's'
-reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-2	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, = 's'
-reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-3	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, COMMENT 's'
-reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-4	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, COMMENT =
-reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!insert	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, COMMENT = 's' zzz
-accept	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!swap	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = a, TYPE = READER, COMMENTS = 's'
+accept	accept	docs	createManagedAccount/CREATE_MANAGED_ACCOUNT_ID_ADMIN_NAME_=_ID_,_ADMIN_PASSW~6349e588	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+accept	accept	docs	createManagedAccount(,_COMMENT_=_STRING)?/%empty	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER
+accept	accept	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, COMMENT = 's'
+accept	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-1	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER COMMENT = 's'
+reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-2	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, = 's'
+reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-3	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, COMMENT 's'
+reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!drop-4	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, COMMENT =
+reject	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!insert	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, COMMENT = 's' zzz
+accept	undocumented	docs	createManagedAccount(,_COMMENT_=_STRING)?/,_COMMENT_=_STRING!swap	CREATE MANAGED ACCOUNT a ADMIN_NAME = a, ADMIN_PASSWORD = 's', TYPE = READER, COMMENTS = 's'
 accept	accept	docs	createMaskingPolicy/CREATE_(OR_REPLACE)?_MASKING_POLICY_(IF_NOT_EXISTS)?_ID~0ce9b492	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a
 accept	accept	docs	createMaskingPolicy(OR_REPLACE)?/%empty	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a
 reject	undocumented	docs	createMaskingPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz MASKING POLICY a AS(a INT) RETURNS INT -> a
@@ -44012,139 +44067,142 @@ reject	undocumented	docs	createUser(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING
 reject	undocumented	docs	createUser(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE USER a TAG(a = 's', a =)
 reject	undocumented	docs	createUser(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE USER a TAG(a = 's', a =
 reject	undocumented	docs	createUser(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE USER a TAG(a = 's', a = 's' zzz)
-accept	accept	docs	createUser_objectProperties/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+	CREATE USER a PASSWORD = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)	CREATE USER a PASSWORD = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e	CREATE USER a PASSWORD = 's' PASSWORD = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-1	CREATE USER a = 's' PASSWORD = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-2	CREATE USER a PASSWORD 's' PASSWORD = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-3	CREATE USER a PASSWORD = PASSWORD = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-4	CREATE USER a PASSWORD = 's' = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-5	CREATE USER a PASSWORD = 's' PASSWORD 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!drop-6	CREATE USER a PASSWORD = 's' PASSWORD =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!insert	CREATE USER a PASSWORD = 's' PASSWORD = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)_(PASSWO~32c0eb3e!swap	CREATE USER a PASSWORD_HISTORY = 's' PASSWORD = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/PASSWORD_=_STRING	CREATE USER a PASSWORD = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LOGIN_NAME_=_STRING	CREATE USER a LOGIN_NAME = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LOGIN_NAME_=_STRING!drop-2	CREATE USER a LOGIN_NAME 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LOGIN_NAME_=_STRING!drop-3	CREATE USER a LOGIN_NAME =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LOGIN_NAME_=_STRING!insert	CREATE USER a LOGIN_NAME = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LOGIN_NAME_=_STRING!swap	CREATE USER a LOG_EVENT_LEVEL = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISPLAY_NAME_=_STRING	CREATE USER a DISPLAY_NAME = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISPLAY_NAME_=_STRING!drop-2	CREATE USER a DISPLAY_NAME 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISPLAY_NAME_=_STRING!drop-3	CREATE USER a DISPLAY_NAME =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISPLAY_NAME_=_STRING!insert	CREATE USER a DISPLAY_NAME = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISPLAY_NAME_=_STRING!swap	CREATE USER a DISTINCT = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/FIRST_NAME_=_STRING	CREATE USER a FIRST_NAME = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/FIRST_NAME_=_STRING!drop-2	CREATE USER a FIRST_NAME 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/FIRST_NAME_=_STRING!drop-3	CREATE USER a FIRST_NAME =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/FIRST_NAME_=_STRING!insert	CREATE USER a FIRST_NAME = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/FIRST_NAME_=_STRING!swap	CREATE USER a FLAT = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MIDDLE_NAME_=_STRING	CREATE USER a MIDDLE_NAME = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MIDDLE_NAME_=_STRING!drop-2	CREATE USER a MIDDLE_NAME 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MIDDLE_NAME_=_STRING!drop-3	CREATE USER a MIDDLE_NAME =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MIDDLE_NAME_=_STRING!insert	CREATE USER a MIDDLE_NAME = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MIDDLE_NAME_=_STRING!swap	CREATE USER a MINIMUM_VERSION = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LAST_NAME_=_STRING	CREATE USER a LAST_NAME = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LAST_NAME_=_STRING!drop-2	CREATE USER a LAST_NAME 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LAST_NAME_=_STRING!drop-3	CREATE USER a LAST_NAME =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LAST_NAME_=_STRING!insert	CREATE USER a LAST_NAME = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/LAST_NAME_=_STRING!swap	CREATE USER a LAST_QUERY_ID = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/EMAIL_=_STRING	CREATE USER a EMAIL = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/EMAIL_=_STRING!drop-2	CREATE USER a EMAIL 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/EMAIL_=_STRING!drop-3	CREATE USER a EMAIL =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/EMAIL_=_STRING!insert	CREATE USER a EMAIL = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/EMAIL_=_STRING!swap	CREATE USER a EMAIL_DISTRIBUTION_LIST = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	CREATE USER a MUST_CHANGE_PASSWORD = TRUE
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	CREATE USER a MUST_CHANGE_PASSWORD TRUE
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE USER a MUST_CHANGE_PASSWORD =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE USER a MUST_CHANGE_PASSWORD = TRUE zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE USER a NAME = TRUE
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISABLED_=_(TRUE|FALSE)	CREATE USER a DISABLED = TRUE
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISABLED_=_(TRUE|FALSE)!drop-2	CREATE USER a DISABLED TRUE
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISABLED_=_(TRUE|FALSE)!drop-3	CREATE USER a DISABLED =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISABLED_=_(TRUE|FALSE)!insert	CREATE USER a DISABLED = TRUE zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DISABLED_=_(TRUE|FALSE)!swap	CREATE USER a DISABLE_AUTO_CONVERT = TRUE
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)	CREATE USER a ALLOWED_INTERFACES =(a)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!drop-1	CREATE USER a =(a)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!drop-2	CREATE USER a ALLOWED_INTERFACES(a)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!drop-3	CREATE USER a ALLOWED_INTERFACES = a)
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!drop-4	CREATE USER a ALLOWED_INTERFACES =()
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!drop-5	CREATE USER a ALLOWED_INTERFACES =(a
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!insert	CREATE USER a ALLOWED_INTERFACES =(a) zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/ALLOWED_INTERFACES_=_(_ID_)!swap	CREATE USER a ALLOWED_IP_LIST =(a)
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER	CREATE USER a DAYS_TO_EXPIRY = 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER!drop-1	CREATE USER a = 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER!drop-2	CREATE USER a DAYS_TO_EXPIRY 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER!drop-3	CREATE USER a DAYS_TO_EXPIRY =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER!insert	CREATE USER a DAYS_TO_EXPIRY = 1 zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DAYS_TO_EXPIRY_=_NUMBER!swap	CREATE USER a DBT = 1
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_UNLOCK_=_NUMBER	CREATE USER a MINS_TO_UNLOCK = 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_UNLOCK_=_NUMBER!drop-2	CREATE USER a MINS_TO_UNLOCK 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_UNLOCK_=_NUMBER!drop-3	CREATE USER a MINS_TO_UNLOCK =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_UNLOCK_=_NUMBER!insert	CREATE USER a MINS_TO_UNLOCK = 1 zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_UNLOCK_=_NUMBER!swap	CREATE USER a MINUTES = 1
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_WAREHOUSE_=_STRING	CREATE USER a DEFAULT_WAREHOUSE = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_WAREHOUSE_=_STRING!drop-2	CREATE USER a DEFAULT_WAREHOUSE 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_WAREHOUSE_=_STRING!drop-3	CREATE USER a DEFAULT_WAREHOUSE =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_WAREHOUSE_=_STRING!insert	CREATE USER a DEFAULT_WAREHOUSE = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_WAREHOUSE_=_STRING!swap	CREATE USER a DEFAULT_WRITEBACK = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_NAMESPACE_=_STRING	CREATE USER a DEFAULT_NAMESPACE = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_NAMESPACE_=_STRING!drop-2	CREATE USER a DEFAULT_NAMESPACE 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_NAMESPACE_=_STRING!drop-3	CREATE USER a DEFAULT_NAMESPACE =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_NAMESPACE_=_STRING!insert	CREATE USER a DEFAULT_NAMESPACE = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_NAMESPACE_=_STRING!swap	CREATE USER a DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_ROLE_=_STRING	CREATE USER a DEFAULT_ROLE = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_ROLE_=_STRING!drop-2	CREATE USER a DEFAULT_ROLE 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_ROLE_=_STRING!drop-3	CREATE USER a DEFAULT_ROLE =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_ROLE_=_STRING!insert	CREATE USER a DEFAULT_ROLE = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_ROLE_=_STRING!swap	CREATE USER a DEFAULT_SECONDARY_ROLES = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))	CREATE USER a DEFAULT_SECONDARY_ROLES =()
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-1	CREATE USER a =()
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-2	CREATE USER a DEFAULT_SECONDARY_ROLES()
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-3	CREATE USER a DEFAULT_SECONDARY_ROLES =)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-4	CREATE USER a DEFAULT_SECONDARY_ROLES =(
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!insert	CREATE USER a DEFAULT_SECONDARY_ROLES =() zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!swap	CREATE USER a DEFAULT_STORAGE_CONFIG =()
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_BYPASS_MFA_=_NUMBER	CREATE USER a MINS_TO_BYPASS_MFA = 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-2	CREATE USER a MINS_TO_BYPASS_MFA 1
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-3	CREATE USER a MINS_TO_BYPASS_MFA =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_BYPASS_MFA_=_NUMBER!insert	CREATE USER a MINS_TO_BYPASS_MFA = 1 zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/MINS_TO_BYPASS_MFA_=_NUMBER!swap	CREATE USER a MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = 1
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_=_STRING	CREATE USER a RSA_PUBLIC_KEY = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY = 's' zzz
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_FP_=_STRING	CREATE USER a RSA_PUBLIC_KEY_FP = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_FP_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_FP 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_FP_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_FP =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_FP_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_FP = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_FP_=_STRING!swap	CREATE USER a RSS = 's'
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_=_STRING	CREATE USER a RSA_PUBLIC_KEY_2 = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_2 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_2 =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_2 = 's' zzz
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_FP_=_STRING	CREATE USER a RSA_PUBLIC_KEY_2_FP = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_2_FP 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_2_FP =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/RSA_PUBLIC_KEY_2_FP_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_2_FP = 's' zzz
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)	CREATE USER a TYPE = PERSON
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-1	CREATE USER a = PERSON
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-2	CREATE USER a TYPE PERSON
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-3	CREATE USER a TYPE =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!insert	CREATE USER a TYPE = PERSON zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!swap	CREATE USER a TYPES = PERSON
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)	CREATE USER a WORKLOAD_IDENTITY =(a)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!drop-2	CREATE USER a WORKLOAD_IDENTITY(a)
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!drop-3	CREATE USER a WORKLOAD_IDENTITY = a)
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!drop-4	CREATE USER a WORKLOAD_IDENTITY =()
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!drop-5	CREATE USER a WORKLOAD_IDENTITY =(a
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!insert	CREATE USER a WORKLOAD_IDENTITY =(a) zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/WORKLOAD_IDENTITY_=_(_ID_)!swap	CREATE USER a WORKLOAD_IDENTITY_FEDERATION =(a)
-accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/COMMENT_=_STRING	CREATE USER a COMMENT = 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/COMMENT_=_STRING!drop-2	CREATE USER a COMMENT 's'
-reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/COMMENT_=_STRING!drop-3	CREATE USER a COMMENT =
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/COMMENT_=_STRING!insert	CREATE USER a COMMENT = 's' zzz
-accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~27a9dd1f)/COMMENT_=_STRING!swap	CREATE USER a COMMENTS = 's'
+accept	accept	docs	createUser_objectProperties/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+	CREATE USER a PASSWORD = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)	CREATE USER a PASSWORD = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace	CREATE USER a PASSWORD = 's' PASSWORD = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-1	CREATE USER a = 's' PASSWORD = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-2	CREATE USER a PASSWORD 's' PASSWORD = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-3	CREATE USER a PASSWORD = PASSWORD = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-4	CREATE USER a PASSWORD = 's' = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-5	CREATE USER a PASSWORD = 's' PASSWORD 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!drop-6	CREATE USER a PASSWORD = 's' PASSWORD =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!insert	CREATE USER a PASSWORD = 's' PASSWORD = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)+/(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)_(PASSWO~7f9ecace!swap	CREATE USER a PASSWORD_HISTORY = 's' PASSWORD = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/PASSWORD_=_STRING	CREATE USER a PASSWORD = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LOGIN_NAME_=_STRING	CREATE USER a LOGIN_NAME = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LOGIN_NAME_=_STRING!drop-2	CREATE USER a LOGIN_NAME 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LOGIN_NAME_=_STRING!drop-3	CREATE USER a LOGIN_NAME =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LOGIN_NAME_=_STRING!insert	CREATE USER a LOGIN_NAME = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LOGIN_NAME_=_STRING!swap	CREATE USER a LOG_EVENT_LEVEL = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISPLAY_NAME_=_STRING	CREATE USER a DISPLAY_NAME = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISPLAY_NAME_=_STRING!drop-2	CREATE USER a DISPLAY_NAME 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISPLAY_NAME_=_STRING!drop-3	CREATE USER a DISPLAY_NAME =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISPLAY_NAME_=_STRING!insert	CREATE USER a DISPLAY_NAME = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISPLAY_NAME_=_STRING!swap	CREATE USER a DISTINCT = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/FIRST_NAME_=_STRING	CREATE USER a FIRST_NAME = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/FIRST_NAME_=_STRING!drop-2	CREATE USER a FIRST_NAME 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/FIRST_NAME_=_STRING!drop-3	CREATE USER a FIRST_NAME =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/FIRST_NAME_=_STRING!insert	CREATE USER a FIRST_NAME = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/FIRST_NAME_=_STRING!swap	CREATE USER a FLAT = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MIDDLE_NAME_=_STRING	CREATE USER a MIDDLE_NAME = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MIDDLE_NAME_=_STRING!drop-2	CREATE USER a MIDDLE_NAME 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MIDDLE_NAME_=_STRING!drop-3	CREATE USER a MIDDLE_NAME =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MIDDLE_NAME_=_STRING!insert	CREATE USER a MIDDLE_NAME = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MIDDLE_NAME_=_STRING!swap	CREATE USER a MINIMUM_VERSION = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LAST_NAME_=_STRING	CREATE USER a LAST_NAME = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LAST_NAME_=_STRING!drop-2	CREATE USER a LAST_NAME 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LAST_NAME_=_STRING!drop-3	CREATE USER a LAST_NAME =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LAST_NAME_=_STRING!insert	CREATE USER a LAST_NAME = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/LAST_NAME_=_STRING!swap	CREATE USER a LAST_QUERY_ID = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/EMAIL_=_STRING	CREATE USER a EMAIL = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/EMAIL_=_STRING!drop-2	CREATE USER a EMAIL 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/EMAIL_=_STRING!drop-3	CREATE USER a EMAIL =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/EMAIL_=_STRING!insert	CREATE USER a EMAIL = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/EMAIL_=_STRING!swap	CREATE USER a EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)	CREATE USER a MUST_CHANGE_PASSWORD = TRUE
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-2	CREATE USER a MUST_CHANGE_PASSWORD TRUE
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!drop-3	CREATE USER a MUST_CHANGE_PASSWORD =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!insert	CREATE USER a MUST_CHANGE_PASSWORD = TRUE zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MUST_CHANGE_PASSWORD_=_(TRUE|FALSE)!swap	CREATE USER a NAME = TRUE
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISABLED_=_(TRUE|FALSE)	CREATE USER a DISABLED = TRUE
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISABLED_=_(TRUE|FALSE)!drop-2	CREATE USER a DISABLED TRUE
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISABLED_=_(TRUE|FALSE)!drop-3	CREATE USER a DISABLED =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISABLED_=_(TRUE|FALSE)!insert	CREATE USER a DISABLED = TRUE zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DISABLED_=_(TRUE|FALSE)!swap	CREATE USER a DISABLE_AUTO_CONVERT = TRUE
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)	CREATE USER a ALLOWED_INTERFACES =(a)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!drop-1	CREATE USER a =(a)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!drop-2	CREATE USER a ALLOWED_INTERFACES(a)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!drop-3	CREATE USER a ALLOWED_INTERFACES = a)
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!drop-4	CREATE USER a ALLOWED_INTERFACES =()
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!drop-5	CREATE USER a ALLOWED_INTERFACES =(a
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!insert	CREATE USER a ALLOWED_INTERFACES =(a) zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/ALLOWED_INTERFACES_=_(_ID_)!swap	CREATE USER a ALLOWED_IP_LIST =(a)
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER	CREATE USER a DAYS_TO_EXPIRY = 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER!drop-1	CREATE USER a = 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER!drop-2	CREATE USER a DAYS_TO_EXPIRY 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER!drop-3	CREATE USER a DAYS_TO_EXPIRY =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER!insert	CREATE USER a DAYS_TO_EXPIRY = 1 zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DAYS_TO_EXPIRY_=_NUMBER!swap	CREATE USER a DBT = 1
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_UNLOCK_=_NUMBER	CREATE USER a MINS_TO_UNLOCK = 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_UNLOCK_=_NUMBER!drop-2	CREATE USER a MINS_TO_UNLOCK 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_UNLOCK_=_NUMBER!drop-3	CREATE USER a MINS_TO_UNLOCK =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_UNLOCK_=_NUMBER!insert	CREATE USER a MINS_TO_UNLOCK = 1 zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_UNLOCK_=_NUMBER!swap	CREATE USER a MINUTES = 1
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_WAREHOUSE_=_STRING	CREATE USER a DEFAULT_WAREHOUSE = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_WAREHOUSE_=_STRING!drop-2	CREATE USER a DEFAULT_WAREHOUSE 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_WAREHOUSE_=_STRING!drop-3	CREATE USER a DEFAULT_WAREHOUSE =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_WAREHOUSE_=_STRING!insert	CREATE USER a DEFAULT_WAREHOUSE = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_WAREHOUSE_=_STRING!swap	CREATE USER a DEFAULT_WRITEBACK = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_NAMESPACE_=_STRING	CREATE USER a DEFAULT_NAMESPACE = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_NAMESPACE_=_STRING!drop-2	CREATE USER a DEFAULT_NAMESPACE 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_NAMESPACE_=_STRING!drop-3	CREATE USER a DEFAULT_NAMESPACE =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_NAMESPACE_=_STRING!insert	CREATE USER a DEFAULT_NAMESPACE = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_NAMESPACE_=_STRING!swap	CREATE USER a DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_ROLE_=_STRING	CREATE USER a DEFAULT_ROLE = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_ROLE_=_STRING!drop-2	CREATE USER a DEFAULT_ROLE 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_ROLE_=_STRING!drop-3	CREATE USER a DEFAULT_ROLE =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_ROLE_=_STRING!insert	CREATE USER a DEFAULT_ROLE = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_ROLE_=_STRING!swap	CREATE USER a DEFAULT_SECONDARY_ROLES = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))	CREATE USER a DEFAULT_SECONDARY_ROLES =()
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-1	CREATE USER a =()
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-2	CREATE USER a DEFAULT_SECONDARY_ROLES()
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-3	CREATE USER a DEFAULT_SECONDARY_ROLES =)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!drop-4	CREATE USER a DEFAULT_SECONDARY_ROLES =(
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!insert	CREATE USER a DEFAULT_SECONDARY_ROLES =() zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/DEFAULT_SECONDARY_ROLES_=_((_'ALL'_)|(_))!swap	CREATE USER a DEFAULT_STORAGE_CONFIG =()
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_BYPASS_MFA_=_NUMBER	CREATE USER a MINS_TO_BYPASS_MFA = 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-2	CREATE USER a MINS_TO_BYPASS_MFA 1
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_BYPASS_MFA_=_NUMBER!drop-3	CREATE USER a MINS_TO_BYPASS_MFA =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_BYPASS_MFA_=_NUMBER!insert	CREATE USER a MINS_TO_BYPASS_MFA = 1 zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/MINS_TO_BYPASS_MFA_=_NUMBER!swap	CREATE USER a MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = 1
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_=_STRING	CREATE USER a RSA_PUBLIC_KEY = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY = 's' zzz
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_FP_=_STRING	CREATE USER a RSA_PUBLIC_KEY_FP = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_FP_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_FP 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_FP_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_FP =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_FP_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_FP = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_FP_=_STRING!swap	CREATE USER a RSS = 's'
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_=_STRING	CREATE USER a RSA_PUBLIC_KEY_2 = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_2 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_2 =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_2 = 's' zzz
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_FP_=_STRING	CREATE USER a RSA_PUBLIC_KEY_2_FP = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-2	CREATE USER a RSA_PUBLIC_KEY_2_FP 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_FP_=_STRING!drop-3	CREATE USER a RSA_PUBLIC_KEY_2_FP =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/RSA_PUBLIC_KEY_2_FP_=_STRING!insert	CREATE USER a RSA_PUBLIC_KEY_2_FP = 's' zzz
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)	CREATE USER a TYPE = PERSON
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-1	CREATE USER a = PERSON
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-2	CREATE USER a TYPE PERSON
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!drop-3	CREATE USER a TYPE =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!insert	CREATE USER a TYPE = PERSON zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/TYPE_=_(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)!swap	CREATE USER a TYPES = PERSON
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-1	CREATE USER a =(TYPE = AWS)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-2	CREATE USER a WORKLOAD_IDENTITY(TYPE = AWS)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-3	CREATE USER a WORKLOAD_IDENTITY = TYPE = AWS)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-4	CREATE USER a WORKLOAD_IDENTITY =(= AWS)
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-5	CREATE USER a WORKLOAD_IDENTITY =(TYPE AWS)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-6	CREATE USER a WORKLOAD_IDENTITY =(TYPE =)
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!drop-7	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS) zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/WORKLOAD_IDENTITY_=_(_TYPE_=_(AWS|AZURE|GCP|OIDC)_(ARN_~c8f6ae1d!swap	CREATE USER a WORKLOAD_IDENTITY_FEDERATION =(TYPE = AWS)
+accept	accept	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/COMMENT_=_STRING	CREATE USER a COMMENT = 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/COMMENT_=_STRING!drop-2	CREATE USER a COMMENT 's'
+reject	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/COMMENT_=_STRING!drop-3	CREATE USER a COMMENT =
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/COMMENT_=_STRING!insert	CREATE USER a COMMENT = 's' zzz
+accept	undocumented	docs	createUser_objectProperties(PASSWORD_=_STRING|LOGIN_NAME_=_STRIN~0582efa5)/COMMENT_=_STRING!swap	CREATE USER a COMMENTS = 's'
 accept	accept	docs	createUser_objectProperties(TRUE|FALSE)/TRUE	CREATE USER a MUST_CHANGE_PASSWORD = TRUE
 accept	undocumented	docs	createUser_objectProperties(TRUE|FALSE)/TRUE!swap	CREATE USER a MUST_CHANGE_PASSWORD = TRUNCATE
 accept	accept	docs	createUser_objectProperties(TRUE|FALSE)/FALSE	CREATE USER a MUST_CHANGE_PASSWORD = FALSE
@@ -44166,6 +44224,58 @@ accept	undocumented	docs	createUser_objectProperties(PERSON|SERVICE|SERVICE_AGEN
 accept	accept	docs	createUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE	CREATE USER a TYPE = LEGACY_SERVICE
 accept	undocumented	docs	createUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE!insert	CREATE USER a TYPE = LEGACY_SERVICE zzz
 accept	undocumented	docs	createUser_objectProperties(PERSON|SERVICE|SERVICE_AGENT|LEGACY_SERVICE)/LEGACY_SERVICE!swap	CREATE USER a TYPE = LEGAL
+accept	accept	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+reject	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE =
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS zzz)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AWS!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWSVPCEID)
+accept	accept	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AZURE)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AZURE zzz)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/AZURE!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AZURELINKID)
+accept	accept	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP	CREATE USER a WORKLOAD_IDENTITY =(TYPE = GCP)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = GCP zzz)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/GCP!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = GCPPSCID)
+accept	accept	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC	CREATE USER a WORKLOAD_IDENTITY =(TYPE = OIDC)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = OIDC zzz)
+accept	undocumented	docs	createUser_objectProperties(AWS|AZURE|GCP|OIDC)/OIDC!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = OIDC_ALLOWED_GOOGLE_HOSTED_DOMAINS)
+accept	accept	docs	createUser_objectProperties(ARN_=_STRING)?/%empty	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+accept	accept	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARN = 's')
+reject	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-1	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS = 's')
+accept	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-2	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARN 's')
+reject	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!drop-3	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARN =)
+reject	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARN =
+accept	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARN = 's' zzz)
+accept	undocumented	docs	createUser_objectProperties(ARN_=_STRING)?/ARN_=_STRING!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ARTIFACT = 's')
+accept	accept	docs	createUser_objectProperties(ISSUER_=_STRING)?/%empty	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+accept	accept	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ISSUER = 's')
+accept	undocumented	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!drop-2	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ISSUER 's')
+reject	undocumented	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!drop-3	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ISSUER =)
+reject	undocumented	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ISSUER =
+accept	undocumented	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS ISSUER = 's' zzz)
+accept	undocumented	docs	createUser_objectProperties(ISSUER_=_STRING)?/ISSUER_=_STRING!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS IS_AGENTIC = 's')
+accept	accept	docs	createUser_objectProperties(SUBJECT_=_STRING)?/%empty	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+accept	accept	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT = 's')
+accept	undocumented	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!drop-2	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT 's')
+reject	undocumented	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!drop-3	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT =)
+reject	undocumented	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT =
+accept	undocumented	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUBJECT = 's' zzz)
+accept	undocumented	docs	createUser_objectProperties(SUBJECT_=_STRING)?/SUBJECT_=_STRING!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS SUCCESS_INTEGRATION = 's')
+accept	accept	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/%empty	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS)
+accept	accept	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'))
+reject	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-1	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS =('s'))
+reject	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-2	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST('s'))
+reject	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-3	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST = 's'))
+accept	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-4	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =())
+reject	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!drop-5	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s')
+reject	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'
+accept	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s') zzz)
+accept	undocumented	docs	createUser_objectProperties(OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_))?/OIDC_AUDIENCE_LIST_=_(_STRING_(,_STRING)*_)!swap	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUTHORIZATION_ENDPOINT =('s'))
+accept	accept	docs	createUser_objectProperties(,_STRING)*/%empty	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s'))
+accept	undocumented	docs	createUser_objectProperties(,_STRING)*/%empty!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s' zzz))
+accept	accept	docs	createUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s', 's'))
+accept	undocumented	docs	createUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s' 's'))
+reject	undocumented	docs	createUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s',))
+reject	undocumented	docs	createUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s',
+reject	undocumented	docs	createUser_objectProperties(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE USER a WORKLOAD_IDENTITY =(TYPE = AWS OIDC_AUDIENCE_LIST =('s', 's' zzz))
 accept	accept	docs	createUser_objectParams/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d907d47a)+	CREATE USER a ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE
 accept	accept	docs	createUser_objectParams(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d907d47a)+/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d907d47a)	CREATE USER a ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE
 accept	accept	docs	createUser_objectParams(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d907d47a)+/(ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR~d907d47a)_(ENABLE~ee31e865	CREATE USER a ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = TRUE

@@ -2212,7 +2212,7 @@ alterStreamlit
     | 'ALTER' 'STREAMLIT' ('IF' 'EXISTS')? ID 'UNSET' ('SECRETS' | 'EXTERNAL_ACCESS_INTEGRATIONS' | 'QUERY_WAREHOUSE' | 'TITLE' | 'COMMENT') (',' ('SECRETS' | 'EXTERNAL_ACCESS_INTEGRATIONS' | 'QUERY_WAREHOUSE' | 'TITLE' | 'COMMENT'))*
     | 'ALTER' 'STREAMLIT' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'STREAMLIT' ID 'COMMIT'
-    | 'ALTER' 'STREAMLIT' ID 'PUSH' ('TO' ID)? (('GIT_CREDENTIALS' '=' ID | 'USERNAME' '=' ID 'PASSWORD' '=' ID) 'NAME' '=' ID 'EMAIL' '=' ID)? ('COMMENT' '=' ID)?
+    | 'ALTER' 'STREAMLIT' ID 'PUSH' ('TO' ID)? (('GIT_CREDENTIALS' '=' ID | 'USERNAME' '=' ID 'PASSWORD' '=' STRING) 'NAME' '=' ID 'EMAIL' '=' ID)? ('COMMENT' '=' ID)?
     | 'ALTER' 'STREAMLIT' ID 'ABORT'
     | 'ALTER' 'STREAMLIT' ID 'PULL'
     | 'ALTER' 'STREAMLIT' ID 'ADD' 'LIVE' 'VERSION' 'FROM' 'LAST'
@@ -2365,6 +2365,7 @@ alterType
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-user
 // fix: mfaActions: the five actions in braces have no | between them; each is one action
+// fix: list_of_properties is the workload identity properties the parameters list
 alterUser
     : 'ALTER' 'USER' ('IF' 'EXISTS')? ID? 'RENAME' 'TO' ID
     | 'ALTER' 'USER' ('IF' 'EXISTS')? ID? 'RESET' 'PASSWORD'
@@ -2384,7 +2385,7 @@ alterUser_mfaActions
     : ('ENROLL' 'MFA' | 'SET' 'DEFAULT_MFA_METHOD' '=' ('PASSKEY' | 'TOTP' | 'DUO') | 'REMOVE' 'MFA' 'METHOD' ID | 'MODIFY' 'MFA' 'METHOD' ID 'SET' 'COMMENT' '=' STRING | 'ADD' 'MFA' 'METHOD' 'OTP' ('COUNT' '=' NUMBER)?)
     ;
 alterUser_objectProperties
-    : ('PASSWORD' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'EMAIL' '=' STRING | 'MUST_CHANGE_PASSWORD' '=' ('TRUE' | 'FALSE') | 'DISABLED' '=' ('TRUE' | 'FALSE') | 'ALLOWED_INTERFACES' '=' '(' ID ')' | 'DAYS_TO_EXPIRY' '=' NUMBER | 'MINS_TO_UNLOCK' '=' NUMBER | 'DEFAULT_WAREHOUSE' '=' STRING | 'DEFAULT_NAMESPACE' '=' STRING | 'DEFAULT_ROLE' '=' STRING | 'DEFAULT_SECONDARY_ROLES' '=' '(' '\'ALL\'' ')' | 'MINS_TO_BYPASS_MFA' '=' NUMBER | 'DISABLE_MFA' '=' ('TRUE' | 'FALSE') | 'RSA_PUBLIC_KEY' '=' STRING | 'RSA_PUBLIC_KEY_FP' '=' STRING | 'RSA_PUBLIC_KEY_2' '=' STRING | 'RSA_PUBLIC_KEY_2_FP' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE' | 'SERVICE_AGENT' | 'LEGACY_SERVICE') | 'WORKLOAD_IDENTITY' '=' '(' ID ')' | 'COMMENT' '=' STRING)+
+    : ('PASSWORD' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'EMAIL' '=' STRING | 'MUST_CHANGE_PASSWORD' '=' ('TRUE' | 'FALSE') | 'DISABLED' '=' ('TRUE' | 'FALSE') | 'ALLOWED_INTERFACES' '=' '(' ID ')' | 'DAYS_TO_EXPIRY' '=' NUMBER | 'MINS_TO_UNLOCK' '=' NUMBER | 'DEFAULT_WAREHOUSE' '=' STRING | 'DEFAULT_NAMESPACE' '=' STRING | 'DEFAULT_ROLE' '=' STRING | 'DEFAULT_SECONDARY_ROLES' '=' '(' '\'ALL\'' ')' | 'MINS_TO_BYPASS_MFA' '=' NUMBER | 'DISABLE_MFA' '=' ('TRUE' | 'FALSE') | 'RSA_PUBLIC_KEY' '=' STRING | 'RSA_PUBLIC_KEY_FP' '=' STRING | 'RSA_PUBLIC_KEY_2' '=' STRING | 'RSA_PUBLIC_KEY_2_FP' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE' | 'SERVICE_AGENT' | 'LEGACY_SERVICE') | 'WORKLOAD_IDENTITY' '=' '(' 'TYPE' '=' ('AWS' | 'AZURE' | 'GCP' | 'OIDC') ('ARN' '=' STRING)? ('ISSUER' '=' STRING)? ('SUBJECT' '=' STRING)? ('OIDC_AUDIENCE_LIST' '=' '(' STRING (',' STRING)* ')')? ')' | 'COMMENT' '=' STRING)+
     ;
 alterUser_objectParams
     : ('ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR' '=' ('TRUE' | 'FALSE') | 'ENABLE_UNREDACTED_SECURE_OBJECT_ERROR' '=' ('TRUE' | 'FALSE') | 'NETWORK_POLICY' '=' STRING | 'PREVENT_UNLOAD_TO_INLINE_URL' '=' ('TRUE' | 'FALSE') | 'PREVENT_UNLOAD_TO_INTERNAL_STAGES' '=' ('TRUE' | 'FALSE'))+
@@ -3225,7 +3226,7 @@ createMaintenancePolicy
 // https://docs.snowflake.com/en/sql-reference/sql/create-managed-account
 // fix: the comma before COMMENT goes with it, as the page's example ends at TYPE = READER
 createManagedAccount
-    : 'CREATE' 'MANAGED' 'ACCOUNT' ID 'ADMIN_NAME' '=' ID ',' 'ADMIN_PASSWORD' '=' ID ',' 'TYPE' '=' 'READER' (',' 'COMMENT' '=' STRING)?
+    : 'CREATE' 'MANAGED' 'ACCOUNT' ID 'ADMIN_NAME' '=' ID ',' 'ADMIN_PASSWORD' '=' STRING ',' 'TYPE' '=' 'READER' (',' 'COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-masking-policy
@@ -3756,11 +3757,12 @@ createType
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-user
+// fix: list_of_properties is the workload identity properties the parameters list
 createUser
     : 'CREATE' ('OR' 'REPLACE')? 'USER' ('IF' 'NOT' 'EXISTS')? ID createUser_objectProperties? createUser_objectParams? createUser_sessionParams? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 createUser_objectProperties
-    : ('PASSWORD' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'EMAIL' '=' STRING | 'MUST_CHANGE_PASSWORD' '=' ('TRUE' | 'FALSE') | 'DISABLED' '=' ('TRUE' | 'FALSE') | 'ALLOWED_INTERFACES' '=' '(' ID ')' | 'DAYS_TO_EXPIRY' '=' NUMBER | 'MINS_TO_UNLOCK' '=' NUMBER | 'DEFAULT_WAREHOUSE' '=' STRING | 'DEFAULT_NAMESPACE' '=' STRING | 'DEFAULT_ROLE' '=' STRING | 'DEFAULT_SECONDARY_ROLES' '=' ('(' '\'ALL\'' ')' | '(' ')') | 'MINS_TO_BYPASS_MFA' '=' NUMBER | 'RSA_PUBLIC_KEY' '=' STRING | 'RSA_PUBLIC_KEY_FP' '=' STRING | 'RSA_PUBLIC_KEY_2' '=' STRING | 'RSA_PUBLIC_KEY_2_FP' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE' | 'SERVICE_AGENT' | 'LEGACY_SERVICE') | 'WORKLOAD_IDENTITY' '=' '(' ID ')' | 'COMMENT' '=' STRING)+
+    : ('PASSWORD' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'EMAIL' '=' STRING | 'MUST_CHANGE_PASSWORD' '=' ('TRUE' | 'FALSE') | 'DISABLED' '=' ('TRUE' | 'FALSE') | 'ALLOWED_INTERFACES' '=' '(' ID ')' | 'DAYS_TO_EXPIRY' '=' NUMBER | 'MINS_TO_UNLOCK' '=' NUMBER | 'DEFAULT_WAREHOUSE' '=' STRING | 'DEFAULT_NAMESPACE' '=' STRING | 'DEFAULT_ROLE' '=' STRING | 'DEFAULT_SECONDARY_ROLES' '=' ('(' '\'ALL\'' ')' | '(' ')') | 'MINS_TO_BYPASS_MFA' '=' NUMBER | 'RSA_PUBLIC_KEY' '=' STRING | 'RSA_PUBLIC_KEY_FP' '=' STRING | 'RSA_PUBLIC_KEY_2' '=' STRING | 'RSA_PUBLIC_KEY_2_FP' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE' | 'SERVICE_AGENT' | 'LEGACY_SERVICE') | 'WORKLOAD_IDENTITY' '=' '(' 'TYPE' '=' ('AWS' | 'AZURE' | 'GCP' | 'OIDC') ('ARN' '=' STRING)? ('ISSUER' '=' STRING)? ('SUBJECT' '=' STRING)? ('OIDC_AUDIENCE_LIST' '=' '(' STRING (',' STRING)* ')')? ')' | 'COMMENT' '=' STRING)+
     ;
 createUser_objectParams
     : ('ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR' '=' ('TRUE' | 'FALSE') | 'ENABLE_UNREDACTED_SECURE_OBJECT_ERROR' '=' ('TRUE' | 'FALSE') | 'NETWORK_POLICY' '=' STRING)+
