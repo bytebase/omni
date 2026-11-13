@@ -134,13 +134,13 @@ func TestShowCreateTableForeignKeyRestrict(t *testing.T) {
 		id INT NOT NULL AUTO_INCREMENT,
 		ref_id INT NOT NULL,
 		PRIMARY KEY (id),
-		CONSTRAINT fk_ref FOREIGN KEY (ref_id) REFERENCES ref_tbl (id) ON DELETE RESTRICT ON UPDATE RESTRICT
+		CONSTRAINT fk_ref FOREIGN KEY (ref_id) REFERENCES ref_tbl (id) ON DELETE NO ACTION ON UPDATE NO ACTION
 	)`)
 
 	got := c.ShowCreateTable("testdb", "fk_tbl")
-	// MySQL 8.0 shows RESTRICT when explicitly specified (unlike NO ACTION which is hidden).
-	assertContains(t, got, "ON DELETE RESTRICT")
-	assertContains(t, got, "ON UPDATE RESTRICT")
+	// NO ACTION is shown when written: an omitted action is RESTRICT, which is hidden.
+	assertContains(t, got, "ON DELETE NO ACTION")
+	assertContains(t, got, "ON UPDATE NO ACTION")
 }
 
 func TestShowCreateTableComment(t *testing.T) {

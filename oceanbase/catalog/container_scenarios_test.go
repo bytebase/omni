@@ -52,12 +52,12 @@ func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 	defer cleanup()
 
 	// OceanBase refuses ON DELETE SET DEFAULT with ER_CANNOT_ADD_FOREIGN
-	// (1215). omni gap: the catalog takes it, as MySQL does.
+	// (1215), which MySQL takes.
 	t.Run("fk_on_delete_set_default", func(t *testing.T) {
 		containerRefusal(t, ctr,
 			"CREATE TABLE t_parent5 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
 			"CREATE TABLE t_fk5 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent5(id) ON DELETE SET DEFAULT)",
-			1215, 0)
+			1215, 1215)
 	})
 }
 
@@ -1551,9 +1551,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
 
-		// omni gap: the catalog raises MySQL's error.
-		if catErr.Code != 1068 || catErr.SQLState != "42000" || catErr.Message != "Multiple primary key defined" {
-			t.Errorf("omni: got %d (%s) %s, want 1068 (42000) Multiple primary key defined", catErr.Code, catErr.SQLState, catErr.Message)
+		if catErr.Code != int(ctrCode) || catErr.SQLState != ctrState || catErr.Message != ctrMsg {
+			t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, catErr.Message, ctrCode, ctrState, ctrMsg)
 		}
 	})
 }
@@ -1666,9 +1665,8 @@ func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 
 // TestContainer_Section_3_5_FKErrors holds the foreign-key errors. MySQL 8.0
 // names each cause (1824, 1822, 3780); OceanBase answers 1146 for a missing
-// parent and ER_CANNOT_ADD_FOREIGN (1215) for the rest.
-//
-// omni gap: the catalog raises MySQL's errors.
+// parent and ER_CANNOT_ADD_FOREIGN (1215) for the rest, and so does the
+// catalog.
 func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -1677,43 +1675,32 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 		name  string
 		setup string
 		stmt  string
-		// OceanBase's answer.
 		code  uint16
 		state string
 		msg   string
-		// The catalog's.
-		omniCode  int
-		omniState string
-		omniMsg   string
 	}{
 		{
-			name:     "1824_fk_ref_table_not_found",
-			stmt:     "CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))",
-			code:     1146,
-			state:    "42S02",
-			msg:      "Table doesn't exist",
-			omniCode: 1824, omniState: "HY000",
-			omniMsg: "Failed to open the referenced table 't_nonexistent_parent'",
+			name:  "1824_fk_ref_table_not_found",
+			stmt:  "CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))",
+			code:  1146,
+			state: "42S02",
+			msg:   "Table doesn't exist",
 		},
 		{
-			name:     "1822_fk_missing_index_on_ref_table",
-			setup:    "CREATE TABLE t_fk_parent_nokey (id INT, val INT)",
-			stmt:     "CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))",
-			code:     1215,
-			state:    "HY000",
-			msg:      "Cannot add foreign key constraint",
-			omniCode: 1822, omniState: "HY000",
-			omniMsg: "Failed to add the foreign key constraint. Missing index for constraint 't_fk_child_nokey_OBFK_<n>' in the referenced table 't_fk_parent_nokey'",
+			name:  "1822_fk_missing_index_on_ref_table",
+			setup: "CREATE TABLE t_fk_parent_nokey (id INT, val INT)",
+			stmt:  "CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))",
+			code:  1215,
+			state: "HY000",
+			msg:   "Cannot add foreign key constraint",
 		},
 		{
-			name:     "3780_fk_column_type_mismatch",
-			setup:    "CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)",
-			stmt:     "CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))",
-			code:     1215,
-			state:    "HY000",
-			msg:      "Cannot add foreign key constraint",
-			omniCode: 3780, omniState: "HY000",
-			omniMsg: "Referencing column 'pid' and referenced column 'id' in foreign key constraint 't_fk_child_mismatch_OBFK_<n>' are incompatible.",
+			name:  "3780_fk_column_type_mismatch",
+			setup: "CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)",
+			stmt:  "CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))",
+			code:  1215,
+			state: "HY000",
+			msg:   "Cannot add foreign key constraint",
 		},
 	}
 	for _, tc := range cases {
@@ -1742,8 +1729,8 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 			if !ok {
 				t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
 			}
-			if catErr.Code != tc.omniCode || catErr.SQLState != tc.omniState || withoutCount(catErr.Message) != tc.omniMsg {
-				t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, withoutCount(catErr.Message), tc.omniCode, tc.omniState, tc.omniMsg)
+			if catErr.Code != int(tc.code) || catErr.SQLState != tc.state || catErr.Message != tc.msg {
+				t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, catErr.Message, tc.code, tc.state, tc.msg)
 			}
 		})
 	}

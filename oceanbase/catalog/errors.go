@@ -28,7 +28,7 @@ const (
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
 	ErrDupIndex                          = 1831
-	ErrFKNoRefTable                      = 1824
+	ErrFKNoRefTable                      = 1824 // MySQL's: OceanBase answers 1146, and 1215 for the next two
 	ErrCantDropKey                       = 1091
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
@@ -52,6 +52,9 @@ const (
 	ErrTooBigPrecision                   = 1426
 	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
+	ErrDupKey                            = 1022
+	ErrCannotAddForeign                  = 1215
+	ErrOBColumnNotFound                  = 5031 // OceanBase's own: Column not found
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
 )
@@ -64,6 +67,7 @@ var sqlStateMap = map[int]string{
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
+	ErrDupKey:                            "23000",
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
@@ -197,24 +201,35 @@ func errCantRemoveAllFields() error {
 		Message: "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"}
 }
 
-func errFKNoRefTable(table string) error {
-	return &Error{Code: ErrFKNoRefTable, SQLState: sqlState(ErrFKNoRefTable),
-		Message: fmt.Sprintf("Failed to open the referenced table '%s'", table)}
+// The errors of a foreign key OceanBase will not add are its own, and fewer than MySQL's:
+// 1146 for a referenced table that is not there, 5031 for a column that is not, and
+// ER_CANNOT_ADD_FOREIGN (1215) for the rest, where MySQL 8.0 names each cause (1824, 1822,
+// 3780). A name taken by another table's foreign key is 1022. TestOracle_OceanBaseKeyErrors
+// holds each to the engine.
+
+func errFKNoRefTable() error {
+	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable), Message: "Table doesn't exist"}
 }
 
-func errFKMissingIndex(constraint, refTable string) error {
-	return &Error{Code: ErrFKMissingIndex, SQLState: sqlState(ErrFKMissingIndex),
-		Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing index for constraint '%s' in the referenced table '%s'", constraint, refTable)}
+func errFKNoSuchColumn() error {
+	return &Error{Code: ErrOBColumnNotFound, SQLState: sqlState(ErrOBColumnNotFound), Message: "Column not found"}
 }
 
-func errFKIncompatibleColumns(col, refCol, constraint string) error {
-	return &Error{Code: ErrFKIncompatibleColumns, SQLState: sqlState(ErrFKIncompatibleColumns),
-		Message: fmt.Sprintf("Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible.", col, refCol, constraint)}
+func errCannotAddForeign() error {
+	return &Error{Code: ErrCannotAddForeign, SQLState: sqlState(ErrCannotAddForeign),
+		Message: "Cannot add foreign key constraint"}
 }
 
-func errFKDupName(name string) error {
-	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
-		Message: fmt.Sprintf("Duplicate foreign key constraint name '%s'", name)}
+func errFKDupName(table string) error {
+	return &Error{Code: ErrDupKey, SQLState: sqlState(ErrDupKey),
+		Message: fmt.Sprintf("Can't write; duplicate key in table '%s'", table)}
+}
+
+// errDuplicatedPriKey is OceanBase's answer to a PRIMARY KEY constraint on a table whose
+// definition already has a primary key. A second column marked PRIMARY KEY, and a key added
+// by ALTER TABLE, are ER_MULTIPLE_PRI_KEY (1068) as in MySQL.
+func errDuplicatedPriKey() error {
+	return &Error{Code: ErrDupEntry, SQLState: sqlState(ErrDupEntry), Message: "Duplicated primary key"}
 }
 
 func errCheckConstraintDupName(name string) error {
@@ -284,11 +299,6 @@ func errDependentByGeneratedColumn(column, genColumn, table string) error {
 func errCannotDropColumnFunctionalIndex(column string) error {
 	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
 		Message: fmt.Sprintf("Cannot drop column '%s' because it is used by a functional index.", column)}
-}
-
-func errFKCannotUseVirtualColumn(col string) error {
-	return &Error{Code: ErrFKCannotUseVirtualColumn, SQLState: sqlState(ErrFKCannotUseVirtualColumn),
-		Message: fmt.Sprintf("Cannot define foreign key with clause on a generated column '%s'", col)}
 }
 
 func errWrongArguments(fn string) error {

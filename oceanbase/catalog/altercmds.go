@@ -524,7 +524,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix)
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
-			return errFKDupName(conName)
+			return errFKDupName(tbl.Name)
 		}
 		refDBName := ""
 		refTable := ""
