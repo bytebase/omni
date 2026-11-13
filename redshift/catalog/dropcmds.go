@@ -151,13 +151,28 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 		return nil
 	}
 	for _, obj := range stmt.Objects.Items {
-		schemaName, typeName := extractDropObjectName(obj)
+		// The parser gives a plain name as a list of strings, and a type name
+		// with modifiers, array bounds or SETOF as a TypeName. SETOF names the
+		// type itself.
+		// pg: src/backend/catalog/objectaddress.c — get_object_address_type
+		var tn *nodes.TypeName
+		var schemaName, typeName string
+		if t, ok := obj.(*nodes.TypeName); ok {
+			tn = t
+			schemaName, typeName = qualifiedName(t.Names)
+		} else {
+			schemaName, typeName = extractDropObjectName(obj)
+		}
+		shownName := typeName
+		if tn != nil && tn.ArrayBounds != nil {
+			shownName += "[]"
+		}
 
 		schema, err := c.resolveTargetSchema(schemaName)
 		if err != nil {
 			if stmt.Missing_ok {
 				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("type %q does not exist, skipping", typeName))
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("type %q does not exist, skipping", shownName))
 					continue
 				}
 			}
@@ -167,14 +182,26 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 		bt := c.typeByName[typeKey{ns: schema.OID, name: typeName}]
 		if bt == nil {
 			if stmt.Missing_ok {
-				c.addWarning(CodeWarningSkip, fmt.Sprintf("type %q does not exist, skipping", typeName))
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("type %q does not exist, skipping", shownName))
 				continue
 			}
-			return errUndefinedType(typeName)
+			return errUndefinedType(shownName)
 		}
 
 		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) {
 			return errWrongObjectType(typeName, "a droppable type")
+		}
+
+		if tn != nil && tn.Typmods != nil {
+			// pg: src/backend/parser/parse_type.c — typenameTypeMod
+			return &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", typeName)}
+		}
+		if tn != nil && tn.ArrayBounds != nil {
+			// The array type is the object named; its element type owns it.
+			if nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_DOMAIN {
+				return errWrongObjectType(shownName, "a domain")
+			}
+			return &Error{Code: CodeDependentObjects, Message: fmt.Sprintf("cannot drop type %s because type %s requires it", shownName, typeName)}
 		}
 
 		// Composite type: drop the backing relation (relkind='c') which also removes the type.

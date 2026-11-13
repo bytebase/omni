@@ -1992,6 +1992,11 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			case *ast.List:
 				list = o
 			case *ast.TypeName:
+				// An array or a modified type is refused (PostgreSQL's
+				// 2BP01, 42601); the walk does not follow it.
+				if o.ArrayBounds != nil || o.Typmods != nil {
+					return false
+				}
 				list = o.Names
 			}
 			parts := nameParts(list)

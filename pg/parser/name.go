@@ -60,6 +60,17 @@ func (p *Parser) isTypeFunctionName() bool {
 	return false
 }
 
+// completingAtNext reports whether completion's cursor is at the token after
+// the current one. A keyword that may be a name or lead a clause then leads
+// the clause, so the candidates after it are offered.
+func (p *Parser) completingAtNext() bool {
+	if !p.completing || p.collecting {
+		return false
+	}
+	next := p.peekNext()
+	return next.Loc >= p.cursorOff || next.Type == 0
+}
+
 // parseColId parses a ColId (identifier or unreserved/col_name keyword).
 //
 //	ColId: IDENT | unreserved_keyword | col_name_keyword

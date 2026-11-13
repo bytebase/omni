@@ -126,11 +126,14 @@ func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 		return p.parseOptFloat()
 	case DOUBLE_P:
 		// DOUBLE_P PRECISION, or the unreserved word double as a GenericType.
-		if p.peekNext().Type != PRECISION {
+		// With completion's cursor after DOUBLE, PRECISION is offered.
+		if p.peekNext().Type != PRECISION && !p.completingAtNext() {
 			return p.parseGenericType()
 		}
 		p.advance()
-		p.advance()
+		if _, err := p.expect(PRECISION); err != nil {
+			return nil, err
+		}
 		return makeTypeName("float8"), nil
 	case DECIMAL_P:
 		p.advance()
