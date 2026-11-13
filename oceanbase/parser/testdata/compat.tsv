@@ -5679,7 +5679,7 @@ accept	accept	engine	partition_option/key_partition_option	CREATE TABLE a PARTIT
 reject	reject	engine	partition_option/key_partition_option!truncate	CREATE TABLE a PARTITION BY KEY(
 reject	reject	engine	partition_option/key_partition_option!insert	CREATE TABLE a PARTITION BY KEY() zzz SELECT a
 reject	reject	engine	partition_option/key_partition_option!swap	CREATE TABLE a PARTITIONING BY KEY() SELECT a
-reject	accept	engine	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
+accept	accept	engine	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 reject	reject	engine	partition_option/range_partition_option!drop-1	CREATE TABLE a BY RANGE() SELECT a
 reject	reject	engine	partition_option/range_partition_option!drop-2	CREATE TABLE a PARTITION RANGE() SELECT a
 reject	reject	engine	partition_option/range_partition_option!drop-4	CREATE TABLE a PARTITION BY RANGE) SELECT a
@@ -5724,7 +5724,7 @@ reject	reject	engine	opt_partition_option/partition_option!truncate	CREATE TABLE
 reject	reject	engine	opt_partition_option/partition_option!insert	CREATE TABLE a NOPARALLEL PARTITION BY KEY() zzz SELECT a
 reject	reject	engine	opt_partition_option/partition_option!swap	CREATE TABLE a NOPARALLEL PARTITIONING BY KEY() SELECT a
 accept	accept	engine	opt_partition_option/%empty	CREATE TABLE a NOPARALLEL SELECT a
-reject	accept	engine	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	opt_partition_option/auto_partition_option!drop-1	CREATE TABLE a NOPARALLEL BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	opt_partition_option/auto_partition_option!drop-2	CREATE TABLE a NOPARALLEL PARTITION RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	opt_partition_option/auto_partition_option!drop-3	CREATE TABLE a NOPARALLEL PARTITION BY() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -5738,7 +5738,7 @@ reject	reject	engine	opt_partition_option/auto_partition_option!drop-10	CREATE T
 reject	reject	engine	opt_partition_option/auto_partition_option!truncate	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS
 reject	reject	engine	opt_partition_option/auto_partition_option!insert	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO zzz SELECT a
 reject	reject	engine	opt_partition_option/auto_partition_option!swap	CREATE TABLE a NOPARALLEL PARTITIONING BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-reject	accept	engine	auto_partition_option/auto_partition_type_PARTITION_SIZE_partition_size_PARTITIONS_AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	auto_partition_option/auto_partition_type_PARTITION_SIZE_partition_size_PARTITIONS_AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 accept	accept	engine	column_group_element/ALL_COLUMNS	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 reject	reject	engine	column_group_element/ALL_COLUMNS!truncate	CREATE TABLE a WITH COLUMN GROUP(ALL
 reject	reject	engine	column_group_element/ALL_COLUMNS!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS zzz) SELECT a
@@ -5769,17 +5769,17 @@ reject	reject	engine	column_group_list/column_group_list_,_column_group_element!
 accept	accept	engine	with_column_group/WITH_COLUMN_GROUP_(_column_group_list_)	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 reject	reject	engine	with_column_group/WITH_COLUMN_GROUP_(_column_group_list_)!truncate	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS
 reject	reject	engine	with_column_group/WITH_COLUMN_GROUP_(_column_group_list_)!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) zzz SELECT a
-reject	accept	engine	partition_size/conf_const	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	partition_size/conf_const	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	partition_size/conf_const!truncate	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE
 reject	reject	engine	partition_size/conf_const!insert	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' zzz PARTITIONS AUTO SELECT a
-reject	accept	engine	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
+accept	accept	engine	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 reject	reject	engine	partition_size/AUTO!insert	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO zzz PARTITIONS AUTO SELECT a
 reject	reject	engine	partition_size/AUTO!swap	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTOEXTEND_SIZE PARTITIONS AUTO SELECT a
-reject	accept	engine	auto_partition_type/auto_range_type	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	auto_partition_type/auto_range_type	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_partition_type/auto_range_type!truncate	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(
 reject	reject	engine	auto_partition_type/auto_range_type!insert	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() zzz PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-reject	accept	engine	auto_range_type/PARTITION_BY_RANGE_(_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-reject	accept	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	auto_range_type/PARTITION_BY_RANGE_(_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!drop-1	CREATE TABLE a NOPARALLEL BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!drop-2	CREATE TABLE a NOPARALLEL PARTITION RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!drop-3	CREATE TABLE a NOPARALLEL PARTITION BY(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -5788,7 +5788,7 @@ reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!drop-6	CREATE T
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!truncate	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!insert	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) zzz PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_(_expr_)!swap	CREATE TABLE a NOPARALLEL PARTITIONING BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-reject	accept	engine	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+accept	accept	engine	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)!drop-1	CREATE TABLE a NOPARALLEL BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)!drop-2	CREATE TABLE a NOPARALLEL PARTITION RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 reject	reject	engine	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)!drop-3	CREATE TABLE a NOPARALLEL PARTITION BY COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
@@ -5892,7 +5892,7 @@ reject	reject	engine	key_partition_option/PARTITION_BY_KEY_(_)_partition_options
 reject	reject	engine	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list!drop-9	ALTER TABLE a PARTITION BY KEY()(PARTITION a
 reject	reject	engine	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list!insert	ALTER TABLE a PARTITION BY KEY()(PARTITION a) zzz
 reject	reject	engine	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list!swap	ALTER TABLE a PARTITIONING BY KEY()(PARTITION a)
-reject	accept	engine	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
+accept	accept	engine	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-1	ALTER TABLE a BY RANGE()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-2	ALTER TABLE a PARTITION RANGE()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-4	ALTER TABLE a PARTITION BY RANGE)
@@ -5906,7 +5906,7 @@ reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partitio
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info!drop-6	ALTER TABLE a PARTITION BY RANGE(a
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info!insert	ALTER TABLE a PARTITION BY RANGE(a) zzz
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info!swap	ALTER TABLE a PARTITIONING BY RANGE(a)
-reject	accept	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
+accept	accept	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-1	ALTER TABLE a BY RANGE COLUMNS()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-2	ALTER TABLE a PARTITION RANGE COLUMNS()
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option!drop-3	ALTER TABLE a PARTITION BY COLUMNS()
@@ -5922,7 +5922,7 @@ reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info!drop-7	ALTER TABLE a PARTITION BY RANGE COLUMNS(a
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info!insert	ALTER TABLE a PARTITION BY RANGE COLUMNS(a) zzz
 reject	reject	engine	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info!swap	ALTER TABLE a PARTITIONING BY RANGE COLUMNS(a)
-reject	accept	engine	opt_auto_split_tablet_size_option/%empty	ALTER TABLE a PARTITION BY RANGE()
+accept	accept	engine	opt_auto_split_tablet_size_option/%empty	ALTER TABLE a PARTITION BY RANGE()
 reject	accept	engine	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 reject	reject	engine	opt_auto_split_tablet_size_option/auto_split_tablet_size_option!drop-1	ALTER TABLE a PARTITION BY RANGE()('s')
 reject	reject	engine	opt_auto_split_tablet_size_option/auto_split_tablet_size_option!drop-2	ALTER TABLE a PARTITION BY RANGE() SIZE 's')
@@ -5977,7 +5977,7 @@ reject	reject	engine	column_name_list/column_name_list_,_column_name!truncate	FO
 reject	reject	engine	column_name_list/column_name_list_,_column_name!insert	FOR COLUMNS(a, a zzz)
 accept	accept	engine	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
 reject	reject	engine	partition_options/partition_num_subpartition_option!drop-1	ALTER TABLE a PARTITION BY KEY() 1 SUBPARTITION BY RANGE(a)
-accept	reject	engine	partition_options/partition_num_subpartition_option!drop-2	ALTER TABLE a PARTITION BY KEY() PARTITIONS SUBPARTITION BY RANGE(a)
+reject	reject	engine	partition_options/partition_num_subpartition_option!drop-2	ALTER TABLE a PARTITION BY KEY() PARTITIONS SUBPARTITION BY RANGE(a)
 reject	reject	engine	partition_options/partition_num_subpartition_option!drop-3	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 BY RANGE(a)
 reject	reject	engine	partition_options/partition_num_subpartition_option!drop-4	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION RANGE(a)
 reject	reject	engine	partition_options/partition_num_subpartition_option!drop-5	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY(a)
@@ -6008,7 +6008,7 @@ reject	reject	engine	partition_options/subpartition_option!insert	ALTER TABLE a 
 reject	reject	engine	partition_options/subpartition_option!swap	ALTER TABLE a PARTITION BY KEY() SUBPARTITIONS BY RANGE(a)
 accept	accept	engine	partition_options/partition_num	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1
 reject	reject	engine	partition_options/partition_num!drop-1	ALTER TABLE a PARTITION BY KEY() 1
-accept	reject	engine	partition_options/partition_num!drop-2	ALTER TABLE a PARTITION BY KEY() PARTITIONS
+reject	reject	engine	partition_options/partition_num!drop-2	ALTER TABLE a PARTITION BY KEY() PARTITIONS
 reject	reject	engine	partition_options/partition_num!insert	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 zzz
 reject	reject	engine	partition_options/partition_num!swap	ALTER TABLE a PARTITION BY KEY() PARTITION_ID 1
 accept	accept	engine	partition_options/%empty	ALTER TABLE a PARTITION BY KEY()
@@ -6298,7 +6298,7 @@ reject	reject	engine	opt_engine_option/ENGINE__COMP_EQ_INNODB!truncate	ALTER TAB
 reject	reject	engine	opt_engine_option/ENGINE__COMP_EQ_INNODB!insert	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB zzz)
 reject	reject	engine	opt_engine_option/ENGINE__COMP_EQ_INNODB!swap	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINES = INNODB)
 accept	accept	engine	opt_engine_option/%empty	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
-reject	accept	engine	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!drop-1	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!drop-2	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!drop-3	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION VALUES LESS THAN MAXVALUE)
@@ -6309,10 +6309,10 @@ reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!dro
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!drop-8	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	opt_range_subpartition_list/(_range_subpartition_list_)!swap	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITIONS a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	range_subpartition_list/range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	range_subpartition_list/range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	range_subpartition_list/range_subpartition_element!truncate	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN
 reject	reject	engine	range_subpartition_list/range_subpartition_element!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE zzz)
-reject	accept	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!drop-1	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!drop-2	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!drop-3	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
@@ -6329,8 +6329,8 @@ reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_sub
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!truncate	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE zzz)
 reject	reject	engine	range_subpartition_list/range_subpartition_list_,_range_subpartition_element!swap	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITIONS a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	range_subpartition_element/SUBPARTITION_relation_factor_VALUES_LESS_THAN_range_partition_expr_opt_engine_option	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	range_subpartition_element/SUBPARTITION_relation_factor_VALUES_LESS_THAN_range_partition_expr_opt_engine_option	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!drop-1	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION SUBPARTITION a VALUES IN(a))
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!drop-2	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(a VALUES IN(a))
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!drop-3	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION VALUES IN(a))
@@ -6341,10 +6341,10 @@ reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!drop-
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!drop-8	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a)
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a)) zzz
 reject	reject	engine	opt_list_subpartition_list/(_list_subpartition_list_)!swap	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITIONS a VALUES IN(a))
-reject	accept	engine	list_subpartition_list/list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	list_subpartition_list/list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	list_subpartition_list/list_subpartition_element!truncate	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a
 reject	reject	engine	list_subpartition_list/list_subpartition_element!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a) zzz)
-reject	accept	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
+accept	accept	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!drop-1	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(a VALUES IN(a), SUBPARTITION a VALUES IN(a))
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!drop-2	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION VALUES IN(a), SUBPARTITION a VALUES IN(a))
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!drop-3	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a IN(a), SUBPARTITION a VALUES IN(a))
@@ -6363,7 +6363,7 @@ reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpar
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!truncate	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!insert	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a) zzz)
 reject	reject	engine	list_subpartition_list/list_subpartition_list_,_list_subpartition_element!swap	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITIONS a VALUES IN(a), SUBPARTITION a VALUES IN(a))
-reject	accept	engine	list_subpartition_element/SUBPARTITION_relation_factor_VALUES_IN_list_partition_expr_opt_engine_option	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	list_subpartition_element/SUBPARTITION_relation_factor_VALUES_IN_list_partition_expr_opt_engine_option	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 accept	accept	engine	list_partition_expr/(_list_expr_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
 accept	accept	engine	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
 reject	reject	engine	list_partition_expr/(_DEFAULT_)!drop-1	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN DEFAULT))
@@ -8386,15 +8386,15 @@ accept	accept	engine	hint_options/hint_options_hint_option!insert	SELECT /*+ CUR
 accept	accept	engine	hint_options/hint_options_hint_option!swap	SELECT /*+ CURTIME CURSOR_SHARING_EXACT */ a
 accept	accept	engine	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 reject	reject	engine	name_list/NAME_OB!drop-1	ALTER TABLE a DROP PARTITION
-reject	accept	engine	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
-reject	accept	engine	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
-reject	accept	engine	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
+accept	accept	engine	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
+accept	accept	engine	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
+accept	accept	engine	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
 accept	accept	engine	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
 reject	reject	engine	name_list/name_list_,_NAME_OB!drop-1	ALTER TABLE a DROP PARTITION, a
 reject	reject	engine	name_list/name_list_,_NAME_OB!drop-3	ALTER TABLE a DROP PARTITION a,
-reject	accept	engine	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
+accept	accept	engine	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
 accept	accept	engine	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
-reject	accept	engine	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
+accept	accept	engine	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
 accept	accept	engine	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
 accept	accept	engine	hint_option/global_hint	SELECT /*+ CURSOR_SHARING_EXACT */ a
 accept	accept	engine	hint_option/transform_hint	SELECT /*+ NO_REWRITE */ a
@@ -13803,17 +13803,17 @@ accept	accept	engine	alter_constraint_option/ADD_constraint_definition	ALTER TAB
 reject	reject	engine	alter_constraint_option/ADD_constraint_definition!swap	ALTER TABLE a ADDDATE CHECK(a)
 accept	accept	engine	standalone_alter_action/alter_partition_option	ALTER TABLE a DROP PARTITION a
 accept	accept	engine	alter_partition_option/DROP_PARTITION_drop_partition_name_list	ALTER TABLE a DROP PARTITION a
-reject	accept	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
+accept	accept	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 reject	reject	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-1	ALTER TABLE a SUBPARTITION a
 accept	accept	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
-reject	accept	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
+accept	accept	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
 reject	reject	engine	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!swap	ALTER TABLE a DUAL SUBPARTITION a
 accept	accept	engine	alter_partition_option/ADD_PARTITION_opt_partition_range_or_list	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-1	ALTER TABLE a PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-2	ALTER TABLE a ADD(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/ADD_PARTITION_opt_partition_range_or_list!swap	ALTER TABLE a ADDDATE PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 accept	accept	engine	alter_partition_option/modify_partition_info	ALTER TABLE a PARTITION BY KEY()
-reject	accept	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
+accept	accept	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-1	ALTER TABLE a PARTITION a STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-2	ALTER TABLE a ALTER a STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-3	ALTER TABLE a ALTER PARTITION STORAGE_CACHE_POLICY = 's'
@@ -13822,7 +13822,7 @@ reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_l
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-6	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY =
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!insert	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's' zzz
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!swap	ALTER TABLE a ALWAYS PARTITION a STORAGE_CACHE_POLICY = 's'
-reject	accept	engine	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
+accept	accept	engine	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-1	ALTER TABLE a SUBPARTITION a STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-3	ALTER TABLE a ALTER SUBPARTITION STORAGE_CACHE_POLICY = 's'
 reject	reject	engine	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE!drop-4	ALTER TABLE a ALTER SUBPARTITION a = 's'
@@ -13848,11 +13848,11 @@ reject	reject	engine	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_
 accept	accept	engine	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
 reject	reject	engine	alter_partition_option/TRUNCATE_PARTITION_name_list!drop-2	ALTER TABLE a TRUNCATE a
 reject	reject	engine	alter_partition_option/TRUNCATE_PARTITION_name_list!drop-3	ALTER TABLE a TRUNCATE PARTITION
-reject	accept	engine	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
+accept	accept	engine	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
 reject	reject	engine	alter_partition_option/TRUNCATE_PARTITION_name_list!swap	ALTER TABLE a TTL PARTITION a
-reject	accept	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
+accept	accept	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
 reject	reject	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!drop-3	ALTER TABLE a TRUNCATE SUBPARTITION
-reject	accept	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
+accept	accept	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
 reject	reject	engine	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!swap	ALTER TABLE a TTL SUBPARTITION a
 accept	accept	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 reject	reject	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION!drop-1	ALTER TABLE a PARTITION a WITH TABLE a WITHOUT VALIDATION
@@ -13865,7 +13865,7 @@ reject	reject	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WIT
 reject	reject	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION!drop-8	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT
 reject	reject	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION!insert	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION zzz
 reject	reject	engine	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION!swap	ALTER TABLE a EXCLUDING PARTITION a WITH TABLE a WITHOUT VALIDATION
-reject	accept	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list!drop-1	ALTER TABLE a PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list!drop-2	ALTER TABLE a MODIFY a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list!drop-3	ALTER TABLE a MODIFY PARTITION ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
@@ -13874,8 +13874,8 @@ reject	reject	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD
 reject	reject	engine	alter_partition_option/MODIFY_PARTITION_relation_factor_ADD_SUBPARTITION_opt_subpartition_range_or_list!swap	ALTER TABLE a MODULE PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 accept	accept	engine	opt_partition_range_or_list/opt_range_partition_list	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 accept	accept	engine	opt_partition_range_or_list/opt_list_partition_list	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
-reject	accept	engine	opt_subpartition_range_or_list/opt_range_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	opt_subpartition_range_or_list/opt_list_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	opt_subpartition_range_or_list/opt_range_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	opt_subpartition_range_or_list/opt_list_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 accept	accept	engine	alter_tg_partition_option/DROP_PARTITION_drop_partition_name_list	ALTER TABLEGROUP a DROP PARTITION a
 reject	reject	engine	alter_tg_partition_option/DROP_PARTITION_drop_partition_name_list!swap	ALTER TABLEGROUP a DUAL PARTITION a
 accept	accept	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list	ALTER TABLEGROUP a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -13918,14 +13918,14 @@ reject	reject	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!drop
 accept	accept	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLEGROUP a TRUNCATE PARTITION a zzz
 reject	reject	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!swap	ALTER TABLEGROUP a TTL PARTITION a
 accept	accept	engine	drop_partition_name_list/name_list	ALTER TABLE a DROP PARTITION a
-reject	accept	engine	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
+accept	accept	engine	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 reject	reject	engine	drop_partition_name_list/(_name_list_)!drop-1	ALTER TABLE a DROP PARTITION a)
 reject	reject	engine	drop_partition_name_list/(_name_list_)!drop-2	ALTER TABLE a DROP PARTITION()
 reject	reject	engine	drop_partition_name_list/(_name_list_)!drop-3	ALTER TABLE a DROP PARTITION(a
 reject	reject	engine	drop_partition_name_list/(_name_list_)!insert	ALTER TABLE a DROP PARTITION(a) zzz
 accept	accept	engine	modify_partition_info/hash_partition_option	ALTER TABLE a PARTITION BY HASH(a)
 accept	accept	engine	modify_partition_info/key_partition_option	ALTER TABLE a PARTITION BY KEY()
-reject	accept	engine	modify_partition_info/range_partition_option	ALTER TABLE a PARTITION BY RANGE()
+accept	accept	engine	modify_partition_info/range_partition_option	ALTER TABLE a PARTITION BY RANGE()
 accept	accept	engine	modify_partition_info/list_partition_option	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
 accept	accept	engine	modify_tg_partition_info/tg_hash_partition_option	ALTER TABLEGROUP a PARTITION BY HASH
 accept	accept	engine	modify_tg_partition_info/tg_key_partition_option	ALTER TABLEGROUP a PARTITION BY KEY 1
