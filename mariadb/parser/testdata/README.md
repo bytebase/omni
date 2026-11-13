@@ -84,3 +84,32 @@ What this cannot tell:
   rows say so.
 - **`?` is a parameter marker,** as `PREPARE` reads it.
 - **A row holds one statement.**
+
+## `tapes/`: the server tests' recordings
+
+Every other test here that asks MariaDB something reaches it through
+`testcontainer.OpenEmptyWith` (`startMariaDB`) and replays
+`tapes/<Test>.tape`: each request the test sends, and the pinned server's
+answer. `enginetest/tape` describes the format and what fails a replay. After
+changing what a test sends, record it:
+
+```bash
+OMNI_RECORD=1 go test ./mariadb/parser/ -run '^TestName$'
+```
+
+- **A recording starts each test on an empty server.** Before a test's
+  connection opens, every database, account and foreign server the image did
+  not start with is dropped and `test` is created again, on a connection the
+  tape does not see.
+- **The keyword sweeps walk the lexer's keywords**
+  (`TestReservedWordSweepOracle`, `TestKeywordFunctionNamesOracle`,
+  `TestSetVariableNameSweepOracle`), so a keyword added to the lexer changes
+  what they send: record those three.
+- **`TestOperatorSweepMatchesEngine` sends the grouping `Parse` gave** each
+  expression, so a change to how an operator expression is read needs a
+  recording. Its size and seed are constants beside it.
+- **Tapes are written compactly.** `…near` stands for the 124 characters that
+  open each of MariaDB's syntax errors, `^` for a request text repeated from
+  the request before, and a `|# sha256:` line for a statement over 64 KB.
+- **A verdict is one request,** `PREPARE omni_parses_stmt FROM ?`
+  (`prepareParses`), or two when the probe decides it.
