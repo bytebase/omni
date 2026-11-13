@@ -17,14 +17,8 @@ import (
 // YEAR of any width. Each column is made alone in a table, on OceanBase and on a catalog,
 // and both must answer the type, the character set and the error number written here.
 func TestOracle_OceanBaseColumnTypes(t *testing.T) {
-	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	const db = "obtypes"
-	for _, s := range []string{"DROP DATABASE IF EXISTS " + db, "CREATE DATABASE " + db, "USE " + db} {
-		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Fatalf("%s: %v", s, err)
-		}
-	}
+	engine, _, db := engineDatabase(t, "oceanbase_catalog_column_types")
 	for i, tc := range []struct {
 		column    string // the column's definition
 		typ       string // COLUMN_TYPE
@@ -93,7 +87,7 @@ func TestOracle_OceanBaseColumnTypes(t *testing.T) {
 			if code := omniCode(c, "CREATE DATABASE "+db+"; USE "+db); code != 0 {
 				t.Fatalf("omni: CREATE DATABASE: error %d", code)
 			}
-			_, err := o.db.ExecContext(ctx, create)
+			_, err := engine.ExecContext(ctx, create)
 			var got uint16
 			var myErr *gomysql.MySQLError
 			switch {
@@ -113,8 +107,8 @@ func TestOracle_OceanBaseColumnTypes(t *testing.T) {
 			}
 			var typ string
 			var charset, collation sql.NullString
-			if err := o.db.QueryRowContext(ctx, `SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'`, db, table).Scan(&typ, &charset, &collation); err != nil {
+			if err := engine.QueryRowContext(ctx, `SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'`, table).Scan(&typ, &charset, &collation); err != nil {
 				t.Fatalf("COLUMNS: %v", err)
 			}
 			if typ != tc.typ || charset.String != tc.charset {
@@ -143,18 +137,8 @@ func TestOracle_OceanBaseColumnTypes(t *testing.T) {
 // which MySQL refuses. SHOW CREATE TABLE prints none of it (canonicalIndexType), so the type is
 // read from information_schema.STATISTICS.
 func TestOracle_OceanBaseIndexTypes(t *testing.T) {
-	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	const db = "obindextypes"
-	c := New()
-	for _, s := range []string{"DROP DATABASE IF EXISTS " + db, "CREATE DATABASE " + db, "USE " + db} {
-		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Fatalf("%s: %v", s, err)
-		}
-		if code := omniCode(c, s); code != 0 {
-			t.Fatalf("omni: %s: error %d", s, code)
-		}
-	}
+	engine, c, db := engineDatabase(t, "oceanbase_catalog_index_types")
 	for _, tc := range []struct {
 		table, index string
 		ddl          []string
@@ -175,7 +159,7 @@ func TestOracle_OceanBaseIndexTypes(t *testing.T) {
 		t.Run(tc.table, func(t *testing.T) {
 			var got uint16
 			for i, stmt := range tc.ddl {
-				_, err := o.db.ExecContext(ctx, stmt)
+				_, err := engine.ExecContext(ctx, stmt)
 				var myErr *gomysql.MySQLError
 				switch {
 				case errors.As(err, &myErr):
@@ -198,8 +182,8 @@ func TestOracle_OceanBaseIndexTypes(t *testing.T) {
 				return
 			}
 			var typ string
-			if err := o.db.QueryRowContext(ctx, `SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?`, db, tc.table, tc.index).Scan(&typ); err != nil {
+			if err := engine.QueryRowContext(ctx, `SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`, tc.table, tc.index).Scan(&typ); err != nil {
 				t.Fatalf("STATISTICS: %v", err)
 			}
 			if typ != tc.typ {
@@ -221,6 +205,87 @@ func TestOracle_OceanBaseIndexTypes(t *testing.T) {
 				}
 				if own != tc.typ {
 					t.Errorf("the catalog stores %s (IndexType %q); OceanBase %s", own, idx.IndexType, tc.typ)
+				}
+			}
+		})
+	}
+}
+
+// TestOracle_OceanBaseNationalCollation holds to the engine that a national type names its
+// character set as CHARACTER SET does: its collation is that character set's default, in a
+// table of any collation, unless the column writes its own. Which collation the default is
+// is not compared (the catalog's is still MySQL 8.0's); that a national column has the
+// collation of a column written CHARACTER SET utf8mb4, and not its table's, is.
+func TestOracle_OceanBaseNationalCollation(t *testing.T) {
+	ctx := context.Background()
+	engine, c, db := engineDatabase(t, "oceanbase_catalog_national_collation")
+	for _, tc := range []struct {
+		table, options string
+		tableCollation string
+	}{
+		{"t_bin", "DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_bin", "utf8mb4_bin"},
+		{"t_unicode", "COLLATE utf8mb4_unicode_ci", "utf8mb4_unicode_ci"},
+		{"t_latin1", "DEFAULT CHARSET latin1", "latin1_swedish_ci"},
+	} {
+		t.Run(tc.table, func(t *testing.T) {
+			create := "CREATE TABLE " + tc.table + " (plain CHAR(10), named CHAR(10) CHARACTER SET utf8mb4, " +
+				"n1 NCHAR(10), n2 NVARCHAR(10), n3 NATIONAL VARCHAR(10), own NCHAR(10) COLLATE utf8mb4_bin) " + tc.options
+			if _, err := engine.ExecContext(ctx, create); err != nil {
+				t.Fatalf("%s: %v", create, err)
+			}
+			if code := omniCode(c, create); code != 0 {
+				t.Fatalf("omni: %s: error %d", create, code)
+			}
+			// The same statement adds a national column to a table that exists.
+			alter := "ALTER TABLE " + tc.table + " ADD COLUMN n4 NCHAR(10)"
+			if _, err := engine.ExecContext(ctx, alter); err != nil {
+				t.Fatalf("%s: %v", alter, err)
+			}
+			if code := omniCode(c, alter); code != 0 {
+				t.Fatalf("omni: %s: error %d", alter, code)
+			}
+			rows, err := engine.QueryContext(ctx, `SELECT COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`, tc.table)
+			if err != nil {
+				t.Fatalf("COLUMNS: %v", err)
+			}
+			defer rows.Close()
+			stored := map[string]string{}
+			for rows.Next() {
+				var name, collation string
+				if err := rows.Scan(&name, &collation); err != nil {
+					t.Fatalf("COLUMNS: %v", err)
+				}
+				stored[name] = collation
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatalf("COLUMNS: %v", err)
+			}
+			own := map[string]string{}
+			for _, col := range c.GetDatabase(db).GetTable(tc.table).Columns {
+				own[col.Name] = strings.ToLower(col.Collation)
+			}
+			for who, got := range map[string]map[string]string{"OceanBase": stored, "the catalog": own} {
+				if got["plain"] != tc.tableCollation {
+					t.Errorf("%s: plain has %s, want the table's %s", who, got["plain"], tc.tableCollation)
+				}
+				if got["own"] != "utf8mb4_bin" {
+					t.Errorf("%s: own has %s, want the utf8mb4_bin it writes", who, got["own"])
+				}
+				for _, name := range []string{"n1", "n2", "n3", "n4"} {
+					if got[name] != got["named"] {
+						t.Errorf("%s: %s has %s, want the %s of a column written CHARACTER SET utf8mb4", who, name, got[name], got["named"])
+					}
+				}
+			}
+			// And the catalog writes it so that it reads back.
+			reloaded := New()
+			if code := omniCode(reloaded, "CREATE DATABASE "+db+"; USE "+db+"; "+c.ShowCreateTable(db, tc.table)); code != 0 {
+				t.Fatalf("the catalog's SHOW CREATE TABLE does not load: error %d\n%s", code, c.ShowCreateTable(db, tc.table))
+			}
+			for _, col := range reloaded.GetDatabase(db).GetTable(tc.table).Columns {
+				if got := strings.ToLower(col.Collation); got != own[col.Name] {
+					t.Errorf("%s reads back from SHOW CREATE TABLE with %s, had %s", col.Name, got, own[col.Name])
 				}
 			}
 		})

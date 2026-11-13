@@ -212,6 +212,11 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			// Collation inherited from table but non-default for charset.
 			// MySQL shows only COLLATE (no CHARACTER SET).
 			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
+		} else if collationDiffersFromTable {
+			// The character set's default collation in a table of another: a column
+			// that names its character set, a national type among them. Unwritten, it
+			// would read back as the table's.
+			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
 		}
 	}
 
