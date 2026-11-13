@@ -49,6 +49,9 @@ func placeholderClass(name string) string {
 	case strings.HasSuffix(n, "password"):
 		// ADMIN_PASSWORD = '<user_password>': a password is a string.
 		return tString
+	case n == "body":
+		// A policy's -> <body> is a SQL expression.
+		return tExpr
 	case n == "col_default" || n == "col_write_default" || n == "default_value":
 		// DEFAULT 100: a default is an expression.
 		return tExpr
@@ -64,6 +67,9 @@ func placeholderClass(name string) string {
 		return tType
 	case exprName.MatchString(n):
 		return tExpr
+	case strings.HasSuffix(n, "_name"):
+		// <text_column_name> names a column, whatever its first words say.
+		return tName
 	case stringName.MatchString(n):
 		return tString
 	case strings.Contains(n, "name") || strings.Contains(n, "identifier"):

@@ -1005,9 +1005,12 @@ createArtifactRepository
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-authentication-policy
+// fix: MFA_POLICY: the parameters list the properties, space-delimited
+// fix: PAT_POLICY: the parameters list the properties, space-delimited
+// fix: WORKLOAD_IDENTITY_POLICY: the parameters list the properties, space-delimited
 alterAuthenticationPolicy
     : 'ALTER' 'AUTHENTICATION' 'POLICY' ID 'RENAME' 'TO' ID
-    | 'ALTER' 'AUTHENTICATION' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('AUTHENTICATION_METHODS' '=' '(' STRING (',' STRING)* ')' ('CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')' ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')' ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')' ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\'') ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'MFA_POLICY' '=' '(' ID ')' ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'PAT_POLICY' '=' '(' ID ')' ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)? | 'WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    | 'ALTER' 'AUTHENTICATION' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('AUTHENTICATION_METHODS' '=' '(' STRING (',' STRING)* ')' ('CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')' ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')' ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')' ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\'') ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')' ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')' ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)? | 'WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     | 'ALTER' 'AUTHENTICATION' 'POLICY' ('IF' 'EXISTS')? ID 'UNSET' ('AUTHENTICATION_METHODS' | 'CLIENT_TYPES' | 'CLIENT_POLICY' | 'SECURITY_INTEGRATIONS' | 'MFA_ENROLLMENT' | 'MFA_POLICY' | 'PAT_POLICY' | 'WORKLOAD_IDENTITY_POLICY' | 'COMMENT') (',' ('AUTHENTICATION_METHODS' | 'CLIENT_TYPES' | 'CLIENT_POLICY' | 'SECURITY_INTEGRATIONS' | 'MFA_ENROLLMENT' | 'MFA_POLICY' | 'PAT_POLICY' | 'WORKLOAD_IDENTITY_POLICY' | 'COMMENT'))*
     ;
 
@@ -1845,9 +1848,10 @@ alterPrivacyPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-procedure
 // fix: SECRETS' mappings are in parentheses, as the page's parameters write them
+// fix: the integrations are a parenthesized list of names, as the parameters and the other pages write it
 alterProcedure
     : 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'RENAME' 'TO' ID
-    | 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'SET' ('LOG_LEVEL' '=' STRING ('TRACE_LEVEL' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' STRING (',' STRING)*)? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'TRACE_LEVEL' '=' STRING ('EXTERNAL_ACCESS_INTEGRATIONS' '=' STRING (',' STRING)*)? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'EXTERNAL_ACCESS_INTEGRATIONS' '=' STRING (',' STRING)* ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    | 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'SET' ('LOG_LEVEL' '=' STRING ('TRACE_LEVEL' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'TRACE_LEVEL' '=' STRING ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')' ('SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')')? ('COMMENT' '=' STRING)? | 'SECRETS' '=' '(' STRING '=' ID (',' STRING '=' ID)* ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     | 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'UNSET' 'COMMENT'
     | 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'PROCEDURE' ('IF' 'EXISTS')? ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')' 'UNSET' 'TAG' ID (',' ID)*
@@ -2701,7 +2705,7 @@ createAgent
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-aggregation-policy
 createAggregationPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'AGGREGATION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'AGGREGATION_CONSTRAINT' '->' ID ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'AGGREGATION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'AGGREGATION_CONSTRAINT' '->' EXPR ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-ai-function
@@ -2761,8 +2765,11 @@ createApplicationRole
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-authentication-policy
+// fix: MFA_POLICY: the parameters list the properties, space-delimited
+// fix: PAT_POLICY: the parameters list the properties, space-delimited
+// fix: WORKLOAD_IDENTITY_POLICY: the parameters list the properties, space-delimited
 createAuthenticationPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'AUTHENTICATION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID ('AUTHENTICATION_METHODS' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ID ')')? ('PAT_POLICY' '=' '(' ID ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ID ')')? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'AUTHENTICATION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID ('AUTHENTICATION_METHODS' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_TYPES' '=' '(' STRING (',' STRING)* ')')? ('CLIENT_POLICY' '=' '(' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')' (',' ID '=' '(' 'MINIMUM_VERSION' '=' STRING ')')* ')')? ('SECURITY_INTEGRATIONS' '=' '(' STRING (',' STRING)* ')')? ('MFA_ENROLLMENT' '=' ('\'REQUIRED\'' | '\'REQUIRED_PASSWORD_ONLY\'' | '\'OPTIONAL\''))? ('MFA_POLICY' '=' '(' ('ALLOWED_METHODS' '=' '(' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\'') (',' ('\'ALL\'' | '\'PASSKEY\'' | '\'TOTP\'' | '\'OTP\'' | '\'DUO\''))* ')' | 'ENFORCE_MFA_ON_EXTERNAL_AUTHENTICATION' '=' ('\'ALL\'' | '\'NONE\''))+ ')')? ('PAT_POLICY' '=' '(' ('DEFAULT_EXPIRY_IN_DAYS' '=' NUMBER | 'MAX_EXPIRY_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY_EVALUATION' '=' ('ENFORCED_REQUIRED' | 'ENFORCED_NOT_REQUIRED' | 'NOT_ENFORCED') | 'REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS' '=' ('TRUE' | 'FALSE'))+ ')')? ('WORKLOAD_IDENTITY_POLICY' '=' '(' ('ALLOWED_PROVIDERS' '=' '(' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC') (',' ('ALL' | 'AWS' | 'AZURE' | 'GCP' | 'OIDC'))* ')' | 'ALLOWED_AWS_ACCOUNTS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_AZURE_ISSUERS' '=' '(' STRING (',' STRING)* ')' | 'ALLOWED_OIDC_ISSUERS' '=' '(' STRING (',' STRING)* ')')+ ')')? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-backup-policy
@@ -2889,7 +2896,7 @@ createContact
 // https://docs.snowflake.com/en/sql-reference/sql/create-cortex-search
 createCortexSearch
     : 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'NOT' 'EXISTS')? ID 'ON' ID ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('EMBEDDING_MODEL' '=' ID)? ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ID 'TEXT' 'INDEXES' STRING (',' STRING)* 'VECTOR' 'INDEXES' ID (',' ID)* ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
+    | 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ID 'TEXT' 'INDEXES' ID (',' ID)* 'VECTOR' 'INDEXES' ID (',' ID)* ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-data-metric-function
@@ -3211,7 +3218,7 @@ createInteractiveWarehouse_objectParams
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-join-policy
 createJoinPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'JOIN' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'JOIN_CONSTRAINT' '->' ID ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'JOIN' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'JOIN_CONSTRAINT' '->' EXPR ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-listing
@@ -3233,7 +3240,7 @@ createManagedAccount
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-masking-policy
 createMaskingPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'MASKING' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' DATA_TYPE '->' ID ('COMMENT' '=' STRING)? ('EXEMPT_OTHER_POLICIES' '=' ('TRUE' | 'FALSE'))?
+    : 'CREATE' ('OR' 'REPLACE')? 'MASKING' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' DATA_TYPE '->' EXPR ('COMMENT' '=' STRING)? ('EXEMPT_OTHER_POLICIES' '=' ('TRUE' | 'FALSE'))?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-materialized-view
@@ -3422,7 +3429,7 @@ createPostgresInstance
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-privacy-policy
 createPrivacyPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'PRIVACY' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'PRIVACY_BUDGET' '->' ID ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'PRIVACY' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'PRIVACY_BUDGET' '->' EXPR ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-procedure
@@ -3475,7 +3482,7 @@ createProcedure
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-projection-policy
 createProjectionPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'PROJECTION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'PROJECTION_CONSTRAINT' '->' ID ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'PROJECTION' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ')' 'RETURNS' 'PROJECTION_CONSTRAINT' '->' EXPR ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-provisioned-throughput
@@ -3509,7 +3516,7 @@ createRole
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-row-access-policy
 createRowAccessPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'ROW' 'ACCESS' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' 'BOOLEAN' '->' ID ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'ROW' 'ACCESS' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' 'BOOLEAN' '->' EXPR ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-schema
@@ -3697,7 +3704,7 @@ createStorageIntegrationPostgresInternal
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-storage-lifecycle-policy
 createStorageLifecyclePolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'STORAGE' 'LIFECYCLE' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' 'BOOLEAN' '->' ID ('ARCHIVE_TIER' '=' ('COOL' | 'COLD'))? ('ARCHIVE_FOR_DAYS' '=' NUMBER)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'STORAGE' 'LIFECYCLE' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'AS' '(' ID DATA_TYPE (',' ID DATA_TYPE)* ')' 'RETURNS' 'BOOLEAN' '->' EXPR ('ARCHIVE_TIER' '=' ('COOL' | 'COLD'))? ('ARCHIVE_FOR_DAYS' '=' NUMBER)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-stream
