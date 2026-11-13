@@ -1449,10 +1449,21 @@ alterIcebergTableOptimize
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-partition-evolution
+// fix: the page says oldPartitionExpression uses partitionExpression's syntax
+// fix: partitionExpression is defined under Parameters, outside the Syntax block; newPartitionExpression uses its syntax
 alterIcebergTablePartitionEvolution
-    : 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'ADD' 'PARTITION' 'BY' '(' ID ')'
-    | 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'DROP' 'PARTITION' 'BY' '(' ID ')'
-    | 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'REPLACE' 'PARTITION' 'BY' '(' ID ')' 'WITH' '(' ID ')'
+    : 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'ADD' 'PARTITION' 'BY' '(' alterIcebergTablePartitionEvolution_partitionExpression ')'
+    | 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'DROP' 'PARTITION' 'BY' '(' alterIcebergTablePartitionEvolution_partitionExpression ')'
+    | 'ALTER' 'ICEBERG' 'TABLE' ('IF' 'EXISTS')? ID 'REPLACE' 'PARTITION' 'BY' '(' alterIcebergTablePartitionEvolution_partitionExpression ')' 'WITH' '(' alterIcebergTablePartitionEvolution_partitionExpression ')'
+    ;
+alterIcebergTablePartitionEvolution_partitionExpression
+    : ID
+    | 'BUCKET' '(' NUMBER ',' ID ')'
+    | 'TRUNCATE' '(' NUMBER ',' ID ')'
+    | 'YEAR' '(' ID ')'
+    | 'MONTH' '(' ID ')'
+    | 'DAY' '(' ID ')'
+    | 'HOUR' '(' ID ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-refresh
@@ -1529,8 +1540,9 @@ alterMaskingPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-materialized-view
+// fix: UNSET takes SECURE, CONTACT or COMMENT, one at a time, as the parameters say; the | after SECURE is missing
 alterMaterializedView
-    : 'ALTER' 'MATERIALIZED' 'VIEW' ID ('RENAME' 'TO' ID | 'CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')' | 'DROP' 'CLUSTERING' 'KEY' | 'SUSPEND' 'RECLUSTER' | 'RESUME' 'RECLUSTER' | 'SUSPEND' | 'RESUME' | 'SET' ('SECURE' ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING) | 'UNSET' ('SECURE' 'CONTACT' ID | 'COMMENT'))
+    : 'ALTER' 'MATERIALIZED' 'VIEW' ID ('RENAME' 'TO' ID | 'CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')' | 'DROP' 'CLUSTERING' 'KEY' | 'SUSPEND' 'RECLUSTER' | 'RESUME' 'RECLUSTER' | 'SUSPEND' | 'RESUME' | 'SET' ('SECURE' ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING) | 'UNSET' ('SECURE' | 'CONTACT' ID | 'COMMENT'))
     | 'ALTER' 'MATERIALIZED' 'VIEW' 'SET' 'DATA_METRIC_SCHEDULE' '=' STRING
     | 'ALTER' 'MATERIALIZED' 'VIEW' 'UNSET' 'DATA_METRIC_SCHEDULE'
     ;
@@ -1681,13 +1693,14 @@ alterOflowDataPlane
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-online-feature-table
+// fix: tagAction is defined under Parameters, outside the Syntax block
 alterOnlineFeatureTable
     : 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID ('SUSPEND' | 'RESUME')
     | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID 'REFRESH'
     | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID 'SET' ('TARGET_LAG' '=' STRING ('WAREHOUSE' '=' ID)? | 'WAREHOUSE' '=' ID)
-    | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID ID
+    | 'ALTER' 'ONLINE' 'FEATURE' 'TABLE' ('IF' 'EXISTS')? ID ('SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* | 'UNSET' 'TAG' ID (',' ID)*)
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-online-feature-table
@@ -3068,7 +3081,7 @@ createIcebergTable_outoflineConstraint
 createIcebergTable_partitionExpression
     : ID
     | 'BUCKET' '(' NUMBER ',' ID ')'
-    | 'TRUNCATE' '(' ID ',' ID ')'
+    | 'TRUNCATE' '(' NUMBER ',' ID ')'
     | 'YEAR' '(' ID ')'
     | 'MONTH' '(' ID ')'
     | 'DAY' '(' ID ')'
@@ -3117,7 +3130,7 @@ createIcebergTableSnowflake_outoflineConstraint
 createIcebergTableSnowflake_partitionExpression
     : ID
     | 'BUCKET' '(' NUMBER ',' ID ')'
-    | 'TRUNCATE' '(' ID ',' ID ')'
+    | 'TRUNCATE' '(' NUMBER ',' ID ')'
     | 'YEAR' '(' ID ')'
     | 'MONTH' '(' ID ')'
     | 'DAY' '(' ID ')'
@@ -3525,6 +3538,7 @@ createSecurityIntegrationScim
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-semantic-view
 // fix: the [ ... ] repeats the whole UNIQUE ( ... ) clause
+// fix: the frame clause is window-function syntax, which the command pages do not define
 createSemanticView
     : 'CREATE' ('OR' 'REPLACE')? 'SEMANTIC' 'VIEW' ('IF' 'NOT' 'EXISTS')? ID 'TABLES' '(' createSemanticView_logicalTable (',' createSemanticView_logicalTable)* ')' ('RELATIONSHIPS' '(' createSemanticView_relationshipDef (',' createSemanticView_relationshipDef)* ')')? ('FACTS' '(' createSemanticView_factExpression (',' createSemanticView_factExpression)* ')')? ('DIMENSIONS' '(' createSemanticView_dimensionExpression (',' createSemanticView_dimensionExpression)* ')')? ('METRICS' '(' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression) (',' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression))* ')')? ('COMMENT' '=' STRING)? ('MAX_STALENESS' '=' NUMBER)? ('AI_SQL_GENERATION' STRING)? ('AI_QUESTION_CATEGORIZATION' STRING)? ('AI_VERIFIED_QUERIES' '(' createSemanticView_verifiedQuery (',' createSemanticView_verifiedQuery)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')?
     ;
@@ -3544,7 +3558,7 @@ createSemanticView_metricExpression
     : (('PRIVATE' | 'PUBLIC'))? ID '.' ID ('USING' '(' ID (',' ID)* ')')? ('NON' 'ADDITIVE' 'BY' '(' ID (('ASC' | 'DESC'))? ('NULLS' ('FIRST' | 'LAST'))? (',' ID (('ASC' | 'DESC'))? ('NULLS' ('FIRST' | 'LAST'))?)* ')')? 'AS' EXPR ('WITH' 'SYNONYMS' '='? '(' STRING (',' STRING)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' STRING)?
     ;
 createSemanticView_windowFunctionMetricExpression
-    : (('PRIVATE' | 'PUBLIC'))? ID '.' ID 'AS' ID '(' ID ')' 'OVER' '(' ('PARTITION' 'BY' (EXPR | 'EXCLUDING' ID))? ('ORDER' 'BY' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))? (',' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))?)*)? ID? ')'
+    : (('PRIVATE' | 'PUBLIC'))? ID '.' ID 'AS' ID '(' ID ')' 'OVER' '(' ('PARTITION' 'BY' (EXPR | 'EXCLUDING' ID))? ('ORDER' 'BY' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))? (',' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))?)*)? ')'
     ;
 createSemanticView_verifiedQuery
     : ID 'AS' '(' 'QUESTION' STRING ('VERIFIED_AT' STRING)? ('ONBOARDING_QUESTION' ID)? ('VERIFIED_BY' STRING)? 'SQL' STRING ')'
@@ -3556,8 +3570,9 @@ createSequence
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-service
+// fix: the comment is text to fill in, written in braces where the other pages write <string_literal>
 createService
-    : 'CREATE' 'SERVICE' ('IF' 'NOT' 'EXISTS')? ID 'IN' 'COMPUTE' 'POOL' ID (createService_fromSpecification | createService_fromSpecificationTemplate) ('AUTO_SUSPEND_SECS' '=' NUMBER)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('MIN_INSTANCES' '=' NUMBER)? ('MIN_READY_INSTANCES' '=' NUMBER)? ('MAX_INSTANCES' '=' NUMBER)? ('LOG_LEVEL' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' '\'{string_literal}\'')?
+    : 'CREATE' 'SERVICE' ('IF' 'NOT' 'EXISTS')? ID 'IN' 'COMPUTE' 'POOL' ID (createService_fromSpecification | createService_fromSpecificationTemplate) ('AUTO_SUSPEND_SECS' '=' NUMBER)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('MIN_INSTANCES' '=' NUMBER)? ('MIN_READY_INSTANCES' '=' NUMBER)? ('MAX_INSTANCES' '=' NUMBER)? ('LOG_LEVEL' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' STRING)?
     ;
 createService_fromSpecification
     : ('FROM' 'SPECIFICATION_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' STRING)
@@ -6379,6 +6394,7 @@ showViews
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-warehouses
+// fix: the parameters write object_privilege, a privilege to filter by, not a fragment
 showWarehouses
     : 'SHOW' 'WAREHOUSES' ('LIKE' STRING)? ('WITH' 'PRIVILEGES' ID (',' ID)*)?
     ;

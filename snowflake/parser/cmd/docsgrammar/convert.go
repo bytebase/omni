@@ -27,7 +27,7 @@ const (
 
 var (
 	exprName       = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
-	numberName     = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms|threshold)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
+	numberName     = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms|threshold|width)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
 	queryName      = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|sql|sql_statement)$`)
 	typeName       = regexp.MustCompile(`(^|_)(data_type|col[0-9]*_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
 	runtimeVersion = regexp.MustCompile(`(python|java|scala|jdk|runtime)[a-z_]*_version$|^runtime_version$`)
@@ -261,6 +261,9 @@ var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\
 var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
 
 // listName is the name of a list of settings, which a fragment holds.
+// camelName is a placeholder written as a fragment's name, <tagAction>.
+var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
+
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
 // missingBar finds the typo many SHOW pages share: the IN list's
@@ -771,6 +774,11 @@ func (c *converter) token(t ntok) (string, error) {
 	case nPlaceholder:
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
+		}
+		if camelName.MatchString(t.text) {
+			// <tagAction> names a fragment, as tagAction ::= would define,
+			// not text to fill in.
+			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
 		return placeholderClass(t.text), nil
 	case nFragment:

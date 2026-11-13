@@ -14895,36 +14895,36 @@ reject	undocumented	docs	alterIcebergTableOptimize(IF_EXISTS)?/IF_EXISTS!drop-1	
 reject	undocumented	docs	alterIcebergTableOptimize(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ICEBERG TABLE IF a OPTIMIZE(REMOVE_POSITION_DELETES)
 reject	undocumented	docs	alterIcebergTableOptimize(IF_EXISTS)?/IF_EXISTS!insert	ALTER ICEBERG TABLE IF EXISTS zzz a OPTIMIZE(REMOVE_POSITION_DELETES)
 reject	undocumented	docs	alterIcebergTableOptimize(IF_EXISTS)?/IF_EXISTS!swap	ALTER ICEBERG TABLE IGNORE EXISTS a OPTIMIZE(REMOVE_POSITION_DELETES)
-reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_ADD_PARTITION_BY_(_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(a)
-reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)	ALTER ICEBERG TABLE a DROP PARTITION BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-1	ICEBERG TABLE a DROP PARTITION BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-2	ALTER TABLE a DROP PARTITION BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-3	ALTER ICEBERG a DROP PARTITION BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-4	ALTER ICEBERG TABLE DROP PARTITION BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-6	ALTER ICEBERG TABLE a DROP BY(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-7	ALTER ICEBERG TABLE a DROP PARTITION(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-8	ALTER ICEBERG TABLE a DROP PARTITION BY a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-9	ALTER ICEBERG TABLE a DROP PARTITION BY()
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!drop-10	ALTER ICEBERG TABLE a DROP PARTITION BY(a
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!insert	ALTER ICEBERG TABLE a DROP PARTITION BY(a) zzz
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(_ID_)!swap	ALWAYS ICEBERG TABLE a DROP PARTITION BY(a)
-reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-1	ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-2	ALTER TABLE a REPLACE PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-3	ALTER ICEBERG a REPLACE PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-4	ALTER ICEBERG TABLE REPLACE PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-5	ALTER ICEBERG TABLE a PARTITION BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-6	ALTER ICEBERG TABLE a REPLACE BY(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-7	ALTER ICEBERG TABLE a REPLACE PARTITION(a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-8	ALTER ICEBERG TABLE a REPLACE PARTITION BY a) WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-9	ALTER ICEBERG TABLE a REPLACE PARTITION BY() WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-10	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a WITH(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-11	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a)(a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-12	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH a)
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-13	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH()
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!drop-14	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!insert	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a) zzz
-reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~fa7560b9!swap	ALWAYS ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
+reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_ADD_PARTITION_BY_(_~a031861e	ALTER ICEBERG TABLE a ADD PARTITION BY(a)
+reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee	ALTER ICEBERG TABLE a DROP PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-1	ICEBERG TABLE a DROP PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-2	ALTER TABLE a DROP PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-3	ALTER ICEBERG a DROP PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-4	ALTER ICEBERG TABLE DROP PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-6	ALTER ICEBERG TABLE a DROP BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-7	ALTER ICEBERG TABLE a DROP PARTITION(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-8	ALTER ICEBERG TABLE a DROP PARTITION BY a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-9	ALTER ICEBERG TABLE a DROP PARTITION BY()
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!drop-10	ALTER ICEBERG TABLE a DROP PARTITION BY(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!insert	ALTER ICEBERG TABLE a DROP PARTITION BY(a) zzz
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_DROP_PARTITION_BY_(~bd6630ee!swap	ALWAYS ICEBERG TABLE a DROP PARTITION BY(a)
+reject	accept	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-1	ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-2	ALTER TABLE a REPLACE PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-3	ALTER ICEBERG a REPLACE PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-4	ALTER ICEBERG TABLE REPLACE PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-5	ALTER ICEBERG TABLE a PARTITION BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-6	ALTER ICEBERG TABLE a REPLACE BY(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-7	ALTER ICEBERG TABLE a REPLACE PARTITION(a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-8	ALTER ICEBERG TABLE a REPLACE PARTITION BY a) WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-9	ALTER ICEBERG TABLE a REPLACE PARTITION BY() WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-10	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a WITH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-11	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a)(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-12	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-13	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH()
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!drop-14	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!insert	ALTER ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a) zzz
+reject	undocumented	docs	alterIcebergTablePartitionEvolution/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REPLACE_PARTITION_B~a7a44928!swap	ALWAYS ICEBERG TABLE a REPLACE PARTITION BY(a) WITH(a)
 reject	accept	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a ADD PARTITION BY(a)
 reject	undocumented	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/%empty!insert	ALTER ICEBERG TABLE zzz a ADD PARTITION BY(a)
 reject	accept	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/IF_EXISTS	ALTER ICEBERG TABLE IF EXISTS a ADD PARTITION BY(a)
@@ -14932,6 +14932,57 @@ reject	undocumented	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/IF_EXIS
 reject	undocumented	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ICEBERG TABLE IF a ADD PARTITION BY(a)
 reject	undocumented	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/IF_EXISTS!insert	ALTER ICEBERG TABLE IF EXISTS zzz a ADD PARTITION BY(a)
 reject	undocumented	docs	alterIcebergTablePartitionEvolution(IF_EXISTS)?/IF_EXISTS!swap	ALTER ICEBERG TABLE IGNORE EXISTS a ADD PARTITION BY(a)
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/ID	ALTER ICEBERG TABLE a ADD PARTITION BY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/ID!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/ID!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(a zzz)
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-1	ALTER ICEBERG TABLE a ADD PARTITION BY((1, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET 1, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1 a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-5	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1,))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!drop-6	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1, a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1, a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(BUCKET(1, a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/BUCKET_(_NUMBER_,_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(BUDGET(1, a))
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE 1, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(, a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1 a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-5	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1,))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-6	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1, a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1, a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATE(1, a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(TRUNCATECOLUMNS(1, a))
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR(a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!drop-1	ALTER ICEBERG TABLE a ADD PARTITION BY((a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR())
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(YEAR(a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/YEAR_(_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(YEARLY(a))
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH(a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH())
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTH(a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/MONTH_(_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(MONTHLY(a))
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY(a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY())
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(DAY(a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/DAY_(_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(DAYS(a))
+reject	accept	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR(a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!drop-2	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR a))
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!drop-3	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR())
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!drop-4	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR(a)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!truncate	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR(a
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!insert	ALTER ICEBERG TABLE a ADD PARTITION BY(HOUR(a) zzz)
+reject	undocumented	docs	alterIcebergTablePartitionEvolution_partitionExpression/HOUR_(_ID_)!swap	ALTER ICEBERG TABLE a ADD PARTITION BY(HOURS(a))
 reject	accept	docs	alterIcebergTableRefresh/ALTER_ICEBERG_TABLE_(IF_EXISTS)?_ID_REFRESH_(STRING)?	ALTER ICEBERG TABLE a REFRESH
 reject	accept	docs	alterIcebergTableRefresh(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a REFRESH
 reject	undocumented	docs	alterIcebergTableRefresh(IF_EXISTS)?/%empty!insert	ALTER ICEBERG TABLE zzz a REFRESH
@@ -15416,7 +15467,7 @@ accept	accept	docs	alterMaskingPolicy(,_ID)*/,_ID_(,_ID)*	ALTER MASKING POLICY a
 reject	undocumented	docs	alterMaskingPolicy(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER MASKING POLICY a UNSET TAG a a
 reject	undocumented	docs	alterMaskingPolicy(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MASKING POLICY a UNSET TAG a,
 reject	undocumented	docs	alterMaskingPolicy(,_ID)*/,_ID_(,_ID)*!insert	ALTER MASKING POLICY a UNSET TAG a, a zzz
-accept	accept	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_ID_(RENAME_TO_ID|CLUSTER_BY_(_E~9b7deb30	ALTER MATERIALIZED VIEW a SUSPEND
+accept	accept	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_ID_(RENAME_TO_ID|CLUSTER_BY_(_E~44a93bb8	ALTER MATERIALIZED VIEW a SUSPEND
 reject	accept	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_SET_DATA_METRIC_SCHEDULE_=_STRING	ALTER MATERIALIZED VIEW SET DATA_METRIC_SCHEDULE = 's'
 reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_SET_DATA_METRIC_SCHEDULE_=_STRING!drop-1	MATERIALIZED VIEW SET DATA_METRIC_SCHEDULE = 's'
 reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_SET_DATA_METRIC_SCHEDULE_=_STRING!drop-2	ALTER VIEW SET DATA_METRIC_SCHEDULE = 's'
@@ -15435,48 +15486,47 @@ reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_UNSET_DAT
 reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_UNSET_DATA_METRIC_SCHEDULE!drop-5	ALTER MATERIALIZED VIEW UNSET
 reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_UNSET_DATA_METRIC_SCHEDULE!insert	ALTER MATERIALIZED VIEW UNSET DATA_METRIC_SCHEDULE zzz
 reject	undocumented	docs	alterMaterializedView/ALTER_MATERIALIZED_VIEW_UNSET_DATA_METRIC_SCHEDULE!swap	ALWAYS MATERIALIZED VIEW UNSET DATA_METRIC_SCHEDULE
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID	ALTER MATERIALIZED VIEW a RENAME TO a
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID!drop-1	ALTER MATERIALIZED VIEW a TO a
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID!drop-2	ALTER MATERIALIZED VIEW a RENAME a
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID!drop-3	ALTER MATERIALIZED VIEW a RENAME TO
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID!insert	ALTER MATERIALIZED VIEW a RENAME TO a zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RENAME_TO_ID!swap	ALTER MATERIALIZED VIEW a REPLACE TO a
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)	ALTER MATERIALIZED VIEW a CLUSTER BY(1)
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-1	ALTER MATERIALIZED VIEW a BY(1)
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-2	ALTER MATERIALIZED VIEW a CLUSTER(1)
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-3	ALTER MATERIALIZED VIEW a CLUSTER BY 1)
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-4	ALTER MATERIALIZED VIEW a CLUSTER BY()
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-5	ALTER MATERIALIZED VIEW a CLUSTER BY(1
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!insert	ALTER MATERIALIZED VIEW a CLUSTER BY(1) zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!swap	ALTER MATERIALIZED VIEW a CLUSTERING BY(1)
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY	ALTER MATERIALIZED VIEW a DROP CLUSTERING KEY
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY!drop-1	ALTER MATERIALIZED VIEW a CLUSTERING KEY
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY!drop-2	ALTER MATERIALIZED VIEW a DROP KEY
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY!drop-3	ALTER MATERIALIZED VIEW a DROP CLUSTERING
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY!insert	ALTER MATERIALIZED VIEW a DROP CLUSTERING KEY zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/DROP_CLUSTERING_KEY!swap	ALTER MATERIALIZED VIEW a DROP_FROM_SOURCE_CATALOG CLUSTERING KEY
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND_RECLUSTER	ALTER MATERIALIZED VIEW a SUSPEND RECLUSTER
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND_RECLUSTER!drop-1	ALTER MATERIALIZED VIEW a RECLUSTER
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND_RECLUSTER!insert	ALTER MATERIALIZED VIEW a SUSPEND RECLUSTER zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND_RECLUSTER!swap	ALTER MATERIALIZED VIEW a SUSPENDED RECLUSTER
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME_RECLUSTER	ALTER MATERIALIZED VIEW a RESUME RECLUSTER
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME_RECLUSTER!insert	ALTER MATERIALIZED VIEW a RESUME RECLUSTER zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME_RECLUSTER!swap	ALTER MATERIALIZED VIEW a RETAIN RECLUSTER
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND	ALTER MATERIALIZED VIEW a SUSPEND
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SUSPEND!swap	ALTER MATERIALIZED VIEW a SUSPENDED
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME	ALTER MATERIALIZED VIEW a RESUME
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME!insert	ALTER MATERIALIZED VIEW a RESUME zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/RESUME!swap	ALTER MATERIALIZED VIEW a RETAIN
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)	ALTER MATERIALIZED VIEW a SET SECURE
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!drop-1	ALTER MATERIALIZED VIEW a SECURE
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!drop-2	ALTER MATERIALIZED VIEW a SET
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!insert	ALTER MATERIALIZED VIEW a SET SECURE zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!swap	ALTER MATERIALIZED VIEW a SETS SECURE
-accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/UNSET_(SECURE_CONTACT_ID|COMMENT)	ALTER MATERIALIZED VIEW a UNSET COMMENT
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/UNSET_(SECURE_CONTACT_ID|COMMENT)!drop-1	ALTER MATERIALIZED VIEW a COMMENT
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/UNSET_(SECURE_CONTACT_ID|COMMENT)!drop-2	ALTER MATERIALIZED VIEW a UNSET
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/UNSET_(SECURE_CONTACT_ID|COMMENT)!insert	ALTER MATERIALIZED VIEW a UNSET COMMENT zzz
-reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~b94f208e)/UNSET_(SECURE_CONTACT_ID|COMMENT)!swap	ALTER MATERIALIZED VIEW a UNSUPPORTED_DDL_ACTION COMMENT
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID	ALTER MATERIALIZED VIEW a RENAME TO a
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID!drop-1	ALTER MATERIALIZED VIEW a TO a
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID!drop-2	ALTER MATERIALIZED VIEW a RENAME a
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID!drop-3	ALTER MATERIALIZED VIEW a RENAME TO
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID!insert	ALTER MATERIALIZED VIEW a RENAME TO a zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RENAME_TO_ID!swap	ALTER MATERIALIZED VIEW a REPLACE TO a
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)	ALTER MATERIALIZED VIEW a CLUSTER BY(1)
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-1	ALTER MATERIALIZED VIEW a BY(1)
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-2	ALTER MATERIALIZED VIEW a CLUSTER(1)
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-3	ALTER MATERIALIZED VIEW a CLUSTER BY 1)
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-4	ALTER MATERIALIZED VIEW a CLUSTER BY()
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-5	ALTER MATERIALIZED VIEW a CLUSTER BY(1
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!insert	ALTER MATERIALIZED VIEW a CLUSTER BY(1) zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!swap	ALTER MATERIALIZED VIEW a CLUSTERING BY(1)
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY	ALTER MATERIALIZED VIEW a DROP CLUSTERING KEY
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY!drop-1	ALTER MATERIALIZED VIEW a CLUSTERING KEY
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY!drop-2	ALTER MATERIALIZED VIEW a DROP KEY
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY!drop-3	ALTER MATERIALIZED VIEW a DROP CLUSTERING
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY!insert	ALTER MATERIALIZED VIEW a DROP CLUSTERING KEY zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/DROP_CLUSTERING_KEY!swap	ALTER MATERIALIZED VIEW a DROP_FROM_SOURCE_CATALOG CLUSTERING KEY
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND_RECLUSTER	ALTER MATERIALIZED VIEW a SUSPEND RECLUSTER
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND_RECLUSTER!drop-1	ALTER MATERIALIZED VIEW a RECLUSTER
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND_RECLUSTER!insert	ALTER MATERIALIZED VIEW a SUSPEND RECLUSTER zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND_RECLUSTER!swap	ALTER MATERIALIZED VIEW a SUSPENDED RECLUSTER
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME_RECLUSTER	ALTER MATERIALIZED VIEW a RESUME RECLUSTER
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME_RECLUSTER!insert	ALTER MATERIALIZED VIEW a RESUME RECLUSTER zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME_RECLUSTER!swap	ALTER MATERIALIZED VIEW a RETAIN RECLUSTER
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND	ALTER MATERIALIZED VIEW a SUSPEND
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SUSPEND!swap	ALTER MATERIALIZED VIEW a SUSPENDED
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME	ALTER MATERIALIZED VIEW a RESUME
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME!insert	ALTER MATERIALIZED VIEW a RESUME zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/RESUME!swap	ALTER MATERIALIZED VIEW a RETAIN
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)	ALTER MATERIALIZED VIEW a SET SECURE
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!drop-1	ALTER MATERIALIZED VIEW a SECURE
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!drop-2	ALTER MATERIALIZED VIEW a SET
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!insert	ALTER MATERIALIZED VIEW a SET SECURE zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/SET_(SECURE_(CONTACT_ID_=_ID_(,_ID_=_ID)*~953ff1c5)!swap	ALTER MATERIALIZED VIEW a SETS SECURE
+accept	accept	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/UNSET_(SECURE|CONTACT_ID|COMMENT)	ALTER MATERIALIZED VIEW a UNSET SECURE
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/UNSET_(SECURE|CONTACT_ID|COMMENT)!drop-2	ALTER MATERIALIZED VIEW a UNSET
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/UNSET_(SECURE|CONTACT_ID|COMMENT)!insert	ALTER MATERIALIZED VIEW a UNSET SECURE zzz
+reject	undocumented	docs	alterMaterializedView(RENAME_TO_ID|CLUSTER_BY_(_EXPR_(,_EX~86a6b886)/UNSET_(SECURE|CONTACT_ID|COMMENT)!swap	ALTER MATERIALIZED VIEW a UNSUPPORTED_DDL_ACTION SECURE
 accept	accept	docs	alterMaterializedView(,_EXPR)*/%empty	ALTER MATERIALIZED VIEW a CLUSTER BY(1)
 reject	undocumented	docs	alterMaterializedView(,_EXPR)*/%empty!insert	ALTER MATERIALIZED VIEW a CLUSTER BY(1 zzz)
 accept	accept	docs	alterMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*	ALTER MATERIALIZED VIEW a CLUSTER BY(1, 1)
@@ -15521,14 +15571,16 @@ accept	undocumented	docs	alterMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	alterMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER MATERIALIZED VIEW a SET SECURE COMMENT =
 reject	undocumented	docs	alterMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER MATERIALIZED VIEW a SET SECURE COMMENT = 's' zzz
 reject	undocumented	docs	alterMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER MATERIALIZED VIEW a SET SECURE COMMENTS = 's'
-reject	accept	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID	ALTER MATERIALIZED VIEW a UNSET SECURE CONTACT a
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID!drop-1	ALTER MATERIALIZED VIEW a UNSET CONTACT a
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID!drop-2	ALTER MATERIALIZED VIEW a UNSET SECURE a
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID!drop-3	ALTER MATERIALIZED VIEW a UNSET SECURE CONTACT
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID!insert	ALTER MATERIALIZED VIEW a UNSET SECURE CONTACT a zzz
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/SECURE_CONTACT_ID!swap	ALTER MATERIALIZED VIEW a UNSET SECURE_OBJECTS_ONLY CONTACT a
-accept	accept	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/COMMENT	ALTER MATERIALIZED VIEW a UNSET COMMENT
-reject	undocumented	docs	alterMaterializedView(SECURE_CONTACT_ID|COMMENT)/COMMENT!swap	ALTER MATERIALIZED VIEW a UNSET COMMENTS
+accept	accept	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/SECURE	ALTER MATERIALIZED VIEW a UNSET SECURE
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/SECURE!swap	ALTER MATERIALIZED VIEW a UNSET SECURE_OBJECTS_ONLY
+reject	accept	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/CONTACT_ID	ALTER MATERIALIZED VIEW a UNSET CONTACT a
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/CONTACT_ID!drop-1	ALTER MATERIALIZED VIEW a UNSET a
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/CONTACT_ID!drop-2	ALTER MATERIALIZED VIEW a UNSET CONTACT
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/CONTACT_ID!insert	ALTER MATERIALIZED VIEW a UNSET CONTACT a zzz
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/CONTACT_ID!swap	ALTER MATERIALIZED VIEW a UNSET CONTACTS a
+accept	accept	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/COMMENT	ALTER MATERIALIZED VIEW a UNSET COMMENT
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/COMMENT!insert	ALTER MATERIALIZED VIEW a UNSET COMMENT zzz
+reject	undocumented	docs	alterMaterializedView(SECURE|CONTACT_ID|COMMENT)/COMMENT!swap	ALTER MATERIALIZED VIEW a UNSET COMMENTS
 reject	accept	docs	alterModel/ALTER_MODEL_(IF_EXISTS)?_ID_SET_(COMMENT_=_STRING_(DEFA~b40ac498	ALTER MODEL a SET COMMENT = 's'
 reject	undocumented	docs	alterModel/ALTER_MODEL_(IF_EXISTS)?_ID_SET_(COMMENT_=_STRING_(DEFA~b40ac498!drop-1	MODEL a SET COMMENT = 's'
 reject	undocumented	docs	alterModel/ALTER_MODEL_(IF_EXISTS)?_ID_SET_(COMMENT_=_STRING_(DEFA~b40ac498!drop-3	ALTER MODEL SET COMMENT = 's'
@@ -16442,13 +16494,17 @@ reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_
 reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_SET_(TARGET_~7e601a2a!drop-9	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG =
 reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_SET_(TARGET_~7e601a2a!insert	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG = 's' zzz
 reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_SET_(TARGET_~7e601a2a!swap	ALWAYS ONLINE FEATURE TABLE a SET TARGET_LAG = 's'
-reject	accept	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID	ALTER ONLINE FEATURE TABLE a a
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!drop-1	ONLINE FEATURE TABLE a a
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!drop-2	ALTER FEATURE TABLE a a
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!drop-3	ALTER ONLINE TABLE a a
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!drop-4	ALTER ONLINE FEATURE a a
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!insert	ALTER ONLINE FEATURE TABLE a a zzz
-reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_ID!swap	ALWAYS ONLINE FEATURE TABLE a a
+reject	accept	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba	ALTER ONLINE FEATURE TABLE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-1	ONLINE FEATURE TABLE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-2	ALTER FEATURE TABLE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-3	ALTER ONLINE TABLE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-4	ALTER ONLINE FEATURE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-5	ALTER ONLINE FEATURE TABLE UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-6	ALTER ONLINE FEATURE TABLE a TAG a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-7	ALTER ONLINE FEATURE TABLE a UNSET a
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!drop-8	ALTER ONLINE FEATURE TABLE a UNSET TAG
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!insert	ALTER ONLINE FEATURE TABLE a UNSET TAG a zzz
+reject	undocumented	docs	alterOnlineFeatureTable/ALTER_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_ID_(SET_TAG_ID_~a8c374ba!swap	ALWAYS ONLINE FEATURE TABLE a UNSET TAG a
 reject	accept	docs	alterOnlineFeatureTable(IF_EXISTS)?/%empty	ALTER ONLINE FEATURE TABLE a SUSPEND
 reject	undocumented	docs	alterOnlineFeatureTable(IF_EXISTS)?/%empty!insert	ALTER ONLINE FEATURE TABLE zzz a SUSPEND
 reject	accept	docs	alterOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS	ALTER ONLINE FEATURE TABLE IF EXISTS a SUSPEND
@@ -16458,10 +16514,10 @@ reject	undocumented	docs	alterOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!truncate	
 reject	undocumented	docs	alterOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!insert	ALTER ONLINE FEATURE TABLE IF EXISTS zzz a SUSPEND
 reject	undocumented	docs	alterOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!swap	ALTER ONLINE FEATURE TABLE IGNORE EXISTS a SUSPEND
 reject	accept	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/SUSPEND	ALTER ONLINE FEATURE TABLE a SUSPEND
-reject	accept	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/SUSPEND!swap	ALTER ONLINE FEATURE TABLE a SUSPENDED
+reject	undocumented	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/SUSPEND!swap	ALTER ONLINE FEATURE TABLE a SUSPENDED
 reject	accept	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/RESUME	ALTER ONLINE FEATURE TABLE a RESUME
 reject	undocumented	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/RESUME!insert	ALTER ONLINE FEATURE TABLE a RESUME zzz
-reject	accept	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/RESUME!swap	ALTER ONLINE FEATURE TABLE a RETAIN
+reject	undocumented	docs	alterOnlineFeatureTable(SUSPEND|RESUME)/RESUME!swap	ALTER ONLINE FEATURE TABLE a RETAIN
 reject	accept	docs	alterOnlineFeatureTable(TARGET_LAG_=_STRING_(WAREHOUSE_=_ID)~c7d0e36f)/TARGET_LAG_=_STRING_(WAREHOUSE_=_ID)?	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG = 's'
 reject	undocumented	docs	alterOnlineFeatureTable(TARGET_LAG_=_STRING_(WAREHOUSE_=_ID)~c7d0e36f)/TARGET_LAG_=_STRING_(WAREHOUSE_=_ID)?!swap	ALTER ONLINE FEATURE TABLE a SET TARGET_PATH = 's'
 reject	accept	docs	alterOnlineFeatureTable(TARGET_LAG_=_STRING_(WAREHOUSE_=_ID)~c7d0e36f)/WAREHOUSE_=_ID	ALTER ONLINE FEATURE TABLE a SET WAREHOUSE = a
@@ -16477,6 +16533,28 @@ reject	undocumented	docs	alterOnlineFeatureTable(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID
 reject	undocumented	docs	alterOnlineFeatureTable(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-3	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG = 's' WAREHOUSE =
 reject	undocumented	docs	alterOnlineFeatureTable(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!insert	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG = 's' WAREHOUSE = a zzz
 reject	undocumented	docs	alterOnlineFeatureTable(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	ALTER ONLINE FEATURE TABLE a SET TARGET_LAG = 's' WAREHOUSES = a
+reject	accept	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*	ALTER ONLINE FEATURE TABLE a SET TAG a = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-1	ALTER ONLINE FEATURE TABLE a TAG a = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-2	ALTER ONLINE FEATURE TABLE a SET a = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-3	ALTER ONLINE FEATURE TABLE a SET TAG = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-4	ALTER ONLINE FEATURE TABLE a SET TAG a 's'
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-5	ALTER ONLINE FEATURE TABLE a SET TAG a =
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!insert	ALTER ONLINE FEATURE TABLE a SET TAG a = 's' zzz
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!swap	ALTER ONLINE FEATURE TABLE a SETS TAG a = 's'
+reject	accept	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/UNSET_TAG_ID_(,_ID)*	ALTER ONLINE FEATURE TABLE a UNSET TAG a
+reject	undocumented	docs	alterOnlineFeatureTable(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/UNSET_TAG_ID_(,_ID)*!swap	ALTER ONLINE FEATURE TABLE a UNSUPPORTED_DDL_ACTION TAG a
+reject	accept	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/%empty	ALTER ONLINE FEATURE TABLE a SET TAG a = 's'
+reject	accept	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	ALTER ONLINE FEATURE TABLE a SET TAG a = 's', a = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	ALTER ONLINE FEATURE TABLE a SET TAG a = 's' a = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	ALTER ONLINE FEATURE TABLE a SET TAG a = 's', = 's'
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	ALTER ONLINE FEATURE TABLE a SET TAG a = 's', a 's'
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	ALTER ONLINE FEATURE TABLE a SET TAG a = 's', a =
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	ALTER ONLINE FEATURE TABLE a SET TAG a = 's', a = 's' zzz
+reject	accept	docs	alterOnlineFeatureTable(,_ID)*/%empty	ALTER ONLINE FEATURE TABLE a UNSET TAG a
+reject	accept	docs	alterOnlineFeatureTable(,_ID)*/,_ID_(,_ID)*	ALTER ONLINE FEATURE TABLE a UNSET TAG a, a
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER ONLINE FEATURE TABLE a UNSET TAG a a
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER ONLINE FEATURE TABLE a UNSET TAG a,
+reject	undocumented	docs	alterOnlineFeatureTable(,_ID)*/,_ID_(,_ID)*!insert	ALTER ONLINE FEATURE TABLE a UNSET TAG a, a zzz
 reject	accept	docs	createOnlineFeatureTable/CREATE_(OR_REPLACE)?_ONLINE_FEATURE_TABLE_ID_PRIMARY_KE~f62f3a59	CREATE ONLINE FEATURE TABLE a PRIMARY KEY(a) TARGET_LAG = 's' WAREHOUSE = a FROM a
 reject	accept	docs	createOnlineFeatureTable(OR_REPLACE)?/%empty	CREATE ONLINE FEATURE TABLE a PRIMARY KEY(a) TARGET_LAG = 's' WAREHOUSE = a FROM a
 reject	undocumented	docs	createOnlineFeatureTable(OR_REPLACE)?/%empty!insert	CREATE zzz ONLINE FEATURE TABLE a PRIMARY KEY(a) TARGET_LAG = 's' WAREHOUSE = a FROM a
@@ -35025,16 +35103,15 @@ reject	undocumented	docs	createIcebergTable_partitionExpression/BUCKET_(_NUMBER_
 reject	undocumented	docs	createIcebergTable_partitionExpression/BUCKET_(_NUMBER_,_ID_)!truncate	CREATE ICEBERG TABLE a PARTITION BY(BUCKET(1, a
 reject	undocumented	docs	createIcebergTable_partitionExpression/BUCKET_(_NUMBER_,_ID_)!insert	CREATE ICEBERG TABLE a PARTITION BY(BUCKET(1, a) zzz)
 reject	undocumented	docs	createIcebergTable_partitionExpression/BUCKET_(_NUMBER_,_ID_)!swap	CREATE ICEBERG TABLE a PARTITION BY(BUDGET(1, a))
-reject	accept	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a, a))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-1	CREATE ICEBERG TABLE a PARTITION BY((a, a))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-2	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE a, a))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-3	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(, a))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-4	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a a))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-5	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a,))
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-6	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a, a)
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!truncate	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a, a
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!insert	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(a, a) zzz)
-reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_ID_,_ID_)!swap	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATECOLUMNS(a, a))
+reject	accept	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1, a))
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-2	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE 1, a))
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-3	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(, a))
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-4	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1 a))
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-5	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1,))
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-6	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1, a)
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!truncate	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1, a
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!insert	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATE(1, a) zzz)
+reject	undocumented	docs	createIcebergTable_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!swap	CREATE ICEBERG TABLE a PARTITION BY(TRUNCATECOLUMNS(1, a))
 reject	accept	docs	createIcebergTable_partitionExpression/YEAR_(_ID_)	CREATE ICEBERG TABLE a PARTITION BY(YEAR(a))
 reject	undocumented	docs	createIcebergTable_partitionExpression/YEAR_(_ID_)!drop-1	CREATE ICEBERG TABLE a PARTITION BY((a))
 reject	undocumented	docs	createIcebergTable_partitionExpression/YEAR_(_ID_)!drop-2	CREATE ICEBERG TABLE a PARTITION BY(YEAR a))
@@ -35814,16 +35891,15 @@ reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/BUCKET_
 reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/BUCKET_(_NUMBER_,_ID_)!truncate	CREATE ICEBERG TABLE a(a INT) PARTITION BY(BUCKET(1, a
 reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/BUCKET_(_NUMBER_,_ID_)!insert	CREATE ICEBERG TABLE a(a INT) PARTITION BY(BUCKET(1, a) zzz)
 reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/BUCKET_(_NUMBER_,_ID_)!swap	CREATE ICEBERG TABLE a(a INT) PARTITION BY(BUDGET(1, a))
-reject	accept	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a, a))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-1	CREATE ICEBERG TABLE a(a INT) PARTITION BY((a, a))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-2	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE a, a))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-3	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(, a))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-4	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a a))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-5	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a,))
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!drop-6	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a, a)
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!truncate	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a, a
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!insert	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(a, a) zzz)
-reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_ID_,_ID_)!swap	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATECOLUMNS(a, a))
+reject	accept	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1, a))
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-2	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE 1, a))
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-3	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(, a))
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-4	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1 a))
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-5	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1,))
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!drop-6	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1, a)
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!truncate	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1, a
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!insert	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATE(1, a) zzz)
+reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/TRUNCATE_(_NUMBER_,_ID_)!swap	CREATE ICEBERG TABLE a(a INT) PARTITION BY(TRUNCATECOLUMNS(1, a))
 reject	accept	docs	createIcebergTableSnowflake_partitionExpression/YEAR_(_ID_)	CREATE ICEBERG TABLE a(a INT) PARTITION BY(YEAR(a))
 reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/YEAR_(_ID_)!drop-1	CREATE ICEBERG TABLE a(a INT) PARTITION BY((a))
 reject	undocumented	docs	createIcebergTableSnowflake_partitionExpression/YEAR_(_ID_)!drop-2	CREATE ICEBERG TABLE a(a INT) PARTITION BY(YEAR a))
@@ -40993,7 +41069,7 @@ accept	undocumented	docs	createSemanticView_metricExpression(COMMENT_=_STRING)?/
 reject	undocumented	docs	createSemanticView_metricExpression(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS 1 COMMENT =
 accept	undocumented	docs	createSemanticView_metricExpression(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS 1 COMMENT = 's' zzz)
 accept	undocumented	docs	createSemanticView_metricExpression(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS 1 COMMENTS = 's')
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression/((PRIVATE|PUBLIC))?_ID_._ID_AS_ID_(_ID_)_OVER_(_(PARTIT~9b9ab78f	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
+accept	accept	docs	createSemanticView_windowFunctionMetricExpression/((PRIVATE|PUBLIC))?_ID_._ID_AS_ID_(_ID_)_OVER_(_(PARTIT~26856ebe	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression((PRIVATE|PUBLIC))?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression((PRIVATE|PUBLIC))?/%empty!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(zzz a.a AS a(a) OVER())
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression((PRIVATE|PUBLIC))?/(PRIVATE|PUBLIC)	CREATE SEMANTIC VIEW a TABLES(a) METRICS(PRIVATE a.a AS a(a) OVER())
@@ -41004,57 +41080,54 @@ accept	accept	docs	createSemanticView_windowFunctionMetricExpression(PRIVATE|PUB
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PRIVATE|PUBLIC)/PUBLIC!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(PUBLIC zzz a.a AS a(a) OVER())
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PRIVATE|PUBLIC)/PUBLIC!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(PUBLIC_KEY a.a AS a(a) OVER())
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/%empty!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/%empty!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(zzz))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!drop-1	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(BY 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!drop-3	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY 1 zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY 1 zzz))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(PARTITION_BY_(EXPR|EXCLUDING_ID))?/PARTITION_BY_(EXPR|EXCLUDING_ID)!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION_TYPE BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXPR	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUDING a))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!drop-1	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY a))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUDING))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUDING
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUDING a zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUDING a zzz))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(EXPR|EXCLUDING_ID)/EXCLUDING_ID!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(PARTITION BY EXCLUSIVE a))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!drop-3	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 zzz))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FI~6363e271)?/ORDER_BY_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR~f5b4d707!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORGANIZATION BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASC))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASC zzz))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASOF))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASC zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/ASC!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 ASOF))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/DESC	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 DESC))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/DESC!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 DESC zzz))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/DESC!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 DESCRIBE))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/DESC!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 DESC zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ASC|DESC)?/DESC!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 DESCRIBE))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS FIRST))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-1	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 FIRST))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-1	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 FIRST))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS FIRST zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS FIRST zzz))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULL_IF FIRST))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/FIRST	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS FIRST))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/FIRST!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS FIRST_NAME))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/LAST	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS LAST))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/LAST!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS LAST zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/LAST!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS LAST zzz))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(FIRST|LAST)/LAST!swap	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 NULLS LAST_NAME))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1))
 accept	accept	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1, 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!drop-1	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1 1))
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1,))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1,
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1, 1 zzz))
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ID)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER())
-accept	accept	docs	createSemanticView_windowFunctionMetricExpression(ID)?/ID	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(a))
-accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(ID)?/ID!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(a zzz))
+accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1, 1 zzz))
 accept	accept	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_STRING)?_(ONBOARDI~bd5140c9	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
 reject	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_STRING)?_(ONBOARDI~bd5140c9!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'
 accept	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_STRING)?_(ONBOARDI~bd5140c9!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a ASC(QUESTION 's' SQL 's'))
@@ -41134,7 +41207,7 @@ reject	undocumented	docs	createSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!drop
 reject	undocumented	docs	createSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SEQUENCE a COMMENT =
 reject	undocumented	docs	createSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SEQUENCE a COMMENT = 's' zzz
 reject	undocumented	docs	createSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SEQUENCE a COMMENTS = 's'
-reject	accept	docs	createService/CREATE_SERVICE_(IF_NOT_EXISTS)?_ID_IN_COMPUTE_POOL_ID_(~53c74a61	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
+reject	accept	docs	createService/CREATE_SERVICE_(IF_NOT_EXISTS)?_ID_IN_COMPUTE_POOL_ID_(~fab0ab63	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	createService(IF_NOT_EXISTS)?/%empty	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	undocumented	docs	createService(IF_NOT_EXISTS)?/%empty!insert	CREATE SERVICE zzz a IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	createService(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SERVICE IF NOT EXISTS a IN COMPUTE POOL a FROM SPECIFICATION 's'
@@ -41249,13 +41322,12 @@ reject	undocumented	docs	createService(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STR
 reject	undocumented	docs	createService(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' TAG(a = 's', a =)
 reject	undocumented	docs	createService(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' TAG(a = 's', a =
 reject	undocumented	docs	createService(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createService(COMMENT_=_'{string_literal}')?/%empty	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
-reject	accept	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT = '{string_literal}'
-reject	undocumented	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'!drop-1	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' = '{string_literal}'
-reject	undocumented	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'!drop-2	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT '{string_literal}'
-reject	undocumented	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'!drop-3	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT =
-reject	undocumented	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'!insert	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT = '{string_literal}' zzz
-reject	undocumented	docs	createService(COMMENT_=_'{string_literal}')?/COMMENT_=_'{string_literal}'!swap	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENTS = '{string_literal}'
+reject	accept	docs	createService(COMMENT_=_STRING)?/%empty	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
+reject	accept	docs	createService(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT = 's'
+reject	undocumented	docs	createService(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT 's'
+reject	undocumented	docs	createService(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT =
+reject	undocumented	docs	createService(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENT = 's' zzz
+reject	undocumented	docs	createService(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's' COMMENTS = 's'
 reject	accept	docs	createService_fromSpecification/(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION 's'
 reject	accept	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING	CREATE SERVICE a IN COMPUTE POOL a FROM SPECIFICATION_FILE = 's'
 reject	undocumented	docs	createService_fromSpecification(FROM_SPECIFICATION_FILE_=_STRING|FRO~dc144846)/FROM_SPECIFICATION_FILE_=_STRING!drop-1	CREATE SERVICE a IN COMPUTE POOL a SPECIFICATION_FILE = 's'
