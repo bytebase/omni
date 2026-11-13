@@ -2858,7 +2858,8 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	if lit, ok := expr.(*nodes.StringLit); ok {
-		kind := map[string]string{"D": "DATE", "T": "TIME", "TS": "TIMESTAMP"}[strings.ToUpper(word)]
+		// The word is compared as written: `{D '...'}` is the string.
+		kind := map[string]string{"d": "DATE", "t": "TIME", "ts": "TIMESTAMP"}[word]
 		if kind != "" && odbcTemporalValid(kind, lit.Value) {
 			return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: kind, Value: lit.Value}, nil
 		}
@@ -2867,7 +2868,8 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 }
 
 // odbcTemporalValid reports whether v is kind's canonical text with each field
-// in range: YYYY-MM-DD, HH:MM:SS[.fraction], or the two joined by a space.
+// in range: YYYY-MM-DD; a TIME [-]H:MM:SS[.fraction] up to 838 hours; or a date
+// and a clock time HH:MM:SS[.fraction] joined by a space.
 func odbcTemporalValid(kind, v string) bool {
 	date := func(d string) bool {
 		if len(d) != 10 || d[4] != '-' || d[7] != '-' {
@@ -2904,7 +2906,23 @@ func odbcTemporalValid(kind, v string) bool {
 	case "DATE":
 		return date(v)
 	case "TIME":
-		return clock(v)
+		// A TIME is an interval: a sign and hours up to 838.
+		t := strings.TrimPrefix(v, "-")
+		frac := ""
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			t, frac = t[:i], t[i+1:]
+			if _, ok := atoiDigits(frac); !ok || len(frac) > 6 {
+				return false
+			}
+		}
+		parts := strings.Split(t, ":")
+		if len(parts) != 3 || len(parts[1]) != 2 || len(parts[2]) != 2 || len(parts[0]) == 0 || len(parts[0]) > 3 {
+			return false
+		}
+		h, ok1 := atoiDigits(parts[0])
+		mi, ok2 := atoiDigits(parts[1])
+		sec, ok3 := atoiDigits(parts[2])
+		return ok1 && ok2 && ok3 && h <= 838 && mi <= 59 && sec <= 59
 	default:
 		d, t, ok := strings.Cut(v, " ")
 		return ok && date(d) && clock(t)

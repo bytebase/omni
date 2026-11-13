@@ -19,6 +19,11 @@ func TestODBCEscape(t *testing.T) {
 		{"SELECT {d 'not-a-date'}", false},
 		{"SELECT {d '2021-02-29'}", false},
 		{"SELECT {x '2020-01-01'}", false},
+		{"SELECT {D '2020-01-01'}", false},
+		{"SELECT {t '25:00:00'}", true},
+		{"SELECT {t '-01:00:00'}", true},
+		{"SELECT {t '839:00:00'}", false},
+		{"SELECT {ts '2020-01-01 25:00:00'}", false},
 	} {
 		list, err := Parse(tc.sql)
 		if err != nil {
