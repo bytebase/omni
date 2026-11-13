@@ -245,7 +245,6 @@ statement
     | createImageRepository
     | createIndex
     | createIngressPolicy
-    | createIntegration
     | createInteractiveTable
     | createInteractiveWarehouse
     | createJoinPolicy
@@ -903,7 +902,7 @@ alterApplicationDropConfigurationDefinition
 // https://docs.snowflake.com/en/sql-reference/sql/alter-application-package
 alterApplicationPackage
     : 'ALTER' 'APPLICATION' 'PACKAGE' ('IF' 'EXISTS')? ID 'SET' ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? ('MULTIPLE_INSTANCES' '=' 'TRUE')? ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER ('DEFAULT_DDL_COLLATION' '=' STRING)? ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? ('MULTIPLE_INSTANCES' '=' 'TRUE')? ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'DEFAULT_DDL_COLLATION' '=' STRING ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? ('MULTIPLE_INSTANCES' '=' 'TRUE')? ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'COMMENT' '=' STRING ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? ('MULTIPLE_INSTANCES' '=' 'TRUE')? ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL') ('MULTIPLE_INSTANCES' '=' 'TRUE')? ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'MULTIPLE_INSTANCES' '=' 'TRUE' ('ENABLE_RELEASE_CHANNELS' '=' 'TRUE')? ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'ENABLE_RELEASE_CHANNELS' '=' 'TRUE' ('LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'LISTING_AUTO_REFRESH' '=' ('TRUE' | 'FALSE') ('AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))? | 'AUTOMATIC_APPLICATION_MAINTENANCE' '=' ('TRUE' | 'FALSE'))
-    | 'ALTER' 'APPLICATION' 'PACKAGE' ('IF' 'EXISTS')? ID 'UNSET' ('DATA_RETENTION_TIME_IN_DAYS' 'MAX_DATA_EXTENSION_TIME_IN_DAYS'? 'DEFAULT_DDL_COLLATION'? ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' 'DEFAULT_DDL_COLLATION'? ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? | 'DEFAULT_DDL_COLLATION' ('COMMENT' '=' STRING)? ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? | 'COMMENT' '=' STRING ('DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))? | 'DISTRIBUTION' '=' ('INTERNAL' | 'EXTERNAL'))
+    | 'ALTER' 'APPLICATION' 'PACKAGE' ('IF' 'EXISTS')? ID 'UNSET' ('DATA_RETENTION_TIME_IN_DAYS' 'MAX_DATA_EXTENSION_TIME_IN_DAYS'? 'DEFAULT_DDL_COLLATION'? 'COMMENT'? 'DISTRIBUTION'? | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' 'DEFAULT_DDL_COLLATION'? 'COMMENT'? 'DISTRIBUTION'? | 'DEFAULT_DDL_COLLATION' 'COMMENT'? 'DISTRIBUTION'? | 'COMMENT' 'DISTRIBUTION'? | 'DISTRIBUTION')
     | 'ALTER' 'APPLICATION' 'PACKAGE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'APPLICATION' 'PACKAGE' ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'APPLICATION' 'PACKAGE' ID 'UNSET' 'TAG' ID (',' ID)*
@@ -1175,6 +1174,7 @@ alterDcmProject
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-dynamic-table
 // fix: dataGovnPolicyTagAction: the UNSET TAG variant ends in } but opens no {; added
+// fix: UNSET names a property without its value, as the page's parameters say
 // not converted (form): undefined fragment "tableColumnCommentAction": the page does not define it, or it did not convert
 //   ALTER DYNAMIC TABLE [ IF EXISTS ] <name> { tableColumnCommentAction }
 alterDynamicTable
@@ -1183,7 +1183,7 @@ alterDynamicTable
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID 'SWAP' 'WITH' ID
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID (',' ID)* 'REFRESH' ('COPY' 'SESSION')?
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID alterDynamicTable_clusteringAction
-    | 'ALTER' 'DYNAMIC' 'TABLE' ID ('SET' | 'UNSET') 'COMMENT' '=' STRING
+    | 'ALTER' 'DYNAMIC' 'TABLE' ID ('SET' 'COMMENT' '=' STRING | 'UNSET' 'COMMENT')
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID alterDynamicTable_dataGovnPolicyTagAction
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID alterDynamicTable_searchOptimizationAction
     | 'ALTER' 'DYNAMIC' 'TABLE' ('IF' 'EXISTS')? ID alterDynamicTable_storageLifecyclePolicyAction
@@ -2451,7 +2451,7 @@ alterVariable
 alterView
     : 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'SET' ('SECURE' ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CHANGE_TRACKING' '=' ('TRUE' | 'FALSE') ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
-    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'UNSET' ('SECURE' ('CONTACT' ID)? ('COMMENT' '=' STRING)? | 'CONTACT' ID ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'UNSET' ('SECURE' ('CONTACT' ID)? 'COMMENT'? | 'CONTACT' ID 'COMMENT'? | 'COMMENT')
     | 'ALTER' 'VIEW' ID alterView_dataMetricFunctionAction
     | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID alterView_dataGovnPolicyTagAction
     ;
@@ -3129,9 +3129,10 @@ createIngressPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-integration
-createIntegration
-    : 'CREATE' ('OR' 'REPLACE')? ID 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID ID? ('COMMENT' '=' STRING)?
-    ;
+// not converted (form): <integration_type> stands for a type's keyword, whose page gives its syntax
+//   CREATE [ OR REPLACE ] <integration_type> INTEGRATION [ IF NOT EXISTS ] <object_name>
+//     [ <integration_type_params> ]
+//     [ COMMENT = '<string_literal>' ]
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table
 createInteractiveTable
@@ -3247,8 +3248,9 @@ createNotificationIntegrationMultiQueue
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-azure
+// fix: a ; ends the statement before the parameters the page lists after it
 createNotificationIntegrationQueueInboundAzure
-    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'QUEUE' 'NOTIFICATION_PROVIDER' '=' 'AZURE_STORAGE_QUEUE' 'AZURE_STORAGE_QUEUE_PRIMARY_URI' '=' STRING 'AZURE_TENANT_ID' '=' STRING ';' ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'QUEUE' 'NOTIFICATION_PROVIDER' '=' 'AZURE_STORAGE_QUEUE' 'AZURE_STORAGE_QUEUE_PRIMARY_URI' '=' STRING 'AZURE_TENANT_ID' '=' STRING ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-gcp
@@ -3262,8 +3264,9 @@ createNotificationIntegrationQueueOutboundAws
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-azure
+// fix: a ; ends the statement before the parameters the page lists after it
 createNotificationIntegrationQueueOutboundAzure
-    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'QUEUE' 'DIRECTION' '=' 'OUTBOUND' 'NOTIFICATION_PROVIDER' '=' 'AZURE_EVENT_GRID' 'AZURE_EVENT_GRID_TOPIC_ENDPOINT' '=' STRING 'AZURE_TENANT_ID' '=' STRING ';' ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'NOTIFICATION' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'ENABLED' '=' ('TRUE' | 'FALSE') 'TYPE' '=' 'QUEUE' 'DIRECTION' '=' 'OUTBOUND' 'NOTIFICATION_PROVIDER' '=' 'AZURE_EVENT_GRID' 'AZURE_EVENT_GRID_TOPIC_ENDPOINT' '=' STRING 'AZURE_TENANT_ID' '=' STRING ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-gcp

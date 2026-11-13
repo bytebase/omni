@@ -39,6 +39,7 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"UPDATE <t> SET <col_name> = <value> [ , ... ]", "'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)*"},
 		// Optional clauses with commas between: one or more, a comma between each two.
 		{"ALTER T <name> SET [ A = <num> ], [ B = <num> ] [ C = <num> ], [ D ],", "'ALTER' 'T' ID 'SET' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D') (',' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D'))*"},
+		{"ALTER VIEW <name> UNSET [ SECURE ] [ COMMENT = '<string_literal>' ]", "'ALTER' 'VIEW' ID 'UNSET' ('SECURE' 'COMMENT'? | 'COMMENT')"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.
@@ -129,6 +130,9 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 	}
 	if _, err := c.form("ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
 		t.Errorf("an optional = sign: %v", err)
+	}
+	if _, err := c.form("CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
+		t.Errorf("a placeholder for a type's keyword was converted")
 	}
 	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)

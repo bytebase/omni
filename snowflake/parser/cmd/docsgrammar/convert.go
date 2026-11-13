@@ -610,6 +610,15 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	if err := c.checkWords(toks); err != nil {
 		return nil, err
 	}
+	// CREATE <integration_type> INTEGRATION: a placeholder standing for the
+	// keyword of a type, whose own page gives its syntax. Not a value.
+	for i, t := range toks {
+		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && placeholderClass(t.text) == tName &&
+			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
+			i+1 < len(toks) && toks[i+1].kind == nKeyword {
+			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
+		}
+	}
 	// KEY = with nothing after it is a value the docs left out; an = alone
 	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign.
 	for i, t := range toks {

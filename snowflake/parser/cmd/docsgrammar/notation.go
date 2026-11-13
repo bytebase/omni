@@ -392,7 +392,34 @@ func resolveSeq(seq []*node) ([]*node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return atLeastOneAfterSet(commaOptions(out)), nil
+	return atLeastOneAfterSet(commaOptions(unsetNamesOnly(out))), nil
+}
+
+// unsetNamesOnly reads a property UNSET lists with a value,
+//
+//	ALTER VIEW <name> UNSET [ SECURE ] [ COMMENT = '<string_literal>' ]
+//
+// as its name alone: UNSET takes property names, and a value is an error.
+func unsetNamesOnly(seq []*node) []*node {
+	for i, n := range seq {
+		if n.tok == nil || n.tok.kind != nKeyword || n.tok.text != "UNSET" {
+			continue
+		}
+		out := append([]*node(nil), seq[:i+1]...)
+		for _, r := range seq[i+1:] {
+			if r.tok == nil && !r.brace && r.op == '?' && len(r.alts) == 1 && len(r.alts[0]) >= 3 {
+				alt := r.alts[0]
+				if alt[0].tok != nil && alt[0].tok.kind == nKeyword && alt[1].tok != nil && isLiteral(*alt[1].tok, "=") {
+					c := *r
+					c.alts = [][]*node{{alt[0]}}
+					r = &c
+				}
+			}
+			out = append(out, r)
+		}
+		return out
+	}
+	return seq
 }
 
 // commaOptions reads optional clauses separated by commas,
