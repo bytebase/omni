@@ -361,7 +361,7 @@ func TestAdminFormsRejected(t *testing.T) {
 		}
 		t.Run(c.sql, func(t *testing.T) {
 			if _, err := Parse(c.sql); err == nil {
-				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbCorpusVersion)
+				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbRelease)
 			}
 		})
 	}
@@ -517,7 +517,7 @@ func TestAdminIsNotARoutineStatement(t *testing.T) {
 	for _, sql := range adminRoutineBodyCases {
 		t.Run(sql, func(t *testing.T) {
 			if _, err := Parse(sql); err == nil {
-				t.Errorf("Parse(%q) was accepted, but TiDB %s rejects it", sql, tidbCorpusVersion)
+				t.Errorf("Parse(%q) was accepted, but TiDB %s rejects it", sql, tidbRelease)
 			}
 		})
 	}

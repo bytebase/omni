@@ -316,6 +316,11 @@ func errKeyNotExist(key, table string) error {
 	return &Error{Code: 1176, SQLState: "42000", Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", key, table)}
 }
 
+// errKeyColumnNotExist is 1072: a key names a column the table does not have.
+func errKeyColumnNotExist(name string) error {
+	return &Error{Code: 1072, SQLState: "42000", Message: fmt.Sprintf("Key column '%s' doesn't exist in table", name)}
+}
+
 // errNotPartitioned is 1505: a partition command on a table with no partitions.
 func errNotPartitioned() error {
 	return &Error{Code: 1505, SQLState: "HY000", Message: "Partition management on a not partitioned table is not possible"}

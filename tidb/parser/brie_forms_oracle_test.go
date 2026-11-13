@@ -369,24 +369,19 @@ var brieCases = []brieCase{
 // server error means the text parsed and failed later.
 func TestBRIEFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, c := range brieCases {
+	for _, c := range brieCases {
 		t.Run(c.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = brieCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, c.sql, previous)
+			accepts, err := tc.prepareSyntax(c.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != c.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, c.accept, c.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, c.accept, c.sql)
 			}
 			_, perr := Parse(c.sql)
 			if omniAccepts := perr == nil; omniAccepts != c.accept {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, c.accept, c.sql, perr)
+					omniAccepts, tidbRelease, c.accept, c.sql, perr)
 			}
 		})
 	}

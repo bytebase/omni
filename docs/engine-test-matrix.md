@@ -11,7 +11,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `doris` | `dyrnq/doris:3.1.4` | Upgrade the native baseline after checking dialect drift. |
 | `elasticsearch` | No local database oracle | Add native Elasticsearch request coverage. |
 | `googlesql` | Spanner emulator `1.5.54` | Covers the GoogleSQL subset implemented by Spanner. Shared helper: `googlesql/internal/testcontainer`. |
-| `mariadb` | Native `mariadb:11.8.8`, pinned by digest in `mariadb/testdata/pins.tsv` | Keep MariaDB native. `mariadb/parser`'s `TestCompatibility` replays `compat.tsv` (12,960 rows, 12,082 agreeing; 404 only MariaDB accepts, 474 only omni) and starts no server, and `mariadb/parser` and `mariadb/validate` replay tapes through `mariadb/internal/testcontainer`. `mariadb/catalog` and `mariadb/review` still start a server: move them to tapes (step 2), then work the disagreeing rows down. |
+| `mariadb` | Native `mariadb:11.8.8`, pinned by digest in `mariadb/testdata/pins.tsv`, started only by a recording (`OMNI_RECORD=1`) | Work the disagreements down: `compat.tsv` (12,960 rows, 12,082 agreeing; 404 only MariaDB accepts, 474 only omni). Every package replays `compat.tsv` and tapes through `mariadb/internal/testcontainer` and starts no server: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review`. |
 | `mongo` | No local database oracle | Add native MongoDB shell coverage. |
 | `mssql` | SQL Server `2022-CU27-GDR1-ubuntu-22.04`; ScriptDOM reference | Move inline container setup into an engine-owned helper. |
 | `mysql` | `mysql:8.0`, pinned as `mysql:8.0.46` in `mysql/testdata/pins.tsv`; review also checks `mysql:8.4` | `mysql/parser` replays `compat.tsv` (12,282 rows, 1,123 disagreeing) and tapes, and starts no server; so do `mysql/validate` and three tests of `mysql/catalog`. Move the rest of `mysql/catalog` and `mysql/review` to tapes, then `simulate.tsv`. Shared helper: `mysql/internal/testcontainer`. |
@@ -22,7 +22,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `redshift` | PostgreSQL `17-alpine` baseline; explicit Redshift reference checks | Temporary PostgreSQL substitute is accepted; align its version with `pg` when upgrading. |
 | `snowflake` | No local native database oracle | A native test account or suitable licensed emulator is needed. |
 | `starrocks` | `starrocks/allin1-ubuntu:3.4.10` | Upgrade the native baseline after checking dialect drift. |
-| `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog` replays tapes and starts no server; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
+| `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog`, `tidb/parser` and `tidb/review` replay tapes and start no server, and the parser's corpora are `suite:` rows of its `compat.tsv`; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
 | `trino` | `trinodb/trino:482` | Shared helper: `trino/internal/testcontainer`. |
 
 ## Shared helper layout
