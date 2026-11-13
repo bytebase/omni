@@ -2496,6 +2496,10 @@ func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 	} else {
 		b.WriteString(" current row")
 	}
+	if f.Exclude != "" {
+		b.WriteString(" exclude ")
+		b.WriteString(strings.ToLower(f.Exclude))
+	}
 	b.WriteString(" ")
 }
 
