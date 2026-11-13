@@ -31,7 +31,7 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		name, _, err := p.parseKeywordOrIdent()
+		name, err := p.parseWordOf(viewAlgorithmWords)
 		if err != nil {
 			return nil, err
 		}
