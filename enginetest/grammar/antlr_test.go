@@ -367,3 +367,29 @@ FLOAT : [0-9]+ '.' [0-9]* ;
 		}
 	}
 }
+
+// TestRecognizerMatchesEachSpellingOfAKeywordToken pins a lexer rule that
+// chooses among keywords: it matches those words, and is no class of names.
+func TestRecognizerMatchesEachSpellingOfAKeywordToken(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' DIRECTION ;
+DIRECTION : 'ASC' | 'DESC' | D E S C E N D I N G ;
+fragment D : [dD] ; fragment E : [eE] ; fragment S : [sS] ; fragment C : [cC] ;
+fragment N : [nN] ; fragment I : [iI] ; fragment G : [gG] ;
+`, tokens(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT ASC":        true,
+		"select desc":       true,
+		"SELECT DESCENDING": true,
+		"SELECT zzz":        false,
+		`SELECT "ASC"`:      false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

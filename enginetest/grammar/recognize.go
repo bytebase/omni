@@ -25,12 +25,12 @@ type Recognizer struct {
 	rules  []crule
 	terms  []cterm
 	start  int
-	punct  [][]rune         // the grammar's punctuation, longest first
-	exact  map[string][]int // terminals by the key of their first token
-	class  map[string][]int // class terminals by the class they match (classOf)
-	null   []bool           // per rule: derives the empty string
-	first  []bitset         // per rule: the terminals it can start with
-	altFst [][]bitset       // per rule and alternative
+	punct  [][]rune              // the grammar's punctuation, longest first
+	exact  map[string][]spelling // exact terminal texts by the key of their first token
+	class  map[string][]int      // class terminals by the class they match (classOf)
+	null   []bool                // per rule: derives the empty string
+	first  []bitset              // per rule: the terminals it can start with
+	altFst [][]bitset            // per rule and alternative
 
 	mu        sync.Mutex
 	sets      []*earleySet
@@ -50,8 +50,19 @@ type csym struct {
 }
 
 type cterm struct {
-	toks  []ltok // the text it matches; empty for a token written as nothing
-	class string // when set, it matches one token of this class (classOf)
+	toks  []ltok   // the text it matches; empty for a token written as nothing
+	class string   // when set, it matches one token of this class (classOf)
+	more  [][]ltok // other texts it matches exactly, for a token of several spellings
+}
+
+// spelling is one exact text of a terminal: its toks, or one of more.
+type spelling struct{ term, alt int }
+
+func (t cterm) spelling(alt int) []ltok {
+	if alt == 0 {
+		return t.toks
+	}
+	return t.more[alt-1]
 }
 
 type bitset []uint64
@@ -79,7 +90,7 @@ func (b bitset) union(o bitset) bool {
 
 // Recognizer returns a recognizer for the grammar.
 func (g *Grammar) Recognizer() *Recognizer {
-	r := &Recognizer{g: g, exact: map[string][]int{}, class: map[string][]int{}}
+	r := &Recognizer{g: g, exact: map[string][]spelling{}, class: map[string][]int{}}
 	ruleID := map[string]int{}
 	for i, gr := range g.rules {
 		ruleID[gr.name] = i
@@ -129,7 +140,15 @@ func (g *Grammar) Recognizer() *Recognizer {
 		}
 		toks := r.lex(g.sample(sym))
 		t := cterm{toks: toks}
-		if !sym.literal && !g.fixed[sym.text] && len(toks) == 1 {
+		spellings := g.spellings[sym.text]
+		if !sym.literal && len(spellings) > 0 {
+			// A token of a few fixed texts matches each of them, and nothing
+			// else: not the class its sample would stand for.
+			t.toks = r.lex(spellings[0])
+			for _, s := range spellings[1:] {
+				t.more = append(t.more, r.lex(s))
+			}
+		} else if !sym.literal && !g.fixed[sym.text] && len(toks) == 1 {
 			switch tk := toks[0]; tk.kind {
 			case kName:
 				if tk.quoted || g.patterned[sym.text] || !keywordText.MatchString(tk.text) {
@@ -143,8 +162,12 @@ func (g *Grammar) Recognizer() *Recognizer {
 		switch {
 		case t.class != "":
 			r.class[t.class] = append(r.class[t.class], id)
-		case len(toks) > 0:
-			r.exact[toks[0].key()] = append(r.exact[toks[0].key()], id)
+		default:
+			for a := 0; a <= len(t.more); a++ {
+				if s := t.spelling(a); len(s) > 0 {
+					r.exact[s[0].key()] = append(r.exact[s[0].key()], spelling{id, a})
+				}
+			}
 		}
 		return id
 	}
@@ -396,20 +419,20 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	}
 	var out []termMatch
 	tk := in[k]
-	for _, id := range r.exact[tk.key()] {
-		t := r.terms[id]
-		if k+len(t.toks) > len(in) {
+	for _, sp := range r.exact[tk.key()] {
+		toks := r.terms[sp.term].spelling(sp.alt)
+		if k+len(toks) > len(in) {
 			continue
 		}
 		ok := true
-		for j, want := range t.toks {
+		for j, want := range toks {
 			if in[k+j].key() != want.key() {
 				ok = false
 				break
 			}
 		}
 		if ok {
-			out = append(out, termMatch{id, len(t.toks)})
+			out = append(out, termMatch{sp.term, len(toks)})
 		}
 	}
 	if tk.kind == kName && !tk.quoted && r.g.reserved[strings.ToUpper(tk.text)] {

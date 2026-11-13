@@ -46,9 +46,13 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		}
 		if text, fixed, ok := p.lexerSample(name, map[string]bool{}); ok {
 			g.termText[name] = text
-			if fixed {
+			switch texts, finite := p.lexerTexts(name, map[string]bool{}); {
+			case fixed:
 				g.fixed[name] = true
-			} else {
+			case finite:
+				// DIRECTION : 'ASC' | 'DESC' : those words, and no other.
+				g.spellings[name] = texts
+			default:
 				g.patterned[name] = true
 			}
 		}
@@ -789,6 +793,67 @@ func (p *antlrParser) altsSample(alts []lexAlt, visiting map[string]bool) (strin
 		}
 	}
 	return "", false, false
+}
+
+// maxSpellings bounds the texts lexerTexts lists for one token.
+const maxSpellings = 64
+
+// lexerTexts returns every text a lexer rule matches when they are few and
+// fixed, as a rule choosing among keywords ('ASC' | 'DESC') matches, and
+// false for a rule that matches a class of texts, such as identifiers.
+func (p *antlrParser) lexerTexts(name string, visiting map[string]bool) ([]string, bool) {
+	alts, ok := p.lexer[name]
+	if !ok || visiting[name] {
+		return nil, false
+	}
+	visiting[name] = true
+	defer delete(visiting, name)
+	return p.altsTexts(alts, visiting)
+}
+
+func (p *antlrParser) altsTexts(alts []lexAlt, visiting map[string]bool) ([]string, bool) {
+	var out []string
+	for _, alt := range alts {
+		texts := []string{""}
+		for _, e := range alt {
+			var part []string
+			switch {
+			case e.op != 0, e.opaque, e.ranged[0] != "" && e.ranged[0] != e.ranged[1]:
+				return nil, false
+			case e.ranged[0] != "":
+				part = []string{e.ranged[0]}
+			case e.set != "":
+				if !e.oneChar {
+					return nil, false
+				}
+				part = []string{e.set}
+			case e.ref != "":
+				var ok bool
+				if part, ok = p.lexerTexts(e.ref, visiting); !ok {
+					return nil, false
+				}
+			case e.group != nil:
+				var ok bool
+				if part, ok = p.altsTexts(e.group, visiting); !ok {
+					return nil, false
+				}
+			default:
+				part = []string{e.literal}
+			}
+			var next []string
+			for _, a := range texts {
+				for _, b := range part {
+					next = append(next, a+b)
+				}
+			}
+			if len(next) > maxSpellings {
+				return nil, false
+			}
+			texts = next
+		}
+		out = append(out, texts...)
+	}
+	return out, len(out) <= maxSpellings
 }
 
 func (p *antlrParser) altSample(alt lexAlt, visiting map[string]bool) (string, bool, bool) {
