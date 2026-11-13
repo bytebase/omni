@@ -107,3 +107,16 @@
 | CREATE VIEW v18 AS (SELECT b FROM a) ORDER BY zz
 < error
 | 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v19 AS WITH RECURSIVE c AS (SELECT 1 AS x), r AS (SELECT x FROM c UNION ALL SELECT x+1 FROM r WHERE x < 3) SELECT * FROM r
+< ok 0 0
+> exec
+| CREATE VIEW v20 AS SELECT d.`b+1` FROM (SELECT * FROM (SELECT b+1 FROM a) s) d
+< ok 0 0
+> exec
+| CREATE VIEW v21 AS SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW v22 AS SELECT b FROM a UNION ALL SELECT b FROM a ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'

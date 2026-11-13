@@ -105,6 +105,10 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	// Step 9: DISTINCT
 	q.Distinct = stmt.DistinctKind != nodes.DistinctNone && stmt.DistinctKind != nodes.DistinctAll
 
+	// What this query's own names are worth: an unaliased expression of its select
+	// list, or a star or reference to something already uncertain (scope.namesUncertain).
+	q.namesUncertain = scope.namesUncertain || selectDerivesNames(stmt)
+
 	return q, nil
 }
 
@@ -399,7 +403,7 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 	if err != nil {
 		return nil, err
 	}
-	if len(subq.Columns) == 0 && selectDerivesNames(subq.Select) {
+	if len(subq.Columns) == 0 && innerQ.namesUncertain {
 		scope.namesUncertain = true
 	}
 
@@ -839,7 +843,7 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 			ColumnNames:    colNames,
 			Query:          innerQ,
 			Recursive:      cte.Recursive,
-			namesUncertain: len(cte.Columns) == 0 && selectDerivesNames(cte.Select),
+			namesUncertain: len(cte.Columns) == 0 && innerQ.namesUncertain,
 		}
 		q.CTEList = append(q.CTEList, cteQ)
 		cteMap[strings.ToLower(cte.Name)] = cteQ
@@ -855,7 +859,7 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 	stmt := cte.Select
 
 	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtInternal(stmt.Left, parentScope)
+	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -1019,6 +1023,10 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	q.LArg = larg
 	q.RArg = rarg
 	q.TargetList = targetList
+	// The result columns are the left arm's, so its uncertainty is the whole
+	// query's: SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1` names
+	// a column deriveColumnName wrote as ?.
+	q.namesUncertain = larg.namesUncertain
 
 	// Handle ORDER BY / LIMIT on the outer set-op query using a
 	// scope built from result columns.
@@ -1033,6 +1041,7 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		}
 		// Add a virtual table entry for unqualified column resolution.
 		setScope.add("__setop__", 0, cols)
+		setScope.namesUncertain = q.namesUncertain
 
 		if len(stmt.OrderBy) > 0 {
 			if err := c.analyzeOrderBy(stmt.OrderBy, q, setScope); err != nil {
@@ -1099,7 +1108,7 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 	// outer clauses then read names this does not hold, so what they do not resolve
 	// is not known to be missing: ( SELECT b+1 FROM a ) ORDER BY `b+1` is the
 	// engine's to take (TestOracle_OceanBaseQueryFirst).
-	resultScope.namesUncertain = selectDerivesNames(stmt.ParenSource)
+	resultScope.namesUncertain = inner.namesUncertain
 	if len(stmt.OrderBy) > 0 {
 		if err := c.analyzeOrderBy(stmt.OrderBy, outer, resultScope); err != nil {
 			return nil, err
