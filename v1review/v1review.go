@@ -58,9 +58,12 @@ type Finding struct {
 	// Detail is the compile error's text, set with PatternInvalid.
 	Detail string
 	// Start and End are the byte range that anchors the finding in the
-	// text the statements were parsed from, where the V1 advisor anchored
-	// it: each engine's rule function documents which node that is. Both 0
-	// means the AST kept no range; the caller then anchors the statement.
+	// text the statements were parsed from: the node the V1 advisor took
+	// its line from, which each engine's rule function names. Where the V1
+	// advisor took its line from the statement text instead, by searching
+	// it for the name or reading where the statement starts, the range is
+	// the statement's and the caller keeps that computation. Both 0 means
+	// the AST kept no range.
 	Start, End int
 }
 
