@@ -983,6 +983,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
+		case kwSERVER:
+			// SHOW CREATE SERVER server_name, the name an ident_or_text.
+			//
+			// Ref: show_param, `CREATE SERVER_SYM ident_or_text`, in MariaDB
+			// 11.8 sql/sql_yacc.yy.
+			stmt.Type = "CREATE SERVER"
+			p.advance()
+			at := p.pos()
+			name, _, err := p.parseIdentOrText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = &nodes.TableRef{Loc: nodes.Loc{Start: at, End: p.prev.End}, Name: name}
 		case kwUSER:
 			stmt.Type = "CREATE USER"
 			p.advance()

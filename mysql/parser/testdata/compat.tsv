@@ -76,11 +76,11 @@ reject	reject	engine	simple_statement/alter_server_stmt!drop-1	SERVER utf8mb4 OP
 reject	reject	engine	simple_statement/alter_server_stmt!drop-2	ALTER utf8mb4 OPTIONS(USER 's');
 reject	reject	engine	simple_statement/alter_server_stmt!drop-3	ALTER SERVER OPTIONS(USER 's');
 reject	reject	engine	simple_statement/alter_server_stmt!drop-4	ALTER SERVER utf8mb4(USER 's');
-accept	reject	engine	simple_statement/alter_server_stmt!drop-5	ALTER SERVER utf8mb4 OPTIONS USER 's');
-accept	reject	engine	simple_statement/alter_server_stmt!drop-6	ALTER SERVER utf8mb4 OPTIONS('s');
-accept	reject	engine	simple_statement/alter_server_stmt!drop-7	ALTER SERVER utf8mb4 OPTIONS(USER);
-accept	reject	engine	simple_statement/alter_server_stmt!drop-8	ALTER SERVER utf8mb4 OPTIONS(USER 's';
-accept	reject	engine	simple_statement/alter_server_stmt!truncate	ALTER SERVER utf8mb4 OPTIONS(USER 's'
+reject	reject	engine	simple_statement/alter_server_stmt!drop-5	ALTER SERVER utf8mb4 OPTIONS USER 's');
+reject	reject	engine	simple_statement/alter_server_stmt!drop-6	ALTER SERVER utf8mb4 OPTIONS('s');
+reject	reject	engine	simple_statement/alter_server_stmt!drop-7	ALTER SERVER utf8mb4 OPTIONS(USER);
+reject	reject	engine	simple_statement/alter_server_stmt!drop-8	ALTER SERVER utf8mb4 OPTIONS(USER 's';
+reject	reject	engine	simple_statement/alter_server_stmt!truncate	ALTER SERVER utf8mb4 OPTIONS(USER 's'
 reject	reject	engine	simple_statement/alter_server_stmt!insert	ALTER SERVER utf8mb4 OPTIONS(USER 's') zzz;
 reject	reject	engine	simple_statement/alter_server_stmt!swap	ALWAYS SERVER utf8mb4 OPTIONS(USER 's');
 accept	accept	engine	simple_statement/alter_tablespace_stmt	ALTER TABLESPACE utf8mb4 WAIT;
@@ -1514,16 +1514,16 @@ accept	accept	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRA
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-1	SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's');
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-2	CREATE utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's');
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-3	CREATE SERVER FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-4	CREATE SERVER utf8mb4 DATA WRAPPER utf8mb4 OPTIONS(USER 's');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	CREATE SERVER utf8mb4 FOREIGN WRAPPER utf8mb4 OPTIONS(USER 's');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-6	CREATE SERVER utf8mb4 FOREIGN DATA utf8mb4 OPTIONS(USER 's');
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-4	CREATE SERVER utf8mb4 DATA WRAPPER utf8mb4 OPTIONS(USER 's');
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	CREATE SERVER utf8mb4 FOREIGN WRAPPER utf8mb4 OPTIONS(USER 's');
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-6	CREATE SERVER utf8mb4 FOREIGN DATA utf8mb4 OPTIONS(USER 's');
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-7	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER OPTIONS(USER 's');
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-8	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4(USER 's');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-9	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS USER 's');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-10	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS('s');
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-11	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER);
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-12	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's';
-accept	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's'
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-9	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS USER 's');
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-10	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS('s');
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-11	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER);
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-12	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's';
+reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's'
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!insert	CREATE SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's') zzz;
 reject	reject	engine	create/CREATE_SERVER_SYM_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!swap	CROSS SERVER utf8mb4 FOREIGN DATA WRAPPER utf8mb4 OPTIONS(USER 's');
 accept	accept	engine	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
@@ -1598,50 +1598,50 @@ reject	reject	engine	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM
 reject	reject	engine	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm!insert	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4) zzz;
 reject	reject	engine	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm!swap	CROSS SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 accept	accept	engine	server_options_list/server_option	ALTER SERVER utf8mb4 OPTIONS(USER 's');
-accept	reject	engine	server_options_list/server_option!truncate	ALTER SERVER utf8mb4 OPTIONS(USER
-accept	reject	engine	server_options_list/server_option!insert	ALTER SERVER utf8mb4 OPTIONS(USER 's' zzz);
-accept	reject	engine	server_options_list/server_option!swap	ALTER SERVER utf8mb4 OPTIONS(USER_RESOURCES 's');
+reject	reject	engine	server_options_list/server_option!truncate	ALTER SERVER utf8mb4 OPTIONS(USER
+reject	reject	engine	server_options_list/server_option!insert	ALTER SERVER utf8mb4 OPTIONS(USER 's' zzz);
+reject	reject	engine	server_options_list/server_option!swap	ALTER SERVER utf8mb4 OPTIONS(USER_RESOURCES 's');
 accept	accept	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER utf8mb4 OPTIONS('s', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER utf8mb4 OPTIONS(USER, USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER utf8mb4 OPTIONS(USER 's' USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER utf8mb4 OPTIONS(USER 's', 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER
-accept	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER 's' zzz);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER utf8mb4 OPTIONS(USER_RESOURCES 's', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER utf8mb4 OPTIONS('s', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER utf8mb4 OPTIONS(USER, USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER utf8mb4 OPTIONS(USER 's' USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER utf8mb4 OPTIONS(USER 's', 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER
+reject	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER utf8mb4 OPTIONS(USER 's', USER 's' zzz);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER utf8mb4 OPTIONS(USER_RESOURCES 's', USER 's');
 accept	accept	engine	server_option/USER_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(USER 's');
 accept	accept	engine	server_option/HOST_SYM_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(HOST 's');
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(HOST);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(HOST
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(HOST 's' zzz);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(HOSTS 's');
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(HOST);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(HOST
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(HOST 's' zzz);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(HOSTS 's');
 accept	accept	engine	server_option/DATABASE_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(DATABASE 's');
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(DATABASE);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(DATABASE
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(DATABASE 's' zzz);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(DATABASES 's');
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(DATABASE);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(DATABASE
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(DATABASE 's' zzz);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(DATABASES 's');
 accept	accept	engine	server_option/OWNER_SYM_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(OWNER 's');
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(OWNER);
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(OWNER
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(OWNER 's' zzz);
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(PACK_KEYS 's');
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(OWNER);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(OWNER
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(OWNER 's' zzz);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(PACK_KEYS 's');
 accept	accept	engine	server_option/PASSWORD_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(PASSWORD 's');
-accept	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(PASSWORD);
-accept	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(PASSWORD
-accept	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(PASSWORD 's' zzz);
-accept	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(PASSWORD_LOCK_TIME 's');
+reject	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(PASSWORD);
+reject	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(PASSWORD
+reject	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(PASSWORD 's' zzz);
+reject	reject	engine	server_option/PASSWORD_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(PASSWORD_LOCK_TIME 's');
 accept	accept	engine	server_option/SOCKET_SYM_TEXT_STRING_sys	ALTER SERVER utf8mb4 OPTIONS(SOCKET 's');
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(SOCKET);
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(SOCKET
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(SOCKET 's' zzz);
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(SONAME 's');
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER utf8mb4 OPTIONS(SOCKET);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER utf8mb4 OPTIONS(SOCKET
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER utf8mb4 OPTIONS(SOCKET 's' zzz);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!swap	ALTER SERVER utf8mb4 OPTIONS(SONAME 's');
 accept	accept	engine	server_option/PORT_SYM_ulong_num	ALTER SERVER utf8mb4 OPTIONS(PORT 1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER utf8mb4 OPTIONS(1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER utf8mb4 OPTIONS(PORT);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER utf8mb4 OPTIONS(PORT
-accept	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER utf8mb4 OPTIONS(PORT 1 zzz);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER utf8mb4 OPTIONS(POSITION 1);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER utf8mb4 OPTIONS(1);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER utf8mb4 OPTIONS(PORT);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER utf8mb4 OPTIONS(PORT
+reject	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER utf8mb4 OPTIONS(PORT 1 zzz);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER utf8mb4 OPTIONS(POSITION 1);
 accept	accept	engine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 reject	reject	engine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!drop-1	CREATE utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 reject	reject	engine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!drop-2	CREATE EVENT ON SCHEDULE AT utf8mb4 DO COMMIT;
