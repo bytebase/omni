@@ -671,6 +671,39 @@ func TestReplayNamesTheArgumentThatDiffers(t *testing.T) {
 	}
 }
 
+// go-sql-driver answers a BIGINT UNSIGNED column with a uint64, and a replay
+// hands the test the type and value its recording did.
+func TestAnUnsignedValueReplaysAsUint64(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		var v any
+		if err := Open(t, srv, "default").QueryRow("SELECT unsigned").Scan(&v); err != nil {
+			return []string{err.Error()}
+		}
+		return []string{fmt.Sprintf("%T %v", v, v)}
+	}
+	const want = "uint64 18446744073709551615"
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(recorded) != 1 || recorded[0] != want {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< row\n: uint64 18446744073709551615\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(replayed) != 1 || replayed[0] != want {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -678,6 +711,7 @@ func TestParseRejects(t *testing.T) {
 		{"no text", "== s\n> exec\n< ok\n", "want text"},
 		{"an unknown request", "== s\n> fetch\n< ok\n", "unknown request"},
 		{"a bad int", "== s\n> query\n| x\n< result\n< column \"a\" \"INT\"\n< row\n: int64 x\n", "a int64 value"},
+		{"a negative unsigned", "== s\n> query\n| x\n< result\n< column \"a\" \"UNSIGNED BIGINT\"\n< row\n: uint64 -1\n", "a uint64 value"},
 		{"a short row", "== s\n> query\n| x\n< result\n< column \"a\" \"INT\"\n< row\n", "want a value"},
 		{"a stream twice", "== s\n== s\n", "appears twice"},
 		{"a stray line", "== s\nhello\n", "unexpected line"},
@@ -696,7 +730,7 @@ func TestFormatRoundTrips(t *testing.T) {
 		name: "TestX/sub name default#1",
 		exchanges: []exchange{
 			{request{kind: "query", text: "", args: []value{{kind: "string", text: ""}, {kind: "float64", text: "1.5"}, {kind: "bool", text: "true"}, {kind: "time", text: "2026-11-12T00:00:00Z"}}},
-				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}}}, {}}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
@@ -759,6 +793,8 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 			{[]string{"a", "b"}, []string{"INT", "TEXT"}, [][]driver.Value{{int64(1), []byte("x\ny")}, {nil, []byte("\r")}}},
 			{[]string{"c"}, []string{"BOOL"}, [][]driver.Value{{true}}},
 		}}, nil
+	case "SELECT unsigned":
+		return &fakeRows{sets: []fakeSet{{[]string{"n"}, []string{"UNSIGNED BIGINT"}, [][]driver.Value{{uint64(1<<64 - 1)}}}}}, nil
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil

@@ -82,9 +82,10 @@ type resultSet struct {
 
 type column struct{ name, typ string }
 
-// A value is a driver.Value as text: null, int64, float64, bool, time,
-// bytes or string. A request's argument over digestOver holds sum, its
-// digest, in place of text.
+// A value is a driver.Value as text: null, int64, uint64, float64, bool,
+// time, bytes or string. A uint64 is what go-sql-driver answers for a BIGINT
+// UNSIGNED column, as information_schema's counts are. A request's argument
+// over digestOver holds sum, its digest, in place of text.
 type value struct {
 	kind, text string
 	sum        string
@@ -134,6 +135,8 @@ func fromDriver(v driver.Value) (value, error) {
 		return value{kind: "null"}, nil
 	case int64:
 		return value{kind: "int64", text: strconv.FormatInt(v, 10)}, nil
+	case uint64:
+		return value{kind: "uint64", text: strconv.FormatUint(v, 10)}, nil
 	case float64:
 		return value{kind: "float64", text: strconv.FormatFloat(v, 'g', -1, 64)}, nil
 	case bool:
@@ -157,6 +160,8 @@ func (v value) driver() (driver.Value, error) {
 		return nil, nil
 	case "int64":
 		return strconv.ParseInt(v.text, 10, 64)
+	case "uint64":
+		return strconv.ParseUint(v.text, 10, 64)
 	case "float64":
 		return strconv.ParseFloat(v.text, 64)
 	case "bool":
@@ -523,7 +528,7 @@ func (p *parser) value(argument bool) (value, error) {
 		return v, err
 	case "null":
 		return v, nil
-	case "int64", "float64", "bool", "time":
+	case "int64", "uint64", "float64", "bool", "time":
 		if _, err := v.driver(); err != nil {
 			return v, p.errorf("a %s value: %v", kind, err)
 		}

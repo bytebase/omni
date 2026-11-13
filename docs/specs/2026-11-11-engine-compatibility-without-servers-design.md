@@ -600,7 +600,7 @@ func Reset(t testing.TB, fn func(context.Context, *sql.DB) error) // in a record
 - **`Reset`** puts a shared server into the state a tape starts from, such as dropping what earlier tests left. It runs only in a recording, outside the tape, so what a test sends never depends on what ran before it.
 
 What the harness handles:
-- **Every kind of answer:** result sets with column types, several result sets, transactions, errors through the codec, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
+- **Every kind of answer:** result sets with column types (a BIGINT UNSIGNED value as the `uint64` the driver returns), several result sets, transactions, errors through the codec, and dropped connections. Driver-level prepared statements are refused, which is why arguments are inlined.
 - **Streams.** Each `Open` is one stream, named by test, pin role and open order, with a pool of one connection so session state holds. A recording that sends what the committed tape holds, under the same pin, must get the same answers.
 - **`tape.Main(m)`** runs the package's tests. After a passing run of every test, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A run that failed, selected tests (`-run`, `-skip`) or ran none (`-list`, a fuzz worker) settles nothing: it neither fails on those tapes nor deletes them.
 - **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs, including one that no longer parses, such as a tape left with merge conflict markers.
