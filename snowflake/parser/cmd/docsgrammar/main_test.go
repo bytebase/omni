@@ -40,6 +40,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		// Optional clauses with commas between: one or more, a comma between each two.
 		{"ALTER T <name> SET [ A = <num> ], [ B = <num> ] [ C = <num> ], [ D ],", "'ALTER' 'T' ID 'SET' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D') (',' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D'))*"},
 		{"ALTER VIEW <name> UNSET [ SECURE ] [ COMMENT = '<string_literal>' ]", "'ALTER' 'VIEW' ID 'UNSET' ('SECURE' 'COMMENT'? | 'COMMENT')"},
+		{"ON_ERROR = { CONTINUE | SKIP_FILE_<num> | 'SKIP_FILE_<num>%' }", "'ON_ERROR' '=' ('CONTINUE' | 'SKIP_FILE_1' | STRING)"},
+		{"( <col_name> <col_type> [ , <col_name> <col_type> [ DEFAULT <expr> ] [ ... ] ] )", "'(' ID DATA_TYPE (',' ID DATA_TYPE ('DEFAULT' EXPR)?)* ')'"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.
@@ -104,6 +106,14 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 		t.Fatal(err)
 	}
 	want = "'ALTER' 'INTEGRATION' ID 'UNSET' 'ENABLED' | 'ALTER' 'INTEGRATION' ID 'UNSET' 'COMMENT'"
+	if got := strings.Join(alts, " | "); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	alts, err = c.statement("ALTER P <name> SET A = <num> | B = <num>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "'ALTER' 'P' ID 'SET' 'A' '=' NUMBER | 'ALTER' 'P' ID 'SET' 'B' '=' NUMBER"
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}

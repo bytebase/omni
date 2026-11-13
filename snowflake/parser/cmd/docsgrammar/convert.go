@@ -564,6 +564,18 @@ func scopeChoices(tree [][]*node) ([][]*node, error) {
 	// The choice starts after the name, or is the head's last word when
 	// each other choice is one word and the head has more after the name.
 	from := name + 1
+	// <name> SET A | B | C: each choice is set, so SET stays with each.
+	if from < len(head) && head[from].tok != nil && head[from].tok.kind == nKeyword && (head[from].tok.text == "SET" || head[from].tok.text == "UNSET") {
+		shared := true
+		for _, alt := range tree[1:] {
+			if len(alt) > 0 && alt[0].tok != nil && alt[0].tok.text == head[from].tok.text {
+				shared = false
+			}
+		}
+		if shared {
+			from++
+		}
+	}
 	words := true
 	for _, alt := range tree[1:] {
 		if len(alt) != 1 || alt[0].tok == nil || alt[0].tok.kind != nKeyword {

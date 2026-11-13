@@ -137,6 +137,24 @@ func lexNotation(s string) ([]ntok, error) {
 				j++
 			}
 			w := string(rs[i:j])
+			// SKIP_FILE_<num>, METADATA$<field>, RETURN_<n>_ROWS: a value
+			// written inside a word is one word, spelled with a sample.
+			for j < n && rs[j] == '<' && unicode.IsUpper([]rune(w)[0]) {
+				m := placeholderRE.FindString(string(rs[j:]))
+				if m == "" {
+					break
+				}
+				sample := "a"
+				if placeholderClass(strings.Trim(m, "<>")) == tNumber {
+					sample = "1"
+				}
+				k := j + len([]rune(m))
+				for k < n && (rs[k] == '_' || rs[k] == '$' || unicode.IsLetter(rs[k]) || unicode.IsDigit(rs[k])) {
+					k++
+				}
+				w += sample + string(rs[j+len([]rune(m)):k])
+				j = k
+			}
 			if m := keywordSuffix.FindString(string(rs[j:])); m != "" && unicode.IsUpper([]rune(w)[0]) {
 				// DESC[RIBE] is DESC or DESCRIBE.
 				full := w + keywordSuffix.FindStringSubmatch(m)[1]
@@ -563,6 +581,18 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 					out[len(out)-1] = repeat(prev, '+')
 				}
 				continue
+			}
+			if seq := n.alts; !n.brace && len(seq) == 1 && len(seq[0]) >= 3 && isComma(seq[0][0]) {
+				if _, only := onlyEllipsis(seq[0][len(seq[0])-1]); only {
+					// [ , <col> <type> ... [ ... ] ]: the trailing [ ... ]
+					// repeats the whole comma-led group.
+					body, err := resolveSeq(seq[0][:len(seq[0])-1])
+					if err != nil {
+						return nil, err
+					}
+					out = append(out, &node{alts: [][]*node{body}, op: '*'})
+					continue
+				}
 			}
 			alts, err := resolveGroup(n)
 			if err != nil {
