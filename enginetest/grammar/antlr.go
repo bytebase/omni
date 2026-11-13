@@ -110,14 +110,28 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		}
 	}
 	if len(classes) > 0 {
-		// A literal in a parser rule is a token defined before every lexer
-		// rule, so a word written as one is reserved the same way.
+		// A literal in a parser rule is the lexer rule that spells it alone,
+		// LATE : 'late', where there is one, with that rule's precedence.
+		// Otherwise it is a token of its own, defined before every lexer
+		// rule, so a word written as one is reserved.
+		spelledBy := map[string]int{}
+		for i, name := range p.lexerOrder {
+			if text, ok := p.literalRule(name); ok {
+				if _, seen := spelledBy[text]; !seen {
+					spelledBy[text] = i
+				}
+			}
+		}
 		for _, r := range g.rules {
 			for _, alt := range r.alts {
 				for _, sym := range alt {
-					if sym.literal && wordText.MatchString(sym.text) {
-						g.reserved[strings.ToUpper(sym.text)] = true
+					if !sym.literal || !wordText.MatchString(sym.text) {
+						continue
 					}
+					if i, ok := spelledBy[sym.text]; ok && takenBefore(i, sym.text) {
+						continue
+					}
+					g.reserved[strings.ToUpper(sym.text)] = true
 				}
 			}
 		}
@@ -808,6 +822,21 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 	}
 }
 
+// literalRule returns the text of a lexer rule that is one literal and
+// nothing else, X : 'x', which ANTLR takes as the token a parser rule's 'x'
+// names.
+func (p *antlrParser) literalRule(name string) (string, bool) {
+	alts := p.lexer[name]
+	if p.fragments[name] || len(alts) != 1 || len(alts[0]) != 1 {
+		return "", false
+	}
+	e := alts[0][0]
+	if e.op != 0 || e.opaque || e.ref != "" || e.group != nil || e.class != "" || e.ranged[0] != "" || e.literal == "" {
+		return "", false
+	}
+	return e.literal, true
+}
+
 // lexAtom reads the operand of ~: a set, a literal, a rule, or a group.
 func (p *antlrParser) lexAtom() (lexElem, error) {
 	t, ok := p.peek()
@@ -899,62 +928,108 @@ const maxSpellings = 64
 
 // lexerTexts returns every text a lexer rule matches when they are few and
 // fixed, as a rule choosing among keywords ('ASC' | 'DESC') matches, and
-// false for a rule that matches a class of texts, such as identifiers.
+// false for a rule that matches a class of texts, such as identifiers. A
+// word spelled in either case is one text in capitals (see foldCase).
 func (p *antlrParser) lexerTexts(name string, visiting map[string]bool) ([]string, bool) {
+	return p.ruleTexts(name, visiting, true)
+}
+
+func (p *antlrParser) ruleTexts(name string, visiting map[string]bool, fold bool) ([]string, bool) {
 	alts, ok := p.lexer[name]
 	if !ok || visiting[name] {
 		return nil, false
 	}
 	visiting[name] = true
 	defer delete(visiting, name)
-	return p.altsTexts(alts, visiting)
+	return p.altsTexts(alts, visiting, fold)
 }
 
-func (p *antlrParser) altsTexts(alts []lexAlt, visiting map[string]bool) ([]string, bool) {
+// altsTexts returns the texts of alts. With fold, each piece's spellings
+// that differ only in case are folded as they are read, so a long keyword
+// stays one text. The recognizer matches a word in any case but a quoted
+// string or name exactly, so an alternative whose texts hold a quote is read
+// again without folding, and keeps its case.
+func (p *antlrParser) altsTexts(alts []lexAlt, visiting map[string]bool, fold bool) ([]string, bool) {
 	var out []string
 	for _, alt := range alts {
-		texts := []string{""}
-		for _, e := range alt {
-			var part []string
-			switch {
-			case e.op != 0, e.opaque, e.ranged[0] != "" && e.ranged[0] != e.ranged[1]:
-				return nil, false
-			case e.ranged[0] != "":
-				part = []string{e.ranged[0]}
-			case e.set != "":
-				if !e.oneChar {
-					return nil, false
-				}
-				part = []string{e.set}
-			case e.ref != "":
-				var ok bool
-				if part, ok = p.lexerTexts(e.ref, visiting); !ok {
-					return nil, false
-				}
-			case e.group != nil:
-				var ok bool
-				if part, ok = p.altsTexts(e.group, visiting); !ok {
-					return nil, false
-				}
-			default:
-				part = []string{e.literal}
-			}
-			part = foldCase(part)
-			var next []string
-			for _, a := range texts {
-				for _, b := range part {
-					next = append(next, a+b)
-				}
-			}
-			if len(next) > maxSpellings {
-				return nil, false
-			}
-			texts = next
+		texts, ok := p.altTexts(alt, visiting, fold)
+		if ok && fold && holdsQuote(texts) {
+			texts, ok = p.altTexts(alt, visiting, false)
+		}
+		if !ok {
+			return nil, false
 		}
 		out = append(out, texts...)
 	}
-	out = foldCase(out)
+	if fold {
+		out = foldCase(out)
+	}
 	return out, len(out) <= maxSpellings
+}
+
+func (p *antlrParser) altTexts(alt lexAlt, visiting map[string]bool, fold bool) ([]string, bool) {
+	texts := []string{""}
+	for _, e := range alt {
+		var part []string
+		switch {
+		case e.op != 0, e.opaque, e.ranged[0] != "" && e.ranged[0] != e.ranged[1]:
+			return nil, false
+		case e.ranged[0] != "":
+			part = []string{e.ranged[0]}
+		case e.set != "":
+			if !e.oneChar {
+				return nil, false
+			}
+			// [sS] is two texts, which folding makes one where it can.
+			part = setTexts(e.class)
+		case e.ref != "":
+			var ok bool
+			if part, ok = p.ruleTexts(e.ref, visiting, fold); !ok {
+				return nil, false
+			}
+		case e.group != nil:
+			var ok bool
+			if part, ok = p.altsTexts(e.group, visiting, fold); !ok {
+				return nil, false
+			}
+		default:
+			part = []string{e.literal}
+		}
+		if fold {
+			part = foldCase(part)
+		}
+		var next []string
+		for _, a := range texts {
+			for _, b := range part {
+				next = append(next, a+b)
+			}
+		}
+		if len(next) > maxSpellings {
+			return nil, false
+		}
+		texts = next
+	}
+	return texts, true
+}
+
+// setTexts returns the texts of a one-character [...] set: its character,
+// or a letter in each of its cases.
+func setTexts(class string) []string {
+	r := []rune(class)
+	if len(r) == 2 && r[0] != r[1] && unicode.ToUpper(r[0]) == unicode.ToUpper(r[1]) {
+		return []string{string(r[0]), string(r[1])}
+	}
+	return []string{firstOfSet(class)}
+}
+
+// holdsQuote reports whether a text holds a quote, so that its case counts.
+func holdsQuote(texts []string) bool {
+	for _, t := range texts {
+		if strings.ContainsAny(t, "'\"`") {
+			return true
+		}
+	}
+	return false
 }
 
 // foldCase returns texts that are one word in several cases as that word in

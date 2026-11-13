@@ -630,3 +630,68 @@ ID : [a-z]+ ;
 		}
 	}
 }
+
+// TestParserLiteralTakesItsLexerRulesPrecedence pins a parser literal that
+// a lexer rule spells alone: it is that rule's token, so an identifier rule
+// written before it takes the word, while a literal no rule spells is an
+// implicit token defined first.
+func TestParserLiteralTakesItsLexerRulesPrecedence(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID | 'late' | 'early' ;
+ID : [a-z]+ ;
+LATE : 'late' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT late":  true, // ID is written before LATE, which 'late' names
+		"late":         true,
+		"SELECT early": false, // 'early' is an implicit token, ahead of ID
+		"early":        true,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestCaseIsKeptInsideAQuotedToken pins folding against a string token
+// built from pieces: '\” ('a' | 'A') '\” is two texts, not one.
+func TestCaseIsKeptInsideAQuotedToken(t *testing.T) {
+	for _, value := range []string{`'\'' ('a' | 'A') '\''`, `'\'' [aA] '\''`, `'\'' LETTER '\'' ; fragment LETTER : 'a' | 'A'`} {
+		g, err := ReadANTLR("grammar S;\ns : 'SELECT' VALUE ;\nVALUE : "+value+" ;\n", tokens(map[string]string{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := g.Recognizer()
+		for sql, want := range map[string]bool{"SELECT 'a'": true, "SELECT 'A'": true, "SELECT 'b'": false} {
+			if got := rec.Accepts(sql); got != want {
+				t.Errorf("VALUE : %s: Accepts(%q) = %v, want %v", value, sql, got, want)
+			}
+		}
+	}
+}
+
+// TestCaseIsFoldedOutsideQuotes pins a keyword with punctuation, as
+// Cassandra's '-' N A N: it is one text in capitals, matched in any case.
+func TestCaseIsFoldedOutsideQuotes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' K_NEGATIVE_NAN ;
+K_NEGATIVE_NAN : '-' N A N ;
+fragment N : ('n'|'N') ; fragment A : ('a'|'A') ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := g.Rows(); rows[0].Statement != "SELECT -NAN" {
+		t.Errorf("first row %q, want SELECT -NAN", rows[0].Statement)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT -nan": true, "SELECT -NaN": true, "SELECT -na": false} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
