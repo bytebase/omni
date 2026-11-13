@@ -2049,8 +2049,26 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		default:
 			return operand
 		}
+	case *nodes.CaseExpr:
+		// CASE, which is also what deparse.RewriteExpr makes of IF(c, a, b).
+		var b strings.Builder
+		b.WriteString("(case")
+		if n.Operand != nil {
+			b.WriteString(" " + nodeToSQLGenerated(n.Operand, charset))
+		}
+		for _, w := range n.Whens {
+			b.WriteString(" when " + nodeToSQLGenerated(w.Cond, charset) + " then " + nodeToSQLGenerated(w.Result, charset))
+		}
+		if n.Default != nil {
+			b.WriteString(" else " + nodeToSQLGenerated(n.Default, charset))
+		}
+		b.WriteString(" end)")
+		return b.String()
 	default:
-		return "(?)"
+		// Any other expression is written as the deparser writes it everywhere else. A
+		// placeholder here would be stored as the column's expression and sent to the
+		// engine in a plan.
+		return deparse.Deparse(n)
 	}
 }
 
