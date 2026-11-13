@@ -12,10 +12,10 @@ ok	1054	engine	one_table@missing	stmt/create_view_stmt	CREATE VIEW a AS SELECT a
 ok	1054	engine	one_table@missing	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
 1146	1017	engine	one_table@missing	stmt/rename_table_stmt	RENAME TABLE a TO a
 1146	1146	engine	one_table@missing	stmt/truncate_table_stmt	TRUNCATE a
-1064	1146	engine	one_table@missing	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
-1064	1146	engine	one_table@missing	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
-1064	1146	engine	one_table@missing	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
-1064	1146	engine	one_table@missing	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
+1146	1146	engine	one_table@missing	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
+1146	1146	engine	one_table@missing	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
+1146	1146	engine	one_table@missing	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
+1146	1146	engine	one_table@missing	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
 1146	1066	engine	one_table@missing	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	ok:32b490ff5720	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
@@ -23,9 +23,9 @@ ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_
 ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) SELECT a zzz
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
-1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
+ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
 ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL SELECT a
-1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
+ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
@@ -41,7 +41,7 @@ ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_
 ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_opt_ignore_or_replace_AS_select_stmt!insert	CREATE TABLE a AS SELECT a zzz
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1064	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
-1064	1054	engine	one_table@missing	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+ok	1054	engine	one_table@missing	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 ok	1054	engine	one_table@missing	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@missing	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -209,57 +209,57 @@ ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_inde
 1146	1146	engine	one_table@missing	signed_literal/+_number_literal!drop-1	ALTER TABLE a ADD a TINYINT DEFAULT 1
 1146	1146	engine	one_table@missing	signed_literal/-_number_literal	ALTER TABLE a ADD a TINYINT DEFAULT - 1
 1146	1146	engine	one_table@missing	opt_primary/PRIMARY	ALTER TABLE a ADD a TINYINT PRIMARY KEY
-1064	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
-1064	1146	engine	one_table@missing	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
-1064	1146	engine	one_table@missing	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
-1064	1054	engine	one_table@missing	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
-1064	1054	engine	one_table@missing	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
-1064	1146	engine	one_table@missing	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
-1064	1146	engine	one_table@missing	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
-1064	1146	engine	one_table@missing	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
-1064	1146	engine	one_table@missing	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
+1146	1146	engine	one_table@missing	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
+1146	1146	engine	one_table@missing	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
+ok	1054	engine	one_table@missing	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
+ok	1054	engine	one_table@missing	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
+1146	1146	engine	one_table@missing	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
+1146	1146	engine	one_table@missing	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
+1146	1146	engine	one_table@missing	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
+1146	1146	engine	one_table@missing	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
 1146	1146	engine	one_table@missing	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a BLOCK_SIZE 1
 1146	1146	engine	one_table@missing	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
-1064	1146	engine	one_table@missing	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
+1146	1146	engine	one_table@missing	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 1146	1146	engine	one_table@missing	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
 1146	1146	engine	one_table@missing	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 1146	1146	engine	one_table@missing	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
-1064	1146	engine	one_table@missing	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
+1146	1146	engine	one_table@missing	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 1146	1146	engine	one_table@missing	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
 1146	1146	engine	one_table@missing	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 1146	1146	engine	one_table@missing	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
-1064	1146	engine	one_table@missing	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
+1146	1146	engine	one_table@missing	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 1146	1146	engine	one_table@missing	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
-1064	1146	engine	one_table@missing	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+1146	1146	engine	one_table@missing	table_option/read_only_or_write	ALTER TABLE a READ ONLY
 1146	1146	engine	one_table@missing	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 1146	1146	engine	one_table@missing	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 1146	1146	engine	one_table@missing	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
-1064	1146	engine	one_table@missing	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
+1146	1146	engine	one_table@missing	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
 1146	1146	engine	one_table@missing	table_option/TABLESPACE_tablespace	ALTER TABLE a TABLESPACE a
 1146	1146	engine	one_table@missing	table_option/DELAY_KEY_WRITE_opt_equal_mark_INTNUM	ALTER TABLE a DELAY_KEY_WRITE 1
 1146	1146	engine	one_table@missing	table_option/AVG_ROW_LENGTH_opt_equal_mark_INTNUM	ALTER TABLE a AVG_ROW_LENGTH 1
 1146	1146	engine	one_table@missing	table_option/CHECKSUM_opt_equal_mark_INTNUM	ALTER TABLE a CHECKSUM 1
 1146	1146	engine	one_table@missing	table_option/AUTO_INCREMENT_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a AUTO_INCREMENT_MODE 's'
-1064	1146	engine	one_table@missing	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
-1064	1146	engine	one_table@missing	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
-1064	1146	engine	one_table@missing	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
-1064	1146	engine	one_table@missing	table_option/location_expr	ALTER TABLE a LOCATION 's'
-1064	1146	engine	one_table@missing	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
-1064	1146	engine	one_table@missing	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
-1064	1146	engine	one_table@missing	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
-1064	1146	engine	one_table@missing	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
-1064	1146	engine	one_table@missing	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
-1064	1146	engine	one_table@missing	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
-1064	1146	engine	one_table@missing	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
-1064	1146	engine	one_table@missing	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
-1064	1146	engine	one_table@missing	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
+1146	1146	engine	one_table@missing	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+1146	1146	engine	one_table@missing	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
+1146	1146	engine	one_table@missing	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+1146	1146	engine	one_table@missing	table_option/location_expr	ALTER TABLE a LOCATION 's'
+1146	1146	engine	one_table@missing	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
+1146	1146	engine	one_table@missing	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
+1146	1146	engine	one_table@missing	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
+1146	1146	engine	one_table@missing	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
+1146	1146	engine	one_table@missing	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
+1146	1146	engine	one_table@missing	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
+1146	1146	engine	one_table@missing	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
+1146	1146	engine	one_table@missing	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
+1146	1146	engine	one_table@missing	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
 1146	1146	engine	one_table@missing	table_option/ENABLE_MACRO_BLOCK_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
-1064	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
-1064	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
-1064	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
-1064	1146	engine	one_table@missing	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
-1064	1146	engine	one_table@missing	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
+1146	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
+1146	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
+1146	1146	engine	one_table@missing	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
+1146	1146	engine	one_table@missing	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+1146	1146	engine	one_table@missing	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1146	1146	engine	one_table@missing	table_option/MAX_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MAX_ROWS 1
 1146	1146	engine	one_table@missing	table_option/MIN_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MIN_ROWS 1
 1146	1146	engine	one_table@missing	table_option/PASSWORD_opt_equal_mark_STRING_VALUE	ALTER TABLE a PASSWORD 's'
@@ -278,8 +278,8 @@ ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_inde
 1146	1146	engine	one_table@missing	table_option/UNION_opt_equal_mark_(_opt_empty_table_list_)	ALTER TABLE a UNION()
 1146	1146	engine	one_table@missing	table_option/INSERT_METHOD_opt_equal_mark_merge_insert_types	ALTER TABLE a INSERT_METHOD NO
 1146	1146	engine	one_table@missing	table_option/ORGANIZATION_opt_equal_mark_index_or_heap	ALTER TABLE a ORGANIZATION INDEX
-1064	1146	engine	one_table@missing	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
-1064	1146	engine	one_table@missing	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
+1146	1146	engine	one_table@missing	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+1146	1146	engine	one_table@missing	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
 1146	1146	engine	one_table@missing	table_option/DYNAMIC_PARTITION_POLICY_opt_equal_mark_(_dynamic_partition_option_list_)	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 1146	1146	engine	one_table@missing	dynamic_partition_option_list/dynamic_partition_option_list_opt_comma_dynamic_partition_option	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 1146	1146	engine	one_table@missing	dynamic_partition_option/TIME_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 's')
@@ -287,30 +287,30 @@ ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_inde
 1146	1146	engine	one_table@missing	dynamic_partition_option/EXPIRE_TIME_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(EXPIRE_TIME = 's')
 1146	1146	engine	one_table@missing	dynamic_partition_option/TIME_ZONE_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = 's')
 1146	1146	engine	one_table@missing	dynamic_partition_option/BIGINT_PRECISION_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
-1064	1146	engine	one_table@missing	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
-1064	1146	engine	one_table@missing	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
-1064	1146	engine	one_table@missing	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
-1064	1146	engine	one_table@missing	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
-1064	1146	engine	one_table@missing	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
-1064	1146	engine	one_table@missing	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
-1064	1146	engine	one_table@missing	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
-1064	1146	engine	one_table@missing	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
-1064	1146	engine	one_table@missing	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
-1064	1146	engine	one_table@missing	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
+1146	1146	engine	one_table@missing	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
+1146	1146	engine	one_table@missing	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
+1146	1146	engine	one_table@missing	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
+1146	1146	engine	one_table@missing	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
+1146	1146	engine	one_table@missing	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
+1146	1146	engine	one_table@missing	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
+1146	1146	engine	one_table@missing	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
+1146	1146	engine	one_table@missing	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
+1146	1146	engine	one_table@missing	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
+1146	1146	engine	one_table@missing	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
 1146	1146	engine	one_table@missing	merge_insert_types/FIRST	ALTER TABLE a INSERT_METHOD FIRST
 1146	1146	engine	one_table@missing	merge_insert_types/LAST	ALTER TABLE a INSERT_METHOD LAST
-1064	1146	engine	one_table@missing	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
-1064	1146	engine	one_table@missing	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
-1064	1146	engine	one_table@missing	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
-1064	1146	engine	one_table@missing	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
-1064	1146	engine	one_table@missing	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
-1064	1146	engine	one_table@missing	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
-1064	1146	engine	one_table@missing	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
-1064	1146	engine	one_table@missing	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
+1146	1146	engine	one_table@missing	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
+1146	1146	engine	one_table@missing	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
+1146	1146	engine	one_table@missing	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
+1146	1146	engine	one_table@missing	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
+1146	1146	engine	one_table@missing	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
+1146	1146	engine	one_table@missing	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
+1146	1146	engine	one_table@missing	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
+1146	1146	engine	one_table@missing	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 ok	1054	engine	one_table@missing	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
 1064	1054	engine	one_table@missing	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 ok	1054	engine	one_table@missing	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
-1064	1054	engine	one_table@missing	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
+ok	1054	engine	one_table@missing	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1064	1054	engine	one_table@missing	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@missing	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@missing	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
@@ -376,28 +376,28 @@ ok	1054	engine	one_table@missing	partition_option/list_partition_option	CREATE T
 1146	1146	engine	one_table@missing	row_format_option/COMPRESSED	ALTER TABLE a ROW_FORMAT COMPRESSED
 1146	1146	engine	one_table@missing	row_format_option/CONDENSED	ALTER TABLE a ROW_FORMAT CONDENSED
 1146	1146	engine	one_table@missing	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
-1064	1146	engine	one_table@missing	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
-1064	1146	engine	one_table@missing	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
-1064	1146	engine	one_table@missing	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
-1064	1146	engine	one_table@missing	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
-1064	1146	engine	one_table@missing	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
-1064	1146	engine	one_table@missing	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
-1064	1146	engine	one_table@missing	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
-1064	1146	engine	one_table@missing	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
-1064	1146	engine	one_table@missing	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
-1064	1146	engine	one_table@missing	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
-1064	1146	engine	one_table@missing	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
-1064	1146	engine	one_table@missing	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
-1064	1146	engine	one_table@missing	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
-1064	1146	engine	one_table@missing	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
-1064	1146	engine	one_table@missing	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
-1064	1146	engine	one_table@missing	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
-1064	1146	engine	one_table@missing	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
-1064	1146	engine	one_table@missing	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
-1064	1146	engine	one_table@missing	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
-1064	1146	engine	one_table@missing	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
-1064	1146	engine	one_table@missing	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
-1064	1146	engine	one_table@missing	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
+1146	1146	engine	one_table@missing	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
+1146	1146	engine	one_table@missing	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
+1146	1146	engine	one_table@missing	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
+1146	1146	engine	one_table@missing	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
+1146	1146	engine	one_table@missing	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
+1146	1146	engine	one_table@missing	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
+1146	1146	engine	one_table@missing	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
+1146	1146	engine	one_table@missing	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
+1146	1146	engine	one_table@missing	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
+1146	1146	engine	one_table@missing	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
+1146	1146	engine	one_table@missing	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
+1146	1146	engine	one_table@missing	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
+1146	1146	engine	one_table@missing	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
+1146	1146	engine	one_table@missing	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
+1146	1146	engine	one_table@missing	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
+1146	1146	engine	one_table@missing	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
+1146	1146	engine	one_table@missing	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
+1146	1146	engine	one_table@missing	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
+1146	1146	engine	one_table@missing	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
+1146	1146	engine	one_table@missing	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
+1146	1146	engine	one_table@missing	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
+1146	1146	engine	one_table@missing	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
 1146	1146	engine	one_table@missing	opt_table/TABLE	TRUNCATE TABLE a
 1051	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1051	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
@@ -568,7 +568,7 @@ ok	1054	engine	one_table@missing	opt_column_list/(_column_name_list_)	CREATE VIE
 1064	1146	engine	one_table@missing	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1146	engine	one_table@missing	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 1064	1146	engine	one_table@missing	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
-1064	1146	engine	one_table@missing	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
+1146	1146	engine	one_table@missing	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@table	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@table	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1050	1066	engine	one_table@table	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -581,10 +581,10 @@ ok	1072	engine	one_table@table	stmt/create_index_stmt	CREATE INDEX a ON a(a)
 1050	1054	engine	one_table@table	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
 1050	1050	engine	one_table@table	stmt/rename_table_stmt	RENAME TABLE a TO a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	stmt/truncate_table_stmt	TRUNCATE a
-1064	4016	engine	one_table@table	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
-1064	4016	engine	one_table@table	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
-1064	4016	engine	one_table@table	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
-1064	4016	engine	one_table@table	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
+ok	4016	engine	one_table@table	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
+ok	4016	engine	one_table@table	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
+ok	4016	engine	one_table@table	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
+ok	4016	engine	one_table@table	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
 1050	1066	engine	one_table@table	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
@@ -592,9 +592,9 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	stmt/truncate_table_stmt	
 1050	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) SELECT a zzz
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
-1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
+1050	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
 ok	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL SELECT a
-1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
+1050	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
@@ -610,7 +610,7 @@ ok	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_ta
 1050	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_opt_ignore_or_replace_AS_select_stmt!insert	CREATE TABLE a AS SELECT a zzz
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1064	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
-1064	1054	engine	one_table@table	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1050	1054	engine	one_table@table	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@table	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@table	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -778,57 +778,57 @@ ok:c5b06a15bda9	ok:c5b06a15bda9	engine	one_table@table	signed_literal/+_number_l
 ok:c5b06a15bda9	ok:c5b06a15bda9	engine	one_table@table	signed_literal/+_number_literal!drop-1	ALTER TABLE a ADD a TINYINT DEFAULT 1
 ok:b7b503b35736	ok:b7b503b35736	engine	one_table@table	signed_literal/-_number_literal	ALTER TABLE a ADD a TINYINT DEFAULT - 1
 1068	1068	engine	one_table@table	opt_primary/PRIMARY	ALTER TABLE a ADD a TINYINT PRIMARY KEY
-1064	1050	engine	one_table@table	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
-1064	ok:449319c55fc9	engine	one_table@table	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
-1064	ok:449319c55fc9	engine	one_table@table	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
-1064	1054	engine	one_table@table	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
-1064	1054	engine	one_table@table	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
-1064	1235	engine	one_table@table	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
-1064	1210	engine	one_table@table	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
-1064	ok:449319c55fc9	engine	one_table@table	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
-1064	ok:b428661edf4b	engine	one_table@table	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+1050	1050	engine	one_table@table	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
+1050	1054	engine	one_table@table	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
+1050	1054	engine	one_table@table	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
+ok	1235	engine	one_table@table	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
+ok	1210	engine	one_table@table	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
+ok:b428661edf4b	ok:b428661edf4b	engine	one_table@table	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
 ok	5258	engine	one_table@table	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a BLOCK_SIZE 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@table	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
 ok	1210	engine	one_table@table	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:f8e70892c438	ok:f8e70892c438	engine	one_table@table	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
-1064	4179	engine	one_table@table	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
+ok	4179	engine	one_table@table	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:5117c6129d29	ok:5117c6129d29	engine	one_table@table	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 ok	1115	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
 ok	1273	engine	one_table@table	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:b53b91bb13b8	ok:b53b91bb13b8	engine	one_table@table	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
-1064	5151	engine	one_table@table	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
+ok	5151	engine	one_table@table	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
-1064	ok:4f987e38db64	engine	one_table@table	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:4f987e38db64	ok:4f987e38db64	engine	one_table@table	table_option/read_only_or_write	ALTER TABLE a READ ONLY
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 ok	4147	engine	one_table@table	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:dbac01045c1c	ok:dbac01045c1c	engine	one_table@table	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
-1064	ok:449319c55fc9	engine	one_table@table	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
 ok	3510	engine	one_table@table	table_option/TABLESPACE_tablespace	ALTER TABLE a TABLESPACE a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/DELAY_KEY_WRITE_opt_equal_mark_INTNUM	ALTER TABLE a DELAY_KEY_WRITE 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/AVG_ROW_LENGTH_opt_equal_mark_INTNUM	ALTER TABLE a AVG_ROW_LENGTH 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/CHECKSUM_opt_equal_mark_INTNUM	ALTER TABLE a CHECKSUM 1
 ok	1149	engine	one_table@table	table_option/AUTO_INCREMENT_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a AUTO_INCREMENT_MODE 's'
-1064	ok:449319c55fc9	engine	one_table@table	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
-1064	ok:449319c55fc9	engine	one_table@table	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
-1064	4016	engine	one_table@table	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
-1064	4016	engine	one_table@table	table_option/location_expr	ALTER TABLE a LOCATION 's'
-1064	4016	engine	one_table@table	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
-1064	4016	engine	one_table@table	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
-1064	4016	engine	one_table@table	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
-1064	10502	engine	one_table@table	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
-1064	1149	engine	one_table@table	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
-1064	ok:6f607c11a77e	engine	one_table@table	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
-1064	ok:6f607c11a77e	engine	one_table@table	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
-1064	1210	engine	one_table@table	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
-1064	ok:449319c55fc9	engine	one_table@table	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
+ok	4016	engine	one_table@table	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+ok	4016	engine	one_table@table	table_option/location_expr	ALTER TABLE a LOCATION 's'
+ok	4016	engine	one_table@table	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
+ok	4016	engine	one_table@table	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
+ok	4016	engine	one_table@table	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
+ok	10502	engine	one_table@table	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
+ok	1149	engine	one_table@table	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
+ok:6f607c11a77e	ok:6f607c11a77e	engine	one_table@table	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
+ok:6f607c11a77e	ok:6f607c11a77e	engine	one_table@table	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
+ok	1210	engine	one_table@table	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/ENABLE_MACRO_BLOCK_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
-1064	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
-1064	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
-1064	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
-1064	1210	engine	one_table@table	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
-1064	1235	engine	one_table@table	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
+ok	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
+ok	1235	engine	one_table@table	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
+ok	1210	engine	one_table@table	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+ok	1235	engine	one_table@table	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/MAX_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MAX_ROWS 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/MIN_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MIN_ROWS 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/PASSWORD_opt_equal_mark_STRING_VALUE	ALTER TABLE a PASSWORD 's'
@@ -847,8 +847,8 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/STATS_SAMPLE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/UNION_opt_equal_mark_(_opt_empty_table_list_)	ALTER TABLE a UNION()
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/INSERT_METHOD_opt_equal_mark_merge_insert_types	ALTER TABLE a INSERT_METHOD NO
 ok	1235	engine	one_table@table	table_option/ORGANIZATION_opt_equal_mark_index_or_heap	ALTER TABLE a ORGANIZATION INDEX
-1064	1210	engine	one_table@table	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
-1064	1235	engine	one_table@table	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
+ok	1210	engine	one_table@table	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+ok	1235	engine	one_table@table	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
 ok	1235	engine	one_table@table	table_option/DYNAMIC_PARTITION_POLICY_opt_equal_mark_(_dynamic_partition_option_list_)	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 ok	1210	engine	one_table@table	dynamic_partition_option_list/dynamic_partition_option_list_opt_comma_dynamic_partition_option	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 ok	1210	engine	one_table@table	dynamic_partition_option/TIME_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 's')
@@ -856,30 +856,30 @@ ok	1210	engine	one_table@table	dynamic_partition_option/PRECREATE_TIME_COMP_EQ_S
 ok	1210	engine	one_table@table	dynamic_partition_option/EXPIRE_TIME_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(EXPIRE_TIME = 's')
 ok	1298	engine	one_table@table	dynamic_partition_option/TIME_ZONE_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = 's')
 ok	1235	engine	one_table@table	dynamic_partition_option/BIGINT_PRECISION_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
-1064	1235	engine	one_table@table	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@table	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@table	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
-1064	1235	engine	one_table@table	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
-1064	1235	engine	one_table@table	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
-1064	1235	engine	one_table@table	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
-1064	1235	engine	one_table@table	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
-1064	1235	engine	one_table@table	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
-1064	1235	engine	one_table@table	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
-1064	1235	engine	one_table@table	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
+ok	1235	engine	one_table@table	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@table	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@table	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
+ok	1235	engine	one_table@table	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
+ok	1235	engine	one_table@table	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
+ok	1235	engine	one_table@table	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
+ok	1235	engine	one_table@table	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
+ok	1235	engine	one_table@table	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
+ok	1235	engine	one_table@table	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
+ok	1235	engine	one_table@table	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	merge_insert_types/FIRST	ALTER TABLE a INSERT_METHOD FIRST
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	merge_insert_types/LAST	ALTER TABLE a INSERT_METHOD LAST
-1064	1235	engine	one_table@table	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
-1064	ok:449319c55fc9	engine	one_table@table	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
-1064	10502	engine	one_table@table	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
-1064	10502	engine	one_table@table	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
-1064	10502	engine	one_table@table	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
-1064	10502	engine	one_table@table	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
-1064	10502	engine	one_table@table	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
-1064	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
+ok	1235	engine	one_table@table	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
+ok	10502	engine	one_table@table	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
+ok	10502	engine	one_table@table	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
+ok	10502	engine	one_table@table	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
+ok	10502	engine	one_table@table	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
+ok	10502	engine	one_table@table	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
+ok	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@table	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
 1064	1054	engine	one_table@table	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@table	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
-1064	1054	engine	one_table@table	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
+1050	1054	engine	one_table@table	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1064	1054	engine	one_table@table	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@table	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@table	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
@@ -945,28 +945,28 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	row_format_option/DYNAMIC
 ok:935c1266818b	ok:935c1266818b	engine	one_table@table	row_format_option/COMPRESSED	ALTER TABLE a ROW_FORMAT COMPRESSED
 ok:d8743c7e7847	ok:d8743c7e7847	engine	one_table@table	row_format_option/CONDENSED	ALTER TABLE a ROW_FORMAT CONDENSED
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
-1064	4016	engine	one_table@table	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
-1064	4016	engine	one_table@table	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
-1064	4016	engine	one_table@table	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
-1064	4016	engine	one_table@table	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
-1064	4016	engine	one_table@table	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
-1064	4016	engine	one_table@table	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
-1064	4016	engine	one_table@table	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
-1064	4016	engine	one_table@table	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
-1064	4016	engine	one_table@table	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
-1064	4016	engine	one_table@table	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
-1064	4016	engine	one_table@table	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
-1064	4016	engine	one_table@table	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
-1064	4016	engine	one_table@table	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
-1064	4016	engine	one_table@table	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
-1064	4016	engine	one_table@table	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
-1064	4016	engine	one_table@table	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
-1064	4016	engine	one_table@table	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
-1064	4016	engine	one_table@table	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
-1064	4016	engine	one_table@table	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
-1064	4016	engine	one_table@table	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
-1064	4016	engine	one_table@table	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
-1064	4016	engine	one_table@table	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
+ok	4016	engine	one_table@table	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
+ok	4016	engine	one_table@table	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
+ok	4016	engine	one_table@table	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
+ok	4016	engine	one_table@table	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
+ok	4016	engine	one_table@table	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
+ok	4016	engine	one_table@table	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
+ok	4016	engine	one_table@table	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
+ok	4016	engine	one_table@table	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
+ok	4016	engine	one_table@table	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
+ok	4016	engine	one_table@table	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
+ok	4016	engine	one_table@table	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
+ok	4016	engine	one_table@table	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
+ok	4016	engine	one_table@table	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
+ok	4016	engine	one_table@table	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
+ok	4016	engine	one_table@table	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
+ok	4016	engine	one_table@table	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
+ok	4016	engine	one_table@table	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
+ok	4016	engine	one_table@table	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
+ok	4016	engine	one_table@table	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
+ok	4016	engine	one_table@table	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
+ok	4016	engine	one_table@table	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
+ok	4016	engine	one_table@table	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE TABLE a
 1051	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1051	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
@@ -1137,7 +1137,7 @@ ok	1235	engine	one_table@table	vec_index_param_value/relation_name	ALTER TABLE a
 1064	ok:158492498704	engine	one_table@table	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	ok:ade19a09cac6	engine	one_table@table	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 1064	1235	engine	one_table@table	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
-1064	1210	engine	one_table@table	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
+ok	1210	engine	one_table@table	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@column	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@column	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1050	1066	engine	one_table@column	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -1150,10 +1150,10 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	stmt/create_index_stmt	C
 1050	1054	engine	one_table@column	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
 1050	1050	engine	one_table@column	stmt/rename_table_stmt	RENAME TABLE a TO a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	stmt/truncate_table_stmt	TRUNCATE a
-1064	4016	engine	one_table@column	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
-1064	4016	engine	one_table@column	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
-1064	4016	engine	one_table@column	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
-1064	4016	engine	one_table@column	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
+ok	4016	engine	one_table@column	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
+ok	4016	engine	one_table@column	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
+ok	4016	engine	one_table@column	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
+ok	4016	engine	one_table@column	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
 1050	1066	engine	one_table@column	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
@@ -1161,9 +1161,9 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	stmt/truncate_table_stmt
 1050	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) SELECT a zzz
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
-1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
+1050	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
 ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL SELECT a
-1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
+1050	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
@@ -1179,7 +1179,7 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1050	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_opt_ignore_or_replace_AS_select_stmt!insert	CREATE TABLE a AS SELECT a zzz
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1064	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
-1064	1054	engine	one_table@column	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1050	1054	engine	one_table@column	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@column	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@column	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -1347,57 +1347,57 @@ ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE
 1060	1060	engine	one_table@column	signed_literal/+_number_literal!drop-1	ALTER TABLE a ADD a TINYINT DEFAULT 1
 1060	1060	engine	one_table@column	signed_literal/-_number_literal	ALTER TABLE a ADD a TINYINT DEFAULT - 1
 1060	1068	engine	one_table@column	opt_primary/PRIMARY	ALTER TABLE a ADD a TINYINT PRIMARY KEY
-1064	1050	engine	one_table@column	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
-1064	1054	engine	one_table@column	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
-1064	1054	engine	one_table@column	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
-1064	1235	engine	one_table@column	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
-1064	1210	engine	one_table@column	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
-1064	ok:7105a2e6d753	engine	one_table@column	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+1050	1050	engine	one_table@column	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
+1050	1054	engine	one_table@column	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
+1050	1054	engine	one_table@column	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
+ok	1235	engine	one_table@column	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
+ok	1210	engine	one_table@column	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
+ok:7105a2e6d753	ok:7105a2e6d753	engine	one_table@column	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
 ok	5258	engine	one_table@column	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a BLOCK_SIZE 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@column	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
 ok	1210	engine	one_table@column	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:75c468979562	ok:75c468979562	engine	one_table@column	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
-1064	4179	engine	one_table@column	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
+ok	4179	engine	one_table@column	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:e8971b56c4bd	ok:e8971b56c4bd	engine	one_table@column	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 ok	1115	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
 ok	1273	engine	one_table@column	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:80dd5ef560c2	ok:80dd5ef560c2	engine	one_table@column	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
-1064	5151	engine	one_table@column	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
+ok	5151	engine	one_table@column	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
-1064	ok:4aaabe6edbf5	engine	one_table@column	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:4aaabe6edbf5	ok:4aaabe6edbf5	engine	one_table@column	table_option/read_only_or_write	ALTER TABLE a READ ONLY
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 ok	4147	engine	one_table@column	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:13c7354c7ffb	ok:13c7354c7ffb	engine	one_table@column	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
 ok	3510	engine	one_table@column	table_option/TABLESPACE_tablespace	ALTER TABLE a TABLESPACE a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/DELAY_KEY_WRITE_opt_equal_mark_INTNUM	ALTER TABLE a DELAY_KEY_WRITE 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/AVG_ROW_LENGTH_opt_equal_mark_INTNUM	ALTER TABLE a AVG_ROW_LENGTH 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/CHECKSUM_opt_equal_mark_INTNUM	ALTER TABLE a CHECKSUM 1
 ok	1149	engine	one_table@column	table_option/AUTO_INCREMENT_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a AUTO_INCREMENT_MODE 's'
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
-1064	4016	engine	one_table@column	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
-1064	4016	engine	one_table@column	table_option/location_expr	ALTER TABLE a LOCATION 's'
-1064	4016	engine	one_table@column	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
-1064	4016	engine	one_table@column	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
-1064	4016	engine	one_table@column	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
-1064	10503	engine	one_table@column	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
-1064	1149	engine	one_table@column	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
-1064	ok:e03dd9e887cb	engine	one_table@column	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
-1064	ok:e03dd9e887cb	engine	one_table@column	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
-1064	1210	engine	one_table@column	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
-1064	ok:04fbf22fd80d	engine	one_table@column	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
+ok	4016	engine	one_table@column	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+ok	4016	engine	one_table@column	table_option/location_expr	ALTER TABLE a LOCATION 's'
+ok	4016	engine	one_table@column	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
+ok	4016	engine	one_table@column	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
+ok	4016	engine	one_table@column	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
+ok	10503	engine	one_table@column	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
+ok	1149	engine	one_table@column	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
+ok:e03dd9e887cb	ok:e03dd9e887cb	engine	one_table@column	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
+ok:e03dd9e887cb	ok:e03dd9e887cb	engine	one_table@column	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
+ok	1210	engine	one_table@column	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/ENABLE_MACRO_BLOCK_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
-1064	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
-1064	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
-1064	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
-1064	1210	engine	one_table@column	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
-1064	1235	engine	one_table@column	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
+ok	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
+ok	1235	engine	one_table@column	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
+ok	1210	engine	one_table@column	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+ok	1235	engine	one_table@column	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/MAX_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MAX_ROWS 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/MIN_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MIN_ROWS 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/PASSWORD_opt_equal_mark_STRING_VALUE	ALTER TABLE a PASSWORD 's'
@@ -1416,8 +1416,8 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/STATS_SAMPL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/UNION_opt_equal_mark_(_opt_empty_table_list_)	ALTER TABLE a UNION()
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/INSERT_METHOD_opt_equal_mark_merge_insert_types	ALTER TABLE a INSERT_METHOD NO
 ok	1235	engine	one_table@column	table_option/ORGANIZATION_opt_equal_mark_index_or_heap	ALTER TABLE a ORGANIZATION INDEX
-1064	1210	engine	one_table@column	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
-1064	1235	engine	one_table@column	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
+ok	1210	engine	one_table@column	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+ok	1235	engine	one_table@column	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
 ok	1235	engine	one_table@column	table_option/DYNAMIC_PARTITION_POLICY_opt_equal_mark_(_dynamic_partition_option_list_)	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 ok	1210	engine	one_table@column	dynamic_partition_option_list/dynamic_partition_option_list_opt_comma_dynamic_partition_option	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 ok	1210	engine	one_table@column	dynamic_partition_option/TIME_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 's')
@@ -1425,30 +1425,30 @@ ok	1210	engine	one_table@column	dynamic_partition_option/PRECREATE_TIME_COMP_EQ_
 ok	1210	engine	one_table@column	dynamic_partition_option/EXPIRE_TIME_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(EXPIRE_TIME = 's')
 ok	1298	engine	one_table@column	dynamic_partition_option/TIME_ZONE_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = 's')
 ok	1235	engine	one_table@column	dynamic_partition_option/BIGINT_PRECISION_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
-1064	1235	engine	one_table@column	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@column	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@column	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
-1064	1235	engine	one_table@column	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
-1064	1235	engine	one_table@column	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
-1064	1235	engine	one_table@column	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
-1064	1235	engine	one_table@column	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
-1064	1235	engine	one_table@column	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
-1064	1235	engine	one_table@column	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
-1064	1235	engine	one_table@column	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
+ok	1235	engine	one_table@column	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@column	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@column	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
+ok	1235	engine	one_table@column	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
+ok	1235	engine	one_table@column	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
+ok	1235	engine	one_table@column	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
+ok	1235	engine	one_table@column	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
+ok	1235	engine	one_table@column	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
+ok	1235	engine	one_table@column	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
+ok	1235	engine	one_table@column	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	merge_insert_types/FIRST	ALTER TABLE a INSERT_METHOD FIRST
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	merge_insert_types/LAST	ALTER TABLE a INSERT_METHOD LAST
-1064	1235	engine	one_table@column	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
-1064	ok:04fbf22fd80d	engine	one_table@column	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
-1064	10503	engine	one_table@column	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
-1064	10503	engine	one_table@column	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
-1064	10503	engine	one_table@column	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
-1064	10503	engine	one_table@column	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
-1064	10503	engine	one_table@column	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
-1064	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
+ok	1235	engine	one_table@column	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
+ok	10503	engine	one_table@column	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
+ok	10503	engine	one_table@column	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
+ok	10503	engine	one_table@column	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
+ok	10503	engine	one_table@column	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
+ok	10503	engine	one_table@column	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
+ok	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@column	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
 1064	1054	engine	one_table@column	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@column	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
-1064	1054	engine	one_table@column	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
+1050	1054	engine	one_table@column	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1064	1054	engine	one_table@column	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@column	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@column	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
@@ -1514,28 +1514,28 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	row_format_option/DYNAMI
 ok:ebdfafacd9c5	ok:ebdfafacd9c5	engine	one_table@column	row_format_option/COMPRESSED	ALTER TABLE a ROW_FORMAT COMPRESSED
 ok:5e084c8bca42	ok:5e084c8bca42	engine	one_table@column	row_format_option/CONDENSED	ALTER TABLE a ROW_FORMAT CONDENSED
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
-1064	4016	engine	one_table@column	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
-1064	4016	engine	one_table@column	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
-1064	4016	engine	one_table@column	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
-1064	4016	engine	one_table@column	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
-1064	4016	engine	one_table@column	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
-1064	4016	engine	one_table@column	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
-1064	4016	engine	one_table@column	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
-1064	4016	engine	one_table@column	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
-1064	4016	engine	one_table@column	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
-1064	4016	engine	one_table@column	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
-1064	4016	engine	one_table@column	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
-1064	4016	engine	one_table@column	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
-1064	4016	engine	one_table@column	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
-1064	4016	engine	one_table@column	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
-1064	4016	engine	one_table@column	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
-1064	4016	engine	one_table@column	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
-1064	4016	engine	one_table@column	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
-1064	4016	engine	one_table@column	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
-1064	4016	engine	one_table@column	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
-1064	4016	engine	one_table@column	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
-1064	4016	engine	one_table@column	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
-1064	4016	engine	one_table@column	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
+ok	4016	engine	one_table@column	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
+ok	4016	engine	one_table@column	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
+ok	4016	engine	one_table@column	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
+ok	4016	engine	one_table@column	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
+ok	4016	engine	one_table@column	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
+ok	4016	engine	one_table@column	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
+ok	4016	engine	one_table@column	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
+ok	4016	engine	one_table@column	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
+ok	4016	engine	one_table@column	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
+ok	4016	engine	one_table@column	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
+ok	4016	engine	one_table@column	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
+ok	4016	engine	one_table@column	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
+ok	4016	engine	one_table@column	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
+ok	4016	engine	one_table@column	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
+ok	4016	engine	one_table@column	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
+ok	4016	engine	one_table@column	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
+ok	4016	engine	one_table@column	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
+ok	4016	engine	one_table@column	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
+ok	4016	engine	one_table@column	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
+ok	4016	engine	one_table@column	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
+ok	4016	engine	one_table@column	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
+ok	4016	engine	one_table@column	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_table/TABLE	TRUNCATE TABLE a
 1051	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1051	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
@@ -1706,7 +1706,7 @@ ok	1235	engine	one_table@column	vec_index_param_value/relation_name	ALTER TABLE 
 1064	1060	engine	one_table@column	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@column	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 1064	1235	engine	one_table@column	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
-1064	1210	engine	one_table@column	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
+ok	1210	engine	one_table@column	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@index	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@index	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1050	1066	engine	one_table@index	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -1719,10 +1719,10 @@ ok:7b0f12d09c84	ok:7b0f12d09c84	engine	one_table@index	stmt/drop_index_stmt	DROP
 1050	1054	engine	one_table@index	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
 1050	1050	engine	one_table@index	stmt/rename_table_stmt	RENAME TABLE a TO a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	stmt/truncate_table_stmt	TRUNCATE a
-1064	4016	engine	one_table@index	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
-1064	4016	engine	one_table@index	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
-1064	4016	engine	one_table@index	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
-1064	4016	engine	one_table@index	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
+ok	4016	engine	one_table@index	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
+ok	4016	engine	one_table@index	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
+ok	4016	engine	one_table@index	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
+ok	4016	engine	one_table@index	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
 1050	1066	engine	one_table@index	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
@@ -1730,9 +1730,9 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	stmt/truncate_table_stmt	
 1050	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) SELECT a zzz
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
-1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
+1050	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a NOPARALLEL SELECT a
 ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL SELECT a
-1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
+1050	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL SELECT a zzz
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!drop-3	CREATE TABLE NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_table_option_list_opt_partition_option_with_column_group_opt_as_select_stmt!insert	CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a zzz
@@ -1748,7 +1748,7 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1050	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_opt_ignore_or_replace_AS_select_stmt!insert	CREATE TABLE a AS SELECT a zzz
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1064	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
-1064	1054	engine	one_table@index	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1050	1054	engine	one_table@index	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@index	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@index	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -1916,57 +1916,57 @@ ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE 
 1060	1060	engine	one_table@index	signed_literal/+_number_literal!drop-1	ALTER TABLE a ADD a TINYINT DEFAULT 1
 1060	1060	engine	one_table@index	signed_literal/-_number_literal	ALTER TABLE a ADD a TINYINT DEFAULT - 1
 1060	1068	engine	one_table@index	opt_primary/PRIMARY	ALTER TABLE a ADD a TINYINT PRIMARY KEY
-1064	1050	engine	one_table@index	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
-1064	ok:b05454e6c466	engine	one_table@index	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
-1064	ok:b05454e6c466	engine	one_table@index	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
-1064	1054	engine	one_table@index	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
-1064	1054	engine	one_table@index	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
-1064	1235	engine	one_table@index	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
-1064	1210	engine	one_table@index	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
-1064	ok:b05454e6c466	engine	one_table@index	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
-1064	ok:33181d7e7eed	engine	one_table@index	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+1050	1050	engine	one_table@index	opt_table_option_list/table_option_list	CREATE TABLE a(a TINYINT) NOPARALLEL
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option_list_space_seperated/table_option	ALTER TABLE a NOPARALLEL
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option_list_space_seperated/table_option_table_option_list_space_seperated	ALTER TABLE a NOPARALLEL NOPARALLEL
+1050	1054	engine	one_table@index	table_option_list/table_option_,_table_option_list	CREATE TABLE a NOPARALLEL, NOPARALLEL SELECT a
+1050	1054	engine	one_table@index	table_option_list/table_option_,_table_option_list!drop-2	CREATE TABLE a NOPARALLEL NOPARALLEL SELECT a
+ok	1235	engine	one_table@index	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
+ok	1210	engine	one_table@index	table_option/DUPLICATE_SCOPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_SCOPE 's'
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/EXPIRE_INFO_opt_equal_mark_(_expr_)	ALTER TABLE a EXPIRE_INFO(a)
+ok:33181d7e7eed	ok:33181d7e7eed	engine	one_table@index	table_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
 ok	5258	engine	one_table@index	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a BLOCK_SIZE 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@index	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
 ok	1210	engine	one_table@index	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:a55e5012546a	ok:a55e5012546a	engine	one_table@index	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
-1064	4179	engine	one_table@index	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
+ok	4179	engine	one_table@index	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:def5440268e9	ok:def5440268e9	engine	one_table@index	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 ok	1115	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
 ok	1273	engine	one_table@index	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:ed1e476cd50c	ok:ed1e476cd50c	engine	one_table@index	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
-1064	5151	engine	one_table@index	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
+ok	5151	engine	one_table@index	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
-1064	ok:0f0f62a4c3ed	engine	one_table@index	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:0f0f62a4c3ed	ok:0f0f62a4c3ed	engine	one_table@index	table_option/read_only_or_write	ALTER TABLE a READ ONLY
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 ok	4147	engine	one_table@index	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:e3fb4373ff03	ok:e3fb4373ff03	engine	one_table@index	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
-1064	ok:b05454e6c466	engine	one_table@index	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a MAX_USED_PART_ID 1
 ok	3510	engine	one_table@index	table_option/TABLESPACE_tablespace	ALTER TABLE a TABLESPACE a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/DELAY_KEY_WRITE_opt_equal_mark_INTNUM	ALTER TABLE a DELAY_KEY_WRITE 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/AVG_ROW_LENGTH_opt_equal_mark_INTNUM	ALTER TABLE a AVG_ROW_LENGTH 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/CHECKSUM_opt_equal_mark_INTNUM	ALTER TABLE a CHECKSUM 1
 ok	1149	engine	one_table@index	table_option/AUTO_INCREMENT_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a AUTO_INCREMENT_MODE 's'
-1064	ok:b05454e6c466	engine	one_table@index	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
-1064	ok:b05454e6c466	engine	one_table@index	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
-1064	4016	engine	one_table@index	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
-1064	4016	engine	one_table@index	table_option/location_expr	ALTER TABLE a LOCATION 's'
-1064	4016	engine	one_table@index	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
-1064	4016	engine	one_table@index	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
-1064	4016	engine	one_table@index	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
-1064	10503	engine	one_table@index	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
-1064	1149	engine	one_table@index	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
-1064	ok:cd1c20f3a64a	engine	one_table@index	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
-1064	ok:cd1c20f3a64a	engine	one_table@index	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
-1064	1210	engine	one_table@index	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
-1064	ok:b05454e6c466	engine	one_table@index	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/AUTO_INCREMENT_CACHE_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
+ok	4016	engine	one_table@index	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED	ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+ok	4016	engine	one_table@index	table_option/location_expr	ALTER TABLE a LOCATION 's'
+ok	4016	engine	one_table@index	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
+ok	4016	engine	one_table@index	table_option/PROPERTIES_opt_equal_mark_(_external_properties_list_)	ALTER TABLE a PROPERTIES(TYPE = 's')
+ok	4016	engine	one_table@index	table_option/pattern_expr	ALTER TABLE a PATTERN 's'
+ok	10503	engine	one_table@index	table_option/TTL_opt_equal_mark_(_ttl_definition_)	ALTER TABLE a TTL(a + INTERVAL 1 SECOND)
+ok	1149	engine	one_table@index	table_option/KV_ATTRIBUTES_opt_equal_mark_STRING_VALUE	ALTER TABLE a KV_ATTRIBUTES 's'
+ok:cd1c20f3a64a	ok:cd1c20f3a64a	engine	one_table@index	table_option/DEFAULT_LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD 1
+ok:cd1c20f3a64a	ok:cd1c20f3a64a	engine	one_table@index	table_option/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER TABLE a LOB_INROW_THRESHOLD 1
+ok	1210	engine	one_table@index	table_option/lob_storage_clause	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/MICRO_INDEX_CLUSTERED_opt_equal_mark_BOOL_VALUE	ALTER TABLE a MICRO_INDEX_CLUSTERED TRUE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/ENABLE_MACRO_BLOCK_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
-1064	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
-1064	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
-1064	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
-1064	1210	engine	one_table@index	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
-1064	1235	engine	one_table@index	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_OFF	ALTER TABLE a AUTO_REFRESH OFF
+ok	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_IMMEDIATE	ALTER TABLE a AUTO_REFRESH IMMEDIATE
+ok	1235	engine	one_table@index	table_option/AUTO_REFRESH_opt_equal_mark_INTERVAL	ALTER TABLE a AUTO_REFRESH INTERVAL
+ok	1210	engine	one_table@index	table_option/DUPLICATE_READ_CONSISTENCY_opt_equal_mark_STRING_VALUE	ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+ok	1235	engine	one_table@index	table_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/MAX_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MAX_ROWS 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/MIN_ROWS_opt_equal_mark_INTNUM	ALTER TABLE a MIN_ROWS 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/PASSWORD_opt_equal_mark_STRING_VALUE	ALTER TABLE a PASSWORD 's'
@@ -1985,8 +1985,8 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/STATS_SAMPLE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/UNION_opt_equal_mark_(_opt_empty_table_list_)	ALTER TABLE a UNION()
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/INSERT_METHOD_opt_equal_mark_merge_insert_types	ALTER TABLE a INSERT_METHOD NO
 ok	1235	engine	one_table@index	table_option/ORGANIZATION_opt_equal_mark_index_or_heap	ALTER TABLE a ORGANIZATION INDEX
-1064	1210	engine	one_table@index	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
-1064	1235	engine	one_table@index	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
+ok	1210	engine	one_table@index	table_option/SEMISTRUCT_ENCODING_TYPE_opt_equal_mark_STRING_VALUE	ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+ok	1235	engine	one_table@index	table_option/MERGE_ENGINE_opt_equal_mark_merge_engine_types	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
 ok	1235	engine	one_table@index	table_option/DYNAMIC_PARTITION_POLICY_opt_equal_mark_(_dynamic_partition_option_list_)	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 ok	1210	engine	one_table@index	dynamic_partition_option_list/dynamic_partition_option_list_opt_comma_dynamic_partition_option	ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 ok	1210	engine	one_table@index	dynamic_partition_option/TIME_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 's')
@@ -1994,30 +1994,30 @@ ok	1210	engine	one_table@index	dynamic_partition_option/PRECREATE_TIME_COMP_EQ_S
 ok	1210	engine	one_table@index	dynamic_partition_option/EXPIRE_TIME_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(EXPIRE_TIME = 's')
 ok	1298	engine	one_table@index	dynamic_partition_option/TIME_ZONE_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = 's')
 ok	1235	engine	one_table@index	dynamic_partition_option/BIGINT_PRECISION_COMP_EQ_STRING_VALUE	ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
-1064	1235	engine	one_table@index	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@index	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
-1064	1235	engine	one_table@index	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
-1064	1235	engine	one_table@index	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
-1064	1235	engine	one_table@index	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
-1064	1235	engine	one_table@index	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
-1064	1235	engine	one_table@index	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
-1064	1235	engine	one_table@index	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
-1064	1235	engine	one_table@index	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
-1064	1235	engine	one_table@index	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
+ok	1235	engine	one_table@index	storage_cache_policy_attribute_list/storage_cache_time_policy_attribute_list	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@index	storage_cache_time_policy_attribute_list/storage_cache_time_policy_attribute_list_,_storage_cache_time_policy_attribute	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN = a, BOUNDARY_COLUMN = a)
+ok	1235	engine	one_table@index	storage_cache_time_policy_attribute/BOUNDARY_COLUMN_UNIT_COMP_EQ_STRING_VALUE	ALTER TABLE a STORAGE_CACHE_POLICY(BOUNDARY_COLUMN_UNIT = 's')
+ok	1235	engine	one_table@index	storage_cache_time_policy_attribute/HOT_RETENTION_COMP_EQ_INTNUM_retention_time_unit	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 YEAR)
+ok	1235	engine	one_table@index	retention_time_unit/MONTH	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MONTH)
+ok	1235	engine	one_table@index	retention_time_unit/WEEK	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 WEEK)
+ok	1235	engine	one_table@index	retention_time_unit/DAY	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 DAY)
+ok	1235	engine	one_table@index	retention_time_unit/HOUR	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 HOUR)
+ok	1235	engine	one_table@index	retention_time_unit/MINUTE	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 MINUTE)
+ok	1235	engine	one_table@index	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	merge_insert_types/FIRST	ALTER TABLE a INSERT_METHOD FIRST
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	merge_insert_types/LAST	ALTER TABLE a INSERT_METHOD LAST
-1064	1235	engine	one_table@index	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
-1064	ok:b05454e6c466	engine	one_table@index	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
-1064	10503	engine	one_table@index	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
-1064	10503	engine	one_table@index	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
-1064	10503	engine	one_table@index	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
-1064	10503	engine	one_table@index	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
-1064	10503	engine	one_table@index	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
-1064	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
+ok	1235	engine	one_table@index	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	parallel_option/PARALLEL_opt_equal_mark_INTNUM	ALTER TABLE a PARALLEL 1
+ok	10503	engine	one_table@index	ttl_definition/ttl_definition_,_ttl_expr	ALTER TABLE a TTL(a + INTERVAL 1 SECOND, a + INTERVAL 1 SECOND)
+ok	10503	engine	one_table@index	ttl_unit/MINUTE	ALTER TABLE a TTL(a + INTERVAL 1 MINUTE)
+ok	10503	engine	one_table@index	ttl_unit/HOUR	ALTER TABLE a TTL(a + INTERVAL 1 HOUR)
+ok	10503	engine	one_table@index	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DAY)
+ok	10503	engine	one_table@index	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
+ok	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@index	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
 1064	1054	engine	one_table@index	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@index	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
-1064	1054	engine	one_table@index	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
+1050	1054	engine	one_table@index	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
 1064	1054	engine	one_table@index	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@index	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@index	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
@@ -2083,28 +2083,28 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	row_format_option/DYNAMIC
 ok:753264344ddb	ok:753264344ddb	engine	one_table@index	row_format_option/COMPRESSED	ALTER TABLE a ROW_FORMAT COMPRESSED
 ok:c5e7f678ab96	ok:c5e7f678ab96	engine	one_table@index	row_format_option/CONDENSED	ALTER TABLE a ROW_FORMAT CONDENSED
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
-1064	4016	engine	one_table@index	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
-1064	4016	engine	one_table@index	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
-1064	4016	engine	one_table@index	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
-1064	4016	engine	one_table@index	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
-1064	4016	engine	one_table@index	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
-1064	4016	engine	one_table@index	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
-1064	4016	engine	one_table@index	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
-1064	4016	engine	one_table@index	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
-1064	4016	engine	one_table@index	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
-1064	4016	engine	one_table@index	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
-1064	4016	engine	one_table@index	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
-1064	4016	engine	one_table@index	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
-1064	4016	engine	one_table@index	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
-1064	4016	engine	one_table@index	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
-1064	4016	engine	one_table@index	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
-1064	4016	engine	one_table@index	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
-1064	4016	engine	one_table@index	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
-1064	4016	engine	one_table@index	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
-1064	4016	engine	one_table@index	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
-1064	4016	engine	one_table@index	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
-1064	4016	engine	one_table@index	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
-1064	4016	engine	one_table@index	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
+ok	4016	engine	one_table@index	external_file_format_list/external_file_format_list_opt_comma_external_file_format	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's')
+ok	4016	engine	one_table@index	external_file_format/FIELD_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
+ok	4016	engine	one_table@index	external_file_format/LINE_DELIMITER_COMP_EQ_expr	ALTER TABLE a FORMAT(LINE_DELIMITER = a)
+ok	4016	engine	one_table@index	external_file_format/ESCAPE_COMP_EQ_expr	ALTER TABLE a FORMAT(ESCAPE = a)
+ok	4016	engine	one_table@index	external_file_format/FIELD_OPTIONALLY_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_OPTIONALLY_ENCLOSED_BY = a)
+ok	4016	engine	one_table@index	external_file_format/FIELD_ENCLOSED_BY_COMP_EQ_expr	ALTER TABLE a FORMAT(FIELD_ENCLOSED_BY = a)
+ok	4016	engine	one_table@index	external_file_format/ENCODING_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(ENCODING = 's')
+ok	4016	engine	one_table@index	external_file_format/SKIP_HEADER_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(SKIP_HEADER = 1)
+ok	4016	engine	one_table@index	external_file_format/SKIP_BLANK_LINES_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(SKIP_BLANK_LINES = TRUE)
+ok	4016	engine	one_table@index	external_file_format/TRIM_SPACE_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(TRIM_SPACE = TRUE)
+ok	4016	engine	one_table@index	external_file_format/NULL_IF_EXETERNAL_COMP_EQ_(_expr_list_)	ALTER TABLE a FORMAT(NULL_IF =(a))
+ok	4016	engine	one_table@index	external_file_format/EMPTY_FIELD_AS_NULL_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(EMPTY_FIELD_AS_NULL = TRUE)
+ok	4016	engine	one_table@index	external_file_format/ROW_GROUP_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(ROW_GROUP_SIZE = 1)
+ok	4016	engine	one_table@index	external_file_format/COMPRESSION_COMP_EQ_compression_name	ALTER TABLE a FORMAT(COMPRESSION = a)
+ok	4016	engine	one_table@index	external_file_format/COLUMN_INDEX_TYPE_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(COLUMN_INDEX_TYPE = 's')
+ok	4016	engine	one_table@index	external_file_format/STRIPE_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(STRIPE_SIZE = 1)
+ok	4016	engine	one_table@index	external_file_format/COMPRESSION_BLOCK_SIZE_COMP_EQ_file_size_const	ALTER TABLE a FORMAT(COMPRESSION_BLOCK_SIZE = 1)
+ok	4016	engine	one_table@index	external_file_format/ROW_INDEX_STRIDE_COMP_EQ_INTNUM	ALTER TABLE a FORMAT(ROW_INDEX_STRIDE = 1)
+ok	4016	engine	one_table@index	external_file_format/COLUMN_BLOOM_FILTER_COMP_EQ_(_intnum_list_)	ALTER TABLE a FORMAT(COLUMN_BLOOM_FILTER =(1))
+ok	4016	engine	one_table@index	external_file_format/FILE_EXTENSION_COMP_EQ_STRING_VALUE	ALTER TABLE a FORMAT(FILE_EXTENSION = 's')
+ok	4016	engine	one_table@index	external_file_format/PARSE_HEADER_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(PARSE_HEADER = TRUE)
+ok	4016	engine	one_table@index	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_table/TABLE	TRUNCATE TABLE a
 1051	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1051	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
@@ -2275,4 +2275,4 @@ ok	1235	engine	one_table@index	vec_index_param_value/relation_name	ALTER TABLE a
 1064	1060	engine	one_table@index	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@index	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 1064	1235	engine	one_table@index	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
-1064	1210	engine	one_table@index	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
+ok	1210	engine	one_table@index	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
