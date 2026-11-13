@@ -49,7 +49,10 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: objtype,
 			Object:     fwa,
@@ -232,7 +235,10 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_TYPE,
 			Object:     names,
@@ -646,7 +652,10 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_DOMAIN,
 			Object:     names,
@@ -781,7 +790,10 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_SCHEMA,
 			Object:     &nodes.String{Str: name},
@@ -863,7 +875,10 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_COLLATION,
 			Object:     names,
@@ -925,7 +940,10 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_CONVERSION,
 			Object:     names,
@@ -987,7 +1005,10 @@ func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_AGGREGATE,
 			Object:     agg,
@@ -1116,7 +1137,10 @@ func (p *Parser) parseAlterTSDictionary(loc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_TSDICTIONARY,
 			Object:     names,
@@ -1301,7 +1325,10 @@ func (p *Parser) parseAlterTSConfiguration(loc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_TSCONFIGURATION,
 			Object:     cfgname,
@@ -1410,7 +1437,10 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_LANGUAGE,
 			Object:     &nodes.String{Str: name},
@@ -1442,7 +1472,10 @@ func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	roleSpec := p.parseRoleSpec()
+	roleSpec, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterOwnerStmt{
 		ObjectType: nodes.OBJECT_LARGEOBJECT,
 		Object:     numVal,
@@ -1474,7 +1507,10 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_EVENT_TRIGGER,
 			Object:     &nodes.String{Str: name},
@@ -1543,7 +1579,10 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_TABLESPACE,
 			Object:     &nodes.String{Str: name},
