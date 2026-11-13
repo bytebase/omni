@@ -4372,19 +4372,19 @@ accept	accept	engine	alter_user_stmt/alter_user_command_user_func_identified_by_
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-1	USER USER() IDENTIFIED BY RANDOM PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-2	ALTER USER() IDENTIFIED BY RANDOM PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-4	ALTER USER USER) IDENTIFIED BY RANDOM PASSWORD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-5	ALTER USER USER(IDENTIFIED BY RANDOM PASSWORD;
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-5	ALTER USER USER(IDENTIFIED BY RANDOM PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-6	ALTER USER USER() BY RANDOM PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-7	ALTER USER USER() IDENTIFIED RANDOM PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-8	ALTER USER USER() IDENTIFIED BY PASSWORD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-9	ALTER USER USER() IDENTIFIED BY RANDOM;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!truncate	ALTER USER USER() IDENTIFIED BY RANDOM
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!drop-9	ALTER USER USER() IDENTIFIED BY RANDOM;
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!truncate	ALTER USER USER() IDENTIFIED BY RANDOM
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!insert	ALTER USER USER() IDENTIFIED BY RANDOM PASSWORD zzz;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_random_password_opt_replace_password_opt_retain_current_password!swap	ALWAYS USER USER() IDENTIFIED BY RANDOM PASSWORD;
 accept	accept	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password	ALTER USER USER() IDENTIFIED BY 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-1	USER USER() IDENTIFIED BY 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-2	ALTER USER() IDENTIFIED BY 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-4	ALTER USER USER) IDENTIFIED BY 's';
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-5	ALTER USER USER(IDENTIFIED BY 's';
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-5	ALTER USER USER(IDENTIFIED BY 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-6	ALTER USER USER() BY 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-7	ALTER USER USER() IDENTIFIED 's';
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_identified_by_password_opt_replace_password_opt_retain_current_password!drop-8	ALTER USER USER() IDENTIFIED BY;
@@ -4395,11 +4395,11 @@ accept	accept	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OL
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-1	USER USER() DISCARD OLD PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-2	ALTER USER() DISCARD OLD PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-4	ALTER USER USER) DISCARD OLD PASSWORD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-5	ALTER USER USER(DISCARD OLD PASSWORD;
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-5	ALTER USER USER(DISCARD OLD PASSWORD;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-6	ALTER USER USER() OLD PASSWORD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-7	ALTER USER USER() DISCARD PASSWORD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-8	ALTER USER USER() DISCARD OLD;
-accept	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!truncate	ALTER USER USER() DISCARD OLD
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-7	ALTER USER USER() DISCARD PASSWORD;
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!drop-8	ALTER USER USER() DISCARD OLD;
+reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!truncate	ALTER USER USER() DISCARD OLD
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!insert	ALTER USER USER() DISCARD OLD PASSWORD zzz;
 reject	reject	engine	alter_user_stmt/alter_user_command_user_func_DISCARD_SYM_OLD_SYM_PASSWORD!swap	ALWAYS USER USER() DISCARD OLD PASSWORD;
 accept	accept	engine	alter_user_stmt/alter_user_command_user_DEFAULT_SYM_ROLE_SYM_ALL	ALTER USER utf8mb4 DEFAULT ROLE ALL;
@@ -4453,8 +4453,8 @@ accept	accept	engine	opt_replace_password/%empty	SET PASSWORD = 's';
 reject	reject	engine	opt_replace_password/%empty!insert	SET PASSWORD = 's' zzz;
 accept	accept	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password	SET PASSWORD = 's' REPLACE 's';
 reject	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!drop-1	SET PASSWORD = 's' 's';
-accept	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!drop-2	SET PASSWORD = 's' REPLACE;
-accept	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!truncate	SET PASSWORD = 's' REPLACE
+reject	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!drop-2	SET PASSWORD = 's' REPLACE;
+reject	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!truncate	SET PASSWORD = 's' REPLACE
 reject	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!insert	SET PASSWORD = 's' REPLACE 's' zzz;
 reject	reject	engine	opt_replace_password/REPLACE_SYM_TEXT_STRING_password!swap	SET PASSWORD = 's' REPLICA 's';
 accept	accept	engine	alter_resource_group_stmt/ALTER_RESOURCE_SYM_GROUP_SYM_ident_opt_resource_group_vcpu_list_opt_resource_group_priority_opt_resource_group_enable_disable_opt_force	ALTER RESOURCE GROUP utf8mb4;
@@ -4615,7 +4615,7 @@ reject	reject	engine	connect_option/MAX_USER_CONNECTIONS_SYM_ulong_num!truncate	
 reject	reject	engine	connect_option/MAX_USER_CONNECTIONS_SYM_ulong_num!insert	ALTER USER utf8mb4 WITH MAX_USER_CONNECTIONS 1 zzz;
 reject	reject	engine	connect_option/MAX_USER_CONNECTIONS_SYM_ulong_num!swap	ALTER USER utf8mb4 WITH MEDIUM 1;
 accept	accept	engine	user_func/USER_(_)	ALTER USER USER() IDENTIFIED BY 's';
-accept	reject	engine	user_func/USER_(_)!truncate	ALTER USER USER(
+reject	reject	engine	user_func/USER_(_)!truncate	ALTER USER USER(
 reject	reject	engine	user_func/USER_(_)!insert	ALTER USER USER() zzz IDENTIFIED BY 's';
 reject	reject	engine	user_func/USER_(_)!swap	ALTER USER USER_RESOURCES() IDENTIFIED BY 's';
 accept	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT utf8mb4;
@@ -5387,7 +5387,7 @@ accept	accept	engine	rename/RENAME_table_or_tables_table_to_table_list	RENAME TA
 accept	accept	engine	rename/RENAME_USER_rename_list	RENAME USER utf8mb4 TO utf8mb4;
 reject	reject	engine	rename/RENAME_USER_rename_list!drop-1	USER utf8mb4 TO utf8mb4;
 reject	reject	engine	rename/RENAME_USER_rename_list!drop-3	RENAME USER TO utf8mb4;
-accept	reject	engine	rename/RENAME_USER_rename_list!drop-4	RENAME USER utf8mb4 utf8mb4;
+reject	reject	engine	rename/RENAME_USER_rename_list!drop-4	RENAME USER utf8mb4 utf8mb4;
 reject	reject	engine	rename/RENAME_USER_rename_list!drop-5	RENAME USER utf8mb4 TO;
 reject	reject	engine	rename/RENAME_USER_rename_list!truncate	RENAME USER utf8mb4 TO
 reject	reject	engine	rename/RENAME_USER_rename_list!insert	RENAME USER utf8mb4 TO utf8mb4 zzz;
@@ -5396,11 +5396,11 @@ accept	accept	engine	rename_list/user_TO_SYM_user	RENAME USER utf8mb4 TO utf8mb4
 reject	reject	engine	rename_list/user_TO_SYM_user!swap	RENAME USER utf8mb4 TRAILING utf8mb4;
 accept	accept	engine	rename_list/rename_list_,_user_TO_SYM_user	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 TO utf8mb4;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-1	RENAME USER TO utf8mb4, utf8mb4 TO utf8mb4;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER utf8mb4 utf8mb4, utf8mb4 TO utf8mb4;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER utf8mb4 utf8mb4, utf8mb4 TO utf8mb4;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-3	RENAME USER utf8mb4 TO, utf8mb4 TO utf8mb4;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-4	RENAME USER utf8mb4 TO utf8mb4 utf8mb4 TO utf8mb4;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-5	RENAME USER utf8mb4 TO utf8mb4, TO utf8mb4;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 utf8mb4;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 utf8mb4;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-7	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 TO;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!truncate	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 TO
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!insert	RENAME USER utf8mb4 TO utf8mb4, utf8mb4 TO utf8mb4 zzz;
@@ -8333,16 +8333,16 @@ reject	reject	engine	table_alias_ref_list/table_alias_ref_list_,_table_ident_opt
 accept	accept	engine	if_exists/%empty	ALTER USER utf8mb4;
 accept	accept	engine	if_exists/IF_EXISTS	ALTER USER IF EXISTS utf8mb4;
 reject	reject	engine	if_exists/IF_EXISTS!drop-1	ALTER USER EXISTS utf8mb4;
-accept	reject	engine	if_exists/IF_EXISTS!drop-2	ALTER USER IF utf8mb4;
+reject	reject	engine	if_exists/IF_EXISTS!drop-2	ALTER USER IF utf8mb4;
 reject	reject	engine	if_exists/IF_EXISTS!truncate	ALTER USER IF
 reject	reject	engine	if_exists/IF_EXISTS!insert	ALTER USER IF EXISTS zzz utf8mb4;
 reject	reject	engine	if_exists/IF_EXISTS!swap	ALTER USER IGNORE EXISTS utf8mb4;
 accept	accept	engine	opt_ignore_unknown_user/%empty	REVOKE utf8mb4 FROM utf8mb4;
 accept	accept	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN USER;
 reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!drop-1	REVOKE utf8mb4 FROM utf8mb4 UNKNOWN USER;
-accept	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!drop-2	REVOKE utf8mb4 FROM utf8mb4 IGNORE USER;
-accept	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!drop-3	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN;
-accept	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!truncate	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN
+reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!drop-2	REVOKE utf8mb4 FROM utf8mb4 IGNORE USER;
+reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!drop-3	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN;
+reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!truncate	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN
 reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!insert	REVOKE utf8mb4 FROM utf8mb4 IGNORE UNKNOWN USER zzz;
 reject	reject	engine	opt_ignore_unknown_user/IGNORE_SYM_UNKNOWN_SYM_USER!swap	REVOKE utf8mb4 FROM utf8mb4 IGNORE_SERVER_IDS UNKNOWN USER;
 accept	accept	engine	opt_temporary/%empty	CREATE TABLE utf8mb4;
@@ -10580,8 +10580,8 @@ accept	accept	engine	start_option_value_list/PASSWORD_equal_TEXT_STRING_password
 accept	accept	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password	SET PASSWORD TO RANDOM;
 reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-1	SET TO RANDOM;
 reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-2	SET PASSWORD RANDOM;
-accept	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-3	SET PASSWORD TO;
-accept	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!truncate	SET PASSWORD TO
+reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-3	SET PASSWORD TO;
+reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!truncate	SET PASSWORD TO
 reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!insert	SET PASSWORD TO RANDOM zzz;
 reject	reject	engine	start_option_value_list/PASSWORD_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!swap	SET PASSWORD_LOCK_TIME TO RANDOM;
 accept	accept	engine	start_option_value_list/PASSWORD_FOR_SYM_user_equal_TEXT_STRING_password_opt_replace_password_opt_retain_current_password	SET PASSWORD FOR utf8mb4 = 's';
@@ -10598,8 +10598,8 @@ reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM
 reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-2	SET PASSWORD utf8mb4 TO RANDOM;
 reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-3	SET PASSWORD FOR TO RANDOM;
 reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-4	SET PASSWORD FOR utf8mb4 RANDOM;
-accept	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-5	SET PASSWORD FOR utf8mb4 TO;
-accept	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!truncate	SET PASSWORD FOR utf8mb4 TO
+reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!drop-5	SET PASSWORD FOR utf8mb4 TO;
+reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!truncate	SET PASSWORD FOR utf8mb4 TO
 reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!insert	SET PASSWORD FOR utf8mb4 TO RANDOM zzz;
 reject	reject	engine	start_option_value_list/PASSWORD_FOR_SYM_user_TO_SYM_RANDOM_SYM_opt_replace_password_opt_retain_current_password!swap	SET PASSWORD_LOCK_TIME FOR utf8mb4 TO RANDOM;
 accept	accept	engine	set_role_stmt/SET_SYM_ROLE_SYM_role_list	SET ROLE utf8mb4;
@@ -11078,7 +11078,7 @@ reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_F
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-2	REVOKE, GRANT OPTION FROM utf8mb4;
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-3	REVOKE ALL GRANT OPTION FROM utf8mb4;
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-4	REVOKE ALL, OPTION FROM utf8mb4;
-accept	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-5	REVOKE ALL, GRANT FROM utf8mb4;
+reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-5	REVOKE ALL, GRANT FROM utf8mb4;
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-6	REVOKE ALL, GRANT OPTION utf8mb4;
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!drop-7	REVOKE ALL, GRANT OPTION FROM;
 reject	reject	engine	revoke/REVOKE_if_exists_ALL_opt_privileges_,_GRANT_OPTION_FROM_user_list_opt_ignore_unknown_user!truncate	REVOKE ALL, GRANT OPTION FROM
@@ -11158,7 +11158,7 @@ reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!trunca
 reject	reject	engine	role_or_privilege/role_ident_or_text_@_ident_or_text!insert	GRANT utf8mb4@utf8mb4 zzz TO utf8mb4;
 reject	reject	engine	role_or_privilege/SELECT_SYM_opt_column_list	GRANT SELECT TO utf8mb4;
 reject	reject	engine	role_or_privilege/SELECT_SYM_opt_column_list!insert	GRANT SELECT zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/SELECT_SYM_opt_column_list!swap	GRANT SENSITIVE TO utf8mb4;
+reject	reject	engine	role_or_privilege/SELECT_SYM_opt_column_list!swap	GRANT SENSITIVE TO utf8mb4;
 reject	reject	engine	role_or_privilege/INSERT_SYM_opt_column_list	GRANT INSERT TO utf8mb4;
 reject	reject	engine	role_or_privilege/INSERT_SYM_opt_column_list!insert	GRANT INSERT zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/INSERT_SYM_opt_column_list!swap	GRANT INSERT_METHOD TO utf8mb4;
@@ -11167,13 +11167,13 @@ reject	reject	engine	role_or_privilege/UPDATE_SYM_opt_column_list!insert	GRANT U
 accept	accept	engine	role_or_privilege/UPDATE_SYM_opt_column_list!swap	GRANT UPGRADE TO utf8mb4;
 reject	reject	engine	role_or_privilege/REFERENCES_opt_column_list	GRANT REFERENCES TO utf8mb4;
 reject	reject	engine	role_or_privilege/REFERENCES_opt_column_list!insert	GRANT REFERENCES zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/REFERENCES_opt_column_list!swap	GRANT REGEXP TO utf8mb4;
+reject	reject	engine	role_or_privilege/REFERENCES_opt_column_list!swap	GRANT REGEXP TO utf8mb4;
 reject	reject	engine	role_or_privilege/DELETE_SYM	GRANT DELETE TO utf8mb4;
 reject	reject	engine	role_or_privilege/DELETE_SYM!insert	GRANT DELETE zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/DELETE_SYM!swap	GRANT DENSE_RANK TO utf8mb4;
+reject	reject	engine	role_or_privilege/DELETE_SYM!swap	GRANT DENSE_RANK TO utf8mb4;
 reject	reject	engine	role_or_privilege/USAGE	GRANT USAGE TO utf8mb4;
 reject	reject	engine	role_or_privilege/USAGE!insert	GRANT USAGE zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/USAGE!swap	GRANT USE TO utf8mb4;
+reject	reject	engine	role_or_privilege/USAGE!swap	GRANT USE TO utf8mb4;
 reject	reject	engine	role_or_privilege/INDEX_SYM	GRANT INDEX TO utf8mb4;
 reject	reject	engine	role_or_privilege/INDEX_SYM!insert	GRANT INDEX zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/INDEX_SYM!swap	GRANT INDEXES TO utf8mb4;
@@ -11182,19 +11182,19 @@ reject	reject	engine	role_or_privilege/ALTER!insert	GRANT ALTER zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/ALTER!swap	GRANT ALWAYS TO utf8mb4;
 reject	reject	engine	role_or_privilege/CREATE	GRANT CREATE TO utf8mb4;
 reject	reject	engine	role_or_privilege/CREATE!insert	GRANT CREATE zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/CREATE!swap	GRANT CROSS TO utf8mb4;
+reject	reject	engine	role_or_privilege/CREATE!swap	GRANT CROSS TO utf8mb4;
 reject	reject	engine	role_or_privilege/DROP	GRANT DROP TO utf8mb4;
 reject	reject	engine	role_or_privilege/DROP!insert	GRANT DROP zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/DROP!swap	GRANT DUAL TO utf8mb4;
+reject	reject	engine	role_or_privilege/DROP!swap	GRANT DUAL TO utf8mb4;
 reject	reject	engine	role_or_privilege/EXECUTE_SYM	GRANT EXECUTE TO utf8mb4;
 reject	reject	engine	role_or_privilege/EXECUTE_SYM!insert	GRANT EXECUTE zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/EXECUTE_SYM!swap	GRANT EXISTS TO utf8mb4;
+reject	reject	engine	role_or_privilege/EXECUTE_SYM!swap	GRANT EXISTS TO utf8mb4;
 reject	reject	engine	role_or_privilege/RELOAD	GRANT RELOAD TO utf8mb4;
 reject	reject	engine	role_or_privilege/RELOAD!insert	GRANT RELOAD zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/RELOAD!swap	GRANT REMOVE TO utf8mb4;
 reject	reject	engine	role_or_privilege/SHUTDOWN	GRANT SHUTDOWN TO utf8mb4;
 reject	reject	engine	role_or_privilege/SHUTDOWN!insert	GRANT SHUTDOWN zzz TO utf8mb4;
-accept	reject	engine	role_or_privilege/SHUTDOWN!swap	GRANT SIGNAL TO utf8mb4;
+reject	reject	engine	role_or_privilege/SHUTDOWN!swap	GRANT SIGNAL TO utf8mb4;
 reject	reject	engine	role_or_privilege/PROCESS	GRANT PROCESS TO utf8mb4;
 reject	reject	engine	role_or_privilege/PROCESS!insert	GRANT PROCESS zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/PROCESS!swap	GRANT PROCESSLIST TO utf8mb4;
@@ -11202,13 +11202,13 @@ reject	reject	engine	role_or_privilege/FILE_SYM	GRANT FILE TO utf8mb4;
 reject	reject	engine	role_or_privilege/FILE_SYM!insert	GRANT FILE zzz TO utf8mb4;
 accept	accept	engine	role_or_privilege/FILE_SYM!swap	GRANT FILE_BLOCK_SIZE TO utf8mb4;
 reject	reject	engine	role_or_privilege/GRANT_OPTION	GRANT GRANT OPTION TO utf8mb4;
-accept	reject	engine	role_or_privilege/GRANT_OPTION!drop-1	GRANT OPTION TO utf8mb4;
+reject	reject	engine	role_or_privilege/GRANT_OPTION!drop-1	GRANT OPTION TO utf8mb4;
 reject	reject	engine	role_or_privilege/GRANT_OPTION!drop-2	GRANT GRANT TO utf8mb4;
 reject	reject	engine	role_or_privilege/GRANT_OPTION!truncate	GRANT GRANT
 reject	reject	engine	role_or_privilege/GRANT_OPTION!insert	GRANT GRANT OPTION zzz TO utf8mb4;
 reject	reject	engine	role_or_privilege/GRANT_OPTION!swap	GRANT GRANTS OPTION TO utf8mb4;
 reject	reject	engine	role_or_privilege/SHOW_DATABASES	GRANT SHOW DATABASES TO utf8mb4;
-accept	reject	engine	role_or_privilege/SHOW_DATABASES!drop-1	GRANT DATABASES TO utf8mb4;
+reject	reject	engine	role_or_privilege/SHOW_DATABASES!drop-1	GRANT DATABASES TO utf8mb4;
 reject	reject	engine	role_or_privilege/SHOW_DATABASES!drop-2	GRANT SHOW TO utf8mb4;
 reject	reject	engine	role_or_privilege/SHOW_DATABASES!truncate	GRANT SHOW
 reject	reject	engine	role_or_privilege/SHOW_DATABASES!insert	GRANT SHOW DATABASES zzz TO utf8mb4;
@@ -11285,13 +11285,13 @@ reject	reject	engine	opt_with_admin_option/WITH_ADMIN_SYM_OPTION!drop-3	GRANT ut
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_SYM_OPTION!truncate	GRANT utf8mb4 TO utf8mb4 WITH ADMIN
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_SYM_OPTION!insert	GRANT utf8mb4 TO utf8mb4 WITH ADMIN OPTION zzz;
 reject	reject	engine	opt_with_admin_option/WITH_ADMIN_SYM_OPTION!swap	GRANT utf8mb4 TO utf8mb4 WITHOUT ADMIN OPTION;
-accept	reject	engine	opt_and/%empty	ALTER USER utf8mb4 REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	opt_and/%empty	ALTER USER utf8mb4 REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	opt_and/%empty!insert	ALTER USER utf8mb4 REQUIRE SUBJECT 's' zzz SUBJECT 's';
-accept	reject	engine	opt_and/AND_SYM	ALTER USER utf8mb4 REQUIRE SUBJECT 's' AND SUBJECT 's';
+reject	reject	engine	opt_and/AND_SYM	ALTER USER utf8mb4 REQUIRE SUBJECT 's' AND SUBJECT 's';
 accept	accept	engine	opt_and/AND_SYM!truncate	ALTER USER utf8mb4 REQUIRE SUBJECT 's'
 reject	reject	engine	opt_and/AND_SYM!insert	ALTER USER utf8mb4 REQUIRE SUBJECT 's' AND zzz SUBJECT 's';
 reject	reject	engine	opt_and/AND_SYM!swap	ALTER USER utf8mb4 REQUIRE SUBJECT 's' ANY SUBJECT 's';
-accept	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER utf8mb4 REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER utf8mb4 REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-1	ALTER USER utf8mb4 REQUIRE 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-2	ALTER USER utf8mb4 REQUIRE SUBJECT SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-3	ALTER USER utf8mb4 REQUIRE SUBJECT 's' 's';
@@ -11350,17 +11350,17 @@ reject	reject	engine	role_list/role_list_,_role!insert	CREATE ROLE utf8mb4, utf8
 accept	accept	engine	opt_retain_current_password/%empty	SET PASSWORD = 's';
 accept	accept	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD	SET PASSWORD = 's' RETAIN CURRENT PASSWORD;
 reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!drop-1	SET PASSWORD = 's' CURRENT PASSWORD;
-accept	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!drop-2	SET PASSWORD = 's' RETAIN PASSWORD;
-accept	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!drop-3	SET PASSWORD = 's' RETAIN CURRENT;
-accept	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!truncate	SET PASSWORD = 's' RETAIN CURRENT
+reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!drop-2	SET PASSWORD = 's' RETAIN PASSWORD;
+reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!drop-3	SET PASSWORD = 's' RETAIN CURRENT;
+reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!truncate	SET PASSWORD = 's' RETAIN CURRENT
 reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!insert	SET PASSWORD = 's' RETAIN CURRENT PASSWORD zzz;
 reject	reject	engine	opt_retain_current_password/RETAIN_SYM_CURRENT_SYM_PASSWORD!swap	SET PASSWORD = 's' RETURN CURRENT PASSWORD;
 accept	accept	engine	opt_discard_old_password/%empty	ALTER USER utf8mb4;
 accept	accept	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD	ALTER USER utf8mb4 DISCARD OLD PASSWORD;
 reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!drop-1	ALTER USER utf8mb4 OLD PASSWORD;
-accept	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!drop-2	ALTER USER utf8mb4 DISCARD PASSWORD;
-accept	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!drop-3	ALTER USER utf8mb4 DISCARD OLD;
-accept	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!truncate	ALTER USER utf8mb4 DISCARD OLD
+reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!drop-2	ALTER USER utf8mb4 DISCARD PASSWORD;
+reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!drop-3	ALTER USER utf8mb4 DISCARD OLD;
+reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!truncate	ALTER USER utf8mb4 DISCARD OLD
 reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!insert	ALTER USER utf8mb4 DISCARD OLD PASSWORD zzz;
 reject	reject	engine	opt_discard_old_password/DISCARD_SYM_OLD_SYM_PASSWORD!swap	ALTER USER utf8mb4 DISK OLD PASSWORD;
 reject	reject	engine	opt_user_registration/factor_INITIATE_SYM_REGISTRATION_SYM	ALTER USER utf8mb4 1 FACTOR INITIATE REGISTRATION;
@@ -11402,8 +11402,8 @@ reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!dr
 reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL IDENTIFIED BY 's';
 reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!drop-7	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION BY 's';
 reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!drop-8	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED 's';
-accept	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!drop-9	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY;
-accept	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY
+reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!drop-9	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY;
+reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY
 reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!insert	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY 's' zzz;
 reject	reject	engine	create_user/user_identified_with_plugin_opt_initial_auth!swap	CREATE USER utf8mb4 IF WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY 's';
 accept	accept	engine	create_user/user_opt_create_user_with_mfa	CREATE USER utf8mb4;
@@ -11432,8 +11432,8 @@ accept	accept	engine	identification/identified_by_random_password	CREATE USER ut
 reject	reject	engine	identification/identified_by_random_password!drop-1	CREATE USER utf8mb4 BY RANDOM PASSWORD;
 reject	reject	engine	identification/identified_by_random_password!drop-2	CREATE USER utf8mb4 IDENTIFIED RANDOM PASSWORD;
 reject	reject	engine	identification/identified_by_random_password!drop-3	CREATE USER utf8mb4 IDENTIFIED BY PASSWORD;
-accept	reject	engine	identification/identified_by_random_password!drop-4	CREATE USER utf8mb4 IDENTIFIED BY RANDOM;
-accept	reject	engine	identification/identified_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED BY RANDOM
+reject	reject	engine	identification/identified_by_random_password!drop-4	CREATE USER utf8mb4 IDENTIFIED BY RANDOM;
+reject	reject	engine	identification/identified_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED BY RANDOM
 reject	reject	engine	identification/identified_by_random_password!insert	CREATE USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD zzz;
 reject	reject	engine	identification/identified_by_random_password!swap	CREATE USER utf8mb4 IF BY RANDOM PASSWORD;
 accept	accept	engine	identification/identified_with_plugin	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4;
@@ -11466,8 +11466,8 @@ reject	reject	engine	identification/identified_with_plugin_by_random_password!dr
 reject	reject	engine	identification/identified_with_plugin_by_random_password!drop-3	CREATE USER utf8mb4 IDENTIFIED WITH BY RANDOM PASSWORD;
 reject	reject	engine	identification/identified_with_plugin_by_random_password!drop-4	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 RANDOM PASSWORD;
 reject	reject	engine	identification/identified_with_plugin_by_random_password!drop-5	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY PASSWORD;
-accept	reject	engine	identification/identified_with_plugin_by_random_password!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM;
-accept	reject	engine	identification/identified_with_plugin_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM
+reject	reject	engine	identification/identified_with_plugin_by_random_password!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM;
+reject	reject	engine	identification/identified_with_plugin_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM
 reject	reject	engine	identification/identified_with_plugin_by_random_password!insert	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM PASSWORD zzz;
 reject	reject	engine	identification/identified_with_plugin_by_random_password!swap	CREATE USER utf8mb4 IF WITH utf8mb4 BY RANDOM PASSWORD;
 accept	accept	engine	identified_by_password/IDENTIFIED_SYM_BY_TEXT_STRING_password	ALTER USER utf8mb4 IDENTIFIED BY 's';
@@ -11481,8 +11481,8 @@ accept	accept	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_
 reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!drop-1	ALTER USER utf8mb4 BY RANDOM PASSWORD;
 reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!drop-2	ALTER USER utf8mb4 IDENTIFIED RANDOM PASSWORD;
 reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!drop-3	ALTER USER utf8mb4 IDENTIFIED BY PASSWORD;
-accept	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!drop-4	ALTER USER utf8mb4 IDENTIFIED BY RANDOM;
-accept	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!truncate	ALTER USER utf8mb4 IDENTIFIED BY RANDOM
+reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!drop-4	ALTER USER utf8mb4 IDENTIFIED BY RANDOM;
+reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!truncate	ALTER USER utf8mb4 IDENTIFIED BY RANDOM
 reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!insert	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD zzz;
 reject	reject	engine	identified_by_random_password/IDENTIFIED_SYM_BY_RANDOM_SYM_PASSWORD!swap	ALTER USER utf8mb4 IF BY RANDOM PASSWORD;
 accept	accept	engine	identified_with_plugin/IDENTIFIED_SYM_WITH_ident_or_text	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4;
@@ -11512,8 +11512,8 @@ reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WI
 reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!drop-3	ALTER USER utf8mb4 IDENTIFIED WITH BY RANDOM PASSWORD;
 reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!drop-4	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 RANDOM PASSWORD;
 reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!drop-5	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY PASSWORD;
-accept	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!drop-6	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM;
-accept	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!truncate	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM
+reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!drop-6	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM;
+reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!truncate	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM
 reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!insert	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY RANDOM PASSWORD zzz;
 reject	reject	engine	identified_with_plugin_by_random_password/IDENTIFIED_SYM_WITH_ident_or_text_BY_RANDOM_SYM_PASSWORD!swap	ALTER USER utf8mb4 IF WITH utf8mb4 BY RANDOM PASSWORD;
 accept	accept	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD;
@@ -11522,8 +11522,8 @@ reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!drop-3	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION BY RANDOM PASSWORD;
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!drop-4	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED RANDOM PASSWORD;
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!drop-5	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY PASSWORD;
-accept	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM;
-accept	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM
+reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM;
+reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!insert	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD zzz;
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_random_password!swap	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL_SIZE AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD;
 accept	accept	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS 's';
@@ -11533,8 +11533,8 @@ reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!drop-4	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED utf8mb4 AS 's';
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!drop-5	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH AS 's';
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!drop-6	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 's';
-accept	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!drop-7	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS;
-accept	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS
+reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!drop-7	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS;
+reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!truncate	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!insert	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED WITH utf8mb4 AS 's' zzz;
 reject	reject	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_with_plugin_as_auth!swap	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL_SIZE AUTHENTICATION IDENTIFIED WITH utf8mb4 AS 's';
 accept	accept	engine	opt_initial_auth/INITIAL_SYM_AUTHENTICATION_SYM_identified_by_password	CREATE USER utf8mb4 IDENTIFIED WITH utf8mb4 INITIAL AUTHENTICATION IDENTIFIED BY 's';
@@ -11545,8 +11545,8 @@ reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STR
 reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-3	ALTER USER utf8mb4 IDENTIFIED 's' REPLACE 's';
 reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-4	ALTER USER utf8mb4 IDENTIFIED BY REPLACE 's';
 reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-5	ALTER USER utf8mb4 IDENTIFIED BY 's' 's';
-accept	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-6	ALTER USER utf8mb4 IDENTIFIED BY 's' REPLACE;
-accept	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED BY 's' REPLACE
+reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-6	ALTER USER utf8mb4 IDENTIFIED BY 's' REPLACE;
+reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED BY 's' REPLACE
 reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!insert	ALTER USER utf8mb4 IDENTIFIED BY 's' REPLACE 's' zzz;
 reject	reject	engine	alter_user/user_identified_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!swap	ALTER USER utf8mb4 IF BY 's' REPLACE 's';
 accept	accept	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE 's';
@@ -11557,8 +11557,8 @@ reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_
 reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-5	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 's' REPLACE 's';
 reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-6	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY REPLACE 's';
 reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-7	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' 's';
-accept	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-8	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE;
-accept	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE
+reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-8	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE;
+reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE
 reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!insert	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 BY 's' REPLACE 's' zzz;
 reject	reject	engine	alter_user/user_identified_with_plugin_by_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!swap	ALTER USER utf8mb4 IF WITH utf8mb4 BY 's' REPLACE 's';
 accept	accept	engine	alter_user/user_identified_by_password_opt_retain_current_password	ALTER USER utf8mb4 IDENTIFIED BY 's';
@@ -11572,8 +11572,8 @@ reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_T
 reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-4	ALTER USER utf8mb4 IDENTIFIED BY PASSWORD REPLACE 's';
 reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-5	ALTER USER utf8mb4 IDENTIFIED BY RANDOM REPLACE 's';
 reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-6	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD 's';
-accept	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-7	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD REPLACE;
-accept	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD REPLACE
+reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!drop-7	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD REPLACE;
+reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!truncate	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD REPLACE
 reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!insert	ALTER USER utf8mb4 IDENTIFIED BY RANDOM PASSWORD REPLACE 's' zzz;
 reject	reject	engine	alter_user/user_identified_by_random_password_REPLACE_SYM_TEXT_STRING_password_opt_retain_current_password!swap	ALTER USER utf8mb4 IF BY RANDOM PASSWORD REPLACE 's';
 accept	accept	engine	alter_user/user_identified_with_plugin	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4;

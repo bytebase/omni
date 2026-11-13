@@ -177,14 +177,20 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 
 		// Password value: either a string literal or PASSWORD('string')
 		if p.cur.Type == kwPASSWORD {
-			// PASSWORD('auth_string') form
+			// PASSWORD('auth_string') form, whole.
+			//
+			// Ref: text_or_password in MariaDB 11.8 sql/sql_yacc.yy.
 			p.advance() // consume PASSWORD
-			p.match('(')
-			if p.cur.Type == tokSCONST {
-				stmt.Password = "PASSWORD(" + p.cur.Str + ")"
-				p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-			p.match(')')
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Password = "PASSWORD(" + p.advance().Str + ")"
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == tokSCONST {
 			stmt.Password = p.cur.Str
 			p.advance()

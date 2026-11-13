@@ -231,8 +231,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance() // consume ','
 		if p.cur.Type == kwGRANT {
 			p.advance() // consume GRANT
-			if p.cur.Type == kwOPTION {
-				p.advance() // consume OPTION
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(kwFROM); err != nil {
 				return nil, err
@@ -1938,7 +1938,9 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		}
 
 		// TO
-		p.match(kwTO)
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 
 		// new_user
 		pair.NewUser, pair.NewHost, err = p.parseRenameUserPart()
@@ -2007,7 +2009,8 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 	}
 
 	// An element is mandatory to start with, and again after an AND; between
-	// two elements the AND is optional.
+	// two elements the AND is optional. Each comes once (ER_DUP_ARGUMENT).
+	seen := map[int]bool{}
 	for required := true; ; {
 		var out *string
 		switch p.cur.Type {
@@ -2024,6 +2027,10 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 			req.Loc.End = p.prev.End
 			return req, nil
 		}
+		if seen[p.cur.Type] {
+			return nil, &ParseError{Message: "Option '" + strings.ToUpper(p.cur.Str) + "' used twice in statement", Position: p.cur.Loc}
+		}
+		seen[p.cur.Type] = true
 		p.advance() // consume the option keyword
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()

@@ -253,8 +253,8 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance() // consume ','
 		if p.cur.Type == kwGRANT {
 			p.advance() // consume GRANT
-			if p.cur.Type == kwOPTION {
-				p.advance() // consume OPTION
+			if _, err := p.expect(kwOPTION); err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(kwFROM); err != nil {
 				return nil, err
@@ -273,11 +273,11 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			// [IGNORE UNKNOWN USER]
 			if p.cur.Type == kwIGNORE {
 				p.advance()
-				if p.cur.Type == kwUNKNOWN {
-					p.advance()
-				}
-				if p.cur.Type == kwUSER {
-					p.advance()
+				// opt_ignore_unknown_user is IGNORE UNKNOWN USER, all three words.
+				for _, kw := range []int{kwUNKNOWN, kwUSER} {
+					if _, err := p.expect(kw); err != nil {
+						return nil, err
+					}
 				}
 				stmt.IgnoreUnknownUser = true
 			}
@@ -309,11 +309,11 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		// [IGNORE UNKNOWN USER]
 		if p.cur.Type == kwIGNORE {
 			p.advance()
-			if p.cur.Type == kwUNKNOWN {
-				p.advance()
-			}
-			if p.cur.Type == kwUSER {
-				p.advance()
+			// opt_ignore_unknown_user is IGNORE UNKNOWN USER, all three words.
+			for _, kw := range []int{kwUNKNOWN, kwUSER} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
 			}
 			stmt.IgnoreUnknownUser = true
 		}
@@ -344,11 +344,11 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		// [IGNORE UNKNOWN USER]
 		if p.cur.Type == kwIGNORE {
 			p.advance()
-			if p.cur.Type == kwUNKNOWN {
-				p.advance()
-			}
-			if p.cur.Type == kwUSER {
-				p.advance()
+			// opt_ignore_unknown_user is IGNORE UNKNOWN USER, all three words.
+			for _, kw := range []int{kwUNKNOWN, kwUSER} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
 			}
 			stmt.IgnoreUnknownUser = true
 		}
@@ -390,11 +390,11 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	// [IGNORE UNKNOWN USER]
 	if p.cur.Type == kwIGNORE {
 		p.advance()
-		if p.cur.Type == kwUNKNOWN {
-			p.advance()
-		}
-		if p.cur.Type == kwUSER {
-			p.advance()
+		// opt_ignore_unknown_user is IGNORE UNKNOWN USER, all three words.
+		for _, kw := range []int{kwUNKNOWN, kwUSER} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
 		}
 		stmt.IgnoreUnknownUser = true
 	}
@@ -607,8 +607,13 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
 	default:
-		// Try accepting any keyword as a privilege name
-		if p.cur.Type >= 700 {
+		// Any other keyword is a privilege word role_or_privilege has an arm
+		// for, or a role name, which role_ident takes only unreserved: `GRANT
+		// DUAL TO u` and `GRANT OPTION TO u` are 1064s.
+		//
+		// Ref: role_or_privilege and role_ident in MySQL 8.0 sql/sql_yacc.yy.
+		// PROXY is GRANT PROXY ON's own word, which its caller reads ahead.
+		if p.cur.Type >= 700 && (isRoleKeyword(p.cur.Type) || staticPrivilegeWord(strings.ToUpper(p.cur.Str)) || p.cur.Type == kwPROXY) {
 			tok := p.advance()
 			name = strings.ToUpper(tok.Str)
 			word.keyword = true
@@ -1189,7 +1194,9 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	// [IF EXISTS]
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
 	}
 
@@ -1199,7 +1206,9 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 		userStart := p.pos()
 		p.advance() // consume USER
 		p.advance() // consume (
-		p.match(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		// Check for registration_option: {2|3} FACTOR ...
 		if p.cur.Type == tokICONST && (p.cur.Str == "2" || p.cur.Str == "3") {
@@ -1222,23 +1231,32 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 		// [REPLACE 'current_auth_string']
 		if p.cur.Type == kwREPLACE {
 			p.advance()
-			if p.cur.Type == tokSCONST {
-				userSpec.Replace = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			userSpec.Replace = p.cur.Str
+			p.advance()
 		}
 		// RETAIN CURRENT PASSWORD
 		if p.cur.Type == kwRETAIN {
-			p.advance()
-			p.advance()
-			p.advance()
+			p.advance() // consume RETAIN
+			if _, err := p.expect(kwCURRENT); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwPASSWORD); err != nil {
+				return nil, err
+			}
 			userSpec.RetainCurrentPassword = true
 		}
 		// DISCARD OLD PASSWORD
 		if p.cur.Type == kwDISCARD {
-			p.advance()
-			p.advance()
-			p.advance()
+			p.advance() // consume DISCARD
+			if _, err := p.expect(kwOLD); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwPASSWORD); err != nil {
+				return nil, err
+			}
 			userSpec.DiscardOldPassword = true
 		}
 		userSpec.Loc.End = p.prev.End
@@ -1480,7 +1498,9 @@ func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) error {
 		p.advance()
 		if p.cur.Type == kwRANDOM {
 			p.advance() // consume RANDOM
-			p.advance() // consume PASSWORD
+			if _, err := p.expect(kwPASSWORD); err != nil {
+				return err
+			}
 			op.PasswordRandom = true
 		} else if p.cur.Type == tokSCONST {
 			op.Password = p.cur.Str
@@ -1501,7 +1521,9 @@ func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) error {
 			p.advance()
 			if p.cur.Type == kwRANDOM {
 				p.advance() // consume RANDOM
-				p.advance() // consume PASSWORD
+				if _, err := p.expect(kwPASSWORD); err != nil {
+					return err
+				}
 				op.PasswordRandom = true
 			} else if p.cur.Type == tokSCONST {
 				op.Password = p.cur.Str
@@ -1556,25 +1578,34 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 	// [REPLACE 'current_auth_string'] (ALTER USER)
 	if p.cur.Type == kwREPLACE {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			spec.Replace = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		spec.Replace = p.cur.Str
+		p.advance()
 	}
 
 	// RETAIN CURRENT PASSWORD
 	if p.cur.Type == kwRETAIN {
 		p.advance() // consume RETAIN
-		p.advance() // consume CURRENT
-		p.advance() // consume PASSWORD
+		if _, err := p.expect(kwCURRENT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwPASSWORD); err != nil {
+			return nil, err
+		}
 		spec.RetainCurrentPassword = true
 	}
 
 	// DISCARD OLD PASSWORD
 	if p.cur.Type == kwDISCARD {
 		p.advance() // consume DISCARD
-		p.advance() // consume OLD
-		p.advance() // consume PASSWORD
+		if _, err := p.expect(kwOLD); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwPASSWORD); err != nil {
+			return nil, err
+		}
 		spec.DiscardOldPassword = true
 	}
 
@@ -1599,37 +1630,43 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		if next.Type == kwAUTHENTICATION {
 			p.advance() // consume INITIAL
 			p.advance() // consume AUTHENTICATION
-			if p.cur.Type == kwIDENTIFIED {
-				p.advance() // consume IDENTIFIED
-				if p.cur.Type == kwBY {
-					p.advance() // consume BY
-					if p.cur.Type == kwRANDOM {
-						p.advance() // consume RANDOM
-						p.advance() // consume PASSWORD
-						spec.InitialAuthRandom = true
-					} else if p.cur.Type == tokSCONST {
-						spec.InitialAuthString = p.cur.Str
-						p.advance()
+			// opt_initial_auth: IDENTIFIED BY RANDOM PASSWORD, IDENTIFIED BY
+			// 'string', or IDENTIFIED WITH plugin AS 'hash', each whole.
+			//
+			// Ref: opt_initial_auth in MySQL 8.0 sql/sql_yacc.yy.
+			if _, err := p.expect(kwIDENTIFIED); err != nil {
+				return nil, err
+			}
+			switch p.cur.Type {
+			case kwBY:
+				p.advance() // consume BY
+				if p.cur.Type == kwRANDOM {
+					p.advance() // consume RANDOM
+					if _, err := p.expect(kwPASSWORD); err != nil {
+						return nil, err
 					}
-				} else if p.cur.Type == kwWITH {
-					p.advance() // consume WITH
-					if p.isIdentToken() {
-						plugin, _, err := p.parseIdent()
-						if err != nil {
-							return nil, err
-						}
-						spec.InitialAuthPlugin = plugin
-					} else {
-						return nil, p.syntaxErrorAtCur()
-					}
-					if p.cur.Type == kwAS {
-						p.advance()
-						if p.cur.Type == tokSCONST {
-							spec.InitialAuthString = p.cur.Str
-							p.advance()
-						}
-					}
+					spec.InitialAuthRandom = true
+				} else if p.cur.Type == tokSCONST {
+					spec.InitialAuthString = p.advance().Str
+				} else {
+					return nil, p.syntaxErrorAtCur()
 				}
+			case kwWITH:
+				p.advance() // consume WITH
+				plugin, _, err := p.parseIdentOrText()
+				if err != nil {
+					return nil, err
+				}
+				spec.InitialAuthPlugin = plugin
+				if _, err := p.expect(kwAS); err != nil {
+					return nil, err
+				}
+				if p.cur.Type != tokSCONST && p.cur.Type != tokXCONST {
+					return nil, p.syntaxErrorAtCur()
+				}
+				spec.InitialAuthString = p.advance().Str
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}
@@ -1715,7 +1752,9 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 		p.advance()
 		if p.cur.Type == kwRANDOM {
 			p.advance() // consume RANDOM
-			p.advance() // consume PASSWORD
+			if _, err := p.expect(kwPASSWORD); err != nil {
+				return err
+			}
 			spec.PasswordRandom = true
 		} else {
 			// The password is not optional: mysql:8.0 answers 1064 for
@@ -1738,7 +1777,9 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 			p.advance()
 			if p.cur.Type == kwRANDOM {
 				p.advance() // consume RANDOM
-				p.advance() // consume PASSWORD
+				if _, err := p.expect(kwPASSWORD); err != nil {
+					return err
+				}
 				spec.PasswordRandom = true
 			} else {
 				if p.cur.Type != tokSCONST {
@@ -1864,7 +1905,9 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		}
 
 		// TO
-		p.match(kwTO)
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 
 		// new_user
 		pair.NewUser, pair.NewHost, err = p.parseRenameUserPart()
@@ -1933,7 +1976,8 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 	}
 
 	// An element is mandatory to start with, and again after an AND; between
-	// two elements the AND is optional.
+	// two elements the AND is optional. Each comes once (ER_DUP_ARGUMENT).
+	seen := map[int]bool{}
 	for required := true; ; {
 		var out *string
 		switch p.cur.Type {
@@ -1950,6 +1994,10 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 			req.Loc.End = p.prev.End
 			return req, nil
 		}
+		if seen[p.cur.Type] {
+			return nil, &ParseError{Message: "Option '" + strings.ToUpper(p.cur.Str) + "' used twice in statement", Position: p.cur.Loc}
+		}
+		seen[p.cur.Type] = true
 		p.advance() // consume the option keyword
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
