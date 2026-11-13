@@ -1,0 +1,92 @@
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+
+== TestDefinerHostFormsOceanBaseOracle default#1
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT)
+< ok 0 0
+> exec
+| CREATE DEFINER = root@% TRIGGER omni_t_definer_host_forms.h01 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@% PROCEDURE h02() SELECT 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@% FUNCTION h03() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@% EVENT h04 ON SCHEDULE EVERY 1 DAY DISABLE DO SELECT 1
+< ok 0 0
+> exec
+| ALTER DEFINER = root@% EVENT h04 DISABLE
+< ok 0 0
+> exec
+| CREATE DEFINER = `root`@% TRIGGER h05 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = 'root'@% TRIGGER h06 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root @% TRIGGER h07 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@'%' TRIGGER h08 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@`%` TRIGGER h09 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = 'root'@'%' TRIGGER h10 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE DEFINER = root@localhost TRIGGER h11 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| CREATE ALGORITHM = UNDEFINED DEFINER = root@'%' SQL SECURITY DEFINER VIEW h12 AS SELECT 1
+< ok 0 0
+> exec
+| ALTER ALGORITHM = UNDEFINED DEFINER = root@'%' VIEW h12 AS SELECT 2
+< ok 0 0
+> exec
+| CREATE DEFINER = root@ % TRIGGER h13 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '%' at line 1
+> exec
+| CREATE DEFINER = root @ % TRIGGER h14 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '%' at line 1
+> exec
+| CREATE DEFINER = root@%example TRIGGER h15 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near 'example' at line 1
+> exec
+| CREATE DEFINER = root@%.example.com TRIGGER h16 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '.' at line 1
+> exec
+| CREATE DEFINER = root@%% TRIGGER h17 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '%' at line 1
+> exec
+| CREATE DEFINER = root@%@% TRIGGER h18 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '@%' at line 1
+> exec
+| CREATE DEFINER = root@ % PROCEDURE h19() SELECT 1
+< error
+| 1064 42000 …near '%' at line 1
+> exec
+| CREATE DEFINER = CURRENT_USER@% TRIGGER h20 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '@%' at line 1
+> exec
+| CREATE ALGORITHM = UNDEFINED DEFINER = root@% SQL SECURITY DEFINER VIEW h21 AS SELECT 1
+< error
+| 1064 42000 …near '% SQL SECURITY DEFINER VIEW h21 AS SELECT 1' at line 1
+> exec
+| CREATE ALGORITHM = UNDEFINED DEFINER = root@% VIEW h22 AS SELECT 1
+< error
+| 1064 42000 …near '% VIEW h22 AS SELECT 1' at line 1
+> exec
+| ALTER ALGORITHM = UNDEFINED DEFINER = root@% VIEW h12 AS SELECT 2
+< error
+| 1064 42000 …near '% VIEW h12 AS SELECT 2' at line 1

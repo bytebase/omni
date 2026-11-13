@@ -186,6 +186,14 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 	if pk := formatInlinePrimaryKey(tbl); pk != "" {
 		lines = append(lines, "  "+pk)
 	}
+	// A multi-valued index goes in with its table, which is the only time OceanBase builds
+	// one: 4.3.5.6 answers 1235, "build multivalue index afterward not supported", for
+	// ALTER TABLE ... ADD KEY and for CREATE INDEX. The index node skips the same indexes.
+	for _, idx := range orderedDiffableIndexes(tbl) {
+		if !idx.Primary && isMultiValuedIndex(idx) {
+			lines = append(lines, "  "+formatIndexDefinition(idx, n))
+		}
+	}
 	b.WriteString(strings.Join(lines, ",\n"))
 	b.WriteString("\n)")
 

@@ -728,6 +728,38 @@
 |   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
+| DROP DATABASE IF EXISTS pa_create_with_mv_index_8238bf32
+< ok 0 0
+> exec
+| CREATE DATABASE pa_create_with_mv_index_8238bf32 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_create_with_mv_index_8238bf32
+< ok 0 0
+> exec
+| CREATE TABLE `pa_create_with_mv_index_8238bf32`.`t` (
+|   `id` int NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `mv` ((json_query(`j`,_utf8mb4'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_create_with_mv_index_8238bf32.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
 | DROP DATABASE IF EXISTS pa_create_with_spatial_6826187c_to
 < ok 0 0
 > exec
@@ -1532,6 +1564,36 @@
 |   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
+| DROP DATABASE IF EXISTS pa_add_mv_index_dbbc6d6
+< ok 0 0
+> exec
+| CREATE DATABASE pa_add_mv_index_dbbc6d6 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_add_mv_index_dbbc6d6
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_add_mv_index_dbbc6d6.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `pa_add_mv_index_dbbc6d6`.`t` ADD KEY `mv` ((json_query(`j`,_utf8mb4'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch)))
+< error
+| 1235 0A000 build multivalue index afterward not supported
+> exec
 | DROP DATABASE IF EXISTS pa_drop_secondary_a80bd9dc_to
 < ok 0 0
 > exec
@@ -1866,6 +1928,23 @@
 |   `j` json DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `pa_drop_mv_index_410d3fe0`.`t` DROP INDEX `mv`
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_drop_mv_index_410d3fe0.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS pa_modify_columns_92b80ce_to

@@ -640,8 +640,24 @@ func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
 	}
 }
 
-// parseCharsetCollate parses optional CHARACTER SET and COLLATE clauses.
+// parseCharsetCollate parses what a character type takes after its length: BINARY, then
+// CHARACTER SET, then COLLATE.
+//
+// BINARY comes first and nowhere else. OceanBase's grammar is `VARCHAR string_length_i
+// opt_binary opt_charset`, and so for CHARACTER, CHARACTER VARYING, text_type_i, ENUM and
+// SET (sql_parser_mysql_mode.y, v4.3.5_CE_BP6, lines 6786 to 7017), where MySQL's also
+// takes it after the character set. 4.3.5.6 takes VARCHAR(10) BINARY CHARACTER SET ascii,
+// and answers 1064 at BINARY for VARCHAR(10) CHARACTER SET ascii BINARY, VARCHAR(10)
+// COLLATE utf8mb4_bin BINARY and VARCHAR(10) BINARY BINARY: a BINARY left unread here is
+// no column attribute either. TestTypeBinaryFormsOceanBaseOracle holds each to the engine.
 func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
+	// BINARY: the charset's _bin collation, CHAR(10) BINARY being CHAR(10) COLLATE
+	// {charset}_bin.
+	if p.cur.Type == kwBINARY {
+		p.advance()
+		dt.Binary = true
+	}
+
 	// CHARACTER SET charset_name | CHARSET charset_name
 	if _, ok := p.match(kwCHARSET); ok {
 		dt.Charset = p.parseTypeCharsetOrCollationName()
@@ -658,14 +674,6 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
 		dt.Collate = p.parseTypeCharsetOrCollationName()
-	}
-
-	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
-	// Valid for CHAR, VARCHAR, TEXT variants, ENUM, SET, and BLOB types.
-	// MySQL: CHAR(10) BINARY → CHAR(10) COLLATE {charset}_bin.
-	if p.cur.Type == kwBINARY {
-		p.advance()
-		dt.Binary = true
 	}
 }
 

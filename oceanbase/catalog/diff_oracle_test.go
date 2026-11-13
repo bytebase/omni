@@ -141,8 +141,8 @@ func diffIdempotenceProbes() []diffProbe {
 		// (-> ascii_bin). (entry char-binary-attribute)
 		{"binary-modifier-utf8mb4", "CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY) DEFAULT CHARSET=utf8mb4", "t"},
 		// OceanBase's grammar puts BINARY before the charset (`VARCHAR string_length_i
-		// opt_binary opt_charset`): it takes the first of these and refuses the second.
-		// The parser here has the order the other way round (obGaps, obRefused).
+		// opt_binary opt_charset`): it takes the first of these and refuses the second
+		// (obRefused), and the parser reads them the same way.
 		{"binary-modifier-before-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) BINARY CHARACTER SET ascii) DEFAULT CHARSET=utf8mb4", "t"},
 		{"binary-modifier-after-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4", "t"},
 		// latin1 table -> latin1_bin.

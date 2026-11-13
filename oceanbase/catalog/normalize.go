@@ -1316,12 +1316,14 @@ func (n *Normalizer) CanonicalComment(comment string) string {
 // its prefix length (entry prefix-index). The direction is not part of it: OceanBase
 // takes DESC on an index column and stores the column ascending (SHOW CREATE TABLE
 // prints no DESC, and information_schema.STATISTICS says A), so a written DESC is not
-// schema. TestOracle_OceanBaseIndexOrderAndType holds this to the engine.
+// schema. TestOracle_OceanBaseIndexOrderAndType holds this to the engine. An expression
+// is compared as OceanBase stores it (storedKeyExpr), so a multi-valued key equals its
+// own readback.
 func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 	var b strings.Builder
 	if ic.Expr != "" {
 		b.WriteString("expr:")
-		b.WriteString(n.CanonicalGeneratedExpr(ic.Expr))
+		b.WriteString(n.CanonicalGeneratedExpr(storedKeyExpr(ic)))
 	} else {
 		b.WriteString("col:")
 		b.WriteString(strings.ToLower(ic.Name))

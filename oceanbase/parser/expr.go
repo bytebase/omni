@@ -855,6 +855,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	if builtin && upperName == "JSON_VALUE" {
 		return p.parseJSONValueFunc(fc)
 	}
+	if builtin && upperName == "JSON_QUERY" {
+		return p.parseJSONQueryFunc(fc)
+	}
 
 	if builtin {
 		switch upperName {

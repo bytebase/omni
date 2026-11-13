@@ -170,9 +170,10 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		// JSON_VALUE's document is a simple_expr, and analysis drops the parentheses a
-		// predicate or an operator needs there: JSON_VALUE(1 IN (SELECT 1), '$') is a 1064.
-		if i == 0 && f.JSONValueClauses != "" && needsDocumentParens(arg) {
+		// JSON_VALUE's document is a simple_expr, and JSON_QUERY's, and analysis drops the
+		// parentheses a predicate or an operator needs there: JSON_VALUE(1 IN (SELECT 1), '$')
+		// is a 1064.
+		if i == 0 && f.JSONValueClauses+f.JSONQueryClauses != "" && needsDocumentParens(arg) {
 			b.WriteByte('(')
 			writeAnalyzedExpr(b, arg, q)
 			b.WriteByte(')')
@@ -181,6 +182,7 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 		writeAnalyzedExpr(b, arg, q)
 	}
 	b.WriteString(f.JSONValueClauses)
+	b.WriteString(f.JSONQueryClauses)
 	b.WriteByte(')')
 
 	if f.Over != nil {

@@ -8,12 +8,14 @@ import (
 
 // parseCreateTriggerStmt parses a CREATE TRIGGER statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+// Ref: plsql_trigger_source and trigger_definition in OceanBase's
+// src/pl/parser/pl_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 1165 to 1199), where every
+// name is an sp_name:
 //
-//	CREATE [DEFINER = user] TRIGGER [IF NOT EXISTS] trigger_name
+//	CREATE [DEFINER = user] TRIGGER [IF NOT EXISTS] sp_name
 //	    trigger_time trigger_event
-//	    ON tbl_name FOR EACH ROW
-//	    [trigger_order]
+//	    ON sp_name FOR EACH ROW
+//	    [{FOLLOWS | PRECEDES} sp_name]
 //	    trigger_body
 func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, error) {
 	p.advance() // consume TRIGGER
@@ -35,11 +37,13 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 		stmt.IfNotExists = true
 	}
 
-	// Trigger name
-	name, _, err := p.parseIdent()
+	// Trigger name, with its database or without. The migration generator writes the
+	// database, and OceanBase stores the statement as it was written.
+	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
+	stmt.Schema = schema
 	stmt.Name = name
 
 	// Completion: after trigger name, offer BEFORE/AFTER.
@@ -120,13 +124,14 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 		follows := p.cur.Type == kwFOLLOWS
 		orderStart := p.pos()
 		p.advance()
-		trigName, _, err := p.parseIdent()
+		trigSchema, trigName, err := p.parseSpName()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Order = &nodes.TriggerOrder{
 			Loc:         nodes.Loc{Start: orderStart, End: p.prev.End},
 			Follows:     follows,
+			Schema:      trigSchema,
 			TriggerName: trigName,
 		}
 	}

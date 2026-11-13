@@ -40,6 +40,7 @@ const (
 	ErrDupProcedure                      = 1304
 	ErrNoSuchTrigger                     = 1360
 	ErrDupTrigger                        = 1359
+	ErrTriggerInWrongSchema              = 1435
 	ErrNoSuchEvent                       = 1539
 	ErrDupEvent                          = 1537
 	ErrFKCannotUseVirtualColumn          = 3104
@@ -254,6 +255,10 @@ func errDupTrigger(name string) error {
 func errNoSuchTrigger(db, name string) error {
 	return &Error{Code: ErrNoSuchTrigger, SQLState: sqlState(ErrNoSuchTrigger),
 		Message: fmt.Sprintf("Trigger does not exist")}
+}
+
+func errTriggerInWrongSchema() error {
+	return &Error{Code: ErrTriggerInWrongSchema, SQLState: sqlState(ErrTriggerInWrongSchema), Message: "Trigger in wrong schema"}
 }
 
 func errDupEvent(name string) error {

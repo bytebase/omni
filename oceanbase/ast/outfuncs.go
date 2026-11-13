@@ -1641,6 +1641,9 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
+	if n.Schema != "" {
+		fmt.Fprintf(sb, " :schema %s", n.Schema)
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
@@ -2206,6 +2209,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	}
 	if n.JSONValue != nil {
 		sb.WriteString(" :json_value true")
+	}
+	if n.JSONQueryArm {
+		sb.WriteString(" :json_query_arm true")
+	}
+	if n.JSONQuery != nil {
+		sb.WriteString(" :json_query true")
 	}
 	if len(n.OrderBy) > 0 {
 		sb.WriteString(" :order_by ")
@@ -3407,6 +3416,9 @@ func writeTriggerOrder(sb *strings.Builder, n *TriggerOrder) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Follows {
 		sb.WriteString(" :follows true")
+	}
+	if n.Schema != "" {
+		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
 	if n.TriggerName != "" {
 		fmt.Fprintf(sb, " :trigger_name %s", n.TriggerName)

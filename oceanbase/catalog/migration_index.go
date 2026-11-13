@@ -69,6 +69,9 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		if idx.Primary {
 			continue // inline in CREATE TABLE
 		}
+		if isMultiValuedIndex(idx) {
+			continue // inline in CREATE TABLE (formatCreateTable): OceanBase adds none later
+		}
 		ops = append(ops, addIndexOps(entry, table, idx, n)...)
 	}
 	return ops
@@ -209,7 +212,7 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		return addVectorIndexOp(entry, table, idx)
 	}
 	clause := "ADD " + formatIndexDefinition(idx, n)
-	return MigrationOp{
+	op := MigrationOp{
 		Type:         OpAddIndex,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
@@ -219,6 +222,11 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		Priority:     priorityIndex,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
 	}
+	if isMultiValuedIndex(idx) {
+		op.Warning = fmt.Sprintf("OceanBase cannot add the multi-valued index %s to table %s (error 1235): it builds one only with its table",
+			migrationQuoteIdent(idx.Name), table)
+	}
+	return op
 }
 
 // addVectorIndexOp builds the CREATE VECTOR INDEX a vector index needs, because OceanBase 4.3.5.6
