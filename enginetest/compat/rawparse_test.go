@@ -44,6 +44,7 @@ func TestRawParseVerdictReadsTheProbe(t *testing.T) {
 		{"characters, not bytes", "SELECT 'é', 'ü' FROM FROM", pgError{"42601", at(21)}, "reject@23"},
 		{"the lexer's error", `SELECT U&'\00'`, pgError{"42601", at(7)}, "reject@7"},
 		{"a grammar action's error", "SELECT ROW(1) OVERLAPS ROW(2)", pgError{"42601", at(7)}, "reject@7"},
+		{"a location left at zero", "ALTER PUBLICATION a ADD a *", pgError{"42601", 1}, "reject@0"},
 		{"another code, and no position", "CREATE TABLE a (b int, CONSTRAINT c CHECK (b>0) DEFERRABLE)", pgError{"0A000", 0}, Reject},
 	} {
 		got, err := RawParseVerdict(c.statement, c.err, pgState)
