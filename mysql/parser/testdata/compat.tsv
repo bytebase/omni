@@ -6165,13 +6165,13 @@ reject	reject	engine	simple_expr/EXISTS_table_subquery!drop-5	DO EXISTS(SELECT u
 reject	reject	engine	simple_expr/EXISTS_table_subquery!truncate	DO EXISTS(SELECT utf8mb4
 accept	accept	engine	simple_expr/EXISTS_table_subquery!insert	DO EXISTS(SELECT utf8mb4) zzz;
 reject	reject	engine	simple_expr/EXISTS_table_subquery!swap	DO EXIT(SELECT utf8mb4);
-reject	accept	engine	simple_expr/{_ident_expr_}	DO { utf8mb4 utf8mb4 };
+accept	accept	engine	simple_expr/{_ident_expr_}	DO { utf8mb4 utf8mb4 };
 reject	reject	engine	simple_expr/{_ident_expr_}!drop-1	DO utf8mb4 utf8mb4 };
 reject	reject	engine	simple_expr/{_ident_expr_}!drop-2	DO { utf8mb4 };
 reject	reject	engine	simple_expr/{_ident_expr_}!drop-4	DO { utf8mb4 utf8mb4;
 reject	reject	engine	simple_expr/{_ident_expr_}!truncate	DO { utf8mb4 utf8mb4
-reject	accept	engine	simple_expr/{_ident_expr_}!insert	DO { utf8mb4 utf8mb4 } zzz;
-reject	accept	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	simple_expr/{_ident_expr_}!insert	DO { utf8mb4 utf8mb4 } zzz;
+accept	accept	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)	DO MATCH utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-1	DO utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-2	DO MATCH AGAINST(utf8mb4);
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-3	DO MATCH utf8mb4(utf8mb4);
@@ -6179,7 +6179,7 @@ reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltex
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-5	DO MATCH utf8mb4 AGAINST();
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-6	DO MATCH utf8mb4 AGAINST(utf8mb4;
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!truncate	DO MATCH utf8mb4 AGAINST(utf8mb4
-reject	accept	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!insert	DO MATCH utf8mb4 AGAINST(utf8mb4) zzz;
+accept	accept	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!insert	DO MATCH utf8mb4 AGAINST(utf8mb4) zzz;
 reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!swap	DO MAX utf8mb4 AGAINST(utf8mb4);
 accept	accept	engine	simple_expr/BINARY_SYM_simple_expr	DO BINARY utf8mb4;
 reject	reject	engine	simple_expr/BINARY_SYM_simple_expr!drop-2	DO BINARY;
@@ -6930,17 +6930,17 @@ reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!drop-
 reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!drop-5	DO utf8mb4.utf8mb4(;
 reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!truncate	DO utf8mb4.utf8mb4(
 accept	accept	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!insert	DO utf8mb4.utf8mb4() zzz;
-reject	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion!insert	DO MATCH utf8mb4 AGAINST(utf8mb4 zzz);
-reject	accept	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN MODE);
+accept	accept	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-1	DO MATCH utf8mb4 AGAINST(utf8mb4 BOOLEAN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-2	DO MATCH utf8mb4 AGAINST(utf8mb4 IN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-3	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!truncate	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!insert	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN MODE zzz);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!swap	DO MATCH utf8mb4 AGAINST(utf8mb4 INACTIVE BOOLEAN MODE);
-reject	accept	engine	opt_natural_language_mode/%empty	DO MATCH utf8mb4 AGAINST(utf8mb4);
-reject	accept	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 IN NATURAL LANGUAGE MODE);
+accept	accept	engine	opt_natural_language_mode/%empty	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 IN NATURAL LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-1	DO MATCH utf8mb4 AGAINST(utf8mb4 NATURAL LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-2	DO MATCH utf8mb4 AGAINST(utf8mb4 IN LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-3	DO MATCH utf8mb4 AGAINST(utf8mb4 IN NATURAL MODE);
@@ -6948,8 +6948,8 @@ reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!truncate	DO MATCH utf8mb4 AGAINST(utf8mb4 IN NATURAL LANGUAGE
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!insert	DO MATCH utf8mb4 AGAINST(utf8mb4 IN NATURAL LANGUAGE MODE zzz);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!swap	DO MATCH utf8mb4 AGAINST(utf8mb4 INACTIVE NATURAL LANGUAGE MODE);
-reject	accept	engine	opt_query_expansion/%empty	DO MATCH utf8mb4 AGAINST(utf8mb4);
-reject	accept	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 WITH QUERY EXPANSION);
+accept	accept	engine	opt_query_expansion/%empty	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 WITH QUERY EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-1	DO MATCH utf8mb4 AGAINST(utf8mb4 QUERY EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-2	DO MATCH utf8mb4 AGAINST(utf8mb4 WITH EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-3	DO MATCH utf8mb4 AGAINST(utf8mb4 WITH QUERY);
@@ -7528,7 +7528,7 @@ reject	reject	engine	expr_list/expr_list_,_expr!drop-2	CALL utf8mb4(utf8mb4 utf8
 reject	reject	engine	expr_list/expr_list_,_expr!drop-3	CALL utf8mb4(utf8mb4,);
 reject	reject	engine	expr_list/expr_list_,_expr!truncate	CALL utf8mb4(utf8mb4,
 reject	reject	engine	expr_list/expr_list_,_expr!insert	CALL utf8mb4(utf8mb4, utf8mb4 zzz);
-reject	accept	engine	ident_list_arg/ident_list	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	ident_list_arg/ident_list	DO MATCH utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	ident_list_arg/ident_list!truncate	DO MATCH
 reject	reject	engine	ident_list_arg/ident_list!insert	DO MATCH utf8mb4 zzz AGAINST(utf8mb4);
 accept	accept	engine	ident_list_arg/(_ident_list_)	DO MATCH(utf8mb4) AGAINST(utf8mb4);
@@ -7537,8 +7537,8 @@ reject	reject	engine	ident_list_arg/(_ident_list_)!drop-2	DO MATCH() AGAINST(utf
 reject	reject	engine	ident_list_arg/(_ident_list_)!drop-3	DO MATCH(utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	ident_list_arg/(_ident_list_)!truncate	DO MATCH(utf8mb4
 reject	reject	engine	ident_list_arg/(_ident_list_)!insert	DO MATCH(utf8mb4) zzz AGAINST(utf8mb4);
-reject	accept	engine	ident_list/simple_ident	DO MATCH utf8mb4 AGAINST(utf8mb4);
-reject	accept	engine	ident_list/ident_list_,_simple_ident	DO MATCH utf8mb4, utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	ident_list/simple_ident	DO MATCH utf8mb4 AGAINST(utf8mb4);
+accept	accept	engine	ident_list/ident_list_,_simple_ident	DO MATCH utf8mb4, utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-1	DO MATCH, utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-2	DO MATCH utf8mb4 utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-3	DO MATCH utf8mb4, AGAINST(utf8mb4);

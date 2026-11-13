@@ -5629,13 +5629,13 @@ reject	reject	engine	column_default_non_parenthesized_expr/EXISTS_(_subselect_)!
 reject	reject	engine	column_default_non_parenthesized_expr/EXISTS_(_subselect_)!truncate	DO EXISTS(SELECT a
 reject	reject	engine	column_default_non_parenthesized_expr/EXISTS_(_subselect_)!insert	DO EXISTS(SELECT a) zzz;
 reject	reject	engine	column_default_non_parenthesized_expr/EXISTS_(_subselect_)!swap	DO EXIT(SELECT a);
-reject	accept	engine	column_default_non_parenthesized_expr/{_ident_expr_}	DO { a a };
+accept	accept	engine	column_default_non_parenthesized_expr/{_ident_expr_}	DO { a a };
 reject	reject	engine	column_default_non_parenthesized_expr/{_ident_expr_}!drop-1	DO a a };
 reject	reject	engine	column_default_non_parenthesized_expr/{_ident_expr_}!drop-2	DO { a };
 reject	reject	engine	column_default_non_parenthesized_expr/{_ident_expr_}!drop-4	DO { a a;
 reject	reject	engine	column_default_non_parenthesized_expr/{_ident_expr_}!truncate	DO { a a
 reject	reject	engine	column_default_non_parenthesized_expr/{_ident_expr_}!insert	DO { a a } zzz;
-reject	accept	engine	column_default_non_parenthesized_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)	DO MATCH a AGAINST(a);
+accept	accept	engine	column_default_non_parenthesized_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)	DO MATCH a AGAINST(a);
 reject	reject	engine	column_default_non_parenthesized_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-1	DO a AGAINST(a);
 reject	reject	engine	column_default_non_parenthesized_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-2	DO MATCH AGAINST(a);
 reject	reject	engine	column_default_non_parenthesized_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltext_options_)!drop-3	DO MATCH a(a);
@@ -6403,17 +6403,17 @@ reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_spec
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!truncate	DO a.TRIM(LEADING FROM a
 reject	accept	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!insert	DO a.TRIM(LEADING FROM a) zzz;
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!swap	DO a.TRIM_ORACLE(LEADING FROM a);
-reject	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH a AGAINST(a);
+accept	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH a AGAINST(a);
 reject	reject	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion!insert	DO MATCH a AGAINST(a zzz);
-reject	accept	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	DO MATCH a AGAINST(a IN BOOLEAN MODE);
+accept	accept	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	DO MATCH a AGAINST(a IN BOOLEAN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-1	DO MATCH a AGAINST(a BOOLEAN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-2	DO MATCH a AGAINST(a IN MODE);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!drop-3	DO MATCH a AGAINST(a IN BOOLEAN);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!truncate	DO MATCH a AGAINST(a IN BOOLEAN
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!insert	DO MATCH a AGAINST(a IN BOOLEAN MODE zzz);
 reject	reject	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM!swap	DO MATCH a AGAINST(a INCREMENT BOOLEAN MODE);
-reject	accept	engine	opt_natural_language_mode/%empty	DO MATCH a AGAINST(a);
-reject	accept	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	DO MATCH a AGAINST(a IN NATURAL LANGUAGE MODE);
+accept	accept	engine	opt_natural_language_mode/%empty	DO MATCH a AGAINST(a);
+accept	accept	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	DO MATCH a AGAINST(a IN NATURAL LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-1	DO MATCH a AGAINST(a NATURAL LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-2	DO MATCH a AGAINST(a IN LANGUAGE MODE);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!drop-3	DO MATCH a AGAINST(a IN NATURAL MODE);
@@ -6421,8 +6421,8 @@ reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!truncate	DO MATCH a AGAINST(a IN NATURAL LANGUAGE
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!insert	DO MATCH a AGAINST(a IN NATURAL LANGUAGE MODE zzz);
 reject	reject	engine	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM!swap	DO MATCH a AGAINST(a INCREMENT NATURAL LANGUAGE MODE);
-reject	accept	engine	opt_query_expansion/%empty	DO MATCH a AGAINST(a);
-reject	accept	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM	DO MATCH a AGAINST(a WITH QUERY EXPANSION);
+accept	accept	engine	opt_query_expansion/%empty	DO MATCH a AGAINST(a);
+accept	accept	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM	DO MATCH a AGAINST(a WITH QUERY EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-1	DO MATCH a AGAINST(a QUERY EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-2	DO MATCH a AGAINST(a WITH EXPANSION);
 reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!drop-3	DO MATCH a AGAINST(a WITH QUERY);
@@ -6861,7 +6861,7 @@ reject	reject	engine	expr_list/expr_list_,_expr!drop-1	DO, a;
 reject	reject	engine	expr_list/expr_list_,_expr!drop-3	DO a,;
 reject	reject	engine	expr_list/expr_list_,_expr!truncate	DO a,
 reject	reject	engine	expr_list/expr_list_,_expr!insert	DO a, a zzz;
-reject	accept	engine	ident_list_arg/ident_list	DO MATCH a AGAINST(a);
+accept	accept	engine	ident_list_arg/ident_list	DO MATCH a AGAINST(a);
 reject	reject	engine	ident_list_arg/ident_list!truncate	DO MATCH
 reject	reject	engine	ident_list_arg/ident_list!insert	DO MATCH a zzz AGAINST(a);
 accept	accept	engine	ident_list_arg/(_ident_list_)	DO MATCH(a) AGAINST(a);
@@ -6870,8 +6870,8 @@ reject	reject	engine	ident_list_arg/(_ident_list_)!drop-2	DO MATCH() AGAINST(a);
 reject	reject	engine	ident_list_arg/(_ident_list_)!drop-3	DO MATCH(a AGAINST(a);
 reject	reject	engine	ident_list_arg/(_ident_list_)!truncate	DO MATCH(a
 reject	reject	engine	ident_list_arg/(_ident_list_)!insert	DO MATCH(a) zzz AGAINST(a);
-reject	accept	engine	ident_list/simple_ident	DO MATCH a AGAINST(a);
-reject	accept	engine	ident_list/ident_list_,_simple_ident	DO MATCH a, a AGAINST(a);
+accept	accept	engine	ident_list/simple_ident	DO MATCH a AGAINST(a);
+accept	accept	engine	ident_list/ident_list_,_simple_ident	DO MATCH a, a AGAINST(a);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-1	DO MATCH, a AGAINST(a);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-2	DO MATCH a a AGAINST(a);
 reject	reject	engine	ident_list/ident_list_,_simple_ident!drop-3	DO MATCH a, AGAINST(a);

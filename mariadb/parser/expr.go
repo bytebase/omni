@@ -403,6 +403,8 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		return p.parseCaseExpr()
 	case kwINTERVAL:
 		return p.parseIntervalExpr()
+	case '{':
+		return p.parseODBCEscape()
 	case kwMATCH:
 		return p.parseMatchExpr()
 	case kwBINARY:
@@ -2539,9 +2541,11 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume MATCH
 
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
+	// ident_list_arg: the column list, in parentheses or not.
+	//
+	// Ref: simple_expr's `MATCH ident_list_arg AGAINST` and ident_list_arg in
+	// MariaDB 11.8 sql/sql_yacc.yy.
+	_, parenthesized := p.match('(')
 
 	me := &nodes.MatchExpr{Loc: nodes.Loc{Start: start}}
 
@@ -2558,8 +2562,10 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 		p.advance()
 	}
 
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
+	if parenthesized {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	if _, err := p.expect(kwAGAINST); err != nil {
@@ -2825,4 +2831,35 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 // and no built-in's where a partition clause is concerned.
 func nameQuotedFunction(p *Parser, schema string) bool {
 	return schema == "" && p.backtickQuotedAt(p.prev.Loc)
+}
+
+// parseODBCEscape reads `{ident expr}`, ODBC's escape. With d, t or ts and a
+// string it is that DATE, TIME or TIMESTAMP literal; anything else is the
+// expression itself.
+//
+// Ref: `'{' ident expr '}'` and PTI_odbc_date in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume '{'
+	word, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	if lit, ok := expr.(*nodes.StringLit); ok {
+		kind := map[string]string{"D": "DATE", "T": "TIME", "TS": "TIMESTAMP"}[strings.ToUpper(word)]
+		if kind != "" {
+			return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: kind, Value: lit.Value}, nil
+		}
+	}
+	return expr, nil
 }
