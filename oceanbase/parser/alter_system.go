@@ -30,9 +30,10 @@ type sysPat func(p *Parser, k func() bool) bool
 // sysMatch is what a match keeps beside the scan position: the furthest token
 // a matcher refused, for the error, and the statement's naming words.
 type sysMatch struct {
-	far    Token
-	hasFar bool
-	action string
+	far     Token
+	hasFar  bool
+	action  string
+	nameEnd int // where the naming words of the form end
 }
 
 // sysMiss records the current token as one no matcher took.
@@ -184,7 +185,7 @@ func sysForm(name string, clauses ...any) sysPat {
 	words, rest := sysSeq(name), sysSeq(clauses...)
 	return func(p *Parser, k func() bool) bool {
 		return words(p, func() bool {
-			p.sys.action = name
+			p.sys.action, p.sys.nameEnd = name, p.prev.End
 			return rest(p, k)
 		})
 	}
@@ -204,7 +205,15 @@ var (
 		}
 		return true
 	})
-	sysInt = sysTok(tokICONST) // INTNUM
+	// INTNUM: an integer of no more than 63 bits. A longer run of digits is a
+	// DECIMAL_VAL.
+	sysInt = sysLeaf(func(p *Parser) bool {
+		if p.cur.Type != tokICONST || !p.cur.isInt64() {
+			return false
+		}
+		p.advance()
+		return true
+	})
 
 	// relation_name: NAME_OB or an unreserved keyword.
 	sysName = sysLeaf(func(p *Parser) bool {
