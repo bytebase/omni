@@ -47,3 +47,21 @@ func TestAVariantMaySpanLines(t *testing.T) {
 		t.Errorf("fragments %+v, failed %q", pg.Frags, pg.Failed)
 	}
 }
+
+// TestAnOptionalRepeatKeepsItsParentheses pins [ X [ ... ] ]: (X+)?, since
+// ANTLR reads X+? as a non-greedy X+.
+func TestAnOptionalRepeatKeepsItsParentheses(t *testing.T) {
+	got, err := Form(testDialect, "CREATE X <name> [ <e> [ ... ] ]")
+	if err != nil || strings.Join(got, " | ") != "'CREATE' 'X' ID (ID+)?" {
+		t.Errorf("got %q, %v", got, err)
+	}
+}
+
+// TestAListElementTakesItsOptionalValues pins [ <argname> ] [ <argmode> ]
+// <argtype> [, ...]: each element after a comma may name its argument too.
+func TestAListElementTakesItsOptionalValues(t *testing.T) {
+	got, err := Form(testDialect, "F ( [ <argname> ] [ <argmode> ] <argtype> [, ...] )")
+	if err != nil || strings.Join(got, " | ") != "'F' '(' ID? ID? ID (',' ID? ID? ID)* ')'" {
+		t.Errorf("got %q, %v", got, err)
+	}
+}

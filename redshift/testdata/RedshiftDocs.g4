@@ -229,8 +229,8 @@ alterRole
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_PROCEDURE.html
 alterProcedure
-    : 'ALTER' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' DATA_TYPE)*)? ')')? 'RENAME' 'TO' ID
-    | 'ALTER' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' DATA_TYPE)*)? ')')? 'OWNER' 'TO' (ID | 'CURRENT_USER' | 'SESSION_USER')
+    : 'ALTER' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' ID? ARGMODE? DATA_TYPE)*)? ')')? 'RENAME' 'TO' ID
+    | 'ALTER' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' ID? ARGMODE? DATA_TYPE)*)? ')')? 'OWNER' 'TO' (ID | 'CURRENT_USER' | 'SESSION_USER')
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_SCHEMA.html
@@ -480,7 +480,7 @@ createModel
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_PROCEDURE.html
 createProcedure
-    : 'CREATE' ('OR' 'REPLACE')? 'PROCEDURE' ID '(' (ID? ARGMODE? DATA_TYPE (',' DATA_TYPE)*)? ')' 'NONATOMIC'? 'AS' STRING 'LANGUAGE' 'PLPGSQL' (('SECURITY' 'INVOKER' | 'SECURITY' 'DEFINER'))? ('SET' ID ('TO' ID | '=' ID))?
+    : 'CREATE' ('OR' 'REPLACE')? 'PROCEDURE' ID '(' (ID? ARGMODE? DATA_TYPE (',' ID? ARGMODE? DATA_TYPE)*)? ')' 'NONATOMIC'? 'AS' STRING 'LANGUAGE' 'PLPGSQL' (('SECURITY' 'INVOKER' | 'SECURITY' 'DEFINER'))? ('SET' ID ('TO' ID | '=' ID))?
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_RLS_POLICY.html
@@ -496,8 +496,8 @@ createRole
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_SCHEMA.html
 // fix: the first form leaves [ <schema_element> open; closed
 createSchema
-    : 'CREATE' 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID ('AUTHORIZATION' ID)? ('QUOTA' (NUMBER ('MB' | 'GB' | 'TB')? | 'UNLIMITED'))? SCHEMA_ELEMENT+?
-    | 'CREATE' 'SCHEMA' 'AUTHORIZATION' ID ('QUOTA' (NUMBER ('MB' | 'GB' | 'TB')? | 'UNLIMITED'))? SCHEMA_ELEMENT+?
+    : 'CREATE' 'SCHEMA' ('IF' 'NOT' 'EXISTS')? ID ('AUTHORIZATION' ID)? ('QUOTA' (NUMBER ('MB' | 'GB' | 'TB')? | 'UNLIMITED'))? (SCHEMA_ELEMENT+)?
+    | 'CREATE' 'SCHEMA' 'AUTHORIZATION' ID ('QUOTA' (NUMBER ('MB' | 'GB' | 'TB')? | 'UNLIMITED'))? (SCHEMA_ELEMENT+)?
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html
@@ -534,7 +534,7 @@ createTemplate
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html
 createUser
-    : 'CREATE' 'USER' ID 'WITH'? 'PASSWORD' (STRING | 'DISABLE') createUser_option+?
+    : 'CREATE' 'USER' ID 'WITH'? 'PASSWORD' (STRING | 'DISABLE') (createUser_option+)?
     ;
 createUser_option
     : 'CREATEDB'
@@ -608,7 +608,7 @@ dropExternalView
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_FUNCTION.html
 dropFunction
-    : 'DROP' 'FUNCTION' ID '(' ID? DATA_TYPE (',' DATA_TYPE)* ')' ('CASCADE' | 'RESTRICT')?
+    : 'DROP' 'FUNCTION' ID '(' ID? DATA_TYPE (',' ID? DATA_TYPE)* ')' ('CASCADE' | 'RESTRICT')?
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_GROUP.html
@@ -643,7 +643,7 @@ materializedViewDropSqlCommand
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_PROCEDURE.html
 dropProcedure
-    : 'DROP' 'PROCEDURE' ID '(' (ID? ARGMODE? DATA_TYPE (',' DATA_TYPE)*)? ')'
+    : 'DROP' 'PROCEDURE' ID '(' (ID? ARGMODE? DATA_TYPE (',' ID? ARGMODE? DATA_TYPE)*)? ')'
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_RLS_POLICY.html
@@ -715,8 +715,8 @@ grant
     : 'GRANT' (('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'REFERENCES' | 'ALTER' | 'TRUNCATE') (',' ('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'REFERENCES' | 'ALTER' | 'TRUNCATE'))* | 'ALL' 'PRIVILEGES'?) 'ON' ('TABLE'? ID (',' ID)* | 'ALL' 'TABLES' 'IN' 'SCHEMA' ID (',' ID)*) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' (('CREATE' | 'USAGE' | 'TEMPORARY' | 'TEMP' | 'ALTER') (',' ('CREATE' | 'USAGE' | 'TEMPORARY' | 'TEMP' | 'ALTER'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID (',' ID)* 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' (('CREATE' | 'USAGE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'USAGE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'SCHEMA' ID (',' ID)* 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
-    | 'GRANT' ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'ON' ('FUNCTION' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')')* | 'ALL' 'FUNCTIONS' 'IN' 'SCHEMA' ID (',' ID)*) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
-    | 'GRANT' ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'ON' ('PROCEDURE' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')')* | 'ALL' 'PROCEDURES' 'IN' 'SCHEMA' ID (',' ID)*) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
+    | 'GRANT' ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'ON' ('FUNCTION' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')')* | 'ALL' 'FUNCTIONS' 'IN' 'SCHEMA' ID (',' ID)*) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
+    | 'GRANT' ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'ON' ('PROCEDURE' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')')* | 'ALL' 'PROCEDURES' 'IN' 'SCHEMA' ID (',' ID)*) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' 'USAGE' 'ON' 'LANGUAGE' ID (',' ID)* 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' (('ALTER' | 'DROP') (',' ('ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'COPY' 'JOB' ID (',' ID)* 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' (('ALTER' | 'DROP' | 'USAGE') (',' ('ALTER' | 'DROP' | 'USAGE'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'TEMPLATE' (ID '.')? (ID '.')? ID (',' ID)* 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
@@ -727,7 +727,7 @@ grant
     | 'GRANT' (('CREATE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'SCHEMA' ID (',' ID)* 'TO' 'IAM_ROLE' ID (',' 'IAM_ROLE' ID)* ('WITH' 'GRANT' 'OPTION')?
     | 'GRANT' ('ALTER' | 'SHARE') 'ON' 'DATASHARE' ID 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' 'USAGE' 'ON' 'DATASHARE' ID 'TO' ('NAMESPACE' STRING | 'ACCOUNT' STRING ('VIA' 'DATA' 'CATALOG')?)
-    | 'GRANT' 'EXECUTE' 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' 'TO' 'DATASHARE' ID
+    | 'GRANT' 'EXECUTE' 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' 'TO' 'DATASHARE' ID
     | 'GRANT' 'USAGE' 'ON' ('DATABASE' ID (',' ID)* | 'SCHEMA' ID) 'TO' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'GRANT' (('CREATE' | 'USAGE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'USAGE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'SCHEMAS' 'IN' 'DATABASE' ID 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID) (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID))*
     | 'GRANT' (('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'ALTER' | 'TRUNCATE' | 'REFERENCES') (',' ('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'ALTER' | 'TRUNCATE' | 'REFERENCES'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'TABLES' 'IN' ('SCHEMA' ID ('DATABASE' ID)? | 'DATABASE' ID) 'TO' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID) (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID))*
@@ -795,8 +795,8 @@ revoke
     : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'REFERENCES' | 'ALTER' | 'TRUNCATE') (',' ('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'REFERENCES' | 'ALTER' | 'TRUNCATE'))* | 'ALL' 'PRIVILEGES'?) 'ON' ('TABLE'? ID (',' ID)* | 'ALL' 'TABLES' 'IN' 'SCHEMA' ID (',' ID)*) 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' | 'TEMPORARY' | 'TEMP' | 'ALTER') (',' ('CREATE' | 'TEMPORARY' | 'TEMP' | 'ALTER'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' | 'USAGE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'USAGE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'SCHEMA' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
-    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? 'EXECUTE' 'ON' 'FUNCTION' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')')* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
-    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ('EXECUTE' (',' 'EXECUTE')* | 'ALL' 'PRIVILEGES'?) 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')')* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
+    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? 'EXECUTE' 'ON' 'FUNCTION' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')')* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
+    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ('EXECUTE' (',' 'EXECUTE')* | 'ALL' 'PRIVILEGES'?) 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' (',' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')')* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? 'USAGE' 'ON' 'LANGUAGE' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('ALTER' | 'DROP') (',' ('ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'COPY' 'JOB' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('ALTER' | 'DROP' | 'USAGE') (',' ('ALTER' | 'DROP' | 'USAGE'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'TEMPLATE' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
@@ -807,7 +807,7 @@ revoke
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'SCHEMA' ID (',' ID)* 'FROM' 'IAM_ROLE' ID (',' 'IAM_ROLE' ID)*
     | 'REVOKE' ('ALTER' | 'SHARE') 'ON' 'DATASHARE' ID 'FROM' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'REVOKE' 'USAGE' 'ON' 'DATASHARE' ID 'FROM' ('NAMESPACE' STRING (',' STRING)* | 'ACCOUNT' STRING ('VIA' 'DATA' 'CATALOG')? (',' STRING ('VIA' 'DATA' 'CATALOG')?)*)
-    | 'REVOKE' 'EXECUTE' 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' 'FROM' 'DATASHARE' ID
+    | 'REVOKE' 'EXECUTE' 'ON' 'PROCEDURE' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' 'FROM' 'DATASHARE' ID
     | 'REVOKE' 'USAGE' 'ON' ('DATABASE' ID (',' ID)* | 'SCHEMA' ID) 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))*
     | 'REVOKE' ('GRANT' 'OPTION')? (('CREATE' | 'USAGE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'USAGE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'SCHEMAS' 'IN' 'DATABASE' ID 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
     | 'REVOKE' ('GRANT' 'OPTION')? (('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'ALTER' | 'TRUNCATE' | 'REFERENCES') (',' ('SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DROP' | 'ALTER' | 'TRUNCATE' | 'REFERENCES'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'TABLES' 'IN' ('SCHEMA' ID ('DATABASE' ID)? | 'DATABASE' ID) 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
@@ -911,7 +911,7 @@ showFunctions
 // https://docs.aws.amazon.com/redshift/latest/dg/r_SHOW_GRANTS.html
 // fix: no | before TEMPLATE; added
 showGrants
-    : 'SHOW' 'GRANTS' 'ON' ('DATABASE' ID | 'FUNCTION' ID '(' (ID? DATA_TYPE (',' DATA_TYPE)*)? ')' | 'FUNCTION' ID | 'SCHEMA' ID | ('TABLE' ID | ID) | 'TEMPLATE' ID) ('FOR' (ID | 'ROLE' ID | 'PUBLIC'))? ('LIMIT' NUMBER)?
+    : 'SHOW' 'GRANTS' 'ON' ('DATABASE' ID | 'FUNCTION' ID '(' (ID? DATA_TYPE (',' ID? DATA_TYPE)*)? ')' | 'FUNCTION' ID | 'SCHEMA' ID | ('TABLE' ID | ID) | 'TEMPLATE' ID) ('FOR' (ID | 'ROLE' ID | 'PUBLIC'))? ('LIMIT' NUMBER)?
     | 'SHOW' 'GRANTS' 'FOR' (ID | 'ROLE' ID) ('FROM' 'DATABASE' ID)? ('LIMIT' NUMBER)?
     ;
 
@@ -938,7 +938,7 @@ showPolicies
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_SHOW_PROCEDURE.html
 showProcedure
-    : 'SHOW' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' DATA_TYPE)*)? ')')?
+    : 'SHOW' 'PROCEDURE' ID ('(' (ID? ARGMODE? DATA_TYPE (',' ID? ARGMODE? DATA_TYPE)*)? ')')?
     ;
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_SHOW_PROCEDURES.html

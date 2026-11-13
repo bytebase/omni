@@ -829,6 +829,9 @@ func listElement(seq []*node) (int, bool) {
 				break
 			}
 			depth--
+		} else if depth == 0 && n.tok == nil && n.op == '?' && isName(n) {
+			// [ <argname> ] [ <argmode> ] <argtype> [, ...]: an optional
+			// value before the required part is the element's too.
 		} else if depth == 0 && (n.tok == nil || n.tok.kind == nKeyword || n.tok.kind == nFragment || isComma(n)) {
 			break
 		}

@@ -422,13 +422,11 @@ reject	undocumented	docs	statement/createRole!drop-1	ROLE a
 accept	undocumented	docs	statement/createRole!drop-3	CREATE ROLE
 reject	undocumented	docs	statement/createRole!insert	CREATE ROLE a zzz
 reject	undocumented	docs	statement/createRole!swap	CREATEDB ROLE a
-accept	accept	docs	statement/createSchema	CREATE SCHEMA a CREATE TABLE a (a INT)
-reject	undocumented	docs	statement/createSchema!drop-1	SCHEMA a CREATE TABLE a (a INT)
-reject	undocumented	docs	statement/createSchema!drop-2	CREATE a CREATE TABLE a (a INT)
-reject	undocumented	docs	statement/createSchema!drop-3	CREATE SCHEMA CREATE TABLE a (a INT)
-accept	undocumented	docs	statement/createSchema!drop-4	CREATE SCHEMA a
-reject	undocumented	docs	statement/createSchema!insert	CREATE SCHEMA a CREATE TABLE a (a INT) zzz
-reject	undocumented	docs	statement/createSchema!swap	CREATEDB SCHEMA a CREATE TABLE a (a INT)
+accept	accept	docs	statement/createSchema	CREATE SCHEMA a
+reject	undocumented	docs	statement/createSchema!drop-1	SCHEMA a
+reject	undocumented	docs	statement/createSchema!drop-3	CREATE SCHEMA
+reject	undocumented	docs	statement/createSchema!insert	CREATE SCHEMA a zzz
+reject	undocumented	docs	statement/createSchema!swap	CREATEDB SCHEMA a
 accept	accept	docs	statement/createTableNew	CREATE TABLE a(a INT)
 reject	undocumented	docs	statement/createTableNew!drop-1	TABLE a(a INT)
 reject	undocumented	docs	statement/createTableNew!drop-2	CREATE a(a INT)
@@ -455,15 +453,14 @@ reject	undocumented	docs	statement/createTemplate!drop-4	CREATE TEMPLATE a COPY
 reject	undocumented	docs	statement/createTemplate!drop-5	CREATE TEMPLATE a FOR
 reject	accept	docs	statement/createTemplate!insert	CREATE TEMPLATE a FOR COPY zzz
 reject	undocumented	docs	statement/createTemplate!swap	CREATEDB TEMPLATE a FOR COPY
-accept	accept	docs	statement/createUser	CREATE USER a PASSWORD 's' CREATEDB
-reject	undocumented	docs	statement/createUser!drop-1	USER a PASSWORD 's' CREATEDB
-reject	undocumented	docs	statement/createUser!drop-2	CREATE a PASSWORD 's' CREATEDB
-reject	undocumented	docs	statement/createUser!drop-3	CREATE USER PASSWORD 's' CREATEDB
-reject	undocumented	docs	statement/createUser!drop-4	CREATE USER a 's' CREATEDB
-accept	undocumented	docs	statement/createUser!drop-5	CREATE USER a PASSWORD CREATEDB
-accept	undocumented	docs	statement/createUser!drop-6	CREATE USER a PASSWORD 's'
-reject	undocumented	docs	statement/createUser!insert	CREATE USER a PASSWORD 's' CREATEDB zzz
-reject	undocumented	docs	statement/createUser!swap	CREATEDB USER a PASSWORD 's' CREATEDB
+accept	accept	docs	statement/createUser	CREATE USER a PASSWORD 's'
+reject	undocumented	docs	statement/createUser!drop-1	USER a PASSWORD 's'
+reject	undocumented	docs	statement/createUser!drop-2	CREATE a PASSWORD 's'
+reject	undocumented	docs	statement/createUser!drop-3	CREATE USER PASSWORD 's'
+reject	undocumented	docs	statement/createUser!drop-4	CREATE USER a 's'
+accept	undocumented	docs	statement/createUser!drop-5	CREATE USER a PASSWORD
+reject	undocumented	docs	statement/createUser!insert	CREATE USER a PASSWORD 's' zzz
+reject	undocumented	docs	statement/createUser!swap	CREATEDB USER a PASSWORD 's'
 accept	accept	docs	statement/createView	CREATE VIEW a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-1	VIEW a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-3	CREATE VIEW AS SELECT 1
@@ -600,7 +597,6 @@ accept	undocumented	docs	statement/dropRole!drop-3	DROP ROLE
 reject	undocumented	docs	statement/dropRole!insert	DROP ROLE a zzz
 reject	undocumented	docs	statement/dropRole!swap	DUPLICATES ROLE a
 accept	accept	docs	statement/dropSchema	DROP SCHEMA a
-reject	undocumented	docs	statement/dropSchema!drop-1	SCHEMA a
 reject	undocumented	docs	statement/dropSchema!drop-3	DROP SCHEMA
 reject	undocumented	docs	statement/dropSchema!insert	DROP SCHEMA a zzz
 reject	undocumented	docs	statement/dropSchema!swap	DUPLICATES SCHEMA a
@@ -1737,27 +1733,27 @@ reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!drop-2	AL
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!drop-3	ALTER ROLE a RENAME TO a EXTERNALID TO
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!insert	ALTER ROLE a RENAME TO a EXTERNALID TO a zzz
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!swap	ALTER ROLE a RENAME TO a FALSE TO a
-accept	accept	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~4b2bf95c	ALTER PROCEDURE a RENAME TO a
-accept	accept	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0	ALTER PROCEDURE a OWNER TO a
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!drop-1	PROCEDURE a OWNER TO a
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!drop-2	ALTER a OWNER TO a
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!drop-3	ALTER PROCEDURE OWNER TO a
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!drop-5	ALTER PROCEDURE a OWNER a
-accept	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!drop-6	ALTER PROCEDURE a OWNER TO
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!insert	ALTER PROCEDURE a OWNER TO a zzz
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_T~a3a7f1a0!swap	ANALYZE PROCEDURE a OWNER TO a
-accept	accept	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/%empty	ALTER PROCEDURE a RENAME TO a
-reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/%empty!insert	ALTER PROCEDURE a zzz RENAME TO a
-accept	accept	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)	ALTER PROCEDURE a() RENAME TO a
-reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-1	ALTER PROCEDURE a) RENAME TO a
-reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-2	ALTER PROCEDURE a(RENAME TO a
-reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!truncate	ALTER PROCEDURE a(
-reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!insert	ALTER PROCEDURE a() zzz RENAME TO a
-accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	ALTER PROCEDURE a() RENAME TO a
-accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	ALTER PROCEDURE a(zzz) RENAME TO a
-accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*	ALTER PROCEDURE a(INT) RENAME TO a
-reject	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT zzz) RENAME TO a
-accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!swap	ALTER PROCEDURE a(INTEGRATION) RENAME TO a
+accept	accept	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~157d437c	ALTER PROCEDURE a RENAME TO a
+accept	accept	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b	ALTER PROCEDURE a OWNER TO a
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!drop-1	PROCEDURE a OWNER TO a
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!drop-2	ALTER a OWNER TO a
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!drop-3	ALTER PROCEDURE OWNER TO a
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!drop-5	ALTER PROCEDURE a OWNER a
+accept	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!drop-6	ALTER PROCEDURE a OWNER TO
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!insert	ALTER PROCEDURE a OWNER TO a zzz
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_AR~002c5d4b!swap	ANALYZE PROCEDURE a OWNER TO a
+accept	accept	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/%empty	ALTER PROCEDURE a RENAME TO a
+reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/%empty!insert	ALTER PROCEDURE a zzz RENAME TO a
+accept	accept	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)	ALTER PROCEDURE a() RENAME TO a
+reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!drop-1	ALTER PROCEDURE a) RENAME TO a
+reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!drop-2	ALTER PROCEDURE a(RENAME TO a
+reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!truncate	ALTER PROCEDURE a(
+reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!insert	ALTER PROCEDURE a() zzz RENAME TO a
+accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	ALTER PROCEDURE a() RENAME TO a
+accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	ALTER PROCEDURE a(zzz) RENAME TO a
+accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	ALTER PROCEDURE a(INT) RENAME TO a
+reject	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT zzz) RENAME TO a
+accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	ALTER PROCEDURE a(INTEGRATION) RENAME TO a
 accept	accept	docs	alterProcedure(ID)?/%empty	ALTER PROCEDURE a(INT) RENAME TO a
 accept	accept	docs	alterProcedure(ID)?/%empty!insert	ALTER PROCEDURE a(zzz INT) RENAME TO a
 accept	accept	docs	alterProcedure(ID)?/ID	ALTER PROCEDURE a(a INT) RENAME TO a
@@ -1766,13 +1762,13 @@ accept	accept	docs	alterProcedure(ARGMODE)?/%empty	ALTER PROCEDURE a(INT) RENAME
 accept	accept	docs	alterProcedure(ARGMODE)?/ARGMODE	ALTER PROCEDURE a(IN INT) RENAME TO a
 accept	undocumented	docs	alterProcedure(ARGMODE)?/ARGMODE!insert	ALTER PROCEDURE a(IN zzz INT) RENAME TO a
 accept	accept	docs	alterProcedure(ARGMODE)?/ARGMODE!swap	ALTER PROCEDURE a(INCLUDE INT) RENAME TO a
-accept	accept	docs	alterProcedure(,_DATA_TYPE)*/%empty	ALTER PROCEDURE a(INT) RENAME TO a
-accept	accept	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	ALTER PROCEDURE a(INT, INT) RENAME TO a
-reject	accept	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	ALTER PROCEDURE a(INT INT) RENAME TO a
-accept	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	ALTER PROCEDURE a(INT,) RENAME TO a
-reject	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	ALTER PROCEDURE a(INT,
-reject	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT, INT zzz) RENAME TO a
-accept	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	ALTER PROCEDURE a(INT, INTEGRATION) RENAME TO a
+accept	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	ALTER PROCEDURE a(INT) RENAME TO a
+accept	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	ALTER PROCEDURE a(INT, INT) RENAME TO a
+reject	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	ALTER PROCEDURE a(INT INT) RENAME TO a
+accept	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	ALTER PROCEDURE a(INT,) RENAME TO a
+reject	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	ALTER PROCEDURE a(INT,
+reject	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT, INT zzz) RENAME TO a
+accept	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	ALTER PROCEDURE a(INT, INTEGRATION) RENAME TO a
 accept	accept	docs	alterProcedure(ID|CURRENT_USER|SESSION_USER)/ID	ALTER PROCEDURE a OWNER TO a
 accept	accept	docs	alterProcedure(ID|CURRENT_USER|SESSION_USER)/CURRENT_USER	ALTER PROCEDURE a OWNER TO CURRENT_USER
 reject	undocumented	docs	alterProcedure(ID|CURRENT_USER|SESSION_USER)/CURRENT_USER!insert	ALTER PROCEDURE a OWNER TO CURRENT_USER zzz
@@ -3804,7 +3800,7 @@ accept	undocumented	docs	createModel(,_(S3_BUCKET_STRING|TAGS_STRING|KMS_~9b09d0
 accept	undocumented	docs	createModel(,_(S3_BUCKET_STRING|TAGS_STRING|KMS_~9b09d010)*/,_(S3_BUCKET_STRING|TAGS_STRING|KMS_KEY~6c1701f4)_(,_(S~05b2c4d0!truncate	CREATE MODEL a FROM a FUNCTION a IAM_ROLE DEFAULT SETTINGS(S3_BUCKET 's', S3_BUCKET
 accept	undocumented	docs	createModel(,_(S3_BUCKET_STRING|TAGS_STRING|KMS_~9b09d010)*/,_(S3_BUCKET_STRING|TAGS_STRING|KMS_KEY~6c1701f4)_(,_(S~05b2c4d0!insert	CREATE MODEL a FROM a FUNCTION a IAM_ROLE DEFAULT SETTINGS(S3_BUCKET 's', S3_BUCKET 's' zzz)
 accept	undocumented	docs	createModel(,_(S3_BUCKET_STRING|TAGS_STRING|KMS_~9b09d010)*/,_(S3_BUCKET_STRING|TAGS_STRING|KMS_KEY~6c1701f4)_(,_(S~05b2c4d0!swap	CREATE MODEL a FROM a FUNCTION a IAM_ROLE DEFAULT SETTINGS(S3_BUCKET 's', S3_GARBAGE_COLLECT 's')
-accept	accept	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_ID_(_(ID?_ARGMODE?_DATA_~90b6196b	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure/CREATE_(OR_REPLACE)?_PROCEDURE_ID_(_(ID?_ARGMODE?_DATA_~944822d6	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(OR_REPLACE)?/%empty	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/%empty!insert	CREATE zzz PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
@@ -3812,12 +3808,12 @@ reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE R
 accept	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORDER REPLACE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
-accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	CREATE PROCEDURE a(zzz) AS 's' LANGUAGE PLPGSQL
-accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!truncate	CREATE PROCEDURE a(
-reject	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT zzz) AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!swap	CREATE PROCEDURE a(INTEGRATION) AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	CREATE PROCEDURE a(zzz) AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	CREATE PROCEDURE a(
+reject	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT zzz) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	CREATE PROCEDURE a(INTEGRATION) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID)?/%empty	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID)?/%empty!insert	CREATE PROCEDURE a(zzz INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID)?/ID	CREATE PROCEDURE a(a INT) AS 's' LANGUAGE PLPGSQL
@@ -3826,13 +3822,13 @@ accept	accept	docs	createProcedure(ARGMODE)?/%empty	CREATE PROCEDURE a(INT) AS '
 accept	accept	docs	createProcedure(ARGMODE)?/ARGMODE	CREATE PROCEDURE a(IN INT) AS 's' LANGUAGE PLPGSQL
 accept	undocumented	docs	createProcedure(ARGMODE)?/ARGMODE!insert	CREATE PROCEDURE a(IN zzz INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ARGMODE)?/ARGMODE!swap	CREATE PROCEDURE a(INCLUDE INT) AS 's' LANGUAGE PLPGSQL
-accept	accept	docs	createProcedure(,_DATA_TYPE)*/%empty	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
-accept	accept	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	CREATE PROCEDURE a(INT, INT) AS 's' LANGUAGE PLPGSQL
-reject	accept	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	CREATE PROCEDURE a(INT INT) AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	CREATE PROCEDURE a(INT,) AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	CREATE PROCEDURE a(INT,
-reject	undocumented	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT, INT zzz) AS 's' LANGUAGE PLPGSQL
-accept	undocumented	docs	createProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	CREATE PROCEDURE a(INT, INTEGRATION) AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	CREATE PROCEDURE a(INT, INT) AS 's' LANGUAGE PLPGSQL
+reject	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	CREATE PROCEDURE a(INT INT) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	CREATE PROCEDURE a(INT,) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	CREATE PROCEDURE a(INT,
+reject	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT, INT zzz) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	CREATE PROCEDURE a(INT, INTEGRATION) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(NONATOMIC)?/%empty	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(NONATOMIC)?/%empty!insert	CREATE PROCEDURE a() zzz AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(NONATOMIC)?/NONATOMIC	CREATE PROCEDURE a() NONATOMIC AS 's' LANGUAGE PLPGSQL
@@ -3900,53 +3896,51 @@ reject	undocumented	docs	createRole(EXTERNALID_ID)?/EXTERNALID_ID!drop-1	CREATE 
 accept	undocumented	docs	createRole(EXTERNALID_ID)?/EXTERNALID_ID!drop-2	CREATE ROLE a EXTERNALID
 reject	undocumented	docs	createRole(EXTERNALID_ID)?/EXTERNALID_ID!insert	CREATE ROLE a EXTERNALID a zzz
 reject	undocumented	docs	createRole(EXTERNALID_ID)?/EXTERNALID_ID!swap	CREATE ROLE a FALSE a
-accept	accept	docs	createSchema/CREATE_SCHEMA_(IF_NOT_EXISTS)?_ID_(AUTHORIZATION_ID)?_(~44911751	CREATE SCHEMA a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!drop-1	SCHEMA AUTHORIZATION a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!drop-2	CREATE AUTHORIZATION a CREATE TABLE a (a INT)
-accept	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!drop-4	CREATE SCHEMA AUTHORIZATION CREATE TABLE a (a INT)
-accept	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!drop-5	CREATE SCHEMA AUTHORIZATION a
-reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!insert	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a INT) zzz
-reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~7a0d80ef!swap	CREATEDB SCHEMA AUTHORIZATION a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(IF_NOT_EXISTS)?/%empty	CREATE SCHEMA a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/%empty!insert	CREATE SCHEMA zzz a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SCHEMA NOT EXISTS a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SCHEMA IF EXISTS a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SCHEMA IF NOT a CREATE TABLE a (a INT)
+accept	accept	docs	createSchema/CREATE_SCHEMA_(IF_NOT_EXISTS)?_ID_(AUTHORIZATION_ID)?_(~c7b7f570	CREATE SCHEMA a
+accept	accept	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749	CREATE SCHEMA AUTHORIZATION a
+reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749!drop-1	SCHEMA AUTHORIZATION a
+reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749!drop-2	CREATE AUTHORIZATION a
+accept	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749!drop-4	CREATE SCHEMA AUTHORIZATION
+reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749!insert	CREATE SCHEMA AUTHORIZATION a zzz
+reject	undocumented	docs	createSchema/CREATE_SCHEMA_AUTHORIZATION_ID_(QUOTA_(NUMBER_(MB|GB|TB~8a287749!swap	CREATEDB SCHEMA AUTHORIZATION a
+accept	accept	docs	createSchema(IF_NOT_EXISTS)?/%empty	CREATE SCHEMA a
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/%empty!insert	CREATE SCHEMA zzz a
+accept	accept	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SCHEMA NOT EXISTS a
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SCHEMA IF EXISTS a
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SCHEMA IF NOT a
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SCHEMA IF NOT
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SCHEMA IF NOT EXISTS zzz a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SCHEMA IGNORE NOT EXISTS a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(AUTHORIZATION_ID)?/%empty	CREATE SCHEMA a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/%empty!insert	CREATE SCHEMA a zzz CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID	CREATE SCHEMA a AUTHORIZATION a CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!drop-1	CREATE SCHEMA a a CREATE TABLE a (a INT)
-accept	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!drop-2	CREATE SCHEMA a AUTHORIZATION CREATE TABLE a (a INT)
-accept	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!truncate	CREATE SCHEMA a AUTHORIZATION
-reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!insert	CREATE SCHEMA a AUTHORIZATION a zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!swap	CREATE SCHEMA a AUTO a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/%empty	CREATE SCHEMA a CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)	CREATE SCHEMA a QUOTA 1 CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!drop-1	CREATE SCHEMA a 1 CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!drop-2	CREATE SCHEMA a QUOTA CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!truncate	CREATE SCHEMA a QUOTA
-reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!insert	CREATE SCHEMA a QUOTA 1 zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!swap	CREATE SCHEMA a RAW 1 CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/NUMBER_(MB|GB|TB)?	CREATE SCHEMA a QUOTA 1 CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED	CREATE SCHEMA a QUOTA UNLIMITED CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED!insert	CREATE SCHEMA a QUOTA UNLIMITED zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED!swap	CREATE SCHEMA a QUOTA UNLOAD CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(MB|GB|TB)?/%empty	CREATE SCHEMA a QUOTA 1 CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(MB|GB|TB)?/MB	CREATE SCHEMA a QUOTA 1 MB CREATE TABLE a (a INT)
-accept	undocumented	docs	createSchema(MB|GB|TB)?/MB!truncate	CREATE SCHEMA a QUOTA 1
-reject	undocumented	docs	createSchema(MB|GB|TB)?/MB!insert	CREATE SCHEMA a QUOTA 1 MB zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(MB|GB|TB)?/MB!swap	CREATE SCHEMA a QUOTA 1 MERGE CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(MB|GB|TB)?/GB	CREATE SCHEMA a QUOTA 1 GB CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(MB|GB|TB)?/GB!insert	CREATE SCHEMA a QUOTA 1 GB zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(MB|GB|TB)?/GB!swap	CREATE SCHEMA a QUOTA 1 GENERATED CREATE TABLE a (a INT)
-accept	accept	docs	createSchema(MB|GB|TB)?/TB	CREATE SCHEMA a QUOTA 1 TB CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(MB|GB|TB)?/TB!insert	CREATE SCHEMA a QUOTA 1 TB zzz CREATE TABLE a (a INT)
-reject	undocumented	docs	createSchema(MB|GB|TB)?/TB!swap	CREATE SCHEMA a QUOTA 1 TEMP CREATE TABLE a (a INT)
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SCHEMA IF NOT EXISTS zzz a
+reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SCHEMA IGNORE NOT EXISTS a
+accept	accept	docs	createSchema(AUTHORIZATION_ID)?/%empty	CREATE SCHEMA a
+accept	accept	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID	CREATE SCHEMA a AUTHORIZATION a
+reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!drop-1	CREATE SCHEMA a a
+accept	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!drop-2	CREATE SCHEMA a AUTHORIZATION
+reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!insert	CREATE SCHEMA a AUTHORIZATION a zzz
+reject	undocumented	docs	createSchema(AUTHORIZATION_ID)?/AUTHORIZATION_ID!swap	CREATE SCHEMA a AUTO a
+accept	accept	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/%empty	CREATE SCHEMA a
+accept	accept	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)	CREATE SCHEMA a QUOTA 1
+reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!drop-1	CREATE SCHEMA a 1
+reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!drop-2	CREATE SCHEMA a QUOTA
+reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!insert	CREATE SCHEMA a QUOTA 1 zzz
+reject	undocumented	docs	createSchema(QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED))?/QUOTA_(NUMBER_(MB|GB|TB)?|UNLIMITED)!swap	CREATE SCHEMA a RAW 1
+accept	accept	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/NUMBER_(MB|GB|TB)?	CREATE SCHEMA a QUOTA 1
+accept	accept	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED	CREATE SCHEMA a QUOTA UNLIMITED
+reject	undocumented	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED!insert	CREATE SCHEMA a QUOTA UNLIMITED zzz
+reject	undocumented	docs	createSchema(NUMBER_(MB|GB|TB)?|UNLIMITED)/UNLIMITED!swap	CREATE SCHEMA a QUOTA UNLOAD
+accept	accept	docs	createSchema(MB|GB|TB)?/%empty	CREATE SCHEMA a QUOTA 1
+accept	accept	docs	createSchema(MB|GB|TB)?/MB	CREATE SCHEMA a QUOTA 1 MB
+reject	undocumented	docs	createSchema(MB|GB|TB)?/MB!insert	CREATE SCHEMA a QUOTA 1 MB zzz
+reject	undocumented	docs	createSchema(MB|GB|TB)?/MB!swap	CREATE SCHEMA a QUOTA 1 MERGE
+accept	accept	docs	createSchema(MB|GB|TB)?/GB	CREATE SCHEMA a QUOTA 1 GB
+reject	undocumented	docs	createSchema(MB|GB|TB)?/GB!insert	CREATE SCHEMA a QUOTA 1 GB zzz
+reject	undocumented	docs	createSchema(MB|GB|TB)?/GB!swap	CREATE SCHEMA a QUOTA 1 GENERATED
+accept	accept	docs	createSchema(MB|GB|TB)?/TB	CREATE SCHEMA a QUOTA 1 TB
+reject	undocumented	docs	createSchema(MB|GB|TB)?/TB!insert	CREATE SCHEMA a QUOTA 1 TB zzz
+reject	undocumented	docs	createSchema(MB|GB|TB)?/TB!swap	CREATE SCHEMA a QUOTA 1 TEMP
+accept	accept	docs	createSchema(SCHEMA_ELEMENT+)?/%empty	CREATE SCHEMA a
+accept	accept	docs	createSchema(SCHEMA_ELEMENT+)?/(SCHEMA_ELEMENT)+	CREATE SCHEMA a CREATE TABLE a (a INT)
+reject	undocumented	docs	createSchema(SCHEMA_ELEMENT+)?/(SCHEMA_ELEMENT)+!insert	CREATE SCHEMA a CREATE TABLE a (a INT) zzz
 accept	accept	docs	createSchema(SCHEMA_ELEMENT)+/SCHEMA_ELEMENT	CREATE SCHEMA a CREATE TABLE a (a INT)
 accept	accept	docs	createSchema(SCHEMA_ELEMENT)+/SCHEMA_ELEMENT_(SCHEMA_ELEMENT)+	CREATE SCHEMA a CREATE TABLE a (a INT) CREATE TABLE a (a INT)
 reject	undocumented	docs	createSchema(SCHEMA_ELEMENT)+/SCHEMA_ELEMENT_(SCHEMA_ELEMENT)+!insert	CREATE SCHEMA a CREATE TABLE a (a INT) CREATE TABLE a (a INT) zzz
@@ -4356,19 +4350,20 @@ reject	accept	docs	createTemplate(,_ID_ID?)*/%empty	CREATE TEMPLATE a FOR COPY a
 reject	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*	CREATE TEMPLATE a FOR COPY a, a
 reject	undocumented	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*!drop-2	CREATE TEMPLATE a FOR COPY a,
 reject	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*!insert	CREATE TEMPLATE a FOR COPY a, a zzz
-accept	accept	docs	createUser/CREATE_USER_ID_(WITH)?_PASSWORD_(STRING|DISABLE)_(creat~86e705c3	CREATE USER a PASSWORD 's' CREATEDB
-accept	accept	docs	createUser(WITH)?/%empty	CREATE USER a PASSWORD 's' CREATEDB
-reject	undocumented	docs	createUser(WITH)?/%empty!insert	CREATE USER a zzz PASSWORD 's' CREATEDB
-accept	accept	docs	createUser(WITH)?/WITH	CREATE USER a WITH PASSWORD 's' CREATEDB
+accept	accept	docs	createUser/CREATE_USER_ID_(WITH)?_PASSWORD_(STRING|DISABLE)_(creat~856ad7d6	CREATE USER a PASSWORD 's'
+accept	accept	docs	createUser(WITH)?/%empty	CREATE USER a PASSWORD 's'
+reject	undocumented	docs	createUser(WITH)?/%empty!insert	CREATE USER a zzz PASSWORD 's'
+accept	accept	docs	createUser(WITH)?/WITH	CREATE USER a WITH PASSWORD 's'
 accept	undocumented	docs	createUser(WITH)?/WITH!truncate	CREATE USER a
-reject	undocumented	docs	createUser(WITH)?/WITH!insert	CREATE USER a WITH zzz PASSWORD 's' CREATEDB
-reject	undocumented	docs	createUser(WITH)?/WITH!swap	CREATE USER a WORK PASSWORD 's' CREATEDB
-accept	accept	docs	createUser(STRING|DISABLE)/STRING	CREATE USER a PASSWORD 's' CREATEDB
-accept	undocumented	docs	createUser(STRING|DISABLE)/STRING!truncate	CREATE USER a PASSWORD
-reject	undocumented	docs	createUser(STRING|DISABLE)/STRING!insert	CREATE USER a PASSWORD 's' zzz CREATEDB
-accept	accept	docs	createUser(STRING|DISABLE)/DISABLE	CREATE USER a PASSWORD DISABLE CREATEDB
-reject	undocumented	docs	createUser(STRING|DISABLE)/DISABLE!insert	CREATE USER a PASSWORD DISABLE zzz CREATEDB
-accept	undocumented	docs	createUser(STRING|DISABLE)/DISABLE!swap	CREATE USER a PASSWORD DISTINCT CREATEDB
+reject	undocumented	docs	createUser(WITH)?/WITH!insert	CREATE USER a WITH zzz PASSWORD 's'
+reject	undocumented	docs	createUser(WITH)?/WITH!swap	CREATE USER a WORK PASSWORD 's'
+accept	accept	docs	createUser(STRING|DISABLE)/STRING	CREATE USER a PASSWORD 's'
+accept	accept	docs	createUser(STRING|DISABLE)/DISABLE	CREATE USER a PASSWORD DISABLE
+reject	undocumented	docs	createUser(STRING|DISABLE)/DISABLE!insert	CREATE USER a PASSWORD DISABLE zzz
+accept	undocumented	docs	createUser(STRING|DISABLE)/DISABLE!swap	CREATE USER a PASSWORD DISTINCT
+accept	accept	docs	createUser(createUser_option+)?/%empty	CREATE USER a PASSWORD 's'
+accept	accept	docs	createUser(createUser_option+)?/(createUser_option)+	CREATE USER a PASSWORD 's' CREATEDB
+reject	undocumented	docs	createUser(createUser_option+)?/(createUser_option)+!insert	CREATE USER a PASSWORD 's' CREATEDB zzz
 accept	accept	docs	createUser(createUser_option)+/createUser_option	CREATE USER a PASSWORD 's' CREATEDB
 accept	accept	docs	createUser(createUser_option)+/createUser_option_(createUser_option)+	CREATE USER a PASSWORD 's' CREATEDB CREATEDB
 reject	undocumented	docs	createUser(createUser_option)+/createUser_option_(createUser_option)+!insert	CREATE USER a PASSWORD 's' CREATEDB CREATEDB zzz
@@ -4579,20 +4574,20 @@ accept	undocumented	docs	dropExternalView(IF_EXISTS)?/IF_EXISTS!drop-2	DROP EXTE
 accept	accept	docs	dropExternalView(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL VIEW a IF
 accept	undocumented	docs	dropExternalView(IF_EXISTS)?/IF_EXISTS!insert	DROP EXTERNAL VIEW a IF EXISTS zzz a
 accept	undocumented	docs	dropExternalView(IF_EXISTS)?/IF_EXISTS!swap	DROP EXTERNAL VIEW a IGNORE EXISTS a
-accept	accept	docs	dropFunction/DROP_FUNCTION_ID_(_(ID)?_DATA_TYPE_(,_DATA_TYPE)*_)_(CA~dc4fc39e	DROP FUNCTION a(INT)
+accept	accept	docs	dropFunction/DROP_FUNCTION_ID_(_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*_)~bf10f29a	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunction(ID)?/%empty	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunction(ID)?/%empty!insert	DROP FUNCTION a(zzz INT)
 accept	accept	docs	dropFunction(ID)?/ID	DROP FUNCTION a(a INT)
 reject	undocumented	docs	dropFunction(ID)?/ID!truncate	DROP FUNCTION a(
 reject	undocumented	docs	dropFunction(ID)?/ID!insert	DROP FUNCTION a(a zzz INT)
-accept	accept	docs	dropFunction(,_DATA_TYPE)*/%empty	DROP FUNCTION a(INT)
-reject	undocumented	docs	dropFunction(,_DATA_TYPE)*/%empty!insert	DROP FUNCTION a(INT zzz)
-accept	accept	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DROP FUNCTION a(INT, INT)
-reject	accept	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	DROP FUNCTION a(INT INT)
-accept	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	DROP FUNCTION a(INT,)
-reject	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DROP FUNCTION a(INT,
-reject	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DROP FUNCTION a(INT, INT zzz)
-accept	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP FUNCTION a(INT, INTEGRATION)
+accept	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/%empty	DROP FUNCTION a(INT)
+reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/%empty!insert	DROP FUNCTION a(INT zzz)
+accept	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	DROP FUNCTION a(INT, INT)
+reject	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	DROP FUNCTION a(INT INT)
+accept	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	DROP FUNCTION a(INT,)
+reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	DROP FUNCTION a(INT,
+reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	DROP FUNCTION a(INT, INT zzz)
+accept	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	DROP FUNCTION a(INT, INTEGRATION)
 accept	accept	docs	dropFunction(CASCADE|RESTRICT)?/%empty	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunction(CASCADE|RESTRICT)?/CASCADE	DROP FUNCTION a(INT) CASCADE
 reject	undocumented	docs	dropFunction(CASCADE|RESTRICT)?/CASCADE!insert	DROP FUNCTION a(INT) CASCADE zzz
@@ -4638,12 +4633,12 @@ reject	undocumented	docs	materializedViewDropSqlCommand(CASCADE|RESTRICT)?/CASCA
 accept	accept	docs	materializedViewDropSqlCommand(CASCADE|RESTRICT)?/RESTRICT	DROP MATERIALIZED VIEW a RESTRICT
 reject	undocumented	docs	materializedViewDropSqlCommand(CASCADE|RESTRICT)?/RESTRICT!insert	DROP MATERIALIZED VIEW a RESTRICT zzz
 reject	undocumented	docs	materializedViewDropSqlCommand(CASCADE|RESTRICT)?/RESTRICT!swap	DROP MATERIALIZED VIEW a RESTRICTED
-accept	accept	docs	dropProcedure/DROP_PROCEDURE_ID_(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)	DROP PROCEDURE a()
-accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	DROP PROCEDURE a()
-accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	DROP PROCEDURE a(zzz)
-accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*	DROP PROCEDURE a(INT)
-reject	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!insert	DROP PROCEDURE a(INT zzz)
-accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP PROCEDURE a(INTEGRATION)
+accept	accept	docs	dropProcedure/DROP_PROCEDURE_ID_(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGM~ddb1fdb9	DROP PROCEDURE a()
+accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	DROP PROCEDURE a()
+accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	DROP PROCEDURE a(zzz)
+accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	DROP PROCEDURE a(INT)
+reject	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT zzz)
+accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	DROP PROCEDURE a(INTEGRATION)
 accept	accept	docs	dropProcedure(ID)?/%empty	DROP PROCEDURE a(INT)
 accept	accept	docs	dropProcedure(ID)?/%empty!insert	DROP PROCEDURE a(zzz INT)
 accept	accept	docs	dropProcedure(ID)?/ID	DROP PROCEDURE a(a INT)
@@ -4652,13 +4647,13 @@ accept	accept	docs	dropProcedure(ARGMODE)?/%empty	DROP PROCEDURE a(INT)
 accept	accept	docs	dropProcedure(ARGMODE)?/ARGMODE	DROP PROCEDURE a(IN INT)
 accept	undocumented	docs	dropProcedure(ARGMODE)?/ARGMODE!insert	DROP PROCEDURE a(IN zzz INT)
 accept	accept	docs	dropProcedure(ARGMODE)?/ARGMODE!swap	DROP PROCEDURE a(INCLUDE INT)
-accept	accept	docs	dropProcedure(,_DATA_TYPE)*/%empty	DROP PROCEDURE a(INT)
-accept	accept	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DROP PROCEDURE a(INT, INT)
-reject	accept	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	DROP PROCEDURE a(INT INT)
-accept	undocumented	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	DROP PROCEDURE a(INT,)
-reject	undocumented	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DROP PROCEDURE a(INT,
-reject	undocumented	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DROP PROCEDURE a(INT, INT zzz)
-accept	undocumented	docs	dropProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP PROCEDURE a(INT, INTEGRATION)
+accept	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	DROP PROCEDURE a(INT)
+accept	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	DROP PROCEDURE a(INT, INT)
+reject	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	DROP PROCEDURE a(INT INT)
+accept	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	DROP PROCEDURE a(INT,)
+reject	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	DROP PROCEDURE a(INT,
+reject	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT, INT zzz)
+accept	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	DROP PROCEDURE a(INT, INTEGRATION)
 accept	accept	docs	dropRlsPolicy/DROP_RLS_POLICY_(IF_EXISTS)?_ID_(CASCADE|RESTRICT)?	DROP RLS POLICY a
 accept	accept	docs	dropRlsPolicy(IF_EXISTS)?/%empty	DROP RLS POLICY a
 accept	undocumented	docs	dropRlsPolicy(IF_EXISTS)?/%empty!insert	DROP RLS POLICY zzz a
@@ -4849,29 +4844,29 @@ reject	undocumented	docs	grant/GRANT_((CREATE|USAGE|ALTER|DROP)_(,_(CREATE~703b2
 accept	undocumented	docs	grant/GRANT_((CREATE|USAGE|ALTER|DROP)_(,_(CREATE~703b2efb)_O~73cf7f64!drop-7	GRANT CREATE ON SCHEMA a TO
 reject	undocumented	docs	grant/GRANT_((CREATE|USAGE|ALTER|DROP)_(,_(CREATE~703b2efb)_O~73cf7f64!insert	GRANT CREATE ON SCHEMA a TO a zzz
 reject	undocumented	docs	grant/GRANT_((CREATE|USAGE|ALTER|DROP)_(,_(CREATE~703b2efb)_O~73cf7f64!swap	GRANTS CREATE ON SCHEMA a TO a
-accept	accept	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc	GRANT EXECUTE ON FUNCTION a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-1	EXECUTE ON FUNCTION a() TO a
-accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-2	GRANT ON FUNCTION a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-3	GRANT EXECUTE FUNCTION a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-4	GRANT EXECUTE ON a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-5	GRANT EXECUTE ON FUNCTION() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-6	GRANT EXECUTE ON FUNCTION a) TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-7	GRANT EXECUTE ON FUNCTION a(TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-8	GRANT EXECUTE ON FUNCTION a() a
-accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!drop-9	GRANT EXECUTE ON FUNCTION a() TO
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!insert	GRANT EXECUTE ON FUNCTION a() TO a zzz
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~5b679ebc!swap	GRANTS EXECUTE ON FUNCTION a() TO a
-accept	accept	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957	GRANT EXECUTE ON PROCEDURE a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-1	EXECUTE ON PROCEDURE a() TO a
-accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-2	GRANT ON PROCEDURE a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-3	GRANT EXECUTE PROCEDURE a() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-5	GRANT EXECUTE ON PROCEDURE() TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-6	GRANT EXECUTE ON PROCEDURE a) TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-7	GRANT EXECUTE ON PROCEDURE a(TO a
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-8	GRANT EXECUTE ON PROCEDURE a() a
-accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!drop-9	GRANT EXECUTE ON PROCEDURE a() TO
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!insert	GRANT EXECUTE ON PROCEDURE a() TO a zzz
-reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~1da85957!swap	GRANTS EXECUTE ON PROCEDURE a() TO a
+accept	accept	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066	GRANT EXECUTE ON FUNCTION a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-1	EXECUTE ON FUNCTION a() TO a
+accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-2	GRANT ON FUNCTION a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-3	GRANT EXECUTE FUNCTION a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-4	GRANT EXECUTE ON a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-5	GRANT EXECUTE ON FUNCTION() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-6	GRANT EXECUTE ON FUNCTION a) TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-7	GRANT EXECUTE ON FUNCTION a(TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-8	GRANT EXECUTE ON FUNCTION a() a
+accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!drop-9	GRANT EXECUTE ON FUNCTION a() TO
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!insert	GRANT EXECUTE ON FUNCTION a() TO a zzz
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(FUNCTION_ID_(_(ID?_~1a21a066!swap	GRANTS EXECUTE ON FUNCTION a() TO a
+accept	accept	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72	GRANT EXECUTE ON PROCEDURE a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-1	EXECUTE ON PROCEDURE a() TO a
+accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-2	GRANT ON PROCEDURE a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-3	GRANT EXECUTE PROCEDURE a() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-5	GRANT EXECUTE ON PROCEDURE() TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-6	GRANT EXECUTE ON PROCEDURE a) TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-7	GRANT EXECUTE ON PROCEDURE a(TO a
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-8	GRANT EXECUTE ON PROCEDURE a() a
+accept	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!drop-9	GRANT EXECUTE ON PROCEDURE a() TO
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!insert	GRANT EXECUTE ON PROCEDURE a() TO a zzz
+reject	undocumented	docs	grant/GRANT_(EXECUTE|ALL_PRIVILEGES?)_ON_(PROCEDURE_ID_(_(ID?~70a6fc72!swap	GRANTS EXECUTE ON PROCEDURE a() TO a
 accept	accept	docs	grant/GRANT_USAGE_ON_LANGUAGE_ID_(,_ID)*_TO_(ID_(WITH_GRANT_O~1bdd3e41	GRANT USAGE ON LANGUAGE a TO a
 reject	undocumented	docs	grant/GRANT_USAGE_ON_LANGUAGE_ID_(,_ID)*_TO_(ID_(WITH_GRANT_O~1bdd3e41!drop-1	USAGE ON LANGUAGE a TO a
 accept	undocumented	docs	grant/GRANT_USAGE_ON_LANGUAGE_ID_(,_ID)*_TO_(ID_(WITH_GRANT_O~1bdd3e41!drop-2	GRANT ON LANGUAGE a TO a
@@ -4983,18 +4978,18 @@ reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|
 accept	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-8	GRANT USAGE ON DATASHARE a TO NAMESPACE
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!insert	GRANT USAGE ON DATASHARE a TO NAMESPACE 's' zzz
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!swap	GRANTS USAGE ON DATASHARE a TO NAMESPACE 's'
-reject	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-1	EXECUTE ON PROCEDURE a() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-2	GRANT ON PROCEDURE a() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-3	GRANT EXECUTE PROCEDURE a() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-4	GRANT EXECUTE ON a() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-5	GRANT EXECUTE ON PROCEDURE() TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-6	GRANT EXECUTE ON PROCEDURE a) TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-7	GRANT EXECUTE ON PROCEDURE a(TO DATASHARE a
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-8	GRANT EXECUTE ON PROCEDURE a() DATASHARE a
-accept	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!drop-10	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!insert	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a zzz
-reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_~012cf6e2!swap	GRANTS EXECUTE ON PROCEDURE a() TO DATASHARE a
+reject	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-1	EXECUTE ON PROCEDURE a() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-2	GRANT ON PROCEDURE a() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-3	GRANT EXECUTE PROCEDURE a() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-4	GRANT EXECUTE ON a() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-5	GRANT EXECUTE ON PROCEDURE() TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-6	GRANT EXECUTE ON PROCEDURE a) TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-7	GRANT EXECUTE ON PROCEDURE a(TO DATASHARE a
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-8	GRANT EXECUTE ON PROCEDURE a() DATASHARE a
+accept	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-10	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!insert	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a zzz
+reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!swap	GRANTS EXECUTE ON PROCEDURE a() TO DATASHARE a
 accept	accept	docs	grant/GRANT_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_TO_(ID|R~ace3ba56	GRANT USAGE ON DATABASE a TO a
 reject	undocumented	docs	grant/GRANT_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_TO_(ID|R~ace3ba56!drop-1	USAGE ON DATABASE a TO a
 reject	undocumented	docs	grant/GRANT_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_TO_(ID|R~ace3ba56!drop-3	GRANT USAGE DATABASE a TO a
@@ -5304,55 +5299,55 @@ accept	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!swap	GRANT EXIST
 accept	accept	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON MODEL a TO a
 reject	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON MODEL a TO a
 accept	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON MODEL a TO a
-accept	accept	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(~a708f750	GRANT EXECUTE ON FUNCTION a() TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(~a708f750!truncate	GRANT EXECUTE ON FUNCTION a(
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(~a708f750!insert	GRANT EXECUTE ON FUNCTION a() zzz TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(~a708f750!swap	GRANT EXECUTE ON FUNCTIONS a() TO a
-accept	accept	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA a TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-1	GRANT EXECUTE ON FUNCTIONS IN SCHEMA a TO a
-accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-2	GRANT EXECUTE ON ALL IN SCHEMA a TO a
-accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-3	GRANT EXECUTE ON ALL FUNCTIONS SCHEMA a TO a
-accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-4	GRANT EXECUTE ON ALL FUNCTIONS IN a TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-5	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!truncate	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!insert	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA a zzz TO a
-reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA~a9be59c3)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!swap	GRANT EXECUTE ON ALLOWOVERWRITE FUNCTIONS IN SCHEMA a TO a
-accept	accept	docs	grant(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	GRANT EXECUTE ON FUNCTION a() TO a
-accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	GRANT EXECUTE ON FUNCTION a(zzz) TO a
-accept	accept	docs	grant(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT) TO a
-reject	undocumented	docs	grant(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT zzz) TO a
-accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INTEGRATION) TO a
+accept	accept	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4	GRANT EXECUTE ON FUNCTION a() TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4!truncate	GRANT EXECUTE ON FUNCTION a(
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4!insert	GRANT EXECUTE ON FUNCTION a() zzz TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4!swap	GRANT EXECUTE ON FUNCTIONS a() TO a
+accept	accept	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA a TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-1	GRANT EXECUTE ON FUNCTIONS IN SCHEMA a TO a
+accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-2	GRANT EXECUTE ON ALL IN SCHEMA a TO a
+accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-3	GRANT EXECUTE ON ALL FUNCTIONS SCHEMA a TO a
+accept	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-4	GRANT EXECUTE ON ALL FUNCTIONS IN a TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!drop-5	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!truncate	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!insert	GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA a zzz TO a
+reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/ALL_FUNCTIONS_IN_SCHEMA_ID_(,_ID)*!swap	GRANT EXECUTE ON ALLOWOVERWRITE FUNCTIONS IN SCHEMA a TO a
+accept	accept	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty	GRANT EXECUTE ON FUNCTION a() TO a
+accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty!insert	GRANT EXECUTE ON FUNCTION a(zzz) TO a
+accept	accept	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT) TO a
+reject	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT zzz) TO a
+accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INTEGRATION) TO a
 accept	accept	docs	grant(ID)?/%empty	GRANT EXECUTE ON FUNCTION a(INT) TO a
 accept	accept	docs	grant(ID)?/%empty!insert	GRANT EXECUTE ON FUNCTION a(zzz INT) TO a
 accept	accept	docs	grant(ID)?/ID	GRANT EXECUTE ON FUNCTION a(a INT) TO a
 reject	undocumented	docs	grant(ID)?/ID!insert	GRANT EXECUTE ON FUNCTION a(a zzz INT) TO a
-accept	accept	docs	grant(,_DATA_TYPE)*/%empty	GRANT EXECUTE ON FUNCTION a(INT) TO a
-accept	accept	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT, INT) TO a
-reject	accept	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	GRANT EXECUTE ON FUNCTION a(INT INT) TO a
-accept	undocumented	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	GRANT EXECUTE ON FUNCTION a(INT,) TO a
-reject	undocumented	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	GRANT EXECUTE ON FUNCTION a(INT,
-reject	undocumented	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT, INT zzz) TO a
-accept	undocumented	docs	grant(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INT, INTEGRATION) TO a
-accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/%empty	GRANT EXECUTE ON FUNCTION a() TO a
-accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4	GRANT EXECUTE ON FUNCTION a(), a() TO a
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-1	GRANT EXECUTE ON FUNCTION a() a() TO a
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-2	GRANT EXECUTE ON FUNCTION a(),() TO a
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-3	GRANT EXECUTE ON FUNCTION a(), a) TO a
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-4	GRANT EXECUTE ON FUNCTION a(), a(TO a
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!truncate	GRANT EXECUTE ON FUNCTION a(), a(
-reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!insert	GRANT EXECUTE ON FUNCTION a(), a() zzz TO a
-accept	accept	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_~70d0f6d0	GRANT EXECUTE ON PROCEDURE a() TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_~70d0f6d0!truncate	GRANT EXECUTE ON PROCEDURE a(
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_~70d0f6d0!insert	GRANT EXECUTE ON PROCEDURE a() zzz TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_~70d0f6d0!swap	GRANT EXECUTE ON PROCEDURES a() TO a
-accept	accept	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA a TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-1	GRANT EXECUTE ON PROCEDURES IN SCHEMA a TO a
-accept	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-3	GRANT EXECUTE ON ALL PROCEDURES SCHEMA a TO a
-accept	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-4	GRANT EXECUTE ON ALL PROCEDURES IN a TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-5	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!truncate	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!insert	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA a zzz TO a
-reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DAT~03f12f9c)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!swap	GRANT EXECUTE ON ALLOWOVERWRITE PROCEDURES IN SCHEMA a TO a
+accept	accept	docs	grant(,_ID?_DATA_TYPE)*/%empty	GRANT EXECUTE ON FUNCTION a(INT) TO a
+accept	accept	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT, INT) TO a
+reject	accept	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	GRANT EXECUTE ON FUNCTION a(INT INT) TO a
+accept	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	GRANT EXECUTE ON FUNCTION a(INT,) TO a
+reject	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	GRANT EXECUTE ON FUNCTION a(INT,
+reject	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT, INT zzz) TO a
+accept	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INT, INTEGRATION) TO a
+accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty	GRANT EXECUTE ON FUNCTION a() TO a
+accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c	GRANT EXECUTE ON FUNCTION a(), a() TO a
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-1	GRANT EXECUTE ON FUNCTION a() a() TO a
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-2	GRANT EXECUTE ON FUNCTION a(),() TO a
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-3	GRANT EXECUTE ON FUNCTION a(), a) TO a
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-4	GRANT EXECUTE ON FUNCTION a(), a(TO a
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!truncate	GRANT EXECUTE ON FUNCTION a(), a(
+reject	undocumented	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!insert	GRANT EXECUTE ON FUNCTION a(), a() zzz TO a
+accept	accept	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,~fb7de310	GRANT EXECUTE ON PROCEDURE a() TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,~fb7de310!truncate	GRANT EXECUTE ON PROCEDURE a(
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,~fb7de310!insert	GRANT EXECUTE ON PROCEDURE a() zzz TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,~fb7de310!swap	GRANT EXECUTE ON PROCEDURES a() TO a
+accept	accept	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA a TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-1	GRANT EXECUTE ON PROCEDURES IN SCHEMA a TO a
+accept	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-3	GRANT EXECUTE ON ALL PROCEDURES SCHEMA a TO a
+accept	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-4	GRANT EXECUTE ON ALL PROCEDURES IN a TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!drop-5	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!truncate	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!insert	GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA a zzz TO a
+reject	undocumented	docs	grant(PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?~dfdd056a)/ALL_PROCEDURES_IN_SCHEMA_ID_(,_ID)*!swap	GRANT EXECUTE ON ALLOWOVERWRITE PROCEDURES IN SCHEMA a TO a
 accept	accept	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(ALTER|DROP)_(,_(ALTER|DROP))*	GRANT ALTER ON COPY JOB a TO a
 accept	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(ALTER|DROP)_(,_(ALTER|DROP))*!insert	GRANT ALTER zzz ON COPY JOB a TO a
 reject	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(ALTER|DROP)_(,_(ALTER|DROP))*!swap	GRANT ANALYZE ON COPY JOB a TO a
@@ -6047,29 +6042,29 @@ reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|USAGE|ALTER|
 accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|USAGE|ALTER|DROP)_(~965869d7!drop-7	REVOKE CREATE ON SCHEMA a FROM
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|USAGE|ALTER|DROP)_(~965869d7!insert	REVOKE CREATE ON SCHEMA a FROM a zzz
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|USAGE|ALTER|DROP)_(~965869d7!swap	RLS CREATE ON SCHEMA a FROM a
-accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de	REVOKE EXECUTE ON FUNCTION a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-1	EXECUTE ON FUNCTION a() FROM a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-2	REVOKE ON FUNCTION a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-3	REVOKE EXECUTE FUNCTION a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-4	REVOKE EXECUTE ON a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-5	REVOKE EXECUTE ON FUNCTION() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-6	REVOKE EXECUTE ON FUNCTION a) FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-7	REVOKE EXECUTE ON FUNCTION a(FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-8	REVOKE EXECUTE ON FUNCTION a() a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!drop-9	REVOKE EXECUTE ON FUNCTION a() FROM
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!insert	REVOKE EXECUTE ON FUNCTION a() FROM a zzz
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~bff799de!swap	RLS EXECUTE ON FUNCTION a() FROM a
-accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5	REVOKE EXECUTE ON PROCEDURE a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-1	EXECUTE ON PROCEDURE a() FROM a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-2	REVOKE ON PROCEDURE a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-3	REVOKE EXECUTE PROCEDURE a() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-5	REVOKE EXECUTE ON PROCEDURE() FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-6	REVOKE EXECUTE ON PROCEDURE a) FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-7	REVOKE EXECUTE ON PROCEDURE a(FROM a
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-8	REVOKE EXECUTE ON PROCEDURE a() a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!drop-9	REVOKE EXECUTE ON PROCEDURE a() FROM
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!insert	REVOKE EXECUTE ON PROCEDURE a() FROM a zzz
-reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~dc8e06f5!swap	RLS EXECUTE ON PROCEDURE a() FROM a
+accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c	REVOKE EXECUTE ON FUNCTION a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-1	EXECUTE ON FUNCTION a() FROM a
+accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-2	REVOKE ON FUNCTION a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-3	REVOKE EXECUTE FUNCTION a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-4	REVOKE EXECUTE ON a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-5	REVOKE EXECUTE ON FUNCTION() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-6	REVOKE EXECUTE ON FUNCTION a) FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-7	REVOKE EXECUTE ON FUNCTION a(FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-8	REVOKE EXECUTE ON FUNCTION a() a
+accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!drop-9	REVOKE EXECUTE ON FUNCTION a() FROM
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!insert	REVOKE EXECUTE ON FUNCTION a() FROM a zzz
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_EXECUTE_ON_FUNCTION_ID_(_(ID~08c46e0c!swap	RLS EXECUTE ON FUNCTION a() FROM a
+accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596	REVOKE EXECUTE ON PROCEDURE a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-1	EXECUTE ON PROCEDURE a() FROM a
+accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-2	REVOKE ON PROCEDURE a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-3	REVOKE EXECUTE PROCEDURE a() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-5	REVOKE EXECUTE ON PROCEDURE() FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-6	REVOKE EXECUTE ON PROCEDURE a) FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-7	REVOKE EXECUTE ON PROCEDURE a(FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-8	REVOKE EXECUTE ON PROCEDURE a() a
+accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!drop-9	REVOKE EXECUTE ON PROCEDURE a() FROM
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!insert	REVOKE EXECUTE ON PROCEDURE a() FROM a zzz
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(EXECUTE_(,_EXECUTE)*|ALL_PR~37a74596!swap	RLS EXECUTE ON PROCEDURE a() FROM a
 accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_USAGE_ON_LANGUAGE_ID_(,_ID)*~bf9080d4	REVOKE USAGE ON LANGUAGE a FROM a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_USAGE_ON_LANGUAGE_ID_(,_ID)*~bf9080d4!drop-1	USAGE ON LANGUAGE a FROM a
 accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_USAGE_ON_LANGUAGE_ID_(,_ID)*~bf9080d4!drop-2	REVOKE ON LANGUAGE a FROM a
@@ -6181,18 +6176,18 @@ reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STR
 accept	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-8	REVOKE USAGE ON DATASHARE a FROM NAMESPACE
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!insert	REVOKE USAGE ON DATASHARE a FROM NAMESPACE 's' zzz
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!swap	RLS USAGE ON DATASHARE a FROM NAMESPACE 's'
-reject	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-1	EXECUTE ON PROCEDURE a() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-2	REVOKE ON PROCEDURE a() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-3	REVOKE EXECUTE PROCEDURE a() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-4	REVOKE EXECUTE ON a() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-5	REVOKE EXECUTE ON PROCEDURE() FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-6	REVOKE EXECUTE ON PROCEDURE a) FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-7	REVOKE EXECUTE ON PROCEDURE a(FROM DATASHARE a
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-8	REVOKE EXECUTE ON PROCEDURE a() DATASHARE a
-accept	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!drop-10	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!insert	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a zzz
-reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_DATA~e637da6e!swap	RLS EXECUTE ON PROCEDURE a() FROM DATASHARE a
+reject	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-1	EXECUTE ON PROCEDURE a() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-2	REVOKE ON PROCEDURE a() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-3	REVOKE EXECUTE PROCEDURE a() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-4	REVOKE EXECUTE ON a() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-5	REVOKE EXECUTE ON PROCEDURE() FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-6	REVOKE EXECUTE ON PROCEDURE a) FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-7	REVOKE EXECUTE ON PROCEDURE a(FROM DATASHARE a
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-8	REVOKE EXECUTE ON PROCEDURE a() DATASHARE a
+accept	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-10	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!insert	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a zzz
+reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!swap	RLS EXECUTE ON PROCEDURE a() FROM DATASHARE a
 accept	accept	docs	revoke/REVOKE_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_FROM_(I~fe125483	REVOKE USAGE ON DATABASE a FROM a
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_FROM_(I~fe125483!drop-1	USAGE ON DATABASE a FROM a
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_(DATABASE_ID_(,_ID)*|SCHEMA_ID)_FROM_(I~fe125483!drop-3	REVOKE USAGE DATABASE a FROM a
@@ -6499,32 +6494,32 @@ accept	undocumented	docs	revoke(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|AL
 reject	undocumented	docs	revoke(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|ALTER|DROP)_(,_(CREATE|USAGE|ALTER|DROP))*!drop-2	REVOKE CREATE, ON SCHEMA a FROM a
 reject	undocumented	docs	revoke(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|ALTER|DROP)_(,_(CREATE|USAGE|ALTER|DROP))*!insert	REVOKE CREATE, CREATE zzz ON SCHEMA a FROM a
 accept	undocumented	docs	revoke(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|ALTER|DROP)_(,_(CREATE|USAGE|ALTER|DROP))*!swap	REVOKE CREATE, CREATEDB ON SCHEMA a FROM a
-accept	accept	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	REVOKE EXECUTE ON FUNCTION a() FROM a
-accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	REVOKE EXECUTE ON FUNCTION a(zzz) FROM a
-accept	accept	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
-reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(
-reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT zzz) FROM a
-accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INTEGRATION) FROM a
+accept	accept	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty	REVOKE EXECUTE ON FUNCTION a() FROM a
+accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty!insert	REVOKE EXECUTE ON FUNCTION a(zzz) FROM a
+accept	accept	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
+reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(
+reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT zzz) FROM a
+accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INTEGRATION) FROM a
 accept	accept	docs	revoke(ID)?/%empty	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
 accept	accept	docs	revoke(ID)?/%empty!insert	REVOKE EXECUTE ON FUNCTION a(zzz INT) FROM a
 accept	accept	docs	revoke(ID)?/ID	REVOKE EXECUTE ON FUNCTION a(a INT) FROM a
 reject	undocumented	docs	revoke(ID)?/ID!insert	REVOKE EXECUTE ON FUNCTION a(a zzz INT) FROM a
-accept	accept	docs	revoke(,_DATA_TYPE)*/%empty	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
-accept	accept	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT, INT) FROM a
-reject	accept	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	REVOKE EXECUTE ON FUNCTION a(INT INT) FROM a
-accept	undocumented	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	REVOKE EXECUTE ON FUNCTION a(INT,) FROM a
-reject	undocumented	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(INT,
-reject	undocumented	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT, INT zzz) FROM a
-accept	undocumented	docs	revoke(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INT, INTEGRATION) FROM a
-accept	accept	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/%empty	REVOKE EXECUTE ON FUNCTION a() FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/%empty!insert	REVOKE EXECUTE ON FUNCTION a() zzz FROM a
-accept	accept	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4	REVOKE EXECUTE ON FUNCTION a(), a() FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-1	REVOKE EXECUTE ON FUNCTION a() a() FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-2	REVOKE EXECUTE ON FUNCTION a(),() FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-3	REVOKE EXECUTE ON FUNCTION a(), a) FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!drop-4	REVOKE EXECUTE ON FUNCTION a(), a(FROM a
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!truncate	REVOKE EXECUTE ON FUNCTION a(), a(
-reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)_(,_ID_(_(ID?_D~694038a4!insert	REVOKE EXECUTE ON FUNCTION a(), a() zzz FROM a
+accept	accept	docs	revoke(,_ID?_DATA_TYPE)*/%empty	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
+accept	accept	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT, INT) FROM a
+reject	accept	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	REVOKE EXECUTE ON FUNCTION a(INT INT) FROM a
+accept	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	REVOKE EXECUTE ON FUNCTION a(INT,) FROM a
+reject	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(INT,
+reject	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT, INT zzz) FROM a
+accept	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INT, INTEGRATION) FROM a
+accept	accept	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty	REVOKE EXECUTE ON FUNCTION a() FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty!insert	REVOKE EXECUTE ON FUNCTION a() zzz FROM a
+accept	accept	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c	REVOKE EXECUTE ON FUNCTION a(), a() FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-1	REVOKE EXECUTE ON FUNCTION a() a() FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-2	REVOKE EXECUTE ON FUNCTION a(),() FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-3	REVOKE EXECUTE ON FUNCTION a(), a) FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!drop-4	REVOKE EXECUTE ON FUNCTION a(), a(FROM a
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!truncate	REVOKE EXECUTE ON FUNCTION a(), a(
+reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c!insert	REVOKE EXECUTE ON FUNCTION a(), a() zzz FROM a
 accept	accept	docs	revoke(EXECUTE_(,_EXECUTE)*|ALL_PRIVILEGES?)/EXECUTE_(,_EXECUTE)*	REVOKE EXECUTE ON PROCEDURE a() FROM a
 reject	undocumented	docs	revoke(EXECUTE_(,_EXECUTE)*|ALL_PRIVILEGES?)/EXECUTE_(,_EXECUTE)*!insert	REVOKE EXECUTE zzz ON PROCEDURE a() FROM a
 accept	undocumented	docs	revoke(EXECUTE_(,_EXECUTE)*|ALL_PRIVILEGES?)/EXECUTE_(,_EXECUTE)*!swap	REVOKE EXISTS ON PROCEDURE a() FROM a
@@ -7549,53 +7544,53 @@ reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW F
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW FUNCTIONS FROM SCHEMA a LIMIT
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW FUNCTIONS FROM SCHEMA a LIMIT 1 zzz
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW FUNCTIONS FROM SCHEMA a LINEAR_LEARNER 1
-accept	accept	docs	showGrants/SHOW_GRANTS_ON_(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~15~3e7a3fb3	SHOW GRANTS ON a
+accept	accept	docs	showGrants/SHOW_GRANTS_ON_(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d0~5cd7539a	SHOW GRANTS ON a
 accept	accept	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?	SHOW GRANTS FOR a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?!drop-1	GRANTS FOR a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?!drop-2	SHOW FOR a
 accept	undocumented	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?!drop-4	SHOW GRANTS FOR
 accept	undocumented	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?!insert	SHOW GRANTS FOR a zzz
 reject	undocumented	docs	showGrants/SHOW_GRANTS_FOR_(ID|ROLE_ID)_(FROM_DATABASE_ID)?_(LIMIT_NUMBER)?!swap	SNAPSHOT GRANTS FOR a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/DATABASE_ID	SHOW GRANTS ON DATABASE a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/DATABASE_ID!drop-2	SHOW GRANTS ON DATABASE
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/DATABASE_ID!insert	SHOW GRANTS ON DATABASE a zzz
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/DATABASE_ID!swap	SHOW GRANTS ON DATABASES a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)	SHOW GRANTS ON FUNCTION a()
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-1	SHOW GRANTS ON a()
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-2	SHOW GRANTS ON FUNCTION()
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-3	SHOW GRANTS ON FUNCTION a)
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-4	SHOW GRANTS ON FUNCTION a(
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!insert	SHOW GRANTS ON FUNCTION a() zzz
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_DATA_TYPE)*)?_)!swap	SHOW GRANTS ON FUNCTIONS a()
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID	SHOW GRANTS ON FUNCTION a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID!drop-2	SHOW GRANTS ON FUNCTION
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID!insert	SHOW GRANTS ON FUNCTION a zzz
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/FUNCTION_ID!swap	SHOW GRANTS ON FUNCTIONS a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/SCHEMA_ID	SHOW GRANTS ON SCHEMA a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/SCHEMA_ID!drop-2	SHOW GRANTS ON SCHEMA
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/SCHEMA_ID!insert	SHOW GRANTS ON SCHEMA a zzz
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/SCHEMA_ID!swap	SHOW GRANTS ON SCHEMAS a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/(TABLE_ID|ID)	SHOW GRANTS ON a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/TEMPLATE_ID	SHOW GRANTS ON TEMPLATE a
-accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/TEMPLATE_ID!drop-2	SHOW GRANTS ON TEMPLATE
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/TEMPLATE_ID!insert	SHOW GRANTS ON TEMPLATE a zzz
-accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~154e1f25)/TEMPLATE_ID!swap	SHOW GRANTS ON TEMPLATES a
-accept	accept	docs	showGrants(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	SHOW GRANTS ON FUNCTION a()
-accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	SHOW GRANTS ON FUNCTION a(zzz)
-accept	accept	docs	showGrants(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*	SHOW GRANTS ON FUNCTION a(INT)
-accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!insert	SHOW GRANTS ON FUNCTION a(INT zzz)
-accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW GRANTS ON FUNCTION a(INTEGRATION)
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/DATABASE_ID	SHOW GRANTS ON DATABASE a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/DATABASE_ID!drop-2	SHOW GRANTS ON DATABASE
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/DATABASE_ID!insert	SHOW GRANTS ON DATABASE a zzz
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/DATABASE_ID!swap	SHOW GRANTS ON DATABASES a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)	SHOW GRANTS ON FUNCTION a()
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!drop-1	SHOW GRANTS ON a()
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!drop-2	SHOW GRANTS ON FUNCTION()
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!drop-3	SHOW GRANTS ON FUNCTION a)
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!drop-4	SHOW GRANTS ON FUNCTION a(
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!insert	SHOW GRANTS ON FUNCTION a() zzz
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)!swap	SHOW GRANTS ON FUNCTIONS a()
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID	SHOW GRANTS ON FUNCTION a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID!drop-2	SHOW GRANTS ON FUNCTION
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID!insert	SHOW GRANTS ON FUNCTION a zzz
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/FUNCTION_ID!swap	SHOW GRANTS ON FUNCTIONS a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/SCHEMA_ID	SHOW GRANTS ON SCHEMA a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/SCHEMA_ID!drop-2	SHOW GRANTS ON SCHEMA
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/SCHEMA_ID!insert	SHOW GRANTS ON SCHEMA a zzz
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/SCHEMA_ID!swap	SHOW GRANTS ON SCHEMAS a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/(TABLE_ID|ID)	SHOW GRANTS ON a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/TEMPLATE_ID	SHOW GRANTS ON TEMPLATE a
+accept	accept	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/TEMPLATE_ID!drop-2	SHOW GRANTS ON TEMPLATE
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/TEMPLATE_ID!insert	SHOW GRANTS ON TEMPLATE a zzz
+accept	undocumented	docs	showGrants(DATABASE_ID|FUNCTION_ID_(_(ID?_DATA_~d02b3c56)/TEMPLATE_ID!swap	SHOW GRANTS ON TEMPLATES a
+accept	accept	docs	showGrants(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty	SHOW GRANTS ON FUNCTION a()
+accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty!insert	SHOW GRANTS ON FUNCTION a(zzz)
+accept	accept	docs	showGrants(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	SHOW GRANTS ON FUNCTION a(INT)
+accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	SHOW GRANTS ON FUNCTION a(INT zzz)
+accept	undocumented	docs	showGrants(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	SHOW GRANTS ON FUNCTION a(INTEGRATION)
 accept	accept	docs	showGrants(ID)?/%empty	SHOW GRANTS ON FUNCTION a(INT)
 accept	accept	docs	showGrants(ID)?/%empty!insert	SHOW GRANTS ON FUNCTION a(zzz INT)
 accept	accept	docs	showGrants(ID)?/ID	SHOW GRANTS ON FUNCTION a(a INT)
 accept	undocumented	docs	showGrants(ID)?/ID!insert	SHOW GRANTS ON FUNCTION a(a zzz INT)
-accept	accept	docs	showGrants(,_DATA_TYPE)*/%empty	SHOW GRANTS ON FUNCTION a(INT)
-accept	accept	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	SHOW GRANTS ON FUNCTION a(INT, INT)
-accept	accept	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	SHOW GRANTS ON FUNCTION a(INT INT)
-accept	undocumented	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	SHOW GRANTS ON FUNCTION a(INT,)
-accept	undocumented	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	SHOW GRANTS ON FUNCTION a(INT,
-accept	undocumented	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	SHOW GRANTS ON FUNCTION a(INT, INT zzz)
-accept	undocumented	docs	showGrants(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW GRANTS ON FUNCTION a(INT, INTEGRATION)
+accept	accept	docs	showGrants(,_ID?_DATA_TYPE)*/%empty	SHOW GRANTS ON FUNCTION a(INT)
+accept	accept	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	SHOW GRANTS ON FUNCTION a(INT, INT)
+accept	accept	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	SHOW GRANTS ON FUNCTION a(INT INT)
+accept	undocumented	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	SHOW GRANTS ON FUNCTION a(INT,)
+accept	undocumented	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	SHOW GRANTS ON FUNCTION a(INT,
+accept	undocumented	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	SHOW GRANTS ON FUNCTION a(INT, INT zzz)
+accept	undocumented	docs	showGrants(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	SHOW GRANTS ON FUNCTION a(INT, INTEGRATION)
 accept	accept	docs	showGrants(TABLE_ID|ID)/TABLE_ID	SHOW GRANTS ON TABLE a
 accept	undocumented	docs	showGrants(TABLE_ID|ID)/TABLE_ID!drop-2	SHOW GRANTS ON TABLE
 accept	undocumented	docs	showGrants(TABLE_ID|ID)/TABLE_ID!insert	SHOW GRANTS ON TABLE a zzz
@@ -7721,17 +7716,17 @@ reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW RL
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW RLS POLICIES LIMIT
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW RLS POLICIES LIMIT 1 zzz
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW RLS POLICIES LINEAR_LEARNER 1
-accept	accept	docs	showProcedure/SHOW_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TY~2bc7ffcb	SHOW PROCEDURE a
-accept	accept	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/%empty	SHOW PROCEDURE a
-accept	accept	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)	SHOW PROCEDURE a()
-accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-1	SHOW PROCEDURE a)
-accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!drop-2	SHOW PROCEDURE a(
-accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_))?/(_(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?_)!insert	SHOW PROCEDURE a() zzz
-accept	accept	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty	SHOW PROCEDURE a()
-accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/%empty!insert	SHOW PROCEDURE a(zzz)
-accept	accept	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*	SHOW PROCEDURE a(INT)
-accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!insert	SHOW PROCEDURE a(INT zzz)
-accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_DATA_TYPE)*)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW PROCEDURE a(INTEGRATION)
+accept	accept	docs	showProcedure/SHOW_PROCEDURE_ID_((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~ca95bc80	SHOW PROCEDURE a
+accept	accept	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/%empty	SHOW PROCEDURE a
+accept	accept	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)	SHOW PROCEDURE a()
+accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!drop-1	SHOW PROCEDURE a)
+accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!drop-2	SHOW PROCEDURE a(
+accept	undocumented	docs	showProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~7495b361)?/(_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?_)!insert	SHOW PROCEDURE a() zzz
+accept	accept	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	SHOW PROCEDURE a()
+accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	SHOW PROCEDURE a(zzz)
+accept	accept	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	SHOW PROCEDURE a(INT)
+accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	SHOW PROCEDURE a(INT zzz)
+accept	undocumented	docs	showProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	SHOW PROCEDURE a(INTEGRATION)
 accept	accept	docs	showProcedure(ID)?/%empty	SHOW PROCEDURE a(INT)
 accept	accept	docs	showProcedure(ID)?/%empty!insert	SHOW PROCEDURE a(zzz INT)
 accept	accept	docs	showProcedure(ID)?/ID	SHOW PROCEDURE a(a INT)
@@ -7740,13 +7735,13 @@ accept	accept	docs	showProcedure(ARGMODE)?/%empty	SHOW PROCEDURE a(INT)
 accept	accept	docs	showProcedure(ARGMODE)?/ARGMODE	SHOW PROCEDURE a(IN INT)
 accept	undocumented	docs	showProcedure(ARGMODE)?/ARGMODE!insert	SHOW PROCEDURE a(IN zzz INT)
 accept	accept	docs	showProcedure(ARGMODE)?/ARGMODE!swap	SHOW PROCEDURE a(INCLUDE INT)
-accept	accept	docs	showProcedure(,_DATA_TYPE)*/%empty	SHOW PROCEDURE a(INT)
-accept	accept	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	SHOW PROCEDURE a(INT, INT)
-accept	accept	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	SHOW PROCEDURE a(INT INT)
-accept	undocumented	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	SHOW PROCEDURE a(INT,)
-accept	undocumented	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	SHOW PROCEDURE a(INT,
-accept	undocumented	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	SHOW PROCEDURE a(INT, INT zzz)
-accept	undocumented	docs	showProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW PROCEDURE a(INT, INTEGRATION)
+accept	accept	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	SHOW PROCEDURE a(INT)
+accept	accept	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	SHOW PROCEDURE a(INT, INT)
+accept	accept	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	SHOW PROCEDURE a(INT INT)
+accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	SHOW PROCEDURE a(INT,)
+accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	SHOW PROCEDURE a(INT,
+accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	SHOW PROCEDURE a(INT, INT zzz)
+accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	SHOW PROCEDURE a(INT, INTEGRATION)
 reject	accept	docs	showProcedures/SHOW_PROCEDURES_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(~1f5aea30	SHOW PROCEDURES FROM SCHEMA a
 reject	accept	docs	showProcedures(ID_.)?/%empty	SHOW PROCEDURES FROM SCHEMA a
 reject	undocumented	docs	showProcedures(ID_.)?/%empty!insert	SHOW PROCEDURES FROM SCHEMA zzz a

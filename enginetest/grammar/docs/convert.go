@@ -712,7 +712,9 @@ func (c *converter) node(n *node) (string, error) {
 		}
 		return "(" + body + ")", nil
 	}
-	if len(alts) == 1 && !strings.ContainsAny(body, " ()") {
+	// A body that ends in its own operator keeps it in parentheses:
+	// ANTLR reads X+? as a non-greedy X+, not as an optional X+.
+	if len(alts) == 1 && !strings.ContainsAny(body, " ()") && !strings.ContainsAny(body[len(body)-1:], "?*+") {
 		return body + string(n.op), nil
 	}
 	return "(" + body + ")" + string(n.op), nil

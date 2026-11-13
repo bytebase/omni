@@ -12,8 +12,8 @@ grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the docs accept | Only omni accepts | Undocumented |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 2,241 | 1,935 | 306 | 0 | 0 |
-| Near-misses | 5,839 | 105 | 40 | 0 | 5,694 |
+| One per alternative | 2,245 | 1,939 | 306 | 0 | 0 |
+| Near-misses | 5,830 | 105 | 40 | 0 | 5,685 |
 
 - **The grammar** is AWS's SQL command reference
   (https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html): the
@@ -57,8 +57,8 @@ Redshift has no server CI can start, so every row is judged by the docs.
 - **346 rows disagree, all statements the docs accept and omni rejects.**
   `GRANT` and `REVOKE` hold 102 (`ASSUMEROLE`, `DEBUG`, templates, datashares),
   `SHOW` 81 (`RLS POLICIES`, `COLUMN GRANTS`, `CONSTRAINTS`, `PARAMETERS`,
-  `TEMPLATES`), templates' own statements 50, `CREATE` and `ALTER DATABASE` 41
-  (`FROM INTEGRATION`, `FROM ARN`), `COPY` 18, `CREATE MATERIALIZED VIEW` 15,
+  `TEMPLATES`), templates' own statements 47, `CREATE` and `ALTER DATABASE` 42
+  (`FROM INTEGRATION`, `FROM ARN`), `COPY` 18, `CREATE MATERIALIZED VIEW` 16,
   `SELECT` 12 (`EXCLUDE`, `CONNECT BY`), `UNLOAD` 9.
 
 ## What the judge cannot decide
