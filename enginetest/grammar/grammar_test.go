@@ -253,6 +253,15 @@ func TestEmptyTokensAreWrittenAsNothing(t *testing.T) {
 	}
 }
 
+// TestRulesRunToTheEndWithoutASecondMarker pins bison's optional epilogue:
+// MySQL's sql_yacc.yy has no second %%, and its rules run to the end.
+func TestRulesRunToTheEndWithoutASecondMarker(t *testing.T) {
+	got, _ := rows(t, "%token SELECT_SYM\n%%\nS:\n\tSELECT_SYM '1'\n", map[string]string{"SELECT_SYM": "SELECT"})
+	if len(got) == 0 || got[0].Statement != "SELECT 1" {
+		t.Errorf("got %v, want SELECT 1 first", got)
+	}
+}
+
 func TestATerminalWithNoSampleFails(t *testing.T) {
 	_, err := ReadBison("%%\nS:\n\t\"SELECT\" intLit\n%%\n", tokens(nil))
 	if err == nil || !strings.Contains(err.Error(), "intLit") {
