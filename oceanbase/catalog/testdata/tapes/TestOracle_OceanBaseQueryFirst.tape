@@ -69,3 +69,17 @@
 | CREATE VIEW v7 AS SELECT b AS q FROM a WHERE q > 0
 < error
 | 1054 42S22 Unknown column 'q' in 'where clause'
+> exec
+| CREATE VIEW v8 AS SELECT b AS q FROM a ORDER BY (SELECT q)
+< ok 0 0
+> exec
+| CREATE VIEW v9 AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0
+< ok 0 0
+> exec
+| CREATE VIEW v10 AS SELECT b AS q FROM a ORDER BY (SELECT zz)
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0
+< error
+| 1054 42S22 Unknown column 'q' in 'field list'

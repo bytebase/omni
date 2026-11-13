@@ -330,7 +330,8 @@ func TestOracle_OceanBaseAlterTableOptions(t *testing.T) {
 
 // TestOracle_OceanBaseQueryFirst holds resolveQueryFirst to the engine: CREATE VIEW,
 // ALTER VIEW and CREATE TABLE ... SELECT resolve the query before they look at the
-// name, and the clauses after the select list may name its aliases.
+// name, and the clauses after the select list may name its aliases, a subquery of
+// one of those clauses included, while WHERE may not.
 func TestOracle_OceanBaseQueryFirst(t *testing.T) {
 	runExecSteps(t, "oceanbase_catalog_query_first", []struct {
 		name  string
@@ -357,6 +358,10 @@ func TestOracle_OceanBaseQueryFirst(t *testing.T) {
 			{"CREATE VIEW v5 AS SELECT b + 1 AS q, count(*) AS n FROM a GROUP BY q HAVING n > 0", taken},
 			{"CREATE VIEW v6 AS (SELECT b AS q FROM a) ORDER BY q", taken},
 			{"CREATE VIEW v7 AS SELECT b AS q FROM a WHERE q > 0", 1054},
+			{"CREATE VIEW v8 AS SELECT b AS q FROM a ORDER BY (SELECT q)", taken},
+			{"CREATE VIEW v9 AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0", taken},
+			{"CREATE VIEW v10 AS SELECT b AS q FROM a ORDER BY (SELECT zz)", 1054},
+			{"CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0", 1054},
 		}},
 	})
 }

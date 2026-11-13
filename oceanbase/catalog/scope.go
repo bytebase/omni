@@ -74,12 +74,19 @@ func selectAliases(tl []*TargetEntryQ) map[string]*TargetEntryQ {
 }
 
 // selectAlias returns the select item an unqualified name that no table in scope
-// has reads, when the clause being read may name one.
+// has reads, when the clause being read may name one: this query's select list,
+// then those of the queries around it, as OceanBase's resolver searches the outer
+// select list for a name a subquery of GROUP BY, HAVING or ORDER BY leaves open
+// (ob_select_resolver.cpp). A scope holds its aliases only from GROUP BY on, so a
+// subquery in WHERE, read before that, still sees none.
 func (s *analyzerScope) selectAlias(name string) *TargetEntryQ {
-	if s.aliases == nil {
-		return nil
+	lower := strings.ToLower(name)
+	for ; s != nil; s = s.parent {
+		if te, ok := s.aliases[lower]; ok {
+			return te
+		}
 	}
-	return s.aliases[strings.ToLower(name)]
+	return nil
 }
 
 func newScope() *analyzerScope {
