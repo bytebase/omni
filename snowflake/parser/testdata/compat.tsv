@@ -2319,17 +2319,14 @@ reject	undocumented	docs	statement/createMaskingPolicy!drop-12	CREATE MASKING PO
 reject	undocumented	docs	statement/createMaskingPolicy!drop-13	CREATE MASKING POLICY a AS(a INT) RETURNS INT ->
 accept	undocumented	docs	statement/createMaskingPolicy!insert	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a zzz
 reject	undocumented	docs	statement/createMaskingPolicy!swap	CREATION MASKING POLICY a AS(a INT) RETURNS INT -> a
-accept	accept	docs	statement/createMaterializedView	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-1	MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-3	CREATE MATERIALIZED a(a) AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-4	CREATE MATERIALIZED VIEW(a) AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-5	CREATE MATERIALIZED VIEW a a) AS SELECT 1
-accept	undocumented	docs	statement/createMaterializedView!drop-6	CREATE MATERIALIZED VIEW a() AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-7	CREATE MATERIALIZED VIEW a(a AS SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-8	CREATE MATERIALIZED VIEW a(a) SELECT 1
-reject	undocumented	docs	statement/createMaterializedView!drop-9	CREATE MATERIALIZED VIEW a(a) AS
-accept	undocumented	docs	statement/createMaterializedView!insert	CREATE MATERIALIZED VIEW a(a) AS SELECT 1 zzz
-reject	undocumented	docs	statement/createMaterializedView!swap	CREATION MATERIALIZED VIEW a(a) AS SELECT 1
+accept	accept	docs	statement/createMaterializedView	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	statement/createMaterializedView!drop-1	MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	statement/createMaterializedView!drop-3	CREATE MATERIALIZED a AS SELECT 1
+reject	undocumented	docs	statement/createMaterializedView!drop-4	CREATE MATERIALIZED VIEW AS SELECT 1
+reject	undocumented	docs	statement/createMaterializedView!drop-5	CREATE MATERIALIZED VIEW a SELECT 1
+reject	undocumented	docs	statement/createMaterializedView!drop-6	CREATE MATERIALIZED VIEW a AS
+accept	undocumented	docs	statement/createMaterializedView!insert	CREATE MATERIALIZED VIEW a AS SELECT 1 zzz
+reject	undocumented	docs	statement/createMaterializedView!swap	CREATION MATERIALIZED VIEW a AS SELECT 1
 reject	accept	docs	statement/createMcpServer	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createMcpServer!drop-1	MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createMcpServer!drop-2	CREATE SERVER a FROM SPECIFICATION 's'
@@ -15773,16 +15770,16 @@ reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVA
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_ID_RENAME_TO_ID!insert	ALTER MULTI PARTY APPROVAL POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_ID_RENAME_TO_ID!swap	ALWAYS MULTI PARTY APPROVAL POLICY a RENAME TO a
 reject	accept	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_ID_AS_STRING	ALTER MULTI PARTY APPROVAL POLICY a AS 's'
-accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f	ALTER NETWORK POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-1	NETWORK POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-3	ALTER NETWORK a SET COMMENT = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-4	ALTER NETWORK POLICY SET COMMENT = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-5	ALTER NETWORK POLICY a COMMENT = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-6	ALTER NETWORK POLICY a SET = 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-7	ALTER NETWORK POLICY a SET COMMENT 's'
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!drop-8	ALTER NETWORK POLICY a SET COMMENT =
-accept	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!insert	ALTER NETWORK POLICY a SET COMMENT = 's' zzz
-reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~8513e70f!swap	ALWAYS NETWORK POLICY a SET COMMENT = 's'
+accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53	ALTER NETWORK POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-1	NETWORK POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-3	ALTER NETWORK a SET COMMENT = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-4	ALTER NETWORK POLICY SET COMMENT = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-5	ALTER NETWORK POLICY a COMMENT = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-6	ALTER NETWORK POLICY a SET = 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-7	ALTER NETWORK POLICY a SET COMMENT 's'
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-8	ALTER NETWORK POLICY a SET COMMENT =
+accept	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!insert	ALTER NETWORK POLICY a SET COMMENT = 's' zzz
+reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!swap	ALWAYS NETWORK POLICY a SET COMMENT = 's'
 accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_UNSET_COMMENT	ALTER NETWORK POLICY a UNSET COMMENT
 reject	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!drop-1	NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
@@ -15846,42 +15843,43 @@ reject	undocumented	docs	alterNetworkPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER N
 reject	undocumented	docs	alterNetworkPolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER NETWORK POLICY IF
 reject	undocumented	docs	alterNetworkPolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER NETWORK POLICY IF EXISTS zzz a UNSET COMMENT
 reject	undocumented	docs	alterNetworkPolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER NETWORK POLICY IGNORE EXISTS a UNSET COMMENT
-accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!drop-1	ALTER NETWORK POLICY a SET =('s')
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!drop-2	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST('s')
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!drop-3	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST = 's')
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!drop-4	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!drop-5	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s'
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') zzz
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~65be26d1!swap	ALTER NETWORK POLICY a SET ALLOWED_RECIPIENTS =('s')
-accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s')
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!drop-2	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST('s')
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!drop-3	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST = 's')
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!drop-4	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!drop-5	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s'
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!insert	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s') zzz
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~bd05f097!swap	ALTER NETWORK POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =('s')
-accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!drop-1	ALTER NETWORK POLICY a SET =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!drop-2	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!drop-3	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =)
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!drop-4	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() zzz
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKED_IP~e4f918cc!swap	ALTER NETWORK POLICY a SET ALLOWED_NAMESPACES =()
-accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?!drop-2	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?!drop-3	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =)
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?!drop-4	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =(
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?!insert	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =() zzz
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)_(COMMENT_=_STRING)?!swap	ALTER NETWORK POLICY a SET BLOCKED_NAMESPACES =()
-accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/COMMENT_=_STRING	ALTER NETWORK POLICY a SET COMMENT = 's'
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~717fde1b)/COMMENT_=_STRING!swap	ALTER NETWORK POLICY a SET COMMENTS = 's'
-accept	accept	docs	alterNetworkPolicy(,_STRING)*/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
-accept	undocumented	docs	alterNetworkPolicy(,_STRING)*/%empty!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(zzz)
-reject	accept	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(, 's')
-reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(,)
-reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(,
-reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(, 's' zzz)
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!drop-1	ALTER NETWORK POLICY a SET =('s')
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!drop-2	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST('s')
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!drop-3	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST = 's')
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!drop-4	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!drop-5	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s'
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') zzz
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(BLO~47f6d49d!swap	ALTER NETWORK POLICY a SET ALLOWED_RECIPIENTS =('s')
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s')
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!drop-2	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST('s')
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!drop-3	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST = 's')
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!drop-4	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!drop-5	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s'
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!insert	ALTER NETWORK POLICY a SET BLOCKED_NETWORK_RULE_LIST =('s') zzz
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)_(ALL~dd8e025d!swap	ALTER NETWORK POLICY a SET BLOCKED_OBJECT_TYPES_FOR_CREATION =('s')
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!drop-1	ALTER NETWORK POLICY a SET =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!drop-2	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!drop-3	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =)
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!drop-4	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() zzz
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKED_IP~46ee573b!swap	ALTER NETWORK POLICY a SET ALLOWED_NAMESPACES =()
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?!drop-2	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?!drop-3	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =)
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?!drop-4	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =(
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?!insert	ALTER NETWORK POLICY a SET BLOCKED_IP_LIST =() zzz
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)_(COMMENT_=_STRING)?!swap	ALTER NETWORK POLICY a SET BLOCKED_NAMESPACES =()
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/COMMENT_=_STRING	ALTER NETWORK POLICY a SET COMMENT = 's'
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~c3b4e8ff)/COMMENT_=_STRING!swap	ALTER NETWORK POLICY a SET COMMENTS = 's'
+accept	accept	docs	alterNetworkPolicy(,_STRING)*/%empty	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
+accept	undocumented	docs	alterNetworkPolicy(,_STRING)*/%empty!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s' zzz)
+accept	accept	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s', 's')
+accept	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s' 's')
+reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s',)
+reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s',
+reject	undocumented	docs	alterNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s', 's' zzz)
 accept	accept	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/%empty	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
 accept	accept	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') BLOCKED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-1	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') =('s')
@@ -15891,25 +15889,26 @@ accept	undocumented	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING
 reject	undocumented	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-5	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') BLOCKED_NETWORK_RULE_LIST =('s'
 accept	undocumented	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') BLOCKED_NETWORK_RULE_LIST =('s') zzz
 accept	undocumented	docs	alterNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!swap	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') BLOCKED_OBJECT_TYPES_FOR_CREATION =('s')
-accept	accept	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/%empty	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
-accept	accept	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-1	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') =()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST()
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =)
-reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =(
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =() zzz
-accept	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!swap	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_NAMESPACES =()
-accept	accept	docs	alterNetworkPolicy(STRING)?/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
-accept	accept	docs	alterNetworkPolicy(STRING)?/STRING	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =('s')
-accept	undocumented	docs	alterNetworkPolicy(STRING)?/STRING!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =('s' zzz)
-accept	accept	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
-accept	accept	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =()
-reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-1	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() =()
-reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST()
-reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =)
-reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =(
-accept	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =() zzz
-accept	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!swap	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_NAMESPACES =()
+accept	accept	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s')
+accept	accept	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-1	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') =()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST()
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =)
+reject	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =(
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!insert	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_IP_LIST =() zzz
+accept	undocumented	docs	alterNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!swap	ALTER NETWORK POLICY a SET ALLOWED_NETWORK_RULE_LIST =('s') ALLOWED_NAMESPACES =()
+accept	accept	docs	alterNetworkPolicy(STRING_(,_STRING)*)?/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
+accept	undocumented	docs	alterNetworkPolicy(STRING_(,_STRING)*)?/%empty!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =(zzz)
+accept	accept	docs	alterNetworkPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =('s')
+accept	undocumented	docs	alterNetworkPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =('s' zzz)
+accept	accept	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
+accept	accept	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =()
+reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-1	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() =()
+reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST()
+reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =)
+reject	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =(
+accept	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_IP_LIST =() zzz
+accept	undocumented	docs	alterNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!swap	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() BLOCKED_NAMESPACES =()
 accept	accept	docs	alterNetworkPolicy(COMMENT_=_STRING)?/%empty	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =()
 accept	accept	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() COMMENT = 's'
 reject	undocumented	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() = 's'
@@ -17181,16 +17180,16 @@ reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/TRUE!swap	ALTER 
 reject	accept	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FALSE
 reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE!insert	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FALSE zzz
 reject	undocumented	docs	alterOrganizationUserGroup(TRUE|FALSE)/FALSE!swap	ALTER ORGANIZATION USER GROUP a SET IS_GRANTABLE = FAMILIES
-reject	accept	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466	ALTER PACKAGES POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-1	PACKAGES POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-3	ALTER PACKAGES a SET COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-4	ALTER PACKAGES POLICY SET COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-5	ALTER PACKAGES POLICY a COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-6	ALTER PACKAGES POLICY a SET = 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-7	ALTER PACKAGES POLICY a SET COMMENT 's'
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!drop-8	ALTER PACKAGES POLICY a SET COMMENT =
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!insert	ALTER PACKAGES POLICY a SET COMMENT = 's' zzz
-reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~25f08466!swap	ALWAYS PACKAGES POLICY a SET COMMENT = 's'
+reject	accept	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132	ALTER PACKAGES POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-1	PACKAGES POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-3	ALTER PACKAGES a SET COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-4	ALTER PACKAGES POLICY SET COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-5	ALTER PACKAGES POLICY a COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-6	ALTER PACKAGES POLICY a SET = 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-7	ALTER PACKAGES POLICY a SET COMMENT 's'
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!drop-8	ALTER PACKAGES POLICY a SET COMMENT =
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!insert	ALTER PACKAGES POLICY a SET COMMENT = 's' zzz
+reject	undocumented	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWLIST_=_~58820132!swap	ALWAYS PACKAGES POLICY a SET COMMENT = 's'
 reject	accept	docs	alterPackagesPolicy/ALTER_PACKAGES_POLICY_(IF_EXISTS)?_ID_UNSET_(ALLOWLIST|~5c590749	ALTER PACKAGES POLICY a UNSET ALLOWLIST
 reject	accept	docs	alterPackagesPolicy(IF_EXISTS)?/%empty	ALTER PACKAGES POLICY a UNSET ALLOWLIST
 reject	undocumented	docs	alterPackagesPolicy(IF_EXISTS)?/%empty!insert	ALTER PACKAGES POLICY zzz a UNSET ALLOWLIST
@@ -17200,51 +17199,52 @@ reject	undocumented	docs	alterPackagesPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER 
 reject	undocumented	docs	alterPackagesPolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER PACKAGES POLICY IF
 reject	undocumented	docs	alterPackagesPolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER PACKAGES POLICY IF EXISTS zzz a UNSET ALLOWLIST
 reject	undocumented	docs	alterPackagesPolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER PACKAGES POLICY IGNORE EXISTS a UNSET ALLOWLIST
-reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2	ALTER PACKAGES POLICY a SET ALLOWLIST =()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!drop-1	ALTER PACKAGES POLICY a SET =()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =)
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =(
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() zzz
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)_(BLOCKLIST_=_(_ST~2cb131e2!swap	ALTER PACKAGES POLICY a SET ALLOW_ALL_OVERLAP =()
-reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64	ALTER PACKAGES POLICY a SET BLOCKLIST =()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64!drop-2	ALTER PACKAGES POLICY a SET BLOCKLIST()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64!drop-3	ALTER PACKAGES POLICY a SET BLOCKLIST =)
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64!drop-4	ALTER PACKAGES POLICY a SET BLOCKLIST =(
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64!insert	ALTER PACKAGES POLICY a SET BLOCKLIST =() zzz
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)_(ADDITIONAL_CREAT~87e9ec64!swap	ALTER PACKAGES POLICY a SET BODY =()
-reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b!drop-2	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST()
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b!drop-3	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =)
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b!drop-4	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =(
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b!insert	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =() zzz
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*~bb30499b!swap	ALTER PACKAGES POLICY a SET ADDITIVE =()
-reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/COMMENT_=_STRING	ALTER PACKAGES POLICY a SET COMMENT = 's'
-reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_)_~d836b1f7)/COMMENT_=_STRING!swap	ALTER PACKAGES POLICY a SET COMMENTS = 's'
-reject	accept	docs	alterPackagesPolicy(STRING)?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
-reject	undocumented	docs	alterPackagesPolicy(STRING)?/%empty!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =(zzz)
-reject	accept	docs	alterPackagesPolicy(STRING)?/STRING	ALTER PACKAGES POLICY a SET ALLOWLIST =('s')
-reject	undocumented	docs	alterPackagesPolicy(STRING)?/STRING!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =('s' zzz)
-reject	accept	docs	alterPackagesPolicy(,_STRING)*/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
-reject	accept	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*	ALTER PACKAGES POLICY a SET ALLOWLIST =(, 's')
-reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =(,)
-reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER PACKAGES POLICY a SET ALLOWLIST =(,
-reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =(, 's' zzz)
-reject	accept	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
-reject	accept	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =()
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-1	ALTER PACKAGES POLICY a SET ALLOWLIST =() =()
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST()
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =)
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =(
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =() zzz
-reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!swap	ALTER PACKAGES POLICY a SET ALLOWLIST =() BODY =()
-reject	accept	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
-reject	accept	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =()
-reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST()
-reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =)
-reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =(
-reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =() zzz
-reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!swap	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIVE =()
+reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8	ALTER PACKAGES POLICY a SET ALLOWLIST =()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!drop-1	ALTER PACKAGES POLICY a SET =()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =)
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =(
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() zzz
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)_(BLOCKLIST_=_(_(S~a75c55c8!swap	ALTER PACKAGES POLICY a SET ALLOW_ALL_OVERLAP =()
+reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c	ALTER PACKAGES POLICY a SET BLOCKLIST =()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c!drop-2	ALTER PACKAGES POLICY a SET BLOCKLIST()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c!drop-3	ALTER PACKAGES POLICY a SET BLOCKLIST =)
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c!drop-4	ALTER PACKAGES POLICY a SET BLOCKLIST =(
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c!insert	ALTER PACKAGES POLICY a SET BLOCKLIST =() zzz
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)_(ADDITIONAL_CREAT~bdbdc14c!swap	ALTER PACKAGES POLICY a SET BODY =()
+reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061!drop-2	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST()
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061!drop-3	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =)
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061!drop-4	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =(
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061!insert	ALTER PACKAGES POLICY a SET ADDITIONAL_CREATION_BLOCKLIST =() zzz
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?~bf623061!swap	ALTER PACKAGES POLICY a SET ADDITIVE =()
+reject	accept	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/COMMENT_=_STRING	ALTER PACKAGES POLICY a SET COMMENT = 's'
+reject	undocumented	docs	alterPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_~2933035f)/COMMENT_=_STRING!swap	ALTER PACKAGES POLICY a SET COMMENTS = 's'
+reject	accept	docs	alterPackagesPolicy(STRING_(,_STRING)*)?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
+reject	undocumented	docs	alterPackagesPolicy(STRING_(,_STRING)*)?/%empty!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =(zzz)
+reject	accept	docs	alterPackagesPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*	ALTER PACKAGES POLICY a SET ALLOWLIST =('s')
+reject	undocumented	docs	alterPackagesPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =('s' zzz)
+reject	accept	docs	alterPackagesPolicy(,_STRING)*/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =('s')
+reject	accept	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*	ALTER PACKAGES POLICY a SET ALLOWLIST =('s', 's')
+reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER PACKAGES POLICY a SET ALLOWLIST =('s' 's')
+reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =('s',)
+reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER PACKAGES POLICY a SET ALLOWLIST =('s',
+reject	undocumented	docs	alterPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =('s', 's' zzz)
+reject	accept	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
+reject	accept	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =()
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-1	ALTER PACKAGES POLICY a SET ALLOWLIST =() =()
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST()
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =)
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =(
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() BLOCKLIST =() zzz
+reject	undocumented	docs	alterPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!swap	ALTER PACKAGES POLICY a SET ALLOWLIST =() BODY =()
+reject	accept	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
+reject	accept	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =()
+reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST()
+reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =)
+reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =(
+reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!insert	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIONAL_CREATION_BLOCKLIST =() zzz
+reject	undocumented	docs	alterPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!swap	ALTER PACKAGES POLICY a SET ALLOWLIST =() ADDITIVE =()
 reject	accept	docs	alterPackagesPolicy(COMMENT_=_STRING)?/%empty	ALTER PACKAGES POLICY a SET ALLOWLIST =()
 reject	accept	docs	alterPackagesPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER PACKAGES POLICY a SET ALLOWLIST =() COMMENT = 's'
 reject	undocumented	docs	alterPackagesPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER PACKAGES POLICY a SET ALLOWLIST =() = 's'
@@ -18616,34 +18616,34 @@ accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER R
 reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
 accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
 reject	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/%empty	ALTER RESOURCE MONITOR a
-reject	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS a PERCENT DO SUSPEND
+reject	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON a DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT SUSPEND
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND zzz
-reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON a PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/%empty	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-1	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-2	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON a DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT SUSPEND
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!insert	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO SUSPEND zzz
-reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!swap	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND ONBOARDING_QUESTION a PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor_triggerDefinition/ON_ID_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition/ON_ID_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)!swap	ALTER RESOURCE MONITOR a TRIGGERS ONBOARDING_QUESTION a PERCENT DO SUSPEND
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND!swap	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPENDED
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND_IMMEDIATE
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!insert	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND_IMMEDIATE zzz
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!swap	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO SUSPEND_TASK_AFTER_NUM_FAILURES
-reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO NOTIFY
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO NOTIFY zzz
-reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	ALTER RESOURCE MONITOR a TRIGGERS ON a PERCENT DO NOTIFY_USERS
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
+reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/%empty	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-2	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT SUSPEND
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
+reject	accept	docs	alterResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)!swap	ALTER RESOURCE MONITOR a TRIGGERS ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
+reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPENDED
+reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE zzz
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND_TASK_AFTER_NUM_FAILURES
+reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY zzz
+reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY_USERS
 reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_ID_AS_STRING	ALTER RSS a AS 's'
 reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_ID_AD~a6509a8b	ALTER RSS a ADD AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_ID_AD~a6509a8b!drop-1	RSS a ADD AS 's'
@@ -36526,189 +36526,192 @@ accept	undocumented	docs	createMaskingPolicy(TRUE|FALSE)/TRUE!swap	CREATE MASKIN
 accept	accept	docs	createMaskingPolicy(TRUE|FALSE)/FALSE	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a EXEMPT_OTHER_POLICIES = FALSE
 accept	undocumented	docs	createMaskingPolicy(TRUE|FALSE)/FALSE!insert	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a EXEMPT_OTHER_POLICIES = FALSE zzz
 accept	undocumented	docs	createMaskingPolicy(TRUE|FALSE)/FALSE!swap	CREATE MASKING POLICY a AS(a INT) RETURNS INT -> a EXEMPT_OTHER_POLICIES = FAMILIES
-accept	accept	docs	createMaterializedView/CREATE_(OR_REPLACE)?_(SECURE)?_(INTERACTIVE)?_MATERIALI~71d138f4	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(OR_REPLACE)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/%empty!insert	CREATE zzz MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(SECURE)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(SECURE)?/SECURE	CREATE SECURE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(SECURE)?/SECURE!insert	CREATE SECURE zzz MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(SECURE)?/SECURE!swap	CREATE SECURE_OBJECTS_ONLY MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(INTERACTIVE)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE	CREATE INTERACTIVE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE!insert	CREATE INTERACTIVE zzz MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE!swap	CREATE INTERNAL MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(IF_NOT_EXISTS)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/%empty!insert	CREATE MATERIALIZED VIEW zzz a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MATERIALIZED VIEW IF NOT EXISTS a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MATERIALIZED VIEW NOT EXISTS a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MATERIALIZED VIEW IF EXISTS a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MATERIALIZED VIEW IF NOT a(a) AS SELECT 1
+accept	accept	docs	createMaterializedView/CREATE_(OR_REPLACE)?_(SECURE)?_(INTERACTIVE)?_MATERIALI~ac6a4bc9	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(OR_REPLACE)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/%empty!insert	CREATE zzz MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(SECURE)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(SECURE)?/SECURE	CREATE SECURE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(SECURE)?/SECURE!insert	CREATE SECURE zzz MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(SECURE)?/SECURE!swap	CREATE SECURE_OBJECTS_ONLY MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(INTERACTIVE)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE	CREATE INTERACTIVE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE!insert	CREATE INTERACTIVE zzz MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(INTERACTIVE)?/INTERACTIVE!swap	CREATE INTERNAL MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(IF_NOT_EXISTS)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/%empty!insert	CREATE MATERIALIZED VIEW zzz a AS SELECT 1
+accept	accept	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MATERIALIZED VIEW NOT EXISTS a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MATERIALIZED VIEW IF EXISTS a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MATERIALIZED VIEW IF NOT a AS SELECT 1
 reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE MATERIALIZED VIEW IF NOT
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MATERIALIZED VIEW IGNORE NOT EXISTS a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(COPY_GRANTS)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS	CREATE MATERIALIZED VIEW a COPY GRANTS(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE MATERIALIZED VIEW a GRANTS(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE MATERIALIZED VIEW a COPY(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MATERIALIZED VIEW IGNORE NOT EXISTS a AS SELECT 1
+accept	accept	docs	createMaterializedView(COPY_GRANTS)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT 1
+accept	accept	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS	CREATE MATERIALIZED VIEW a COPY GRANTS AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE MATERIALIZED VIEW a GRANTS AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE MATERIALIZED VIEW a COPY AS SELECT 1
 reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE MATERIALIZED VIEW a COPY
-reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE MATERIALIZED VIEW a COPY GRANTS zzz(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE MATERIALIZED VIEW a CORE GRANTS(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(COPY_=_(_GRANTS_))?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE MATERIALIZED VIEW a COPY =(GRANTS)(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE MATERIALIZED VIEW a =(GRANTS)(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE MATERIALIZED VIEW a COPY(GRANTS)(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE MATERIALIZED VIEW a COPY = GRANTS)(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE MATERIALIZED VIEW a COPY =()(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE MATERIALIZED VIEW a COPY =(GRANTS(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE MATERIALIZED VIEW a COPY GRANTS zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE MATERIALIZED VIEW a CORE GRANTS AS SELECT 1
+accept	accept	docs	createMaterializedView(COPY_=_(_GRANTS_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	accept	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE MATERIALIZED VIEW a COPY =(GRANTS) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE MATERIALIZED VIEW a =(GRANTS) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE MATERIALIZED VIEW a COPY(GRANTS) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE MATERIALIZED VIEW a COPY = GRANTS) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE MATERIALIZED VIEW a COPY =() AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE MATERIALIZED VIEW a COPY =(GRANTS AS SELECT 1
 reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!truncate	CREATE MATERIALIZED VIEW a COPY =(GRANTS
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE MATERIALIZED VIEW a COPY =(GRANTS) zzz(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE MATERIALIZED VIEW a CORE =(GRANTS)(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/%empty!insert	CREATE MATERIALIZED VIEW a(a) zzz AS SELECT 1
-reject	accept	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-1	CREATE MATERIALIZED VIEW a(a) MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-2	CREATE MATERIALIZED VIEW a(a) a POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-3	CREATE MATERIALIZED VIEW a(a) a MASKING a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-4	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-5	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-6	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-7	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-8	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-9	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-10	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(= 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-11	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-12	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a =) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!drop-13	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a = 's' AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!truncate	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a = 's'
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!insert	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ID_WITH?_MASKING_POLICY_ID_(USING_(_~781b7073)?/ID_(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_)~cb2f470d!swap	CREATE MATERIALIZED VIEW a(a) a MASTER_KEY POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	accept	docs	createMaterializedView(WITH)?/%empty	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH)?/%empty!insert	CREATE MATERIALIZED VIEW a(a) zzz AGGREGATION POLICY a AS SELECT 1
-reject	accept	docs	createMaterializedView(WITH)?/WITH	CREATE MATERIALIZED VIEW a(a) WITH AGGREGATION POLICY a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH)?/WITH!truncate	CREATE MATERIALIZED VIEW a(a)
-reject	undocumented	docs	createMaterializedView(WITH)?/WITH!insert	CREATE MATERIALIZED VIEW a(a) WITH zzz AGGREGATION POLICY a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH)?/WITH!swap	CREATE MATERIALIZED VIEW a(a) WITHIN AGGREGATION POLICY a AS SELECT 1
-reject	accept	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/%empty!insert	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a zzz PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	accept	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a,) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a, a PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a, a
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a USING(a, a) zzz PROJECTION POLICY a TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a(a) a MASKING POLICY a UTF8(a, a) PROJECTION POLICY a TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE MATERIALIZED VIEW a COPY =(GRANTS) zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE MATERIALIZED VIEW a CORE =(GRANTS) AS SELECT 1
+accept	accept	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-1	CREATE MATERIALIZED VIEW a a) AS SELECT 1
+accept	undocumented	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-2	CREATE MATERIALIZED VIEW a() AS SELECT 1
+reject	undocumented	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!drop-3	CREATE MATERIALIZED VIEW a(a AS SELECT 1
+reject	undocumented	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!truncate	CREATE MATERIALIZED VIEW a(a
+reject	undocumented	docs	createMaterializedView((_ID_(WITH?_MASKING_POLICY_ID_(USING~1bd7471f)?/(_ID_(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?_(~9ea5ccc9!insert	CREATE MATERIALIZED VIEW a(a) zzz AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/%empty!insert	CREATE MATERIALIZED VIEW a(a zzz) AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?	CREATE MATERIALIZED VIEW a(a MASKING POLICY a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-1	CREATE MATERIALIZED VIEW a(a POLICY a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-2	CREATE MATERIALIZED VIEW a(a MASKING a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!drop-3	CREATE MATERIALIZED VIEW a(a MASKING POLICY) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!truncate	CREATE MATERIALIZED VIEW a(a MASKING POLICY
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!insert	CREATE MATERIALIZED VIEW a(a MASKING POLICY a zzz) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_MASKING_POLICY_ID_(USING_(_ID_~f4ad4b62)?/(WITH)?_MASKING_POLICY_ID_(USING_(_ID_,_ID_(,_ID)*_))?!swap	CREATE MATERIALIZED VIEW a(a MASTER_KEY POLICY a) AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH)?/%empty	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AGGREGATION POLICY a AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH)?/WITH	CREATE MATERIALIZED VIEW a WITH AGGREGATION POLICY a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH)?/WITH!truncate	CREATE MATERIALIZED VIEW a
+reject	undocumented	docs	createMaterializedView(WITH)?/WITH!insert	CREATE MATERIALIZED VIEW a WITH zzz AGGREGATION POLICY a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH)?/WITH!swap	CREATE MATERIALIZED VIEW a WITHIN AGGREGATION POLICY a AS SELECT 1
+reject	accept	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a(a MASKING POLICY a) AS SELECT 1
+reject	accept	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a, a)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a(a MASKING POLICY a(a, a)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING a, a)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(, a)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a a)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a,)) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a, a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a, a
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a(a MASKING POLICY a USING(a, a) zzz) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a(a MASKING POLICY a UTF8(a, a)) AS SELECT 1
 accept	accept	docs	createMaterializedView(,_ID)*/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*	CREATE MATERIALIZED VIEW a(a), a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE MATERIALIZED VIEW a(a) a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW a(a), AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!truncate	CREATE MATERIALIZED VIEW a(a),
-reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!insert	CREATE MATERIALIZED VIEW a(a), a zzz AS SELECT 1
-accept	accept	docs	createMaterializedView(,_ID_=_STRING)*/%empty	CREATE MATERIALIZED VIEW a(a) TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/%empty!insert	CREATE MATERIALIZED VIEW a(a) TAG(a = 's' zzz) AS SELECT 1
-accept	accept	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE MATERIALIZED VIEW a(a) TAG(a = 's' a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', a 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', a =) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', a =
-reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE MATERIALIZED VIEW a(a) TAG(a = 's', a = 's' zzz) AS SELECT 1
-accept	accept	docs	createMaterializedView(COMMENT_=_STRING)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE MATERIALIZED VIEW a(a) COMMENT = 's' AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE MATERIALIZED VIEW a(a) = 's' AS SELECT 1
-accept	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE MATERIALIZED VIEW a(a) COMMENT 's' AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE MATERIALIZED VIEW a(a) COMMENT = AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE MATERIALIZED VIEW a(a) COMMENT =
-reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE MATERIALIZED VIEW a(a) COMMENT = 's' zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE MATERIALIZED VIEW a(a) COMMENTS = 's' AS SELECT 1
-accept	accept	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a(a) ACCESS POLICY a ON(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) ROW POLICY a ON(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) ROW ACCESS a ON(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY ON(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-7	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON() AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-8	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON(a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON(a
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a(a) ROW ACCESS POLICY a ON(a) zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a(a) ROWS_PER_RESULTSET ACCESS POLICY a ON(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-1	CREATE MATERIALIZED VIEW a(a) POLICY a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-2	CREATE MATERIALIZED VIEW a(a) AGGREGATION a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-3	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!truncate	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!insert	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!swap	CREATE MATERIALIZED VIEW a(a) AGGREGATION_CONSTRAINT POLICY a AS SELECT 1
-reject	accept	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a AS SELECT 1
-reject	accept	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a KEY(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY(a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY() AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY(a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY(a
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTITY KEY(a) zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a(a) AGGREGATION POLICY a ENTRYPOINT KEY(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-1	CREATE MATERIALIZED VIEW a(a) BY(1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) CLUSTER(1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) CLUSTER BY 1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) CLUSTER BY() AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1 AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!truncate	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!insert	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1) zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!swap	CREATE MATERIALIZED VIEW a(a) CLUSTERING BY(1) AS SELECT 1
-accept	accept	docs	createMaterializedView(,_EXPR)*/%empty	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_EXPR)*/%empty!insert	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1 zzz) AS SELECT 1
-accept	accept	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1, 1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1 1) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1,) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1,
-reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	CREATE MATERIALIZED VIEW a(a) CLUSTER BY(1, 1 zzz) AS SELECT 1
-accept	accept	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-accept	accept	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE MATERIALIZED VIEW a(a) TAG(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE MATERIALIZED VIEW a(a)(a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) TAG a = 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) TAG(= 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) TAG(a 's') AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) TAG(a =) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE MATERIALIZED VIEW a(a) TAG(a = 's' AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE MATERIALIZED VIEW a(a) TAG(a = 's'
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE MATERIALIZED VIEW a(a) TAG(a = 's') zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE MATERIALIZED VIEW a(a) TAGS(a = 's') AS SELECT 1
-accept	accept	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
-reject	accept	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a(a) CONTACT(a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a(a) WITH(a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a(a) WITH CONTACT a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(= a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a =) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!truncate	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a) zzz AS SELECT 1
-reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE MATERIALIZED VIEW a(a) WITHIN CONTACT(a = a) AS SELECT 1
-reject	accept	docs	createMaterializedView(,_ID_=_ID)*/%empty	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/%empty!insert	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a zzz) AS SELECT 1
-reject	accept	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a a = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, = a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, a a) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, a =) AS SELECT 1
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, a =
-reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE MATERIALIZED VIEW a(a) WITH CONTACT(a = a, a = a zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*	CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE MATERIALIZED VIEW a(a a) AS SELECT 1
+accept	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW a(a,) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!truncate	CREATE MATERIALIZED VIEW a(a,
+reject	undocumented	docs	createMaterializedView(,_ID)*/,_ID_(,_ID)*!insert	CREATE MATERIALIZED VIEW a(a, a zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID	CREATE MATERIALIZED VIEW a(a PROJECTION POLICY a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!drop-2	CREATE MATERIALIZED VIEW a(a PROJECTION a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!drop-3	CREATE MATERIALIZED VIEW a(a PROJECTION POLICY) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!truncate	CREATE MATERIALIZED VIEW a(a PROJECTION POLICY
+reject	undocumented	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!insert	CREATE MATERIALIZED VIEW a(a PROJECTION POLICY a zzz) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_PROJECTION_POLICY_ID)?/(WITH)?_PROJECTION_POLICY_ID!swap	CREATE MATERIALIZED VIEW a(a PROJECTION_CONSTRAINT POLICY a) AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE MATERIALIZED VIEW a TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE MATERIALIZED VIEW a(a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE MATERIALIZED VIEW a TAG a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE MATERIALIZED VIEW a TAG(= 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE MATERIALIZED VIEW a TAG(a 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE MATERIALIZED VIEW a TAG(a =) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE MATERIALIZED VIEW a TAG(a = 's' AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE MATERIALIZED VIEW a TAG(a = 's'
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE MATERIALIZED VIEW a TAG(a = 's') zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE MATERIALIZED VIEW a TAGS(a = 's') AS SELECT 1
+accept	accept	docs	createMaterializedView(,_ID_=_STRING)*/%empty	CREATE MATERIALIZED VIEW a TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/%empty!insert	CREATE MATERIALIZED VIEW a TAG(a = 's' zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE MATERIALIZED VIEW a TAG(a = 's', a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE MATERIALIZED VIEW a TAG(a = 's' a = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE MATERIALIZED VIEW a TAG(a = 's', = 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE MATERIALIZED VIEW a TAG(a = 's', a 's') AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE MATERIALIZED VIEW a TAG(a = 's', a =) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE MATERIALIZED VIEW a TAG(a = 's', a =
+reject	undocumented	docs	createMaterializedView(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE MATERIALIZED VIEW a TAG(a = 's', a = 's' zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(COMMENT_=_STRING)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE MATERIALIZED VIEW a COMMENT = 's' AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE MATERIALIZED VIEW a = 's' AS SELECT 1
+accept	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE MATERIALIZED VIEW a COMMENT 's' AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE MATERIALIZED VIEW a COMMENT = AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE MATERIALIZED VIEW a COMMENT =
+reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE MATERIALIZED VIEW a COMMENT = 's' zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE MATERIALIZED VIEW a COMMENTS = 's' AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a ACCESS POLICY a ON(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a ROW POLICY a ON(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a ROW ACCESS a ON(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY ON(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-7	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON() AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!drop-8	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON(a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON(a
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a ROW ACCESS POLICY a ON(a) zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_))?/(WITH)?_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a ROWS_PER_RESULTSET ACCESS POLICY a ON(a) AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-1	CREATE MATERIALIZED VIEW a POLICY a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-2	CREATE MATERIALIZED VIEW a AGGREGATION a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!drop-3	CREATE MATERIALIZED VIEW a AGGREGATION POLICY AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!truncate	CREATE MATERIALIZED VIEW a AGGREGATION POLICY
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!insert	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH?_AGGREGATION_POLICY_ID_(ENTITY_~8693d567)?/(WITH)?_AGGREGATION_POLICY_ID_(ENTITY_KEY_(_ID_(,_ID)*_))?!swap	CREATE MATERIALIZED VIEW a AGGREGATION_CONSTRAINT POLICY a AS SELECT 1
+reject	accept	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a AS SELECT 1
+reject	accept	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a KEY(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY(a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY() AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY(a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY(a
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTITY KEY(a) zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(ENTITY_KEY_(_ID_(,_ID)*_))?/ENTITY_KEY_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a AGGREGATION POLICY a ENTRYPOINT KEY(a) AS SELECT 1
+accept	accept	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+accept	accept	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)	CREATE MATERIALIZED VIEW a CLUSTER BY(1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-1	CREATE MATERIALIZED VIEW a BY(1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-2	CREATE MATERIALIZED VIEW a CLUSTER(1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-3	CREATE MATERIALIZED VIEW a CLUSTER BY 1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-4	CREATE MATERIALIZED VIEW a CLUSTER BY() AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!drop-5	CREATE MATERIALIZED VIEW a CLUSTER BY(1 AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!truncate	CREATE MATERIALIZED VIEW a CLUSTER BY(1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!insert	CREATE MATERIALIZED VIEW a CLUSTER BY(1) zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(CLUSTER_BY_(_EXPR_(,_EXPR)*_))?/CLUSTER_BY_(_EXPR_(,_EXPR)*_)!swap	CREATE MATERIALIZED VIEW a CLUSTERING BY(1) AS SELECT 1
+accept	accept	docs	createMaterializedView(,_EXPR)*/%empty	CREATE MATERIALIZED VIEW a CLUSTER BY(1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_EXPR)*/%empty!insert	CREATE MATERIALIZED VIEW a CLUSTER BY(1 zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE MATERIALIZED VIEW a CLUSTER BY(1, 1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	CREATE MATERIALIZED VIEW a CLUSTER BY(1 1) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	CREATE MATERIALIZED VIEW a CLUSTER BY(1,) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	CREATE MATERIALIZED VIEW a CLUSTER BY(1,
+reject	undocumented	docs	createMaterializedView(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	CREATE MATERIALIZED VIEW a CLUSTER BY(1, 1 zzz) AS SELECT 1
+accept	accept	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
+reject	accept	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a CONTACT(a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a WITH(a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a WITH CONTACT a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a WITH CONTACT(= a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a WITH CONTACT(a a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE MATERIALIZED VIEW a WITH CONTACT(a =) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!truncate	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a) zzz AS SELECT 1
+reject	undocumented	docs	createMaterializedView(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE MATERIALIZED VIEW a WITHIN CONTACT(a = a) AS SELECT 1
+reject	accept	docs	createMaterializedView(,_ID_=_ID)*/%empty	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/%empty!insert	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a zzz) AS SELECT 1
+reject	accept	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a a = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, = a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, a a) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, a =) AS SELECT 1
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, a =
+reject	undocumented	docs	createMaterializedView(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE MATERIALIZED VIEW a WITH CONTACT(a = a, a = a zzz) AS SELECT 1
 reject	accept	docs	createMcpServer/CREATE_(OR_REPLACE)?_MCP_SERVER_(IF_NOT_EXISTS)?_ID_FRO~140d4d47	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	accept	docs	createMcpServer(OR_REPLACE)?/%empty	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/%empty!insert	CREATE zzz MCP SERVER a FROM SPECIFICATION 's'
@@ -36885,7 +36888,7 @@ reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_E
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE MULTI PARTY APPROVAL POLICY IF NOT
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MULTI PARTY APPROVAL POLICY IF NOT EXISTS zzz a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MULTI PARTY APPROVAL POLICY IGNORE NOT EXISTS a AS 's'
-accept	accept	docs	createNetworkPolicy/CREATE_(OR_REPLACE)?_NETWORK_POLICY_(IF_NOT_EXISTS)?_ID~7702480a	CREATE NETWORK POLICY a
+accept	accept	docs	createNetworkPolicy/CREATE_(OR_REPLACE)?_NETWORK_POLICY_(IF_NOT_EXISTS)?_ID~5b2df7ef	CREATE NETWORK POLICY a
 accept	accept	docs	createNetworkPolicy(OR_REPLACE)?/%empty	CREATE NETWORK POLICY a
 reject	undocumented	docs	createNetworkPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz NETWORK POLICY a
 accept	accept	docs	createNetworkPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE NETWORK POLICY a
@@ -36911,12 +36914,13 @@ accept	undocumented	docs	createNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRIN
 reject	undocumented	docs	createNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~629ae272)?/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-5	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s'
 accept	undocumented	docs	createNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~629ae272)?/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!insert	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s') zzz
 accept	undocumented	docs	createNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~629ae272)?/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!swap	CREATE NETWORK POLICY a ALLOWED_RECIPIENTS =('s')
-accept	accept	docs	createNetworkPolicy(,_STRING)*/%empty	CREATE NETWORK POLICY a ALLOWED_IP_LIST =()
-accept	undocumented	docs	createNetworkPolicy(,_STRING)*/%empty!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(zzz)
-reject	accept	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(, 's')
-reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(,)
-reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(,
-reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(, 's' zzz)
+accept	accept	docs	createNetworkPolicy(,_STRING)*/%empty	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s')
+accept	undocumented	docs	createNetworkPolicy(,_STRING)*/%empty!insert	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s' zzz)
+accept	accept	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s', 's')
+accept	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s' 's')
+reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s',)
+reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s',
+reject	undocumented	docs	createNetworkPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE NETWORK POLICY a ALLOWED_NETWORK_RULE_LIST =('s', 's' zzz)
 accept	accept	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/%empty	CREATE NETWORK POLICY a
 accept	accept	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	CREATE NETWORK POLICY a BLOCKED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-2	CREATE NETWORK POLICY a BLOCKED_NETWORK_RULE_LIST('s')
@@ -36925,24 +36929,25 @@ accept	undocumented	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRIN
 reject	undocumented	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-5	CREATE NETWORK POLICY a BLOCKED_NETWORK_RULE_LIST =('s'
 accept	undocumented	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!insert	CREATE NETWORK POLICY a BLOCKED_NETWORK_RULE_LIST =('s') zzz
 accept	undocumented	docs	createNetworkPolicy(BLOCKED_NETWORK_RULE_LIST_=_(_STRING~d853240f)?/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!swap	CREATE NETWORK POLICY a BLOCKED_OBJECT_TYPES_FOR_CREATION =('s')
-accept	accept	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/%empty	CREATE NETWORK POLICY a
-accept	accept	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)	CREATE NETWORK POLICY a ALLOWED_IP_LIST =()
-reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-1	CREATE NETWORK POLICY a =()
-reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	CREATE NETWORK POLICY a ALLOWED_IP_LIST()
-reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	CREATE NETWORK POLICY a ALLOWED_IP_LIST =)
-reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(
-accept	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =() zzz
-accept	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/ALLOWED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!swap	CREATE NETWORK POLICY a ALLOWED_NAMESPACES =()
-accept	accept	docs	createNetworkPolicy(STRING)?/%empty	CREATE NETWORK POLICY a ALLOWED_IP_LIST =()
-accept	accept	docs	createNetworkPolicy(STRING)?/STRING	CREATE NETWORK POLICY a ALLOWED_IP_LIST =('s')
-accept	undocumented	docs	createNetworkPolicy(STRING)?/STRING!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =('s' zzz)
-accept	accept	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/%empty	CREATE NETWORK POLICY a
-accept	accept	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)	CREATE NETWORK POLICY a BLOCKED_IP_LIST =()
-reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	CREATE NETWORK POLICY a BLOCKED_IP_LIST()
-reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	CREATE NETWORK POLICY a BLOCKED_IP_LIST =)
-reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	CREATE NETWORK POLICY a BLOCKED_IP_LIST =(
-accept	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!insert	CREATE NETWORK POLICY a BLOCKED_IP_LIST =() zzz
-accept	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_STRING?_(,_STRING)*_))?/BLOCKED_IP_LIST_=_(_(STRING)?_(,_STRING)*_)!swap	CREATE NETWORK POLICY a BLOCKED_NAMESPACES =()
+accept	accept	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	CREATE NETWORK POLICY a
+accept	accept	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)	CREATE NETWORK POLICY a ALLOWED_IP_LIST =()
+reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-1	CREATE NETWORK POLICY a =()
+reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	CREATE NETWORK POLICY a ALLOWED_IP_LIST()
+reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	CREATE NETWORK POLICY a ALLOWED_IP_LIST =)
+reject	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(
+accept	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =() zzz
+accept	undocumented	docs	createNetworkPolicy(ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!swap	CREATE NETWORK POLICY a ALLOWED_NAMESPACES =()
+accept	accept	docs	createNetworkPolicy(STRING_(,_STRING)*)?/%empty	CREATE NETWORK POLICY a ALLOWED_IP_LIST =()
+accept	undocumented	docs	createNetworkPolicy(STRING_(,_STRING)*)?/%empty!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =(zzz)
+accept	accept	docs	createNetworkPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*	CREATE NETWORK POLICY a ALLOWED_IP_LIST =('s')
+accept	undocumented	docs	createNetworkPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*!insert	CREATE NETWORK POLICY a ALLOWED_IP_LIST =('s' zzz)
+accept	accept	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	CREATE NETWORK POLICY a
+accept	accept	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)	CREATE NETWORK POLICY a BLOCKED_IP_LIST =()
+reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	CREATE NETWORK POLICY a BLOCKED_IP_LIST()
+reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	CREATE NETWORK POLICY a BLOCKED_IP_LIST =)
+reject	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	CREATE NETWORK POLICY a BLOCKED_IP_LIST =(
+accept	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!insert	CREATE NETWORK POLICY a BLOCKED_IP_LIST =() zzz
+accept	undocumented	docs	createNetworkPolicy(BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKED_IP_LIST_=_(_(STRING_(,_STRING)*)?_)!swap	CREATE NETWORK POLICY a BLOCKED_NAMESPACES =()
 accept	accept	docs	createNetworkPolicy(COMMENT_=_STRING)?/%empty	CREATE NETWORK POLICY a
 accept	accept	docs	createNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE NETWORK POLICY a COMMENT = 's'
 reject	undocumented	docs	createNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE NETWORK POLICY a = 's'
@@ -37852,7 +37857,7 @@ reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/TRUE!swap	CREAT
 reject	accept	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FALSE
 reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FALSE zzz
 reject	undocumented	docs	createOrganizationUserGroup(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION USER GROUP a IS_GRANTABLE = FAMILIES
-reject	accept	docs	createPackagesPolicy/CREATE_(OR_REPLACE)?_PACKAGES_POLICY_(IF_NOT_EXISTS)?_I~a8ecf04f	CREATE PACKAGES POLICY a LANGUAGE PYTHON
+reject	accept	docs	createPackagesPolicy/CREATE_(OR_REPLACE)?_PACKAGES_POLICY_(IF_NOT_EXISTS)?_I~736c32aa	CREATE PACKAGES POLICY a LANGUAGE PYTHON
 reject	accept	docs	createPackagesPolicy(OR_REPLACE)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
 reject	undocumented	docs	createPackagesPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz PACKAGES POLICY a LANGUAGE PYTHON
 reject	accept	docs	createPackagesPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PACKAGES POLICY a LANGUAGE PYTHON
@@ -37869,37 +37874,38 @@ reject	undocumented	docs	createPackagesPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop
 reject	undocumented	docs	createPackagesPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE PACKAGES POLICY IF NOT
 reject	undocumented	docs	createPackagesPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE PACKAGES POLICY IF NOT EXISTS zzz a LANGUAGE PYTHON
 reject	undocumented	docs	createPackagesPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE PACKAGES POLICY IGNORE NOT EXISTS a LANGUAGE PYTHON
-reject	accept	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
-reject	accept	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =()
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!drop-1	CREATE PACKAGES POLICY a LANGUAGE PYTHON =()
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST()
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =)
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =() zzz
-reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_STRING?_(,_STRING)*_))?/ALLOWLIST_=_(_(STRING)?_(,_STRING)*_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOW_ALL_OVERLAP =()
-reject	accept	docs	createPackagesPolicy(STRING)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =()
-reject	undocumented	docs	createPackagesPolicy(STRING)?/%empty!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(zzz)
-reject	accept	docs	createPackagesPolicy(STRING)?/STRING	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s')
-reject	undocumented	docs	createPackagesPolicy(STRING)?/STRING!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s' zzz)
-reject	accept	docs	createPackagesPolicy(,_STRING)*/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =()
-reject	accept	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(, 's')
-reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(,)
-reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(,
-reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(, 's' zzz)
-reject	accept	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
-reject	accept	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =()
-reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST()
-reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =)
-reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =(
-reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =() zzz
-reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_STRING?_(,_STRING)*_))?/BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON BODY =()
-reject	accept	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
-reject	accept	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =()
-reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST()
-reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =)
-reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =(
-reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =() zzz
-reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_ST~d2a190ff)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING)?_(,_STRING)*_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIVE =()
+reject	accept	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
+reject	accept	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =()
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!drop-1	CREATE PACKAGES POLICY a LANGUAGE PYTHON =()
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST()
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =)
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =() zzz
+reject	undocumented	docs	createPackagesPolicy(ALLOWLIST_=_(_(STRING_(,_STRING)*)?_))?/ALLOWLIST_=_(_(STRING_(,_STRING)*)?_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOW_ALL_OVERLAP =()
+reject	accept	docs	createPackagesPolicy(STRING_(,_STRING)*)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =()
+reject	undocumented	docs	createPackagesPolicy(STRING_(,_STRING)*)?/%empty!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =(zzz)
+reject	accept	docs	createPackagesPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s')
+reject	undocumented	docs	createPackagesPolicy(STRING_(,_STRING)*)?/STRING_(,_STRING)*!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s' zzz)
+reject	accept	docs	createPackagesPolicy(,_STRING)*/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s')
+reject	accept	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s', 's')
+reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s' 's')
+reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s',)
+reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s',
+reject	undocumented	docs	createPackagesPolicy(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ALLOWLIST =('s', 's' zzz)
+reject	accept	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
+reject	accept	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =()
+reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST()
+reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =)
+reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =(
+reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON BLOCKLIST =() zzz
+reject	undocumented	docs	createPackagesPolicy(BLOCKLIST_=_(_(STRING_(,_STRING)*)?_))?/BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON BODY =()
+reject	accept	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
+reject	accept	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =()
+reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-2	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST()
+reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-3	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =)
+reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!drop-4	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =(
+reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!insert	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIONAL_CREATION_BLOCKLIST =() zzz
+reject	undocumented	docs	createPackagesPolicy(ADDITIONAL_CREATION_BLOCKLIST_=_(_(S~c4a8f933)?/ADDITIONAL_CREATION_BLOCKLIST_=_(_(STRING_(,_STRING)*)?_)!swap	CREATE PACKAGES POLICY a LANGUAGE PYTHON ADDITIVE =()
 reject	accept	docs	createPackagesPolicy(COMMENT_=_STRING)?/%empty	CREATE PACKAGES POLICY a LANGUAGE PYTHON
 reject	accept	docs	createPackagesPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE PACKAGES POLICY a LANGUAGE PYTHON COMMENT = 's'
 reject	undocumented	docs	createPackagesPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE PACKAGES POLICY a LANGUAGE PYTHON = 's'
@@ -38860,34 +38866,34 @@ accept	undocumented	docs	createResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE
 reject	undocumented	docs	createResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	CREATE RESOURCE MONITOR a WITH NOTIFY_USERS =(a,
 accept	undocumented	docs	createResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	CREATE RESOURCE MONITOR a WITH NOTIFY_USERS =(a, a zzz)
 accept	accept	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/%empty	CREATE RESOURCE MONITOR a WITH
-reject	accept	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND
-accept	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-1	CREATE RESOURCE MONITOR a WITH ON a PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-2	CREATE RESOURCE MONITOR a WITH TRIGGERS a PERCENT DO SUSPEND
+accept	accept	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-1	CREATE RESOURCE MONITOR a WITH ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-2	CREATE RESOURCE MONITOR a WITH TRIGGERS 1 PERCENT DO SUSPEND
 reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-3	CREATE RESOURCE MONITOR a WITH TRIGGERS ON PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-4	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-5	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT SUSPEND
-reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-6	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO
-reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND zzz
-accept	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!swap	CREATE RESOURCE MONITOR a WITH TRIM_SPACE ON a PERCENT DO SUSPEND
-reject	accept	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/%empty	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND
-reject	accept	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-1	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND a PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-2	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-3	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON a DO SUSPEND
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-4	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT SUSPEND
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-5	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ON a PERCENT DO SUSPEND zzz
-reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND ONBOARDING_QUESTION a PERCENT DO SUSPEND
-reject	accept	docs	createResourceMonitor_triggerDefinition/ON_ID_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor_triggerDefinition/ON_ID_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ONBOARDING_QUESTION a PERCENT DO SUSPEND
-reject	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND
-reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPENDED
-reject	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND_IMMEDIATE
-reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND_IMMEDIATE zzz
-reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO SUSPEND_TASK_AFTER_NUM_FAILURES
-reject	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO NOTIFY
-reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO NOTIFY zzz
-reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON a PERCENT DO NOTIFY_USERS
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-4	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-5	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT SUSPEND
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!drop-6	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	createResourceMonitor(TRIGGERS_createResourceMonitor_trigg~67b49a7b)?/TRIGGERS_createResourceMonitor_triggerDefinition_(creat~6f4f3aff!swap	CREATE RESOURCE MONITOR a WITH TRIM_SPACE ON 1 PERCENT DO SUSPEND
+accept	accept	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/%empty	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND
+accept	accept	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-1	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-2	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-3	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 DO SUSPEND
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-4	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT SUSPEND
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!drop-5	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	createResourceMonitor(createResourceMonitor_triggerDefinition)*/createResourceMonitor_triggerDefinition_(createResource~49a2fc00!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
+accept	accept	docs	createResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor_triggerDefinition/ON_NUMBER_PERCENT_DO_(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ONBOARDING_QUESTION 1 PERCENT DO SUSPEND
+accept	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPENDED
+accept	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE
+reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND_IMMEDIATE zzz
+reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/SUSPEND_IMMEDIATE!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO SUSPEND_TASK_AFTER_NUM_FAILURES
+accept	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY
+reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY zzz
+reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY_USERS
 reject	accept	docs	createRestrictedSessionScope/CREATE_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_NOT_EXISTS)?_~08a01bfd	CREATE RSS a AS 's'
 reject	accept	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	CREATE RESTRICTED SESSION SCOPE a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-1	CREATE SESSION SCOPE a AS 's'

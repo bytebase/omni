@@ -410,7 +410,30 @@ func resolveSeq(seq []*node) ([]*node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return atLeastOneAfterSet(commaOptions(unsetList(unsetNamesOnly(pairParens(out))))), nil
+	return atLeastOneAfterSet(commaOptions(unsetList(unsetNamesOnly(pairParens(optionalFirst(out)))))), nil
+}
+
+// optionalFirst reads [ X ] [ , X , ... ], an optional first element and
+// a repeated rest, as no list or a whole one: a comma always has an X
+// before it.
+func optionalFirst(seq []*node) []*node {
+	for i := 0; i+1 < len(seq); i++ {
+		a, b := seq[i], seq[i+1]
+		if a.tok != nil || a.brace || a.op != '?' || len(a.alts) != 1 {
+			continue
+		}
+		if b.tok != nil || b.op != '*' || len(b.alts) != 1 || len(b.alts[0]) < 2 || !isComma(b.alts[0][0]) {
+			continue
+		}
+		if nodesText(a.alts[0]) != nodesText(b.alts[0][1:]) {
+			continue
+		}
+		x := &node{alts: a.alts, brace: true}
+		list := &node{alts: [][]*node{{x, b}}, op: '?'}
+		out := append(append([]*node(nil), seq[:i]...), list)
+		return append(out, seq[i+2:]...)
+	}
+	return seq
 }
 
 // pairParens reads [ ( ] X [ ) ] as ( X ) or X: SQL's parentheses come

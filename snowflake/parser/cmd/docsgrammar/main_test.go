@@ -44,6 +44,7 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"( <col_name> <col_type> [ , <col_name> <col_type> [ DEFAULT <expr> ] [ ... ] ] )", "'(' ID DATA_TYPE (',' ID DATA_TYPE ('DEFAULT' EXPR)?)* ')'"},
 		{"ALTER T <name> MODIFY [ ( ] COLUMN <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ID 'MODIFY' ('(' 'COLUMN' ID 'DROP' 'DEFAULT' ')' | 'COLUMN' ID 'DROP' 'DEFAULT')"},
 		{"ALTER P <name> UNSET [ MIN_LENGTH ] [ MAX_LENGTH ] [ COMMENT ]", "'ALTER' 'P' ID 'UNSET' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT') (',' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT'))*"},
+		{"IPS = ( [ '<ip>' ] [ , '<ip>' , ... ] )", "'IPS' '=' '(' (STRING (',' STRING)*)? ')'"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.
@@ -270,6 +271,7 @@ func TestPlaceholderClasses(t *testing.T) {
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
 		"sql":       tQuery,
+		"threshold": tNumber,
 		"col1_type": tType, "specification_text": tString,
 		"python_version": tString, "scala_or_java_runtime_version": tString, "version_name": tName,
 		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,

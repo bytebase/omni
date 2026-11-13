@@ -1580,7 +1580,7 @@ alterMultiPartyApprovalPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-network-policy
 alterNetworkPolicy
-    : 'ALTER' 'NETWORK' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' ('BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('BLOCKED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)? | 'BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' ('ALLOWED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('BLOCKED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)? | 'ALLOWED_IP_LIST' '=' '(' STRING? (',' STRING)* ')' ('BLOCKED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)? | 'BLOCKED_IP_LIST' '=' '(' STRING? (',' STRING)* ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : 'ALTER' 'NETWORK' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' ('BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('BLOCKED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)? | 'BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' ('ALLOWED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('BLOCKED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)? | 'ALLOWED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')' ('BLOCKED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)? | 'BLOCKED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     | 'ALTER' 'NETWORK' 'POLICY' ('IF' 'EXISTS')? ID 'UNSET' 'COMMENT'
     | 'ALTER' 'NETWORK' 'POLICY' ID 'ADD' ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' | 'BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')
     | 'ALTER' 'NETWORK' 'POLICY' ID 'REMOVE' ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')' | 'BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')
@@ -1781,7 +1781,7 @@ alterOrganizationUserGroup
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-packages-policy
 alterPackagesPolicy
-    : 'ALTER' 'PACKAGES' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('ALLOWLIST' '=' '(' STRING? (',' STRING)* ')' ('BLOCKLIST' '=' '(' STRING? (',' STRING)* ')')? ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)? | 'BLOCKLIST' '=' '(' STRING? (',' STRING)* ')' ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)? | 'ADDITIONAL_CREATION_BLOCKLIST' '=' '(' STRING? (',' STRING)* ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : 'ALTER' 'PACKAGES' 'POLICY' ('IF' 'EXISTS')? ID 'SET' ('ALLOWLIST' '=' '(' (STRING (',' STRING)*)? ')' ('BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)? | 'BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')' ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)? | 'ADDITIONAL_CREATION_BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     | 'ALTER' 'PACKAGES' 'POLICY' ('IF' 'EXISTS')? ID 'UNSET' ('ALLOWLIST' | 'BLOCKLIST' | 'ADDITIONAL_CREATION_BLOCKLIST' | 'COMMENT') (',' ('ALLOWLIST' | 'BLOCKLIST' | 'ADDITIONAL_CREATION_BLOCKLIST' | 'COMMENT'))*
     ;
 
@@ -1882,7 +1882,7 @@ alterResourceMonitor
     : 'ALTER' 'RESOURCE' 'MONITOR' ('IF' 'EXISTS')? ID ('SET' ('CREDIT_QUOTA' '=' NUMBER ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (ID | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' ID)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER') ('START_TIMESTAMP' '=' (ID | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' ID)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'START_TIMESTAMP' '=' (ID | 'IMMEDIATELY') ('END_TIMESTAMP' '=' ID)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'END_TIMESTAMP' '=' ID ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'NOTIFY_USERS' '=' '(' ID (',' ID)* ')'))? ('TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)?
     ;
 alterResourceMonitor_triggerDefinition
-    : 'ON' ID 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
+    : 'ON' NUMBER 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-restricted-session-scope
@@ -3181,8 +3181,9 @@ createMaskingPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-materialized-view
+// fix: the column list is optional and holds each column's policies, and its other columns, inside its parentheses, as the page's parameters write them
 createMaterializedView
-    : 'CREATE' ('OR' 'REPLACE')? 'SECURE'? 'INTERACTIVE'? 'MATERIALIZED' 'VIEW' ('IF' 'NOT' 'EXISTS')? ID ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? '(' ID ')' (ID 'WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'WITH'? 'PROJECTION' 'POLICY' ID 'WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? (',' ID)* ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')?)? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? 'AS' QUERY
+    : 'CREATE' ('OR' 'REPLACE')? 'SECURE'? 'INTERACTIVE'? 'MATERIALIZED' 'VIEW' ('IF' 'NOT' 'EXISTS')? ID ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('(' ID ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? (',' ID)* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')?)? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? 'AS' QUERY
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-mcp-server
@@ -3208,7 +3209,7 @@ createMultiPartyApprovalPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-network-policy
 createNetworkPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'NETWORK' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('BLOCKED_IP_LIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'NETWORK' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID ('ALLOWED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('BLOCKED_NETWORK_RULE_LIST' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('BLOCKED_IP_LIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-network-rule
@@ -3335,7 +3336,7 @@ createOrganizationUserGroup
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-packages-policy
 createPackagesPolicy
-    : 'CREATE' ('OR' 'REPLACE')? 'PACKAGES' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'LANGUAGE' 'PYTHON' ('ALLOWLIST' '=' '(' STRING? (',' STRING)* ')')? ('BLOCKLIST' '=' '(' STRING? (',' STRING)* ')')? ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' STRING? (',' STRING)* ')')? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'PACKAGES' 'POLICY' ('IF' 'NOT' 'EXISTS')? ID 'LANGUAGE' 'PYTHON' ('ALLOWLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('ADDITIONAL_CREATION_BLOCKLIST' '=' '(' (STRING (',' STRING)*)? ')')? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-password-policy
@@ -3428,7 +3429,7 @@ createResourceMonitor
     : 'CREATE' ('OR' 'REPLACE')? 'RESOURCE' 'MONITOR' ('IF' 'NOT' 'EXISTS')? ID 'WITH' ('CREDIT_QUOTA' '=' NUMBER)? ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (ID | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' ID)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? ('TRIGGERS' createResourceMonitor_triggerDefinition createResourceMonitor_triggerDefinition*)?
     ;
 createResourceMonitor_triggerDefinition
-    : 'ON' ID 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
+    : 'ON' NUMBER 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-restricted-session-scope
