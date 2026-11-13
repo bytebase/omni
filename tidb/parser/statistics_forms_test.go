@@ -5,7 +5,7 @@ import "testing"
 // The forms TiDB's standalone statistics statements take, and -- the point of
 // this file -- the forms they do not.
 //
-// The corpus in testdata/pingcap_parser_corpus.tsv pins what pingcap's own
+// The corpus in compat.tsv's suite:pingcap-parser rows pins what pingcap's own
 // parser test writes, and for this family that is 44 accepting rows and
 // almost no rejections. A reader that took any number and any word after
 // WITH would turn every one of those rows green while accepting `WITH 4
@@ -323,7 +323,7 @@ func TestStatisticsForms(t *testing.T) {
 			_, err := Parse(c.sql)
 			if accepts := err == nil; accepts != c.accept {
 				t.Errorf("omni %ss %q, TiDB %s %ss it (err=%v)",
-					verdictName(accepts), c.sql, tidbCorpusVersion, verdictName(c.accept), err)
+					verdictName(accepts), c.sql, tidbRelease, verdictName(c.accept), err)
 			}
 		})
 	}

@@ -104,10 +104,10 @@ func TestCharTypeSpellingsRejected(t *testing.T) {
 // missing length rather than a spelling TiDB has never heard of.
 func TestCharTypeSpellingsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	for want, cases := range map[bool][]string{
+	for want, cases := range byVerdict(map[bool][]string{
 		true:  charTypeSpellingsAccepted,
 		false: charTypeSpellingsRejected,
-	} {
+	}) {
 		for _, sql := range cases {
 			t.Run(sql, func(t *testing.T) {
 				accepts, err := tc.prepareSyntax(sql)

@@ -15,7 +15,6 @@ import (
 // that changes an answer fails here rather than leaving a stale expectation behind.
 func TestTiDBAdminFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range tidbAdminCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)
@@ -38,7 +37,6 @@ func TestTiDBAdminFormsMatchTiDB(t *testing.T) {
 // 1064 with the tail.
 func TestTiDBAdminRefusalsHappenWhileParsing(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	prepareCode := func(t *testing.T, sql string) uint16 {
 		t.Helper()
 		conn, err := tc.db.Conn(tc.ctx)
@@ -86,7 +84,6 @@ func TestTiDBAdminRefusalsHappenWhileParsing(t *testing.T) {
 // if the server had changed its mind; this test is what says the server has not.
 func TestTiDBAdminWordsStayNamesOnTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range tidbAdminWordsAsNames {
 		t.Run(sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(sql)
@@ -122,7 +119,6 @@ var tidbReservedWordsTheLexerLacks = []string{"current_role", "ilike", "tidb_cur
 // this sweeps the words rather than trusting the copy.
 func TestKillFunctionNameSweepMatchesTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 
 	words := map[string]bool{"foo": true, "_foo": true}
 	maps.Copy(words, tidbLexerWords)

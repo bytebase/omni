@@ -13,7 +13,6 @@ import "testing"
 // deparse would parenthesise the value, which TiDB reads as the function.
 func TestIntervalSignedValue(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range []string{
 		"SELECT DATE_ADD('2007-03-28 22:08:28', INTERVAL -2.2 MINUTE_MICROSECOND)",
 		"SELECT DATE_ADD('2007-03-28 22:08:28', INTERVAL -2.2 SECOND)",
@@ -25,7 +24,7 @@ func TestIntervalSignedValue(t *testing.T) {
 		"SELECT DATE_ADD('x', INTERVAL 2.2 MINUTE_MICROSECOND)",
 		"SELECT '1900-01-01' + INTERVAL 1 DAY",
 	} {
-		tidbAccepts, _, err := tc.syntaxVerdict(t, sql, "<interval signed test>")
+		tidbAccepts, err := tc.prepareSyntax(sql)
 		if err != nil {
 			t.Fatalf("no verdict for %q: %v", sql, err)
 		}
