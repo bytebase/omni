@@ -862,9 +862,9 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		// opt_plus ulong_num: a number, required, or a 0x number.
-		p.match('+')
-		if p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x") {
+		// ulong_num: opt_plus before a decimal number, a bare 0x number.
+		_, plus := p.match('+')
+		if !plus && p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x") {
 			stmt.To = replicationInt(p.advance())
 		} else if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 			return nil, p.syntaxErrorAtCur()

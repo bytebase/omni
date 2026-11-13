@@ -339,8 +339,9 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// reset_option's last arm is QUERY CACHE, both words (reset in MariaDB
-	// 11.8 sql/sql_yacc.yy).
+	// reset_option's last arm is QUERY CACHE, both words, and reset_options
+	// is a comma list of reset_option (reset in MariaDB 11.8 sql/sql_yacc.yy).
+	// A list after QUERY CACHE keeps each later option's text.
 	if p.cur.Type != kwQUERY {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -348,7 +349,33 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	if _, err := p.expect(kwCACHE); err != nil {
 		return nil, err
 	}
-	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: []string{"QUERY CACHE"}}, nil
+	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}, Options: []string{"QUERY CACHE"}}
+	for {
+		if _, ok := p.match(','); !ok {
+			break
+		}
+		optStart := p.pos()
+		switch p.cur.Type {
+		case kwQUERY:
+			p.advance()
+			if _, err := p.expect(kwCACHE); err != nil {
+				return nil, err
+			}
+		case kwMASTER:
+			if _, err := p.parseResetMasterStmt(optStart); err != nil {
+				return nil, err
+			}
+		case kwREPLICA, kwSLAVE:
+			if _, err := p.parseResetReplicaStmt(optStart); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Options = append(stmt.Options, p.inputText(optStart, p.prev.End))
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseStopDispatch dispatches STOP statements.

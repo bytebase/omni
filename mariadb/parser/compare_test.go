@@ -10060,11 +10060,20 @@ func TestParseFlush(t *testing.T) {
 func TestParseReset(t *testing.T) {
 	tests := []string{
 		"RESET QUERY CACHE",
+		"RESET QUERY CACHE, MASTER",
+		"RESET QUERY CACHE, MASTER TO 5, SLAVE ALL, QUERY CACHE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
+	}
+	// reset_options needs an option after each comma; ulong_num puts
+	// opt_plus only before decimal numbers, not before a 0x number.
+	for _, sql := range []string{"RESET QUERY CACHE,", "RESET QUERY CACHE, zzz", "RESET MASTER TO +0x41"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want an error", sql)
+		}
 	}
 }
 
