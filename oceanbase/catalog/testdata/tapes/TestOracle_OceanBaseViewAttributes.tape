@@ -2,15 +2,6 @@
 
 == TestOracle_OceanBaseViewAttributes default#1
 > exec
-| DROP DATABASE IF EXISTS obviews
-< ok 0 0
-> exec
-| CREATE DATABASE obviews
-< ok 1 0
-> exec
-| USE obviews
-< ok 0 0
-> exec
 | CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, n INT)
 < ok 0 0
 > exec
@@ -24,9 +15,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_plain
 < result
@@ -39,9 +28,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_plain
 < result
@@ -65,9 +52,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_distinct
 < result
@@ -80,9 +65,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_distinct
 < result
@@ -100,9 +83,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_temptable
 < result
@@ -115,9 +96,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_temptable
 < result
@@ -135,9 +114,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_merge
 < result
@@ -150,9 +127,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_merge
 < result
@@ -170,9 +145,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_group
 < result
@@ -185,9 +158,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_group
 < result
@@ -211,9 +182,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_expr
 < result
@@ -226,9 +195,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_expr
 < result
@@ -277,9 +244,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_inner
 < result
@@ -292,9 +257,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_inner
 < result
@@ -320,13 +283,94 @@
 | YES
 : null
 > exec
+| CREATE VIEW v_if AS SELECT IF(a > 0, NULL, 'x') AS c, IF(a > 0, a, 1) AS e, CASE WHEN a > 0 THEN a END AS f FROM t
+< ok 0 0
+> query
+| SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+: string
+| v_if
+< result
+< column "IS_UPDATABLE" "VARCHAR"
+< column "SECURITY_TYPE" "VARCHAR"
+< row
+: bytes
+| YES
+: bytes
+| NONE
+> query
+| SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| v_if
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR"
+< column "CHARACTER_SET_NAME" "VARCHAR"
+< row
+: bytes
+| c
+: bytes
+| YES
+: bytes
+| utf8mb4
+< row
+: bytes
+| e
+: bytes
+| NO
+: null
+< row
+: bytes
+| f
+: bytes
+| YES
+: null
+> exec
+| CREATE VIEW v_if_charset AS SELECT IF(l IS NULL, 'y', l) AS d, CASE WHEN l IS NULL THEN m ELSE l END AS g FROM s
+< ok 0 0
+> query
+| SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+: string
+| v_if_charset
+< result
+< column "IS_UPDATABLE" "VARCHAR"
+< column "SECURITY_TYPE" "VARCHAR"
+< row
+: bytes
+| YES
+: bytes
+| NONE
+> query
+| SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| v_if_charset
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR"
+< column "CHARACTER_SET_NAME" "VARCHAR"
+< row
+: bytes
+| d
+: bytes
+| YES
+: bytes
+| latin1
+< row
+: bytes
+| g
+: bytes
+| YES
+: bytes
+| utf8mb4
+> exec
 | CREATE VIEW v_union AS SELECT a FROM t UNION SELECT b FROM u
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_union
 < result
@@ -339,9 +383,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_union
 < result
@@ -359,9 +401,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_invoker
 < result
@@ -374,9 +414,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_invoker
 < result
@@ -394,9 +432,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_definer
 < result
@@ -409,9 +445,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_definer
 < result
@@ -429,9 +463,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_left
 < result
@@ -444,9 +476,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_left
 < result
@@ -470,9 +500,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_right
 < result
@@ -485,9 +513,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_right
 < result
@@ -511,9 +537,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_repeat
 < result
@@ -526,9 +550,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_repeat
 < result
@@ -547,9 +569,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_lpad_lm
 < result
@@ -562,9 +582,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_lpad_lm
 < result
@@ -583,9 +601,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_lpad_ml
 < result
@@ -598,9 +614,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_lpad_ml
 < result
@@ -619,9 +633,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_rpad_lm
 < result
@@ -634,9 +646,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_rpad_lm
 < result
@@ -655,9 +665,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_rpad_ml
 < result
@@ -670,9 +678,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_rpad_ml
 < result
@@ -691,9 +697,7 @@
 < ok 0 0
 > query
 | SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v_lpad_ll
 < result
@@ -706,9 +710,7 @@
 | NONE
 > query
 | SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
-: string
-| obviews
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
 : string
 | v_lpad_ll
 < result

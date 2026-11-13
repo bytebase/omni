@@ -2,22 +2,11 @@
 
 == TestOracle_OceanBaseViewColumnNames default#1
 > exec
-| DROP DATABASE IF EXISTS obviewnames
-< ok 0 0
-> exec
-| CREATE DATABASE obviewnames
-< ok 1 0
-> exec
-| USE obviewnames
-< ok 0 0
-> exec
 | CREATE VIEW v64b AS SELECT concat('ééééééééééééééééééééééééééé')
 < ok 0 0
 > query
 | SELECT COLUMN_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviewnames
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v64b
 < result
@@ -30,9 +19,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviewnames
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v66b
 < result
@@ -45,9 +32,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviewnames
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v64c
 < result
@@ -60,9 +45,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-: string
-| obviewnames
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
 : string
 | v65c
 < result
