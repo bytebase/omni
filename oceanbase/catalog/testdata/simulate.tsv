@@ -1020,15 +1020,15 @@ ok	1072	engine	one_table@table	index_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM
 ok	1072	engine	one_table@table	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 1054	1072	engine	one_table@table	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok	1072	engine	one_table@table	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@table	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@table	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok	1072	engine	one_table@table	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok	1072	engine	one_table@table	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@table	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok	1072	engine	one_table@table	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok	1072	engine	one_table@table	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@table	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@table	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok	1072	engine	one_table@table	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -1128,11 +1128,11 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_drop_behavior/RESTRIC
 1054	1235	engine	one_table@table	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@table	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@table	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@table	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@table	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@table	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@table	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	ok:158492498704	engine	one_table@table	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	ok:158492498704	engine	one_table@table	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	ok:ade19a09cac6	engine	one_table@table	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
@@ -1589,15 +1589,15 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/KEY_BLOCK_S
 ok:ea2c84a22033	ok:ea2c84a22033	engine	one_table@column	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 ok	ok:e5cac50200af	engine	one_table@column	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@column	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@column	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@column	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@column	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:4b216dacf428	ok:4b216dacf428	engine	one_table@column	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok:c074959e710c	ok:c074959e710c	engine	one_table@column	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -1697,11 +1697,11 @@ ok	1067	engine	one_table@column	alter_column_behavior/SET_DEFAULT_signed_literal
 ok	1235	engine	one_table@column	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@column	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@column	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@column	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@column	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@column	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@column	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	1060	engine	one_table@column	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	1060	engine	one_table@column	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@column	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
@@ -2158,15 +2158,15 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/KEY_BLOCK_SI
 ok:cd75ff775535	ok:cd75ff775535	engine	one_table@index	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 ok	ok:7c097d37a5bb	engine	one_table@index	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@index	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@index	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@index	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@index	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:c65f397a37a1	ok:c65f397a37a1	engine	one_table@index	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok:b1c3376df5ad	ok:b1c3376df5ad	engine	one_table@index	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -2266,11 +2266,11 @@ ok	1067	engine	one_table@index	alter_column_behavior/SET_DEFAULT_signed_literal	
 ok	1235	engine	one_table@index	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@index	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@index	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@index	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@index	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@index	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@index	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	1060	engine	one_table@index	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	1060	engine	one_table@index	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@index	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
