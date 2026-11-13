@@ -452,19 +452,14 @@ var grammarActionCases = []grammarActionCase{
 // TestGrammarActionFormsOracle holds each case to v8.5.5 and to omni.
 func TestGrammarActionFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, c := range grammarActionCases {
+	for _, c := range grammarActionCases {
 		t.Run(c.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = grammarActionCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, c.sql, previous)
+			accepts, err := tc.prepareSyntax(c.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != c.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, c.accept, c.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, c.accept, c.sql)
 			}
 		})
 	}

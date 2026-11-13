@@ -577,10 +577,10 @@ func TestResourceControlRejected(t *testing.T) {
 // reading of its grammar file.
 func TestResourceControlMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	for want, cases := range map[bool][]string{
+	for want, cases := range byVerdict(map[bool][]string{
 		true:  resourceControlAccepted,
 		false: resourceControlRejected,
-	} {
+	}) {
 		for _, sql := range cases {
 			t.Run(sql, func(t *testing.T) {
 				accepts, err := tc.prepareSyntax(sql)

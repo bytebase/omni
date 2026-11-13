@@ -473,7 +473,7 @@ Progress is visible: `TestCompatibility` prints how many rows of each kind agree
 | mongo | mongosh method docs → `.g4` | docs |
 | elasticsearch | `elasticsearch-specification` → `.g4` | grammar |
 
-- **TiDB is the starting point.** Its `parser.y` rows were the first `compat.tsv`; its other corpora become `suite:` rows in step 1.
+- **TiDB is the starting point.** Its `parser.y` rows were the first `compat.tsv`; its other corpora became `suite:` rows in step 1.
 - **Engines judged by grammar or docs** move up to `engine` once an image is pinned: Cassandra, DynamoDB Local, the Cosmos DB emulator, MongoDB and Elasticsearch all ship one.
 
 ## 9. Rollout
@@ -672,6 +672,27 @@ After step 0 the engines are independent. Order:
 - **3,047 disagreements,** while every existing oracle test passes. They are untriaged. `ALTER SYSTEM` and optimizer hints are the largest families, and some come from the spike's crude sample tokens.
 - **The grammar alone** agreed with the engine on 90% of statements. Most of the rest is the lexer (531 malformed hints, which live in comments) and 124 `yyerror` checks in C actions. Token rows and overrides (§2.2, §2.3) exist for these.
 - **Replay** took about 1 second per package, against 147 seconds (catalog) and about 300 seconds (review) live.
+
+**TiDB, `tidb/parser`.** Moved 2026-11-13. `compat.tsv` holds 43,952 rows at `v8.5.5`, judged in 98 seconds, and 43,951 agree. The one left, `suite:cited`'s `ALTER DATABASE COLLATE 's' zzz`, is the judge's: TiDB stops at the unknown collation with 1273, which reads as accepted, and never reaches `zzz`, which omni rejects as TiDB does after a known collation.
+
+| Rows | Total | Agree |
+| --- | --- | --- |
+| Generated: alternatives and near-misses | 11,055 | 11,055 |
+| The four corpora: pingcap's parser tests, their rest, TiDB's integration tests, Bytebase's | 32,495 | 32,495 |
+| `suite:reject-fuzz-sweep`: 300 mutations from a fixed seed | 292 | 292 |
+| Statements two oracle tests listed, cited and fuzz findings | 110 | 109 |
+
+- **The corpora** were 32,560 rows in their own files, sampled live at `TIDB_CORPUS_N`. 65 statements another row already held were left out. The pinned server gave every row the verdict its file recorded.
+- **The reject fuzz** draws its seeds from the expected column, so closing a gap no longer moves them. Its minimiser sent requests that depend on omni's verdict, and is gone: a finding is a disagreeing row.
+- **99 tests replay tapes,** 7.3 MB, recorded in 55 to 105 seconds and replayed in about 20. Each verdict is one `PREPARE omni_stmt FROM ?`, two with the probe. The codec writes `…` for the 121 characters that open a syntax error and for the TSO numbers in a read-timestamp error, which differ on every run. Six tests iterated maps while sending, and sort now. The operator sweep's size and seed are constants.
+- **Deleted:** the live corpus tests and their sampler, and the harness tests of a run that recovers a lost connection or server (`TestTiDBCorpusHarnessSurvivesALostServer`, `TestPrepareSyntaxHoldsOneConnection`, `TestLostHarnessAnswersRatherThanPanics`): a replay has no server to lose, and the judge, which runs only in a recording, fails on a lost answer rather than recovering. `TestSyntaxProbeControls` stays, on a tape.
+
+**TiDB, `tidb/review`.** Its five oracle tests replay (2026-11-13): 5 tapes, 1.6 MB, recorded in 80 to 90 seconds and replayed in 2. Two recordings left the same tapes.
+
+- **The walk is a `Lister`.** One query lists databases, relations, columns, indexes and foreign keys. A local temporary table is in no `information_schema` view, its own session's included, so the inventory asks `SHOW CREATE TABLE` in every database for each name the change's `CREATE TEMPORARY TABLE` statements hold. The `Holder` and its digest are gone.
+- **It finds 222 of the 247 statements TiDB rejects in the 60 curated cases, and 390 of 610 in a sweep of 40 changes,** with no false finding. CI swept 500 changes live on four servers; the tape holds 40, as OceanBase's does.
+- **Three connections a case,** as OceanBase's: the setup, the catalog, and the change, which sets `foreign_key_checks` itself: a new session could read the global a sweep's base had turned off before the setup turned it on again.
+- **Server state** goes through `testcontainer.Reset`: user databases dropped, `test` made again, and the global `foreign_key_checks` and `tidb_enable_check_constraint` on. The prior-backup, scan-rule and column-drop oracles stay as they were, on a tape each.
 
 **Snowflake.** A prototype converted the Syntax blocks of 77 docs pages to a `.g4` and generated 1,557 statements, of which omni accepts 64%. The blocks are near-BNF and map directly:
 

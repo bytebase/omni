@@ -9,7 +9,6 @@ import "testing"
 // still counts as parsed.
 func TestTiDBSpacedFuncWordsMatchEngine(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range spacedFuncWordCases {
 		accepts, err := tc.prepareSyntax(c.sql)
 		if err != nil {
