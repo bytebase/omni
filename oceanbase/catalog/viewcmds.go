@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -18,6 +19,16 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
+	}
+	// The query is analyzed once: here when the body is checked, below otherwise.
+	var analyzedQuery *Query
+	analyzed := false
+	if checkBody {
+		q, err := c.resolveQueryFirst(stmt.Select)
+		if err != nil {
+			return err
+		}
+		analyzedQuery, analyzed = q, true
 	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
@@ -50,8 +61,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 
 	// Analyze the view body for semantic IR (used by lineage, SDL diff).
 	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
+	if stmt.Select != nil && !analyzed {
 		q, err := c.AnalyzeSelectStmt(stmt.Select)
 		if err == nil {
 			analyzedQuery = q
@@ -90,8 +100,23 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     true,
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 	}
 	return nil
+}
+
+// viewColumnNamesUncertain reports whether a view's stored column names may not be
+// the ones the engine gives. A column list the statement wrote is the engine's too;
+// otherwise the names come from the body, and an analysis that did not finish
+// leaves them unknown.
+func viewColumnNamesUncertain(columns []string, q *Query, sel *nodes.SelectStmt) bool {
+	if len(columns) > 0 {
+		return false
+	}
+	if q != nil {
+		return q.namesUncertain
+	}
+	return selectDerivesNames(sel)
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
@@ -137,6 +162,10 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err != nil {
 		return err
 	}
+	analyzedQuery, err := c.resolveQueryFirst(stmt.Select)
+	if err != nil {
+		return err
+	}
 	key := toLower(stmt.Name.Name)
 	// ALTER VIEW requires the view to exist.
 	if _, exists := db.Views[key]; !exists {
@@ -160,15 +189,8 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		definer = "`root`@`%`"
 	}
 
-	// Analyze the view body for semantic IR (used by lineage, SDL diff).
-	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
-		q, err := c.AnalyzeSelectStmt(stmt.Select)
-		if err == nil {
-			analyzedQuery = q
-		}
-	}
+	// analyzedQuery, the semantic IR (used by lineage, SDL diff), was read above,
+	// before deparseViewSelect mutates the AST.
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
@@ -198,6 +220,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 		IsUpdatable:     true,
 	}
 	return nil
@@ -1184,4 +1207,28 @@ func showCreateView(v *View) string {
 	}
 
 	return b.String()
+}
+
+// resolveQueryFirst refuses a view's or CREATE TABLE ... SELECT's query that names a
+// table (1146) or a column (1054) that does not exist. OceanBase resolves the query
+// before it looks at the name being created or altered, so these come before 1050,
+// and before ALTER VIEW's 1146 or 1347 for a name that is no view: CREATE VIEW a AS
+// SELECT zz FROM a, with a a table, answers 1054 (TestOracle_OceanBaseQueryFirst).
+//
+// The analyzer's other errors are left alone, as createView has always left them:
+// it does not yet read every query OceanBase takes. The analyzed query is returned,
+// or nil when analysis did not finish, so the caller need not analyze it again.
+func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt) (*Query, error) {
+	if sel == nil {
+		return nil, nil
+	}
+	q, err := c.AnalyzeSelectStmt(sel)
+	var refusal *Error
+	if errors.As(err, &refusal) && (refusal.Code == ErrNoSuchTable || refusal.Code == ErrNoSuchColumn) {
+		return nil, refusal
+	}
+	if err != nil {
+		return nil, nil
+	}
+	return q, nil
 }

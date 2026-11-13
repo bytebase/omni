@@ -23,6 +23,70 @@ type analyzerScope struct {
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
 	markedJoins map[*JoinExprNodeQ]map[string]bool
+
+	// aliases maps the lowered names of the select list to their entries, once
+	// GROUP BY, HAVING and ORDER BY are being read: those clauses may name a
+	// select item by its alias, as WHERE may not. A name a table in scope has
+	// keeps meaning that column (selectAlias).
+	aliases map[string]*TargetEntryQ
+
+	// ctes is the CTEs this query sees, its own and its enclosing queries'.
+	ctes map[string]*CommonTableExprQ
+
+	// namesUncertain is set when a derived table or CTE in scope has a column the
+	// analyzer cannot name as OceanBase does (selectDerivesNames). A name that then
+	// fails to resolve is not known to be missing, and its error is no refusal.
+	namesUncertain bool
+}
+
+// uncertain reports whether this scope or one around it has uncertain names.
+func (s *analyzerScope) uncertain() bool {
+	for ; s != nil; s = s.parent {
+		if s.namesUncertain {
+			return true
+		}
+	}
+	return false
+}
+
+// unsure turns err into a plain error when names in scope are uncertain, so it
+// reads as an analysis that could not finish rather than OceanBase's refusal.
+func (s *analyzerScope) unsure(err error) error {
+	if err != nil && s.uncertain() {
+		return fmt.Errorf("%v (a derived column's name is not known)", err)
+	}
+	return err
+}
+
+// selectAliases maps the names of the select list's items to them, the first of
+// each name.
+func selectAliases(tl []*TargetEntryQ) map[string]*TargetEntryQ {
+	m := make(map[string]*TargetEntryQ, len(tl))
+	for _, te := range tl {
+		if te.ResJunk || te.ResName == "" {
+			continue
+		}
+		if _, ok := m[strings.ToLower(te.ResName)]; !ok {
+			m[strings.ToLower(te.ResName)] = te
+		}
+	}
+	return m
+}
+
+// selectAlias returns the select item an unqualified name that no table in scope
+// has reads, when the clause being read may name one: this query's select list,
+// then those of the queries around it, as OceanBase's resolver searches the outer
+// select list for a name a subquery of GROUP BY, HAVING or ORDER BY leaves open
+// (ob_select_resolver.cpp). A scope holds its aliases only from GROUP BY on, so a
+// subquery in WHERE, read before that, still sees none.
+func (s *analyzerScope) selectAlias(name string) (*TargetEntryQ, int) {
+	lower := strings.ToLower(name)
+	for levels := 0; s != nil; s, levels = s.parent, levels+1 {
+		if te, ok := s.aliases[lower]; ok {
+			return te, levels
+		}
+	}
+	return nil, 0
 }
 
 func newScope() *analyzerScope {
@@ -126,7 +190,7 @@ func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error)
 			return rteIdx, attNum, parentLevels + 1, nil
 		}
 	}
-	return 0, 0, 0, err
+	return 0, 0, 0, s.unsure(err)
 }
 
 // resolveQualifiedColumnFull resolves a qualified column, trying parent scopes
@@ -142,7 +206,7 @@ func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (i
 			return rteIdx, attNum, parentLevels + 1, nil
 		}
 	}
-	return 0, 0, 0, err
+	return 0, 0, 0, s.unsure(err)
 }
 
 // allEntries returns all scope entries in registration order.
