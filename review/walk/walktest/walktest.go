@@ -11,9 +11,19 @@
 // the facts the finding claims (the statement then fails for a reason the
 // server checks first, and for this one too). The walk over the
 // statements the server accepts must report nothing.
+//
+// An engine shows its catalog one of two ways. A Lister lists the server's
+// objects before every statement, with queries that are the same whatever
+// the walk reports, and Judge reads the claimed facts off the list: what
+// the oracle sends then depends on the change and the server alone, so a
+// tape (enginetest/tape) can replay it. A Holder is asked about the facts
+// a finding claims, so what it sends follows the walk's findings, and it
+// runs on a live server only.
 package walktest
 
 import (
+	"cmp"
+	"fmt"
 	"math/rand"
 	"os"
 	"slices"
@@ -39,7 +49,9 @@ type Finding struct {
 }
 
 // Engine is one engine's side of the oracle for one change: the target
-// synced, and the server as the change starts.
+// synced, and the server as the change starts. An Engine is also a Lister
+// or a Holder, which is how Judge confirms a finding the server's error
+// code does not.
 type Engine interface {
 	// Statements splits a change into the statements the server runs.
 	Statements(change string) []string
@@ -55,29 +67,56 @@ type Engine interface {
 	Violation(t testing.TB, change string) *walk.Violation
 	// Codes lists the error codes a finding's message stands for.
 	Codes(message string) []string
+}
+
+// Object is one object the server holds: its key in the walk's spaces, with
+// each name as the server stores it, and its kind where the walk claims a
+// kind the server can confirm ("" elsewhere).
+type Object struct {
+	Key  walk.Key
+	Kind string
+}
+
+// Lister is an Engine that lists the server's objects, so Judge can read a
+// claim off the list and tell whether a rejected statement changed the
+// database. Judge asks for the list before every statement and after each
+// one the server rejects, whatever the walk reports.
+type Lister interface {
+	// Inventory lists every object the walk may claim a fact of, as the
+	// server holds them now, the session's temporary tables among them.
+	// change is the whole change, for an engine that can only look for
+	// such a table by a name the change holds. The queries it sends depend
+	// on nothing else.
+	Inventory(t testing.TB, change string) []Object
+	// Same reports whether a key the walk claims names a stored object's
+	// key, as the engine folds names.
+	Same(claimed, stored walk.Key) bool
+}
+
+// Holder is an Engine that checks a claim by asking the server about it.
+type Holder interface {
 	// Holds reports whether the server's catalog, as it is now, shows the
 	// facts a violation claims (see Claims), and what it shows when not.
 	Holds(t testing.TB, v *walk.Violation, message string) (bool, string)
 }
 
-// Digester is an Engine whose server commits DDL as it runs it, with no
+// Digester is a Holder whose server commits DDL as it runs it, with no
 // savepoint to undo a rejected statement. Judge then checks that a
 // rejected statement changed nothing, by a digest of the catalog taken
 // before and after it. The digest after a rejected statement is the one
-// before the next.
+// before the next. A Lister's list serves as its digest.
 type Digester interface {
 	Digest(t testing.TB) string
 }
 
-// PartialRejecter is a Digester whose server may change the database in
-// a statement it rejects: MariaDB's DROP TABLE a, missing drops a before
-// it fails on missing. Where the digest shows such a change, Judge still
-// counts and judges the statement, but a finding on it must name the
+// PartialRejecter is a Digester or a Lister whose server may change the
+// database in a statement it rejects: MariaDB's DROP TABLE a, missing drops
+// a before it fails on missing. Where the digest shows such a change, Judge
+// still counts and judges the statement, but a finding on it must name the
 // error code the server gave, since the catalog no longer shows the facts
 // as they were before it. Judge then judges nothing more of the change:
 // the server's state no longer follows from the statements it accepted.
 type PartialRejecter interface {
-	Digester
 	RejectsPartially()
 }
 
@@ -109,14 +148,35 @@ func Claims(v *walk.Violation) []Claim {
 // found and how many there were.
 func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejected int) {
 	t.Helper()
+	lister, _ := e.(Lister)
+	holder, _ := e.(Holder)
+	if lister == nil && holder == nil {
+		t.Fatalf("walktest: the engine neither lists the server's objects (Lister) nor checks a claim on it (Holder)")
+	}
 	digester, _ := e.(Digester)
 	_, partial := e.(PartialRejecter)
+	// read takes the catalog as it is now: a Lister's objects, or a
+	// Digester's digest. ok is false for an engine that shows neither.
+	read := func() (objects []Object, digest string, ok bool) {
+		switch {
+		case lister != nil:
+			objects = sorted(lister.Inventory(t, change))
+			return objects, "", true
+		case digester != nil:
+			return nil, digester.Digest(t), true
+		}
+		return nil, "", false
+	}
 	var accepted []string
-	var before string
+	var objects []Object
+	var digest string
 	unchanged := false
 	for _, stmt := range e.Statements(change) {
-		if digester != nil && !unchanged {
-			before = digester.Digest(t)
+		// After a rejected statement that changed nothing, the catalog read
+		// after it is the one before this statement.
+		watched := unchanged
+		if !unchanged {
+			objects, digest, watched = read()
 		}
 		unchanged = false
 		o := e.Exec(t, stmt)
@@ -125,17 +185,17 @@ func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejecte
 			continue
 		}
 		changed := false
-		if digester != nil {
-			if digester.Digest(t) != before {
+		if watched {
+			if after, now, _ := read(); now != digest || !slices.Equal(after, objects) {
 				if !partial {
-					t.Fatalf("the server rejected %q (%s: %s) but changed the database", stmt, o.Code, o.Message)
+					t.Fatalf("the server rejected %q (%s: %s) but changed the database%s", stmt, o.Code, o.Message, difference(objects, after))
 				}
 				changed = true
 			}
 			unchanged = true
 		}
 		rejected++
-		if judgeRejected(t, e, accepted, stmt, o, complete, changed) {
+		if judgeRejected(t, e, accepted, stmt, o, complete, changed, objects) {
 			found++
 		}
 		if changed {
@@ -149,10 +209,10 @@ func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejecte
 }
 
 // judgeRejected judges the walk over the accepted statements and one the
-// server rejected, and reports whether the walk found it. When the server
-// changed the database in rejecting it, only the error code can confirm a
-// finding.
-func judgeRejected(t testing.TB, e Engine, accepted []string, stmt string, o Outcome, complete, changed bool) bool {
+// server rejected, and reports whether the walk found it. objects is a
+// Lister's list from before the statement. When the server changed the
+// database in rejecting it, only the error code can confirm a finding.
+func judgeRejected(t testing.TB, e Engine, accepted []string, stmt string, o Outcome, complete, changed bool, objects []Object) bool {
 	t.Helper()
 	text := strings.Join(append(slices.Clone(accepted), stmt), "\n")
 	f := e.Report(t, text)
@@ -174,10 +234,89 @@ func judgeRejected(t testing.TB, e Engine, accepted []string, stmt string, o Out
 		return true
 	}
 	v := e.Violation(t, text)
-	if ok, why := e.Holds(t, v, f.Message); !ok {
+	var ok bool
+	var why string
+	if lister, lists := e.(Lister); lists {
+		ok, why = listed(Claims(v), objects, lister.Same)
+	} else {
+		ok, why = e.(Holder).Holds(t, v, f.Message)
+	}
+	if !ok {
 		t.Errorf("reported %q on %q, which the server rejects with %s (%s), and the claim does not hold: %s", f.Message, stmt, o.Code, o.Message, why)
 	}
 	return true
+}
+
+// listed reports whether a list of the server's objects shows the facts
+// claimed, and what it shows when not: an object under each key claimed
+// present, of the kind claimed where the list gives one, and none under a
+// key claimed absent. A claim of an unknown fact holds by itself.
+func listed(claims []Claim, objects []Object, same func(claimed, stored walk.Key) bool) (bool, string) {
+	for _, c := range claims {
+		if c.Fact == walk.Unknown {
+			continue
+		}
+		var kinds []string
+		present := false
+		for _, o := range objects {
+			if same(c.Key, o.Key) {
+				present = true
+				kinds = append(kinds, o.Kind)
+			}
+		}
+		switch {
+		case present != (c.Fact == walk.Present):
+			return false, fmt.Sprintf("%s %q in %q is present: %v", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), present)
+		case present && c.Kind != "" && !slices.Contains(kinds, c.Kind) && !slices.Contains(kinds, ""):
+			return false, fmt.Sprintf("%s %q in %q is a %s, not a %s", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), strings.Join(kinds, " and a "), c.Kind)
+		}
+	}
+	return true, ""
+}
+
+// sorted returns the objects in one order, so two lists of the same
+// objects are equal.
+func sorted(objects []Object) []Object {
+	out := slices.Clone(objects)
+	slices.SortFunc(out, func(a, b Object) int {
+		return cmp.Or(
+			strings.Compare(a.Key.Space, b.Key.Space),
+			strings.Compare(a.Key.Parent, b.Key.Parent),
+			strings.Compare(a.Key.Name, b.Key.Name),
+			strings.Compare(a.Kind, b.Kind),
+		)
+	})
+	return out
+}
+
+// describe writes an object in one line: its space, the names that hold
+// it, its name, and its kind.
+func describe(o Object) string {
+	s := o.Key.Space + " " + strings.Join(append(walk.Names(o.Key.Parent), o.Key.Name), ".")
+	if o.Kind != "" {
+		s += " (" + o.Kind + ")"
+	}
+	return s
+}
+
+// difference names the objects only one of two sorted lists holds, for a
+// message; "" for a difference a Digester's digest showed.
+func difference(before, after []Object) string {
+	var b strings.Builder
+	for _, o := range before {
+		if !slices.Contains(after, o) {
+			b.WriteString("\n- " + describe(o))
+		}
+	}
+	for _, o := range after {
+		if !slices.Contains(before, o) {
+			b.WriteString("\n+ " + describe(o))
+		}
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return ":" + b.String()
 }
 
 // SweepParams reads a sweep's size, seed, and server image from

@@ -1,6 +1,6 @@
 # Engine test database matrix
 
-This records the test backends currently selected by the repository. A container that speaks an engine's wire protocol is not necessarily that engine. MySQL-backed MariaDB or OceanBase tests do not establish native dialect compatibility.
+This records the test backends currently selected by the repository. A container that speaks an engine's wire protocol is not necessarily that engine. MySQL-backed MariaDB tests do not establish native dialect compatibility.
 
 The initial helper-layout change preserves database versions, startup behavior, test expectations, and existing test gates. Native backend migrations, image upgrades, and the compatibility repairs they require belong in a follow-up change; this table makes those gaps explicit.
 
@@ -15,7 +15,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `mongo` | No local database oracle | Add native MongoDB shell coverage. |
 | `mssql` | SQL Server `2022-CU27-GDR1-ubuntu-22.04`; ScriptDOM reference | Move inline container setup into an engine-owned helper. |
 | `mysql` | `mysql:8.0` | Consolidate on the selected MySQL 8.4 patch and investigate version drift. Shared helper: `mysql/internal/testcontainer`. |
-| `oceanbase` | Native OceanBase `4.3.5.6-106000012026040916`, which the parser, validate and catalog oracles ask, plus inherited `mysql:8.0` / `mysql:8.4` oracles in review | Replace the inherited review oracles with OceanBase and repair native compatibility. Shared helper: `oceanbase/internal/testcontainer`. `oceanbase/parser`, `oceanbase/validate` and the tests of `oceanbase/catalog` that ask OceanBase (162, every oracle test and the 77 container tests among them) replay `compat.tsv` and tapes and start no server; `review` still starts its own. |
+| `oceanbase` | Native OceanBase `4.3.5.6-106000012026040916`, started only by a recording (`OMNI_RECORD=1`) | Repair native compatibility: the gaps catalog records (`obGaps`) and the disagreeing `compat.tsv` rows. Shared helper: `oceanbase/internal/testcontainer`. Every package replays `compat.tsv` and tapes and starts no server: `oceanbase/parser`, `oceanbase/validate`, `oceanbase/catalog` (162 tests) and `oceanbase/review` (the walk, its sweep, the scan rules and the column drops). No test under `oceanbase/` asks MySQL. |
 | `oracle` | Oracle Free `23.26.3-slim-faststart`; optional reference DSN | Move inline container setup into an engine-owned helper. |
 | `partiql` | No local database oracle | Add DynamoDB Local for its supported PartiQL subset. |
 | `pg` | `postgres:17-alpine`; review also checks `postgres:18-alpine` | Consolidate on the selected PostgreSQL 18 patch and investigate version drift. |

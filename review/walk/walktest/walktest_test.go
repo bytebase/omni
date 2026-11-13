@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -128,6 +129,165 @@ func TestJudgeGoesOnAfterAnAtomicRejection(t *testing.T) {
 		t.Errorf("fatal %q, errors %q, found %d of %d; want 1 of 2 and the miss of c", r.fatal, r.errors, found, rejected)
 	}
 }
+
+// listEngine is a Lister over the fake's statements. "+name" creates the
+// object name and "-name" drops it; "name!code" is rejected with code, and
+// "+name!code+" creates name while rejecting. Its walk reports the
+// statement named in report, claiming claimed is fact, of kind where set.
+type listEngine struct {
+	held    map[string]string // name -> kind
+	asked   []string          // every request to the server, in order
+	report  string
+	message string
+	claimed string
+	fact    walk.Fact
+	kind    string
+}
+
+func (e *listEngine) Statements(change string) []string { return strings.Split(change, ";") }
+
+func (e *listEngine) Exec(_ testing.TB, stmt string) Outcome {
+	e.asked = append(e.asked, "exec "+stmt)
+	body, code, rejects := strings.Cut(stmt, "!")
+	if !rejects || strings.HasSuffix(code, "+") {
+		if name, ok := strings.CutPrefix(body, "+"); ok {
+			e.held[name] = "table"
+		} else if name, ok := strings.CutPrefix(body, "-"); ok {
+			delete(e.held, name)
+		}
+	}
+	if !rejects {
+		return Outcome{}
+	}
+	return Outcome{Code: strings.TrimSuffix(code, "+"), Message: body}
+}
+
+func (e *listEngine) Report(_ testing.TB, change string) *Finding {
+	for i, s := range strings.Split(change, "\n") {
+		if s == e.report {
+			return &Finding{Statement: i, Message: e.message}
+		}
+	}
+	return nil
+}
+
+func (e *listEngine) Violation(testing.TB, string) *walk.Violation {
+	return &walk.Violation{Check: walk.Check{Key: walk.Key{Space: "relation", Name: e.claimed}}, Got: e.fact, Kind: e.kind}
+}
+
+func (e *listEngine) Codes(message string) []string { return []string{message} }
+
+func (e *listEngine) Inventory(_ testing.TB, change string) []Object {
+	e.asked = append(e.asked, "inventory "+change)
+	var out []Object
+	for name, kind := range e.held {
+		out = append(out, Object{Key: walk.Key{Space: "relation", Name: name}, Kind: kind})
+	}
+	return out
+}
+
+// Same folds case, as an engine's name folding would.
+func (e *listEngine) Same(claimed, stored walk.Key) bool {
+	return claimed.Space == stored.Space && claimed.Name == strings.ToLower(stored.Name)
+}
+
+type partialListEngine struct{ listEngine }
+
+func (*partialListEngine) RejectsPartially() {}
+
+func TestJudgeReadsAClaimOffTheList(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		held    map[string]string
+		claimed string
+		fact    walk.Fact
+		kind    string
+		wrong   string // a part of the failure, "" for none
+	}{
+		{name: "present, and listed", held: map[string]string{"T": "table"}, claimed: "t", fact: walk.Present},
+		{name: "present of its kind", held: map[string]string{"T": "table"}, claimed: "t", fact: walk.Present, kind: "table"},
+		{name: "present of a kind the list gives none for", held: map[string]string{"T": ""}, claimed: "t", fact: walk.Present, kind: "table"},
+		{name: "absent, and not listed", held: map[string]string{"u": "table"}, claimed: "t", fact: walk.Absent},
+		{name: "unknown claims nothing", held: map[string]string{"t": "table"}, claimed: "t", fact: walk.Unknown},
+		{name: "present, but not listed", held: map[string]string{"u": "table"}, claimed: "t", fact: walk.Present, wrong: "is present: false"},
+		{name: "absent, but listed", held: map[string]string{"T": "table"}, claimed: "t", fact: walk.Absent, wrong: "is present: true"},
+		{name: "present of another kind", held: map[string]string{"t": "view"}, claimed: "t", fact: walk.Present, kind: "table", wrong: "is a view, not a table"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := &listEngine{held: c.held, report: "x!1", message: "another code", claimed: c.claimed, fact: c.fact, kind: c.kind}
+			r, found, rejected := judge(t, e, "x!1")
+			if r.fatal != "" || found != 1 || rejected != 1 {
+				t.Fatalf("fatal %q, found %d of %d; want 1 of 1", r.fatal, found, rejected)
+			}
+			switch {
+			case c.wrong == "" && len(r.errors) != 0:
+				t.Errorf("errors %q, want none", r.errors)
+			case c.wrong != "" && (len(r.errors) != 1 || !strings.Contains(r.errors[0], c.wrong)):
+				t.Errorf("errors %q, want one with %q", r.errors, c.wrong)
+			}
+		})
+	}
+}
+
+// TestJudgeAsksAListerTheSameWhateverTheWalkReports holds Judge to what a
+// tape needs: the requests a Lister's server gets follow from the change
+// and the server's answers alone. The list is read before every statement
+// but one after a rejection, whose list is the one read after it.
+func TestJudgeAsksAListerTheSameWhateverTheWalkReports(t *testing.T) {
+	const change = "+a;x!1;y!2;+b;z!3"
+	var want []string
+	for _, e := range []*listEngine{
+		{},
+		{report: "x!1", message: "1"},
+		{report: "y!2", message: "no code", claimed: "a", fact: walk.Present},
+		{report: "z!3", message: "no code", claimed: "a", fact: walk.Absent},
+		{report: "+b", message: "a statement the server accepts"},
+	} {
+		e.held = map[string]string{}
+		judge(t, e, change)
+		if want == nil {
+			want = e.asked
+			if got, list := strings.Join(want, "; "), "inventory "+change; got != strings.Join([]string{
+				list, "exec +a", list, "exec x!1", list, "exec y!2", list, "exec +b", list, "exec z!3", list,
+			}, "; ") {
+				t.Fatalf("asked %q", got)
+			}
+			continue
+		}
+		if !slices.Equal(e.asked, want) {
+			t.Errorf("a walk reporting %q asked %q, want %q", e.report, e.asked, want)
+		}
+	}
+}
+
+func TestJudgeFailsAListerWhoseRejectedStatementChangesTheList(t *testing.T) {
+	e := &listEngine{held: map[string]string{}, report: "+a!1+", message: "1"}
+	r, _, _ := judge(t, e, "+a!1+;b")
+	if !strings.Contains(r.fatal, "changed the database") || !strings.Contains(r.fatal, "+ relation a (table)") {
+		t.Errorf("fatal %q, want the change of the database reported with the object it added", r.fatal)
+	}
+
+	p := &partialListEngine{listEngine{held: map[string]string{}, report: "+a!1+", message: "1"}}
+	r, found, rejected := judge(t, p, "+a!1+;b!2")
+	if r.fatal != "" || len(r.errors) != 0 || found != 1 || rejected != 1 {
+		t.Errorf("fatal %q, errors %q, found %d of %d; want a partial rejecter to judge it by its code and stop", r.fatal, r.errors, found, rejected)
+	}
+}
+
+func TestJudgeNeedsAListerOrAHolder(t *testing.T) {
+	r, _, _ := judge(t, bareEngine{}, "a")
+	if !strings.Contains(r.fatal, "neither lists") {
+		t.Errorf("fatal %q, want an engine that shows no catalog refused", r.fatal)
+	}
+}
+
+type bareEngine struct{}
+
+func (bareEngine) Statements(change string) []string            { return []string{change} }
+func (bareEngine) Exec(testing.TB, string) Outcome              { return Outcome{} }
+func (bareEngine) Report(testing.TB, string) *Finding           { return nil }
+func (bareEngine) Violation(testing.TB, string) *walk.Violation { return nil }
+func (bareEngine) Codes(string) []string                        { return nil }
 
 func TestShards(t *testing.T) {
 	// A sweep of the default size keeps to one server; the sizes CI runs
