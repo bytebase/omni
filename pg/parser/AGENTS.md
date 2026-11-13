@@ -19,7 +19,7 @@ The third copy drifted: it was missing `JSON`, `DEC`, `NATIONAL`, `NCHAR`. A byt
 
 Drift is caught at three layers:
 
-1. **PG testcontainer oracle tests** (`first_set_oracle_test.go`) probe each predicate against a real PG 17 instance and assert the predicate's accept set matches PG's. Any drift between omni's slice and PG's grammar fails CI loudly. Not all productions can be oracle-tested — see "Why no PG oracle for X" below.
+1. **PG oracle tests** (`first_set_oracle_test.go`) probe each predicate against PostgreSQL 17, recorded on tape, and assert the predicate's accept set matches PG's. Any drift between omni's slice and PG's grammar fails CI loudly. Not all productions can be oracle-tested — see "Why no PG oracle for X" below.
 
 2. **In-Go bidirectional unit tests** for productions that cannot be oracle-tested (currently only `ConstTypename`, because PG's `AexprConst` grammar position is ambiguous with `func_name Sconst`). These iterate the entire `Keywords` table and assert the predicate matches the slice exactly.
 
@@ -129,24 +129,25 @@ Each probe template MUST:
 3. **Use the lowest-overhead SQL** that exercises the position. Prefer `SELECT %s` over `CREATE FUNCTION ...` when both work.
 4. **Not depend on a specific schema or session state.** Probes run inside a transaction that gets rolled back, so they should be self-contained.
 
-## Docker is required
+## Oracle tests replay tapes
 
-Oracle tests use `testcontainers-go` to spin up `postgres:17-alpine`. When Docker is unavailable the test fails; it does not skip. This is deliberate: a misconfigured runner that skipped every FIRST-set test would silently disable the whole guardrail, and CI runs every test on every PR with no `-short` path. Run the parser tests on a machine with Docker, or run the non-oracle tests by name.
+The oracle tests reach PostgreSQL through `testcontainer.Open(t)` (`pg/internal/testcontainer`), which replays `testdata/tapes/<Test>.tape` and starts no server. A test that changes what it sends, or a new oracle test, is recorded on the pinned server, which needs Docker:
 
-### Known operational quirk: Ryuk reaper race
+```bash
+OMNI_RECORD=1 go test ./pg/parser/ -run '^TestName$'
+```
 
-When tests are re-run rapidly in the same shell session (e.g., during local iteration), the testcontainer Ryuk reaper sometimes terminates the previous container while a new test is initializing, producing a `connection refused` ping failure. **This is a flake, not a test bug.** Wait a second and retry; or set `TESTCONTAINERS_RYUK_DISABLED=true` in the local environment if it recurs.
+What an oracle sends must not depend on omni's answer: ask PostgreSQL first, then parse. Each top-level test starts on a database of its own in a recording, so a fixture it needs is created on its own connection.
 
 ## PG version upgrade flow
 
-The oracle pins `postgres:17-alpine` to match omni's pg parser grammar target (see `pg/parser/type.go:9` and similar references throughout the package). When omni eventually upgrades its parser target to PG 18 or later:
+The oracles and `compat.tsv` are judged by the `default` row of `pg/testdata/pins.tsv`, PostgreSQL 17.12, the grammar omni's parser targets (see `pg/parser/type.go:9` and similar references throughout the package). When omni moves its parser target to PG 18 or later:
 
-1. Bump the image tag in `startFirstSetOracle` (`first_set_oracle_test.go`).
-2. Run the oracle tests. Expect drift on any production where PG added new lead tokens.
+1. Bump the `default` row of `pins.tsv` and replace `pg/testdata/gram.y` with the new tag's, in a PR of its own.
+2. Record the package: `OMNI_RECORD=1 go test ./pg/parser/`. Expect drift on any production where PG added new lead tokens.
 3. For each drift entry: read the relevant `gram.y` change in the upstream PG release notes, then either (a) add the new token to the omni slice if omni's parser handles it, or (b) leave it on the gap list if omni doesn't yet support that PG-N+1 feature.
-4. Update the image tag in this file.
 
-The oracle tests are the upgrade signal. **Do not** try to anticipate PG grammar changes without running the tests against the new image.
+The oracle tests are the upgrade signal. **Do not** try to anticipate PG grammar changes without recording against the new image.
 
 ## PR review checklist
 
@@ -164,7 +165,7 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 
 **FIRST-set core:**
 - `first_sets.go` — all canonical FIRST-set slices and predicates
-- `first_set_oracle_test.go` — testcontainer infrastructure, candidate enumeration, probe driver, bidirectional assertion helper, and all FIRST-set tests
+- `first_set_oracle_test.go` — the oracle's connection, candidate enumeration, probe driver, bidirectional assertion helper, and all FIRST-set tests
 - `create_function_json_test.go` — JSON / DEC / NATIONAL CHARACTER / NCHAR regression test with AST-shape assertions
 
 **Reference data:**

@@ -6,18 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	nodes "github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 // This file builds the PG 17 testcontainer-backed oracle harness for
 // pg-paren-dispatch Phase 2 (SCENARIOS §2.1). It mirrors the pattern in
-// first_set_oracle_test.go — a database of its own on the package's shared
-// server (oracle_server_test.go), per-probe transaction + rollback. Exports are consumed by the corpus
+// first_set_oracle_test.go — the test's own connection
+// (pg/internal/testcontainer), per-probe transaction + rollback. Exports are consumed by the corpus
 // workers for sections 2.2–2.8.
 
 // ParenOracle wraps a database on the shared PG 17 server for `(` dispatch
@@ -28,62 +29,30 @@ type ParenOracle struct {
 	ctx context.Context
 }
 
-// parenOracleSetupError is captured inside parenOracleOnce.Do and
-// re-observed by every caller so the first Docker failure propagates to
-// all tests (fail in CI, skip locally). Same rationale as
-// oracleSetupError in first_set_oracle_test.go.
-var parenOracleSetupError error
-
-var (
-	parenOracleOnce sync.Once
-	parenOracleInst *ParenOracle
-)
-
-// StartParenOracle returns the singleton ParenOracle. Callers from
-// other test files (§2.2–§2.7 corpus workers) use this entry point.
-// On Docker-unavailable local dev the caller skips; in CI it fails.
+// StartParenOracle returns t's connection to PostgreSQL, a replay of its tape
+// outside a recording, with the fixtures below created on it. Columns
+// `a, b, x, y, doc` cover every column the §2.2–§2.7 scenarios reference.
+// probe_f()/probe_g() exist so shapes like `LATERAL f(t.x)` and
+// `ROWS FROM (f(...), g(...))` hit real objects, and accept against reject
+// reflects the grammar question, not an undefined function.
 func StartParenOracle(t *testing.T) *ParenOracle {
 	t.Helper()
-	parenOracleOnce.Do(func() {
-		ctx := context.Background()
-		db, err := OracleDatabase(ctx, "omni_paren")
-		if err != nil {
-			parenOracleSetupError = err
-			return
+	ctx := context.Background()
+	db := testcontainer.Open(t)
+	for _, s := range []string{
+		`CREATE TABLE T (a int, b int, x int, y int, doc xml)`,
+		`CREATE TABLE U (a int, b int, x int, y int)`,
+		`CREATE TABLE V (a int, b int)`,
+		`CREATE TABLE W (a int, b int)`,
+		`CREATE TABLE foo (a int)`,
+		`CREATE FUNCTION probe_f(i int) RETURNS int LANGUAGE sql AS 'SELECT $1'`,
+		`CREATE FUNCTION probe_g(i int) RETURNS int LANGUAGE sql AS 'SELECT $1'`,
+	} {
+		if _, err := db.ExecContext(ctx, s); err != nil {
+			t.Fatalf("fixture %q: %v", s, err)
 		}
-
-		// Pre-create fixtures. Columns `a, b, x, y, doc` cover every
-		// column referenced by §2.2–§2.7 scenarios. Functions
-		// probe_f()/probe_g() exist so corpus shapes like
-		// `LATERAL f(t.x)` and `ROWS FROM (f(...), g(...))` can hit
-		// real objects (reject vs accept classification then reflects
-		// the grammar question, not an "undefined function" error).
-		setup := []string{
-			`CREATE TABLE T (a int, b int, x int, y int, doc xml)`,
-			`CREATE TABLE U (a int, b int, x int, y int)`,
-			`CREATE TABLE V (a int, b int)`,
-			`CREATE TABLE W (a int, b int)`,
-			`CREATE TABLE foo (a int)`,
-			`CREATE FUNCTION probe_f(i int) RETURNS int LANGUAGE sql AS 'SELECT $1'`,
-			`CREATE FUNCTION probe_g(i int) RETURNS int LANGUAGE sql AS 'SELECT $1'`,
-		}
-		for _, s := range setup {
-			if _, err := db.ExecContext(ctx, s); err != nil {
-				db.Close()
-				parenOracleSetupError = fmt.Errorf("fixture %q: %w", s, err)
-				return
-			}
-		}
-
-		parenOracleInst = &ParenOracle{db: db, ctx: ctx}
-	})
-
-	if parenOracleSetupError != nil {
-		// CI must fail — silently skipping erases the entire regression
-		// fence this harness exists to provide.
-		t.Fatalf("paren oracle unavailable in CI: %v", parenOracleSetupError)
 	}
-	return parenOracleInst
+	return &ParenOracle{db: db, ctx: ctx}
 }
 
 // PGStatus classifies a PG 17 probe outcome for `SELECT * FROM (...)`

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/bytebase/omni/pg/parser"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 func TestFunctionBodyReferenceOracle(t *testing.T) {
@@ -119,16 +119,18 @@ func TestFunctionBodyReferenceOracle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, omniErr := pgParseWithBodyCheck(tt.sql)
-			omniAccept := omniErr == nil
-			if omniAccept != tt.accept {
-				t.Fatalf("omni accept = %v, want %v, err=%v", omniAccept, tt.accept, omniErr)
-			}
-
+			// PostgreSQL first: what the test sends must not depend on
+			// omni's answer, or its tape cannot replay.
 			_, pgErr := db.ExecContext(context.Background(), tt.sql)
 			pgAccept := pgErr == nil
 			if pgAccept != tt.accept {
 				t.Fatalf("postgres accept = %v, want %v, err=%v", pgAccept, tt.accept, pgErr)
+			}
+
+			_, omniErr := pgParseWithBodyCheck(tt.sql)
+			omniAccept := omniErr == nil
+			if omniAccept != tt.accept {
+				t.Fatalf("omni accept = %v, want %v, err=%v", omniAccept, tt.accept, omniErr)
 			}
 		})
 	}
@@ -136,9 +138,6 @@ func TestFunctionBodyReferenceOracle(t *testing.T) {
 
 func startFunctionBodyOracle(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-	db, err := parser.OracleDatabase(context.Background(), "omni_body")
-	if err != nil {
-		t.Fatalf("function body oracle unavailable in CI: %v", err)
-	}
+	db := testcontainer.Open(t)
 	return db, func() { db.Close() }
 }

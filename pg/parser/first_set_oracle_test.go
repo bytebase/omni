@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 type firstSetOracle struct {
@@ -17,35 +18,13 @@ type firstSetOracle struct {
 	ctx context.Context
 }
 
-// oracleSetupError remembers a setup failure so every subsequent test
-// observes it and can fail or skip uniformly. sync.Once runs exactly
-// once, so errors must be captured here rather than returned from Do.
-var oracleSetupError error
-
-var (
-	firstSetOracleOnce sync.Once
-	firstSetOracleInst *firstSetOracle
-)
-
+// startFirstSetOracle returns t's connection to PostgreSQL, a replay of its
+// tape outside a recording (pg/internal/testcontainer). In a recording each
+// top-level test starts on a database of its own; everything the oracles
+// probe runs in a transaction they roll back, or only parses.
 func startFirstSetOracle(t *testing.T) *firstSetOracle {
 	t.Helper()
-	firstSetOracleOnce.Do(func() {
-		ctx := context.Background()
-		db, err := OracleDatabase(ctx, "omni_fs")
-		if err != nil {
-			oracleSetupError = err
-			return
-		}
-		firstSetOracleInst = &firstSetOracle{db: db, ctx: ctx}
-	})
-
-	if oracleSetupError != nil {
-		// CI must fail loudly — otherwise a misconfigured CI silently
-		// skips every FIRST-set test and disables the entire guardrail.
-		// Local dev without docker is allowed to skip.
-		t.Fatalf("first-set oracle unavailable in CI: %v", oracleSetupError)
-	}
-	return firstSetOracleInst
+	return &firstSetOracle{db: testcontainer.Open(t), ctx: context.Background()}
 }
 
 // probeResult classifies a PG error into accept/reject for FIRST-set purposes.
