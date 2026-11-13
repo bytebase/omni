@@ -168,7 +168,9 @@ OceanBase needs three things of its own, all measured on the pinned server (`oce
 - **Two statements crash the server.** The judge starts it again, asks the statement again, and judges one that kills the server twice by its probe alone.
 
 The two recognizers are weaker judges, in known ways:
-- **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `grammar-overrides.tsv`.
+- **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `<engine>/testdata/grammar-overrides.tsv`: the verdict, the source that gives it, the cite, the statement. The source is `grammar` where the grammar's own lexer code or action decides, and `docs` where the vendor's docs take a statement the grammar does not derive; a `docs` row only accepts. `TestCompatibility` fails an override no row holds, and one the recognizer already agrees with.
+- **A `.g4`'s lexer rules are read for two things:** the text a token spells, and its keywords. A word a token spells before the last token that matches a class of texts is reserved, as ANTLR gives a text two rules match to the first: it is a name only where a parser rule says so.
+- **A grammar judge's pin is its files:** the digest in `pins.tsv` is the SHA-256 of the vendor's files as published (`compat.Suite.Vendor`), so a grammar edited by hand fails.
 - **Docs only say what is valid.** A near-miss judged by docs is `undocumented`, not `reject`. It counts as neither a gap nor a regression, so omni is never pushed to reject forms users write.
 - **Snowflake and Redshift can upgrade.** With `SNOWFLAKE_COMPAT_DSN` or `REDSHIFT_COMPAT_DSN` set, a recording asks the engine instead of the docs. The account must be dedicated and scratch-only, because preparing DDL there executes it.
 
@@ -371,6 +373,7 @@ oceanbase/
   testdata/pins.tsv                  the pinned server
   testdata/tokens.tsv                token forms and sample values
   testdata/sources.tsv               vendor files fetched, not committed: name, SHA-256, URL
+  testdata/grammar-overrides.tsv     where a grammar judge is wrong, cited (§2.3)
   parser/testdata/compat.tsv
   catalog/testdata/simulate.tsv
   catalog/testdata/fixtures/         starting schemas
@@ -439,7 +442,8 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | A change breaks a row omni handled | The row checker fails (§2.1). |
 | A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
-| A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
+| A `grammar` or `docs` cell is written by hand | `TestCompatibility` asks the recognizer again on every run. |
+| A vendored grammar is edited | Its SHA-256 is the pin's digest (§2.3). |
 | Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |

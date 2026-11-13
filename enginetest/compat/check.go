@@ -60,6 +60,16 @@ type Suite struct {
 	// Grammar judges it (see recognizer), and since that needs no server,
 	// every run asks it again and fails a row whose cell it no longer gives.
 	Judge func(t testing.TB, pin enginetest.Pin) func(sql string) (string, error)
+	// Vendor lists the vendor's files a grammar judge reads, as published:
+	// the SHA-256 of their bytes, in this order, is the pin's digest, so a
+	// grammar edited by hand, or bumped without its pin, fails. An engine
+	// judged by a server leaves it empty: its digest is the image's.
+	Vendor []string
+	// Overrides is the engine's grammar-overrides.tsv, for a SourceGrammar
+	// or SourceDocs suite that has one: the statements its recognizer judges
+	// wrongly, each with the engine's verdict, the source that gives it
+	// and a cite (see Override).
+	Overrides string
 }
 
 // Check holds omni to the suite's compat.tsv. A row passes when omni still
@@ -77,6 +87,16 @@ func check(t testing.TB, s Suite) {
 	pin, err := enginetest.LoadPin(s.Pins, "default")
 	if err != nil {
 		t.Fatalf("%v", err)
+	}
+	if len(s.Vendor) > 0 {
+		got, err := enginetest.FilesDigest(s.Vendor...)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if got != pin.Digest {
+			t.Fatalf("%s pins digest %s, and %s hash to %s: a vendor file changes only with its pin, to the release's own bytes",
+				s.Pins, pin.Digest, strings.Join(s.Vendor, ", "), got)
+		}
 	}
 	recording := enginetest.Recording(t)
 	run := enginetest.RunCommand(t)
@@ -130,12 +150,22 @@ func check(t testing.TB, s Suite) {
 		}
 	}
 
-	var recognize func(Row) (string, error)
+	var recognize recognizeFunc
 	if recognized(s.Source) {
 		if s.Judge != nil || g == nil {
 			t.Fatalf("a %s suite is judged by a recognizer over its Grammar: give the Grammar and no Judge", s.Source)
 		}
 		recognize = recognizer(g, s.Source)
+	} else if s.Overrides != "" {
+		t.Fatalf("Overrides correct a recognizer, and a %s suite has none", s.Source)
+	}
+	var misplaced []string
+	if s.Overrides != "" {
+		overrides, err := ReadOverrides(s.Overrides)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		recognize, misplaced = overridden(recognize, s.Overrides, overrides, f.Rows)
 	}
 
 	if recording {
@@ -155,23 +185,23 @@ func check(t testing.TB, s Suite) {
 		rejudged := 0
 		for i := range f.Rows {
 			r := &f.Rows[i]
-			if r.Source != s.Source {
+			if !recognized(r.Source) {
 				continue
 			}
-			v, err := recognize(*r)
+			v, source, err := recognize(*r)
 			if err != nil {
 				moved = append(moved, fmt.Sprintf("%s: %s: %v:\n    %s\n", s.Path, r.Rule, err, r.Statement))
 				continue
 			}
-			if v == r.Expected {
+			if v == r.Expected && source == r.Source {
 				continue
 			}
 			if recording {
-				r.Expected = v
+				r.Expected, r.Source = v, source
 				rejudged++
 				continue
 			}
-			moved = append(moved, fmt.Sprintf("%s: the %s judge now says %s, the row records %s:\n    %s\n", describeRule(s.Path, *r), s.Source, v, r.Expected, r.Statement))
+			moved = append(moved, fmt.Sprintf("%s: the %s judge now says %s, the row records %s (%s):\n    %s\n", describeRule(s.Path, *r), source, v, r.Expected, r.Source, r.Statement))
 		}
 		if rejudged > 0 {
 			t.Logf("%s: the %s judge moved %d rows", s.Path, s.Source, rejudged)
@@ -211,6 +241,7 @@ func check(t testing.TB, s Suite) {
 	}
 	report(t, "not judged yet. Record them:\n  "+record, unjudged)
 	report(t, "the judge's cell is not what its recognizer gives: the grammar changed, or the cell was edited. Record them:\n  "+record, moved)
+	report(t, "an override that corrects nothing", misplaced)
 	report(t, "a gap closed: omni now says what the judge says. Commit it:\n  "+run+" -update-compat", closed)
 	report(t, "a regression: omni moved away from the verdict its row records", regressed)
 	tally.log(t, s.Path, f.Pin)
@@ -258,22 +289,27 @@ func recognized(source string) bool { return source == SourceGrammar || source =
 // grammar derives is accepted. One it does not is rejected by a grammar,
 // and undocumented by docs, which say what is valid and not what is not.
 // A generated alternative the grammar does not derive has no verdict: the
-// recognizer is reading the grammar otherwise than the generator.
-func recognizer(g *grammar.Grammar, source string) func(Row) (string, error) {
+// recognizer is reading the grammar otherwise than the generator. The
+// suite's Overrides, where it has them, correct it (see overridden).
+func recognizer(g *grammar.Grammar, source string) recognizeFunc {
 	rec := g.Recognizer()
-	return func(r Row) (string, error) {
+	return func(r Row) (string, string, error) {
 		if rec.Accepts(r.Statement) {
-			return Accept, nil
+			return Accept, source, nil
 		}
 		if r.generatedAlternative() {
-			return "", fmt.Errorf("the recognizer does not derive the grammar's own statement")
+			return "", "", fmt.Errorf("the recognizer does not derive the grammar's own statement")
 		}
 		if source == SourceDocs {
-			return Undocumented, nil
+			return Undocumented, source, nil
 		}
-		return Reject, nil
+		return Reject, source, nil
 	}
 }
+
+// A recognizeFunc is a recognizer's answer on one row: the verdict, and the
+// source that gave it, which is the suite's unless an override names another.
+type recognizeFunc func(Row) (verdict, source string, err error)
 
 // merge returns the file's rows with its generated rows replaced by
 // generated, in generated's order, followed by the hand-added rows in their
@@ -329,12 +365,9 @@ func sample(added, removed []Row) string {
 // where that is unjudged too. It returns how many rows it filled. A row the
 // judge gave no verdict for stays unjudged, so a partial recording is safe
 // to write and a rerun resumes it. recognize, when set, is the judge.
-func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row, recognize func(Row) (string, error)) (int, error) {
+func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row, recognize recognizeFunc) (int, error) {
 	t.Helper()
-	var ask func(Row) (string, error)
-	if recognize != nil {
-		ask = recognize
-	}
+	ask := recognize
 	filled, judged := 0, 0
 	var unanswered []string
 	todo := 0
@@ -357,20 +390,23 @@ func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row, recognize func
 				return filled, fmt.Errorf("%s has %d unjudged rows and the suite has no judge", s.Path, todo)
 			}
 			server := s.Judge(t, pin)
-			ask = func(r Row) (string, error) { return server(r.Statement) }
+			ask = func(r Row) (string, string, error) {
+				v, err := server(r.Statement)
+				return v, s.Source, err
+			}
 		}
-		v, err := ask(*r)
+		v, source, err := ask(*r)
 		if err == nil {
 			err = validVerdict(v)
 		}
-		if err == nil && (v == Unjudged || v == Undocumented && s.Source != SourceDocs) {
+		if err == nil && (v == Unjudged || v == Undocumented && source != SourceDocs) {
 			err = fmt.Errorf("the judge answered %q", v)
 		}
 		if err != nil {
 			unanswered = append(unanswered, fmt.Sprintf("%s %q: %v", r.Rule, r.Statement, err))
 			continue
 		}
-		r.Expected, r.Source = v, s.Source
+		r.Expected, r.Source = v, source
 		filled++
 		if judged++; judged%1000 == 0 {
 			fmt.Fprintf(os.Stderr, "compat: %s: judged %d of %d rows\n", s.Path, judged, todo)

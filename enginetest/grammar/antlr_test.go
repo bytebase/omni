@@ -393,3 +393,85 @@ fragment N : [nN] ; fragment I : [iI] ; fragment G : [gG] ;
 		}
 	}
 }
+
+// TestReadANTLRReservesTheWordsItsLexerSpells pins what a vendor's lexer
+// rules say of keywords. ANTLR gives a text two rules match to the one
+// written first, so a word a token spells before the identifier rule is
+// never a name, except where a parser rule lets the token stand for one, as
+// name does for FIRST. A grammar with no lexer rules, as one converted from
+// docs is, reserves nothing this way.
+func TestReadANTLRReservesTheWordsItsLexerSpells(t *testing.T) {
+	const parser = `grammar S;
+s : K_SELECT name (K_FROM name)? ('LIMIT' NUMBER)? ;
+name : ID | K_FIRST ;
+`
+	const lexer = `K_SELECT : S E L E C T ;
+K_FROM : F R O M ;
+K_FIRST : 'FIRST' ;
+ORDER : 'ASC' | 'DESC' ;
+ID : [a-zA-Z_] [a-zA-Z_0-9]* ;
+NUMBER : [0-9]+ ;
+LATE : 'late' ;
+fragment S : [sS] ; fragment E : [eE] ; fragment L : [lL] ; fragment C : [cC] ; fragment T : [tT] ;
+fragment F : ('f'|'F') ; fragment R : 'r' | 'R' ; fragment O : ('O' | 'o') ; fragment M : 'm' ;
+`
+	g, err := ReadANTLR("\ufeff"+parser+lexer, tokens(map[string]string{"ID": "a", "NUMBER": "1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT a":          true,
+		"SELECT a FROM a":   true,
+		"SELECT first":      true,  // the parser rule admits the keyword
+		"SELECT from":       false, // a keyword spelled ('f'|'F') ('r'|'R') ..., as ANTLR 3 grammars do
+		"SELECT a from a":   true,
+		"SELECT a frox a":   false, // and it is no class of names
+		"SELECT select":     false,
+		"SELECT a FROM asc": false, // a word of a token of several spellings
+		"SELECT limit":      false, // a literal of a parser rule
+		"SELECT a LIMIT 1":  true,
+		"SELECT late":       true, // spelled after the last class token: ID takes it
+		"SELECT s":          true, // a fragment is no token
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	docs, err := ReadANTLR(`grammar D;
+s : 'SELECT' ID ('FROM' ID)? ;
+`, tokens(map[string]string{"ID": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !docs.Recognizer().Accepts("SELECT from") {
+		t.Error("a grammar with no lexer rules reserved a word: only its token table can")
+	}
+}
+
+// TestRecognizerTellsQuotedNamesByTheirQuotes pins the classes of names: a
+// token sampled by a bare name takes a name however it is quoted, and one
+// sampled in quotes takes only names in those quotes, as PartiQL's lexer
+// reads "a" as an identifier and `a` as an Ion value.
+func TestRecognizerTellsQuotedNamesByTheirQuotes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ( ID | QUOTED | ION 'ION' ) ;
+`, tokens(map[string]string{"ID": "a", "QUOTED": `"a"`, "ION": "`1`"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT b":           true,
+		`SELECT "b"`:         true,
+		"SELECT `b`":         true, // ID is sampled bare: a name in any quotes
+		`SELECT "b" ION`:     false,
+		"SELECT `{a:1}` ION": true,
+		"SELECT b ION":       false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

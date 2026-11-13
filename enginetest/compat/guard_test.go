@@ -35,6 +35,7 @@ func TestGuard(t *testing.T) {
 		{"a new row", "", "reject\taccept\tengine\tr/A\tA\n", ""},
 		{"a removed row", "reject\taccept\tengine\tr/A\tA\n", "", ""},
 		{"a docs cell the grammar moved", "reject\tundocumented\tdocs\tr/A\tA\n", "reject\taccept\tdocs\tr/A\tA\n", ""},
+		{"a grammar cell an override gives to the docs", "accept\treject\tgrammar\tr/A\tA\n", "accept\taccept\tdocs\tr/A\tA\n", ""},
 		{"a docs cell made an engine one", "reject\taccept\tdocs\tr/A\tA\n", "reject\taccept\tengine\tr/A\tA\n", "without a pin bump"},
 		{"an undocumented row's omni", "reject\tundocumented\tdocs\tr/A\tA\n", "accept\tundocumented\tdocs\tr/A\tA\n", ""},
 	} {
