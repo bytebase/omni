@@ -487,6 +487,11 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.
 		indexType = ""
 	}
 	c := &nodes.Constraint{Name: idx.GetName()}
+	// A key OceanBase named PRIMARY, after its first column, cannot be created by that
+	// name (1280): unnamed, the catalog names it PRIMARY again (allocIndexName).
+	if !idx.GetPrimary() && strings.EqualFold(c.Name, "PRIMARY") {
+		c.Name = ""
+	}
 	switch {
 	case idx.GetPrimary():
 		c.Type, c.IndexType = nodes.ConstrPrimaryKey, indexType

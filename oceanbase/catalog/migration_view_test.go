@@ -86,7 +86,8 @@ CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v1 (p, q) AS SELECT a, b FROM t
 	// ALGORITHM=MERGE and SQL SECURITY INVOKER are not in the plan: OceanBase keeps
 	// neither, so the catalog does not either (TestOracle_OceanBaseViewAttributes).
 	for _, want := range []string{
-		"VIEW `vt`.`v1` (`p`,`q`)",
+		// The column list is folded into the body's aliases, as OceanBase stores it.
+		"VIEW `vt`.`v1` AS select `t`.`a` AS `p`,`t`.`b` AS `q`",
 		"WITH CASCADED CHECK OPTION",
 	} {
 		if !strings.Contains(ops[0].SQL, want) {

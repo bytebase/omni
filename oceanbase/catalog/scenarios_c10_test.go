@@ -258,8 +258,9 @@ func TestScenario_C10(t *testing.T) {
 			if strings.Join(vList.Columns, ",") != strings.Join(wantList, ",") {
 				t.Errorf("omni v_list Columns: got %v, want %v", vList.Columns, wantList)
 			}
-			if !vList.ExplicitColumns {
-				t.Error("omni v_list ExplicitColumns: got false, want true")
+			// The list is folded into the body's aliases, as OceanBase stores it.
+			if vList.ExplicitColumns || !strings.Contains(vList.Definition, "AS `x`") {
+				t.Errorf("omni v_list: ExplicitColumns %v, definition %s; want the list as aliases", vList.ExplicitColumns, vList.Definition)
 			}
 		}
 	})

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -62,14 +63,12 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// Use explicit column list if provided, otherwise derive from SELECT target list.
-	hasExplicit := len(stmt.Columns) > 0
-	viewCols := stmt.Columns
-	if !hasExplicit {
-		viewCols = derivedCols
-	}
+	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// states none of its own.
+	const hasExplicit = false
+	viewCols := derivedCols
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
@@ -173,14 +172,12 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// Use explicit column list if provided, otherwise derive from SELECT target list.
-	hasExplicit := len(stmt.Columns) > 0
-	viewCols := stmt.Columns
-	if !hasExplicit {
-		viewCols = derivedCols
-	}
+	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// states none of its own.
+	const hasExplicit = false
+	viewCols := derivedCols
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
@@ -288,7 +285,8 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
 	case *nodes.CaseExpr:
-		// A CASE is nullable when a result is, or when it has no ELSE.
+		// A CASE is nullable when a result is, or when it has no ELSE. IF(c, a, b) is
+		// one by now (deparse's rewrite), and reads as it did as a function.
 		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
 			return true
 		}
@@ -425,6 +423,23 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 	case *nodes.FuncCallExpr:
 		return inferViewFuncCollation(e, relations)
 	case *nodes.CaseExpr:
+		// The conditions compare what they compare, which can fail: CASE x WHEN y
+		// compares x with y. They give the CASE no character set.
+		operand, err := inferViewExprCollation(e.Operand, relations)
+		if err != nil {
+			return viewCollationInfo{}, err
+		}
+		for _, w := range e.Whens {
+			cond, err := inferViewExprCollation(w.Cond, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			if e.Operand != nil {
+				if _, err := aggregateViewCollationsForComparison(operand, cond, "case"); err != nil {
+					return viewCollationInfo{}, err
+				}
+			}
+		}
 		// The character set of a CASE is that of its results together.
 		results := make([]nodes.ExprNode, 0, len(e.Whens)+1)
 		for _, w := range e.Whens {
@@ -723,9 +738,14 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // offsets index into. An unaliased select item is named after its text in
 // source, as the engine names it; with no source ("" from DefineView), the
 // name is rebuilt from the AST.
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
+//
+// columns is the view's column list. OceanBase folds it into the body, as the alias of
+// each select item in every SELECT the body joins: CREATE VIEW v (p, q) AS SELECT a, b
+// FROM t is stored as select a AS p, b AS q (TestOracle_ViewIdempotence, explicit-columns
+// and explicit-columns-union).
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, columns []string, rawText, source string, db *Database) (string, []string) {
 	if sel == nil {
-		return rawText, nil
+		return rawText, columns
 	}
 
 	// Build a TableLookup that resolves table names from this database.
@@ -745,11 +765,14 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	}
 	resolver.Resolve(sel)
 
+	_, bindings := aliasViewColumns(sel, columns)
+
 	// Extract column names from the resolved target list.
 	derivedCols := extractViewColumns(sel)
 
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
+	bindings.substitute()
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
@@ -798,6 +821,207 @@ func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*
 		seen[toLower(name)] = true
 	}
 	return "", false
+}
+
+// aliasViewColumns gives each SELECT a query joins the names of a view's column list, as
+// the aliases of its select items. A list of another length is left for the caller.
+//
+// What names an item by the alias it had has to follow it: the resolver has written
+// ORDER BY 1 as that alias by now, and the old name is no column of the body. On a set
+// operation or parentheses, an ORDER BY names the query's output columns, so it takes the
+// new names. In a SELECT, an ORDER BY item that is the alias alone takes the new name too,
+// and becomes the item's position (deparse's orderByPosition). Anywhere else in a SELECT
+// the new name could be a column of a table, which a bare name binds to first, so the
+// alias stands for the item's expression, as OceanBase writes it: ORDER BY x + 1, for a
+// written a AS x, is stored as order by (t.a + 1). That substitution waits for the rewrite
+// pass (aliasBindings.substitute), so no expression is rewritten twice. A query nested in
+// any of them is a scope of its own, whose aliases are not these.
+func aliasViewColumns(sel *nodes.SelectStmt, columns []string) (map[string]string, aliasBindings) {
+	if sel == nil || len(columns) == 0 {
+		return nil, nil
+	}
+	var renamed map[string]string
+	var bindings aliasBindings
+	switch {
+	case sel.ParenSource != nil:
+		renamed, bindings = aliasViewColumns(sel.ParenSource, columns)
+	case sel.SetOp != nodes.SetOpNone:
+		renamed, bindings = aliasViewColumns(sel.Left, columns)
+		_, right := aliasViewColumns(sel.Right, columns)
+		bindings = append(bindings, right...)
+	case len(sel.TargetList) == len(columns):
+		renamed = map[string]string{}
+		leaf := aliasBinding{sel: sel, items: map[string]aliasItem{}}
+		for i, target := range sel.TargetList {
+			rt, ok := target.(*nodes.ResTarget)
+			if !ok {
+				sel.TargetList[i] = &nodes.ResTarget{Name: columns[i], Val: target}
+				continue
+			}
+			if old := toLower(rt.Name); old != "" && old != toLower(columns[i]) {
+				if _, twice := renamed[old]; !twice {
+					renamed[old] = columns[i]
+					leaf.items[old] = aliasItem{target: rt, position: i + 1}
+				}
+			}
+			rt.Name = columns[i]
+		}
+		for _, item := range sel.OrderBy {
+			if name, ok := aliasReference(item.Expr); ok {
+				if to, ok := renamed[name]; ok {
+					item.Expr.(*nodes.ColumnRef).Column = to
+				}
+			}
+		}
+		if len(leaf.items) > 0 {
+			bindings = aliasBindings{leaf}
+		}
+		return renamed, bindings
+	default:
+		return nil, nil
+	}
+	for _, item := range sel.OrderBy {
+		followAliases(item.Expr, renamed)
+	}
+	return renamed, bindings
+}
+
+// aliasBindings are the SELECTs whose select items a view's column list renamed.
+type aliasBindings []aliasBinding
+
+type aliasBinding struct {
+	sel   *nodes.SelectStmt
+	items map[string]aliasItem // old alias, lower-cased, to the item it named
+}
+
+type aliasItem struct {
+	target   *nodes.ResTarget
+	position int
+}
+
+// substitute puts each renamed item's expression where its old alias stands in the
+// SELECT's GROUP BY, HAVING and ORDER BY. A GROUP BY item that is the alias alone, of an
+// item that is a constant, becomes the item's position: a constant there would read as
+// one. A query nested in them is a scope of its own and is left alone.
+func (bs aliasBindings) substitute() {
+	for _, b := range bs {
+		for _, item := range b.sel.GroupBy {
+			if name, ok := aliasReference(item.Expr); ok {
+				if it, ok := b.items[name]; ok && isConstantLiteral(it.target.Val) {
+					item.Expr = &nodes.IntLit{Value: int64(it.position)}
+					continue
+				}
+			}
+			item.Expr = b.substituteIn(item.Expr)
+		}
+		b.sel.Having = b.substituteIn(b.sel.Having)
+		for _, item := range b.sel.OrderBy {
+			item.Expr = b.substituteIn(item.Expr)
+		}
+	}
+}
+
+// substituteIn returns expr with every reference to a renamed alias replaced by its
+// item's expression. It reaches every expression a node holds, in a field, a list or a
+// clause of its own (a CASE's WHEN, a window's ORDER BY), and stops at a nested query.
+func (b aliasBinding) substituteIn(expr nodes.ExprNode) nodes.ExprNode {
+	if expr == nil {
+		return nil
+	}
+	if name, ok := aliasReference(expr); ok {
+		if it, ok := b.items[name]; ok {
+			return it.target.Val
+		}
+		return expr
+	}
+	b.substituteFields(reflect.ValueOf(expr))
+	return expr
+}
+
+var exprNodeType = reflect.TypeOf((*nodes.ExprNode)(nil)).Elem()
+
+// substituteFields substitutes in the expression fields of the node v points to. Only
+// fields of expression type are set: a Loc, a name or a flag is never written.
+func (b aliasBinding) substituteFields(v reflect.Value) {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	if _, nested := v.Interface().(*nodes.SelectStmt); nested {
+		return
+	}
+	v = v.Elem()
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if !f.CanSet() {
+			continue
+		}
+		switch t := f.Type(); {
+		case t == exprNodeType:
+			b.substituteValue(f)
+		case t.Kind() == reflect.Slice && t.Elem() == exprNodeType:
+			for j := 0; j < f.Len(); j++ {
+				b.substituteValue(f.Index(j))
+			}
+		case t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct:
+			b.substituteFields(f)
+		case t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Pointer && t.Elem().Elem().Kind() == reflect.Struct:
+			for j := 0; j < f.Len(); j++ {
+				b.substituteFields(f.Index(j))
+			}
+		}
+	}
+}
+
+func (b aliasBinding) substituteValue(f reflect.Value) {
+	if f.IsNil() {
+		return
+	}
+	f.Set(reflect.ValueOf(b.substituteIn(f.Interface().(nodes.ExprNode))))
+}
+
+// aliasReference returns the lower-cased name a bare column reference holds: one written
+// with no table, which the resolver leaves only on an alias.
+func aliasReference(expr nodes.ExprNode) (string, bool) {
+	cr, ok := expr.(*nodes.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" || cr.Star {
+		return "", false
+	}
+	return toLower(cr.Column), true
+}
+
+func isConstantLiteral(expr nodes.ExprNode) bool {
+	switch expr.(type) {
+	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.NullLit, *nodes.BoolLit, *nodes.BitLit:
+		return true
+	}
+	return false
+}
+
+// followAliases rewrites the references to renamed aliases in expr to the new names. A
+// query nested in expr is a scope of its own and is left alone.
+func followAliases(expr nodes.ExprNode, renamed map[string]string) {
+	if expr == nil || len(renamed) == 0 {
+		return
+	}
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if _, nested := n.(*nodes.SelectStmt); nested {
+			return false
+		}
+		if name, ok := aliasReference(asExpr(n)); ok {
+			if to, ok := renamed[name]; ok {
+				n.(*nodes.ColumnRef).Column = to
+			}
+		}
+		return true
+	})
+}
+
+func asExpr(n nodes.Node) nodes.ExprNode {
+	e, _ := n.(nodes.ExprNode)
+	return e
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

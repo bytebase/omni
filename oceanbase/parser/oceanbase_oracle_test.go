@@ -59,7 +59,7 @@ type grammarCase struct {
 // Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-30: the engine parses all ten,
 // so each is grammar this parser owes, not a guess at OceanBase's dialect.
 var oceanBaseOnlyGrammar = []grammarCase{
-	{name: "create tablegroup", sql: "CREATE TABLEGROUP obprobe_tg1 PARTITION BY HASH PARTITIONS 8", pending: true},
+	{name: "create tablegroup", sql: "CREATE TABLEGROUP obprobe_tg1 PARTITION BY HASH PARTITIONS 8"},
 	{name: "alter table set tablegroup", sql: "ALTER TABLE obprobe_t SET TABLEGROUP obprobe_tg1"},
 	{name: "tablegroup table option", sql: "CREATE TABLE obprobe_t2 (a INT) TABLEGROUP = obprobe_tg1"},
 	{name: "create outline", sql: "CREATE OUTLINE obprobe_ol1 ON SELECT * FROM obprobe_t", pending: true},

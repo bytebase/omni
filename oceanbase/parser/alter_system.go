@@ -34,7 +34,8 @@ type sysMatch struct {
 	hasFar  bool
 	action  string
 	nameEnd int    // where the naming words of the form end
-	name    string // the object the statement names, where a form reads one
+	schema  string // the object the statement names, where a form reads one
+	name    string
 }
 
 // sysMiss records the current token as one no matcher took.
@@ -222,7 +223,8 @@ var (
 	})
 	// relation_name_or_string: relation_name | STRING_VALUE | ALL.
 	sysNS = sysAlt(sysName, sysStr, "ALL")
-	// int_or_decimal.
+	// int_or_decimal: INTNUM | DECIMAL_VAL. A run of digits is one or the other at
+	// any width: an INTNUM up to 64 bits, a DECIMAL_VAL past them.
 	sysNumber = sysAlt(sysInt, sysTok(tokFCONST))
 	// text_string: STRING_VALUE | HEX_STRING_VALUE | BIN_STRING_VALUE.
 	sysText = sysAlt(sysStr, sysTok(tokXCONST), sysTok(tokBCONST))

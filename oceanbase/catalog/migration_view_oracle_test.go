@@ -240,6 +240,80 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (1 IN ((SELECT max(a) FROM t))) AS x",
 		}, []string{"t"}, []string{"v"}},
+		// IN over a subquery in its plain forms, which OceanBase stores as = any and
+		// <> all, in a select item and in WHERE.
+		{"in-subquery", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT (1 IN (SELECT max(a) FROM t)) AS x, (1 NOT IN (SELECT max(a) FROM t)) AS y",
+		}, []string{"t"}, []string{"v"}},
+		{"in-subquery-where", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE TABLE u (a INT)",
+			"CREATE VIEW v AS SELECT a FROM t WHERE a IN (SELECT a FROM u) AND a NOT IN (SELECT a + 1 FROM u)",
+		}, []string{"t", "u"}, []string{"v"}},
+		// A chain of set operations, which it stores with each side in parentheses,
+		// and a column list over one, which it folds into every SELECT's aliases.
+		{"union-chain", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE TABLE u (a INT)",
+			"CREATE VIEW v AS SELECT a FROM t UNION SELECT a FROM u UNION ALL SELECT 1",
+		}, []string{"t", "u"}, []string{"v"}},
+		{"explicit-columns-union", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE TABLE u (a INT)",
+			"CREATE VIEW v (p) AS SELECT a FROM t UNION SELECT a FROM u",
+		}, []string{"t", "u"}, []string{"v"}},
+		{"explicit-columns-expr", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v (p, q) AS SELECT a, a + 1 FROM t",
+		}, []string{"t"}, []string{"v"}},
+		// BETWEEN in a view, stored as two comparisons over constant bounds.
+		{"between-forms", []string{
+			"CREATE TABLE t (a INT, b INT, c INT)",
+			"CREATE VIEW v AS SELECT a BETWEEN 1 AND 10 AS x, a NOT BETWEEN 1 AND 10 AS y, a BETWEEN b AND c AS z FROM t WHERE a BETWEEN 2 AND 3",
+		}, []string{"t"}, []string{"v"}},
+		// ORDER BY over a select item, which OceanBase stores as the item's position:
+		// by its alias, by the column it is, and by a position as written. A column
+		// that is no select item, and an expression, stay as written.
+		{"order-by-alias", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v AS SELECT a AS x, b FROM t ORDER BY x DESC, b",
+		}, []string{"t"}, []string{"v"}},
+		{"order-by-position", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v AS SELECT a, b FROM t ORDER BY 2, 1",
+		}, []string{"t"}, []string{"v"}},
+		{"order-by-other-column", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v AS SELECT a FROM t ORDER BY b, a + 1",
+		}, []string{"t"}, []string{"v"}},
+		{"order-by-union", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE TABLE u (a INT)",
+			"CREATE VIEW v AS SELECT a FROM t UNION SELECT a FROM u ORDER BY a LIMIT 2",
+		}, []string{"t", "u"}, []string{"v"}},
+		// The same under a column list, which renames the items an ORDER BY names.
+		{"explicit-columns-order-by-alias", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v (p) AS SELECT a AS x FROM t ORDER BY x",
+		}, []string{"t"}, []string{"v"}},
+		{"explicit-columns-order-by-union", []string{
+			"CREATE VIEW v (p) AS SELECT 1 AS a UNION SELECT 2 ORDER BY 1",
+		}, nil, []string{"v"}},
+		// A new name that is also a column of the table: the alias under an expression
+		// stands for its item's expression, as OceanBase stores it.
+		{"explicit-columns-order-by-shadow", []string{
+			"CREATE TABLE t (a INT, p INT)",
+			"CREATE VIEW v (p) AS SELECT a AS x FROM t ORDER BY x + 1",
+		}, []string{"t"}, []string{"v"}},
+		{"explicit-columns-order-by-convert", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v (b) AS SELECT a AS x FROM t ORDER BY CONVERT(x, SIGNED)",
+		}, []string{"t"}, []string{"v"}},
+		{"explicit-columns-group-by", []string{
+			"CREATE TABLE t (a INT, p INT)",
+			"CREATE VIEW v (p, n) AS SELECT a AS x, count(*) AS c FROM t GROUP BY x HAVING c > 0 ORDER BY c DESC",
+		}, []string{"t"}, []string{"v"}},
 		{"paren-exists-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (EXISTS((SELECT 1 FROM t))) AS x",
@@ -508,6 +582,18 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (a INT, b INT)"),
 			base("CREATE TABLE t (a INT, b INT)", "CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION"),
 			[]string{"t"}, []string{"v"}},
+		// The forms OceanBase stores in other words than they are written in, which the
+		// plan writes as it stores them: WITH RECURSIVE, each side of a set operation
+		// in parentheses, CASE for IF, = any for IN, TRIM(BOTH ...), and a column list
+		// as aliases. Each has to run.
+		{"create-stored-forms",
+			base("CREATE TABLE t (a INT, s VARCHAR(20))"),
+			base("CREATE TABLE t (a INT, s VARCHAR(20))",
+				"CREATE VIEW v_cte AS WITH c AS (SELECT a FROM t) SELECT a FROM c",
+				"CREATE VIEW v_union (p) AS SELECT a FROM t UNION SELECT a + 1 FROM t UNION ALL SELECT 1",
+				"CREATE VIEW v_if AS SELECT IF(a > 0, 'YES', 'NO') AS x, TRIM('x' FROM s) AS y FROM t",
+				"CREATE VIEW v_in AS SELECT a FROM t WHERE a IN (SELECT a FROM t) AND a NOT IN (SELECT a + 1 FROM t)"),
+			[]string{"t"}, []string{"v_cte", "v_union", "v_if", "v_in"}},
 		// view-on-table created together with its table in one plan (table first).
 		{"create-view-and-table",
 			base(),
@@ -618,6 +704,16 @@ func viewMigrationProbes() []viewMigrationProbe {
 		{"create-explicit-columns",
 			base("CREATE TABLE t (a INT, b VARCHAR(20))"),
 			base("CREATE TABLE t (a INT, b VARCHAR(20))", "CREATE VIEW v (p, q) AS SELECT a, b FROM t"),
+			[]string{"t"}, []string{"v"}},
+		// A column list over items an ORDER BY names by the aliases they had: the plan's
+		// body has to name them still.
+		{"create-explicit-columns-order-by",
+			base("CREATE TABLE t (a INT, b VARCHAR(20))"),
+			base("CREATE TABLE t (a INT, b VARCHAR(20))", "CREATE VIEW v (p, q) AS SELECT a AS x, b FROM t ORDER BY x, b"),
+			[]string{"t"}, []string{"v"}},
+		{"create-explicit-columns-order-by-union",
+			base("CREATE TABLE t (a INT)"),
+			base("CREATE TABLE t (a INT)", "CREATE VIEW v (p) AS SELECT a AS x FROM t UNION SELECT 2 ORDER BY 1"),
 			[]string{"t"}, []string{"v"}},
 		// ---- temporal-unit keyword arguments ----
 		// CREATE the sys.innodb_lock_waits shape from a table-only state:

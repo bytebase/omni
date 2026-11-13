@@ -234,3 +234,27 @@ func TestMigration_LeavesTheNamePrimaryOut(t *testing.T) {
 		})
 	}
 }
+
+// The name PRIMARY that a unique key over a column of that name gets cannot be written,
+// in SHOW CREATE TABLE or in synced metadata, so the catalog writes the key unnamed and
+// names it again when the text is loaded.
+func TestTheNamePrimaryReloads(t *testing.T) {
+	first := New()
+	if code := omniCode(first, "CREATE DATABASE d; USE d; CREATE TABLE t (`PRIMARY` INT, id INT PRIMARY KEY, UNIQUE KEY (`PRIMARY`), KEY (`PRIMARY`, id))"); code != 0 {
+		t.Fatalf("setup: error %d", code)
+	}
+	show := first.ShowCreateTable("d", "t")
+	if strings.Contains(show, "KEY `PRIMARY` (") {
+		t.Errorf("SHOW CREATE TABLE writes the name PRIMARY:\n%s", show)
+	}
+	second := New()
+	if code := omniCode(second, "CREATE DATABASE d; USE d; "+show); code != 0 {
+		t.Fatalf("SHOW CREATE TABLE does not load: error %d\n%s", code, show)
+	}
+	if again := second.ShowCreateTable("d", "t"); again != show {
+		t.Errorf("SHOW CREATE TABLE reads back as another:\n%s\nwant:\n%s", again, show)
+	}
+	if d := Diff(first, second); !d.IsEmpty() {
+		t.Errorf("the reloaded table differs: %+v", d.Tables)
+	}
+}

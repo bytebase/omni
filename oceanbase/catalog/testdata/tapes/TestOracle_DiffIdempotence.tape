@@ -346,6 +346,38 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
+| DROP DATABASE IF EXISTS diff_generated_case
+< ok 0 0
+> exec
+| CREATE DATABASE diff_generated_case
+< ok 1 0
+> exec
+| USE diff_generated_case
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(10), b INT GENERATED ALWAYS AS (IF(a > 0, a, 0)) VIRTUAL, c INT GENERATED ALWAYS AS (CASE WHEN a > 0 THEN a ELSE 0 END) STORED, d INT AS (CASE a WHEN 1 THEN 10 ELSE 20 END), e INT AS (a IN (1, 2)), f INT AS (a IS NULL))
+< ok 0 0
+> query
+| SHOW CREATE TABLE diff_generated_case.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `s` varchar(10) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS ((case when (`a` > 0) then `a` else 0 end)) VIRTUAL,
+|   `c` int(11) GENERATED ALWAYS AS ((case when (`a` > 0) then `a` else 0 end)) STORED,
+|   `d` int(11) GENERATED ALWAYS AS ((case `a` when 1 then 10 else 20 end)) VIRTUAL,
+|   `e` int(11) GENERATED ALWAYS AS ((`a` in (1,2))) VIRTUAL,
+|   `f` int(11) GENERATED ALWAYS AS ((`a` is null)) VIRTUAL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
 | DROP DATABASE IF EXISTS diff_implicit_table_opts
 < ok 0 0
 > exec

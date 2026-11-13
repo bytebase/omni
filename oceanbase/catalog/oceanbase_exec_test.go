@@ -196,6 +196,13 @@ func TestOracle_OceanBaseRefusals(t *testing.T) {
 			{"CREATE OR REPLACE VIEW v5 AS SELECT a, a FROM t1", 1060},
 			{"CREATE VIEW v10 AS SELECT a FROM t1 UNION SELECT b FROM t1", taken},
 		}},
+		{"a view that compares two collations it cannot", []engineStep{
+			{"CREATE VIEW v1 AS SELECT ('a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci) AS n", 1267},
+			{"CREATE VIEW v2 AS SELECT IF('a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci, 1, 0) AS n", 1267},
+			{"CREATE VIEW v3 AS SELECT CASE WHEN 'a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci THEN 1 ELSE 0 END AS n", 1267},
+			{"CREATE VIEW v4 AS SELECT CASE 'a' COLLATE utf8mb4_bin WHEN 'b' COLLATE utf8mb4_general_ci THEN 1 ELSE 0 END AS n", 1267},
+			{"CREATE VIEW v5 AS SELECT CASE 'a' COLLATE utf8mb4_bin WHEN 'b' THEN 1 ELSE 0 END AS n", taken},
+		}},
 		{"the rename of an event that has started", []engineStep{
 			{"CREATE EVENT e1 ON SCHEDULE EVERY 1 HOUR DO SELECT 1", taken},
 			{"ALTER EVENT e1 RENAME TO e1b", 1235},

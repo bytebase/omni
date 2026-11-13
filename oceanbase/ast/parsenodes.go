@@ -2034,7 +2034,8 @@ func (s *AlterSystemStmt) nodeTag()  {}
 func (s *AlterSystemStmt) stmtNode() {}
 
 // ObjectDDLStmt is a CREATE, ALTER or DROP of an OceanBase object this parser
-// keeps no tree for: a tenant, a resource unit or a resource pool. Action is
+// keeps no tree for: a tenant, a resource unit or pool, a tablegroup or a
+// sequence. Action is
 // the statement and its object as the grammar writes them ("CREATE TENANT",
 // "ALTER RESOURCE POOL"); Schema and Name are the object's name, Name empty
 // where the statement names none (ALTER TENANT ALL). The options are parsed
@@ -2048,6 +2049,16 @@ type ObjectDDLStmt struct {
 
 func (s *ObjectDDLStmt) nodeTag()  {}
 func (s *ObjectDDLStmt) stmtNode() {}
+
+// AuditStmt is OceanBase's AUDIT or NOAUDIT statement. What it audits is
+// parsed and not kept.
+type AuditStmt struct {
+	Loc     Loc
+	NoAudit bool
+}
+
+func (s *AuditStmt) nodeTag()  {}
+func (s *AuditStmt) stmtNode() {}
 
 // KillStmt represents a KILL statement.
 type KillStmt struct {

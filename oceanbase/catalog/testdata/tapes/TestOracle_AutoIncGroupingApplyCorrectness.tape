@@ -2317,7 +2317,7 @@
 | ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT
 < ok 0 0
 > exec
-| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`d` + 1))) VIRTUAL
+| ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`d` + 1)) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_generated_keypart_pullin_e9c71dcd`.`t` ADD UNIQUE KEY `uk_sg` (`seq`,`g`) LOCAL
@@ -2701,7 +2701,7 @@
 | ALTER TABLE `pa_aig_genpart_base_widened_ebfcd6dc`.`t` MODIFY COLUMN `z` bigint DEFAULT NULL
 < ok 0 0
 > exec
-| ALTER TABLE `pa_aig_genpart_base_widened_ebfcd6dc`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`z` + 1))) VIRTUAL
+| ALTER TABLE `pa_aig_genpart_base_widened_ebfcd6dc`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`z` + 1)) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `pa_aig_genpart_base_widened_ebfcd6dc`.`t` ADD UNIQUE KEY `uk_sg` (`seq`,`g`) LOCAL

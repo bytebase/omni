@@ -374,15 +374,15 @@ func showIndex(idx *Index) string {
 	if idx.Primary {
 		b.WriteString("PRIMARY KEY (")
 	} else if idx.Unique {
-		b.WriteString(fmt.Sprintf("UNIQUE KEY `%s` (", idx.Name))
+		b.WriteString("UNIQUE KEY " + shownIndexName(idx) + "(")
 	} else if idx.Fulltext {
-		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
+		b.WriteString("FULLTEXT KEY " + shownIndexName(idx) + "(")
 	} else if idx.Spatial {
-		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+		b.WriteString("SPATIAL KEY " + shownIndexName(idx) + "(")
 	} else if idx.Vector {
-		b.WriteString(fmt.Sprintf("VECTOR KEY `%s` (", idx.Name))
+		b.WriteString("VECTOR KEY " + shownIndexName(idx) + "(")
 	} else {
-		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
+		b.WriteString("KEY " + shownIndexName(idx) + "(")
 	}
 
 	cols := make([]string, 0, len(idx.Columns))
@@ -440,6 +440,18 @@ func showIndex(idx *Index) string {
 	}
 
 	return b.String()
+}
+
+// shownIndexName is an index's name as SHOW CREATE TABLE writes it, with the space after
+// it. A key named PRIMARY after its first column (allocIndexName) is written without its
+// name, so the text loads again: OceanBase prints UNIQUE KEY `PRIMARY` there, which
+// neither it nor this catalog takes back (1280), and a key written unnamed over that
+// column is named PRIMARY again.
+func shownIndexName(idx *Index) string {
+	if strings.EqualFold(idx.Name, "PRIMARY") {
+		return ""
+	}
+	return fmt.Sprintf("`%s` ", idx.Name)
 }
 
 func showIndexColumn(ic *IndexColumn) string {
