@@ -81,8 +81,20 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 			// matches, is that token and never a name. The parser rules say
 			// where it may stand for one, as Cosmos DB's identifier :
 			// LEX_IDENTIFIER | K_ALL does.
+			// The recognizer reserves a word in every case, so it does only
+			// where no case the token is spelled in goes to an earlier class.
 			for _, t := range texts {
-				if wordText.MatchString(t) && !takenBefore(i, t) {
+				if !wordText.MatchString(t) {
+					continue
+				}
+				taken := false
+				for _, v := range p.caseVariants(name, t) {
+					if takenBefore(i, v) {
+						taken = true
+						break
+					}
+				}
+				if !taken {
 					g.reserved[strings.ToUpper(t)] = true
 				}
 			}
@@ -826,6 +838,26 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 		}
 		p.i++
 	}
+}
+
+// caseVariants returns the spellings of folded, one of name's texts, that
+// differ only in case: every one where they are few, and otherwise, for a
+// keyword spelled letter by letter in either case, its lower, upper and
+// capitalized forms.
+func (p *antlrParser) caseVariants(name, folded string) []string {
+	if texts, ok := p.ruleTexts(name, map[string]bool{}, false); ok {
+		var out []string
+		for _, t := range texts {
+			if strings.EqualFold(t, folded) {
+				out = append(out, t)
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+	lower := strings.ToLower(folded)
+	return []string{folded, lower, strings.ToUpper(folded), strings.ToUpper(lower[:1]) + lower[1:]}
 }
 
 // literalRule returns the text of a lexer rule that is one literal and
