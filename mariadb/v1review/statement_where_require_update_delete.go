@@ -15,7 +15,8 @@ func StatementWhereRequireUpdateDelete(stmts []ast.Node) []v1review.Finding {
 	for _, stmt := range stmts {
 		switch n := stmt.(type) {
 		case *ast.DeleteStmt:
-			if n.Where == nil {
+			// DELETE HISTORY takes no WHERE: BEFORE SYSTEM_TIME bounds it.
+			if n.Where == nil && !n.History {
 				findings = append(findings, v1review.Finding{Code: v1review.WhereMissing, Name: "DELETE"})
 			}
 		case *ast.UpdateStmt:
