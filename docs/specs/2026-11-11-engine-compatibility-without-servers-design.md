@@ -472,7 +472,7 @@ Progress is visible: `TestCompatibility` prints how many rows of each kind agree
 | trino | `SqlBase.g4` @ `482` | `trinodb/trino:482` |
 | doris | `DorisParser.g4` + `sql_parser.cup` → `.g4` @ `3.1.4` | Doris 3.1.4 |
 | starrocks | `StarRocks.g4` @ `3.4.10` | StarRocks 3.4.10 |
-| cassandra | CQL `Parser.g` → `.g4` | grammar |
+| cassandra | CQL `Parser.g` @ `cassandra-5.0.9` → `.g4` | grammar |
 | partiql | `PartiQLParser.g4` @ `v0.14.9` of partiql-lang-kotlin | grammar; DynamoDB's docs where they take more |
 | cosmosdb | `sql.g4` @ `3.64.0` of the .NET SDK | grammar; docs where the query reference takes more |
 | mongo | mongosh method docs → `.g4` | docs |
@@ -791,6 +791,18 @@ Docs are prose, so some blocks need hand fixes: malformed syntax, undefined frag
 - **19 disagreements.** omni rejects `TOP @a`, a sort order after `ORDER BY RANK`, and `ALL`, `FIRST` and `LAST` over a subquery (8 rows). It accepts a keyword as a name (`SELECT * FROM IN c`, `SELECT LIKE()`, 7 rows), an empty `IN ()`, and `ALL(*)`, `FIRST(*)`, `LAST(*)`.
 - **The SDK's grammar is narrower than the service.** Microsoft's query reference takes an alias with no `AS`, and `sql.g4` requires it: 64 near-misses the grammar rejects are accepted by the docs, each cited in `grammar-overrides.tsv` (§2.3). Left to the grammar, 60 of them would have been on omni's work list for accepting valid queries.
 - **The recognizer does not lex as `sql.g4` does:** double-quoted strings, the five lower-case-only keywords and a number's sign are read by a generic lexer (`cosmosdb/parser/testdata/README.md`). No generated row holds one.
+
+**Cassandra, recorded.** `cassandra/parser/testdata/compat.tsv` (2026-11-13): 904 alternatives and 2,037 near-misses of `Cql.g4`, which `cassandra/parser/cmd/antlr3to4` converts from Cassandra's ANTLR 3 `Cql.g`, `Parser.g` and `Lexer.g` (Apache-2.0, committed as published, each converted rule citing its file and line). No server: a recognizer over the grammar judges, in 0.07 seconds.
+
+| Statements | Total | Agree | Only the grammar accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| One per alternative | 904 | 601 | 295 | 8 |
+| Near-misses | 2,037 | 1,943 | 20 | 74 |
+
+- **397 disagreements.** omni rejects collection element selection, `SELECT a['a'] FROM a`, which carries 60 term alternatives; a view with no `WHERE` (21); `IN ?` (20); `CREATE INDEX ON a()` (14); keyspace options other than `replication` (18); `DESCRIBE`. It accepts reserved keywords as names (`USE KEYSPACE`, `DROP TABLE IF`).
+- **The conversion keeps what a rule derives.** Actions, predicates and arguments go, and an alternative whose action refuses every input goes with it (8, such as a bind marker as a table name); every other action that may refuse is noted beside its rule.
+- **13 statements the grammar derives are refused by a `Parser.g` action** while it parses: a column, property, role option or clustering order given twice, `FROZEN<>` on a native type, a JMX name with no domain. Each is a cited `grammar` row of `grammar-overrides.tsv`, read off the Java the action calls. A Cassandra image would judge them, and the actions no row reaches yet.
+- **Two token choices hid alternatives:** `cident` lists `""` first, and `COLUMNFAMILY | TABLE` is sampled by its first spelling, which omni does not read; together they made every column and every table statement disagree. `tokens.tsv` picks `a` and `TABLE` (§2.2).
 
 ## Appendix B. Rule changes
 
