@@ -658,3 +658,35 @@ func TestIsTableConstraintStartCoverage(t *testing.T) {
 		}
 	}
 }
+
+// TestBareColumnLabelsMatchPG holds isBareColLabelStart, and with it
+// asLabelOnlyKeywords, to PostgreSQL over every keyword and IDENT, probed as
+// a target's label without AS (gram.y: target_el: a_expr BareColLabel).
+//
+// The template is SELECT 1 <token>: PostgreSQL takes it exactly when the
+// token is a BareColLabel, since the token ends the statement and so can
+// continue no expression. Literals and punctuation are left out: they would
+// continue the expression (SELECT 1 +1) and probe nothing about labels.
+func TestBareColumnLabelsMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	outcomes := runFirstSetProbe(t, o,
+		"SELECT 1 %s",
+		renderBare,
+		func(c candidateToken) bool { return c.kind == kindKeyword || c.kind == kindIdent },
+	)
+
+	// ISNULL and NOTNULL are AS_LABEL keywords, but PostgreSQL takes
+	// SELECT 1 ISNULL as the postfix operator: the expression, not a label.
+	postfixOperators := map[int]bool{ISNULL: true, NOTNULL: true}
+	for i := range outcomes {
+		if postfixOperators[outcomes[i].candidate.token] {
+			outcomes[i].accepted = false
+		}
+	}
+
+	label := func(c candidateToken) bool {
+		p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+		return p.isBareColLabelStart()
+	}
+	assertPredicateMatchesPG(t, "BareColLabel via SELECT 1", outcomes, predicateProbe{onKeyword: label, onNonKeyword: label})
+}

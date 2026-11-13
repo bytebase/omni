@@ -7457,15 +7457,15 @@ reject@24	reject@24	engine	opt_check_option/WITH_CHECK_OPTION!drop-1	CREATE VIEW
 reject@24	reject@29	engine	opt_check_option/WITH_CHECK_OPTION!drop-2	CREATE VIEW a AS SELECT WITH OPTION
 accept	reject@34	engine	opt_check_option/WITH_CHECK_OPTION!drop-3	CREATE VIEW a AS SELECT WITH CHECK
 reject@42	reject@42	engine	opt_check_option/WITH_CHECK_OPTION!insert	CREATE VIEW a AS SELECT WITH CHECK OPTION zzz
-reject@31	reject@37	engine	opt_check_option/WITH_CHECK_OPTION!swap	CREATE VIEW a AS SELECT WITHIN CHECK OPTION
+reject@37	reject@37	engine	opt_check_option/WITH_CHECK_OPTION!swap	CREATE VIEW a AS SELECT WITHIN CHECK OPTION
 accept	accept	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
-reject@33	reject@39	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!drop-1	CREATE VIEW a AS SELECT CASCADED CHECK OPTION
+reject@39	reject@39	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!drop-1	CREATE VIEW a AS SELECT CASCADED CHECK OPTION
 accept	reject@38	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!drop-3	CREATE VIEW a AS SELECT WITH CASCADED OPTION
 accept	reject@43	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!drop-4	CREATE VIEW a AS SELECT WITH CASCADED CHECK
 reject@51	reject@51	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!insert	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION zzz
 reject@40	reject@40	engine	opt_check_option/WITH_CASCADED_CHECK_OPTION!swap	CREATE VIEW a AS SELECT WITHIN CASCADED CHECK OPTION
 accept	accept	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
-reject@30	reject@36	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!drop-1	CREATE VIEW a AS SELECT LOCAL CHECK OPTION
+reject@36	reject@36	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!drop-1	CREATE VIEW a AS SELECT LOCAL CHECK OPTION
 accept	reject@35	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!drop-3	CREATE VIEW a AS SELECT WITH LOCAL OPTION
 accept	reject@40	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!drop-4	CREATE VIEW a AS SELECT WITH LOCAL CHECK
 reject@48	reject@48	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!insert	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION zzz
@@ -8074,7 +8074,7 @@ reject@16	reject@16	engine	insert_column_list/insert_column_list_,_insert_column
 reject@19	reject@19	engine	insert_column_list/insert_column_list_,_insert_column_item!insert	INSERT INTO a(a, a zzz) SELECT
 accept	accept	engine	insert_column_item/ColId_opt_indirection	INSERT INTO a(a) SELECT
 accept	accept	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause	INSERT INTO a SELECT ON CONFLICT DO UPDATE SET a = a
-reject@30	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!drop-1	INSERT INTO a SELECT CONFLICT DO UPDATE SET a = a
+reject@33	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!drop-1	INSERT INTO a SELECT CONFLICT DO UPDATE SET a = a
 reject@21	reject@24	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!drop-2	INSERT INTO a SELECT ON DO UPDATE SET a = a
 reject@33	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!drop-3	INSERT INTO a SELECT ON CONFLICT UPDATE SET a = a
 reject@36	reject@36	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!drop-4	INSERT INTO a SELECT ON CONFLICT DO SET a = a
@@ -8085,7 +8085,7 @@ accept	reject@50	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_
 reject@53	reject@53	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!insert	INSERT INTO a SELECT ON CONFLICT DO UPDATE SET a = a zzz
 reject@21	reject@21	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_UPDATE_SET_set_clause_list_where_clause!swap	INSERT INTO a SELECT ONLY CONFLICT DO UPDATE SET a = a
 accept	accept	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING	INSERT INTO a SELECT ON CONFLICT DO NOTHING
-reject@30	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING!drop-1	INSERT INTO a SELECT CONFLICT DO NOTHING
+reject@33	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING!drop-1	INSERT INTO a SELECT CONFLICT DO NOTHING
 reject@21	reject@24	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING!drop-2	INSERT INTO a SELECT ON DO NOTHING
 reject@33	reject@33	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING!drop-3	INSERT INTO a SELECT ON CONFLICT NOTHING
 accept	reject@35	engine	opt_on_conflict/ON_CONFLICT_opt_conf_expr_DO_NOTHING!drop-4	INSERT INTO a SELECT ON CONFLICT DO
@@ -8833,7 +8833,7 @@ accept	accept	engine	having_clause/%empty	SELECT
 accept	accept	engine	for_locking_clause/for_locking_items	SELECT FOR UPDATE
 accept	accept	engine	for_locking_clause/for_locking_items!swap	SELECT FORCE UPDATE
 accept	accept	engine	for_locking_clause/FOR_READ_ONLY	SELECT FOR READ ONLY
-reject@12	accept	engine	for_locking_clause/FOR_READ_ONLY!drop-1	SELECT READ ONLY
+accept	accept	engine	for_locking_clause/FOR_READ_ONLY!drop-1	SELECT READ ONLY
 reject@11	reject@11	engine	for_locking_clause/FOR_READ_ONLY!drop-2	SELECT FOR ONLY
 reject@15	reject@15	engine	for_locking_clause/FOR_READ_ONLY!drop-3	SELECT FOR READ
 reject@21	reject@21	engine	for_locking_clause/FOR_READ_ONLY!insert	SELECT FOR READ ONLY zzz
@@ -9644,7 +9644,7 @@ accept	accept	engine	a_expr/a_expr_TYPECAST_Typename!insert	SELECT a :: a zzz
 accept	accept	engine	a_expr/a_expr_COLLATE_any_name	SELECT a COLLATE a
 reject@7	reject@7	engine	a_expr/a_expr_COLLATE_any_name!drop-1	SELECT COLLATE a
 accept	accept	engine	a_expr/a_expr_COLLATE_any_name!insert	SELECT a COLLATE a zzz
-reject@9	reject@19	engine	a_expr/a_expr_COLLATE_any_name!swap	SELECT a COLLATION a
+reject@19	reject@19	engine	a_expr/a_expr_COLLATE_any_name!swap	SELECT a COLLATION a
 accept	accept	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr	SELECT a AT TIME ZONE a
 reject@15	reject@15	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!drop-1	SELECT AT TIME ZONE a
 reject@14	reject@14	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!drop-2	SELECT a TIME ZONE a
@@ -9718,7 +9718,7 @@ accept	accept	engine	a_expr/qual_Op_a_expr!insert	SELECT ~ a zzz
 accept	accept	engine	a_expr/a_expr_AND_a_expr	SELECT a AND a
 reject@7	reject@7	engine	a_expr/a_expr_AND_a_expr!drop-1	SELECT AND a
 accept	accept	engine	a_expr/a_expr_AND_a_expr!insert	SELECT a AND a zzz
-reject@9	reject@13	engine	a_expr/a_expr_AND_a_expr!swap	SELECT a ANY a
+reject@13	reject@13	engine	a_expr/a_expr_AND_a_expr!swap	SELECT a ANY a
 accept	accept	engine	a_expr/a_expr_OR_a_expr	SELECT a OR a
 reject@7	reject@7	engine	a_expr/a_expr_OR_a_expr!drop-1	SELECT OR a
 accept	accept	engine	a_expr/a_expr_OR_a_expr!insert	SELECT a OR a zzz
@@ -9741,13 +9741,13 @@ accept	accept	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!insert	SELECT a LIK
 reject@17	reject@17	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!swap	SELECT a LIMIT a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr	SELECT a NOT LIKE a
 reject@7	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-1	SELECT NOT LIKE a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-3	SELECT a NOT a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-3	SELECT a NOT a
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-4	SELECT a NOT LIKE
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!insert	SELECT a NOT LIKE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!swap	SELECT a NOTHING LIKE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr	SELECT a NOT LIKE a ESCAPE a
 reject@7	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT LIKE a ESCAPE a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT a ESCAPE a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-4	SELECT a NOT LIKE ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-5	SELECT a NOT LIKE a a
 reject@26	reject@26	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-6	SELECT a NOT LIKE a ESCAPE
@@ -9794,14 +9794,14 @@ accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!insert	SELECT
 reject@16	reject@16	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!swap	SELECT a SIMPLE TO a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr	SELECT a NOT SIMILAR TO a
 reject@7	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-1	SELECT NOT SIMILAR TO a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-3	SELECT a NOT TO a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-3	SELECT a NOT TO a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-4	SELECT a NOT SIMILAR a
 reject@23	reject@23	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-5	SELECT a NOT SIMILAR TO
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!insert	SELECT a NOT SIMILAR TO a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!swap	SELECT a NOTHING SIMILAR TO a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr	SELECT a NOT SIMILAR TO a ESCAPE a
 reject@7	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT SIMILAR TO a ESCAPE a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT TO a ESCAPE a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT TO a ESCAPE a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-4	SELECT a NOT SIMILAR a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-5	SELECT a NOT SIMILAR TO ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-6	SELECT a NOT SIMILAR TO a a
@@ -9811,16 +9811,16 @@ reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!
 accept	accept	engine	a_expr/a_expr_IS_NULL_P	SELECT a IS NULL
 reject@7	reject@10	engine	a_expr/a_expr_IS_NULL_P!drop-1	SELECT IS NULL
 accept	accept	engine	a_expr/a_expr_IS_NULL_P!insert	SELECT a IS NULL zzz
-reject@16	accept	engine	a_expr/a_expr_IS_NULL_P!swap	SELECT a ISNULL NULL
+accept	accept	engine	a_expr/a_expr_IS_NULL_P!swap	SELECT a ISNULL NULL
 accept	accept	engine	a_expr/a_expr_ISNULL	SELECT a ISNULL
 reject@7	reject@13	engine	a_expr/a_expr_ISNULL!drop-1	SELECT ISNULL
 accept	accept	engine	a_expr/a_expr_ISNULL!insert	SELECT a ISNULL zzz
 accept	accept	engine	a_expr/a_expr_IS_NOT_NULL_P	SELECT a IS NOT NULL
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-1	SELECT IS NOT NULL
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-2	SELECT a NOT NULL
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-2	SELECT a NOT NULL
 accept	reject@15	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-4	SELECT a IS NOT
 accept	accept	engine	a_expr/a_expr_IS_NOT_NULL_P!insert	SELECT a IS NOT NULL zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_NULL_P!swap	SELECT a ISNULL NOT NULL
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_NULL_P!swap	SELECT a ISNULL NOT NULL
 accept	accept	engine	a_expr/a_expr_NOTNULL	SELECT a NOTNULL
 reject@7	reject@14	engine	a_expr/a_expr_NOTNULL!drop-1	SELECT NOTNULL
 accept	accept	engine	a_expr/a_expr_NOTNULL!insert	SELECT a NOTNULL zzz
@@ -9837,46 +9837,46 @@ accept	reject@14	engine	a_expr/row_OVERLAPS_row!swap	SELECT ROWS() OVERLAPS ROW(
 accept	accept	engine	a_expr/a_expr_IS_TRUE_P	SELECT a IS TRUE
 reject@7	reject@10	engine	a_expr/a_expr_IS_TRUE_P!drop-1	SELECT IS TRUE
 accept	accept	engine	a_expr/a_expr_IS_TRUE_P!insert	SELECT a IS TRUE zzz
-reject@16	accept	engine	a_expr/a_expr_IS_TRUE_P!swap	SELECT a ISNULL TRUE
+accept	accept	engine	a_expr/a_expr_IS_TRUE_P!swap	SELECT a ISNULL TRUE
 accept	accept	engine	a_expr/a_expr_IS_NOT_TRUE_P	SELECT a IS NOT TRUE
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-1	SELECT IS NOT TRUE
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-2	SELECT a NOT TRUE
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-2	SELECT a NOT TRUE
 accept	accept	engine	a_expr/a_expr_IS_NOT_TRUE_P!insert	SELECT a IS NOT TRUE zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_TRUE_P!swap	SELECT a ISNULL NOT TRUE
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_TRUE_P!swap	SELECT a ISNULL NOT TRUE
 accept	accept	engine	a_expr/a_expr_IS_FALSE_P	SELECT a IS FALSE
 reject@7	reject@10	engine	a_expr/a_expr_IS_FALSE_P!drop-1	SELECT IS FALSE
 accept	accept	engine	a_expr/a_expr_IS_FALSE_P!insert	SELECT a IS FALSE zzz
-reject@16	accept	engine	a_expr/a_expr_IS_FALSE_P!swap	SELECT a ISNULL FALSE
+accept	accept	engine	a_expr/a_expr_IS_FALSE_P!swap	SELECT a ISNULL FALSE
 accept	accept	engine	a_expr/a_expr_IS_NOT_FALSE_P	SELECT a IS NOT FALSE
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-1	SELECT IS NOT FALSE
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-2	SELECT a NOT FALSE
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-2	SELECT a NOT FALSE
 accept	accept	engine	a_expr/a_expr_IS_NOT_FALSE_P!insert	SELECT a IS NOT FALSE zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_FALSE_P!swap	SELECT a ISNULL NOT FALSE
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_FALSE_P!swap	SELECT a ISNULL NOT FALSE
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN	SELECT a IS UNKNOWN
 reject@7	reject@10	engine	a_expr/a_expr_IS_UNKNOWN!drop-1	SELECT IS UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN!insert	SELECT a IS UNKNOWN zzz
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN!swap	SELECT a ISNULL UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_NOT_UNKNOWN	SELECT a IS NOT UNKNOWN
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-1	SELECT IS NOT UNKNOWN
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-2	SELECT a NOT UNKNOWN
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-2	SELECT a NOT UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_NOT_UNKNOWN!insert	SELECT a IS NOT UNKNOWN zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_UNKNOWN!swap	SELECT a ISNULL NOT UNKNOWN
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_UNKNOWN!swap	SELECT a ISNULL NOT UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr	SELECT a IS DISTINCT FROM a
 reject@7	reject@10	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-1	SELECT IS DISTINCT FROM a
-reject@9	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-2	SELECT a DISTINCT FROM a
+accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-2	SELECT a DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-3	SELECT a IS FROM a
 reject@21	reject@21	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-4	SELECT a IS DISTINCT a
 reject@25	reject@25	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-5	SELECT a IS DISTINCT FROM
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!insert	SELECT a IS DISTINCT FROM a zzz
-reject@16	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!swap	SELECT a ISNULL DISTINCT FROM a
+accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!swap	SELECT a ISNULL DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr	SELECT a IS NOT DISTINCT FROM a
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-1	SELECT IS NOT DISTINCT FROM a
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-2	SELECT a NOT DISTINCT FROM a
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-2	SELECT a NOT DISTINCT FROM a
 accept	reject@16	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-4	SELECT a IS NOT FROM a
 reject@25	reject@25	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-5	SELECT a IS NOT DISTINCT a
 reject@29	reject@29	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-6	SELECT a IS NOT DISTINCT FROM
 accept	accept	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!insert	SELECT a IS NOT DISTINCT FROM a zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!swap	SELECT a ISNULL NOT DISTINCT FROM a
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!swap	SELECT a ISNULL NOT DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	SELECT a BETWEEN a AND a
 reject@17	reject@17	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-1	SELECT BETWEEN a AND a
 reject@11	reject@11	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-2	SELECT a a AND a
@@ -9887,15 +9887,15 @@ accept	accept	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!inse
 reject@16	reject@16	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!swap	SELECT a BIGINT a AND a
 accept	accept	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	SELECT a NOT BETWEEN a AND a
 reject@7	reject@21	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN a AND a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-3	SELECT a NOT a AND a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-3	SELECT a NOT a AND a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-4	SELECT a NOT BETWEEN AND a
 reject@23	reject@23	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-5	SELECT a NOT BETWEEN a a
 reject@26	reject@26	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-6	SELECT a NOT BETWEEN a AND
 accept	accept	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	SELECT a NOT BETWEEN a AND a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!swap	SELECT a NOTHING BETWEEN a AND a
 accept	accept	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	SELECT a BETWEEN SYMMETRIC a AND a
-reject@15	reject@25	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-1	SELECT BETWEEN SYMMETRIC a AND a
-reject@9	reject@19	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-2	SELECT a SYMMETRIC a AND a
+reject@25	reject@25	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-1	SELECT BETWEEN SYMMETRIC a AND a
+reject@19	reject@19	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-2	SELECT a SYMMETRIC a AND a
 reject@27	reject@27	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-4	SELECT a BETWEEN SYMMETRIC AND a
 reject@29	reject@29	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-5	SELECT a BETWEEN SYMMETRIC a a
 reject@32	reject@32	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-6	SELECT a BETWEEN SYMMETRIC a AND
@@ -9903,7 +9903,7 @@ accept	accept	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!insert	SE
 reject@16	reject@16	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!swap	SELECT a BIGINT SYMMETRIC a AND a
 accept	accept	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	SELECT a NOT BETWEEN SYMMETRIC a AND a
 reject@7	reject@29	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN SYMMETRIC a AND a
-reject@9	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-3	SELECT a NOT SYMMETRIC a AND a
+reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-3	SELECT a NOT SYMMETRIC a AND a
 reject@31	reject@31	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-5	SELECT a NOT BETWEEN SYMMETRIC AND a
 reject@33	reject@33	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-6	SELECT a NOT BETWEEN SYMMETRIC a a
 reject@36	reject@36	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-7	SELECT a NOT BETWEEN SYMMETRIC a AND
@@ -9919,7 +9919,7 @@ accept	accept	engine	a_expr/a_expr_IN_P_in_expr!insert	SELECT a IN(SELECT) zzz
 reject@16	reject@16	engine	a_expr/a_expr_IN_P_in_expr!swap	SELECT a INCLUDE(SELECT)
 accept	accept	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr	SELECT a NOT IN(SELECT)
 reject@7	reject@11	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-1	SELECT NOT IN(SELECT)
-reject@9	reject@12	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-3	SELECT a NOT(SELECT)
+reject@12	reject@12	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-3	SELECT a NOT(SELECT)
 reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-4	SELECT a NOT IN SELECT)
 reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-5	SELECT a NOT IN()
 reject@22	reject@22	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-6	SELECT a NOT IN(SELECT
@@ -9927,7 +9927,7 @@ accept	accept	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!insert	SELECT a NOT IN(SE
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!swap	SELECT a NOTHING IN(SELECT)
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens	SELECT a ~ ANY(SELECT)
 reject@9	reject@9	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-1	SELECT ~ ANY(SELECT)
-reject@9	reject@12	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-2	SELECT a ANY(SELECT)
+reject@12	reject@12	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-2	SELECT a ANY(SELECT)
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-3	SELECT a ~(SELECT)
 reject@15	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-4	SELECT a ~ ANY SELECT)
 accept	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-5	SELECT a ~ ANY()
@@ -9936,7 +9936,7 @@ accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!inser
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!swap	SELECT a ~ ARRAY(SELECT)
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)	SELECT a ~ ANY(a)
 reject@9	reject@9	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-1	SELECT ~ ANY(a)
-reject@9	reject@12	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-2	SELECT a ANY(a)
+reject@12	reject@12	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-2	SELECT a ANY(a)
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-3	SELECT a ~(a)
 reject@15	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-4	SELECT a ~ ANY a)
 reject@16	reject@16	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-6	SELECT a ~ ANY(a
@@ -9954,9 +9954,9 @@ accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!insert	SELECT a IS DOCUMENT zzz
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!swap	SELECT a ISNULL DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P	SELECT a IS NOT DOCUMENT
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-1	SELECT IS NOT DOCUMENT
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-2	SELECT a NOT DOCUMENT
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-2	SELECT a NOT DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!insert	SELECT a IS NOT DOCUMENT zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!swap	SELECT a ISNULL NOT DOCUMENT
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!swap	SELECT a ISNULL NOT DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED	SELECT a IS NORMALIZED
 reject@7	reject@10	engine	a_expr/a_expr_IS_NORMALIZED!drop-1	SELECT IS NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED!insert	SELECT a IS NORMALIZED zzz
@@ -9969,24 +9969,24 @@ accept	accept	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!insert	SELE
 reject@20	reject@20	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!swap	SELECT a ISNULL NFC NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_NORMALIZED	SELECT a IS NOT NORMALIZED
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-1	SELECT IS NOT NORMALIZED
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-2	SELECT a NOT NORMALIZED
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-2	SELECT a NOT NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_NORMALIZED!insert	SELECT a IS NOT NORMALIZED zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_NORMALIZED!swap	SELECT a ISNULL NOT NORMALIZED
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_NORMALIZED!swap	SELECT a ISNULL NOT NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED	SELECT a IS NOT NFC NORMALIZED
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-1	SELECT IS NOT NFC NORMALIZED
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-2	SELECT a NOT NFC NORMALIZED
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-2	SELECT a NOT NFC NORMALIZED
 reject@19	reject@19	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-5	SELECT a IS NOT NFC
 accept	accept	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!insert	SELECT a IS NOT NFC NORMALIZED zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!swap	SELECT a ISNULL NOT NFC NORMALIZED
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!swap	SELECT a ISNULL NOT NFC NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	SELECT a IS JSON
 reject@7	reject@10	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS JSON
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	SELECT a IS JSON zzz
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	SELECT a ISNULL JSON
 accept	accept	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	SELECT a IS NOT JSON
 reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS NOT JSON
-reject@9	reject@13	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-2	SELECT a NOT JSON
+reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-2	SELECT a NOT JSON
 accept	accept	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	SELECT a IS NOT JSON zzz
-reject@16	reject@20	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	SELECT a ISNULL NOT JSON
+reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	SELECT a ISNULL NOT JSON
 accept	accept	engine	a_expr/DEFAULT	SELECT DEFAULT
 accept	accept	engine	a_expr/DEFAULT!insert	SELECT DEFAULT zzz
 accept	accept	engine	a_expr/DEFAULT!swap	SELECT DEFAULTS
@@ -10714,7 +10714,7 @@ reject@30	reject@30	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!dr
 reject@32	reject@32	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!drop-6	SELECT a() WITHIN GROUP(ORDER BY)
 reject@34	reject@34	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!drop-7	SELECT a() WITHIN GROUP(ORDER BY a
 accept	accept	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!insert	SELECT a() WITHIN GROUP(ORDER BY a) zzz
-reject@24	reject@11	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!swap	SELECT a() WITHOUT GROUP(ORDER BY a)
+reject@11	reject@11	engine	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!swap	SELECT a() WITHOUT GROUP(ORDER BY a)
 accept	accept	engine	within_group_clause/%empty	SELECT a()
 accept	accept	engine	filter_clause/FILTER_(_WHERE_a_expr_)	SELECT a() FILTER(WHERE a)
 reject@10	reject@10	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-1	SELECT a()(WHERE a)
@@ -10925,27 +10925,27 @@ reject@34	reject@34	engine	qual_all_Op/OPERATOR_(_any_operator_)!drop-4	SELECT O
 reject@36	reject@36	engine	qual_all_Op/OPERATOR_(_any_operator_)!insert	SELECT ORDER BY a USING OPERATOR(~) zzz
 reject@24	reject@24	engine	qual_all_Op/OPERATOR_(_any_operator_)!swap	SELECT ORDER BY a USING OPTION(~)
 accept	accept	engine	subquery_Op/all_Op	SELECT a ~ ANY(SELECT)
-reject@15	reject@18	engine	subquery_Op/all_Op!insert	SELECT a ~ zzz ANY(SELECT)
+reject@18	reject@18	engine	subquery_Op/all_Op!insert	SELECT a ~ zzz ANY(SELECT)
 accept	accept	engine	subquery_Op/OPERATOR_(_any_operator_)	SELECT a OPERATOR(~) ANY(SELECT)
 reject@10	reject@10	engine	subquery_Op/OPERATOR_(_any_operator_)!drop-1	SELECT a(~) ANY(SELECT)
 reject@18	reject@18	engine	subquery_Op/OPERATOR_(_any_operator_)!drop-2	SELECT a OPERATOR ~) ANY(SELECT)
 reject@18	reject@18	engine	subquery_Op/OPERATOR_(_any_operator_)!drop-3	SELECT a OPERATOR() ANY(SELECT)
 reject@20	reject@20	engine	subquery_Op/OPERATOR_(_any_operator_)!drop-4	SELECT a OPERATOR(~ ANY(SELECT)
 reject@19	reject@19	engine	subquery_Op/OPERATOR_(_any_operator_)!truncate	SELECT a OPERATOR(~
-reject@25	reject@28	engine	subquery_Op/OPERATOR_(_any_operator_)!insert	SELECT a OPERATOR(~) zzz ANY(SELECT)
+reject@28	reject@28	engine	subquery_Op/OPERATOR_(_any_operator_)!insert	SELECT a OPERATOR(~) zzz ANY(SELECT)
 reject@15	reject@15	engine	subquery_Op/OPERATOR_(_any_operator_)!swap	SELECT a OPTION(~) ANY(SELECT)
 accept	accept	engine	subquery_Op/LIKE	SELECT a LIKE ANY(SELECT)
-reject@18	reject@21	engine	subquery_Op/LIKE!insert	SELECT a LIKE zzz ANY(SELECT)
+reject@21	reject@21	engine	subquery_Op/LIKE!insert	SELECT a LIKE zzz ANY(SELECT)
 reject@15	reject@15	engine	subquery_Op/LIKE!swap	SELECT a LIMIT ANY(SELECT)
 accept	accept	engine	subquery_Op/NOT_LA_LIKE	SELECT a NOT LIKE ANY(SELECT)
-reject@9	reject@13	engine	subquery_Op/NOT_LA_LIKE!drop-2	SELECT a NOT ANY(SELECT)
-reject@22	reject@25	engine	subquery_Op/NOT_LA_LIKE!insert	SELECT a NOT LIKE zzz ANY(SELECT)
+reject@13	reject@13	engine	subquery_Op/NOT_LA_LIKE!drop-2	SELECT a NOT ANY(SELECT)
+reject@25	reject@25	engine	subquery_Op/NOT_LA_LIKE!insert	SELECT a NOT LIKE zzz ANY(SELECT)
 reject@17	reject@17	engine	subquery_Op/NOT_LA_LIKE!swap	SELECT a NOTHING LIKE ANY(SELECT)
 accept	accept	engine	subquery_Op/ILIKE	SELECT a ILIKE ANY(SELECT)
-reject@19	reject@22	engine	subquery_Op/ILIKE!insert	SELECT a ILIKE zzz ANY(SELECT)
+reject@22	reject@22	engine	subquery_Op/ILIKE!insert	SELECT a ILIKE zzz ANY(SELECT)
 reject@19	reject@19	engine	subquery_Op/ILIKE!swap	SELECT a IMMEDIATE ANY(SELECT)
 accept	accept	engine	subquery_Op/NOT_LA_ILIKE	SELECT a NOT ILIKE ANY(SELECT)
-reject@23	reject@26	engine	subquery_Op/NOT_LA_ILIKE!insert	SELECT a NOT ILIKE zzz ANY(SELECT)
+reject@26	reject@26	engine	subquery_Op/NOT_LA_ILIKE!insert	SELECT a NOT ILIKE zzz ANY(SELECT)
 reject@17	reject@17	engine	subquery_Op/NOT_LA_ILIKE!swap	SELECT a NOTHING ILIKE ANY(SELECT)
 accept	accept	engine	expr_list/a_expr	VALUES(a)
 reject@7	reject@7	engine	expr_list/a_expr!truncate	VALUES(
@@ -11401,21 +11401,21 @@ accept	reject@12	engine	json_predicate_type_constraint/JSON_SCALAR!drop-1	SELECT
 accept	accept	engine	json_predicate_type_constraint/JSON_SCALAR!insert	SELECT a IS JSON SCALAR zzz
 reject@23	reject@12	engine	json_predicate_type_constraint/JSON_SCALAR!swap	SELECT a IS JSON_ARRAY SCALAR
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	SELECT a IS JSON WITH UNIQUE KEYS
-reject@17	reject@24	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-1	SELECT a IS JSON UNIQUE KEYS
+reject@24	reject@24	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-1	SELECT a IS JSON UNIQUE KEYS
 reject@17	reject@22	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-2	SELECT a IS JSON WITH KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!insert	SELECT a IS JSON WITH UNIQUE KEYS zzz
-reject@24	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!swap	SELECT a IS JSON WITHIN UNIQUE KEYS
+reject@17	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!swap	SELECT a IS JSON WITHIN UNIQUE KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE	SELECT a IS JSON WITH UNIQUE
-reject@17	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-1	SELECT a IS JSON UNIQUE
+accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-1	SELECT a IS JSON UNIQUE
 reject@17	reject@21	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-2	SELECT a IS JSON WITH
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!insert	SELECT a IS JSON WITH UNIQUE zzz
-reject@24	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!swap	SELECT a IS JSON WITHIN UNIQUE
+reject@17	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!swap	SELECT a IS JSON WITHIN UNIQUE
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS	SELECT a IS JSON WITHOUT UNIQUE KEYS
 reject@25	reject@25	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS!drop-2	SELECT a IS JSON WITHOUT KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS!insert	SELECT a IS JSON WITHOUT UNIQUE KEYS zzz
 reject@22	reject@22	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS!swap	SELECT a IS JSON WORK UNIQUE KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE	SELECT a IS JSON WITHOUT UNIQUE
-accept	reject@24	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE!drop-2	SELECT a IS JSON WITHOUT
+reject@24	reject@24	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE!drop-2	SELECT a IS JSON WITHOUT
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE!insert	SELECT a IS JSON WITHOUT UNIQUE zzz
 reject@22	reject@22	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE!swap	SELECT a IS JSON WORK UNIQUE
 accept	accept	engine	json_key_uniqueness_constraint_opt/%empty	SELECT a IS JSON
@@ -11507,7 +11507,7 @@ accept	accept	engine	target_el/a_expr_AS_ColLabel	SELECT a AS a
 reject@7	reject@7	engine	target_el/a_expr_AS_ColLabel!drop-1	SELECT AS a
 accept	reject@11	engine	target_el/a_expr_AS_ColLabel!drop-3	SELECT a AS
 reject@14	reject@14	engine	target_el/a_expr_AS_ColLabel!insert	SELECT a AS a zzz
-reject@9	reject@13	engine	target_el/a_expr_AS_ColLabel!swap	SELECT a ASC a
+reject@13	reject@13	engine	target_el/a_expr_AS_ColLabel!swap	SELECT a ASC a
 accept	accept	engine	target_el/a_expr_BareColLabel	SELECT a a
 reject@11	reject@11	engine	target_el/a_expr_BareColLabel!insert	SELECT a a zzz
 accept	accept	engine	target_el/a_expr	SELECT a
@@ -12784,34 +12784,34 @@ accept	accept	engine	bare_label_keyword/AFTER	SELECT a AFTER
 reject@15	reject@15	engine	bare_label_keyword/AFTER!insert	SELECT a AFTER zzz
 accept	accept	engine	bare_label_keyword/AGGREGATE	SELECT a AGGREGATE
 reject@19	reject@19	engine	bare_label_keyword/AGGREGATE!insert	SELECT a AGGREGATE zzz
-reject@9	accept	engine	bare_label_keyword/ALL	SELECT a ALL
-reject@9	reject@13	engine	bare_label_keyword/ALL!insert	SELECT a ALL zzz
+accept	accept	engine	bare_label_keyword/ALL	SELECT a ALL
+reject@13	reject@13	engine	bare_label_keyword/ALL!insert	SELECT a ALL zzz
 accept	accept	engine	bare_label_keyword/ALSO	SELECT a ALSO
 reject@14	reject@14	engine	bare_label_keyword/ALSO!insert	SELECT a ALSO zzz
 accept	accept	engine	bare_label_keyword/ALTER	SELECT a ALTER
 reject@15	reject@15	engine	bare_label_keyword/ALTER!insert	SELECT a ALTER zzz
 accept	accept	engine	bare_label_keyword/ALWAYS	SELECT a ALWAYS
 reject@16	reject@16	engine	bare_label_keyword/ALWAYS!insert	SELECT a ALWAYS zzz
-reject@9	accept	engine	bare_label_keyword/ANALYSE	SELECT a ANALYSE
-reject@9	reject@17	engine	bare_label_keyword/ANALYSE!insert	SELECT a ANALYSE zzz
-reject@9	accept	engine	bare_label_keyword/ANALYZE	SELECT a ANALYZE
-reject@9	reject@17	engine	bare_label_keyword/ANALYZE!insert	SELECT a ANALYZE zzz
-reject@12	accept	engine	bare_label_keyword/AND	SELECT a AND
+accept	accept	engine	bare_label_keyword/ANALYSE	SELECT a ANALYSE
+reject@17	reject@17	engine	bare_label_keyword/ANALYSE!insert	SELECT a ANALYSE zzz
+accept	accept	engine	bare_label_keyword/ANALYZE	SELECT a ANALYZE
+reject@17	reject@17	engine	bare_label_keyword/ANALYZE!insert	SELECT a ANALYZE zzz
+accept	accept	engine	bare_label_keyword/AND	SELECT a AND
 accept	accept	engine	bare_label_keyword/AND!insert	SELECT a AND zzz
-reject@9	accept	engine	bare_label_keyword/ANY	SELECT a ANY
-reject@9	reject@13	engine	bare_label_keyword/ANY!insert	SELECT a ANY zzz
+accept	accept	engine	bare_label_keyword/ANY	SELECT a ANY
+reject@13	reject@13	engine	bare_label_keyword/ANY!insert	SELECT a ANY zzz
 reject@9	reject@9	engine	bare_label_keyword/ANY!swap	SELECT a ARRAY
-reject@9	accept	engine	bare_label_keyword/ASC	SELECT a ASC
-reject@9	reject@13	engine	bare_label_keyword/ASC!insert	SELECT a ASC zzz
+accept	accept	engine	bare_label_keyword/ASC	SELECT a ASC
+reject@13	reject@13	engine	bare_label_keyword/ASC!insert	SELECT a ASC zzz
 accept	accept	engine	bare_label_keyword/ASENSITIVE	SELECT a ASENSITIVE
 reject@20	reject@20	engine	bare_label_keyword/ASENSITIVE!insert	SELECT a ASENSITIVE zzz
 accept	accept	engine	bare_label_keyword/ASSERTION	SELECT a ASSERTION
 reject@19	reject@19	engine	bare_label_keyword/ASSERTION!insert	SELECT a ASSERTION zzz
 accept	accept	engine	bare_label_keyword/ASSIGNMENT	SELECT a ASSIGNMENT
 reject@20	reject@20	engine	bare_label_keyword/ASSIGNMENT!insert	SELECT a ASSIGNMENT zzz
-reject@9	accept	engine	bare_label_keyword/ASYMMETRIC	SELECT a ASYMMETRIC
-reject@9	reject@20	engine	bare_label_keyword/ASYMMETRIC!insert	SELECT a ASYMMETRIC zzz
-reject@11	accept	engine	bare_label_keyword/AT	SELECT a AT
+accept	accept	engine	bare_label_keyword/ASYMMETRIC	SELECT a ASYMMETRIC
+reject@20	reject@20	engine	bare_label_keyword/ASYMMETRIC!insert	SELECT a ASYMMETRIC zzz
+accept	accept	engine	bare_label_keyword/AT	SELECT a AT
 reject@12	reject@12	engine	bare_label_keyword/AT!insert	SELECT a AT zzz
 accept	accept	engine	bare_label_keyword/ATOMIC	SELECT a ATOMIC
 reject@16	reject@16	engine	bare_label_keyword/ATOMIC!insert	SELECT a ATOMIC zzz
@@ -12819,26 +12819,26 @@ accept	accept	engine	bare_label_keyword/ATTACH	SELECT a ATTACH
 reject@16	reject@16	engine	bare_label_keyword/ATTACH!insert	SELECT a ATTACH zzz
 accept	accept	engine	bare_label_keyword/ATTRIBUTE	SELECT a ATTRIBUTE
 reject@19	reject@19	engine	bare_label_keyword/ATTRIBUTE!insert	SELECT a ATTRIBUTE zzz
-reject@9	accept	engine	bare_label_keyword/AUTHORIZATION	SELECT a AUTHORIZATION
-reject@9	reject@23	engine	bare_label_keyword/AUTHORIZATION!insert	SELECT a AUTHORIZATION zzz
+accept	accept	engine	bare_label_keyword/AUTHORIZATION	SELECT a AUTHORIZATION
+reject@23	reject@23	engine	bare_label_keyword/AUTHORIZATION!insert	SELECT a AUTHORIZATION zzz
 accept	accept	engine	bare_label_keyword/BACKWARD	SELECT a BACKWARD
 reject@18	reject@18	engine	bare_label_keyword/BACKWARD!insert	SELECT a BACKWARD zzz
 accept	accept	engine	bare_label_keyword/BEFORE	SELECT a BEFORE
 reject@16	reject@16	engine	bare_label_keyword/BEFORE!insert	SELECT a BEFORE zzz
 accept	accept	engine	bare_label_keyword/BEGIN_P	SELECT a BEGIN
 reject@15	reject@15	engine	bare_label_keyword/BEGIN_P!insert	SELECT a BEGIN zzz
-reject@16	accept	engine	bare_label_keyword/BETWEEN	SELECT a BETWEEN
+accept	accept	engine	bare_label_keyword/BETWEEN	SELECT a BETWEEN
 reject@20	reject@20	engine	bare_label_keyword/BETWEEN!insert	SELECT a BETWEEN zzz
 accept	accept	engine	bare_label_keyword/BIGINT	SELECT a BIGINT
 reject@16	reject@16	engine	bare_label_keyword/BIGINT!insert	SELECT a BIGINT zzz
-reject@9	accept	engine	bare_label_keyword/BINARY	SELECT a BINARY
-reject@9	reject@16	engine	bare_label_keyword/BINARY!insert	SELECT a BINARY zzz
+accept	accept	engine	bare_label_keyword/BINARY	SELECT a BINARY
+reject@16	reject@16	engine	bare_label_keyword/BINARY!insert	SELECT a BINARY zzz
 accept	accept	engine	bare_label_keyword/BIT	SELECT a BIT
 reject@13	reject@13	engine	bare_label_keyword/BIT!insert	SELECT a BIT zzz
 accept	accept	engine	bare_label_keyword/BOOLEAN_P	SELECT a BOOLEAN
 reject@17	reject@17	engine	bare_label_keyword/BOOLEAN_P!insert	SELECT a BOOLEAN zzz
-reject@9	accept	engine	bare_label_keyword/BOTH	SELECT a BOTH
-reject@9	reject@14	engine	bare_label_keyword/BOTH!insert	SELECT a BOTH zzz
+accept	accept	engine	bare_label_keyword/BOTH	SELECT a BOTH
+reject@14	reject@14	engine	bare_label_keyword/BOTH!insert	SELECT a BOTH zzz
 accept	accept	engine	bare_label_keyword/BREADTH	SELECT a BREADTH
 reject@17	reject@17	engine	bare_label_keyword/BREADTH!insert	SELECT a BREADTH zzz
 accept	accept	engine	bare_label_keyword/BY	SELECT a BY
@@ -12853,19 +12853,19 @@ accept	accept	engine	bare_label_keyword/CASCADE	SELECT a CASCADE
 reject@17	reject@17	engine	bare_label_keyword/CASCADE!insert	SELECT a CASCADE zzz
 accept	accept	engine	bare_label_keyword/CASCADED	SELECT a CASCADED
 reject@18	reject@18	engine	bare_label_keyword/CASCADED!insert	SELECT a CASCADED zzz
-reject@9	accept	engine	bare_label_keyword/CASE	SELECT a CASE
-reject@9	reject@14	engine	bare_label_keyword/CASE!insert	SELECT a CASE zzz
-reject@9	accept	engine	bare_label_keyword/CAST	SELECT a CAST
-reject@9	reject@14	engine	bare_label_keyword/CAST!insert	SELECT a CAST zzz
+accept	accept	engine	bare_label_keyword/CASE	SELECT a CASE
+reject@14	reject@14	engine	bare_label_keyword/CASE!insert	SELECT a CASE zzz
+accept	accept	engine	bare_label_keyword/CAST	SELECT a CAST
+reject@14	reject@14	engine	bare_label_keyword/CAST!insert	SELECT a CAST zzz
 accept	accept	engine	bare_label_keyword/CATALOG_P	SELECT a CATALOG
 reject@17	reject@17	engine	bare_label_keyword/CATALOG_P!insert	SELECT a CATALOG zzz
 accept	accept	engine	bare_label_keyword/CHAIN	SELECT a CHAIN
 reject@15	reject@15	engine	bare_label_keyword/CHAIN!insert	SELECT a CHAIN zzz
-accept	reject@9	engine	bare_label_keyword/CHAIN!swap	SELECT a CHAR
+reject@9	reject@9	engine	bare_label_keyword/CHAIN!swap	SELECT a CHAR
 accept	accept	engine	bare_label_keyword/CHARACTERISTICS	SELECT a CHARACTERISTICS
 reject@25	reject@25	engine	bare_label_keyword/CHARACTERISTICS!insert	SELECT a CHARACTERISTICS zzz
-reject@9	accept	engine	bare_label_keyword/CHECK	SELECT a CHECK
-reject@9	reject@15	engine	bare_label_keyword/CHECK!insert	SELECT a CHECK zzz
+accept	accept	engine	bare_label_keyword/CHECK	SELECT a CHECK
+reject@15	reject@15	engine	bare_label_keyword/CHECK!insert	SELECT a CHECK zzz
 accept	accept	engine	bare_label_keyword/CHECKPOINT	SELECT a CHECKPOINT
 reject@20	reject@20	engine	bare_label_keyword/CHECKPOINT!insert	SELECT a CHECKPOINT zzz
 accept	accept	engine	bare_label_keyword/CLASS	SELECT a CLASS
@@ -12876,12 +12876,12 @@ accept	accept	engine	bare_label_keyword/CLUSTER	SELECT a CLUSTER
 reject@17	reject@17	engine	bare_label_keyword/CLUSTER!insert	SELECT a CLUSTER zzz
 accept	accept	engine	bare_label_keyword/COALESCE	SELECT a COALESCE
 reject@18	reject@18	engine	bare_label_keyword/COALESCE!insert	SELECT a COALESCE zzz
-reject@16	accept	engine	bare_label_keyword/COLLATE	SELECT a COLLATE
+accept	accept	engine	bare_label_keyword/COLLATE	SELECT a COLLATE
 accept	accept	engine	bare_label_keyword/COLLATE!insert	SELECT a COLLATE zzz
-reject@9	accept	engine	bare_label_keyword/COLLATION	SELECT a COLLATION
-reject@9	reject@19	engine	bare_label_keyword/COLLATION!insert	SELECT a COLLATION zzz
-reject@9	accept	engine	bare_label_keyword/COLUMN	SELECT a COLUMN
-reject@9	reject@16	engine	bare_label_keyword/COLUMN!insert	SELECT a COLUMN zzz
+accept	accept	engine	bare_label_keyword/COLLATION	SELECT a COLLATION
+reject@19	reject@19	engine	bare_label_keyword/COLLATION!insert	SELECT a COLLATION zzz
+accept	accept	engine	bare_label_keyword/COLUMN	SELECT a COLUMN
+reject@16	reject@16	engine	bare_label_keyword/COLUMN!insert	SELECT a COLUMN zzz
 accept	accept	engine	bare_label_keyword/COLUMNS	SELECT a COLUMNS
 reject@17	reject@17	engine	bare_label_keyword/COLUMNS!insert	SELECT a COLUMNS zzz
 accept	accept	engine	bare_label_keyword/COMMENT	SELECT a COMMENT
@@ -12894,8 +12894,8 @@ accept	accept	engine	bare_label_keyword/COMMITTED	SELECT a COMMITTED
 reject@19	reject@19	engine	bare_label_keyword/COMMITTED!insert	SELECT a COMMITTED zzz
 accept	accept	engine	bare_label_keyword/COMPRESSION	SELECT a COMPRESSION
 reject@21	reject@21	engine	bare_label_keyword/COMPRESSION!insert	SELECT a COMPRESSION zzz
-reject@9	accept	engine	bare_label_keyword/CONCURRENTLY	SELECT a CONCURRENTLY
-reject@9	reject@22	engine	bare_label_keyword/CONCURRENTLY!insert	SELECT a CONCURRENTLY zzz
+accept	accept	engine	bare_label_keyword/CONCURRENTLY	SELECT a CONCURRENTLY
+reject@22	reject@22	engine	bare_label_keyword/CONCURRENTLY!insert	SELECT a CONCURRENTLY zzz
 accept	accept	engine	bare_label_keyword/CONDITIONAL	SELECT a CONDITIONAL
 reject@21	reject@21	engine	bare_label_keyword/CONDITIONAL!insert	SELECT a CONDITIONAL zzz
 accept	accept	engine	bare_label_keyword/CONFIGURATION	SELECT a CONFIGURATION
@@ -12904,8 +12904,8 @@ accept	accept	engine	bare_label_keyword/CONFLICT	SELECT a CONFLICT
 reject@18	reject@18	engine	bare_label_keyword/CONFLICT!insert	SELECT a CONFLICT zzz
 accept	accept	engine	bare_label_keyword/CONNECTION	SELECT a CONNECTION
 reject@20	reject@20	engine	bare_label_keyword/CONNECTION!insert	SELECT a CONNECTION zzz
-reject@9	accept	engine	bare_label_keyword/CONSTRAINT	SELECT a CONSTRAINT
-reject@9	reject@20	engine	bare_label_keyword/CONSTRAINT!insert	SELECT a CONSTRAINT zzz
+accept	accept	engine	bare_label_keyword/CONSTRAINT	SELECT a CONSTRAINT
+reject@20	reject@20	engine	bare_label_keyword/CONSTRAINT!insert	SELECT a CONSTRAINT zzz
 accept	accept	engine	bare_label_keyword/CONSTRAINTS	SELECT a CONSTRAINTS
 reject@21	reject@21	engine	bare_label_keyword/CONSTRAINTS!insert	SELECT a CONSTRAINTS zzz
 accept	accept	engine	bare_label_keyword/CONTENT_P	SELECT a CONTENT
@@ -12919,28 +12919,28 @@ reject@14	reject@14	engine	bare_label_keyword/COPY!insert	SELECT a COPY zzz
 accept	accept	engine	bare_label_keyword/COST	SELECT a COST
 reject@14	reject@14	engine	bare_label_keyword/COST!insert	SELECT a COST zzz
 reject@9	reject@9	engine	bare_label_keyword/COST!swap	SELECT a CREATE
-reject@9	accept	engine	bare_label_keyword/CROSS	SELECT a CROSS
-reject@9	reject@15	engine	bare_label_keyword/CROSS!insert	SELECT a CROSS zzz
+accept	accept	engine	bare_label_keyword/CROSS	SELECT a CROSS
+reject@15	reject@15	engine	bare_label_keyword/CROSS!insert	SELECT a CROSS zzz
 accept	accept	engine	bare_label_keyword/CSV	SELECT a CSV
 reject@13	reject@13	engine	bare_label_keyword/CSV!insert	SELECT a CSV zzz
 accept	accept	engine	bare_label_keyword/CUBE	SELECT a CUBE
 reject@14	reject@14	engine	bare_label_keyword/CUBE!insert	SELECT a CUBE zzz
 accept	accept	engine	bare_label_keyword/CURRENT_P	SELECT a CURRENT
 reject@17	reject@17	engine	bare_label_keyword/CURRENT_P!insert	SELECT a CURRENT zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_CATALOG	SELECT a CURRENT_CATALOG
-reject@9	reject@25	engine	bare_label_keyword/CURRENT_CATALOG!insert	SELECT a CURRENT_CATALOG zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_DATE	SELECT a CURRENT_DATE
-reject@9	reject@22	engine	bare_label_keyword/CURRENT_DATE!insert	SELECT a CURRENT_DATE zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_ROLE	SELECT a CURRENT_ROLE
-reject@9	reject@22	engine	bare_label_keyword/CURRENT_ROLE!insert	SELECT a CURRENT_ROLE zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_SCHEMA	SELECT a CURRENT_SCHEMA
-reject@9	reject@24	engine	bare_label_keyword/CURRENT_SCHEMA!insert	SELECT a CURRENT_SCHEMA zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_TIME	SELECT a CURRENT_TIME
-reject@9	reject@22	engine	bare_label_keyword/CURRENT_TIME!insert	SELECT a CURRENT_TIME zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_TIMESTAMP	SELECT a CURRENT_TIMESTAMP
-reject@9	reject@27	engine	bare_label_keyword/CURRENT_TIMESTAMP!insert	SELECT a CURRENT_TIMESTAMP zzz
-reject@9	accept	engine	bare_label_keyword/CURRENT_USER	SELECT a CURRENT_USER
-reject@9	reject@22	engine	bare_label_keyword/CURRENT_USER!insert	SELECT a CURRENT_USER zzz
+accept	accept	engine	bare_label_keyword/CURRENT_CATALOG	SELECT a CURRENT_CATALOG
+reject@25	reject@25	engine	bare_label_keyword/CURRENT_CATALOG!insert	SELECT a CURRENT_CATALOG zzz
+accept	accept	engine	bare_label_keyword/CURRENT_DATE	SELECT a CURRENT_DATE
+reject@22	reject@22	engine	bare_label_keyword/CURRENT_DATE!insert	SELECT a CURRENT_DATE zzz
+accept	accept	engine	bare_label_keyword/CURRENT_ROLE	SELECT a CURRENT_ROLE
+reject@22	reject@22	engine	bare_label_keyword/CURRENT_ROLE!insert	SELECT a CURRENT_ROLE zzz
+accept	accept	engine	bare_label_keyword/CURRENT_SCHEMA	SELECT a CURRENT_SCHEMA
+reject@24	reject@24	engine	bare_label_keyword/CURRENT_SCHEMA!insert	SELECT a CURRENT_SCHEMA zzz
+accept	accept	engine	bare_label_keyword/CURRENT_TIME	SELECT a CURRENT_TIME
+reject@22	reject@22	engine	bare_label_keyword/CURRENT_TIME!insert	SELECT a CURRENT_TIME zzz
+accept	accept	engine	bare_label_keyword/CURRENT_TIMESTAMP	SELECT a CURRENT_TIMESTAMP
+reject@27	reject@27	engine	bare_label_keyword/CURRENT_TIMESTAMP!insert	SELECT a CURRENT_TIMESTAMP zzz
+accept	accept	engine	bare_label_keyword/CURRENT_USER	SELECT a CURRENT_USER
+reject@22	reject@22	engine	bare_label_keyword/CURRENT_USER!insert	SELECT a CURRENT_USER zzz
 accept	accept	engine	bare_label_keyword/CURSOR	SELECT a CURSOR
 reject@16	reject@16	engine	bare_label_keyword/CURSOR!insert	SELECT a CURSOR zzz
 accept	accept	engine	bare_label_keyword/CYCLE	SELECT a CYCLE
@@ -12949,7 +12949,7 @@ accept	accept	engine	bare_label_keyword/DATA_P	SELECT a DATA
 reject@14	reject@14	engine	bare_label_keyword/DATA_P!insert	SELECT a DATA zzz
 accept	accept	engine	bare_label_keyword/DATABASE	SELECT a DATABASE
 reject@18	reject@18	engine	bare_label_keyword/DATABASE!insert	SELECT a DATABASE zzz
-accept	reject@9	engine	bare_label_keyword/DATABASE!swap	SELECT a DAY
+reject@9	reject@9	engine	bare_label_keyword/DATABASE!swap	SELECT a DAY
 accept	accept	engine	bare_label_keyword/DEALLOCATE	SELECT a DEALLOCATE
 reject@20	reject@20	engine	bare_label_keyword/DEALLOCATE!insert	SELECT a DEALLOCATE zzz
 accept	accept	engine	bare_label_keyword/DEC	SELECT a DEC
@@ -12958,12 +12958,12 @@ accept	accept	engine	bare_label_keyword/DECIMAL_P	SELECT a DECIMAL
 reject@17	reject@17	engine	bare_label_keyword/DECIMAL_P!insert	SELECT a DECIMAL zzz
 accept	accept	engine	bare_label_keyword/DECLARE	SELECT a DECLARE
 reject@17	reject@17	engine	bare_label_keyword/DECLARE!insert	SELECT a DECLARE zzz
-reject@9	accept	engine	bare_label_keyword/DEFAULT	SELECT a DEFAULT
-reject@9	reject@17	engine	bare_label_keyword/DEFAULT!insert	SELECT a DEFAULT zzz
+accept	accept	engine	bare_label_keyword/DEFAULT	SELECT a DEFAULT
+reject@17	reject@17	engine	bare_label_keyword/DEFAULT!insert	SELECT a DEFAULT zzz
 accept	accept	engine	bare_label_keyword/DEFAULTS	SELECT a DEFAULTS
 reject@18	reject@18	engine	bare_label_keyword/DEFAULTS!insert	SELECT a DEFAULTS zzz
-reject@9	accept	engine	bare_label_keyword/DEFERRABLE	SELECT a DEFERRABLE
-reject@9	reject@20	engine	bare_label_keyword/DEFERRABLE!insert	SELECT a DEFERRABLE zzz
+accept	accept	engine	bare_label_keyword/DEFERRABLE	SELECT a DEFERRABLE
+reject@20	reject@20	engine	bare_label_keyword/DEFERRABLE!insert	SELECT a DEFERRABLE zzz
 accept	accept	engine	bare_label_keyword/DEFERRED	SELECT a DEFERRED
 reject@18	reject@18	engine	bare_label_keyword/DEFERRED!insert	SELECT a DEFERRED zzz
 accept	accept	engine	bare_label_keyword/DEFINER	SELECT a DEFINER
@@ -12978,8 +12978,8 @@ accept	accept	engine	bare_label_keyword/DEPENDS	SELECT a DEPENDS
 reject@17	reject@17	engine	bare_label_keyword/DEPENDS!insert	SELECT a DEPENDS zzz
 accept	accept	engine	bare_label_keyword/DEPTH	SELECT a DEPTH
 reject@15	reject@15	engine	bare_label_keyword/DEPTH!insert	SELECT a DEPTH zzz
-reject@9	accept	engine	bare_label_keyword/DESC	SELECT a DESC
-reject@9	reject@14	engine	bare_label_keyword/DESC!insert	SELECT a DESC zzz
+accept	accept	engine	bare_label_keyword/DESC	SELECT a DESC
+reject@14	reject@14	engine	bare_label_keyword/DESC!insert	SELECT a DESC zzz
 accept	accept	engine	bare_label_keyword/DETACH	SELECT a DETACH
 reject@16	reject@16	engine	bare_label_keyword/DETACH!insert	SELECT a DETACH zzz
 accept	accept	engine	bare_label_keyword/DICTIONARY	SELECT a DICTIONARY
@@ -12988,10 +12988,10 @@ accept	accept	engine	bare_label_keyword/DISABLE_P	SELECT a DISABLE
 reject@17	reject@17	engine	bare_label_keyword/DISABLE_P!insert	SELECT a DISABLE zzz
 accept	accept	engine	bare_label_keyword/DISCARD	SELECT a DISCARD
 reject@17	reject@17	engine	bare_label_keyword/DISCARD!insert	SELECT a DISCARD zzz
-reject@9	accept	engine	bare_label_keyword/DISTINCT	SELECT a DISTINCT
-reject@9	reject@18	engine	bare_label_keyword/DISTINCT!insert	SELECT a DISTINCT zzz
-reject@9	accept	engine	bare_label_keyword/DO	SELECT a DO
-reject@9	reject@12	engine	bare_label_keyword/DO!insert	SELECT a DO zzz
+accept	accept	engine	bare_label_keyword/DISTINCT	SELECT a DISTINCT
+reject@18	reject@18	engine	bare_label_keyword/DISTINCT!insert	SELECT a DISTINCT zzz
+accept	accept	engine	bare_label_keyword/DO	SELECT a DO
+reject@12	reject@12	engine	bare_label_keyword/DO!insert	SELECT a DO zzz
 accept	accept	engine	bare_label_keyword/DOCUMENT_P	SELECT a DOCUMENT
 reject@18	reject@18	engine	bare_label_keyword/DOCUMENT_P!insert	SELECT a DOCUMENT zzz
 accept	accept	engine	bare_label_keyword/DOMAIN_P	SELECT a DOMAIN
@@ -13002,8 +13002,8 @@ accept	accept	engine	bare_label_keyword/DROP	SELECT a DROP
 reject@14	reject@14	engine	bare_label_keyword/DROP!insert	SELECT a DROP zzz
 accept	accept	engine	bare_label_keyword/EACH	SELECT a EACH
 reject@14	reject@14	engine	bare_label_keyword/EACH!insert	SELECT a EACH zzz
-reject@9	accept	engine	bare_label_keyword/ELSE	SELECT a ELSE
-reject@9	reject@14	engine	bare_label_keyword/ELSE!insert	SELECT a ELSE zzz
+accept	accept	engine	bare_label_keyword/ELSE	SELECT a ELSE
+reject@14	reject@14	engine	bare_label_keyword/ELSE!insert	SELECT a ELSE zzz
 accept	accept	engine	bare_label_keyword/EMPTY_P	SELECT a EMPTY
 reject@15	reject@15	engine	bare_label_keyword/EMPTY_P!insert	SELECT a EMPTY zzz
 accept	accept	engine	bare_label_keyword/ENABLE_P	SELECT a ENABLE
@@ -13012,8 +13012,8 @@ accept	accept	engine	bare_label_keyword/ENCODING	SELECT a ENCODING
 reject@18	reject@18	engine	bare_label_keyword/ENCODING!insert	SELECT a ENCODING zzz
 accept	accept	engine	bare_label_keyword/ENCRYPTED	SELECT a ENCRYPTED
 reject@19	reject@19	engine	bare_label_keyword/ENCRYPTED!insert	SELECT a ENCRYPTED zzz
-reject@9	accept	engine	bare_label_keyword/END_P	SELECT a END
-reject@9	reject@13	engine	bare_label_keyword/END_P!insert	SELECT a END zzz
+accept	accept	engine	bare_label_keyword/END_P	SELECT a END
+reject@13	reject@13	engine	bare_label_keyword/END_P!insert	SELECT a END zzz
 accept	accept	engine	bare_label_keyword/ENUM_P	SELECT a ENUM
 reject@14	reject@14	engine	bare_label_keyword/ENUM_P!insert	SELECT a ENUM zzz
 accept	accept	engine	bare_label_keyword/ERROR_P	SELECT a ERROR
@@ -13043,8 +13043,8 @@ accept	accept	engine	bare_label_keyword/EXTERNAL	SELECT a EXTERNAL
 reject@18	reject@18	engine	bare_label_keyword/EXTERNAL!insert	SELECT a EXTERNAL zzz
 accept	accept	engine	bare_label_keyword/EXTRACT	SELECT a EXTRACT
 reject@17	reject@17	engine	bare_label_keyword/EXTRACT!insert	SELECT a EXTRACT zzz
-reject@9	accept	engine	bare_label_keyword/FALSE_P	SELECT a FALSE
-reject@9	reject@15	engine	bare_label_keyword/FALSE_P!insert	SELECT a FALSE zzz
+accept	accept	engine	bare_label_keyword/FALSE_P	SELECT a FALSE
+reject@15	reject@15	engine	bare_label_keyword/FALSE_P!insert	SELECT a FALSE zzz
 accept	accept	engine	bare_label_keyword/FAMILY	SELECT a FAMILY
 reject@16	reject@16	engine	bare_label_keyword/FAMILY!insert	SELECT a FAMILY zzz
 reject@14	reject@14	engine	bare_label_keyword/FAMILY!swap	SELECT a FETCH
@@ -13059,17 +13059,17 @@ reject@19	reject@19	engine	bare_label_keyword/FOLLOWING!insert	SELECT a FOLLOWIN
 accept	reject@12	engine	bare_label_keyword/FOLLOWING!swap	SELECT a FOR
 accept	accept	engine	bare_label_keyword/FORCE	SELECT a FORCE
 reject@15	reject@15	engine	bare_label_keyword/FORCE!insert	SELECT a FORCE zzz
-reject@9	accept	engine	bare_label_keyword/FOREIGN	SELECT a FOREIGN
-reject@9	reject@17	engine	bare_label_keyword/FOREIGN!insert	SELECT a FOREIGN zzz
+accept	accept	engine	bare_label_keyword/FOREIGN	SELECT a FOREIGN
+reject@17	reject@17	engine	bare_label_keyword/FOREIGN!insert	SELECT a FOREIGN zzz
 accept	accept	engine	bare_label_keyword/FORMAT	SELECT a FORMAT
 reject@16	reject@16	engine	bare_label_keyword/FORMAT!insert	SELECT a FORMAT zzz
 accept	accept	engine	bare_label_keyword/FORWARD	SELECT a FORWARD
 reject@17	reject@17	engine	bare_label_keyword/FORWARD!insert	SELECT a FORWARD zzz
-reject@9	accept	engine	bare_label_keyword/FREEZE	SELECT a FREEZE
-reject@9	reject@16	engine	bare_label_keyword/FREEZE!insert	SELECT a FREEZE zzz
+accept	accept	engine	bare_label_keyword/FREEZE	SELECT a FREEZE
+reject@16	reject@16	engine	bare_label_keyword/FREEZE!insert	SELECT a FREEZE zzz
 reject@13	reject@13	engine	bare_label_keyword/FREEZE!swap	SELECT a FROM
-reject@9	accept	engine	bare_label_keyword/FULL	SELECT a FULL
-reject@9	reject@14	engine	bare_label_keyword/FULL!insert	SELECT a FULL zzz
+accept	accept	engine	bare_label_keyword/FULL	SELECT a FULL
+reject@14	reject@14	engine	bare_label_keyword/FULL!insert	SELECT a FULL zzz
 accept	accept	engine	bare_label_keyword/FUNCTION	SELECT a FUNCTION
 reject@18	reject@18	engine	bare_label_keyword/FUNCTION!insert	SELECT a FUNCTION zzz
 accept	accept	engine	bare_label_keyword/FUNCTIONS	SELECT a FUNCTIONS
@@ -13095,12 +13095,12 @@ accept	accept	engine	bare_label_keyword/HEADER_P	SELECT a HEADER
 reject@16	reject@16	engine	bare_label_keyword/HEADER_P!insert	SELECT a HEADER zzz
 accept	accept	engine	bare_label_keyword/HOLD	SELECT a HOLD
 reject@14	reject@14	engine	bare_label_keyword/HOLD!insert	SELECT a HOLD zzz
-accept	reject@9	engine	bare_label_keyword/HOLD!swap	SELECT a HOUR
+reject@9	reject@9	engine	bare_label_keyword/HOLD!swap	SELECT a HOUR
 accept	accept	engine	bare_label_keyword/IDENTITY_P	SELECT a IDENTITY
 reject@18	reject@18	engine	bare_label_keyword/IDENTITY_P!insert	SELECT a IDENTITY zzz
 accept	accept	engine	bare_label_keyword/IF_P	SELECT a IF
 reject@12	reject@12	engine	bare_label_keyword/IF_P!insert	SELECT a IF zzz
-reject@14	accept	engine	bare_label_keyword/ILIKE	SELECT a ILIKE
+accept	accept	engine	bare_label_keyword/ILIKE	SELECT a ILIKE
 accept	accept	engine	bare_label_keyword/ILIKE!insert	SELECT a ILIKE zzz
 accept	accept	engine	bare_label_keyword/IMMEDIATE	SELECT a IMMEDIATE
 reject@19	reject@19	engine	bare_label_keyword/IMMEDIATE!insert	SELECT a IMMEDIATE zzz
@@ -13110,7 +13110,7 @@ accept	accept	engine	bare_label_keyword/IMPLICIT_P	SELECT a IMPLICIT
 reject@18	reject@18	engine	bare_label_keyword/IMPLICIT_P!insert	SELECT a IMPLICIT zzz
 accept	accept	engine	bare_label_keyword/IMPORT_P	SELECT a IMPORT
 reject@16	reject@16	engine	bare_label_keyword/IMPORT_P!insert	SELECT a IMPORT zzz
-reject@11	accept	engine	bare_label_keyword/IN_P	SELECT a IN
+accept	accept	engine	bare_label_keyword/IN_P	SELECT a IN
 reject@12	reject@12	engine	bare_label_keyword/IN_P!insert	SELECT a IN zzz
 accept	accept	engine	bare_label_keyword/INCLUDE	SELECT a INCLUDE
 reject@17	reject@17	engine	bare_label_keyword/INCLUDE!insert	SELECT a INCLUDE zzz
@@ -13128,12 +13128,12 @@ accept	accept	engine	bare_label_keyword/INHERIT	SELECT a INHERIT
 reject@17	reject@17	engine	bare_label_keyword/INHERIT!insert	SELECT a INHERIT zzz
 accept	accept	engine	bare_label_keyword/INHERITS	SELECT a INHERITS
 reject@18	reject@18	engine	bare_label_keyword/INHERITS!insert	SELECT a INHERITS zzz
-reject@9	accept	engine	bare_label_keyword/INITIALLY	SELECT a INITIALLY
-reject@9	reject@19	engine	bare_label_keyword/INITIALLY!insert	SELECT a INITIALLY zzz
+accept	accept	engine	bare_label_keyword/INITIALLY	SELECT a INITIALLY
+reject@19	reject@19	engine	bare_label_keyword/INITIALLY!insert	SELECT a INITIALLY zzz
 accept	accept	engine	bare_label_keyword/INLINE_P	SELECT a INLINE
 reject@16	reject@16	engine	bare_label_keyword/INLINE_P!insert	SELECT a INLINE zzz
-reject@9	accept	engine	bare_label_keyword/INNER_P	SELECT a INNER
-reject@9	reject@15	engine	bare_label_keyword/INNER_P!insert	SELECT a INNER zzz
+accept	accept	engine	bare_label_keyword/INNER_P	SELECT a INNER
+reject@15	reject@15	engine	bare_label_keyword/INNER_P!insert	SELECT a INNER zzz
 accept	accept	engine	bare_label_keyword/INOUT	SELECT a INOUT
 reject@15	reject@15	engine	bare_label_keyword/INOUT!insert	SELECT a INOUT zzz
 accept	accept	engine	bare_label_keyword/INPUT_P	SELECT a INPUT
@@ -13158,8 +13158,8 @@ accept	accept	engine	bare_label_keyword/IS	SELECT a IS
 accept	reject@12	engine	bare_label_keyword/IS!insert	SELECT a IS zzz
 accept	accept	engine	bare_label_keyword/ISOLATION	SELECT a ISOLATION
 reject@19	reject@19	engine	bare_label_keyword/ISOLATION!insert	SELECT a ISOLATION zzz
-reject@9	accept	engine	bare_label_keyword/JOIN	SELECT a JOIN
-reject@9	reject@14	engine	bare_label_keyword/JOIN!insert	SELECT a JOIN zzz
+accept	accept	engine	bare_label_keyword/JOIN	SELECT a JOIN
+reject@14	reject@14	engine	bare_label_keyword/JOIN!insert	SELECT a JOIN zzz
 accept	accept	engine	bare_label_keyword/JSON	SELECT a JSON
 reject@14	reject@14	engine	bare_label_keyword/JSON!insert	SELECT a JSON zzz
 accept	accept	engine	bare_label_keyword/JSON_ARRAY	SELECT a JSON_ARRAY
@@ -13196,19 +13196,19 @@ accept	accept	engine	bare_label_keyword/LARGE_P	SELECT a LARGE
 reject@15	reject@15	engine	bare_label_keyword/LARGE_P!insert	SELECT a LARGE zzz
 accept	accept	engine	bare_label_keyword/LAST_P	SELECT a LAST
 reject@14	reject@14	engine	bare_label_keyword/LAST_P!insert	SELECT a LAST zzz
-reject@9	accept	engine	bare_label_keyword/LATERAL_P	SELECT a LATERAL
-reject@9	reject@17	engine	bare_label_keyword/LATERAL_P!insert	SELECT a LATERAL zzz
-reject@9	accept	engine	bare_label_keyword/LEADING	SELECT a LEADING
-reject@9	reject@17	engine	bare_label_keyword/LEADING!insert	SELECT a LEADING zzz
+accept	accept	engine	bare_label_keyword/LATERAL_P	SELECT a LATERAL
+reject@17	reject@17	engine	bare_label_keyword/LATERAL_P!insert	SELECT a LATERAL zzz
+accept	accept	engine	bare_label_keyword/LEADING	SELECT a LEADING
+reject@17	reject@17	engine	bare_label_keyword/LEADING!insert	SELECT a LEADING zzz
 accept	accept	engine	bare_label_keyword/LEAKPROOF	SELECT a LEAKPROOF
 reject@19	reject@19	engine	bare_label_keyword/LEAKPROOF!insert	SELECT a LEAKPROOF zzz
 accept	accept	engine	bare_label_keyword/LEAST	SELECT a LEAST
 reject@15	reject@15	engine	bare_label_keyword/LEAST!insert	SELECT a LEAST zzz
-reject@9	accept	engine	bare_label_keyword/LEFT	SELECT a LEFT
-reject@9	reject@14	engine	bare_label_keyword/LEFT!insert	SELECT a LEFT zzz
+accept	accept	engine	bare_label_keyword/LEFT	SELECT a LEFT
+reject@14	reject@14	engine	bare_label_keyword/LEFT!insert	SELECT a LEFT zzz
 accept	accept	engine	bare_label_keyword/LEVEL	SELECT a LEVEL
 reject@15	reject@15	engine	bare_label_keyword/LEVEL!insert	SELECT a LEVEL zzz
-reject@13	accept	engine	bare_label_keyword/LIKE	SELECT a LIKE
+accept	accept	engine	bare_label_keyword/LIKE	SELECT a LIKE
 accept	accept	engine	bare_label_keyword/LIKE!insert	SELECT a LIKE zzz
 reject@14	reject@14	engine	bare_label_keyword/LIKE!swap	SELECT a LIMIT
 accept	accept	engine	bare_label_keyword/LISTEN	SELECT a LISTEN
@@ -13217,10 +13217,10 @@ accept	accept	engine	bare_label_keyword/LOAD	SELECT a LOAD
 reject@14	reject@14	engine	bare_label_keyword/LOAD!insert	SELECT a LOAD zzz
 accept	accept	engine	bare_label_keyword/LOCAL	SELECT a LOCAL
 reject@15	reject@15	engine	bare_label_keyword/LOCAL!insert	SELECT a LOCAL zzz
-reject@9	accept	engine	bare_label_keyword/LOCALTIME	SELECT a LOCALTIME
-reject@9	reject@19	engine	bare_label_keyword/LOCALTIME!insert	SELECT a LOCALTIME zzz
-reject@9	accept	engine	bare_label_keyword/LOCALTIMESTAMP	SELECT a LOCALTIMESTAMP
-reject@9	reject@24	engine	bare_label_keyword/LOCALTIMESTAMP!insert	SELECT a LOCALTIMESTAMP zzz
+accept	accept	engine	bare_label_keyword/LOCALTIME	SELECT a LOCALTIME
+reject@19	reject@19	engine	bare_label_keyword/LOCALTIME!insert	SELECT a LOCALTIME zzz
+accept	accept	engine	bare_label_keyword/LOCALTIMESTAMP	SELECT a LOCALTIMESTAMP
+reject@24	reject@24	engine	bare_label_keyword/LOCALTIMESTAMP!insert	SELECT a LOCALTIMESTAMP zzz
 accept	accept	engine	bare_label_keyword/LOCATION	SELECT a LOCATION
 reject@18	reject@18	engine	bare_label_keyword/LOCATION!insert	SELECT a LOCATION zzz
 accept	accept	engine	bare_label_keyword/LOCK_P	SELECT a LOCK
@@ -13245,12 +13245,12 @@ accept	accept	engine	bare_label_keyword/MERGE_ACTION	SELECT a MERGE_ACTION
 reject@22	reject@22	engine	bare_label_keyword/MERGE_ACTION!insert	SELECT a MERGE_ACTION zzz
 accept	accept	engine	bare_label_keyword/METHOD	SELECT a METHOD
 reject@16	reject@16	engine	bare_label_keyword/METHOD!insert	SELECT a METHOD zzz
-accept	reject@9	engine	bare_label_keyword/METHOD!swap	SELECT a MINUTE
+reject@9	reject@9	engine	bare_label_keyword/METHOD!swap	SELECT a MINUTE
 accept	accept	engine	bare_label_keyword/MINVALUE	SELECT a MINVALUE
 reject@18	reject@18	engine	bare_label_keyword/MINVALUE!insert	SELECT a MINVALUE zzz
 accept	accept	engine	bare_label_keyword/MODE	SELECT a MODE
 reject@14	reject@14	engine	bare_label_keyword/MODE!insert	SELECT a MODE zzz
-accept	reject@9	engine	bare_label_keyword/MODE!swap	SELECT a MONTH
+reject@9	reject@9	engine	bare_label_keyword/MODE!swap	SELECT a MONTH
 accept	accept	engine	bare_label_keyword/MOVE	SELECT a MOVE
 reject@14	reject@14	engine	bare_label_keyword/MOVE!insert	SELECT a MOVE zzz
 accept	accept	engine	bare_label_keyword/NAME_P	SELECT a NAME
@@ -13259,8 +13259,8 @@ accept	accept	engine	bare_label_keyword/NAMES	SELECT a NAMES
 reject@15	reject@15	engine	bare_label_keyword/NAMES!insert	SELECT a NAMES zzz
 accept	accept	engine	bare_label_keyword/NATIONAL	SELECT a NATIONAL
 reject@18	reject@18	engine	bare_label_keyword/NATIONAL!insert	SELECT a NATIONAL zzz
-reject@9	accept	engine	bare_label_keyword/NATURAL	SELECT a NATURAL
-reject@9	reject@17	engine	bare_label_keyword/NATURAL!insert	SELECT a NATURAL zzz
+accept	accept	engine	bare_label_keyword/NATURAL	SELECT a NATURAL
+reject@17	reject@17	engine	bare_label_keyword/NATURAL!insert	SELECT a NATURAL zzz
 accept	accept	engine	bare_label_keyword/NCHAR	SELECT a NCHAR
 reject@15	reject@15	engine	bare_label_keyword/NCHAR!insert	SELECT a NCHAR zzz
 accept	accept	engine	bare_label_keyword/NESTED	SELECT a NESTED
@@ -13285,16 +13285,16 @@ accept	accept	engine	bare_label_keyword/NORMALIZE	SELECT a NORMALIZE
 reject@19	reject@19	engine	bare_label_keyword/NORMALIZE!insert	SELECT a NORMALIZE zzz
 accept	accept	engine	bare_label_keyword/NORMALIZED	SELECT a NORMALIZED
 reject@20	reject@20	engine	bare_label_keyword/NORMALIZED!insert	SELECT a NORMALIZED zzz
-reject@9	accept	engine	bare_label_keyword/NOT	SELECT a NOT
-reject@9	reject@13	engine	bare_label_keyword/NOT!insert	SELECT a NOT zzz
+accept	accept	engine	bare_label_keyword/NOT	SELECT a NOT
+reject@13	reject@13	engine	bare_label_keyword/NOT!insert	SELECT a NOT zzz
 accept	accept	engine	bare_label_keyword/NOTHING	SELECT a NOTHING
 reject@17	reject@17	engine	bare_label_keyword/NOTHING!insert	SELECT a NOTHING zzz
 accept	accept	engine	bare_label_keyword/NOTIFY	SELECT a NOTIFY
 reject@16	reject@16	engine	bare_label_keyword/NOTIFY!insert	SELECT a NOTIFY zzz
 accept	accept	engine	bare_label_keyword/NOWAIT	SELECT a NOWAIT
 reject@16	reject@16	engine	bare_label_keyword/NOWAIT!insert	SELECT a NOWAIT zzz
-reject@9	accept	engine	bare_label_keyword/NULL_P	SELECT a NULL
-reject@9	reject@14	engine	bare_label_keyword/NULL_P!insert	SELECT a NULL zzz
+accept	accept	engine	bare_label_keyword/NULL_P	SELECT a NULL
+reject@14	reject@14	engine	bare_label_keyword/NULL_P!insert	SELECT a NULL zzz
 accept	accept	engine	bare_label_keyword/NULLIF	SELECT a NULLIF
 reject@16	reject@16	engine	bare_label_keyword/NULLIF!insert	SELECT a NULLIF zzz
 accept	accept	engine	bare_label_keyword/NULLS_P	SELECT a NULLS
@@ -13315,15 +13315,15 @@ reject@13	reject@13	engine	bare_label_keyword/OLD!insert	SELECT a OLD zzz
 accept	accept	engine	bare_label_keyword/OMIT	SELECT a OMIT
 reject@14	reject@14	engine	bare_label_keyword/OMIT!insert	SELECT a OMIT zzz
 reject@9	reject@9	engine	bare_label_keyword/OMIT!swap	SELECT a ON
-reject@9	accept	engine	bare_label_keyword/ONLY	SELECT a ONLY
-reject@9	reject@14	engine	bare_label_keyword/ONLY!insert	SELECT a ONLY zzz
-reject@17	accept	engine	bare_label_keyword/OPERATOR	SELECT a OPERATOR
+accept	accept	engine	bare_label_keyword/ONLY	SELECT a ONLY
+reject@14	reject@14	engine	bare_label_keyword/ONLY!insert	SELECT a ONLY zzz
+accept	accept	engine	bare_label_keyword/OPERATOR	SELECT a OPERATOR
 reject@18	reject@18	engine	bare_label_keyword/OPERATOR!insert	SELECT a OPERATOR zzz
 accept	accept	engine	bare_label_keyword/OPTION	SELECT a OPTION
 reject@16	reject@16	engine	bare_label_keyword/OPTION!insert	SELECT a OPTION zzz
 accept	accept	engine	bare_label_keyword/OPTIONS	SELECT a OPTIONS
 reject@17	reject@17	engine	bare_label_keyword/OPTIONS!insert	SELECT a OPTIONS zzz
-reject@11	accept	engine	bare_label_keyword/OR	SELECT a OR
+accept	accept	engine	bare_label_keyword/OR	SELECT a OR
 accept	accept	engine	bare_label_keyword/OR!insert	SELECT a OR zzz
 reject@14	reject@14	engine	bare_label_keyword/OR!swap	SELECT a ORDER
 accept	accept	engine	bare_label_keyword/ORDINALITY	SELECT a ORDINALITY
@@ -13332,9 +13332,9 @@ accept	accept	engine	bare_label_keyword/OTHERS	SELECT a OTHERS
 reject@16	reject@16	engine	bare_label_keyword/OTHERS!insert	SELECT a OTHERS zzz
 accept	accept	engine	bare_label_keyword/OUT_P	SELECT a OUT
 reject@13	reject@13	engine	bare_label_keyword/OUT_P!insert	SELECT a OUT zzz
-reject@9	accept	engine	bare_label_keyword/OUTER_P	SELECT a OUTER
-reject@9	reject@15	engine	bare_label_keyword/OUTER_P!insert	SELECT a OUTER zzz
-accept	reject@9	engine	bare_label_keyword/OUTER_P!swap	SELECT a OVER
+accept	accept	engine	bare_label_keyword/OUTER_P	SELECT a OUTER
+reject@15	reject@15	engine	bare_label_keyword/OUTER_P!insert	SELECT a OUTER zzz
+reject@9	reject@9	engine	bare_label_keyword/OUTER_P!swap	SELECT a OVER
 accept	accept	engine	bare_label_keyword/OVERLAY	SELECT a OVERLAY
 reject@17	reject@17	engine	bare_label_keyword/OVERLAY!insert	SELECT a OVERLAY zzz
 accept	accept	engine	bare_label_keyword/OVERRIDING	SELECT a OVERRIDING
@@ -13359,8 +13359,8 @@ accept	accept	engine	bare_label_keyword/PASSWORD	SELECT a PASSWORD
 reject@18	reject@18	engine	bare_label_keyword/PASSWORD!insert	SELECT a PASSWORD zzz
 accept	accept	engine	bare_label_keyword/PATH	SELECT a PATH
 reject@14	reject@14	engine	bare_label_keyword/PATH!insert	SELECT a PATH zzz
-reject@9	accept	engine	bare_label_keyword/PLACING	SELECT a PLACING
-reject@9	reject@17	engine	bare_label_keyword/PLACING!insert	SELECT a PLACING zzz
+accept	accept	engine	bare_label_keyword/PLACING	SELECT a PLACING
+reject@17	reject@17	engine	bare_label_keyword/PLACING!insert	SELECT a PLACING zzz
 accept	accept	engine	bare_label_keyword/PLAN	SELECT a PLAN
 reject@14	reject@14	engine	bare_label_keyword/PLAN!insert	SELECT a PLAN zzz
 accept	accept	engine	bare_label_keyword/PLANS	SELECT a PLANS
@@ -13371,15 +13371,15 @@ accept	accept	engine	bare_label_keyword/POSITION	SELECT a POSITION
 reject@18	reject@18	engine	bare_label_keyword/POSITION!insert	SELECT a POSITION zzz
 accept	accept	engine	bare_label_keyword/PRECEDING	SELECT a PRECEDING
 reject@19	reject@19	engine	bare_label_keyword/PRECEDING!insert	SELECT a PRECEDING zzz
-accept	reject@9	engine	bare_label_keyword/PRECEDING!swap	SELECT a PRECISION
+reject@9	reject@9	engine	bare_label_keyword/PRECEDING!swap	SELECT a PRECISION
 accept	accept	engine	bare_label_keyword/PREPARE	SELECT a PREPARE
 reject@17	reject@17	engine	bare_label_keyword/PREPARE!insert	SELECT a PREPARE zzz
 accept	accept	engine	bare_label_keyword/PREPARED	SELECT a PREPARED
 reject@18	reject@18	engine	bare_label_keyword/PREPARED!insert	SELECT a PREPARED zzz
 accept	accept	engine	bare_label_keyword/PRESERVE	SELECT a PRESERVE
 reject@18	reject@18	engine	bare_label_keyword/PRESERVE!insert	SELECT a PRESERVE zzz
-reject@9	accept	engine	bare_label_keyword/PRIMARY	SELECT a PRIMARY
-reject@9	reject@17	engine	bare_label_keyword/PRIMARY!insert	SELECT a PRIMARY zzz
+accept	accept	engine	bare_label_keyword/PRIMARY	SELECT a PRIMARY
+reject@17	reject@17	engine	bare_label_keyword/PRIMARY!insert	SELECT a PRIMARY zzz
 accept	accept	engine	bare_label_keyword/PRIOR	SELECT a PRIOR
 reject@15	reject@15	engine	bare_label_keyword/PRIOR!insert	SELECT a PRIOR zzz
 accept	accept	engine	bare_label_keyword/PRIVILEGES	SELECT a PRIVILEGES
@@ -13412,8 +13412,8 @@ accept	accept	engine	bare_label_keyword/RECURSIVE	SELECT a RECURSIVE
 reject@19	reject@19	engine	bare_label_keyword/RECURSIVE!insert	SELECT a RECURSIVE zzz
 accept	accept	engine	bare_label_keyword/REF_P	SELECT a REF
 reject@13	reject@13	engine	bare_label_keyword/REF_P!insert	SELECT a REF zzz
-reject@9	accept	engine	bare_label_keyword/REFERENCES	SELECT a REFERENCES
-reject@9	reject@20	engine	bare_label_keyword/REFERENCES!insert	SELECT a REFERENCES zzz
+accept	accept	engine	bare_label_keyword/REFERENCES	SELECT a REFERENCES
+reject@20	reject@20	engine	bare_label_keyword/REFERENCES!insert	SELECT a REFERENCES zzz
 accept	accept	engine	bare_label_keyword/REFERENCING	SELECT a REFERENCING
 reject@21	reject@21	engine	bare_label_keyword/REFERENCING!insert	SELECT a REFERENCING zzz
 accept	accept	engine	bare_label_keyword/REFRESH	SELECT a REFRESH
@@ -13445,8 +13445,8 @@ accept	accept	engine	bare_label_keyword/RETURNS	SELECT a RETURNS
 reject@17	reject@17	engine	bare_label_keyword/RETURNS!insert	SELECT a RETURNS zzz
 accept	accept	engine	bare_label_keyword/REVOKE	SELECT a REVOKE
 reject@16	reject@16	engine	bare_label_keyword/REVOKE!insert	SELECT a REVOKE zzz
-reject@9	accept	engine	bare_label_keyword/RIGHT	SELECT a RIGHT
-reject@9	reject@15	engine	bare_label_keyword/RIGHT!insert	SELECT a RIGHT zzz
+accept	accept	engine	bare_label_keyword/RIGHT	SELECT a RIGHT
+reject@15	reject@15	engine	bare_label_keyword/RIGHT!insert	SELECT a RIGHT zzz
 accept	accept	engine	bare_label_keyword/ROLE	SELECT a ROLE
 reject@14	reject@14	engine	bare_label_keyword/ROLE!insert	SELECT a ROLE zzz
 accept	accept	engine	bare_label_keyword/ROLLBACK	SELECT a ROLLBACK
@@ -13475,11 +13475,11 @@ accept	accept	engine	bare_label_keyword/SCROLL	SELECT a SCROLL
 reject@16	reject@16	engine	bare_label_keyword/SCROLL!insert	SELECT a SCROLL zzz
 accept	accept	engine	bare_label_keyword/SEARCH	SELECT a SEARCH
 reject@16	reject@16	engine	bare_label_keyword/SEARCH!insert	SELECT a SEARCH zzz
-accept	reject@9	engine	bare_label_keyword/SEARCH!swap	SELECT a SECOND
+reject@9	reject@9	engine	bare_label_keyword/SEARCH!swap	SELECT a SECOND
 accept	accept	engine	bare_label_keyword/SECURITY	SELECT a SECURITY
 reject@18	reject@18	engine	bare_label_keyword/SECURITY!insert	SELECT a SECURITY zzz
-reject@9	accept	engine	bare_label_keyword/SELECT	SELECT a SELECT
-reject@9	reject@16	engine	bare_label_keyword/SELECT!insert	SELECT a SELECT zzz
+accept	accept	engine	bare_label_keyword/SELECT	SELECT a SELECT
+reject@16	reject@16	engine	bare_label_keyword/SELECT!insert	SELECT a SELECT zzz
 accept	accept	engine	bare_label_keyword/SEQUENCE	SELECT a SEQUENCE
 reject@18	reject@18	engine	bare_label_keyword/SEQUENCE!insert	SELECT a SEQUENCE zzz
 accept	accept	engine	bare_label_keyword/SEQUENCES	SELECT a SEQUENCES
@@ -13490,8 +13490,8 @@ accept	accept	engine	bare_label_keyword/SERVER	SELECT a SERVER
 reject@16	reject@16	engine	bare_label_keyword/SERVER!insert	SELECT a SERVER zzz
 accept	accept	engine	bare_label_keyword/SESSION	SELECT a SESSION
 reject@17	reject@17	engine	bare_label_keyword/SESSION!insert	SELECT a SESSION zzz
-reject@9	accept	engine	bare_label_keyword/SESSION_USER	SELECT a SESSION_USER
-reject@9	reject@22	engine	bare_label_keyword/SESSION_USER!insert	SELECT a SESSION_USER zzz
+accept	accept	engine	bare_label_keyword/SESSION_USER	SELECT a SESSION_USER
+reject@22	reject@22	engine	bare_label_keyword/SESSION_USER!insert	SELECT a SESSION_USER zzz
 accept	accept	engine	bare_label_keyword/SET	SELECT a SET
 reject@13	reject@13	engine	bare_label_keyword/SET!insert	SELECT a SET zzz
 accept	accept	engine	bare_label_keyword/SETOF	SELECT a SETOF
@@ -13502,7 +13502,7 @@ accept	accept	engine	bare_label_keyword/SHARE	SELECT a SHARE
 reject@15	reject@15	engine	bare_label_keyword/SHARE!insert	SELECT a SHARE zzz
 accept	accept	engine	bare_label_keyword/SHOW	SELECT a SHOW
 reject@14	reject@14	engine	bare_label_keyword/SHOW!insert	SELECT a SHOW zzz
-reject@16	accept	engine	bare_label_keyword/SIMILAR	SELECT a SIMILAR
+accept	accept	engine	bare_label_keyword/SIMILAR	SELECT a SIMILAR
 reject@17	reject@17	engine	bare_label_keyword/SIMILAR!insert	SELECT a SIMILAR zzz
 accept	accept	engine	bare_label_keyword/SIMPLE	SELECT a SIMPLE
 reject@16	reject@16	engine	bare_label_keyword/SIMPLE!insert	SELECT a SIMPLE zzz
@@ -13512,8 +13512,8 @@ accept	accept	engine	bare_label_keyword/SMALLINT	SELECT a SMALLINT
 reject@18	reject@18	engine	bare_label_keyword/SMALLINT!insert	SELECT a SMALLINT zzz
 accept	accept	engine	bare_label_keyword/SNAPSHOT	SELECT a SNAPSHOT
 reject@18	reject@18	engine	bare_label_keyword/SNAPSHOT!insert	SELECT a SNAPSHOT zzz
-reject@9	accept	engine	bare_label_keyword/SOME	SELECT a SOME
-reject@9	reject@14	engine	bare_label_keyword/SOME!insert	SELECT a SOME zzz
+accept	accept	engine	bare_label_keyword/SOME	SELECT a SOME
+reject@14	reject@14	engine	bare_label_keyword/SOME!insert	SELECT a SOME zzz
 accept	accept	engine	bare_label_keyword/SOURCE	SELECT a SOURCE
 reject@16	reject@16	engine	bare_label_keyword/SOURCE!insert	SELECT a SOURCE zzz
 accept	accept	engine	bare_label_keyword/SQL_P	SELECT a SQL
@@ -13548,20 +13548,20 @@ accept	accept	engine	bare_label_keyword/SUBSTRING	SELECT a SUBSTRING
 reject@19	reject@19	engine	bare_label_keyword/SUBSTRING!insert	SELECT a SUBSTRING zzz
 accept	accept	engine	bare_label_keyword/SUPPORT	SELECT a SUPPORT
 reject@17	reject@17	engine	bare_label_keyword/SUPPORT!insert	SELECT a SUPPORT zzz
-reject@9	accept	engine	bare_label_keyword/SYMMETRIC	SELECT a SYMMETRIC
-reject@9	reject@19	engine	bare_label_keyword/SYMMETRIC!insert	SELECT a SYMMETRIC zzz
+accept	accept	engine	bare_label_keyword/SYMMETRIC	SELECT a SYMMETRIC
+reject@19	reject@19	engine	bare_label_keyword/SYMMETRIC!insert	SELECT a SYMMETRIC zzz
 accept	accept	engine	bare_label_keyword/SYSID	SELECT a SYSID
 reject@15	reject@15	engine	bare_label_keyword/SYSID!insert	SELECT a SYSID zzz
 accept	accept	engine	bare_label_keyword/SYSTEM_P	SELECT a SYSTEM
 reject@16	reject@16	engine	bare_label_keyword/SYSTEM_P!insert	SELECT a SYSTEM zzz
-reject@9	accept	engine	bare_label_keyword/SYSTEM_USER	SELECT a SYSTEM_USER
-reject@9	reject@21	engine	bare_label_keyword/SYSTEM_USER!insert	SELECT a SYSTEM_USER zzz
-reject@9	accept	engine	bare_label_keyword/TABLE	SELECT a TABLE
-reject@9	reject@15	engine	bare_label_keyword/TABLE!insert	SELECT a TABLE zzz
+accept	accept	engine	bare_label_keyword/SYSTEM_USER	SELECT a SYSTEM_USER
+reject@21	reject@21	engine	bare_label_keyword/SYSTEM_USER!insert	SELECT a SYSTEM_USER zzz
+accept	accept	engine	bare_label_keyword/TABLE	SELECT a TABLE
+reject@15	reject@15	engine	bare_label_keyword/TABLE!insert	SELECT a TABLE zzz
 accept	accept	engine	bare_label_keyword/TABLES	SELECT a TABLES
 reject@16	reject@16	engine	bare_label_keyword/TABLES!insert	SELECT a TABLES zzz
-reject@9	accept	engine	bare_label_keyword/TABLESAMPLE	SELECT a TABLESAMPLE
-reject@9	reject@21	engine	bare_label_keyword/TABLESAMPLE!insert	SELECT a TABLESAMPLE zzz
+accept	accept	engine	bare_label_keyword/TABLESAMPLE	SELECT a TABLESAMPLE
+reject@21	reject@21	engine	bare_label_keyword/TABLESAMPLE!insert	SELECT a TABLESAMPLE zzz
 accept	accept	engine	bare_label_keyword/TABLESPACE	SELECT a TABLESPACE
 reject@20	reject@20	engine	bare_label_keyword/TABLESPACE!insert	SELECT a TABLESPACE zzz
 accept	accept	engine	bare_label_keyword/TARGET	SELECT a TARGET
@@ -13574,8 +13574,8 @@ accept	accept	engine	bare_label_keyword/TEMPORARY	SELECT a TEMPORARY
 reject@19	reject@19	engine	bare_label_keyword/TEMPORARY!insert	SELECT a TEMPORARY zzz
 accept	accept	engine	bare_label_keyword/TEXT_P	SELECT a TEXT
 reject@14	reject@14	engine	bare_label_keyword/TEXT_P!insert	SELECT a TEXT zzz
-reject@9	accept	engine	bare_label_keyword/THEN	SELECT a THEN
-reject@9	reject@14	engine	bare_label_keyword/THEN!insert	SELECT a THEN zzz
+accept	accept	engine	bare_label_keyword/THEN	SELECT a THEN
+reject@14	reject@14	engine	bare_label_keyword/THEN!insert	SELECT a THEN zzz
 accept	accept	engine	bare_label_keyword/TIES	SELECT a TIES
 reject@14	reject@14	engine	bare_label_keyword/TIES!insert	SELECT a TIES zzz
 accept	accept	engine	bare_label_keyword/TIME	SELECT a TIME
@@ -13583,8 +13583,8 @@ reject@14	reject@14	engine	bare_label_keyword/TIME!insert	SELECT a TIME zzz
 accept	accept	engine	bare_label_keyword/TIMESTAMP	SELECT a TIMESTAMP
 reject@19	reject@19	engine	bare_label_keyword/TIMESTAMP!insert	SELECT a TIMESTAMP zzz
 reject@9	reject@9	engine	bare_label_keyword/TIMESTAMP!swap	SELECT a TO
-reject@9	accept	engine	bare_label_keyword/TRAILING	SELECT a TRAILING
-reject@9	reject@18	engine	bare_label_keyword/TRAILING!insert	SELECT a TRAILING zzz
+accept	accept	engine	bare_label_keyword/TRAILING	SELECT a TRAILING
+reject@18	reject@18	engine	bare_label_keyword/TRAILING!insert	SELECT a TRAILING zzz
 accept	accept	engine	bare_label_keyword/TRANSACTION	SELECT a TRANSACTION
 reject@21	reject@21	engine	bare_label_keyword/TRANSACTION!insert	SELECT a TRANSACTION zzz
 accept	accept	engine	bare_label_keyword/TRANSFORM	SELECT a TRANSFORM
@@ -13595,8 +13595,8 @@ accept	accept	engine	bare_label_keyword/TRIGGER	SELECT a TRIGGER
 reject@17	reject@17	engine	bare_label_keyword/TRIGGER!insert	SELECT a TRIGGER zzz
 accept	accept	engine	bare_label_keyword/TRIM	SELECT a TRIM
 reject@14	reject@14	engine	bare_label_keyword/TRIM!insert	SELECT a TRIM zzz
-reject@9	accept	engine	bare_label_keyword/TRUE_P	SELECT a TRUE
-reject@9	reject@14	engine	bare_label_keyword/TRUE_P!insert	SELECT a TRUE zzz
+accept	accept	engine	bare_label_keyword/TRUE_P	SELECT a TRUE
+reject@14	reject@14	engine	bare_label_keyword/TRUE_P!insert	SELECT a TRUE zzz
 accept	accept	engine	bare_label_keyword/TRUNCATE	SELECT a TRUNCATE
 reject@18	reject@18	engine	bare_label_keyword/TRUNCATE!insert	SELECT a TRUNCATE zzz
 accept	accept	engine	bare_label_keyword/TRUSTED	SELECT a TRUSTED
@@ -13616,8 +13616,8 @@ reject@23	reject@23	engine	bare_label_keyword/UNCONDITIONAL!insert	SELECT a UNCO
 accept	accept	engine	bare_label_keyword/UNENCRYPTED	SELECT a UNENCRYPTED
 reject@21	reject@21	engine	bare_label_keyword/UNENCRYPTED!insert	SELECT a UNENCRYPTED zzz
 accept	reject@14	engine	bare_label_keyword/UNENCRYPTED!swap	SELECT a UNION
-reject@9	accept	engine	bare_label_keyword/UNIQUE	SELECT a UNIQUE
-reject@9	reject@16	engine	bare_label_keyword/UNIQUE!insert	SELECT a UNIQUE zzz
+accept	accept	engine	bare_label_keyword/UNIQUE	SELECT a UNIQUE
+reject@16	reject@16	engine	bare_label_keyword/UNIQUE!insert	SELECT a UNIQUE zzz
 accept	accept	engine	bare_label_keyword/UNKNOWN	SELECT a UNKNOWN
 reject@17	reject@17	engine	bare_label_keyword/UNKNOWN!insert	SELECT a UNKNOWN zzz
 accept	accept	engine	bare_label_keyword/UNLISTEN	SELECT a UNLISTEN
@@ -13628,10 +13628,10 @@ accept	accept	engine	bare_label_keyword/UNTIL	SELECT a UNTIL
 reject@15	reject@15	engine	bare_label_keyword/UNTIL!insert	SELECT a UNTIL zzz
 accept	accept	engine	bare_label_keyword/UPDATE	SELECT a UPDATE
 reject@16	reject@16	engine	bare_label_keyword/UPDATE!insert	SELECT a UPDATE zzz
-reject@9	accept	engine	bare_label_keyword/USER	SELECT a USER
-reject@9	reject@14	engine	bare_label_keyword/USER!insert	SELECT a USER zzz
-reject@9	accept	engine	bare_label_keyword/USING	SELECT a USING
-reject@9	reject@15	engine	bare_label_keyword/USING!insert	SELECT a USING zzz
+accept	accept	engine	bare_label_keyword/USER	SELECT a USER
+reject@14	reject@14	engine	bare_label_keyword/USER!insert	SELECT a USER zzz
+accept	accept	engine	bare_label_keyword/USING	SELECT a USING
+reject@15	reject@15	engine	bare_label_keyword/USING!insert	SELECT a USING zzz
 accept	accept	engine	bare_label_keyword/VACUUM	SELECT a VACUUM
 reject@16	reject@16	engine	bare_label_keyword/VACUUM!insert	SELECT a VACUUM zzz
 accept	accept	engine	bare_label_keyword/VALID	SELECT a VALID
@@ -13646,11 +13646,11 @@ accept	accept	engine	bare_label_keyword/VALUES	SELECT a VALUES
 reject@16	reject@16	engine	bare_label_keyword/VALUES!insert	SELECT a VALUES zzz
 accept	accept	engine	bare_label_keyword/VARCHAR	SELECT a VARCHAR
 reject@17	reject@17	engine	bare_label_keyword/VARCHAR!insert	SELECT a VARCHAR zzz
-reject@9	accept	engine	bare_label_keyword/VARIADIC	SELECT a VARIADIC
-reject@9	reject@18	engine	bare_label_keyword/VARIADIC!insert	SELECT a VARIADIC zzz
-accept	reject@9	engine	bare_label_keyword/VARIADIC!swap	SELECT a VARYING
-reject@9	accept	engine	bare_label_keyword/VERBOSE	SELECT a VERBOSE
-reject@9	reject@17	engine	bare_label_keyword/VERBOSE!insert	SELECT a VERBOSE zzz
+accept	accept	engine	bare_label_keyword/VARIADIC	SELECT a VARIADIC
+reject@18	reject@18	engine	bare_label_keyword/VARIADIC!insert	SELECT a VARIADIC zzz
+reject@9	reject@9	engine	bare_label_keyword/VARIADIC!swap	SELECT a VARYING
+accept	accept	engine	bare_label_keyword/VERBOSE	SELECT a VERBOSE
+reject@17	reject@17	engine	bare_label_keyword/VERBOSE!insert	SELECT a VERBOSE zzz
 accept	accept	engine	bare_label_keyword/VERSION_P	SELECT a VERSION
 reject@17	reject@17	engine	bare_label_keyword/VERSION_P!insert	SELECT a VERSION zzz
 accept	accept	engine	bare_label_keyword/VIEW	SELECT a VIEW
@@ -13659,8 +13659,8 @@ accept	accept	engine	bare_label_keyword/VIEWS	SELECT a VIEWS
 reject@15	reject@15	engine	bare_label_keyword/VIEWS!insert	SELECT a VIEWS zzz
 accept	accept	engine	bare_label_keyword/VOLATILE	SELECT a VOLATILE
 reject@18	reject@18	engine	bare_label_keyword/VOLATILE!insert	SELECT a VOLATILE zzz
-reject@9	accept	engine	bare_label_keyword/WHEN	SELECT a WHEN
-reject@9	reject@14	engine	bare_label_keyword/WHEN!insert	SELECT a WHEN zzz
+accept	accept	engine	bare_label_keyword/WHEN	SELECT a WHEN
+reject@14	reject@14	engine	bare_label_keyword/WHEN!insert	SELECT a WHEN zzz
 reject@14	reject@14	engine	bare_label_keyword/WHEN!swap	SELECT a WHERE
 accept	accept	engine	bare_label_keyword/WHITESPACE_P	SELECT a WHITESPACE
 reject@20	reject@20	engine	bare_label_keyword/WHITESPACE_P!insert	SELECT a WHITESPACE zzz
@@ -13695,7 +13695,7 @@ accept	accept	engine	bare_label_keyword/XMLSERIALIZE	SELECT a XMLSERIALIZE
 reject@22	reject@22	engine	bare_label_keyword/XMLSERIALIZE!insert	SELECT a XMLSERIALIZE zzz
 accept	accept	engine	bare_label_keyword/XMLTABLE	SELECT a XMLTABLE
 reject@18	reject@18	engine	bare_label_keyword/XMLTABLE!insert	SELECT a XMLTABLE zzz
-accept	reject@9	engine	bare_label_keyword/XMLTABLE!swap	SELECT a YEAR
+reject@9	reject@9	engine	bare_label_keyword/XMLTABLE!swap	SELECT a YEAR
 accept	accept	engine	bare_label_keyword/YES_P	SELECT a YES
 reject@13	reject@13	engine	bare_label_keyword/YES_P!insert	SELECT a YES zzz
 accept	accept	engine	bare_label_keyword/ZONE	SELECT a ZONE
@@ -13924,7 +13924,7 @@ accept	accept	engine	suite:lexer	;;
 accept	accept	engine	suite:lexer	SELECT	1
 reject@0	reject@0	engine	suite:lexer	SELECT1
 reject@7	reject@7	engine	suite:lexer	SELECT 1SELECT
-reject@10	accept	engine	suite:lexer	SELECT 'a'SELECT
+accept	accept	engine	suite:lexer	SELECT 'a'SELECT
 accept	accept	engine	suite:lexer	SELECT 1 a
 accept	accept	engine	suite:lexer	SELECT 1 "a"
 reject@9	reject@9	engine	suite:lexer	SELECT 1 'a'

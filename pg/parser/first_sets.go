@@ -293,3 +293,66 @@ func (p *Parser) isSelectLimitStart() bool {
 func (p *Parser) isFuncTypeStart() bool {
 	return p.isTypenameStart()
 }
+
+// asLabelOnlyKeywords are the keywords kwlist.h marks AS_LABEL: a target
+// list takes them as a column label only after AS. Every other keyword is a
+// bare_label_keyword, which BareColLabel takes without AS (gram.y:
+// target_el: a_expr BareColLabel), reserved ones included: SELECT 1 ALL
+// labels the column all.
+//
+// Source: src/include/parser/kwlist.h at REL_17_12, the entries ending in
+// AS_LABEL. DO NOT edit without that file: TestBareColumnLabelsMatchPG holds
+// the set to PostgreSQL.
+var asLabelOnlyKeywords = []int{
+	ARRAY, AS, CHAR_P, CHARACTER, CREATE, DAY_P, EXCEPT, FETCH, FILTER, FOR,
+	FROM, GRANT, GROUP_P, HAVING, HOUR_P, INTERSECT, INTO, ISNULL, LIMIT,
+	MINUTE_P, MONTH_P, NOTNULL, OFFSET, ON, ORDER, OVER, OVERLAPS, PRECISION,
+	RETURNING, SECOND_P, TO, UNION, VARYING, WHERE, WINDOW, WITH, WITHIN,
+	WITHOUT, YEAR_P,
+}
+
+var asLabelOnlySet = func() map[int]bool {
+	m := make(map[int]bool, len(asLabelOnlyKeywords))
+	for _, t := range asLabelOnlyKeywords {
+		m[t] = true
+	}
+	return m
+}()
+
+// isBareColLabelStart reports whether the current token is a BareColLabel:
+// IDENT or a bare_label_keyword (gram.y), the label a target takes without
+// AS.
+func (p *Parser) isBareColLabelStart() bool {
+	if p.cur.Type == IDENT {
+		return true
+	}
+	kw := LookupKeyword(p.cur.Str)
+	return kw != nil && kw.Token == p.cur.Type && !asLabelOnlySet[p.cur.Type]
+}
+
+// targetEndTokens are the tokens that can follow a target_el: the comma of
+// the next one, and what follows a target_list (gram.y: simple_select, the
+// select clauses after it, a RETURNING list's end, and CREATE TABLE AS and
+// CREATE VIEW's WITH). The end of input is token 0.
+var targetEndTokens = []int{
+	0, ',', ')', ';',
+	FROM, INTO, WHERE, GROUP_P, HAVING, WINDOW, UNION, INTERSECT, EXCEPT,
+	ORDER, LIMIT, OFFSET, FETCH, FOR, WITH,
+}
+
+var targetEndSet = func() map[int]bool {
+	m := make(map[int]bool, len(targetEndTokens))
+	for _, t := range targetEndTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isTargetLabelBeforeEnd reports whether the current token, a keyword that
+// could continue the target's expression (SELECT 1 AND ...), is its bare
+// label instead: it is a BareColLabel and the token after it ends the
+// target. PostgreSQL decides the same on that lookahead: SELECT 1 AND FROM t
+// labels the column and, and SELECT 1 AND true is an expression.
+func (p *Parser) isTargetLabelBeforeEnd() bool {
+	return p.cur.Type != IDENT && p.isBareColLabelStart() && targetEndSet[p.peekNext().Type]
+}

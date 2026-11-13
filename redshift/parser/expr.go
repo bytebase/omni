@@ -490,7 +490,7 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		return xmlExpr, nil
 	case JSON:
 		// IS [NOT] JSON [VALUE|ARRAY|OBJECT|SCALAR] [WITH UNIQUE [KEYS]]
-		return p.parseJsonIsPredicate(left, negated), nil
+		return p.parseJsonIsPredicate(left, negated)
 	case NORMALIZED:
 		// IS [NOT] NORMALIZED (default NFC form)
 		p.advance()

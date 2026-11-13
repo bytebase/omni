@@ -38,6 +38,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
 
 `startsTableConstraint` is the call-site form of `isTableConstraintStart`. EXCLUDE is the one unreserved lead, so it starts a constraint only when `USING` or `(` follows it, and names a column otherwise (`CREATE TABLE t (exclude int)`).
 
@@ -57,6 +58,7 @@ The point is to ask "does PG's parser get past the lead token?", not "does the s
 | Typename | `CREATE FUNCTION __omni_probe() RETURNS %s AS $$ SELECT 1 $$ LANGUAGE sql` | gram.y:8488 (RETURNS func_type, FIRST sets coincide with Typename) |
 | func_type | `CREATE FUNCTION __omni_probe(dummy_name %s) RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql` | gram.y:8405 (func_arg → param_name func_type) |
 | a_expr | `SELECT %s` | gram.y:14780 (target_el) |
+| BareColLabel | `SELECT 1 %s` | gram.y target_el: a_expr BareColLabel |
 
 ### Subtraction lists
 
@@ -64,6 +66,7 @@ Some probes need to subtract tokens that PG accepts via a SURROUNDING grammar ru
 
 - **SimpleTypename via CAST** subtracts `SETOF` — CAST exercises `Typename`, which has SETOF in its FIRST set, but `SimpleTypename` proper does not.
 - **func_type via func arg** subtracts `IN_P, OUT_P, INOUT, VARIADIC, DEFAULT, ARRAY` — the surrounding `func_arg` grammar absorbs `arg_class`, the default-value clause, and the array-bounds suffix before they reach `func_type`.
+- **BareColLabel via `SELECT 1`** subtracts `ISNULL, NOTNULL`: AS_LABEL keywords that PostgreSQL takes there as postfix operators, so the statement is valid without a label.
 - **a_expr via SELECT** subtracts `ALL` — `SELECT ALL` parses as the duplicate-elimination quantifier from `select_clause`, not as an `a_expr` lead. (DISTINCT is NOT subtracted: bare `SELECT distinct` returns 42601 and is already correctly classified.)
 
 When adding a new probe template, expect to discover a similar list. The procedure is: run the test without subtractions, observe "PG accepts but predicate rejects" drift, verify each token is genuinely absorbed by surrounding grammar (not a real bug), then add it to the subtraction map with an inline comment explaining why.
