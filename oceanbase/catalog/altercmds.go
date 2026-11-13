@@ -30,6 +30,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
 		return err
 	}
+	if err := checkKeyOptions(alterKeys(stmt.Commands)); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
@@ -646,6 +649,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(ftIdx, con.IndexOptions)
+		if err := checkIndexOptions(con.IndexOptions, false); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:

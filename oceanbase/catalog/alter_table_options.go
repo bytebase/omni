@@ -129,14 +129,14 @@ var (
 // precision must suit the partitioning column) is not modeled.
 func checkDynamicPartitionPolicy(tbl *Table, text string) error {
 	invalid := &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments), Message: "Invalid argument"}
-	for _, entry := range splitOptionList(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(text), "("), ")")) {
-		key, value, ok := strings.Cut(entry, "=")
-		if !ok || strings.Contains(unquotedText(value), "=") {
-			// Two entries with no comma between them, as in (ENABLE = TRUE ENABLE = TRUE).
-			return invalid
-		}
-		value = unquoteOption(strings.TrimSpace(value))
-		switch strings.ToUpper(strings.TrimSpace(key)) {
+	entries, ok := optionEntries(text)
+	if !ok {
+		// Two entries with no comma between them, as in (ENABLE = TRUE ENABLE = TRUE).
+		return invalid
+	}
+	for _, entry := range entries {
+		key, value := entry[0], entry[1]
+		switch strings.ToUpper(key) {
 		case "TIME_UNIT":
 			switch strings.ToLower(value) {
 			case "hour", "day", "week", "month", "year":
@@ -187,52 +187,128 @@ func validOffsetZone(text string) bool {
 	return minutes <= 13*60
 }
 
-// splitOptionList splits an option list on the commas outside quotes.
-func splitOptionList(text string) []string {
-	var parts []string
-	var quote byte
-	start := 0
-	for i := 0; i < len(text); i++ {
-		switch c := text[i]; {
-		case quote != 0:
-			if c == quote {
-				quote = 0
-			}
-		case c == '\'' || c == '"':
-			quote = c
-		case c == ',':
-			parts = append(parts, text[start:i])
-			start = i + 1
-		}
-	}
-	return append(parts, text[start:])
+// An optionToken is one token of an option's value as the parser keeps it, the
+// written text: a string (adjacent strings folded into one, escapes decoded), one
+// of the punctuation marks ( ) , =, or a run of other characters. Comments are
+// dropped, so a comma or = inside one separates nothing.
+type optionToken struct {
+	text  string
+	str   bool // a string literal
+	punct byte // '(', ')', ',' or '=' for punctuation, else 0
 }
 
-// unquotedText is text with its quoted strings removed.
-func unquotedText(text string) string {
-	var b strings.Builder
-	var quote byte
-	for i := 0; i < len(text); i++ {
-		switch c := text[i]; {
-		case quote != 0:
-			if c == quote {
-				quote = 0
+func lexOption(text string) []optionToken {
+	var toks []optionToken
+	for i := 0; i < len(text); {
+		c := text[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		case c == '#' || (c == '-' && strings.HasPrefix(text[i:], "-- ")):
+			for i < len(text) && text[i] != '\n' {
+				i++
+			}
+		case strings.HasPrefix(text[i:], "/*"):
+			if j := strings.Index(text[i+2:], "*/"); j >= 0 {
+				i += j + 4
+			} else {
+				i = len(text)
 			}
 		case c == '\'' || c == '"':
-			quote = c
+			value, n := decodeOptionString(text[i:])
+			i += n
+			if k := len(toks) - 1; k >= 0 && toks[k].str {
+				toks[k].text += value // 'DA' 'Y' is 'DAY'
+			} else {
+				toks = append(toks, optionToken{text: value, str: true})
+			}
+		case c == '(' || c == ')' || c == ',' || c == '=':
+			toks = append(toks, optionToken{text: string(c), punct: c})
+			i++
+		default:
+			j := i
+			for j < len(text) && !strings.ContainsRune(" \t\n\r#'\"(),=", rune(text[j])) && !strings.HasPrefix(text[j:], "/*") && !strings.HasPrefix(text[j:], "-- ") {
+				j++
+			}
+			toks = append(toks, optionToken{text: text[i:j]})
+			i = j
+		}
+	}
+	return toks
+}
+
+// decodeOptionString decodes the string literal text starts with and returns it and
+// the bytes it took: a doubled quote is one, and a backslash escapes the next byte.
+func decodeOptionString(text string) (string, int) {
+	quote := text[0]
+	var b strings.Builder
+	i := 1
+	for i < len(text) {
+		c := text[i]
+		switch {
+		case c == '\\' && i+1 < len(text):
+			switch e := text[i+1]; e {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case 'r':
+				b.WriteByte('\r')
+			case '0':
+				b.WriteByte(0)
+			default:
+				b.WriteByte(e)
+			}
+			i += 2
+		case c == quote && i+1 < len(text) && text[i+1] == quote:
+			b.WriteByte(quote)
+			i += 2
+		case c == quote:
+			return b.String(), i + 1
 		default:
 			b.WriteByte(c)
+			i++
 		}
 	}
-	return b.String()
+	return b.String(), i
 }
 
-// unquoteOption is an option's value without the quotes of a string literal.
+// unquoteOption is an option's value as OceanBase reads it: a string literal decoded,
+// or the written text of anything else.
 func unquoteOption(value string) string {
-	if n := len(value); n >= 2 && (value[0] == '\'' || value[0] == '"') && value[n-1] == value[0] {
-		return value[1 : n-1]
+	toks := lexOption(value)
+	if len(toks) == 1 {
+		return toks[0].text
 	}
-	return value
+	return strings.TrimSpace(value)
+}
+
+// optionEntries reads a (key = value, ...) list. ok is false when an entry is not
+// one key, one = and one value, as when a comma is missing between two entries.
+func optionEntries(text string) (entries [][2]string, ok bool) {
+	toks := lexOption(text)
+	if len(toks) >= 2 && toks[0].punct == '(' && toks[len(toks)-1].punct == ')' {
+		toks = toks[1 : len(toks)-1]
+	}
+	var entry []optionToken
+	flush := func() bool {
+		if len(entry) != 3 || entry[1].punct != '=' || entry[0].punct != 0 || entry[2].punct != 0 {
+			return false
+		}
+		entries = append(entries, [2]string{entry[0].text, entry[2].text})
+		entry = nil
+		return true
+	}
+	for _, t := range toks {
+		if t.punct == ',' {
+			if !flush() {
+				return nil, false
+			}
+			continue
+		}
+		entry = append(entry, t)
+	}
+	return entries, flush()
 }
 
 func oneOfOption(value, option string, allowed ...string) error {
