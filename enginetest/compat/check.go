@@ -42,6 +42,10 @@ type Suite struct {
 	// Grammar is the vendor's bison grammar, and Tokens the engine's
 	// tokens.tsv. The generated rows of Path must be what they generate.
 	Grammar, Tokens string
+	// Defined names the conditions Grammar is built with, where one file
+	// holds more than one grammar between %ifdef lines, as MariaDB's does
+	// (grammar.Conditional).
+	Defined []string
 	// Omni returns omni's verdict on one statement.
 	Omni func(sql string) string
 	// Source names the judge: SourceEngine, SourceGrammar or SourceDocs.
@@ -85,7 +89,7 @@ func check(t testing.TB, s Suite) {
 	}
 
 	if s.Grammar != "" {
-		generated, uncovered, err := generate(s.Grammar, s.Tokens)
+		generated, uncovered, err := generate(s.Grammar, s.Tokens, s.Defined)
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
@@ -165,7 +169,7 @@ func check(t testing.TB, s Suite) {
 }
 
 // generate reads the grammar and returns its rows.
-func generate(grammarPath, tokensPath string) ([]grammar.Row, []string, error) {
+func generate(grammarPath, tokensPath string, defined []string) ([]grammar.Row, []string, error) {
 	tokens, err := grammar.ReadTokens(tokensPath)
 	if err != nil {
 		return nil, nil, err
@@ -174,7 +178,7 @@ func generate(grammarPath, tokensPath string) ([]grammar.Row, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	g, err := grammar.ReadBison(string(src), tokens)
+	g, err := grammar.ReadBison(string(src), tokens, defined...)
 	if err != nil {
 		return nil, nil, err
 	}
