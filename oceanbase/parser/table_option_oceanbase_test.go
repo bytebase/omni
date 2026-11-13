@@ -16,6 +16,8 @@ func TestOceanBaseOwnTableOptions(t *testing.T) {
 		{"READ ONLY", "READ ONLY", ""},
 		{"PARALLEL 4", "PARALLEL", "4"},
 		{"NOPARALLEL", "NOPARALLEL", ""},
+		// An INTNUM runs to 64 bits.
+		{"PARALLEL 18446744073709551615", "PARALLEL", "18446744073709551615"},
 		{"TABLE_MODE = 'QUEUING'", "TABLE_MODE", "'QUEUING'"},
 		{"TTL (c + INTERVAL 1 DAY, d.c + INTERVAL 2 HOUR)", "TTL", "(c + INTERVAL 1 DAY, d.c + INTERVAL 2 HOUR)"},
 		{"FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',', SKIP_HEADER = 1)", "FORMAT", "(TYPE = 'CSV' FIELD_DELIMITER = ',', SKIP_HEADER = 1)"},
@@ -43,8 +45,10 @@ func TestOceanBaseOwnTableOptions(t *testing.T) {
 		}
 	}
 	for _, sql := range []string{
-		"ALTER TABLE t TABLE_MODE = 1",       // a string
-		"ALTER TABLE t PARALLEL",             // a degree
+		"ALTER TABLE t TABLE_MODE = 1",                // a string
+		"ALTER TABLE t PARALLEL",                      // a degree
+		"ALTER TABLE t PARALLEL 18446744073709551616", // past 64 bits a number is a decimal
+		"ALTER TABLE t PARALLEL 1.5",
 		"ALTER TABLE t AUTO_REFRESH = DAILY", // OFF, IMMEDIATE or INTERVAL
 		"ALTER TABLE t TTL (c + INTERVAL 1 WEEK)",
 		"CREATE TABLE t NOPARALLEL", // no definitions and no query
