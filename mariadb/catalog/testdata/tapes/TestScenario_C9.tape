@@ -1,0 +1,170 @@
+-- pin: default mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8
+
+== TestScenario_C9 default#1
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 0 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a+1))
+< ok 0 0
+> query
+| SELECT IFNULL(EXTRA,'') FROM information_schema.COLUMNS
+|              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b'
+< result
+< column "IFNULL(EXTRA,'')" "VARCHAR"
+< row
+: bytes
+| VIRTUAL GENERATED
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 1 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE c (
+|             a INT,
+|             b INT GENERATED ALWAYS AS (a+1) STORED,
+|             FOREIGN KEY (b) REFERENCES p(id)
+|         )
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 2 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE cv (
+|             a INT,
+|             b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
+|             FOREIGN KEY (b) REFERENCES p(id)
+|         )
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 2 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY (b))
+< ok 0 0
+> exec
+| CREATE TABLE t2 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL PRIMARY KEY)
+< error
+| 1064 42000 …near 'PRIMARY KEY)' at line 1
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 1 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b TIMESTAMP GENERATED ALWAYS AS (NOW()) VIRTUAL)
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 1 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE)
+< ok 0 0
+> exec
+| CREATE TABLE t2 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE)
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.STATISTICS
+|                  WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t1'
+|                  AND COLUMN_NAME='b' AND NON_UNIQUE=0
+< result
+< column "COUNT(*)" "BIGINT"
+< row
+: int64 1
+> query
+| SELECT COUNT(*) FROM information_schema.STATISTICS
+|                  WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t2'
+|                  AND COLUMN_NAME='b' AND NON_UNIQUE=0
+< result
+< column "COUNT(*)" "BIGINT"
+< row
+: int64 1
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 2 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE p (
+|             a INT,
+|             b INT GENERATED ALWAYS AS (a+1) STORED,
+|             UNIQUE KEY (b)
+|         )
+< ok 0 0
+> exec
+| CREATE TABLE c (x INT, FOREIGN KEY (x) REFERENCES p(b))
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS
+|              WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'
+|              AND REFERENCED_TABLE_NAME='p'
+< result
+< column "COUNT(*)" "BIGINT"
+< row
+: int64 1
+> exec
+| DROP DATABASE IF EXISTS testdb
+< ok 2 0
+> exec
+| CREATE DATABASE testdb
+< ok 1 0
+> exec
+| USE testdb
+< ok 0 0
+> exec
+| CREATE TABLE t (
+|             a VARCHAR(10) CHARACTER SET latin1,
+|             b VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a, 'x')) VIRTUAL
+|         )
+< ok 0 0
+> query
+| SELECT IFNULL(CHARACTER_SET_NAME,'') FROM information_schema.COLUMNS
+|              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b'
+< result
+< column "IFNULL(CHARACTER_SET_NAME,'')" "VARCHAR"
+< row
+: bytes
+| utf8mb4

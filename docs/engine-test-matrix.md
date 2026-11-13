@@ -11,7 +11,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `doris` | `dyrnq/doris:3.1.4` | Upgrade the native baseline after checking dialect drift. |
 | `elasticsearch` | No local database oracle | Add native Elasticsearch request coverage. |
 | `googlesql` | Spanner emulator `1.5.54` | Covers the GoogleSQL subset implemented by Spanner. Shared helper: `googlesql/internal/testcontainer`. |
-| `mariadb` | Native `mariadb:11.8.8`, pinned by digest in `mariadb/testdata/pins.tsv` | Keep MariaDB native. `mariadb/parser`'s `TestCompatibility` replays `compat.tsv` (12,960 rows, 12,082 agreeing; 404 only MariaDB accepts, 474 only omni) and starts no server, and `mariadb/parser` and `mariadb/validate` replay tapes through `mariadb/internal/testcontainer`. `mariadb/catalog` and `mariadb/review` still start a server: move them to tapes (step 2), then work the disagreeing rows down. |
+| `mariadb` | Native `mariadb:11.8.8`, pinned by digest in `mariadb/testdata/pins.tsv` | Keep MariaDB native. `mariadb/parser`'s `TestCompatibility` replays `compat.tsv` (12,960 rows, 12,082 agreeing; 404 only MariaDB accepts, 474 only omni) and starts no server, and `mariadb/parser`, `mariadb/validate` and `mariadb/catalog` replay tapes through `mariadb/internal/testcontainer`. `mariadb/review` still starts a server: move it to tapes (step 2), then work the disagreeing rows down. |
 | `mongo` | No local database oracle | Add native MongoDB shell coverage. |
 | `mssql` | SQL Server `2022-CU27-GDR1-ubuntu-22.04`; ScriptDOM reference | Move inline container setup into an engine-owned helper. |
 | `mysql` | `mysql:8.0` | Consolidate on the selected MySQL 8.4 patch and investigate version drift. Shared helper: `mysql/internal/testcontainer`. |

@@ -11,12 +11,15 @@ package testcontainer
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -51,7 +54,8 @@ type Options struct {
 	// ParseTime returns DATE and DATETIME values as time.Time.
 	ParseTime bool
 	// Session holds system variables set when the connection opens, such as
-	// max_statement_time. The tape does not see them being set.
+	// max_statement_time, beside the timestamp every connection is given
+	// (see clock). The tape does not see them being set.
 	Session map[string]string
 }
 
@@ -82,12 +86,57 @@ func OpenEmpty(t testing.TB) *sql.DB {
 	return OpenEmptyWith(t, Options{Database: "test", MultiStatements: true, ParseTime: true})
 }
 
-// OpenEmptyWith is OpenEmpty with other connection settings.
+// OpenEmptyWith is OpenEmpty with other connection settings. A database it
+// selects other than test is created empty too.
 func OpenEmptyWith(t testing.TB, o Options) *sql.DB {
 	t.Helper()
-	Reset(t, empty)
+	Reset(t, func(ctx context.Context, db *sql.DB) error {
+		if err := empty(ctx, db); err != nil {
+			return err
+		}
+		if o.Database == "" || strings.EqualFold(o.Database, "test") {
+			return nil
+		}
+		_, err := db.ExecContext(ctx, "CREATE DATABASE "+quoteName(o.Database))
+		return err
+	})
 	return OpenWith(t, o)
 }
+
+// OpenDatabase returns t's connection with a database of the test's own
+// selected and empty, for a test that shares the server with what other
+// tests left: it names nothing outside that database, or drops what it names
+// first. In a recording the database is dropped and created before the
+// connection opens, on a connection the tape does not see.
+func OpenDatabase(t testing.TB) *sql.DB {
+	t.Helper()
+	name := DatabaseName(t)
+	Reset(t, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{"DROP DATABASE IF EXISTS " + quoteName(name), "CREATE DATABASE " + quoteName(name)} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return fmt.Errorf("%s: %w", stmt, err)
+			}
+		}
+		return nil
+	})
+	return OpenWith(t, Options{Database: name})
+}
+
+// DatabaseName is the database OpenDatabase selects for t: omni_ and the name
+// of t's top-level test in lower case, cut to the 64 characters a name may
+// have. Every subtest of a test shares it.
+func DatabaseName(t testing.TB) string {
+	name := "omni_" + databaseChars.ReplaceAllString(strings.ToLower(enginetest.TopName(t.Name())), "_")
+	if len(name) > 64 {
+		sum := sha256.Sum256([]byte(name))
+		name = name[:55] + "_" + hex.EncodeToString(sum[:4])
+	}
+	return name
+}
+
+var databaseChars = regexp.MustCompile(`[^a-z0-9_]`)
+
+func quoteName(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") + "`" }
 
 // Reset runs fn on the pinned server, in a recording only: it puts the server
 // into the state the requests after it start from, such as dropping what an
@@ -116,7 +165,7 @@ func empty(ctx context.Context, db *sql.DB) error {
 	text := func(s string) string {
 		return "'" + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), "'", "''") + "'"
 	}
-	name := func(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") + "`" }
+	name := quoteName
 	var stmts []string
 	databases, err := queryRows(ctx, db, "SELECT SCHEMA_NAME, '' FROM information_schema.SCHEMATA ORDER BY 1")
 	if err != nil {
@@ -174,6 +223,13 @@ func queryRows(ctx context.Context, db *sql.DB, query string) ([][2]string, erro
 	return out, rows.Err()
 }
 
+// clock is the session's TIMESTAMP on every connection to the live server:
+// 2026-11-13 00:00:00 UTC. The server stamps what it stores with the
+// session's time (a trigger's Created, the STARTS of an event that names
+// none) and NOW() returns it, so with the clock stopped a second recording
+// gets the answers of the first.
+const clock = "1794528000"
+
 // liveTimeout bounds one statement on the live server, so one that hangs
 // fails its test and not the run.
 const liveTimeout = time.Minute
@@ -185,9 +241,8 @@ func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
 	cfg := config(t, pin)
 	cfg.DBName, cfg.MultiStatements, cfg.ParseTime = o.Database, o.MultiStatements, o.ParseTime
-	if len(o.Session) > 0 {
-		cfg.Params = maps.Clone(o.Session)
-	}
+	cfg.Params = map[string]string{"timestamp": clock}
+	maps.Copy(cfg.Params, o.Session)
 	c, err := mysql.NewConnector(cfg)
 	if err != nil {
 		t.Fatalf("%v", err)
