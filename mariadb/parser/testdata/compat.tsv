@@ -908,9 +908,9 @@ accept	accept	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHED
 reject	reject	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!swap	CREATE EVENT a ONE SCHEDULE AT a DO COMMIT;
 accept	accept	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT a ON SCHEDULE EVERY a DAY;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-1	ALTER EVENT a ON SCHEDULE a DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT a ON SCHEDULE EVERY DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT a ON SCHEDULE EVERY a;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT a ON SCHEDULE EVERY a
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT a ON SCHEDULE EVERY DAY;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT a ON SCHEDULE EVERY a;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT a ON SCHEDULE EVERY a
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!insert	ALTER EVENT a ON SCHEDULE EVERY a DAY zzz;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!swap	ALTER EVENT a ON SCHEDULE EXAMINED a DAY;
 accept	accept	engine	ev_schedule_time/AT_SYM_expr	ALTER EVENT a ON SCHEDULE AT a;
@@ -919,10 +919,10 @@ reject	reject	engine	ev_schedule_time/AT_SYM_expr!drop-2	ALTER EVENT a ON SCHEDU
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!truncate	ALTER EVENT a ON SCHEDULE AT
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!insert	ALTER EVENT a ON SCHEDULE AT a zzz;
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!swap	ALTER EVENT a ON SCHEDULE ATOMIC a;
-accept	reject	engine	opt_ev_status/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_status/%empty	ALTER EVENT a;
 reject	reject	engine	opt_ev_status/%empty!insert	ALTER EVENT a zzz;
 accept	accept	engine	opt_ev_status/ENABLE_SYM	ALTER EVENT a ENABLE;
-accept	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT a
+reject	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT a
 reject	reject	engine	opt_ev_status/ENABLE_SYM!insert	ALTER EVENT a ENABLE zzz;
 reject	reject	engine	opt_ev_status/ENABLE_SYM!swap	ALTER EVENT a ENCLOSED;
 accept	accept	engine	opt_ev_status/DISABLE_SYM_ON_SLAVE	ALTER EVENT a DISABLE ON SLAVE;
@@ -960,11 +960,11 @@ reject	reject	engine	opt_ev_on_completion/ev_on_completion!swap	CREATE EVENT a O
 accept	accept	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM	ALTER EVENT a ON COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-1	ALTER EVENT a COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-2	ALTER EVENT a ON PRESERVE;
-accept	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-3	ALTER EVENT a ON COMPLETION;
-accept	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!truncate	ALTER EVENT a ON COMPLETION
+reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-3	ALTER EVENT a ON COMPLETION;
+reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!truncate	ALTER EVENT a ON COMPLETION
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!insert	ALTER EVENT a ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!swap	ALTER EVENT a ONE COMPLETION PRESERVE;
-accept	reject	engine	opt_ev_comment/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_comment/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT a COMMENT 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-1	ALTER EVENT a 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-2	ALTER EVENT a COMMENT;
@@ -3795,7 +3795,7 @@ reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_
 reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!truncate	ALTER VIEW a AS SELECT
 accept	accept	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!insert	ALTER VIEW a AS SELECT a zzz;
 reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!swap	ALWAYS VIEW a AS SELECT a;
-accept	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT a;
+reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT a;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!drop-1	EVENT a;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!drop-3	ALTER EVENT;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!truncate	ALTER EVENT
@@ -3869,7 +3869,7 @@ reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SY
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!truncate	ALTER USER a PASSWORD EXPIRE ACCOUNT
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!insert	ALTER USER a PASSWORD EXPIRE ACCOUNT LOCK zzz;
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!swap	ALTER USER a PATH EXPIRE ACCOUNT LOCK;
-accept	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT a;
+reject	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT a;
 accept	accept	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time	ALTER EVENT a ON SCHEDULE AT a;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time!drop-1	ALTER EVENT a SCHEDULE AT a;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time!drop-2	ALTER EVENT a ON AT a;
@@ -3882,19 +3882,19 @@ reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-4	ALTER EVENT a ON SCHEDULE AT ON COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-5	ALTER EVENT a ON SCHEDULE AT a COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-6	ALTER EVENT a ON SCHEDULE AT a ON PRESERVE;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION;
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!insert	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!swap	ALTER EVENT a ONE SCHEDULE AT a ON COMPLETION PRESERVE;
-accept	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT a RENAME TO a;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-1	ALTER EVENT a TO a;
-accept	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT a RENAME a;
+reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT a RENAME a;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-3	ALTER EVENT a RENAME TO;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!truncate	ALTER EVENT a RENAME TO
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!insert	ALTER EVENT a RENAME TO a zzz;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!swap	ALTER EVENT a REORGANIZE TO a;
-accept	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt	ALTER EVENT a DO COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!drop-1	ALTER EVENT a COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!swap	ALTER EVENT a DOUBLE COMMIT;
@@ -12258,17 +12258,17 @@ accept	accept	engine	query_expression_option/SQL_CALC_FOUND_ROWS!insert	SELECT S
 accept	accept	engine	query_expression_option/ALL	SELECT ALL a;
 accept	accept	engine	query_expression_option/ALL!insert	SELECT ALL zzz a;
 reject	reject	engine	query_expression_option/ALL!swap	SELECT ALTER a;
-accept	reject	engine	definer_opt/no_definer	ALTER EVENT a;
+reject	reject	engine	definer_opt/no_definer	ALTER EVENT a;
 reject	reject	engine	definer_opt/no_definer!insert	ALTER zzz EVENT a;
-accept	reject	engine	definer_opt/definer	ALTER DEFINER = a EVENT a;
+reject	reject	engine	definer_opt/definer	ALTER DEFINER = a EVENT a;
 reject	reject	engine	definer_opt/definer!drop-1	ALTER = a EVENT a;
-accept	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER a EVENT a;
+reject	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER a EVENT a;
 reject	reject	engine	definer_opt/definer!drop-3	ALTER DEFINER = EVENT a;
 reject	reject	engine	definer_opt/definer!truncate	ALTER DEFINER =
 reject	reject	engine	definer_opt/definer!insert	ALTER DEFINER = a zzz EVENT a;
 reject	reject	engine	definer_opt/definer!swap	ALTER DELAYED = a EVENT a;
-accept	reject	engine	no_definer/%empty	ALTER EVENT a;
-accept	reject	engine	definer/DEFINER_SYM_=_user_or_role	ALTER DEFINER = a EVENT a;
+reject	reject	engine	no_definer/%empty	ALTER EVENT a;
+reject	reject	engine	definer/DEFINER_SYM_=_user_or_role	ALTER DEFINER = a EVENT a;
 accept	accept	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM	ALTER ALGORITHM = UNDEFINED VIEW a AS SELECT a;
 reject	reject	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM!truncate	ALTER ALGORITHM =
 reject	reject	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM!insert	ALTER ALGORITHM = UNDEFINED zzz VIEW a AS SELECT a;
