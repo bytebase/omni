@@ -40,6 +40,9 @@ func ColumnTypeDisallowList(stmts []ast.Node, disallowed []string) []v1review.Fi
 // compactType renders a type in lower case the way TiDB's parser rendered a
 // column type compactly before omni.
 func compactType(dt *ast.DataType) string {
+	if dt == nil {
+		return ""
+	}
 	lower := strings.ToLower(dt.Name)
 	switch {
 	case lower == "enum" || lower == "set":
