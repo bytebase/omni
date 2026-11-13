@@ -45,6 +45,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"ALTER T <name> MODIFY [ ( ] COLUMN <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ID 'MODIFY' ('(' 'COLUMN' ID 'DROP' 'DEFAULT' ')' | 'COLUMN' ID 'DROP' 'DEFAULT')"},
 		{"ALTER P <name> UNSET [ MIN_LENGTH ] [ MAX_LENGTH ] [ COMMENT ]", "'ALTER' 'P' ID 'UNSET' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT') (',' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT'))*"},
 		{"IPS = ( [ '<ip>' ] [ , '<ip>' , ... ] )", "'IPS' '=' '(' (STRING (',' STRING)*)? ')'"},
+		{"SET RULES <rule_name> = ( A = <a> ), ...", "'SET' 'RULES' ID '=' '(' 'A' '=' ID ')' (',' ID '=' '(' 'A' '=' ID ')')*"},
+		{"SET REFRESH_INTERVAL_SECONDS = <value>", "'SET' 'REFRESH_INTERVAL_SECONDS' '=' NUMBER"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.

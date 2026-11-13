@@ -257,6 +257,9 @@ var errUndefined = errors.New("undefined")
 // valueChoiceLine is a line that is KEY = A | B, with no bracket on it.
 var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\[\]{}\n]*\|[^\[\]{}\n]*?)\s*$`)
 
+// countKey is a property that holds a count: of seconds, days, or things.
+var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
+
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
@@ -649,6 +652,14 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
 			next < len(toks) && toks[next].kind == nKeyword {
 			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
+		}
+	}
+	// REFRESH_INTERVAL_SECONDS = <value>: a value a key names as a count of
+	// time units, or a count, is a number, whatever the placeholder says.
+	for i, t := range toks {
+		if t.kind == nPlaceholder && placeholderClass(t.text) == tName && i >= 2 && isLiteral(toks[i-1], "=") &&
+			toks[i-2].kind == nKeyword && countKey.MatchString(toks[i-2].text) {
+			toks[i].text = "num"
 		}
 	}
 	// KEY = with nothing after it is a value the docs left out; an = alone

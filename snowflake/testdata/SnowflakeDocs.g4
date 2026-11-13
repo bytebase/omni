@@ -1040,7 +1040,7 @@ alterBackupSet
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-catalog-integration
 alterCatalogIntegration
-    : 'ALTER' 'CATALOG' 'INTEGRATION' ('IF' 'EXISTS')? ID 'SET' ('REST_AUTHENTICATION' '=' '(' alterCatalogIntegration_restAuthenticationParams ')' ('DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')')? ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)? | 'DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')' ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)? | 'REFRESH_INTERVAL_SECONDS' '=' ID ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : 'ALTER' 'CATALOG' 'INTEGRATION' ('IF' 'EXISTS')? ID 'SET' ('REST_AUTHENTICATION' '=' '(' alterCatalogIntegration_restAuthenticationParams ')' ('DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')')? ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)? | 'DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')' ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)? | 'REFRESH_INTERVAL_SECONDS' '=' NUMBER ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     ;
 alterCatalogIntegration_restAuthenticationParams
     : 'OAUTH_CLIENT_SECRET' '=' STRING
@@ -1129,7 +1129,7 @@ alterDatabaseCatalogLinked
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'ADD' '(' STRING (',' STRING)* ')' 'TO' 'BLOCKED_NAMESPACES'
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'REMOVE' '(' STRING (',' STRING)* ')' 'FROM' 'BLOCKED_NAMESPACES'
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'UNSET' 'BLOCKED_NAMESPACES'
-    | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'SET' 'SYNC_INTERVAL_SECONDS' '=' ID
+    | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'SET' 'SYNC_INTERVAL_SECONDS' '=' NUMBER
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UPDATE' 'LINKED_CATALOG' 'SET' 'ALLOWED_WRITE_OPERATIONS' '=' ('NONE' | 'ALL')
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'SET' ('BASE_LOCATION_PREFIX' '=' STRING ('COMMENT' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? | 'COMMENT' '=' STRING ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('ICEBERG_VERSION_DEFAULT' '=' NUMBER)? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? | 'ICEBERG_VERSION_DEFAULT' '=' NUMBER ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\'') ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? | 'ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UNSET' ('BASE_LOCATION_PREFIX' | 'COMMENT' | 'CONTACT' | 'ICEBERG_VERSION_DEFAULT' | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' | 'ENABLE_ICEBERG_MERGE_ON_READ')
@@ -1211,7 +1211,7 @@ alterDynamicTable_storageLifecyclePolicyAction
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-event-routing-table
 alterEventRoutingTable
-    : 'ALTER' 'EVENT' 'ROUTING' 'TABLE' ID 'FORCE'? 'SET' 'RULES' ID '=' '(' 'REGION_GROUP' '=' ID ',' 'REGIONS' '=' '(' STRING (',' STRING)* ')' ',' 'DESTINATION_ACCOUNT' '=' ID '.' ID ')' (',' ')')*
+    : 'ALTER' 'EVENT' 'ROUTING' 'TABLE' ID 'FORCE'? 'SET' 'RULES' ID '=' '(' 'REGION_GROUP' '=' ID ',' 'REGIONS' '=' '(' STRING (',' STRING)* ')' ',' 'DESTINATION_ACCOUNT' '=' ID '.' ID ')' (',' ID '=' '(' 'REGION_GROUP' '=' ID ',' 'REGIONS' '=' '(' STRING (',' STRING)* ')' ',' 'DESTINATION_ACCOUNT' '=' ID '.' ID ')')*
     | 'ALTER' 'EVENT' 'ROUTING' 'TABLE' ID 'FORCE'? 'SET' 'RULE' ID 'REGION_GROUP' '=' ID 'REGIONS' '=' '(' STRING (',' STRING)* ')' 'DESTINATION_ACCOUNT' '=' ID '.' ID
     | 'ALTER' 'EVENT' 'ROUTING' 'TABLE' ID 'FORCE'? 'UNSET' 'RULE' ID
     | 'ALTER' 'EVENT' 'ROUTING' 'TABLE' ID 'MODIFY' 'RULE' ID 'RENAME' 'TO' ID
@@ -2139,6 +2139,7 @@ alterSnapshotSet
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-stage
 // fix: externalStageParams (for Google Cloud Storage): a } inside [ STORAGE_INTEGRATION = ... ] closes no bracket; dropped
+// fix: an ALTER may leave the URL as it is and change the credentials or encryption, as the page's examples do
 alterStage
     : 'ALTER' 'STAGE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'STAGE' ('IF' 'EXISTS')? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
@@ -2148,7 +2149,7 @@ alterStage
     | 'ALTER' 'STAGE' ('IF' 'EXISTS')? ID 'SET' (alterStage_externalStageParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') alterStage_formatTypeOptions?) ')')? ('COMMENT' '=' STRING)? | 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') alterStage_formatTypeOptions?) ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     ;
 alterStage_externalStageParams
-    : 'URL' '=' STRING ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    : ('URL' '=' STRING)? ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
     | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')?
     | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' ('MASTER_KEY' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
     ;
@@ -2774,28 +2775,28 @@ createIcebergTableDelta
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-glue
 createCatalogIntegrationGlue
-    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'GLUE' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_API_TYPE' '=' ('AWS_GLUE' | 'AWS_PRIVATE_GLUE') 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'SIGV4' 'SIGV4_IAM_ROLE' '=' STRING ('SIGV4_SIGNING_REGION' '=' STRING)? ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'GLUE' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_API_TYPE' '=' ('AWS_GLUE' | 'AWS_PRIVATE_GLUE') 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'SIGV4' 'SIGV4_IAM_ROLE' '=' STRING ('SIGV4_SIGNING_REGION' '=' STRING)? ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-object-storage
 createCatalogIntegrationObjectStorage
-    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'OBJECT_STORE' 'TABLE_FORMAT' '=' ('ICEBERG' | 'DELTA' | 'NONE' | 'HIVE') 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'OBJECT_STORE' 'TABLE_FORMAT' '=' ('ICEBERG' | 'DELTA' | 'NONE' | 'HIVE') 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-horizon
 createCatalogIntegrationHorizon
-    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING ('CATALOG_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' 'OAUTH_GRANT_TYPE' '=' 'TOKEN_EXCHANGE' 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ')' ('OAUTH_AUDIENCE' '=' STRING)? ')' ('DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')')? 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING ('CATALOG_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' 'OAUTH_GRANT_TYPE' '=' 'TOKEN_EXCHANGE' 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ')' ('OAUTH_AUDIENCE' '=' STRING)? ')' ('DEFAULT_STORAGE_CONFIG' '=' '(' 'USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE') ')')? 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-open-catalog
 createCatalogIntegrationOpenCatalog
-    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING ('CATALOG_API_TYPE' '=' 'PUBLIC')? 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? ('OAUTH_TOKEN_URI' '=' STRING)? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ',' STRING ')' ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
-    | 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING 'CATALOG_API_TYPE' '=' 'PRIVATE' 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ',' STRING ')' ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING ('CATALOG_API_TYPE' '=' 'PUBLIC')? 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? ('OAUTH_TOKEN_URI' '=' STRING)? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ',' STRING ')' ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
+    | 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'POLARIS' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING 'CATALOG_API_TYPE' '=' 'PRIVATE' 'CATALOG_NAME' '=' STRING ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))? ')' 'REST_AUTHENTICATION' '=' '(' 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ',' STRING ')' ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-rest
 createCatalogIntegrationRest
-    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'ICEBERG_REST' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' createCatalogIntegrationRest_restConfigParams ')' 'REST_AUTHENTICATION' '=' '(' createCatalogIntegrationRest_restAuthenticationParams ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' ID)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'ICEBERG_REST' 'TABLE_FORMAT' '=' 'ICEBERG' ('CATALOG_NAMESPACE' '=' STRING)? 'REST_CONFIG' '=' '(' createCatalogIntegrationRest_restConfigParams ')' 'REST_AUTHENTICATION' '=' '(' createCatalogIntegrationRest_restAuthenticationParams ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('REFRESH_INTERVAL_SECONDS' '=' NUMBER)? ('COMMENT' '=' STRING)?
     ;
 createCatalogIntegrationRest_restConfigParams
     : 'CATALOG_URI' '=' STRING ('PREFIX' '=' STRING)? ('CATALOG_NAME' '=' STRING)? ('CATALOG_API_TYPE' '=' ('PUBLIC' | 'PRIVATE' | 'AWS_API_GATEWAY' | 'AWS_PRIVATE_API_GATEWAY' | 'AWS_GLUE' | 'AWS_PRIVATE_GLUE' | 'AWS_S3TABLES' | 'AWS_PRIVATE_S3TABLES'))? ('ACCESS_DELEGATION_MODE' '=' ('VENDED_CREDENTIALS' | 'EXTERNAL_VOLUME_CREDENTIALS'))?
@@ -2878,7 +2879,7 @@ createDatabaseCatalogLinked
     : 'CREATE' 'DATABASE' ID 'LINKED_CATALOG' '=' '(' createDatabaseCatalogLinked_catalogParams ')' ('EXTERNAL_VOLUME' '=' STRING)? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('CATALOG_CASE_SENSITIVITY' '=' ('CASE_SENSITIVE' | 'CASE_INSENSITIVE'))? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     ;
 createDatabaseCatalogLinked_catalogParams
-    : 'CATALOG' '=' STRING (',' 'ALLOWED_NAMESPACES' '=' '(' STRING (',' STRING)* ')')? (',' 'BLOCKED_NAMESPACES' '=' '(' STRING (',' STRING)* ')')? (',' 'ALLOWED_WRITE_OPERATIONS' '=' ('NONE' | 'ALL'))? (',' 'NAMESPACE_MODE' '=' ('IGNORE_NESTED_NAMESPACE' | 'FLATTEN_NESTED_NAMESPACE'))? (',' 'NAMESPACE_FLATTEN_DELIMITER' '=' STRING)? (',' 'SYNC_INTERVAL_SECONDS' '=' ID)?
+    : 'CATALOG' '=' STRING (',' 'ALLOWED_NAMESPACES' '=' '(' STRING (',' STRING)* ')')? (',' 'BLOCKED_NAMESPACES' '=' '(' STRING (',' STRING)* ')')? (',' 'ALLOWED_WRITE_OPERATIONS' '=' ('NONE' | 'ALL'))? (',' 'NAMESPACE_MODE' '=' ('IGNORE_NESTED_NAMESPACE' | 'FLATTEN_NESTED_NAMESPACE'))? (',' 'NAMESPACE_FLATTEN_DELIMITER' '=' STRING)? (',' 'SYNC_INTERVAL_SECONDS' '=' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-database-role

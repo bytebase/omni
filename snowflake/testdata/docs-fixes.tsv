@@ -66,3 +66,4 @@ show-application-roles	[ LIKE <pattern> ]	[ LIKE '<pattern>' ]	LIKE takes a quot
 show-versions	[ LIKE <pattern> ]	[ LIKE '<pattern>' ]	LIKE takes a quoted pattern, as the page's parameters write it
 create-semantic-view	 UNIQUE ( <unique_column_name> [ , ... ] )\n [ ... ]	 { UNIQUE ( <unique_column_name> [ , ... ] ) }\n [ ... ]	the [ ... ] repeats the whole UNIQUE ( ... ) clause
 alter-database	EVENT_TABLE = <event_table_name>    |	EVENT_TABLE                         |	UNSET names a property without its value, as the page's parameters say
+alter-stage	externalStageParams (for Amazon S3) ::=\n  URL = '<protocol>://<bucket>[/<path>/]'	externalStageParams (for Amazon S3) ::=\n  [ URL = '<protocol>://<bucket>[/<path>/]' ]	an ALTER may leave the URL as it is and change the credentials or encryption, as the page's examples do

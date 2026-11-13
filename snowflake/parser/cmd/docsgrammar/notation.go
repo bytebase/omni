@@ -698,7 +698,9 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 		case len(out) >= 2 && isComma(out[len(out)-1]) && !isComma(out[len(out)-2]) && !isEllipsis(out[len(out)-2]):
 			// X , ..., or E , E , ... where the docs spell a list element
 			// twice, as <col> AS <alias>, <col> AS <alias>, ... does: a list
-			// of E. Without a second spelling, X is the one node before.
+			// of E. Without a second spelling, X is the element listElement
+			// finds, as for [ , ... ]: <rule> = ( ... ), ... repeats the whole
+			// assignment, not its ).
 			body := out[:len(out)-1]
 			if k := repeatedElement(body); k > 0 {
 				e := &node{alts: [][]*node{append([]*node(nil), body[len(body)-k:]...)}, brace: true}
@@ -706,6 +708,10 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 				break
 			}
 			x := body[len(body)-1]
+			if k, required := listElement(body); k > 1 && required {
+				x = &node{alts: [][]*node{append([]*node(nil), body[len(body)-k:]...)}, brace: true}
+				body = append(body[:len(body)-k:len(body)-k], x)
+			}
 			out = append(body, repeatAfterComma(x))
 		case len(out) >= 1 && !isComma(out[len(out)-1]) && isRepeatable(out[len(out)-1]):
 			// X ...
