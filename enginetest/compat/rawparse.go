@@ -33,9 +33,15 @@ const divisionByZero = "22012"
 // where the server put the error, and a bare reject where it reported no
 // position, as that action does.
 //
+// Position 1 is the start of the text sent. No error of the head's is put
+// there, since the head parses, but a grammar action that reports a
+// location it left at zero is: preprocess_pubobj_list answers ALTER
+// PUBLICATION a ADD a * so. The statement sent alone gets the same
+// position, so the verdict is reject@0.
+//
 // An answer that is no verdict comes back as an error, so the caller fails
 // rather than records agreement: no error at all, an error the server did
-// not send, and a position outside the statement.
+// not send, and any other position outside the statement.
 func RawParseVerdict(statement string, err error, state func(error) (sqlstate string, position int, ok bool)) (string, error) {
 	if err == nil {
 		return "", fmt.Errorf("the server ran the probe's division by zero without an error")
@@ -49,6 +55,9 @@ func RawParseVerdict(statement string, err error, state func(error) (sqlstate st
 	}
 	if position == 0 {
 		return Reject, nil
+	}
+	if position == 1 {
+		return RejectAt(0), nil
 	}
 	head := utf8.RuneCountInString(RawParseHead)
 	chars := position - 1 - head
