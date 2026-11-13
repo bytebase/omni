@@ -67,7 +67,7 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "create resource pool", sql: "CREATE RESOURCE POOL obprobe_p1 UNIT = 'obprobe_u1', UNIT_NUM = 1"},
 	{name: "create external table", sql: "CREATE EXTERNAL TABLE obprobe_ext (a INT) LOCATION = '/tmp/obprobe' FORMAT (TYPE = 'CSV')", pending: true},
 	{name: "create materialized view", sql: "CREATE MATERIALIZED VIEW obprobe_mv1 REFRESH COMPLETE ON DEMAND AS SELECT a FROM obprobe_t", pending: true},
-	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)", pending: true},
+	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)"},
 	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE"},
 
 	// A lone derived table, LATERAL derived table or JSON_TABLE in parentheses, which
