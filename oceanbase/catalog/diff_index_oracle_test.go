@@ -64,6 +64,28 @@ func indexDiffProbes() []diffProbe {
 		{"mv-date", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATE ARRAY))))", "t"},
 		// Composite MV index: a regular column part combined with an MV (array-cast) part.
 		{"mv-composite", "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50), j JSON, KEY mv (name, (CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t"},
+		// OceanBase stores every one of these as json_query(`j`,<path> RETURNING <type> WITHOUT
+		// ARRAY WRAPPER asis error on error null on empty null on mismatch) (multiValuedKeyStoredForm):
+		// the other spellings of the document and its path, and the other types of the element.
+		{"mv-json-extract", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(JSON_EXTRACT(j,'$.ids') AS UNSIGNED ARRAY))))", "t"},
+		{"mv-unquote", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->>'$.ids' AS UNSIGNED ARRAY))))", "t"},
+		{"mv-bare-column", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j AS UNSIGNED ARRAY))))", "t"},
+		{"mv-paren-column", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST((j) AS UNSIGNED ARRAY))))", "t"},
+		{"mv-qualified-column", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(t.j->'$.ids' AS UNSIGNED ARRAY))))", "t"},
+		{"mv-double-quoted-path", `CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->"$.ids" AS UNSIGNED ARRAY))))`, "t"},
+		{"mv-quoted-member-path", `CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$."a b"[0]' AS UNSIGNED ARRAY))))`, "t"},
+		{"mv-signed", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS SIGNED ARRAY))))", "t"},
+		{"mv-unsigned-integer", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED INTEGER ARRAY))))", "t"},
+		{"mv-decimal-bare", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DECIMAL ARRAY))))", "t"},
+		{"mv-double", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DOUBLE ARRAY))))", "t"},
+		{"mv-datetime", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATETIME ARRAY))))", "t"},
+		{"mv-datetime-fsp", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATETIME(3) ARRAY))))", "t"},
+		{"mv-time", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS TIME ARRAY))))", "t"},
+		{"mv-binary", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS BINARY(8) ARRAY))))", "t"},
+		{"mv-char-charset", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS CHAR(40) CHARSET ascii ARRAY))))", "t"},
+		{"mv-unique", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, UNIQUE KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t"},
+		// The stored text, written as a key, makes the same index and reads back the same.
+		{"mv-stored-text", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))))", "t"},
 		// FULLTEXT.
 		{"fulltext", "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, ftcol VARCHAR(200), FULLTEXT KEY ftb (body), FULLTEXT KEY ftc (ftcol))", "t"},
 		// SPATIAL — needs a NOT NULL geometry column. 8.0 supports SPATIAL on InnoDB; 5.7 needs

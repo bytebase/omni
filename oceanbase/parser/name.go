@@ -893,6 +893,29 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	return ref, nil
 }
 
+// parseSpName reads sp_name, the name of a stored program with its database or without:
+//
+//	sp_name: ident '.' ident | ident
+//
+// Ref: src/pl/parser/pl_parser_mysql_mode.y in oceanbase/oceanbase (v4.3.5_CE_BP6, line
+// 737). 4.3.5.6 takes CREATE TRIGGER d.tr, `d`.`tr` and d . tr, and answers 1064 for a
+// third part (a.d.tr) and for a string in place of either name.
+// TestTriggerNameFormsOceanBaseOracle holds each to the engine.
+func (p *Parser) parseSpName() (schema, name string, err error) {
+	if name, _, err = p.parseIdent(); err != nil {
+		return "", "", err
+	}
+	if p.cur.Type != '.' {
+		return "", name, nil
+	}
+	p.advance()
+	schema = name
+	if name, _, err = p.parseIdent(); err != nil {
+		return "", "", err
+	}
+	return schema, name, nil
+}
+
 // parseTableRefWithAlias parses a table reference with an optional alias.
 //
 //	table_ref_alias:

@@ -526,6 +526,492 @@
 |   INDEX `mv` (`name`, (json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
+| DROP DATABASE IF EXISTS idx_mv_json_extract
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_json_extract
+< ok 1 0
+> exec
+| USE idx_mv_json_extract
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(JSON_EXTRACT(j,'$.ids') AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_json_extract.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_unquote
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_unquote
+< ok 1 0
+> exec
+| USE idx_mv_unquote
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->>'$.ids' AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_unquote.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_bare_column
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_bare_column
+< ok 1 0
+> exec
+| USE idx_mv_bare_column
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_bare_column.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_paren_column
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_paren_column
+< ok 1 0
+> exec
+| USE idx_mv_paren_column
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST((j) AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_paren_column.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_qualified_column
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_qualified_column
+< ok 1 0
+> exec
+| USE idx_mv_qualified_column
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(t.j->'$.ids' AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_qualified_column.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_double_quoted_path
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_double_quoted_path
+< ok 1 0
+> exec
+| USE idx_mv_double_quoted_path
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->"$.ids" AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_double_quoted_path.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_quoted_member_path
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_quoted_member_path
+< ok 1 0
+> exec
+| USE idx_mv_quoted_member_path
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$."a b"[0]' AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_quoted_member_path.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.\"a b\"[0]' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_signed
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_signed
+< ok 1 0
+> exec
+| USE idx_mv_signed
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS SIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_signed.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING signed WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_unsigned_integer
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_unsigned_integer
+< ok 1 0
+> exec
+| USE idx_mv_unsigned_integer
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED INTEGER ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_unsigned_integer.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_decimal_bare
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_decimal_bare
+< ok 1 0
+> exec
+| USE idx_mv_decimal_bare
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DECIMAL ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_decimal_bare.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.amts' RETURNING number(10,0) WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_double
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_double
+< ok 1 0
+> exec
+| USE idx_mv_double
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DOUBLE ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_double.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.amts' RETURNING double WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_datetime
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_datetime
+< ok 1 0
+> exec
+| USE idx_mv_datetime
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATETIME ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_datetime.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.days' RETURNING datetime(0) WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_datetime_fsp
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_datetime_fsp
+< ok 1 0
+> exec
+| USE idx_mv_datetime_fsp
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATETIME(3) ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_datetime_fsp.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.days' RETURNING datetime(3) WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_time
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_time
+< ok 1 0
+> exec
+| USE idx_mv_time
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS TIME ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_time.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.days' RETURNING time(0) WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_binary
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_binary
+< ok 1 0
+> exec
+| USE idx_mv_binary
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS BINARY(8) ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_binary.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.codes' RETURNING char(8) charset binary WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_char_charset
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_char_charset
+< ok 1 0
+> exec
+| USE idx_mv_char_charset
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS CHAR(40) CHARSET ascii ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_char_charset.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.codes' RETURNING char(40) charset ascii WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_unique
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_unique
+< ok 1 0
+> exec
+| USE idx_mv_unique
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, UNIQUE KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_unique.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE  INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS idx_mv_stored_text
+< ok 0 0
+> exec
+| CREATE DATABASE idx_mv_stored_text
+< ok 1 0
+> exec
+| USE idx_mv_stored_text
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))))
+< ok 0 0
+> query
+| SHOW CREATE TABLE idx_mv_stored_text.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `j` json DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   INDEX `mv` ((json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch))) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
 | DROP DATABASE IF EXISTS idx_fulltext
 < ok 0 0
 > exec

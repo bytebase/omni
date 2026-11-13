@@ -8,6 +8,18 @@ import (
 )
 
 func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
+	// A trigger named with a database lives there, and so must its table. OceanBase
+	// 4.3.5.6 answers 1049 for a database that is missing, before it looks for the
+	// table, and 1435 where the table is in another one. The table's database is its own
+	// or the current one, never the trigger's: with b current, CREATE TRIGGER a.tr ... ON
+	// t reads b.t and is a 1435, where MySQL reads a.t.
+	var named *Database
+	if stmt.Schema != "" {
+		if named = c.GetDatabase(stmt.Schema); named == nil {
+			return errUnknownDatabase(stmt.Schema)
+		}
+	}
+
 	// Resolve database from the table reference.
 	schema := ""
 	if stmt.Table != nil {
@@ -28,6 +40,9 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 		if tbl == nil {
 			return errNoSuchTable(db.Name, tableName)
 		}
+	}
+	if named != nil && named != db {
+		return errTriggerInWrongSchema()
 	}
 
 	name := stmt.Name

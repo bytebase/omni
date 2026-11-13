@@ -160,20 +160,6 @@ var obGaps = map[string]gap{
 		[]string{`PHANTOM DIFF on column "a"`},
 	},
 
-	// BINARY before CHARACTER SET is OceanBase's order (`VARCHAR string_length_i
-	// opt_binary opt_charset`), and the parser here reads only the order OceanBase
-	// refuses, so it cannot load a column OceanBase takes.
-	"TestOracle_DiffIdempotence/oceanbase/binary-modifier-before-charset":      binaryBeforeCharset,
-	"TestOracle_MigrationIdempotence/oceanbase/binary-modifier-before-charset": binaryBeforeCharset,
-
-	// A multi-valued index. The parser does not read json_query's RETURNING clause, so a
-	// table that has such an index does not load from its own readback.
-	"TestOracle_IndexDiffIdempotence/oceanbase/mv-unsigned":  multiValuedIndex,
-	"TestOracle_IndexDiffIdempotence/oceanbase/mv-char":      multiValuedIndex,
-	"TestOracle_IndexDiffIdempotence/oceanbase/mv-decimal":   multiValuedIndex,
-	"TestOracle_IndexDiffIdempotence/oceanbase/mv-date":      multiValuedIndex,
-	"TestOracle_IndexDiffIdempotence/oceanbase/mv-composite": multiValuedIndex,
-
 	// SHOW CREATE FUNCTION prints a COMMENT without its escapes, so the readback is not
 	// the comment the routine has. information_schema.ROUTINES is where to read it.
 	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-quote": {
@@ -268,21 +254,10 @@ var obGaps = map[string]gap{
 		"OceanBase will not change a generated column's expression in place",
 		[]string{"Error 1235 (0A000): Modify generated column definition not supported"},
 	},
-
-	// The parser again: a multi-valued index, and a trigger named with its database, which
-	// is how the generator writes CREATE TRIGGER and how OceanBase then keeps it.
-	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/create-with-mv-index":         multiValuedIndex,
-	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/add-mv-index":                 multiValuedIndex,
-	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/drop-mv-index":                multiValuedIndex,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-before-insert":       qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-after-update":        qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-before-delete":       qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-begin-end":           qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-body":                qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-timing":              qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-event":               qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/multi-add-drop":             qualifiedTrigger,
-	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/modify-table-move-drop-old": qualifiedTrigger,
+	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/add-mv-index": {
+		"OceanBase builds a multi-valued index with its table only: ALTER TABLE ... ADD KEY and CREATE INDEX answer 1235 for one, so the plan cannot add it to a table that exists",
+		[]string{"Error 1235 (0A000): build multivalue index afterward not supported"},
+	},
 
 	// Events. OceanBase keeps an event's comment when ALTER EVENT gives an empty one, and
 	// gives an altered event the server's sql_mode, not the session's.
@@ -329,21 +304,7 @@ var (
 		"OceanBase will not change a geometry column's SRID in place",
 		[]string{"Error 1235 (0A000): alter geometry srid not supported"},
 	}
-	qualifiedTrigger = gap{
-		"the parser does not read CREATE TRIGGER `db`.`name`, which the generator writes and OceanBase keeps as written, so the result does not load",
-		[]string{"reload of result SDL failed"},
-	}
 )
-
-var binaryBeforeCharset = gap{
-	"OceanBase takes VARCHAR(10) BINARY CHARACTER SET ascii and refuses CHARACTER SET ascii BINARY; the parser reads the second and not the first",
-	[]string{"LoadSQL failed"},
-}
-
-var multiValuedIndex = gap{
-	"OceanBase prints a multi-valued index as json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch), which the parser does not read",
-	[]string{"LoadSQL failed"},
-}
 
 // twoWays is the pair of failures of a form that differs from its readback: once each way.
 func twoWays(forward, reverse string) []string { return []string{forward, reverse} }

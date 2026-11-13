@@ -739,6 +739,10 @@ type FuncCallExpr struct {
 	// stored form of its own even with no clause written. Quoted or qualified, the name is an
 	// ordinary call to whatever function has that name.
 	JSONValueArm bool
+	JSONQuery    *JSONQueryOptions // JSON_QUERY's clauses after its path (nil when written with none)
+	// JSONQueryArm marks a call read through JSON_QUERY's own arm of the grammar, as
+	// JSONValueArm does for JSON_VALUE.
+	JSONQueryArm bool
 	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 }
 
@@ -764,6 +768,28 @@ type JSONValueResponse struct {
 
 func (n *JSONValueOptions) nodeTag()  {}
 func (n *JSONValueResponse) nodeTag() {}
+
+// JSONQueryOptions is what JSON_QUERY takes after its path, in the order its grammar has
+// them. The call's document and path are its Args. A clause that is a choice of words holds
+// the words as OceanBase prints them, in capitals.
+//
+// Ref: json_query_expr in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, line 24917).
+type JSONQueryOptions struct {
+	Loc        Loc
+	Returning  *DataType // RETURNING type (nil = not specified)
+	Truncate   bool      // TRUNCATE
+	Scalars    string    // ALLOW or DISALLOW, of ALLOW SCALARS and DISALLOW SCALARS ("" = not specified)
+	Pretty     bool      // PRETTY
+	ASCII      bool      // ASCII
+	Wrapper    string    // the whole clause, such as WITHOUT ARRAY WRAPPER ("" = not specified)
+	Asis       bool      // ASIS
+	OnError    string    // ERROR, NULL, EMPTY, EMPTY ARRAY or EMPTY OBJECT ("" = not specified)
+	OnEmpty    string    // as OnError
+	OnMismatch string    // ERROR, NULL or DOT ("" = not specified)
+	Multivalue bool      // MULTIVALUE
+}
+
+func (n *JSONQueryOptions) nodeTag() {}
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
 // only record of what was written, so a consumer asking whether duplicates are
@@ -1777,6 +1803,7 @@ type CreateTriggerStmt struct {
 	Loc         Loc
 	Definer     string
 	IfNotExists bool
+	Schema      string // database the trigger's name was qualified with
 	Name        string
 	Timing      string // BEFORE, AFTER
 	Event       string // INSERT, UPDATE, DELETE
@@ -1793,6 +1820,7 @@ func (s *CreateTriggerStmt) stmtNode() {}
 type TriggerOrder struct {
 	Loc         Loc
 	Follows     bool
+	Schema      string // database the other trigger's name was qualified with
 	TriggerName string
 }
 

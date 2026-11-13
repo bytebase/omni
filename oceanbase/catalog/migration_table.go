@@ -194,8 +194,17 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 	// defined as a key", errno 1075), and the index node's ADD runs only AFTER the CREATE — so the
 	// CREATE itself would fail without the key inline. The index node skips this same index (it
 	// consults autoIncSupportingIndex) so the key is not also re-added.
-	if idx := autoIncSupportingIndex(tbl); idx != nil {
-		lines = append(lines, "  "+formatIndexDefinition(idx, n))
+	inlined := autoIncSupportingIndex(tbl)
+	if inlined != nil {
+		lines = append(lines, "  "+formatIndexDefinition(inlined, n))
+	}
+	// A multi-valued index goes in with its table, which is the only time OceanBase builds
+	// one: 4.3.5.6 answers 1235, "build multivalue index afterward not supported", for
+	// ALTER TABLE ... ADD KEY and for CREATE INDEX. The index node skips the same indexes.
+	for _, idx := range orderedDiffableIndexes(tbl) {
+		if idx != inlined && !idx.Primary && isMultiValuedIndex(idx) {
+			lines = append(lines, "  "+formatIndexDefinition(idx, n))
+		}
 	}
 	b.WriteString(strings.Join(lines, ",\n"))
 	b.WriteString("\n)")

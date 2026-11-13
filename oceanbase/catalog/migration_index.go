@@ -81,6 +81,9 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		if inlined != nil && idx == inlined {
 			continue // inline in CREATE TABLE (AUTO_INCREMENT supporting key)
 		}
+		if isMultiValuedIndex(idx) {
+			continue // inline in CREATE TABLE (formatCreateTable): OceanBase adds none later
+		}
 		ops = append(ops, addIndexOps(entry, table, idx, n)...)
 	}
 	return ops

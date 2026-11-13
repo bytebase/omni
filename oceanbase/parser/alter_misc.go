@@ -38,7 +38,7 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 
 	// DEFINER = user, only after ALGORITHM, as in parseCreateViewStmt.
 	if p.cur.Type == kwDEFINER && stmt.Algorithm != "" {
-		definer, err := p.parseDefinerValue()
+		definer, err := p.parseDefinerValue(false)
 		if err != nil {
 			return nil, err
 		}

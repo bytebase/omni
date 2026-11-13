@@ -270,9 +270,13 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle a collation",
 			c4OracleColCollation(t, "t", "a"), "utf8mb4_bin")
 
-		// omni gap: the parser takes BINARY after CHARACTER SET as well, as
-		// MySQL does, and gives b latin1_bin.
-		assertIntEq(t, "omni CHARACTER SET latin1 BINARY, error code", omniCode(c, both), 0)
+		// The parser refuses BINARY after CHARACTER SET too, and takes it before
+		// one, where it gives b latin1_bin.
+		assertIntEq(t, "omni CHARACTER SET latin1 BINARY, error code", omniCode(c, both), -1)
+		assertIntEq(t, "omni BINARY CHARACTER SET latin1, error code", omniCode(c, `CREATE TABLE t (
+  a CHAR(10) BINARY,
+  b VARCHAR(10) BINARY CHARACTER SET latin1
+) DEFAULT CHARSET=utf8mb4`), 0)
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")

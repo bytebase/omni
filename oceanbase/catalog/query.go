@@ -747,6 +747,10 @@ type FuncCallExprQ struct {
 	// it takes (DATE'...', 0x61) keep their spelling here and have no analyzed form.
 	JSONValueClauses string
 
+	// JSONQueryClauses is what follows JSON_QUERY's path, as the engine stores it, and text
+	// for the same reason: no clause holds anything to resolve.
+	JSONQueryClauses string
+
 	// Distinct marks aggregates with DISTINCT, e.g. COUNT(DISTINCT x).
 	// Always false for non-aggregate functions.
 	Distinct bool

@@ -19,36 +19,9 @@ import (
 //
 // Ref: json_value_expr in sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
 func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
-	if p.cur.Type == '*' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	doc, err := p.parseExprPrec(precCollate)
-	if err != nil {
+	if err := p.parseJSONDocAndPath(fc); err != nil {
 		return nil, err
 	}
-	if doc == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	if _, err := p.expect(','); err != nil {
-		return nil, err
-	}
-	pathStart := p.cur
-	// Unlike MySQL, OceanBase 4.3.5.6 takes an introduced hex or bit literal as the path:
-	// JSON_VALUE('{}', _latin1 X'24') reads.
-	national := p.skipNationalPrefix()
-	path, err := p.parsePrimaryExpr()
-	if err != nil {
-		return nil, err
-	}
-	pathLit, ok := path.(*nodes.StringLit)
-	if !ok {
-		return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
-	}
-	if national {
-		// The literal starts at its N, which the reader stepped over.
-		pathLit.Loc.Start = pathStart.Loc
-	}
-	fc.Args = []nodes.ExprNode{doc, path}
 
 	opts := &nodes.JSONValueOptions{Loc: nodes.Loc{Start: p.pos()}}
 	if _, ok := p.match(kwRETURNING); ok {
@@ -105,6 +78,45 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	}
 	fc.Loc.End = p.prev.End
 	return fc, nil
+}
+
+// parseJSONDocAndPath reads what JSON_VALUE and JSON_QUERY both open with, into fc.Args: a
+// document that is a simple_expr, a comma, and a path that is a string literal.
+//
+// Ref: `simple_expr ',' complex_string_literal` in json_value_expr and json_query_expr,
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+func (p *Parser) parseJSONDocAndPath(fc *nodes.FuncCallExpr) error {
+	if p.cur.Type == '*' {
+		return p.syntaxErrorAtCur()
+	}
+	doc, err := p.parseExprPrec(precCollate)
+	if err != nil {
+		return err
+	}
+	if doc == nil {
+		return p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(','); err != nil {
+		return err
+	}
+	pathStart := p.cur
+	// Unlike MySQL, OceanBase 4.3.5.6 takes an introduced hex or bit literal as the path:
+	// JSON_VALUE('{}', _latin1 X'24') reads.
+	national := p.skipNationalPrefix()
+	path, err := p.parsePrimaryExpr()
+	if err != nil {
+		return err
+	}
+	pathLit, ok := path.(*nodes.StringLit)
+	if !ok {
+		return &ParseError{Message: fc.Name + " takes a string literal as its path", Position: pathStart.Loc}
+	}
+	if national {
+		// The literal starts at its N, which the reader stepped over.
+		pathLit.Loc.Start = pathStart.Loc
+	}
+	fc.Args = []nodes.ExprNode{doc, path}
+	return nil
 }
 
 // skipNationalPrefix steps over the N of N'...', which is a string literal too and which the

@@ -846,6 +846,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			writeJSONValueAlias(b, n)
 			return
 		}
+		if n.JSONQueryArm && n.JSONQuery != nil {
+			writeJSONQueryAlias(b, n)
+			return
+		}
 
 		if n.Star {
 			// COUNT(*) → alias "COUNT(*)" — keep *, not 0.
@@ -2255,6 +2259,80 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 // column alike: no space after the comma, and strings without an introducer.
 func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("json_value(")
+	writeJSONDocAndPath(b, n)
+	b.WriteString(JSONValueClauses(n.JSONValue))
+	b.WriteString(")")
+}
+
+// writeJSONQuery writes JSON_QUERY as OceanBase 4.3.5.6 stores it, in a view, a generated
+// column and an index key alike.
+func writeJSONQuery(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString("json_query(")
+	writeJSONDocAndPath(b, n)
+	b.WriteString(JSONQueryClauses(n.JSONQuery))
+	b.WriteString(")")
+}
+
+// JSONQueryClauses returns what follows JSON_QUERY's path, with its leading space, as
+// OceanBase 4.3.5.6 stores it. RETURNING is always there, as it is for JSON_VALUE, and so is
+// ON MISMATCH, which is NULL when it is left out. ON ERROR comes before ON EMPTY whichever
+// was written first, and the words keep the case the server prints them in. DOT ON MISMATCH
+// is the one it does not follow: the server stores `t`.`j`.a for the whole call, which does
+// not read back, so this keeps the clause.
+func JSONQueryClauses(opts *ast.JSONQueryOptions) string {
+	if opts == nil {
+		opts = &ast.JSONQueryOptions{}
+	}
+	var b strings.Builder
+	b.WriteString(" RETURNING ")
+	b.WriteString(jsonValueReturning(opts.Returning))
+	if opts.Truncate {
+		b.WriteString(" TRUNCATE")
+	}
+	if opts.Scalars != "" {
+		b.WriteString(" " + opts.Scalars + " SCALARS")
+	}
+	if opts.Pretty {
+		b.WriteString(" PRETTY")
+	}
+	if opts.ASCII {
+		b.WriteString(" ASCII")
+	}
+	if opts.Wrapper != "" {
+		b.WriteString(" " + opts.Wrapper)
+	}
+	if opts.Asis {
+		b.WriteString(" asis")
+	}
+	writeJSONQueryResponse(&b, opts.OnError, "error")
+	writeJSONQueryResponse(&b, opts.OnEmpty, "empty")
+	mismatch := opts.OnMismatch
+	if mismatch == "" {
+		mismatch = "NULL"
+	}
+	writeJSONQueryResponse(&b, mismatch, "mismatch")
+	if opts.Multivalue {
+		b.WriteString(" multivalue")
+	}
+	return b.String()
+}
+
+// writeJSONQueryResponse writes one of JSON_QUERY's ON clauses: error and null in small
+// letters and the EMPTY forms in capitals, as the server prints them.
+func writeJSONQueryResponse(b *strings.Builder, response, on string) {
+	switch response {
+	case "":
+		return
+	case "ERROR", "NULL":
+		b.WriteString(" " + strings.ToLower(response))
+	default:
+		b.WriteString(" " + response)
+	}
+	b.WriteString(" on " + on)
+}
+
+// writeJSONDocAndPath writes the document and the path JSON_VALUE and JSON_QUERY open with.
+func writeJSONDocAndPath(b *strings.Builder, n *ast.FuncCallExpr) {
 	for i, arg := range n.Args {
 		if i > 0 {
 			b.WriteString(",")
@@ -2269,8 +2347,6 @@ func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
 		}
 		writeExpr(b, arg)
 	}
-	b.WriteString(JSONValueClauses(n.JSONValue))
-	b.WriteString(")")
 }
 
 // JSONValueClauses returns what follows JSON_VALUE's path, with its leading space, as OceanBase
@@ -2474,6 +2550,10 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 
 	if n.JSONValueArm {
 		writeJSONValue(b, n)
+		return
+	}
+	if n.JSONQueryArm {
+		writeJSONQuery(b, n)
 		return
 	}
 
@@ -2710,6 +2790,50 @@ func writeJSONValueAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(" NULL")
 		}
 		b.WriteString(" ON " + r.on)
+	}
+	b.WriteString(")")
+}
+
+// writeJSONQueryAlias writes JSON_QUERY as the alias text, as writeJSONValueAlias does for
+// JSON_VALUE: its arguments, then its clauses in capitals, ON ERROR before ON EMPTY.
+func writeJSONQueryAlias(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString(strings.ToUpper(n.Name))
+	b.WriteString("(")
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExprAlias(b, arg)
+	}
+	opts := n.JSONQuery
+	if opts.Returning != nil {
+		b.WriteString(" RETURNING " + deparseDataTypeAlias(opts.Returning))
+	}
+	if opts.Truncate {
+		b.WriteString(" TRUNCATE")
+	}
+	if opts.Scalars != "" {
+		b.WriteString(" " + opts.Scalars + " SCALARS")
+	}
+	if opts.Pretty {
+		b.WriteString(" PRETTY")
+	}
+	if opts.ASCII {
+		b.WriteString(" ASCII")
+	}
+	if opts.Wrapper != "" {
+		b.WriteString(" " + opts.Wrapper)
+	}
+	if opts.Asis {
+		b.WriteString(" ASIS")
+	}
+	for _, r := range [][2]string{{opts.OnError, "ERROR"}, {opts.OnEmpty, "EMPTY"}, {opts.OnMismatch, "MISMATCH"}} {
+		if r[0] != "" {
+			b.WriteString(" " + r[0] + " ON " + r[1])
+		}
+	}
+	if opts.Multivalue {
+		b.WriteString(" MULTIVALUE")
 	}
 	b.WriteString(")")
 }
