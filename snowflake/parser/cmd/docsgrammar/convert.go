@@ -540,6 +540,17 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 	return res, true
 }
 
+// foreignKeyRef is a foreign key's REFERENCES clause, which takes the
+// properties only foreign keys have, from
+// https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint.
+var foreignKeyRef = regexp.MustCompile(`(REFERENCES <ref_table_name> \[ \( <ref_col_name>[^()]*\) \])`)
+
+const foreignKeyProperties = " [ MATCH { FULL | SIMPLE | PARTIAL } ] [ ON [ UPDATE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } ] [ DELETE { CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION } ] ]"
+
+// prefixList is API_ALLOWED_PREFIXES or API_BLOCKED_PREFIXES written with
+// one elided URL, ('<...>'): a list of URLs.
+var prefixList = regexp.MustCompile(`(_PREFIXES = )\(\s*'[^'\n]*<\.\.\.>'\s*\)`)
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -628,6 +639,25 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	if split, ok := objectPrivileges(blocks); ok {
 		blocks = split
 		pg.fixes = append(pg.fixes, "read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges")
+	}
+	fk, prefixes := false, false
+	for i, b := range blocks {
+		if !strings.Contains(b, "MATCH {") {
+			if fixed := foreignKeyRef.ReplaceAllString(b, "${1}"+foreignKeyProperties); fixed != b {
+				blocks[i] = fixed
+				fk = true
+			}
+		}
+		if fixed := prefixList.ReplaceAllString(blocks[i], "${1}( '<prefix>' [ , '<prefix>' ... ] )"); fixed != blocks[i] {
+			blocks[i] = fixed
+			prefixes = true
+		}
+	}
+	if fk {
+		pg.fixes = append(pg.fixes, "read: a foreign key's REFERENCES takes MATCH and ON UPDATE/DELETE, the properties the constraint page gives foreign keys")
+	}
+	if prefixes {
+		pg.fixes = append(pg.fixes, "read: ('<...>') after _PREFIXES = is a list of URLs, as the parameters say")
 	}
 	columns := false
 	for i, b := range blocks {
