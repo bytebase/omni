@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"maps"
+	"slices"
 	"testing"
 )
 
@@ -105,7 +107,8 @@ var functionArmsNotCovered = map[string]bool{"values": true}
 // judgeKeywordFunctionNames sweeps every keyword the lexer has against the engine.
 func judgeKeywordFunctionNames(t *testing.T, accepts func(sql string) bool) {
 	t.Helper()
-	for word := range keywords {
+	// In name order: a test that asks the server asks in the same order every run.
+	for _, word := range slices.Sorted(maps.Keys(keywords)) {
 		var engine, omni bool
 		for _, shape := range functionNameShapes {
 			sql := "SELECT " + word + shape
