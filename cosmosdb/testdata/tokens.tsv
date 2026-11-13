@@ -1,0 +1,10 @@
+# Cosmos DB token forms for generated compat rows: the text written for each
+# token of sql.g4 that is a class of texts. Keywords (K_*) and punctuation
+# spell themselves and need no row. Each note cites the lexer rule in sql.g4.
+# A sample of one name, string, number or parameter stands for its class when
+# the grammar judge reads a statement.
+# columns: token, form, note
+LEX_IDENTIFIER	c	sql.g4:295 [a-zA-Z_]([a-zA-Z_]|DIGIT)*; the rule's first alternative is empty, which a lexer never emits
+STRING_LITERAL	's'	sql.g4:270 a single- or double-quoted string with JSON's escapes
+NUMERIC_LITERAL	1	sql.g4:265 digits, with an optional sign, fraction and exponent
+PARAMETER	@a	sql.g4:300 '@' and an identifier

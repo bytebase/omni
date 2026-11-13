@@ -788,8 +788,10 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 
 			name, _ := p.parseTypeFunctionName()
 			if p.cur.Type == '.' {
-				attrs, _ := p.parseAttrs()
-				if p.cur.Type == '%' {
+				// A failed attrs is no %TYPE form: fall through to the
+				// rollback, and parseTypename reports the error.
+				attrs, err := p.parseAttrs()
+				if err == nil && p.cur.Type == '%' {
 					p.advance()
 					if p.cur.Type == TYPE_P {
 						p.advance()
