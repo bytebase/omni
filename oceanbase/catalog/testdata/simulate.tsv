@@ -134,15 +134,15 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1146	1146	engine	one_table@missing	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1146	1146	engine	one_table@missing	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
-1064	1146	engine	one_table@missing	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
-1064	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
-1064	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
-1064	1146	engine	one_table@missing	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1064	1146	engine	one_table@missing	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1146	1146	engine	one_table@missing	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
+1146	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
+1146	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
+1146	1146	engine	one_table@missing	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
+1146	1146	engine	one_table@missing	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 1146	1146	engine	one_table@missing	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
-1064	1146	engine	one_table@missing	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
-1064	1146	engine	one_table@missing	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
-1064	1146	engine	one_table@missing	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
+1146	1146	engine	one_table@missing	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
+1146	1146	engine	one_table@missing	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
+1146	1146	engine	one_table@missing	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
 1146	1146	engine	one_table@missing	int_type_i/SMALLINT	ALTER TABLE a ADD a SMALLINT
 1146	1146	engine	one_table@missing	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
 1146	1146	engine	one_table@missing	int_type_i/INTEGER	ALTER TABLE a ADD a INTEGER
@@ -150,24 +150,24 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	float_type_i/DOUBLE	ALTER TABLE a ADD a DOUBLE
 1146	1146	engine	one_table@missing	float_type_i/REAL	ALTER TABLE a ADD a REAL
 1146	1146	engine	one_table@missing	float_type_i/DOUBLE_PRECISION	ALTER TABLE a ADD a DOUBLE PRECISION
-1064	1146	engine	one_table@missing	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
+1146	1146	engine	one_table@missing	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
 1146	1146	engine	one_table@missing	datetime_type_i/TIMESTAMP	ALTER TABLE a ADD a TIMESTAMP
 1146	1146	engine	one_table@missing	datetime_type_i/TIME	ALTER TABLE a ADD a TIME
 1146	1146	engine	one_table@missing	date_year_type_i/YEAR_opt_year_i	ALTER TABLE a ADD a YEAR
 1146	1146	engine	one_table@missing	text_type_i/TEXT	ALTER TABLE a ADD a TEXT
 1146	1146	engine	one_table@missing	text_type_i/MEDIUMTEXT	ALTER TABLE a ADD a MEDIUMTEXT
 1146	1146	engine	one_table@missing	text_type_i/LONGTEXT	ALTER TABLE a ADD a LONGTEXT
-1064	1146	engine	one_table@missing	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
-1064	1146	engine	one_table@missing	text_type_i/STRING	ALTER TABLE a ADD a STRING
+1146	1146	engine	one_table@missing	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
+1146	1146	engine	one_table@missing	text_type_i/STRING	ALTER TABLE a ADD a STRING
 1146	1146	engine	one_table@missing	blob_type_i/BLOB	ALTER TABLE a ADD a BLOB
 1146	1146	engine	one_table@missing	blob_type_i/MEDIUMBLOB	ALTER TABLE a ADD a MEDIUMBLOB
 1146	1146	engine	one_table@missing	blob_type_i/LONGBLOB	ALTER TABLE a ADD a LONGBLOB
-1064	1146	engine	one_table@missing	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
+1146	1146	engine	one_table@missing	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
 1146	1146	engine	one_table@missing	opt_int_length_i/(_INTNUM_)	ALTER TABLE a ADD a TINYINT(1)
 1146	1146	engine	one_table@missing	opt_bit_length_i/(_INTNUM_)	ALTER TABLE a ADD a BIT(1)
 1146	1146	engine	one_table@missing	opt_float_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a FLOAT(1, 1)
 1146	1146	engine	one_table@missing	opt_float_precision/(_INTNUM_)	ALTER TABLE a ADD a FLOAT(1)
-1064	1146	engine	one_table@missing	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
+1146	1146	engine	one_table@missing	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1146	1146	engine	one_table@missing	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1146	1146	engine	one_table@missing	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
 1146	1146	engine	one_table@missing	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
@@ -703,15 +703,15 @@ ok:f08041e0e140	ok:f08041e0e140	engine	one_table@table	data_type/MULTIPOINT	ALTE
 ok:97d8cffc4b73	ok:97d8cffc4b73	engine	one_table@table	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 ok:cd3f176a8f16	ok:cd3f176a8f16	engine	one_table@table	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 ok	ok:a1c8fd7a08a3	engine	one_table@table	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
-1064	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
-1064	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
-1064	ok:d31c42b0504b	engine	one_table@table	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
-1064	ok:dea65e692e9d	engine	one_table@table	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1064	1235	engine	one_table@table	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
+ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
+ok:d31c42b0504b	ok:d31c42b0504b	engine	one_table@table	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
+ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
+ok	1235	engine	one_table@table	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 ok:4faba2678da9	ok:4faba2678da9	engine	one_table@table	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
-1064	ok:66be5cb7d630	engine	one_table@table	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
-1064	ok:4b865b50957a	engine	one_table@table	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
-1064	ok:87a03016908a	engine	one_table@table	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
+ok:66be5cb7d630	ok:66be5cb7d630	engine	one_table@table	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
+ok:4b865b50957a	ok:4b865b50957a	engine	one_table@table	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
+ok:87a03016908a	ok:87a03016908a	engine	one_table@table	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
 ok:39c58017f61c	ok:39c58017f61c	engine	one_table@table	int_type_i/SMALLINT	ALTER TABLE a ADD a SMALLINT
 ok:f3b055810eeb	ok:f3b055810eeb	engine	one_table@table	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
 ok:897c61a3df31	ok:897c61a3df31	engine	one_table@table	int_type_i/INTEGER	ALTER TABLE a ADD a INTEGER
@@ -719,24 +719,24 @@ ok:e18cd080894a	ok:e18cd080894a	engine	one_table@table	int_type_i/BIGINT	ALTER T
 ok:17b736bbc181	ok:17b736bbc181	engine	one_table@table	float_type_i/DOUBLE	ALTER TABLE a ADD a DOUBLE
 ok:17b736bbc181	ok:17b736bbc181	engine	one_table@table	float_type_i/REAL	ALTER TABLE a ADD a REAL
 ok:17b736bbc181	ok:17b736bbc181	engine	one_table@table	float_type_i/DOUBLE_PRECISION	ALTER TABLE a ADD a DOUBLE PRECISION
-1064	ok:17b736bbc181	engine	one_table@table	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
+ok:17b736bbc181	ok:17b736bbc181	engine	one_table@table	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
 ok:aaa94fc51af6	ok:aaa94fc51af6	engine	one_table@table	datetime_type_i/TIMESTAMP	ALTER TABLE a ADD a TIMESTAMP
 ok:fe217940b125	ok:fe217940b125	engine	one_table@table	datetime_type_i/TIME	ALTER TABLE a ADD a TIME
 ok:2734973dd91f	ok:2734973dd91f	engine	one_table@table	date_year_type_i/YEAR_opt_year_i	ALTER TABLE a ADD a YEAR
 ok:f63776b62acb	ok:f63776b62acb	engine	one_table@table	text_type_i/TEXT	ALTER TABLE a ADD a TEXT
 ok:5941881111d7	ok:5941881111d7	engine	one_table@table	text_type_i/MEDIUMTEXT	ALTER TABLE a ADD a MEDIUMTEXT
 ok:8b93ccb51204	ok:8b93ccb51204	engine	one_table@table	text_type_i/LONGTEXT	ALTER TABLE a ADD a LONGTEXT
-1064	ok:5941881111d7	engine	one_table@table	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
-1064	ok:2620ad8b7bed	engine	one_table@table	text_type_i/STRING	ALTER TABLE a ADD a STRING
+ok:5941881111d7	ok:5941881111d7	engine	one_table@table	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
+ok:2620ad8b7bed	ok:2620ad8b7bed	engine	one_table@table	text_type_i/STRING	ALTER TABLE a ADD a STRING
 ok:69cf3e2992c6	ok:69cf3e2992c6	engine	one_table@table	blob_type_i/BLOB	ALTER TABLE a ADD a BLOB
 ok:28af0323f972	ok:28af0323f972	engine	one_table@table	blob_type_i/MEDIUMBLOB	ALTER TABLE a ADD a MEDIUMBLOB
 ok:01de928cb992	ok:01de928cb992	engine	one_table@table	blob_type_i/LONGBLOB	ALTER TABLE a ADD a LONGBLOB
-1064	ok:28af0323f972	engine	one_table@table	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
+ok:28af0323f972	ok:28af0323f972	engine	one_table@table	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
 ok:2c46dc8f702b	ok:2c46dc8f702b	engine	one_table@table	opt_int_length_i/(_INTNUM_)	ALTER TABLE a ADD a TINYINT(1)
 ok:2ce34b63b72f	ok:2ce34b63b72f	engine	one_table@table	opt_bit_length_i/(_INTNUM_)	ALTER TABLE a ADD a BIT(1)
 ok:92edaa1da442	ok:92edaa1da442	engine	one_table@table	opt_float_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a FLOAT(1, 1)
 ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_INTNUM_)	ALTER TABLE a ADD a FLOAT(1)
-1064	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
+ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 ok:bdd06257c2b9	ok:bdd06257c2b9	engine	one_table@table	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 ok:9bf4c7fb445a	ok:9bf4c7fb445a	engine	one_table@table	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
 ok:2734973dd91f	ok:2734973dd91f	engine	one_table@table	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
@@ -1272,15 +1272,15 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1060	1060	engine	one_table@column	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	one_table@column	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	one_table@column	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
-1064	1060	engine	one_table@column	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
-1064	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
-1064	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
-1064	1060	engine	one_table@column	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1064	1235	engine	one_table@column	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1060	1060	engine	one_table@column	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
+1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
+1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
+1060	1060	engine	one_table@column	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
+1060	1235	engine	one_table@column	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 1060	1060	engine	one_table@column	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
-1064	1060	engine	one_table@column	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
-1064	1060	engine	one_table@column	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
-1064	1060	engine	one_table@column	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
+1060	1060	engine	one_table@column	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
+1060	1060	engine	one_table@column	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
+1060	1060	engine	one_table@column	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
 1060	1060	engine	one_table@column	int_type_i/SMALLINT	ALTER TABLE a ADD a SMALLINT
 1060	1060	engine	one_table@column	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
 1060	1060	engine	one_table@column	int_type_i/INTEGER	ALTER TABLE a ADD a INTEGER
@@ -1288,24 +1288,24 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1060	1060	engine	one_table@column	float_type_i/DOUBLE	ALTER TABLE a ADD a DOUBLE
 1060	1060	engine	one_table@column	float_type_i/REAL	ALTER TABLE a ADD a REAL
 1060	1060	engine	one_table@column	float_type_i/DOUBLE_PRECISION	ALTER TABLE a ADD a DOUBLE PRECISION
-1064	1060	engine	one_table@column	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
+1060	1060	engine	one_table@column	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
 1060	1060	engine	one_table@column	datetime_type_i/TIMESTAMP	ALTER TABLE a ADD a TIMESTAMP
 1060	1060	engine	one_table@column	datetime_type_i/TIME	ALTER TABLE a ADD a TIME
 1060	1060	engine	one_table@column	date_year_type_i/YEAR_opt_year_i	ALTER TABLE a ADD a YEAR
 1060	1060	engine	one_table@column	text_type_i/TEXT	ALTER TABLE a ADD a TEXT
 1060	1060	engine	one_table@column	text_type_i/MEDIUMTEXT	ALTER TABLE a ADD a MEDIUMTEXT
 1060	1060	engine	one_table@column	text_type_i/LONGTEXT	ALTER TABLE a ADD a LONGTEXT
-1064	1060	engine	one_table@column	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
-1064	1060	engine	one_table@column	text_type_i/STRING	ALTER TABLE a ADD a STRING
+1060	1060	engine	one_table@column	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
+1060	1060	engine	one_table@column	text_type_i/STRING	ALTER TABLE a ADD a STRING
 1060	1060	engine	one_table@column	blob_type_i/BLOB	ALTER TABLE a ADD a BLOB
 1060	1060	engine	one_table@column	blob_type_i/MEDIUMBLOB	ALTER TABLE a ADD a MEDIUMBLOB
 1060	1060	engine	one_table@column	blob_type_i/LONGBLOB	ALTER TABLE a ADD a LONGBLOB
-1064	1060	engine	one_table@column	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
+1060	1060	engine	one_table@column	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
 1060	1060	engine	one_table@column	opt_int_length_i/(_INTNUM_)	ALTER TABLE a ADD a TINYINT(1)
 1060	1060	engine	one_table@column	opt_bit_length_i/(_INTNUM_)	ALTER TABLE a ADD a BIT(1)
 1060	1060	engine	one_table@column	opt_float_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a FLOAT(1, 1)
 1060	1060	engine	one_table@column	opt_float_precision/(_INTNUM_)	ALTER TABLE a ADD a FLOAT(1)
-1064	1060	engine	one_table@column	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
+1060	1060	engine	one_table@column	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
 1060	1060	engine	one_table@column	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
@@ -1841,15 +1841,15 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1060	1060	engine	one_table@index	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	one_table@index	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	one_table@index	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
-1064	1060	engine	one_table@index	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
-1064	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
-1064	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
-1064	1060	engine	one_table@index	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1064	1235	engine	one_table@index	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1060	1060	engine	one_table@index	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
+1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
+1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
+1060	1060	engine	one_table@index	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
+1060	1235	engine	one_table@index	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 1060	1060	engine	one_table@index	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
-1064	1060	engine	one_table@index	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
-1064	1060	engine	one_table@index	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
-1064	1060	engine	one_table@index	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
+1060	1060	engine	one_table@index	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
+1060	1060	engine	one_table@index	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
+1060	1060	engine	one_table@index	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
 1060	1060	engine	one_table@index	int_type_i/SMALLINT	ALTER TABLE a ADD a SMALLINT
 1060	1060	engine	one_table@index	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
 1060	1060	engine	one_table@index	int_type_i/INTEGER	ALTER TABLE a ADD a INTEGER
@@ -1857,24 +1857,24 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1060	1060	engine	one_table@index	float_type_i/DOUBLE	ALTER TABLE a ADD a DOUBLE
 1060	1060	engine	one_table@index	float_type_i/REAL	ALTER TABLE a ADD a REAL
 1060	1060	engine	one_table@index	float_type_i/DOUBLE_PRECISION	ALTER TABLE a ADD a DOUBLE PRECISION
-1064	1060	engine	one_table@index	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
+1060	1060	engine	one_table@index	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
 1060	1060	engine	one_table@index	datetime_type_i/TIMESTAMP	ALTER TABLE a ADD a TIMESTAMP
 1060	1060	engine	one_table@index	datetime_type_i/TIME	ALTER TABLE a ADD a TIME
 1060	1060	engine	one_table@index	date_year_type_i/YEAR_opt_year_i	ALTER TABLE a ADD a YEAR
 1060	1060	engine	one_table@index	text_type_i/TEXT	ALTER TABLE a ADD a TEXT
 1060	1060	engine	one_table@index	text_type_i/MEDIUMTEXT	ALTER TABLE a ADD a MEDIUMTEXT
 1060	1060	engine	one_table@index	text_type_i/LONGTEXT	ALTER TABLE a ADD a LONGTEXT
-1064	1060	engine	one_table@index	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
-1064	1060	engine	one_table@index	text_type_i/STRING	ALTER TABLE a ADD a STRING
+1060	1060	engine	one_table@index	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
+1060	1060	engine	one_table@index	text_type_i/STRING	ALTER TABLE a ADD a STRING
 1060	1060	engine	one_table@index	blob_type_i/BLOB	ALTER TABLE a ADD a BLOB
 1060	1060	engine	one_table@index	blob_type_i/MEDIUMBLOB	ALTER TABLE a ADD a MEDIUMBLOB
 1060	1060	engine	one_table@index	blob_type_i/LONGBLOB	ALTER TABLE a ADD a LONGBLOB
-1064	1060	engine	one_table@index	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
+1060	1060	engine	one_table@index	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
 1060	1060	engine	one_table@index	opt_int_length_i/(_INTNUM_)	ALTER TABLE a ADD a TINYINT(1)
 1060	1060	engine	one_table@index	opt_bit_length_i/(_INTNUM_)	ALTER TABLE a ADD a BIT(1)
 1060	1060	engine	one_table@index	opt_float_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a FLOAT(1, 1)
 1060	1060	engine	one_table@index	opt_float_precision/(_INTNUM_)	ALTER TABLE a ADD a FLOAT(1)
-1064	1060	engine	one_table@index	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
+1060	1060	engine	one_table@index	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
 1060	1060	engine	one_table@index	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)

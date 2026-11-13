@@ -121,9 +121,12 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.parseUnsignedZerofill(dt)
 
 	case kwREAL:
-		// REAL → DOUBLE synonym
+		// REAL → DOUBLE synonym, and REAL PRECISION as DOUBLE PRECISION is.
 		dt.Name = "DOUBLE"
 		p.advance()
+		if p.cur.Type == kwPRECISION {
+			p.advance()
+		}
 		if err := p.parseOptionalPrecision(dt); err != nil {
 			return nil, err
 		}
@@ -211,9 +214,21 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.parseCharsetCollate(dt)
 
 	case kwMEDIUMTEXT:
+		// MEDIUMTEXT VARCHAR is MEDIUMTEXT and MEDIUMTEXT VARBINARY MEDIUMBLOB, the
+		// spellings OceanBase gives LONG VARCHAR and LONG VARBINARY (text_type_i and
+		// blob_type_i, sql_parser_mysql_mode.y, v4.3.5_CE_BP6, lines 7217 and 7226).
 		dt.Name = "MEDIUMTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		switch p.cur.Type {
+		case kwVARCHAR:
+			p.advance()
+		case kwVARBINARY:
+			p.advance()
+			dt.Name = "MEDIUMBLOB"
+		}
+		if dt.Name == "MEDIUMTEXT" {
+			p.parseCharsetCollate(dt)
+		}
 
 	case kwLONGTEXT:
 		dt.Name = "LONGTEXT"
@@ -493,7 +508,51 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			p.parseCharsetCollate(dt)
 		}
 
+	case kwARRAY:
+		// ARRAY(type), ARRAY<type> and ARRAY<ARRAY<type>>, as a cast reads them.
+		dt.Name = "ARRAY"
+		p.advance()
+		p.castShiftHalf = false
+		element, err := p.parseCastArrayElement()
+		if err != nil {
+			return nil, err
+		}
+		dt.ArrayElem = element
+
 	default:
+		// OceanBase's collection types and its STRING (data_type and text_type_i,
+		// sql_parser_mysql_mode.y, v4.3.5_CE_BP6, line 6687 on): MAP(key, value),
+		// SPARSEVECTOR, ROARINGBITMAP, and STRING, a MEDIUMTEXT.
+		switch {
+		case p.isBareWord("MAP") && p.peekNext().Type == '(':
+			dt.Name = "MAP"
+			p.advance()
+			p.advance()
+			key, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+			value, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			dt.MapKey, dt.ArrayElem = key, value
+		case p.isBareWord("SPARSEVECTOR"), p.isBareWord("ROARINGBITMAP"):
+			dt.Name = strings.ToUpper(p.advance().Str)
+		case p.isBareWord("STRING"):
+			dt.Name = "MEDIUMTEXT"
+			p.advance()
+			p.parseCharsetCollate(dt)
+		}
+		if dt.Name != "" {
+			break
+		}
 		// NUMBER is DECIMAL under another name: 4.3.5.6 takes a column, a cast and JSON_VALUE's
 		// RETURNING of it, and it is how it stores JSON_VALUE's DECIMAL.
 		if p.isBareWord("NUMBER") {
@@ -515,6 +574,12 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	}
 
 	dt.Loc.End = p.prev.End
+	// data_type '[' ']': an array of the type before it, as many times as written.
+	for p.cur.Type == '[' && p.peekNext().Type == ']' {
+		p.advance()
+		p.advance()
+		dt = &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ARRAY", ArrayElem: dt}
+	}
 	return dt, nil
 }
 
@@ -596,7 +661,10 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	// FLOAT(n) reads a number, where every other precision is an integer: OceanBase
 	// 4.3.5 parses FLOAT(99999999999999999999) and answers 1064 for
 	// DECIMAL(99999999999999999999) and FLOAT(99999999999999999999,0).
-	floatLength := dt.Name == "FLOAT" && p.cur.isWideDigits() && p.peekNext().Type != ','
+	// FLOAT alone takes a decimal too, FLOAT(1.5), whose action keeps its whole part
+	// (opt_float_precision); DOUBLE refuses a single precision of any kind.
+	floatDecimal := p.cur.Type == tokFCONST && !strings.ContainsAny(p.cur.Str, "eE")
+	floatLength := dt.Name == "FLOAT" && (p.cur.isWideDigits() || floatDecimal) && p.peekNext().Type != ','
 	if p.cur.Type != tokICONST && !floatLength {
 		return &ParseError{
 			Message:  "expected a precision for " + dt.Name,
