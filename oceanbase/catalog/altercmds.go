@@ -1397,6 +1397,12 @@ func (c *Catalog) alterAddSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) err
 		return nil
 	}
 	added := cmd.PartitionDefs[0]
+	// The bounds must be the table's subpartitioning kind, as CREATE and ADD
+	// PARTITION check: a VALUES IN under SUBPARTITION BY RANGE would otherwise be
+	// stored as VALUES LESS THAN.
+	if err := checkSubpartitionBoundKinds(partitionTypeFromString(tbl.Partitioning.SubType), added.SubPartitions); err != nil {
+		return err
+	}
 	for _, pd := range tbl.Partitioning.Partitions {
 		if toLower(pd.Name) != toLower(cmd.Name) {
 			continue

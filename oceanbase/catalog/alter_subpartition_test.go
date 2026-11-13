@@ -34,4 +34,13 @@ func TestAlterSubpartitionCommands(t *testing.T) {
 	if len(names) != 2 || names[0] != "s1" || names[1] != "s2" {
 		t.Errorf("p0's subpartitions = %q, want [s1 s2]", names)
 	}
+
+	// A bound of the other kind is refused, and the partition keeps its subpartitions.
+	results, _ := c.Exec("ALTER TABLE t2 MODIFY PARTITION p0 ADD SUBPARTITION (SUBPARTITION s3 VALUES IN (20))", &ExecOptions{ContinueOnError: true})
+	if len(results) != 1 || results[0].Error == nil {
+		t.Error("a VALUES IN subpartition under SUBPARTITION BY RANGE was taken")
+	}
+	if n := len(c.GetDatabase("test").GetTable("t2").Partitioning.Partitions[0].SubPartitions); n != 2 {
+		t.Errorf("p0 has %d subpartitions after a refused ADD, want 2", n)
+	}
 }
