@@ -270,11 +270,19 @@ func (o Omni) outcome(engine Answer, want string) string {
 // generated, in generated's order, followed by the hand-added rows in their
 // order. A row the file already holds keeps its outcomes; a new one is
 // unjudged. added and removed count the generated rows that differ.
+//
+// A row is the suite's when the suite generates it, whatever its label: a
+// compat.tsv row a person added there, issue:BYT-1, comes here generated
+// and keeps that label.
 func merge(rows []Row, generated []Generated) (merged []Row, added, removed int) {
+	suite := map[rowKey]bool{}
+	for _, g := range generated {
+		suite[rowKey{g.Fixture, g.Rule, g.Statement}] = true
+	}
 	old := map[rowKey]Row{}
 	var hand []Row
 	for _, r := range rows {
-		if r.hand() {
+		if r.hand() && !suite[r.key()] {
 			hand = append(hand, r)
 		} else {
 			old[r.key()] = r

@@ -252,6 +252,26 @@ func TestCheckHoldsGeneratedRowsToTheSuite(t *testing.T) {
 	}
 }
 
+// A compat.tsv row a person added there reaches the suite as a generated row
+// with its hand label. The file must know it as the suite's: read as
+// hand-added, it would be missing from every replay and added again by
+// every recording.
+func TestCheckKnowsAGeneratedRowByTheSuiteNotItsLabel(t *testing.T) {
+	rows := "1060\t1060\tengine\tfx\tissue:BYT-1\tB\n"
+	s := suite(t, rows, map[string]Answer{"B": refused}, map[string]Omni{"B": {Code: "1060"}}, nil)
+	s.Rows = []Generated{{"fx", "issue:BYT-1", "B"}}
+	if rec := run(t, s); !rec.passed() {
+		t.Errorf("replay: %q %q", rec.errors, rec.fatal)
+	}
+	recording(t)
+	if rec := run(t, s); !rec.passed() {
+		t.Errorf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	if got := read(t, s.Path); got != header+rows {
+		t.Errorf("the recording wrote:\n%s\nwant the one row", got)
+	}
+}
+
 func TestRecordingStartsAMissingFileAndAsksEveryRow(t *testing.T) {
 	recording(t)
 	var asked []string
