@@ -456,7 +456,13 @@ func (p *Parser) parseDropOwned() (nodes.Node, error) {
 		return nil, err
 	}
 
-	roles := p.parseRoleList()
+	roles, err := p.parseRoleList()
+
+	if err != nil {
+
+		return nil, err
+
+	}
 
 	behavior := p.parseOptDropBehavior()
 

@@ -500,19 +500,6 @@ func (p *Parser) tryOptBooleanOrString() (string, bool) {
 	}
 }
 
-// isNonReservedWord returns true if the current token is a NonReservedWord.
-//
-// NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
-func (p *Parser) isNonReservedWord() bool {
-	if p.cur.Type == IDENT {
-		return true
-	}
-	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
-		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
-	}
-	return false
-}
-
 // parseZoneValue parses a zone_value.
 //
 // zone_value:
