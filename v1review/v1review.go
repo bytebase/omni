@@ -91,6 +91,12 @@ type Finding struct {
 	// as that advisor wrote it, an index's type, or the kind of key an
 	// index is, one of the Key constants.
 	Type string
+	// Schema is the schema Table is in, as the V1 advisor printed it. Rules
+	// whose advice does not name a schema leave it empty.
+	Schema string
+	// Count is the number the advice says it found, such as how many
+	// indexes a table has.
+	Count int
 }
 
 // NamingConfig configures a naming rule; Bytebase builds it from the V1
