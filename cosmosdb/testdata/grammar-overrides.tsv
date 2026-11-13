@@ -1,0 +1,76 @@
+# Statements of compat.tsv that sql.g4 does not decide as Cosmos DB does, each
+# with the verdict, the source that gives it, and what says so.
+#
+# docs: Microsoft's query reference takes the statement and sql.g4, the .NET
+# SDK's grammar, does not derive it. The SELECT page (read 2026-11-13) writes
+#   <object_property_list> ::= { <scalar_expression> [ [ AS ] property_alias ] } [ ,...n ]
+#   [DISTINCT] VALUE <scalar_expression> [[ AS ] value_alias]
+# where sql.g4:22 writes select_item : scalar_expression (K_AS identifier)? and
+# sql.g4:20 gives VALUE no alias. Each row below is a near-miss the grammar
+# rejects and derives once AS is written before its last name, and
+# SELECT VALUE c zzz, which the page's second line takes.
+# columns: verdict, source, cite, statement
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select VALUE <scalar_expression> [[ AS ] value_alias]	SELECT VALUE c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c, c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c ? c : c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c ?? c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c BETWEEN c AND c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c IN(c) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c LIKE c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c AND c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c OR c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c LIKE c ESCAPE 's' zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c * c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c + c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c < c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c = c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c & c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c ^ c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c | c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c || c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c * zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c / zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c % zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c + zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c - zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c < zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c > zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c >= zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c <= zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c = zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c != zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c & zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c ^ zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c | zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c || zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT - c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT - zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT + zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT ~ zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT NOT zzz c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT @a zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT 's' zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT [ ] zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT { } zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT(c) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c.c zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c [ c ] zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT EXISTS(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT ARRAY(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT ALL(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT FIRST(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT LAST(SELECT *) zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c() zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT LEFT() zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT RIGHT() zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT ALL zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT FIRST zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT LAST zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT 1 zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT true zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT false zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT null zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT undefined zzz
