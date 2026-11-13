@@ -37,6 +37,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
+		return err
+	}
 
 	// The name is checked last: OceanBase reads the whole definition first, so
 	// CREATE TABLE t (x INT, x INT) is 1060 when t exists, even with IF NOT EXISTS

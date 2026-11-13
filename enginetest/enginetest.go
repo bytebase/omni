@@ -7,6 +7,8 @@
 package enginetest
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,6 +50,21 @@ func LoadPin(path, role string) (Pin, error) {
 		}
 	}
 	return Pin{}, fmt.Errorf("%s has no %q row", path, role)
+}
+
+// FilesDigest returns the digest a pin holds for vendor files committed
+// as published: sha256: and the SHA-256 of their bytes, one file after
+// another, which is what sha256sum prints for cat of the same files.
+func FilesDigest(paths ...string) (string, error) {
+	h := sha256.New()
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return "", err
+		}
+		h.Write(b)
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // RecordEnv is the environment variable that turns a run into a recording.

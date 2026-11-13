@@ -13,8 +13,9 @@ import "fmt"
 //     cell to what omni says.
 //   - An expected cell (and its source) changes only from ?, or when the
 //     file was recorded at a new pin: the judge's answers are not edited to
-//     pass. A grammar or docs cell may move whenever its grammar does,
-//     since TestCompatibility asks the recognizer again on every run.
+//     pass. A grammar or docs cell may move whenever its grammar or its
+//     grammar-overrides.tsv does, from one of those sources to the other
+//     too, since TestCompatibility asks the recognizer again on every run.
 //   - An undocumented row's omni cell may change to anything: the docs
 //     give it nothing to agree with.
 //
@@ -39,7 +40,7 @@ func Guard(before, after *File) []string {
 			problems = append(problems, fmt.Sprintf("%s: omni changed from %s, the expected verdict, to %s: a regression\n    %s",
 				r.Rule, o.Omni, r.Omni, r.Statement))
 		}
-		rejudged := recognized(o.Source) && r.Source == o.Source
+		rejudged := recognized(o.Source) && recognized(r.Source)
 		if (r.Expected != o.Expected || r.Source != o.Source) && o.Expected != Unjudged && !repinned && !rejudged {
 			problems = append(problems, fmt.Sprintf("%s: expected changed from %s (%s) to %s (%s) without a pin bump; only a recording at a new pin changes it\n    %s",
 				r.Rule, o.Expected, o.Source, r.Expected, r.Source, r.Statement))

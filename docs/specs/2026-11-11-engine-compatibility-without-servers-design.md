@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 is done: `mysql/parser`, `mysql/validate`, `mysql/catalog` and `mysql/review` replay tapes (269 tapes, 16.8 MB) and start no server, and `mysql/catalog/testdata/simulate.tsv` holds one fixture: 1,648 rows, recorded in 45 seconds, 1,047 agreeing (Appendix A). MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). PostgreSQL has step 1: 13,700 rows of `gram.y` at `REL_17_12` and 3,092 hand rows, judged on `postgres:17.12-alpine` in 6 seconds, rejections to the byte, 14,576 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 is done: `mysql/parser`, `mysql/validate`, `mysql/catalog` and `mysql/review` replay tapes (269 tapes, 16.8 MB) and start no server, and `mysql/catalog/testdata/simulate.tsv` holds one fixture: 1,648 rows, recorded in 45 seconds, 1,047 agreeing (Appendix A). MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). PartiQL has step 1, judged by its reference grammar with no server: 1,910 rows from `PartiQLParser.g4` at `v0.14.9` and DynamoDB's documented statements, 1,510 agreeing (Appendix A). PostgreSQL has step 1: 13,700 rows of `gram.y` at `REL_17_12` and 3,092 hand rows, judged on `postgres:17.12-alpine` in 6 seconds, rejections to the byte, 14,576 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -169,7 +169,9 @@ OceanBase needs three things of its own, all measured on the pinned server (`oce
 - **Two statements crash the server.** The judge starts it again, asks the statement again, and judges one that kills the server twice by its probe alone.
 
 The two recognizers are weaker judges, in known ways:
-- **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `grammar-overrides.tsv`.
+- **A grammar recognizer misses checks made outside the rules,** in the lexer and in grammar actions. On OceanBase it agreed with the engine on 90% of statements (Appendix A). Each miss found becomes a cited row in `<engine>/testdata/grammar-overrides.tsv`: the verdict, the source that gives it, the cite, the statement. The source is `grammar` where the grammar's own lexer code or action decides, and `docs` where the vendor's docs take a statement the grammar does not derive; a `docs` row only accepts. `TestCompatibility` fails an override no row holds, and one the recognizer already agrees with.
+- **A `.g4`'s lexer rules are read for two things:** the text a token spells, and its keywords. A word a token spells before the last token that matches a class of texts is reserved, as ANTLR gives a text two rules match to the first: it is a name only where a parser rule says so.
+- **A grammar judge's pin is its files:** the digest in `pins.tsv` is the SHA-256 of the vendor's files as published (`compat.Suite.Vendor`), so a grammar edited by hand fails.
 - **Docs only say what is valid.** A near-miss judged by docs is `undocumented`, not `reject`. It counts as neither a gap nor a regression, so omni is never pushed to reject forms users write.
 - **Snowflake and Redshift can upgrade.** With `SNOWFLAKE_COMPAT_DSN` or `REDSHIFT_COMPAT_DSN` set, a recording asks the engine instead of the docs. The account must be dedicated and scratch-only, because preparing DDL there executes it.
 
@@ -372,6 +374,7 @@ oceanbase/
   testdata/pins.tsv                  the pinned server
   testdata/tokens.tsv                token forms and sample values
   testdata/sources.tsv               vendor files fetched, not committed: name, SHA-256, URL
+  testdata/grammar-overrides.tsv     where a grammar judge is wrong, cited (§2.3)
   parser/testdata/compat.tsv
   catalog/testdata/simulate.tsv
   catalog/testdata/fixtures/         starting schemas
@@ -440,7 +443,8 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | A change breaks a row omni handled | The row checker fails (§2.1). |
 | A regression is committed as the new `omni` | CI fails if an `omni` cell that equalled its row's `expected` changes. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
-| A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
+| A `grammar` or `docs` cell is written by hand | `TestCompatibility` asks the recognizer again on every run. |
+| A vendored grammar is edited | Its SHA-256 is the pin's digest (§2.3). |
 | Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
@@ -469,7 +473,7 @@ Progress is visible: `TestCompatibility` prints how many rows of each kind agree
 | doris | `DorisParser.g4` + `sql_parser.cup` → `.g4` @ `3.1.4` | Doris 3.1.4 |
 | starrocks | `StarRocks.g4` @ `3.4.10` | StarRocks 3.4.10 |
 | cassandra | CQL `Parser.g` → `.g4` | grammar |
-| partiql | `PartiQLParser.g4` + DynamoDB docs | grammar + docs |
+| partiql | `PartiQLParser.g4` @ `v0.14.9` of partiql-lang-kotlin | grammar; DynamoDB's docs where they take more |
 | cosmosdb | `sql.g4` | grammar |
 | mongo | mongosh method docs → `.g4` | docs |
 | elasticsearch | `elasticsearch-specification` → `.g4` | grammar |
@@ -748,6 +752,20 @@ alterWarehouse : ALTER WAREHOUSE (IF EXISTS)? name? (SUSPEND | RESUME (IF SUSPEN
 ```
 
 Docs are prose, so some blocks need hand fixes: malformed syntax, undefined fragments. Each fix is made in the `.g4`, with a comment citing its page.
+
+**PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
+
+| Statements | Total | Agree | Only the judge accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| One per alternative | 632 | 251 | 380 | 1 |
+| Near-misses | 1,217 | 1,200 | 14 | 3 |
+| `suite:dynamodb-docs` | 61 | 59 | 2 | 0 |
+
+- **The pin is `v0.14.9`, not the newest release.** The v1 grammar (`v1.6.1`) was rewritten along SQL's EBNF and no longer derives `INSERT INTO t VALUE {...}`, an `UPDATE`'s `REMOVE` or `RETURNING`, which DynamoDB documents. `v0.14.9` is the last release that holds them, and derives all 61 documented statements, so no row needs DynamoDB's docs to override the grammar.
+- **400 disagreements, 271 of them one gap:** an expression as a statement (`dql : expr`), which omni's `Parse` refuses. It carries most expression alternatives, and the two DynamoDB rows omni rejects: `EXISTS(SELECT ...)`, a transaction's condition check. The other 125 the judge accepts: a graph pattern that begins with an edge (48), tokens after a statement (19), `EXCLUDE` (12), `VALUES` (11), `OVERLAY` (7).
+- **What DynamoDB leaves out is not rejected.** The grammar accepts a `JOIN` or a `CREATE TABLE`; saying DynamoDB refuses one is a review rule's job.
+- **The grammar's first one-token expression is `CURRENT_USER`,** which omni does not read, so every expression row carried it and 583 alternatives disagreed. `tokens.tsv` samples `exprTerm` as a name (§2.2).
+- **31 statements the grammar derives are refused by the parser built from it,** in the visitor that reads the parse tree: an unknown `EXPLAIN` parameter, `LAG` with no `ORDER BY`, a `DATE` string that is no date. Each is a cited `grammar` row of `grammar-overrides.tsv`. They were read off the source; running the reference parser on every row needs a JVM, and would make it the judge.
 
 ## Appendix B. Rule changes
 

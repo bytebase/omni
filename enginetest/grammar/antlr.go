@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -24,6 +25,8 @@ import (
 // dropped; a predicate's restriction is lost with it. A parser rule may not
 // use ~ or the . wildcard, whose shortest text is not defined.
 func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
+	// A file saved with a byte order mark, as Cosmos DB's sql.g4 is.
+	src = strings.TrimPrefix(src, "\ufeff")
 	toks, err := lexANTLR(src)
 	if err != nil {
 		return nil, err
@@ -37,23 +40,105 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 	if len(g.rules) == 0 {
 		return nil, fmt.Errorf("no parser rules found")
 	}
+	if err := g.sampleRules(tokens); err != nil {
+		return nil, err
+	}
 	if _, ok := g.termText["EOF"]; !ok && !g.unreachable["EOF"] {
 		g.termText["EOF"] = ""
 	}
-	for name := range p.lexer {
-		if _, ok := g.termText[name]; ok || g.unreachable[name] || p.fragments[name] {
+	// The tokens that match a class of texts, such as an identifier.
+	// A fragment is no token, and a token the token table marks
+	// unreachable is never produced: neither takes a word from another.
+	inactive := func(name string) bool { return p.fragments[name] || g.unreachable[name] }
+	var classes []int
+	for i, name := range p.lexerOrder {
+		if inactive(name) {
 			continue
 		}
-		if text, fixed, ok := p.lexerSample(name, map[string]bool{}); ok {
-			g.termText[name] = text
-			switch texts, finite := p.lexerTexts(name, map[string]bool{}); {
-			case fixed:
-				g.fixed[name] = true
-			case finite:
-				// DIRECTION : 'ASC' | 'DESC' : those words, and no other.
-				g.spellings[name] = texts
-			default:
-				g.patterned[name] = true
+		if _, finite := p.lexerTexts(name, map[string]bool{}); !finite {
+			classes = append(classes, i)
+		}
+	}
+	// takenBefore reports whether a class token written before position i
+	// matches the word: ANTLR gives a text two lexer rules match to the one
+	// written first.
+	takenBefore := func(i int, word string) bool {
+		for _, c := range classes {
+			if c < i && p.lexerMatches(p.lexerOrder[c], word) {
+				return true
+			}
+		}
+		return false
+	}
+	for i, name := range p.lexerOrder {
+		if inactive(name) {
+			continue
+		}
+		text, _, sampled := p.lexerSample(name, map[string]bool{})
+		texts, finite := p.lexerTexts(name, map[string]bool{})
+		if finite && len(classes) > 0 {
+			// A word a token spells, which no class token written before it
+			// matches, is that token and never a name. The parser rules say
+			// where it may stand for one, as Cosmos DB's identifier :
+			// LEX_IDENTIFIER | K_ALL does.
+			for _, t := range texts {
+				if wordText.MatchString(t) && !takenBefore(i, t) {
+					g.reserved[strings.ToUpper(t)] = true
+				}
+			}
+		}
+		// One text, in whatever case: a keyword. A token of a few texts is
+		// sampled by its first, in capitals where it is a word.
+		fixed := finite && len(texts) == 1
+		if finite && len(texts) > 0 {
+			text, sampled = texts[0], true
+		}
+		if _, ok := g.termText[name]; ok && finite && len(texts) > 1 {
+			// The token table picks the spelling rows write, as TABLE for
+			// Cassandra's COLUMNFAMILY | TABLE; the token still matches each.
+			g.spellings[name] = texts
+		}
+		if _, ok := g.termText[name]; ok || g.unreachable[name] || !sampled {
+			continue
+		}
+		g.termText[name] = text
+		switch {
+		case fixed:
+			g.fixed[name] = true
+		case finite:
+			// DIRECTION : 'ASC' | 'DESC' : those words, and no other.
+			g.spellings[name] = texts
+		default:
+			g.patterned[name] = true
+		}
+	}
+	if len(classes) > 0 {
+		// A literal in a parser rule is the lexer rule that spells it alone,
+		// LATE : 'late', where there is one, with that rule's precedence.
+		// Otherwise it is a token of its own, defined before every lexer
+		// rule, so a word written as one is reserved.
+		spelledBy := map[string]int{}
+		for i, name := range p.lexerOrder {
+			if inactive(name) {
+				continue
+			}
+			if text, ok := p.literalRule(name); ok {
+				if _, seen := spelledBy[text]; !seen {
+					spelledBy[text] = i
+				}
+			}
+		}
+		for _, r := range g.rules {
+			for _, alt := range r.alts {
+				for _, sym := range alt {
+					if !sym.literal || !wordText.MatchString(sym.text) {
+						continue
+					}
+					if i, ok := spelledBy[sym.text]; ok && takenBefore(i, sym.text) {
+						continue
+					}
+					g.reserved[strings.ToUpper(sym.text)] = true
+				}
 			}
 		}
 	}
@@ -63,6 +148,15 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 	}
 	return g, nil
 }
+
+// wordText matches a text an identifier rule could also match: a keyword.
+var wordText = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$]*$`)
+
+// wordPart matches a piece of a word, such as one letter of a keyword.
+var wordPart = regexp.MustCompile(`^[A-Za-z0-9_$]+$`)
+
+// caseInsensitiveOption matches an options block that sets caseInsensitive.
+var caseInsensitiveOption = regexp.MustCompile(`\bcaseInsensitive\s*=\s*true\b`)
 
 // --- lexing the grammar file ---
 
@@ -219,6 +313,9 @@ type lexElem struct {
 	op      byte      // 0, '?', '*' or '+'
 	opaque  bool      // ~x or the . wildcard: no single text
 	ranged  [2]string // 'a'..'z'
+	class   string    // a [...] set as written, for matching
+	any     bool      // the . wildcard
+	neg     *lexElem  // ~x: one character x does not match
 }
 
 type antlrParser struct {
@@ -226,6 +323,12 @@ type antlrParser struct {
 	i     int
 	g     *Grammar
 	lexer map[string][]lexAlt
+	// lexerOrder lists the lexer rules as the grammar writes them: where two
+	// match a text, the earlier one takes it.
+	lexerOrder []string
+	// caseInsensitive is the grammar's option of that name: its lexer rules
+	// match letters in either case.
+	caseInsensitive bool
 	// fragments holds the lexer rules that are parts of tokens, not tokens.
 	fragments map[string]bool
 	// helpers maps, per rule, each lowered group's name to its structure:
@@ -281,6 +384,9 @@ func (p *antlrParser) file() error {
 			}
 		case t.kind == aIdent && (t.text == "options" || t.text == "tokens" || t.text == "channels") &&
 			p.i+1 < len(p.toks) && p.toks[p.i+1].kind == aAction:
+			if t.text == "options" && caseInsensitiveOption.MatchString(p.toks[p.i+1].text) {
+				p.caseInsensitive = true
+			}
 			p.i += 2
 		case t.kind == aIdent && t.text == "import":
 			return p.errorf("import is not supported: give the imported grammar's text along with this one")
@@ -339,6 +445,9 @@ func (p *antlrParser) rule() error {
 		alts, err := p.lexAlts()
 		if err != nil {
 			return fmt.Errorf("lexer rule %s: %v", name, err)
+		}
+		if _, seen := p.lexer[name]; !seen {
+			p.lexerOrder = append(p.lexerOrder, name)
 		}
 		p.lexer[name] = append(p.lexer[name], alts...)
 	} else {
@@ -678,15 +787,17 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 				e.set = firstOfSet(t.text)
 				e.oneChar = oneCharSet(t.text)
 				e.opaque = e.set == ""
+				e.class = t.text
 			case t.kind == aPunct && t.text == "~":
 				p.i++
-				if _, err := p.lexAtom(); err != nil {
+				operand, err := p.lexAtom()
+				if err != nil {
 					return nil, err
 				}
-				e.opaque = true
+				e.opaque, e.neg = true, &operand
 			case t.kind == aPunct && t.text == ".":
 				p.i++
-				e.opaque = true
+				e.opaque, e.any = true, true
 			case t.kind == aPunct && t.text == "(":
 				p.i++
 				g, err := p.lexAlts()
@@ -717,18 +828,41 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 	}
 }
 
-// lexAtom skips the operand of ~: a set, a literal, or a group.
+// literalRule returns the text of a lexer rule that is one literal and
+// nothing else, X : 'x', which ANTLR takes as the token a parser rule's 'x'
+// names.
+func (p *antlrParser) literalRule(name string) (string, bool) {
+	alts := p.lexer[name]
+	if p.fragments[name] || len(alts) != 1 || len(alts[0]) != 1 {
+		return "", false
+	}
+	e := alts[0][0]
+	if e.op != 0 || e.opaque || e.ref != "" || e.group != nil || e.class != "" || e.ranged[0] != "" || e.literal == "" {
+		return "", false
+	}
+	return e.literal, true
+}
+
+// lexAtom reads the operand of ~: a set, a literal, a rule, or a group.
 func (p *antlrParser) lexAtom() (lexElem, error) {
 	t, ok := p.peek()
 	if !ok {
 		return lexElem{}, fmt.Errorf("unexpected end of grammar")
 	}
 	p.i++
-	if t.kind == aPunct && t.text == "(" {
-		if _, err := p.lexAlts(); err != nil {
+	switch {
+	case t.kind == aPunct && t.text == "(":
+		g, err := p.lexAlts()
+		if err != nil {
 			return lexElem{}, err
 		}
-		return lexElem{}, p.expect(aPunct, ")")
+		return lexElem{group: g}, p.expect(aPunct, ")")
+	case t.kind == aArg:
+		return lexElem{class: t.text}, nil
+	case t.kind == aString:
+		return lexElem{literal: t.text}, nil
+	case t.kind == aIdent:
+		return lexElem{ref: t.text}, nil
 	}
 	return lexElem{}, nil
 }
@@ -800,60 +934,127 @@ const maxSpellings = 64
 
 // lexerTexts returns every text a lexer rule matches when they are few and
 // fixed, as a rule choosing among keywords ('ASC' | 'DESC') matches, and
-// false for a rule that matches a class of texts, such as identifiers.
+// false for a rule that matches a class of texts, such as identifiers. A
+// word spelled in either case is one text in capitals (see foldCase).
 func (p *antlrParser) lexerTexts(name string, visiting map[string]bool) ([]string, bool) {
+	return p.ruleTexts(name, visiting, true)
+}
+
+func (p *antlrParser) ruleTexts(name string, visiting map[string]bool, fold bool) ([]string, bool) {
 	alts, ok := p.lexer[name]
 	if !ok || visiting[name] {
 		return nil, false
 	}
 	visiting[name] = true
 	defer delete(visiting, name)
-	return p.altsTexts(alts, visiting)
+	return p.altsTexts(alts, visiting, fold)
 }
 
-func (p *antlrParser) altsTexts(alts []lexAlt, visiting map[string]bool) ([]string, bool) {
+// altsTexts returns the texts of alts. With fold, each piece's spellings
+// that differ only in case are folded as they are read, so a long keyword
+// stays one text. The recognizer matches a word in any case but a quoted
+// string or name exactly, so an alternative whose texts hold a quote is read
+// again without folding, and keeps its case.
+func (p *antlrParser) altsTexts(alts []lexAlt, visiting map[string]bool, fold bool) ([]string, bool) {
 	var out []string
 	for _, alt := range alts {
-		texts := []string{""}
-		for _, e := range alt {
-			var part []string
-			switch {
-			case e.op != 0, e.opaque, e.ranged[0] != "" && e.ranged[0] != e.ranged[1]:
-				return nil, false
-			case e.ranged[0] != "":
-				part = []string{e.ranged[0]}
-			case e.set != "":
-				if !e.oneChar {
-					return nil, false
-				}
-				part = []string{e.set}
-			case e.ref != "":
-				var ok bool
-				if part, ok = p.lexerTexts(e.ref, visiting); !ok {
-					return nil, false
-				}
-			case e.group != nil:
-				var ok bool
-				if part, ok = p.altsTexts(e.group, visiting); !ok {
-					return nil, false
-				}
-			default:
-				part = []string{e.literal}
-			}
-			var next []string
-			for _, a := range texts {
-				for _, b := range part {
-					next = append(next, a+b)
-				}
-			}
-			if len(next) > maxSpellings {
-				return nil, false
-			}
-			texts = next
+		texts, ok := p.altTexts(alt, visiting, fold)
+		if ok && fold && holdsQuote(texts) {
+			texts, ok = p.altTexts(alt, visiting, false)
+		}
+		if !ok {
+			return nil, false
 		}
 		out = append(out, texts...)
 	}
+	if fold {
+		out = foldCase(out)
+	}
 	return out, len(out) <= maxSpellings
+}
+
+func (p *antlrParser) altTexts(alt lexAlt, visiting map[string]bool, fold bool) ([]string, bool) {
+	texts := []string{""}
+	for _, e := range alt {
+		var part []string
+		switch {
+		case e.op != 0, e.opaque, e.ranged[0] != "" && e.ranged[0] != e.ranged[1]:
+			return nil, false
+		case e.ranged[0] != "":
+			part = []string{e.ranged[0]}
+		case e.set != "":
+			if !e.oneChar {
+				return nil, false
+			}
+			// [sS] is two texts, which folding makes one where it can.
+			part = setTexts(e.class)
+		case e.ref != "":
+			var ok bool
+			if part, ok = p.ruleTexts(e.ref, visiting, fold); !ok {
+				return nil, false
+			}
+		case e.group != nil:
+			var ok bool
+			if part, ok = p.altsTexts(e.group, visiting, fold); !ok {
+				return nil, false
+			}
+		default:
+			part = []string{e.literal}
+		}
+		if fold {
+			part = foldCase(part)
+		}
+		var next []string
+		for _, a := range texts {
+			for _, b := range part {
+				next = append(next, a+b)
+			}
+		}
+		if len(next) > maxSpellings {
+			return nil, false
+		}
+		texts = next
+	}
+	return texts, true
+}
+
+// setTexts returns the texts of a one-character [...] set: its character,
+// or a letter in each of its cases.
+func setTexts(class string) []string {
+	r := []rune(class)
+	if len(r) == 2 && r[0] != r[1] && unicode.ToUpper(r[0]) == unicode.ToUpper(r[1]) {
+		return []string{string(r[0]), string(r[1])}
+	}
+	return []string{firstOfSet(class)}
+}
+
+// holdsQuote reports whether a text holds a quote, so that its case counts.
+func holdsQuote(texts []string) bool {
+	for _, t := range texts {
+		if strings.ContainsAny(t, "'\"`") {
+			return true
+		}
+	}
+	return false
+}
+
+// foldCase returns texts that are one word in several cases as that word in
+// capitals, and any other texts as they are. A grammar spells a keyword of
+// any case letter by letter, each [sS] or ('s'|'S'), and a keyword is
+// sampled in capitals; folding each letter as it is read keeps a long
+// keyword from counting as 2^n texts. Only a word is folded, since the
+// recognizer matches words without regard to case and anything else, such
+// as a string, exactly.
+func foldCase(texts []string) []string {
+	if len(texts) < 2 || !wordPart.MatchString(texts[0]) {
+		return texts
+	}
+	for _, t := range texts[1:] {
+		if !strings.EqualFold(t, texts[0]) {
+			return texts
+		}
+	}
+	return []string{strings.ToUpper(texts[0])}
 }
 
 func (p *antlrParser) altSample(alt lexAlt, visiting map[string]bool) (string, bool, bool) {
