@@ -44,6 +44,17 @@ func (g *Grammar) keywordSet() []string {
 			seen[t] = true
 		}
 	}
+	if g.antlr {
+		for _, r := range g.rules {
+			for _, alt := range r.alts {
+				for _, sym := range alt {
+					if sym.literal && keywordText.MatchString(sym.text) {
+						seen[sym.text] = true
+					}
+				}
+			}
+		}
+	}
 	out := make([]string, 0, len(seen))
 	for k := range seen {
 		out = append(out, k)
