@@ -236,6 +236,12 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 		b.WriteString(" ")
 		b.WriteString(opts)
 	}
+	// A partitioning only CREATE TABLE takes is written here, not by the PARTITION BY
+	// that generatePartitionDDL adds after.
+	if createOnlyPartitioning(tbl.Partitioning) {
+		b.WriteString(" ")
+		b.WriteString(showPartitioning(partitionSpecWithResolvedEngine(tbl, n)))
+	}
 	if !tbl.ColumnGroups.IsEmpty() {
 		b.WriteString(" WITH COLUMN GROUP(" + tbl.ColumnGroups.String() + ")")
 	}

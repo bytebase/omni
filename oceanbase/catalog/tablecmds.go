@@ -165,14 +165,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			// Handle SERIAL: expands to BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
+				col.typeNode = colDef.TypeName
 				col.DataType = "bigint"
 				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "boolean" || typeName == "bool" {
+				col.typeNode = colDef.TypeName
 				col.DataType = "tinyint"
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			} else {
+				col.typeNode = colDef.TypeName
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
@@ -761,6 +764,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
+		SplitSize:  pc.SplitSize,
+		AutoSize:   pc.AutoSize,
 		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
@@ -1323,7 +1328,9 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+	// Automatic partitioning (PARTITION SIZE ... PARTITIONS AUTO) lists no
+	// partitions: the engine makes them as the table grows.
+	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
@@ -2316,9 +2323,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint(20) unsigned"
 	}
 
-	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
-	if name == "vector" {
+	// OceanBase writes the vector type in upper case: `v` VECTOR(3). Its collection
+	// types too, with their elements, `a` ARRAY(TINYINT) and `a` MAP(TINYINT,TINYINT),
+	// and SPARSEVECTOR, while roaringbitmap stays in lower case (simulate.tsv's tape).
+	switch name {
+	case "vector":
 		return fmt.Sprintf("VECTOR(%d)", dt.Length)
+	case "array", "map":
+		return deparse.CollectionType(canonicalCollection(dt))
+	case "sparsevector":
+		return "SPARSEVECTOR"
 	}
 
 	var buf strings.Builder
@@ -2391,6 +2405,25 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 		return promoteBlobType(dt.Length)
 	}
 	return name
+}
+
+// canonicalCollection returns an ARRAY or MAP type with every element's name in its
+// canonical spelling, NUMERIC as DECIMAL and INTEGER as INT, so two spellings of one
+// type store the same text and Diff sees no change between them.
+func canonicalCollection(dt *nodes.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	c := *dt
+	switch name := normalizedTypeName(dt.Name); name {
+	case "boolean", "array", "map":
+		// BOOLEAN stays itself for the writer, which prints it as TINYINT.
+	default:
+		c.Name = name
+	}
+	c.ArrayElem = canonicalCollection(dt.ArrayElem)
+	c.MapKey = canonicalCollection(dt.MapKey)
+	return &c
 }
 
 func normalizedTypeName(name string) string {
