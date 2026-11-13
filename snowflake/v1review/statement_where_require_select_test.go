@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/bytebase/omni/snowflake/ast"
 	"github.com/bytebase/omni/v1review"
 )
 
@@ -26,14 +27,14 @@ func TestStatementWhereRequireSelect(t *testing.T) {
 			want: []statementFinding{missing(15, "SELECT b FROM u")},
 		},
 		{
-			name: "with select anchors the end of the last cte",
-			sql:  "WITH c AS (SELECT x FROM t WHERE y = 1), d AS (SELECT 1)\n  SELECT a FROM c",
-			want: []statementFinding{missing(56, "")},
+			name: "with select anchors the body select",
+			sql:  "WITH c AS (SELECT x FROM t WHERE y = 1), d AS (SELECT 1)\n  /* body */ -- next\n  SELECT a FROM c",
+			want: []statementFinding{missing(80, "SELECT a FROM c")},
 		},
 		{
 			name: "cte body before the body select",
 			sql:  "WITH c AS (SELECT x FROM t) SELECT a FROM c",
-			want: []statementFinding{missing(11, "SELECT x FROM t"), missing(27, "")},
+			want: []statementFinding{missing(11, "SELECT x FROM t"), missing(28, "SELECT a FROM c")},
 		},
 		{
 			name: "merge source",
@@ -42,7 +43,7 @@ func TestStatementWhereRequireSelect(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if diff := cmp.Diff(tt.want, runStatement(t, tt.sql, StatementWhereRequireSelect)); diff != "" {
+			if diff := cmp.Diff(tt.want, runStatement(t, tt.sql, func(stmts []ast.Node) []v1review.Finding { return StatementWhereRequireSelect(stmts, tt.sql) })); diff != "" {
 				t.Errorf("findings (-want +got):\n%s", diff)
 			}
 		})
