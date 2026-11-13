@@ -44,6 +44,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		Enable:       stmt.Enable,
 		Comment:      stmt.Comment,
 		Body:         strings.TrimSpace(stmt.BodyText),
+		started:      startsWhenMade(stmt.Schedule),
 	}
 
 	db.Events[key] = event
@@ -63,6 +64,11 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	if !exists {
 		return errNoSuchEvent(db.Name, name)
 	}
+	// OceanBase renames no event that has started, enabled or not, where MySQL renames
+	// any (TestOracle_OceanBaseRefusals).
+	if stmt.RenameTo != "" && event.started {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "modify EVENT NAME that has already started not supported"}
+	}
 
 	// Update definer if specified.
 	if stmt.Definer != "" {
@@ -72,6 +78,7 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	// Update schedule if specified.
 	if stmt.Schedule != nil {
 		event.Schedule = stmt.Schedule.RawText
+		event.started = startsWhenMade(stmt.Schedule)
 	}
 
 	// Update ON COMPLETION if specified.
@@ -193,4 +200,9 @@ func showCreateEvent(e *Event) string {
 	}
 
 	return b.String()
+}
+
+// startsWhenMade reports whether a schedule starts its event at once: EVERY with no STARTS.
+func startsWhenMade(schedule *nodes.EventSchedule) bool {
+	return schedule != nil && schedule.Every != nil && schedule.Starts == nil
 }

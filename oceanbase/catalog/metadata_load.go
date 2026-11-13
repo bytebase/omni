@@ -105,17 +105,16 @@ func (c *Catalog) selectMetadataDatabase(meta *metadata.DatabaseSchemaMetadata) 
 }
 
 // loadSessionSettings turns off the session settings that rewrite what a table
-// installs as: foreign key checks reject a forward reference, generated
-// invisible primary keys add a column, and explicit_defaults_for_timestamp=OFF
-// rewrites a TIMESTAMP column. It returns a function restoring the caller's.
+// installs as: foreign key checks reject a forward reference, and
+// explicit_defaults_for_timestamp=OFF rewrites a TIMESTAMP column. It returns a function restoring the caller's.
 func (c *Catalog) loadSessionSettings() func() {
-	fkChecks, gipk := c.ForeignKeyChecks(), c.generateGIPK
+	fkChecks := c.ForeignKeyChecks()
 	explicitDefaults := c.session.ExplicitDefaultsForTimestamp
 	c.SetForeignKeyChecks(false)
-	c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = false, true
+	c.session.ExplicitDefaultsForTimestamp = true
 	return func() {
 		c.SetForeignKeyChecks(fkChecks)
-		c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = gipk, explicitDefaults
+		c.session.ExplicitDefaultsForTimestamp = explicitDefaults
 	}
 }
 
@@ -475,7 +474,7 @@ func typeTakesDefault(typ string) bool {
 	if i := strings.IndexAny(head, " ("); i >= 0 {
 		head = head[:i]
 	}
-	return !isLiteralDefaultForbiddenType(head)
+	return validateDefaultOfType("", head, &nodes.IntLit{}) == nil
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type

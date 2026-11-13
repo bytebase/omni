@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // --- PRIMARY KEY ---
 
@@ -409,13 +412,13 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	if fk.Name == "" {
 		t.Error("unnamed FK constraint should get auto-generated name")
 	}
-	// MySQL auto-names FKs as tableName_ibfk_N.
-	expected := "child_ibfk_1"
-	if fk.Name != expected {
+	// OceanBase names it after the table and the time (madeUpConstraintName).
+	expected := "child_OBFK_<n>"
+	if withoutCount(fk.Name) != expected {
 		t.Errorf("expected auto-generated FK name %q, got %q", expected, fk.Name)
 	}
 
-	// Also test unnamed CHECK: should get tableName_chk_N.
+	// An unnamed CHECK likewise.
 	c2 := wtSetup(t)
 	wtExec(t, c2, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CHECK (age >= 0))")
 	tbl2 := c2.GetDatabase("testdb").GetTable("t")
@@ -435,24 +438,15 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	if chk.Name == "" {
 		t.Error("unnamed CHECK constraint should get auto-generated name")
 	}
-	expectedChk := "t_chk_1"
-	if chk.Name != expectedChk {
+	expectedChk := "t_OBCHECK_<n>"
+	if withoutCount(chk.Name) != expectedChk {
 		t.Errorf("expected auto-generated CHECK name %q, got %q", expectedChk, chk.Name)
 	}
 }
 
-// Bug A (CREATE path): auto-generated FK name counter increments per unnamed
-// FK, starting from 0, ignoring user-named FKs.
-//
-// MySQL reference: sql/sql_table.cc:9252 initializes the counter to 0 for
-// create_table_impl; sql/sql_table.cc:5912 generate_fk_name uses ++counter.
-// This means user-named FKs do NOT seed the counter during CREATE TABLE.
-//
-// Example: CREATE TABLE child (a INT, CONSTRAINT child_ibfk_5 FK, b INT, FK)
-// Real MySQL: unnamed FK gets "child_ibfk_1" (first auto-named, counter 0 → 1).
-// Spot-check confirmed with real MySQL 8.0 container.
-//
-// NOTE: ALTER TABLE ADD FK uses a different rule (max+1) — see the test below.
+// A foreign key written without a name takes no number from the names beside it,
+// in CREATE TABLE or in ALTER TABLE: OceanBase names it after the table and the
+// time (TestScenario_PS, PS.3 and PS.4), where MySQL counts.
 func TestBugFix_FKCounterCreateTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -462,35 +456,11 @@ func TestBugFix_FKCounterCreateTable(t *testing.T) {
 		b INT,
 		FOREIGN KEY (b) REFERENCES parent(id)
 	)`)
-	tbl := c.GetDatabase("testdb").GetTable("child")
-	if tbl == nil {
-		t.Fatal("table child not found")
-	}
-	var autoGenName string
-	for _, con := range tbl.Constraints {
-		if con.Type != ConForeignKey {
-			continue
-		}
-		if con.Name == "child_ibfk_5" {
-			continue
-		}
-		autoGenName = con.Name
-		break
-	}
-	if autoGenName == "" {
-		t.Fatal("expected a second (auto-named) FK constraint, found none")
-	}
-	// Real MySQL 8.0 produces "child_ibfk_1" here (verified by spot-check).
-	// The user-named "child_ibfk_5" does NOT seed the counter during CREATE.
-	if autoGenName != "child_ibfk_1" {
-		t.Errorf("expected child_ibfk_1 (first unnamed FK, ignoring user-named _5), got %s", autoGenName)
+	if got, want := wtConstraintNames(c, "child", ConForeignKey), "child_ibfk_5,child_OBFK_<n>"; got != want {
+		t.Errorf("foreign keys %s, want %s", got, want)
 	}
 }
 
-// Bug A (ALTER path): ALTER TABLE ADD FOREIGN KEY uses max(existing)+1 logic.
-// MySQL reference: sql/sql_table.cc:14345 (ALTER TABLE) initializes the
-// counter via get_fk_max_generated_name_number(), which scans the existing
-// table definition for the max generated-name counter.
 func TestBugFix_FKCounterAlterTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -500,24 +470,21 @@ func TestBugFix_FKCounterAlterTable(t *testing.T) {
 		CONSTRAINT child_ibfk_20 FOREIGN KEY (a) REFERENCES parent(id)
 	)`)
 	wtExec(t, c, "ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)")
-	tbl := c.GetDatabase("testdb").GetTable("child")
-	if tbl == nil {
-		t.Fatal("table child not found")
+	if got, want := wtConstraintNames(c, "child", ConForeignKey), "child_ibfk_20,child_OBFK_<n>"; got != want {
+		t.Errorf("foreign keys %s, want %s", got, want)
 	}
-	var autoGenName string
-	for _, con := range tbl.Constraints {
-		if con.Type != ConForeignKey {
-			continue
+}
+
+// wtConstraintNames lists a table's constraints of one type in the order it
+// holds them, a made-up name without its count.
+func wtConstraintNames(c *Catalog, table string, typ ConstraintType) string {
+	var names []string
+	for _, con := range c.GetDatabase("testdb").GetTable(table).Constraints {
+		if con.Type == typ {
+			names = append(names, withoutCount(con.Name))
 		}
-		if con.Name == "child_ibfk_20" {
-			continue
-		}
-		autoGenName = con.Name
-		break
 	}
-	if autoGenName != "child_ibfk_21" {
-		t.Errorf("expected child_ibfk_21 (max 20 + 1), got %s", autoGenName)
-	}
+	return strings.Join(names, ",")
 }
 
 // Bug B: TIMESTAMP first column must NOT be auto-promoted under MySQL 8.0
@@ -544,52 +511,16 @@ func TestBugFix_TimestampNoAutoPromotion(t *testing.T) {
 	}
 }
 
-// PS1: CHECK constraint counter (CREATE path) follows the same rule as FK
-// counter: it's a local counter starting at 0, incrementing per unnamed
-// CHECK, IGNORING user-named _chk_N constraints.
-//
-// MySQL source: sql/sql_table.cc:19073 declares `uint cc_max_generated_number = 0`
-// as a fresh local counter. Uses ++cc_max_generated_number per unnamed CHECK.
-// If the generated name collides with a user-named one, MySQL errors with
-// ER_CHECK_CONSTRAINT_DUP_NAME at sql/sql_table.cc:19595.
-//
-// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
-// Real MySQL: the second unnamed CHECK gets t_chk_1 (counter 0 → 1), which
-// collides with user-named t_chk_1 → ER_CHECK_CONSTRAINT_DUP_NAME.
-// omni currently does not error on collision (PS7 tracking), but at minimum
-// it should assign the correct counter sequence ignoring user-named entries.
+// A CHECK written without a name likewise (TestScenario_PS, PS.1).
 func TestBugFix_CheckCounterCreateTable(t *testing.T) {
 	c := wtSetup(t)
-	// Use user-named t_chk_5 so omni's unnamed-CHECK counter (starting 1)
-	// doesn't collide.
 	wtExec(t, c, `CREATE TABLE t (
 		a INT,
 		CONSTRAINT t_chk_5 CHECK (a > 0),
 		b INT,
 		CHECK (b < 100)
 	)`)
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	if tbl == nil {
-		t.Fatal("table t not found")
-	}
-	var autoGenName string
-	for _, con := range tbl.Constraints {
-		if con.Type != ConCheck {
-			continue
-		}
-		if con.Name == "t_chk_5" {
-			continue
-		}
-		autoGenName = con.Name
-		break
-	}
-	if autoGenName == "" {
-		t.Fatal("expected a second (auto-named) CHECK constraint, found none")
-	}
-	// Real MySQL 8.0 produces t_chk_1 here — the user-named _5 is NOT seeded
-	// into the counter during CREATE (verified by source code analysis;
-	// sql/sql_table.cc:19073 starts cc_max_generated_number at 0).
-	if autoGenName != "t_chk_1" {
-		t.Errorf("expected t_chk_1 (first unnamed CHECK, ignoring user-named _5), got %s", autoGenName)
+	if got, want := wtConstraintNames(c, "t", ConCheck), "t_chk_5,t_OBCHECK_<n>"; got != want {
+		t.Errorf("CHECKs %s, want %s", got, want)
 	}
 }

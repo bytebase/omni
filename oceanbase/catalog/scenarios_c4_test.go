@@ -390,7 +390,6 @@ func TestScenario_C4(t *testing.T) {
 		assertStringEq(t, "oracle col collation",
 			c4OracleColCollation(t, "t", "c"), "utf8mb4_general_ci")
 
-		// omni gap: the catalog normalizes utf8 to utf8mb3, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")
@@ -402,14 +401,14 @@ func TestScenario_C4(t *testing.T) {
 			return
 		}
 		assertStringEq(t, "omni col charset (normalized)",
-			strings.ToLower(col.Charset), "utf8mb3")
+			strings.ToLower(col.Charset), "utf8mb4")
 
-		// SHOW CREATE TABLE should print utf8mb3, never utf8.
+		// SHOW CREATE TABLE should print utf8mb4, never utf8.
 		omniCreate := strings.ToLower(c.ShowCreateTable("testdb", "t"))
 		if strings.Contains(omniCreate, "character set utf8 ") ||
 			strings.Contains(omniCreate, "character set utf8,") ||
 			strings.HasSuffix(omniCreate, "character set utf8") {
-			t.Errorf("omni SHOW CREATE TABLE: expected utf8mb3, got unnormalized utf8 in: %s", omniCreate)
+			t.Errorf("omni SHOW CREATE TABLE: expected utf8mb4, got unnormalized utf8 in: %s", omniCreate)
 		}
 	})
 
@@ -434,7 +433,6 @@ func TestScenario_C4(t *testing.T) {
 				c4OracleColCollation(t, "t", name), "utf8mb4_general_ci")
 		}
 
-		// omni gap: utf8mb3 in the catalog, as in MySQL.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")
@@ -447,7 +445,7 @@ func TestScenario_C4(t *testing.T) {
 				continue
 			}
 			assertStringEq(t, "omni "+name+" charset",
-				strings.ToLower(col.Charset), "utf8mb3")
+				strings.ToLower(col.Charset), "utf8mb4")
 		}
 	})
 

@@ -88,7 +88,7 @@ func diffableIndexMap(t *Table) map[string]*Index {
 	}
 	m := make(map[string]*Index, len(t.Indexes))
 	for _, idx := range t.Indexes {
-		if idx == nil || isGeneratedInvisiblePrimaryKeyIndex(idx) {
+		if idx == nil {
 			continue
 		}
 		m[toLower(idx.Name)] = idx

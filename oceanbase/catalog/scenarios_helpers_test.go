@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -76,6 +77,17 @@ var madeUpCount = regexp.MustCompile(`(_OB(?:FK|CHECK)_)\d{16}`)
 // without it: child_OBFK_<n>.
 func withoutCount(name string) string {
 	return madeUpCount.ReplaceAllString(name, "${1}<n>")
+}
+
+// asOracleLists writes each name without its count and orders them as OceanBase's
+// ORDER BY does, whatever their case, so the catalog's names read as the oracle's.
+func asOracleLists(names []string) []string {
+	out := make([]string, len(names))
+	for i, name := range names {
+		out[i] = withoutCount(name)
+	}
+	slices.SortFunc(out, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	return out
 }
 
 // scenarioReset drops and recreates the shared testdb database on OceanBase
