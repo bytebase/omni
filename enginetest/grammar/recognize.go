@@ -25,7 +25,7 @@ type Recognizer struct {
 	rules  []crule
 	terms  []cterm
 	start  int
-	punct  []string         // the grammar's punctuation, longest first
+	punct  [][]rune         // the grammar's punctuation, longest first
 	exact  map[string][]int // terminals by the key of their first token
 	class  map[string][]int // class terminals by the class they match (classOf)
 	null   []bool           // per rule: derives the empty string
@@ -93,7 +93,7 @@ func (g *Grammar) Recognizer() *Recognizer {
 		for _, alt := range gr.alts {
 			for _, sym := range alt {
 				if !sym.nonterm {
-					for _, piece := range punctPieces(g.sample(sym)) {
+					for _, piece := range punctPieces(unquoted(g.sample(sym))) {
 						puncts[piece] = true
 					}
 				}
@@ -101,13 +101,13 @@ func (g *Grammar) Recognizer() *Recognizer {
 		}
 	}
 	for p := range puncts {
-		r.punct = append(r.punct, p)
+		r.punct = append(r.punct, []rune(p))
 	}
 	sort.Slice(r.punct, func(i, j int) bool {
 		if len(r.punct[i]) != len(r.punct[j]) {
 			return len(r.punct[i]) > len(r.punct[j])
 		}
-		return r.punct[i] < r.punct[j]
+		return string(r.punct[i]) < string(r.punct[j])
 	})
 
 	termID := map[string]int{}
@@ -463,6 +463,40 @@ func (t ltok) key() string {
 	return string(rune('0'+t.kind)) + t.text
 }
 
+// hasRunePrefix reports whether rs starts with p.
+func hasRunePrefix(rs, p []rune) bool {
+	if len(rs) < len(p) {
+		return false
+	}
+	for i, c := range p {
+		if rs[i] != c {
+			return false
+		}
+	}
+	return true
+}
+
+// unquoted returns a sample without what its quotes hold, so the
+// punctuation inside a string sample, '()', does not become a token of the
+// grammar's.
+func unquoted(s string) string {
+	var b strings.Builder
+	var quote rune
+	for _, c := range s {
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"' || c == '`':
+			quote = c
+		default:
+			b.WriteRune(c)
+		}
+	}
+	return b.String()
+}
+
 // punctPieces returns the runs of punctuation in a sample, which the lexer
 // must read whole.
 func punctPieces(s string) []string {
@@ -534,8 +568,8 @@ func (r *Recognizer) lex(s string) []ltok {
 			out = append(out, ltok{kind: closedKind(closed, kName), text: string(rs[i:j]), quoted: true})
 			i = j
 		case unicode.IsDigit(c) || (c == '.' && i+1 < n && unicode.IsDigit(rs[i+1])):
-			j := number(rs, i)
-			out = append(out, ltok{kind: kNumber, text: string(rs[i:j])})
+			j, ok := number(rs, i)
+			out = append(out, ltok{kind: closedKind(ok, kNumber), text: string(rs[i:j])})
 			i = j
 		case (c == '@' || c == '$') && i+1 < n && (isWordPart(rs[i+1]) || rs[i+1] == '@'):
 			j := i + 1
@@ -562,11 +596,10 @@ func (r *Recognizer) lex(s string) []ltok {
 			out = append(out, ltok{kind: kName, text: string(rs[i:j])})
 			i = j
 		case isPunct(c):
-			rest := string(rs[i:])
 			width := 1
 			for _, p := range r.punct {
-				if strings.HasPrefix(rest, p) {
-					width = utf8.RuneCountInString(p)
+				if hasRunePrefix(rs[i:], p) {
+					width = len(p)
 					break
 				}
 			}
@@ -608,20 +641,24 @@ func closedKind(closed bool, kind lkind) lkind {
 	return kBad
 }
 
-func number(rs []rune, i int) int {
+// number returns the index past a number at i, and false for a hex prefix
+// with no digit after it. A decimal point ends a number, 2., unless a dot
+// or a name follows, as in a range 1..2 or a qualified name.
+func number(rs []rune, i int) (int, bool) {
 	n := len(rs)
 	j := i
 	if rs[j] == '0' && j+1 < n && (rs[j+1] == 'x' || rs[j+1] == 'X') {
 		j += 2
+		start := j
 		for j < n && strings.ContainsRune("0123456789abcdefABCDEF", rs[j]) {
 			j++
 		}
-		return j
+		return j, j > start
 	}
 	for j < n && unicode.IsDigit(rs[j]) {
 		j++
 	}
-	if j < n && rs[j] == '.' && j+1 < n && unicode.IsDigit(rs[j+1]) {
+	if j < n && rs[j] == '.' && (j+1 >= n || rs[j+1] != '.' && !isWordStart(rs[j+1])) {
 		j++
 		for j < n && unicode.IsDigit(rs[j]) {
 			j++
@@ -639,5 +676,5 @@ func number(rs []rune, i int) int {
 			j = k
 		}
 	}
-	return j
+	return j, true
 }

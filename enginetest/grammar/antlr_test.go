@@ -339,3 +339,31 @@ ID : [A-Z_] [A-Z0-9_]* ;
 		}
 	}
 }
+
+// TestRecognizerReadsNumbersAndQuotedPunctuation pins three lexer details:
+// 2. is a number, 0x with no digit is not, and punctuation inside a quoted
+// sample does not become a token of the grammar's.
+func TestRecognizerReadsNumbersAndQuotedPunctuation(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' FLOAT | 'HEX' NUM | 'SELECT' '(' ')' | 'TEXT' STR ;
+FLOAT : [0-9]+ '.' [0-9]* ;
+`, tokens(map[string]string{"NUM": "1", "STR": "'()'"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT 1.5": true,
+		"SELECT 2.":  true,
+		"HEX 0x1F":   true,
+		"HEX 0x":     false,
+		"SELECT()":   true,
+		"SELECT ( )": true,
+		"TEXT '(()'": true,
+		"TEXT ( )":   false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
