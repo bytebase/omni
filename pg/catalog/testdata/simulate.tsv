@@ -1,0 +1,1086 @@
+# pin: default postgres:17.12-alpine sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f REL_17_12
+# columns: omni, expected, source, fixture, rule, statement
+42704	42P01	engine	one_table@missing	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42P01	42P01	engine	one_table@missing	stmt/AlterTableStmt	ALTER TABLE a DROP a
+42P01	42P01	engine	one_table@missing	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+ok	ok:d3c8832c5513	engine	one_table@missing	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	one_table@missing	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+ok:2d0de506e8b3	ok:2d0de506e8b3	engine	one_table@missing	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	one_table@missing	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+ok:f119dbe0ac2a	ok:f119dbe0ac2a	engine	one_table@missing	stmt/CreateSeqStmt	CREATE SEQUENCE a
+ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	stmt/CreateStmt	CREATE TABLE a()
+42P01	42P01	engine	one_table@missing	stmt/DropStmt	DROP TABLE a
+42P01	42P01	engine	one_table@missing	stmt/IndexStmt	CREATE INDEX ON a(a)
+42P01	42P01	engine	one_table@missing	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+42P01	42P01	engine	one_table@missing	stmt/TruncateStmt	TRUNCATE a
+ok:0654bfe5f6df	ok:0654bfe5f6df	engine	one_table@missing	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	one_table@missing	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+42P01	42P01	engine	one_table@missing	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+42P01	42P01	engine	one_table@missing	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42P01	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42P01	42P01	engine	one_table@missing	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42P01	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42704	42P01	engine	one_table@missing	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42704	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42704	42P01	engine	one_table@missing	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42601	42P01	engine	one_table@missing	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42601	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42P01	42P01	engine	one_table@missing	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42P01	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42P01	42P01	engine	one_table@missing	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42P01	ok:4c5642ff08a4	engine	one_table@missing	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@missing	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42P01	42P01	engine	one_table@missing	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42P01	42P01	engine	one_table@missing	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42P01	42P01	engine	one_table@missing	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42P01	42P01	engine	one_table@missing	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42P01	42P01	engine	one_table@missing	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42P01	42P01	engine	one_table@missing	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+42P01	42P01	engine	one_table@missing	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+42P01	42P01	engine	one_table@missing	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+42P01	42P01	engine	one_table@missing	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42P01	42P01	engine	one_table@missing	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42P01	42P01	engine	one_table@missing	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42P01	42P01	engine	one_table@missing	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+42P01	42P01	engine	one_table@missing	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+42P01	42P01	engine	one_table@missing	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42P01	42P01	engine	one_table@missing	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+42P01	42P01	engine	one_table@missing	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+42P01	42P01	engine	one_table@missing	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+42P01	42P01	engine	one_table@missing	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+42P01	42P01	engine	one_table@missing	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+42P01	42P01	engine	one_table@missing	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+42P01	42P01	engine	one_table@missing	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+42P01	42P01	engine	one_table@missing	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+42P01	42P01	engine	one_table@missing	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+42P01	42P01	engine	one_table@missing	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42P01	42P01	engine	one_table@missing	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42P01	42P01	engine	one_table@missing	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42P01	42P01	engine	one_table@missing	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42704	42704	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+42704	42704	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42P01	42P01	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+42P01	42P01	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42601	ok:39ee3639ad11	engine	one_table@missing	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42704	42704	engine	one_table@missing	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42704	42704	engine	one_table@missing	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42704	42704	engine	one_table@missing	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42704	42704	engine	one_table@missing	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P01	42P01	engine	one_table@missing	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+ok	42804	engine	one_table@missing	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42704	42704	engine	one_table@missing	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42704	42704	engine	one_table@missing	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42P01	42P01	engine	one_table@missing	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42601	42P01	engine	one_table@missing	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42P01	42P01	engine	one_table@missing	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42601	42P01	engine	one_table@missing	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+42P01	42P01	engine	one_table@missing	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P01	42P01	engine	one_table@missing	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P01	42P01	engine	one_table@missing	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P01	42P01	engine	one_table@missing	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P01	42P01	engine	one_table@missing	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P01	42P01	engine	one_table@missing	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P01	42P01	engine	one_table@missing	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P01	42P01	engine	one_table@missing	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P01	42P01	engine	one_table@missing	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P01	42P01	engine	one_table@missing	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P01	42P01	engine	one_table@missing	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P01	42P01	engine	one_table@missing	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42P01	42P01	engine	one_table@missing	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42P01	42P01	engine	one_table@missing	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42P01	42P01	engine	one_table@missing	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42P01	42P01	engine	one_table@missing	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42P01	42P01	engine	one_table@missing	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42P01	42P01	engine	one_table@missing	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42P01	42P01	engine	one_table@missing	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42P01	42P01	engine	one_table@missing	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42P01	42P01	engine	one_table@missing	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42P01	42P01	engine	one_table@missing	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42P01	42P01	engine	one_table@missing	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42P01	42P01	engine	one_table@missing	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42P01	42P01	engine	one_table@missing	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42P01	42P01	engine	one_table@missing	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+ok	42704	engine	one_table@missing	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42601	22023	engine	one_table@missing	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42601	42601	engine	one_table@missing	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42601	ok:d3c8832c5513	engine	one_table@missing	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42601	42704	engine	one_table@missing	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok	ok:d3c8832c5513	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42P01	42P01	engine	one_table@missing	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42P01	42P01	engine	one_table@missing	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:2d0de506e8b3	ok:2d0de506e8b3	engine	one_table@missing	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	one_table@missing	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:f119dbe0ac2a	ok:f119dbe0ac2a	engine	one_table@missing	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+ok:2ce8ffd109de	ok:2ce8ffd109de	engine	one_table@missing	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42704	42P01	engine	one_table@missing	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42704	42P01	engine	one_table@missing	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42704	42P01	engine	one_table@missing	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42704	42P01	engine	one_table@missing	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42704	42P01	engine	one_table@missing	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42704	42P01	engine	one_table@missing	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42704	42P01	engine	one_table@missing	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42704	42P01	engine	one_table@missing	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42704	42P01	engine	one_table@missing	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42704	42P01	engine	one_table@missing	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42704	42P01	engine	one_table@missing	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42704	42P01	engine	one_table@missing	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42704	42704	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42704	42P01	engine	one_table@missing	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42P01	42P01	engine	one_table@missing	object_type_any_name/VIEW	DROP VIEW a
+42P01	42P01	engine	one_table@missing	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42704	42704	engine	one_table@missing	object_type_any_name/INDEX	DROP INDEX a
+42P01	42P01	engine	one_table@missing	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+42P01	42P01	engine	one_table@missing	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+42P01	42P01	engine	one_table@missing	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42601	engine	one_table@missing	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+42P01	42P01	engine	one_table@missing	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+42P01	42P01	engine	one_table@missing	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+42P01	42P01	engine	one_table@missing	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42P01	42P01	engine	one_table@missing	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42P01	42P01	engine	one_table@missing	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+42P01	42P01	engine	one_table@missing	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42P01	42P01	engine	one_table@missing	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42P01	42P01	engine	one_table@missing	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42P01	42P01	engine	one_table@missing	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42P01	42P01	engine	one_table@missing	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42P01	42P01	engine	one_table@missing	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42P01	42P01	engine	one_table@missing	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42P01	42P01	engine	one_table@missing	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+42P01	42P01	engine	one_table@missing	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42P01	42P01	engine	one_table@missing	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+42P01	42P01	engine	one_table@missing	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42P01	42P01	engine	one_table@missing	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+42P01	42P01	engine	one_table@missing	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42P01	42P01	engine	one_table@missing	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42P01	42P01	engine	one_table@missing	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42P01	42P01	engine	one_table@missing	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42P01	42P01	engine	one_table@missing	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42704	42P01	engine	one_table@missing	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42704	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42704	42P01	engine	one_table@missing	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42704	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42P01	42P01	engine	one_table@missing	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42P01	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42P01	42P01	engine	one_table@missing	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42P01	42P01	engine	one_table@missing	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+ok	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+ok	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	ok:4c5642ff08a4	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+3F000	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+3F000	ok:4c5642ff08a4	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+3F000	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+3F000	ok:4c5642ff08a4	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+3F000	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+3F000	ok:4c5642ff08a4	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+ok:0654bfe5f6df	ok:0654bfe5f6df	engine	one_table@missing	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	one_table@missing	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+error	42P10	engine	one_table@missing	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@missing	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@missing	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+error	42P10	engine	one_table@missing	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@missing	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@missing	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+ok	0A000	engine	one_table@missing	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+ok	0A000	engine	one_table@missing	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+ok	0A000	engine	one_table@missing	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+22023	26000	engine	one_table@missing	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+22023	26000	engine	one_table@missing	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42704	42809	engine	one_table@table	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42703	42703	engine	one_table@table	stmt/AlterTableStmt	ALTER TABLE a DROP a
+ok:6320ecc659e1	ok:6320ecc659e1	engine	one_table@table	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	one_table@table	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42P07	42703	engine	one_table@table	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	one_table@table	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42P07	42703	engine	one_table@table	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	one_table@table	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	one_table@table	stmt/CreateStmt	CREATE TABLE a()
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	stmt/DropStmt	DROP TABLE a
+42703	42703	engine	one_table@table	stmt/IndexStmt	CREATE INDEX ON a(a)
+42809	0A000	engine	one_table@table	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	one_table@table	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	one_table@table	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42703	42703	engine	one_table@table	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42P17	42P17	engine	one_table@table	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42P17	42P17	engine	one_table@table	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42704	42809	engine	one_table@table	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42704	42809	engine	one_table@table	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42704	42809	engine	one_table@table	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42601	42809	engine	one_table@table	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42601	42809	engine	one_table@table	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	one_table@table	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	one_table@table	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	one_table@table	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	one_table@table	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@table	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42703	42703	engine	one_table@table	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42P17	42P17	engine	one_table@table	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+0A000	42P01	engine	one_table@table	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42P17	42P17	engine	one_table@table	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+ok	42P16	engine	one_table@table	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+ok	42P16	engine	one_table@table	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+ok	42P16	engine	one_table@table	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+ok	42P16	engine	one_table@table	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+ok	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+ok	0A000	engine	one_table@table	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+ok	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+ok	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+ok	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42703	42703	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+ok	42809	engine	one_table@table	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+ok	42804	engine	one_table@table	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+ok	42704	engine	one_table@table	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42704	42704	engine	one_table@table	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42704	42704	engine	one_table@table	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+0A000	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42704	42809	engine	one_table@table	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+ok:7c802efd0bcd	ok:7c802efd0bcd	engine	one_table@table	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42704	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42704	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42704	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42704	42704	engine	one_table@table	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+ok	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+ok	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+ok	42704	engine	one_table@table	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+ok	42704	engine	one_table@table	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+ok	42P07	engine	one_table@table	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42P17	42P01	engine	one_table@table	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+ok	42809	engine	one_table@table	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+ok	42809	engine	one_table@table	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+ok	42704	engine	one_table@table	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+0A000	42704	engine	one_table@table	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+0A000	42704	engine	one_table@table	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+ok	22023	engine	one_table@table	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+0A000	42809	engine	one_table@table	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42703	42703	engine	one_table@table	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42703	42703	engine	one_table@table	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+ok	ok:89dfe8890ac5	engine	one_table@table	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok	ok:89dfe8890ac5	engine	one_table@table	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42704	42809	engine	one_table@table	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+ok	22023	engine	one_table@table	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+ok	22023	engine	one_table@table	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+ok	22023	engine	one_table@table	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+ok	22023	engine	one_table@table	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+42703	42703	engine	one_table@table	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+42703	42703	engine	one_table@table	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+42703	42703	engine	one_table@table	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+42703	42703	engine	one_table@table	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+0A000	ok:89dfe8890ac5	engine	one_table@table	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+0A000	42704	engine	one_table@table	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42P17	42P17	engine	one_table@table	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42P17	42P17	engine	one_table@table	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42P07	42809	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42P07	42P07	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42601	42P07	engine	one_table@table	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	one_table@table	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42P07	42809	engine	one_table@table	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42P07	42701	engine	one_table@table	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42P07	42809	engine	one_table@table	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P07	42P07	engine	one_table@table	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	one_table@table	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42P07	42809	engine	one_table@table	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42P07	42809	engine	one_table@table	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+ok	22023	engine	one_table@table	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42601	42P16	engine	one_table@table	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+ok	22023	engine	one_table@table	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42601	42P16	engine	one_table@table	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+42703	42703	engine	one_table@table	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P07	42P07	engine	one_table@table	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P07	42P07	engine	one_table@table	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P07	42P07	engine	one_table@table	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P07	42P07	engine	one_table@table	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P07	42P07	engine	one_table@table	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P07	42P07	engine	one_table@table	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P07	42P07	engine	one_table@table	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P07	42P07	engine	one_table@table	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P07	42P07	engine	one_table@table	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P07	42P07	engine	one_table@table	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P07	42P07	engine	one_table@table	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+ok	42804	engine	one_table@table	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+ok	42P16	engine	one_table@table	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42703	42703	engine	one_table@table	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42704	42809	engine	one_table@table	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42703	42703	engine	one_table@table	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42704	42704	engine	one_table@table	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42704	42809	engine	one_table@table	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42703	42703	engine	one_table@table	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42703	42703	engine	one_table@table	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42704	42704	engine	one_table@table	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42703	42703	engine	one_table@table	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42703	42703	engine	one_table@table	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42703	42703	engine	one_table@table	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42P07	42P07	engine	one_table@table	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	one_table@table	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42601	42P07	engine	one_table@table	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	one_table@table	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42601	42P07	engine	one_table@table	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42601	42P07	engine	one_table@table	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+ok	42703	engine	one_table@table	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42809	0A000	engine	one_table@table	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42809	0A000	engine	one_table@table	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+ok	42703	engine	one_table@table	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+ok	42809	engine	one_table@table	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	one_table@table	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42704	42809	engine	one_table@table	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42704	42809	engine	one_table@table	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42704	42809	engine	one_table@table	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42704	42809	engine	one_table@table	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42704	42809	engine	one_table@table	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42704	42809	engine	one_table@table	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42704	42809	engine	one_table@table	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42704	42809	engine	one_table@table	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42704	42809	engine	one_table@table	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42704	42809	engine	one_table@table	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42704	42809	engine	one_table@table	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42704	42809	engine	one_table@table	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42704	42809	engine	one_table@table	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42704	42809	engine	one_table@table	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42704	42809	engine	one_table@table	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42704	42809	engine	one_table@table	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42704	42809	engine	one_table@table	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42704	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+ok	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+ok	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42704	42809	engine	one_table@table	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42809	42809	engine	one_table@table	object_type_any_name/VIEW	DROP VIEW a
+42809	42809	engine	one_table@table	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42704	42809	engine	one_table@table	object_type_any_name/INDEX	DROP INDEX a
+42P01	ok:e3b0c44298fc	engine	one_table@table	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42601	engine	one_table@table	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+42703	42703	engine	one_table@table	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+42703	42703	engine	one_table@table	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42704	42704	engine	one_table@table	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42703	42703	engine	one_table@table	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+42703	42703	engine	one_table@table	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42703	42703	engine	one_table@table	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42703	42703	engine	one_table@table	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42703	42703	engine	one_table@table	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42703	42883	engine	one_table@table	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+ok	42P17	engine	one_table@table	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+ok	42P17	engine	one_table@table	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+ok	42P17	engine	one_table@table	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+42703	ok:a2f9524d0d08	engine	one_table@table	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42703	42704	engine	one_table@table	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+42703	42703	engine	one_table@table	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42703	42703	engine	one_table@table	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+42703	42703	engine	one_table@table	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42703	42703	engine	one_table@table	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42703	42703	engine	one_table@table	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42703	42703	engine	one_table@table	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42703	42703	engine	one_table@table	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	one_table@table	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	one_table@table	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42704	42809	engine	one_table@table	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42704	42809	engine	one_table@table	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42809	42809	engine	one_table@table	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42809	42809	engine	one_table@table	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42809	42809	engine	one_table@table	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42809	42809	engine	one_table@table	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42704	42P07	engine	one_table@table	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42704	42P07	engine	one_table@table	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42703	42703	engine	one_table@table	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42704	42704	engine	one_table@table	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42704	42704	engine	one_table@table	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42703	42703	engine	one_table@table	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42703	42703	engine	one_table@table	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+ok	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+ok	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	one_table@table	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	one_table@table	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	one_table@table	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	one_table@table	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+error	42P10	engine	one_table@table	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@table	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@table	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+error	42P10	engine	one_table@table	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@table	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@table	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+42P07	0A000	engine	one_table@table	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+42P07	0A000	engine	one_table@table	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+42P07	0A000	engine	one_table@table	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	one_table@table	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42704	42809	engine	one_table@column	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+ok:ab5714256edb	ok:ab5714256edb	engine	one_table@column	stmt/AlterTableStmt	ALTER TABLE a DROP a
+ok:4672d970a8b9	ok:4672d970a8b9	engine	one_table@column	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	one_table@column	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42P07	42703	engine	one_table@column	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	one_table@column	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42P07	42703	engine	one_table@column	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	one_table@column	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	one_table@column	stmt/CreateStmt	CREATE TABLE a()
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	stmt/DropStmt	DROP TABLE a
+ok:434f00d237ec	ok:434f00d237ec	engine	one_table@column	stmt/IndexStmt	CREATE INDEX ON a(a)
+42809	0A000	engine	one_table@column	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	one_table@column	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	one_table@column	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+ok:ab5714256edb	ok:ab5714256edb	engine	one_table@column	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42P17	42P17	engine	one_table@column	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42P17	42P17	engine	one_table@column	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42704	42809	engine	one_table@column	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42704	42809	engine	one_table@column	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42704	42809	engine	one_table@column	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42601	42809	engine	one_table@column	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42601	42809	engine	one_table@column	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	one_table@column	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	one_table@column	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	one_table@column	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	one_table@column	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@column	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42703	42703	engine	one_table@column	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42P17	42P17	engine	one_table@column	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+0A000	42P01	engine	one_table@column	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42P17	42P17	engine	one_table@column	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42701	42701	engine	one_table@column	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42701	42701	engine	one_table@column	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+ok:62fca355b768	ok:62fca355b768	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42P17	55000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42P17	55000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+ok	0A000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+ok	22023	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+ok	22023	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42P17	0A000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+55000	55000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+55000	55000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+55000	55000	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+ok:ab5714256edb	ok:ab5714256edb	engine	one_table@column	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42804	42P16	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+ok	42809	engine	one_table@column	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+ok	42804	engine	one_table@column	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+ok	42704	engine	one_table@column	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42704	42704	engine	one_table@column	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42704	42704	engine	one_table@column	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+0A000	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42704	42809	engine	one_table@column	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+ok:8d2b2f4994c6	ok:8d2b2f4994c6	engine	one_table@column	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42704	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42704	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42704	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42704	42704	engine	one_table@column	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+ok	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+ok	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+ok	42704	engine	one_table@column	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+ok	42704	engine	one_table@column	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+ok	42P07	engine	one_table@column	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42P17	42P01	engine	one_table@column	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+ok	42809	engine	one_table@column	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+ok	42809	engine	one_table@column	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+ok	42704	engine	one_table@column	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+0A000	42704	engine	one_table@column	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+0A000	42704	engine	one_table@column	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+ok	22023	engine	one_table@column	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+0A000	42809	engine	one_table@column	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42804	42704	engine	one_table@column	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42804	42P16	engine	one_table@column	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+ok	ok:43e147cb2649	engine	one_table@column	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok	ok:43e147cb2649	engine	one_table@column	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42704	42809	engine	one_table@column	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+ok	22023	engine	one_table@column	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+ok	22023	engine	one_table@column	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+ok	22023	engine	one_table@column	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+ok	22023	engine	one_table@column	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+55000	55000	engine	one_table@column	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+55000	55000	engine	one_table@column	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+55000	55000	engine	one_table@column	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+55000	55000	engine	one_table@column	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+0A000	ok:43e147cb2649	engine	one_table@column	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+0A000	42704	engine	one_table@column	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42P17	42P17	engine	one_table@column	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42P17	42P17	engine	one_table@column	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42P07	42809	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42P07	42P07	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42601	42P07	engine	one_table@column	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	one_table@column	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42P07	42809	engine	one_table@column	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42P07	42701	engine	one_table@column	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42P07	42809	engine	one_table@column	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P07	42P07	engine	one_table@column	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	one_table@column	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42P07	42809	engine	one_table@column	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42P07	42809	engine	one_table@column	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42701	42701	engine	one_table@column	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42601	42701	engine	one_table@column	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42701	42701	engine	one_table@column	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42601	42701	engine	one_table@column	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+55000	55000	engine	one_table@column	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P07	42P07	engine	one_table@column	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P07	42P07	engine	one_table@column	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P07	42P07	engine	one_table@column	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P07	42P07	engine	one_table@column	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P07	42P07	engine	one_table@column	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P07	42P07	engine	one_table@column	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P07	42P07	engine	one_table@column	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P07	42P07	engine	one_table@column	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P07	42P07	engine	one_table@column	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P07	42P07	engine	one_table@column	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P07	42P07	engine	one_table@column	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+ok	42804	engine	one_table@column	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+ok	42P16	engine	one_table@column	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+ok:f453b33642be	ok:f453b33642be	engine	one_table@column	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42704	42809	engine	one_table@column	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42P16	42P16	engine	one_table@column	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42704	42704	engine	one_table@column	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42704	42809	engine	one_table@column	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+ok	42883	engine	one_table@column	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+ok:1462c2004a84	ok:1462c2004a84	engine	one_table@column	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42704	42704	engine	one_table@column	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+ok	ok:ca51039101fd	engine	one_table@column	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+ok	42883	engine	one_table@column	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+ok	42883	engine	one_table@column	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42P07	42P07	engine	one_table@column	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	one_table@column	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42601	42P07	engine	one_table@column	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	one_table@column	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42601	42P07	engine	one_table@column	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42601	42P07	engine	one_table@column	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+ok	42703	engine	one_table@column	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42809	0A000	engine	one_table@column	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42809	0A000	engine	one_table@column	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+ok	42703	engine	one_table@column	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+ok	42809	engine	one_table@column	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	one_table@column	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42704	42809	engine	one_table@column	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42704	42809	engine	one_table@column	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42704	42809	engine	one_table@column	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42704	42809	engine	one_table@column	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42704	42809	engine	one_table@column	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42704	42809	engine	one_table@column	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42704	42809	engine	one_table@column	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42704	42809	engine	one_table@column	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42704	42809	engine	one_table@column	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42704	42809	engine	one_table@column	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42704	42809	engine	one_table@column	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42704	42809	engine	one_table@column	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42704	42809	engine	one_table@column	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42704	42809	engine	one_table@column	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42704	42809	engine	one_table@column	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42704	42809	engine	one_table@column	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42704	42809	engine	one_table@column	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42704	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+ok	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+ok	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42704	42809	engine	one_table@column	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42809	42809	engine	one_table@column	object_type_any_name/VIEW	DROP VIEW a
+42809	42809	engine	one_table@column	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42704	42809	engine	one_table@column	object_type_any_name/INDEX	DROP INDEX a
+42P01	ok:e3b0c44298fc	engine	one_table@column	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42601	engine	one_table@column	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+ok:4cbf85c01a4a	ok:4cbf85c01a4a	engine	one_table@column	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42704	42704	engine	one_table@column	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+ok	42704	engine	one_table@column	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+ok	ok:177c788f3ef1	engine	one_table@column	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+ok	42704	engine	one_table@column	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+ok	42704	engine	one_table@column	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+ok	42704	engine	one_table@column	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42883	42883	engine	one_table@column	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+ok	42P17	engine	one_table@column	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+ok	42P17	engine	one_table@column	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+ok	42P17	engine	one_table@column	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+ok	ok:434f00d237ec	engine	one_table@column	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+ok	42704	engine	one_table@column	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+ok	ok:33dd8fa53515	engine	one_table@column	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+ok	42P17	engine	one_table@column	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+ok	ok:01a2a42ac091	engine	one_table@column	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+ok	42P17	engine	one_table@column	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+ok	42P17	engine	one_table@column	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+ok	42704	engine	one_table@column	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+ok	42704	engine	one_table@column	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	one_table@column	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	one_table@column	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42704	42809	engine	one_table@column	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42704	42809	engine	one_table@column	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42809	42809	engine	one_table@column	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42809	42809	engine	one_table@column	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42809	42809	engine	one_table@column	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42809	42809	engine	one_table@column	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42704	42P07	engine	one_table@column	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42704	42P07	engine	one_table@column	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42701	42701	engine	one_table@column	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42704	42704	engine	one_table@column	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42704	42704	engine	one_table@column	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+ok:ab5714256edb	ok:ab5714256edb	engine	one_table@column	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42804	42P16	engine	one_table@column	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+ok	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+ok	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	one_table@column	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	one_table@column	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	one_table@column	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	one_table@column	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+error	42P10	engine	one_table@column	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@column	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@column	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+error	42P10	engine	one_table@column	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@column	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@column	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+42P07	0A000	engine	one_table@column	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+42P07	0A000	engine	one_table@column	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+42P07	0A000	engine	one_table@column	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	one_table@column	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42704	42809	engine	one_table@index	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42P01	42809	engine	one_table@index	stmt/AlterTableStmt	ALTER TABLE a DROP a
+42P01	42809	engine	one_table@index	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+ok	42P07	engine	one_table@index	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	one_table@index	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+ok	42P07	engine	one_table@index	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	one_table@index	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42710	42P07	engine	one_table@index	stmt/CreateSeqStmt	CREATE SEQUENCE a
+ok	42P07	engine	one_table@index	stmt/CreateStmt	CREATE TABLE a()
+42P01	42809	engine	one_table@index	stmt/DropStmt	DROP TABLE a
+42P01	42809	engine	one_table@index	stmt/IndexStmt	CREATE INDEX ON a(a)
+42P01	42809	engine	one_table@index	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+42P01	42809	engine	one_table@index	stmt/TruncateStmt	TRUNCATE a
+ok	42P07	engine	one_table@index	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	one_table@index	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+42P01	42809	engine	one_table@index	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+42P01	42809	engine	one_table@index	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+ok	42809	engine	one_table@index	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+ok	42809	engine	one_table@index	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42P17	42809	engine	one_table@index	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42601	42809	engine	one_table@index	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42601	42809	engine	one_table@index	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42P01	42809	engine	one_table@index	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+ok	42704	engine	one_table@index	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42P01	42809	engine	one_table@index	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42P01	42809	engine	one_table@index	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42P01	42809	engine	one_table@index	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42P01	42809	engine	one_table@index	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42P01	42809	engine	one_table@index	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+42P01	42809	engine	one_table@index	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42P01	42809	engine	one_table@index	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+42P01	42809	engine	one_table@index	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+42P01	42703	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+42P01	0A000	engine	one_table@index	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42P01	42809	engine	one_table@index	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42P01	42809	engine	one_table@index	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42P01	42809	engine	one_table@index	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42P01	42809	engine	one_table@index	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+42P01	42809	engine	one_table@index	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42P01	42809	engine	one_table@index	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+42P01	42809	engine	one_table@index	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42P01	42809	engine	one_table@index	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+42P01	42809	engine	one_table@index	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+42P01	42809	engine	one_table@index	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+42P01	42809	engine	one_table@index	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42P01	42809	engine	one_table@index	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+42P01	42809	engine	one_table@index	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+42P01	42809	engine	one_table@index	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42P01	42809	engine	one_table@index	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42P01	42809	engine	one_table@index	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42P01	42809	engine	one_table@index	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42P01	42809	engine	one_table@index	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42P01	42809	engine	one_table@index	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42P01	42704	engine	one_table@index	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42P01	42809	engine	one_table@index	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42P01	42704	engine	one_table@index	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+42P01	22023	engine	one_table@index	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+42P01	ok:0904ba26408b	engine	one_table@index	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+42P01	42809	engine	one_table@index	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+42P01	42809	engine	one_table@index	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+42P01	42809	engine	one_table@index	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+42P01	42809	engine	one_table@index	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+42P01	42809	engine	one_table@index	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42P01	42809	engine	one_table@index	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42P01	42809	engine	one_table@index	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42P01	42809	engine	one_table@index	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+42P01	42809	engine	one_table@index	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+42P01	42809	engine	one_table@index	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42P01	42809	engine	one_table@index	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+42P01	22023	engine	one_table@index	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+42P01	22023	engine	one_table@index	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+42P01	22023	engine	one_table@index	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+42P01	22023	engine	one_table@index	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+42P01	42809	engine	one_table@index	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+42P01	42809	engine	one_table@index	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+42P01	42809	engine	one_table@index	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+42P01	42809	engine	one_table@index	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+42P01	42809	engine	one_table@index	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42P01	42809	engine	one_table@index	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42P01	42809	engine	one_table@index	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42P01	42809	engine	one_table@index	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42704	42704	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+42704	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42P01	42809	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+42P01	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42601	42P07	engine	one_table@index	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42704	42704	engine	one_table@index	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42704	42704	engine	one_table@index	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42704	42704	engine	one_table@index	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42704	42704	engine	one_table@index	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P01	42809	engine	one_table@index	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+ok	42P07	engine	one_table@index	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42704	42704	engine	one_table@index	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42704	42704	engine	one_table@index	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42P01	42809	engine	one_table@index	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42601	42809	engine	one_table@index	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42P01	42809	engine	one_table@index	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42601	42809	engine	one_table@index	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+42P01	42809	engine	one_table@index	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P01	42809	engine	one_table@index	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P01	42809	engine	one_table@index	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P01	42809	engine	one_table@index	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P01	42809	engine	one_table@index	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P01	42809	engine	one_table@index	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P01	42809	engine	one_table@index	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P01	42809	engine	one_table@index	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P01	42809	engine	one_table@index	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P01	42809	engine	one_table@index	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P01	42809	engine	one_table@index	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P01	42809	engine	one_table@index	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42P01	42809	engine	one_table@index	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42P01	42809	engine	one_table@index	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42P01	42809	engine	one_table@index	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42P01	42809	engine	one_table@index	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42P01	42809	engine	one_table@index	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42P01	42809	engine	one_table@index	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42P01	42809	engine	one_table@index	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42P01	42809	engine	one_table@index	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42P01	42809	engine	one_table@index	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42P01	42809	engine	one_table@index	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42P01	42809	engine	one_table@index	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42P01	42809	engine	one_table@index	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42P01	42809	engine	one_table@index	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42P01	42809	engine	one_table@index	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+ok	42P07	engine	one_table@index	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42601	42P07	engine	one_table@index	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42601	42P07	engine	one_table@index	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42601	42P07	engine	one_table@index	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42601	42P07	engine	one_table@index	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok	ok:0904ba26408b	engine	one_table@index	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	one_table@index	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42P01	42809	engine	one_table@index	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42P01	42809	engine	one_table@index	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok	ok:0904ba26408b	engine	one_table@index	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	one_table@index	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:0904ba26408b	ok:0904ba26408b	engine	one_table@index	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+ok	42809	engine	one_table@index	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42710	42P07	engine	one_table@index	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42704	42809	engine	one_table@index	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42704	42809	engine	one_table@index	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42704	42809	engine	one_table@index	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42704	42809	engine	one_table@index	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42704	42809	engine	one_table@index	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42704	42809	engine	one_table@index	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42704	42809	engine	one_table@index	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42704	42809	engine	one_table@index	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42704	42809	engine	one_table@index	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42704	42809	engine	one_table@index	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42704	42809	engine	one_table@index	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42704	42809	engine	one_table@index	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42704	42809	engine	one_table@index	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42704	42809	engine	one_table@index	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42704	42809	engine	one_table@index	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42704	42809	engine	one_table@index	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42704	42809	engine	one_table@index	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+ok	42809	engine	one_table@index	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42704	42809	engine	one_table@index	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42P01	42809	engine	one_table@index	object_type_any_name/VIEW	DROP VIEW a
+42P01	42809	engine	one_table@index	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	object_type_any_name/INDEX	DROP INDEX a
+42P01	42809	engine	one_table@index	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+42P01	42809	engine	one_table@index	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+42P01	42809	engine	one_table@index	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42601	engine	one_table@index	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+42P01	42809	engine	one_table@index	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+42P01	42809	engine	one_table@index	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+42P01	42809	engine	one_table@index	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42P01	42809	engine	one_table@index	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42P01	42809	engine	one_table@index	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+42P01	42809	engine	one_table@index	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42P01	42809	engine	one_table@index	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42P01	42809	engine	one_table@index	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42P01	42809	engine	one_table@index	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42P01	42809	engine	one_table@index	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42P01	42809	engine	one_table@index	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42P01	42809	engine	one_table@index	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42P01	42809	engine	one_table@index	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+42P01	42809	engine	one_table@index	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42P01	42809	engine	one_table@index	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+42P01	42809	engine	one_table@index	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42P01	42809	engine	one_table@index	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+42P01	42809	engine	one_table@index	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42P01	42809	engine	one_table@index	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42P01	42809	engine	one_table@index	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42P01	42809	engine	one_table@index	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42P01	42809	engine	one_table@index	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P01	42P07	engine	one_table@index	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+ok	42P07	engine	one_table@index	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42704	42809	engine	one_table@index	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42704	42809	engine	one_table@index	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42P01	42809	engine	one_table@index	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+ok	42809	engine	one_table@index	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42P01	42809	engine	one_table@index	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+ok	42809	engine	one_table@index	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	one_table@index	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42P07	42P07	engine	one_table@index	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42P01	42703	engine	one_table@index	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+ok	42703	engine	one_table@index	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42P01	42703	engine	one_table@index	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+ok	42703	engine	one_table@index	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42P01	42703	engine	one_table@index	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+ok	42703	engine	one_table@index	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42P01	42704	engine	one_table@index	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42P01	42704	engine	one_table@index	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42P01	42809	engine	one_table@index	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42P01	42809	engine	one_table@index	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+ok	42809	engine	one_table@index	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+ok	42704	engine	one_table@index	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+3F000	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+ok	42809	engine	one_table@index	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	one_table@index	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+error	42P10	engine	one_table@index	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@index	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@index	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+error	42P10	engine	one_table@index	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42804	42601	engine	one_table@index	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	one_table@index	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+ok	0A000	engine	one_table@index	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+ok	0A000	engine	one_table@index	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+ok	0A000	engine	one_table@index	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+22023	42P07	engine	one_table@index	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+22023	ok:0904ba26408b	engine	one_table@index	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
