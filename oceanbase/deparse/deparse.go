@@ -1475,7 +1475,12 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 	}
 }
 
-// deparseTableRef formats a simple table reference.
+// deparseTableRef formats a table reference with the clauses tbl_name takes after the
+// name, in the one order OceanBase reads them: partitions, sample and seed, flashback,
+// alias, index hints. A clause left out would change what the query reads, as a sample
+// or a snapshot does.
+//
+// Ref: tbl_name in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 14080).
 func deparseTableRef(t *ast.TableRef) string {
 	var b strings.Builder
 	if t.Schema != "" {
@@ -1483,10 +1488,90 @@ func deparseTableRef(t *ast.TableRef) string {
 		b.WriteString(".")
 	}
 	b.WriteString(quoteIdent(t.Name))
+	switch {
+	case len(t.Partitions) > 0:
+		b.WriteString(" partition(")
+		for i, name := range t.Partitions {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(quoteIdent(name))
+		}
+		b.WriteString(")")
+	case len(t.PartitionValues) > 0:
+		// An external table's partition, as column = constant pairs.
+		b.WriteString(" partition(")
+		for i, pair := range t.PartitionValues {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(quoteIdent(pair.Column.Column))
+			b.WriteString(" = ")
+			writeExpr(&b, pair.Value)
+		}
+		b.WriteString(")")
+	}
+	if s := t.Sample; s != nil {
+		b.WriteString(" sample")
+		if s.Method != "" {
+			b.WriteString(" " + strings.ToLower(s.Method))
+		}
+		if s.Scope != "" {
+			b.WriteString(" " + strings.ToLower(s.Scope))
+		}
+		b.WriteString("(" + s.Percent + ")")
+		if s.Seed != "" {
+			b.WriteString(" seed(" + s.Seed + ")")
+		}
+	}
+	if f := t.Flashback; f != nil {
+		if f.Proctime {
+			b.WriteString(" as of proctime()")
+		} else {
+			b.WriteString(" as of snapshot ")
+			writeExpr(&b, f.Snapshot)
+		}
+	}
 	if t.Alias != "" {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
+	for _, hint := range t.IndexHints {
+		writeIndexHint(&b, hint)
+	}
 	return b.String()
+}
+
+// writeIndexHint formats one index hint of a table reference. PRIMARY is written bare:
+// index_element is NAME_OB or PRIMARY.
+func writeIndexHint(b *strings.Builder, hint *ast.IndexHint) {
+	switch hint.Type {
+	case ast.HintForce:
+		b.WriteString(" force index")
+	case ast.HintIgnore:
+		b.WriteString(" ignore index")
+	default:
+		b.WriteString(" use index")
+	}
+	switch hint.Scope {
+	case ast.HintScopeJoin:
+		b.WriteString(" for join")
+	case ast.HintScopeOrderBy:
+		b.WriteString(" for order by")
+	case ast.HintScopeGroupBy:
+		b.WriteString(" for group by")
+	}
+	b.WriteString("(")
+	for i, name := range hint.Indexes {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		if strings.EqualFold(name, "PRIMARY") {
+			b.WriteString("primary")
+		} else {
+			b.WriteString(quoteIdent(name))
+		}
+	}
+	b.WriteString(")")
 }
 
 func writeExpr(b *strings.Builder, node ast.ExprNode) {

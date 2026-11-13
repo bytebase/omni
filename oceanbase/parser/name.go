@@ -1242,6 +1242,8 @@ func (p *Parser) parseUsePartition(ref *nodes.TableRef) error {
 		if err != nil {
 			return err
 		}
+		// The name's last byte, not its length: `a` is longer than the a it names.
+		nameEnd := p.prev.End
 		if _, err := p.expect('='); err != nil {
 			return err
 		}
@@ -1251,7 +1253,7 @@ func (p *Parser) parseUsePartition(ref *nodes.TableRef) error {
 		}
 		ref.PartitionValues = append(ref.PartitionValues, &nodes.Assignment{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
-			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: start + len(name)}, Column: name},
+			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: nameEnd}, Column: name},
 			Value:  value,
 		})
 		if _, ok := p.match(','); !ok {
