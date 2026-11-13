@@ -2234,8 +2234,12 @@ func (s *HandlerOpenStmt) stmtNode() {}
 type HandlerReadStmt struct {
 	Loc       Loc
 	Table     *TableRef
-	Direction string   // FIRST, NEXT, PREV, LAST
-	Index     string   // index name for index-based reads
+	Direction string // FIRST, NEXT, PREV, LAST
+	Index     string // index name for index-based reads
+	// KeyMode and KeyValues are an index read's comparison, =, >=, <=, > or <,
+	// and its parenthesized values ("" and nil when none is written).
+	KeyMode   string
+	KeyValues []ExprNode
 	Where     ExprNode // WHERE condition
 	Limit     *Limit   // LIMIT clause
 }
