@@ -22,7 +22,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `redshift` | PostgreSQL `17-alpine` baseline; explicit Redshift reference checks | Temporary PostgreSQL substitute is accepted; align its version with `pg` when upgrading. |
 | `snowflake` | No local native database oracle | A native test account or suitable licensed emulator is needed. |
 | `starrocks` | `starrocks/allin1-ubuntu:3.4.10` | Upgrade the native baseline after checking dialect drift. |
-| `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog` and `tidb/parser` replay tapes and start no server, and the parser's corpora are `suite:` rows of its `compat.tsv`; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
+| `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog`, `tidb/parser` and `tidb/review` replay tapes and start no server, and the parser's corpora are `suite:` rows of its `compat.tsv`; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
 | `trino` | `trinodb/trino:482` | Shared helper: `trino/internal/testcontainer`. |
 
 ## Shared helper layout
