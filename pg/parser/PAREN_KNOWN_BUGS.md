@@ -9,6 +9,10 @@ elsewhere. Entries here are the forward references that
 `testdata/paren-fuzz-corpus/{seed-cases,known-mismatches}.txt` point at
 so the signal isn't lost when future work reads those files.
 
+Those two files are gone: the fuzz corpus is now the `suite:paren-fuzz`
+rows of `testdata/compat.tsv`, judged by PostgreSQL like every other row
+(`TestParenFuzzRows`). The references below are historical.
+
 ---
 
 ## PAREN-KB-1 — `(T JOIN U)` accepted without ON/USING

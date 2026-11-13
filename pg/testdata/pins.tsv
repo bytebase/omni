@@ -1,0 +1,8 @@
+# The servers this engine's committed answers come from. default judges compat.tsv
+# and records the tapes: PostgreSQL 17, the release the parser's grammar is read from
+# (gram.y, src/backend/parser/gram.y at the source tag). pg18 serves the tests that
+# ask the next major: the analyzer's (pg_proc_generated.go is generated from 18) and
+# the review walk's second run.
+# columns: role, image, digest, source tag
+default	postgres:17.12-alpine	sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f	REL_17_12
+pg18	postgres:18.7-alpine	sha256:75dcac3dfb1cd01ca3536910bbc84128759362f8b118bf8c55b38a94f68f3b73	REL_18_7
