@@ -188,10 +188,6 @@ type gap struct {
 //
 // This is the work list. An entry is not a way to make a new failure pass.
 var obGaps = map[string]gap{
-	"TestOracle_CheckDiffIdempotence/oceanbase/between": {
-		"OceanBase stores BETWEEN over constant bounds as two comparisons, ((`a` >= 1) and (`a` <= 10)), in a CHECK, a generated column and a view; the catalog keeps BETWEEN, so the CHECK differs from its own readback",
-		twoWays("CANONICALIZATION: user form vs stored form not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
-	},
 	"TestOracle_PhantomDiffElimination/oceanbase/column-charset-echo-80": {
 		"OceanBase's default collation for utf8mb4 is utf8mb4_general_ci, which a readback leaves out; the catalog takes the default to be MySQL 8.0's utf8mb4_0900_ai_ci, so a column written COLLATE utf8mb4_general_ci differs from its own readback",
 		[]string{`PHANTOM DIFF on column "a"`},

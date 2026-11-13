@@ -1981,6 +1981,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		}
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
+		// A binary operation is written in parentheses of its own, so the pair written
+		// around it adds nothing: ((`a` >= 1)) is (`a` >= 1), as in a CHECK and a view.
+		if _, binary := n.Expr.(*nodes.BinaryExpr); binary {
+			return nodeToSQLGenerated(n.Expr, charset)
+		}
 		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
 	case *nodes.KeywordArg:
 		// Bare keyword argument (timestampdiff unit, get_format type) —
@@ -2055,8 +2060,26 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		default:
 			return operand
 		}
+	case *nodes.CaseExpr:
+		// CASE, which is also what deparse.RewriteExpr makes of IF(c, a, b).
+		var b strings.Builder
+		b.WriteString("(case")
+		if n.Operand != nil {
+			b.WriteString(" " + nodeToSQLGenerated(n.Operand, charset))
+		}
+		for _, w := range n.Whens {
+			b.WriteString(" when " + nodeToSQLGenerated(w.Cond, charset) + " then " + nodeToSQLGenerated(w.Result, charset))
+		}
+		if n.Default != nil {
+			b.WriteString(" else " + nodeToSQLGenerated(n.Default, charset))
+		}
+		b.WriteString(" end)")
+		return b.String()
 	default:
-		return "(?)"
+		// Any other expression is written as the deparser writes it everywhere else. A
+		// placeholder here would be stored as the column's expression and sent to the
+		// engine in a plan.
+		return deparse.Deparse(n)
 	}
 }
 
@@ -2105,8 +2128,14 @@ func castTypeToSQLGenerated(dt *nodes.DataType) string {
 	return result
 }
 
+// nodeToSQL writes an expression as the catalog stores it: a CHECK, a generated column, a
+// default, an index's key part. BETWEEN over constant bounds is two comparisons there,
+// as OceanBase stores it (deparse.FoldBetween).
 func nodeToSQL(node nodes.ExprNode) string {
-	return deparse.Deparse(node)
+	if node == nil {
+		return deparse.Deparse(node)
+	}
+	return deparse.Deparse(deparse.FoldBetween(node))
 }
 
 func binaryOpToString(op nodes.BinaryOp) string {

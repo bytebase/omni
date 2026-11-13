@@ -267,6 +267,11 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v (p, q) AS SELECT a, a + 1 FROM t",
 		}, []string{"t"}, []string{"v"}},
+		// BETWEEN in a view, stored as two comparisons over constant bounds.
+		{"between-forms", []string{
+			"CREATE TABLE t (a INT, b INT, c INT)",
+			"CREATE VIEW v AS SELECT a BETWEEN 1 AND 10 AS x, a NOT BETWEEN 1 AND 10 AS y, a BETWEEN b AND c AS z FROM t WHERE a BETWEEN 2 AND 3",
+		}, []string{"t"}, []string{"v"}},
 		// ORDER BY over a select item, which OceanBase stores as the item's position:
 		// by its alias, by the column it is, and by a position as written. A column
 		// that is no select item, and an expression, stay as written.

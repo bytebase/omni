@@ -398,7 +398,7 @@ func TestDiff_FunctionalIndexHiddenColumnIgnored(t *testing.T) {
 		t.Fatal("table t not found")
 	}
 	if len(tbl.HiddenColumns()) == 0 {
-		t.Skip("functional index did not create a hidden column in this build; nothing to assert")
+		t.Fatal("functional index did not create a hidden column")
 	}
 	if d := Diff(c, c); !d.IsEmpty() {
 		t.Errorf("self-diff of a table with a functional-index hidden column must be empty, got %+v", d.Tables)

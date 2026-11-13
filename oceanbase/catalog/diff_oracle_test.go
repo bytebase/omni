@@ -129,6 +129,13 @@ func diffIdempotenceProbes() []diffProbe {
 		{"enum-set", `CREATE TABLE t (id INT PRIMARY KEY, a ENUM('x','y','z'), b SET('a','b','c'), e ENUM("dq1","dq2"))`, "t"},
 		// generated column expression normalization.
 		{"generated", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, c INT GENERATED ALWAYS AS ( a * 2 ) STORED, d INT AS (a+1))", "t"},
+		// IF and CASE in a generated column: the catalog writes IF as CASE, searched and
+		// simple CASE as written, and IN and IS as the deparser does.
+		{"generated-case", "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(10), " +
+			"b INT GENERATED ALWAYS AS (IF(a > 0, a, 0)) VIRTUAL, " +
+			"c INT GENERATED ALWAYS AS (CASE WHEN a > 0 THEN a ELSE 0 END) STORED, " +
+			"d INT AS (CASE a WHEN 1 THEN 10 ELSE 20 END), " +
+			"e INT AS (a IN (1, 2)), f INT AS (a IS NULL))", "t"},
 		// implicit table charset/engine (no clause): must not phantom an ADD CHARSET/ENGINE.
 		{"implicit-table-opts", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10))", "t"},
 		// explicit table charset + column echo (version-flagged echo rules).
