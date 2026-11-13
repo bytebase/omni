@@ -86,7 +86,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 
 		got := c.ShowCreateTable("testdb", "t")
 		assertContains(t, got, "CREATE TEMPORARY TABLE `t`")
-		assertContains(t, got, "`id` int NOT NULL")
+		assertContains(t, got, "`id` int(11) NOT NULL")
 		assertContains(t, got, "PRIMARY KEY (`id`)")
 	})
 
@@ -123,7 +123,7 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 		assertContains(t, got, "`col_timestamp` timestamp")
 
 		// INT rendered
-		assertContains(t, got, "`id` int NOT NULL")
+		assertContains(t, got, "`id` int(11) NOT NULL")
 
 		// TEXT and BLOB should NOT show DEFAULT NULL
 		if strings.Contains(got, "`col_text` text DEFAULT NULL") {

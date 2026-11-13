@@ -101,7 +101,7 @@ func snapshotWithTables(tables ...*metadata.TableMetadata) *metadata.DatabaseSch
 func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	c := New()
 	c.SetForeignKeyChecks(true)
-	if _, err := c.Exec("SET sql_generate_invisible_primary_key = ON; SET explicit_defaults_for_timestamp = OFF;", nil); err != nil {
+	if _, err := c.Exec("SET explicit_defaults_for_timestamp = OFF;", nil); err != nil {
 		t.Fatalf("SET: %v", err)
 	}
 	meta := snapshotWithTables(&metadata.TableMetadata{
@@ -114,10 +114,10 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 		t.Fatalf("LoadMetadata: %v", err)
 	}
 	requireReport(t, report, nil, nil)
-	// Neither a generated primary key nor the legacy TIMESTAMP rules apply.
+	// The legacy TIMESTAMP rules do not apply.
 	tbl := requireTable(t, c, "t")
-	if tbl.GetColumn("my_row_id") != nil || !tbl.GetColumn("ts").Nullable || !tbl.GetColumn("ts").NullExplicit {
-		t.Errorf("t = %+v, want no generated key and an explicitly nullable ts", tbl.Columns)
+	if !tbl.GetColumn("ts").Nullable || !tbl.GetColumn("ts").NullExplicit {
+		t.Errorf("t = %+v, want an explicitly nullable ts", tbl.Columns)
 	}
 	if at := tbl.GetColumn("at"); at.Default != nil || at.OnUpdate != "" {
 		t.Errorf("at = %+v, want no implicit default", at)
@@ -128,7 +128,7 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	if c.CurrentDatabase() != snapshotDB {
 		t.Errorf("current database = %q, want %q", c.CurrentDatabase(), snapshotDB)
 	}
-	if !c.ForeignKeyChecks() || !c.generateGIPK || c.session.ExplicitDefaultsForTimestamp {
+	if !c.ForeignKeyChecks() || c.session.ExplicitDefaultsForTimestamp {
 		t.Error("the caller's session settings must be back after the load")
 	}
 	// Loading into an existing database adds to it and takes the snapshot's

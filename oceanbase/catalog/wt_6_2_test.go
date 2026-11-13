@@ -154,10 +154,10 @@ func TestWalkThrough_6_2_AddFKTypeMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKIncompatibleColumns)
+	assertError(t, results[0].Error, ErrCannotAddForeign)
 }
 
-// Scenario 8: ALTER TABLE ADD FK where referenced table has no index on referenced columns — error 1822.
+// Scenario 8: ALTER TABLE ADD FK where referenced table has no index on referenced columns — error 1215.
 // (Already covered by TestWalkThrough_2_4_AlterTableAddFKMissingIndex; included for completeness.)
 func TestWalkThrough_6_2_AddFKMissingIndex(t *testing.T) {
 	c := wtSetup(t)
@@ -168,7 +168,7 @@ func TestWalkThrough_6_2_AddFKMissingIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCannotAddForeign)
 }
 
 // Scenario 9: SET foreign_key_checks=0 then CREATE circular FKs then SET foreign_key_checks=1 — both tables valid.
@@ -257,7 +257,7 @@ func TestWalkThrough_6_2_SelfReferencingFK(t *testing.T) {
 }
 
 // Scenario 11: FK column count mismatch (single-column FK referencing composite PK) — error.
-// MySQL returns error 1822 (missing index) because the single-column FK cannot match
+// OceanBase returns error 1215 because the single-column FK cannot match
 // the composite PK index (which requires both columns as leading prefix).
 func TestWalkThrough_6_2_FKColumnCountMismatch(t *testing.T) {
 	c := wtSetup(t)
@@ -273,7 +273,7 @@ func TestWalkThrough_6_2_FKColumnCountMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, ErrCannotAddForeign)
 }
 
 // Scenario 12: Cross-database FK: FOREIGN KEY (col) REFERENCES other_db.parent(id) — stored and rendered correctly.

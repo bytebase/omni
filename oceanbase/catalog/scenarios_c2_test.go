@@ -170,9 +170,8 @@ func TestScenario_C2(t *testing.T) {
 
 		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(11)")
 
-		// omni gap: the catalog strips the display width, as MySQL 8.0 does.
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int(11)")
 		}
 	})
 
@@ -204,9 +203,8 @@ func TestScenario_C2(t *testing.T) {
 		assertStringEq(t, "oracle IS_NULLABLE", nullable, "NO")
 		assertStringEq(t, "oracle EXTRA", strings.ToLower(extra), "auto_increment")
 
-		// omni gap: no display width in the catalog's ColumnType.
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "bigint unsigned")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "bigint(20) unsigned")
 			assertBoolEq(t, "omni Nullable", col.Nullable, false)
 			assertBoolEq(t, "omni AutoIncrement", col.AutoIncrement, true)
 		}
@@ -346,14 +344,13 @@ func TestScenario_C2(t *testing.T) {
 		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb4")
 		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb4")
 
-		// omni gap: the catalog gives national types utf8mb3, as MySQL does.
 		if col := omniCol(t, c, "a"); col != nil {
 			assertStringEq(t, "omni a ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 		if col := omniCol(t, c, "b"); col != nil {
 			assertStringEq(t, "omni b ColumnType", strings.ToLower(col.ColumnType), "char(10)")
-			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb3")
+			assertStringEq(t, "omni b Charset", strings.ToLower(col.Charset), "utf8mb4")
 		}
 	})
 
@@ -374,10 +371,9 @@ func TestScenario_C2(t *testing.T) {
 			assertStringEq(t, "oracle "+name+" COLUMN_TYPE", oracleColumnType(t, name), "varchar(10)")
 			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb4")
 
-			// omni gap: utf8mb3 in the catalog, as in MySQL.
 			if col := omniCol(t, c, name); col != nil {
 				assertStringEq(t, "omni "+name+" ColumnType", strings.ToLower(col.ColumnType), "varchar(10)")
-				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb3")
+				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb4")
 			}
 		}
 	})
@@ -494,9 +490,8 @@ func TestScenario_C2(t *testing.T) {
 
 		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year(4)")
 
-		// omni gap: the catalog drops YEAR's width, as MySQL 8.0 does.
 		if col := omniCol(t, c, "c"); col != nil {
-			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year")
+			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year(4)")
 		}
 	})
 
@@ -542,7 +537,6 @@ func TestScenario_C2(t *testing.T) {
 		gotType = strings.ToLower(gotType)
 		assertStringEq(t, "oracle DATA_TYPE", gotType, "varchar")
 
-		// omni gap: the catalog promotes it to a text type, as MySQL does.
 		results, err := c.Exec(`CREATE TABLE t (c VARCHAR(65536));`, nil)
 		omniErr := err != nil
 		if !omniErr {
@@ -556,8 +550,8 @@ func TestScenario_C2(t *testing.T) {
 		if !omniErr {
 			if col := omniCol(t, c, "c"); col != nil {
 				dt := strings.ToLower(col.DataType)
-				if dt != "mediumtext" && dt != "text" {
-					t.Errorf("omni: expected mediumtext/text, got DataType=%q ColumnType=%q",
+				if dt != "varchar" {
+					t.Errorf("omni: expected varchar, got DataType=%q ColumnType=%q",
 						dt, col.ColumnType)
 				}
 			}

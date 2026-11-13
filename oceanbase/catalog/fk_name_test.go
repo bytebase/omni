@@ -10,8 +10,8 @@ import (
 // that no index is made for it, as OceanBase makes none (measured on
 // 4.3.5.6: each table below has the indexes it declares). A UNIQUE key
 // with a symbol and a name takes the name. OceanBase names a foreign key
-// that has no symbol `<table>_OBFK_<time>`, which the differ treats as
-// the loader's `<table>_ibfk_<N>` (forgetMadeUpRenames).
+// that has no symbol `<table>_OBFK_<time>`, and so does the loader, with
+// a count for the time (madeUpConstraintName).
 func TestForeignKeyAndIndexNames(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, `CREATE TABLE r (id INT PRIMARY KEY);
@@ -33,20 +33,20 @@ ALTER TABLE y3 ADD CONSTRAINT cu UNIQUE KEY u9 (a);`)
 		indexes    []string
 	}{
 		{"x1", "c", nil},
-		{"x2", "x2_ibfk_1", nil},
-		{"x3", "x3_ibfk_1", nil},
+		{"x2", "x2_OBFK_<n>", nil},
+		{"x3", "x3_OBFK_<n>", nil},
 		{"x4", "c4", nil},
 		{"x5", "c5", []string{"k5"}},
 		{"x6", "", []string{"u6"}},
 		{"y1", "c7", nil},
-		{"y2", "y2_ibfk_1", nil},
+		{"y2", "y2_OBFK_<n>", nil},
 		{"y3", "", []string{"u9"}},
 	} {
 		tbl := c.GetDatabase("testdb").GetTable(w.table)
 		var fks, indexes []string
 		for _, con := range tbl.Constraints {
 			if con.Type == ConForeignKey {
-				fks = append(fks, con.Name)
+				fks = append(fks, withoutCount(con.Name))
 			}
 		}
 		for _, idx := range tbl.Indexes {

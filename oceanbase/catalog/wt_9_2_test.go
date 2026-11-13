@@ -71,8 +71,8 @@ func TestWalkThrough_9_2_ModifyBaseColumnType(t *testing.T) {
 	if col == nil {
 		t.Fatal("column 'a' not found after MODIFY")
 	}
-	if col.ColumnType != "bigint" {
-		t.Errorf("expected column type 'bigint', got %q", col.ColumnType)
+	if col.ColumnType != "bigint(20)" {
+		t.Errorf("expected column type 'bigint(20)', got %q", col.ColumnType)
 	}
 
 	// Verify generated column expression is preserved.

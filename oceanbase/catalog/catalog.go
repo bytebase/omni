@@ -1,5 +1,7 @@
 package catalog
 
+import "fmt"
+
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
@@ -9,15 +11,38 @@ type Catalog struct {
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	generateGIPK     bool // SET sql_generate_invisible_primary_key
-	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
 	session          SessionState
+	madeUpNames      int // names made for constraints written without one (madeUpConstraintName)
 }
+
+// madeUpConstraintName names a foreign key or a CHECK written without a name. OceanBase
+// names it after its table and the time in microseconds, child_OBFK_1794529609863994 or
+// t_OBCHECK_1794529978914345, so no generated name collides with a written one and none
+// follows the table through a rename. The catalog has no clock: a count stands in for the
+// time, in the time's 16 digits, and no two are alike in one catalog. The diff pairs such
+// a constraint with the engine's by definition, not by this name (forgetMadeUpRenames).
+// TestScenario_C1 and TestScenario_PS hold the shape to the engine.
+//
+// taken reports a name a constraint already has. The count passes over those, so a schema
+// loaded with the names an earlier catalog made, as its SHOW CREATE TABLE writes them,
+// still takes an unnamed constraint.
+func (c *Catalog) madeUpConstraintName(table, infix string, taken func(name string) bool) string {
+	for {
+		c.madeUpNames++
+		if name := fmt.Sprintf("%s%s%016d", table, infix, c.madeUpNames); !taken(name) {
+			return name
+		}
+	}
+}
+
+// The infix of the name OceanBase makes up for a foreign key and for a CHECK.
+const (
+	madeUpForeignKeyInfix = "_OBFK_"
+	madeUpCheckInfix      = "_OBCHECK_"
+)
 
 type SessionState struct {
 	ForeignKeyChecks             bool
-	GenerateInvisiblePrimaryKey  bool
-	ShowGIPK                     bool
 	CharsetClient                string
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
@@ -36,8 +61,6 @@ func New() *Catalog {
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
-		generateGIPK:     session.GenerateInvisiblePrimaryKey,
-		showGIPK:         session.ShowGIPK,
 		session:          session,
 	}
 }

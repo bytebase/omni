@@ -61,6 +61,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	aliased := aliasedTargets(stmt.Select)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -69,33 +70,27 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
+		return errDupColumn(name)
+	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
 	}
 
-	algorithm := stmt.Algorithm
-	if algorithm == "" {
-		algorithm = "UNDEFINED"
-	}
-	sqlSecurity := stmt.SqlSecurity
-	if sqlSecurity == "" {
-		sqlSecurity = "DEFINER"
-	}
-
+	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
+	// updatable (TestOracle_OceanBaseViewAttributes).
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
-		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
+		IsUpdatable:     true,
 	}
 	return nil
 }
@@ -177,6 +172,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	aliased := aliasedTargets(stmt.Select)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -185,33 +181,27 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
+		return errDupColumn(name)
+	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
 	}
 
-	algorithm := stmt.Algorithm
-	if algorithm == "" {
-		algorithm = "UNDEFINED"
-	}
-	sqlSecurity := stmt.SqlSecurity
-	if sqlSecurity == "" {
-		sqlSecurity = "DEFINER"
-	}
-
+	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
+	// updatable (TestOracle_OceanBaseViewAttributes).
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
-		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
+		IsUpdatable:     true,
 	}
 	return nil
 }
@@ -286,16 +276,10 @@ func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out m
 		}
 		out[toLower(key)] = viewRelationInfo{table: tbl, optional: optional}
 	case *nodes.JoinClause:
-		leftOptional := optional
-		rightOptional := optional
-		switch n.Type {
-		case nodes.JoinLeft, nodes.JoinNaturalLeft:
-			rightOptional = true
-		case nodes.JoinRight, nodes.JoinNaturalRight:
-			leftOptional = true
-		}
-		collectViewRelations(n.Left, db, leftOptional, out)
-		collectViewRelations(n.Right, db, rightOptional, out)
+		// OceanBase reports a column of an outer join's optional side as it is in its
+		// table, where MySQL widens it to nullable.
+		collectViewRelations(n.Left, db, optional, out)
+		collectViewRelations(n.Right, db, optional, out)
 	}
 }
 
@@ -303,8 +287,20 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
+	case *nodes.CaseExpr:
+		// A CASE is nullable when a result is, or when it has no ELSE.
+		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
+			return true
+		}
+		for _, w := range e.Whens {
+			if inferViewExprNullable(w.Result, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.FuncCallExpr:
-		if isViewStringMetadataNullableFunc(e.Name) {
+		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
+		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -428,6 +424,26 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.FuncCallExpr:
 		return inferViewFuncCollation(e, relations)
+	case *nodes.CaseExpr:
+		// The character set of a CASE is that of its results together.
+		results := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+		for _, w := range e.Whens {
+			results = append(results, w.Result)
+		}
+		if e.Default != nil {
+			results = append(results, e.Default)
+		}
+		var out viewCollationInfo
+		for _, result := range results {
+			ci, err := inferViewExprCollation(result, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			if out, err = aggregateViewCollations(out, ci, "case"); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return out, nil
 	case *nodes.ParenExpr:
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.BinaryExpr:
@@ -456,11 +472,30 @@ func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRel
 			out = agg
 		}
 		return out, nil
-	case "repeat", "lpad", "rpad":
+	case "repeat":
 		if len(fn.Args) == 0 {
 			return viewCollationInfo{}, nil
 		}
 		return inferViewExprCollation(fn.Args[0], relations)
+	case "lpad", "rpad":
+		// OceanBase gives the result the character set of the string and of the pad,
+		// where MySQL pins it to the string's.
+		var out viewCollationInfo
+		for i, arg := range fn.Args {
+			if i == 1 {
+				continue // the length
+			}
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
 	default:
 		var out viewCollationInfo
 		for _, arg := range fn.Args {
@@ -658,30 +693,6 @@ func isViewStringMetadataNullableFunc(name string) bool {
 	}
 }
 
-func inferViewUpdatable(sel *nodes.SelectStmt, algorithm string) bool {
-	if sel == nil || strings.EqualFold(algorithm, "TEMPTABLE") {
-		return false
-	}
-	if sel.DistinctKind != nodes.DistinctNone && sel.DistinctKind != nodes.DistinctAll {
-		return false
-	}
-	if sel.SetOp != nodes.SetOpNone || len(sel.GroupBy) > 0 || sel.Having != nil {
-		return false
-	}
-	hasAgg := false
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if hasAgg {
-			return false
-		}
-		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) {
-			hasAgg = true
-			return false
-		}
-		return true
-	})
-	return !hasAgg
-}
-
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 	for _, ref := range stmt.Views {
 		db, err := c.resolveDatabase(ref.Schema)
@@ -742,6 +753,51 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
+}
+
+// aliasedTargets returns the items of a view's select list that are written with an alias,
+// read before the resolver gives every other item the name it derives.
+func aliasedTargets(sel *nodes.SelectStmt) map[*nodes.ResTarget]bool {
+	aliased := map[*nodes.ResTarget]bool{}
+	if sel == nil {
+		return aliased
+	}
+	for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
+		if rt, ok := target.(*nodes.ResTarget); ok && rt.Name != "" {
+			aliased[rt] = true
+		}
+	}
+	return aliased
+}
+
+// duplicateViewColumn returns a name two of a view's columns have, whatever its case, which
+// OceanBase refuses as MySQL does (ER_DUP_FIELDNAME, 1060). The names are the view's column
+// list or, without one, the names written in the resolved select list: an alias (aliased)
+// or a column's own name, a column of * among them. A name the engine makes up for an
+// expression is not held against the view: SELECT 1, 1 is taken.
+// TestOracle_OceanBaseRefusals holds each form to the engine.
+func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*nodes.ResTarget]bool) (string, bool) {
+	names := explicit
+	if len(names) == 0 && sel != nil {
+		for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
+			switch t := target.(type) {
+			case *nodes.ResTarget:
+				if _, column := t.Val.(*nodes.ColumnRef); column || aliased[t] {
+					names = append(names, t.Name)
+				}
+			case *nodes.ColumnRef:
+				names = append(names, t.Column)
+			}
+		}
+	}
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		if seen[toLower(name)] {
+			return name, true
+		}
+		seen[toLower(name)] = true
+	}
+	return "", false
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

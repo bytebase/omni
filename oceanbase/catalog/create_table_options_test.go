@@ -44,9 +44,9 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE `123` (123a1 INT, 1_2 INT, 12e INT)",
 			table: "123",
 			want: "CREATE TABLE `123` (\n" +
-				"  `123a1` int DEFAULT NULL,\n" +
-				"  `1_2` int DEFAULT NULL,\n" +
-				"  `12e` int DEFAULT NULL\n" +
+				"  `123a1` int(11) DEFAULT NULL,\n" +
+				"  `1_2` int(11) DEFAULT NULL,\n" +
+				"  `12e` int(11) DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
 		},
 	} {
