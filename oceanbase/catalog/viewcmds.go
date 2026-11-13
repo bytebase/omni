@@ -62,14 +62,12 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// Use explicit column list if provided, otherwise derive from SELECT target list.
-	hasExplicit := len(stmt.Columns) > 0
-	viewCols := stmt.Columns
-	if !hasExplicit {
-		viewCols = derivedCols
-	}
+	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// states none of its own.
+	const hasExplicit = false
+	viewCols := derivedCols
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
@@ -173,14 +171,12 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// Use explicit column list if provided, otherwise derive from SELECT target list.
-	hasExplicit := len(stmt.Columns) > 0
-	viewCols := stmt.Columns
-	if !hasExplicit {
-		viewCols = derivedCols
-	}
+	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// states none of its own.
+	const hasExplicit = false
+	viewCols := derivedCols
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
@@ -692,9 +688,14 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // offsets index into. An unaliased select item is named after its text in
 // source, as the engine names it; with no source ("" from DefineView), the
 // name is rebuilt from the AST.
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
+//
+// columns is the view's column list. OceanBase folds it into the body, as the alias of
+// each select item in every SELECT the body joins: CREATE VIEW v (p, q) AS SELECT a, b
+// FROM t is stored as select a AS p, b AS q (TestOracle_ViewIdempotence, explicit-columns
+// and explicit-columns-union).
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, columns []string, rawText, source string, db *Database) (string, []string) {
 	if sel == nil {
-		return rawText, nil
+		return rawText, columns
 	}
 
 	// Build a TableLookup that resolves table names from this database.
@@ -713,6 +714,8 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 		Source:         source,
 	}
 	resolver.Resolve(sel)
+
+	aliasViewColumns(sel, columns)
 
 	// Extract column names from the resolved target list.
 	derivedCols := extractViewColumns(sel)
@@ -767,6 +770,29 @@ func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*
 		seen[toLower(name)] = true
 	}
 	return "", false
+}
+
+// aliasViewColumns gives each SELECT a query joins the names of a view's column list, as
+// the aliases of its select items. A list of another length is left for the caller.
+func aliasViewColumns(sel *nodes.SelectStmt, columns []string) {
+	if sel == nil || len(columns) == 0 {
+		return
+	}
+	switch {
+	case sel.ParenSource != nil:
+		aliasViewColumns(sel.ParenSource, columns)
+	case sel.SetOp != nodes.SetOpNone:
+		aliasViewColumns(sel.Left, columns)
+		aliasViewColumns(sel.Right, columns)
+	case len(sel.TargetList) == len(columns):
+		for i, target := range sel.TargetList {
+			if rt, ok := target.(*nodes.ResTarget); ok {
+				rt.Name = columns[i]
+			} else {
+				sel.TargetList[i] = &nodes.ResTarget{Name: columns[i], Val: target}
+			}
+		}
+	}
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

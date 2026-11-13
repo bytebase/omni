@@ -70,6 +70,21 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, item := range n.List {
 			n.List[i] = rewriteExpr(item)
 		}
+		// x IN (subquery) is stored as x = any (subquery) and x NOT IN (subquery) as
+		// x <> all (subquery), whatever parentheses the subquery is written in
+		// (catalog's TestOracle_ViewIdempotence, in-subquery).
+		if n.Select != nil {
+			op, quantifier := ast.BinOpEq, "ANY"
+			if n.Not {
+				op, quantifier = ast.BinOpNe, "ALL"
+			}
+			return &ast.BinaryExpr{
+				Loc:   n.Loc,
+				Op:    op,
+				Left:  n.Expr,
+				Right: &ast.SubqueryExpr{Loc: n.Loc, Select: n.Select, Quantifier: quantifier},
+			}
+		}
 		return n
 
 	case *ast.BetweenExpr:
@@ -110,6 +125,15 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 	case *ast.FuncCallExpr:
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
+		}
+		// IF(c, a, b) is stored as (case when c then a else b end) (catalog's
+		// TestOracle_ViewIdempotence, paren-subquery-compare-if).
+		if n.Schema == "" && strings.EqualFold(n.Name, "if") && len(n.Args) == 3 {
+			return &ast.CaseExpr{
+				Loc:     n.Loc,
+				Whens:   []*ast.CaseWhen{{Loc: n.Loc, Cond: n.Args[0], Result: n.Args[1]}},
+				Default: n.Args[2],
+			}
 		}
 		return rewriteDateArith(n)
 
