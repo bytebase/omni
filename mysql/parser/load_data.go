@@ -79,6 +79,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// before S3 is Aurora's S3 source, read below.
 	if p.cur.Type == kwFROM && p.peekNext().Type != kwS3 {
 		p.advance()
+		// One FROM: what follows is LOCAL or the file source, never another
+		// FROM or S3.
+		if p.cur.Type == kwFROM || p.cur.Type == kwS3 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// Completion: LOAD DATA FROM | → S3, or the file source.
 		p.checkCursor()
 		if p.collectMode() {
