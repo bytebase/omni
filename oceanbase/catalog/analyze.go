@@ -1094,6 +1094,12 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 	}
 	resultScope := newScope()
 	resultScope.add("__paren__", 0, cols)
+	// A result column of the query inside is named by deriveColumnName, which writes
+	// ? for an unaliased expression where OceanBase names it by its source text. The
+	// outer clauses then read names this does not hold, so what they do not resolve
+	// is not known to be missing: ( SELECT b+1 FROM a ) ORDER BY `b+1` is the
+	// engine's to take (TestOracle_OceanBaseQueryFirst).
+	resultScope.namesUncertain = selectDerivesNames(stmt.ParenSource)
 	if len(stmt.OrderBy) > 0 {
 		if err := c.analyzeOrderBy(stmt.OrderBy, outer, resultScope); err != nil {
 			return nil, err

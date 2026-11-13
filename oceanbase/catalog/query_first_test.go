@@ -24,6 +24,8 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)", 1054},
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz", 1054},
 		{"CREATE VIEW v AS SELECT zz FROM DUAL", 1054},
+		{"CREATE VIEW v AS (SELECT b+1 FROM a) ORDER BY `b+1`", 0},
+		{"CREATE VIEW v AS (SELECT count(*) FROM a) ORDER BY `count(*)`", 0},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
 		if err != nil {

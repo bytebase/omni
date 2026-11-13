@@ -97,3 +97,13 @@
 | CREATE VIEW v15 AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)
 < error
 | 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW v16 AS (SELECT b+1 FROM a) ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW v17 AS (SELECT count(*) FROM a) ORDER BY `count(*)`
+< ok 0 0
+> exec
+| CREATE VIEW v18 AS (SELECT b FROM a) ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
