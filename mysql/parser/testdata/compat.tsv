@@ -424,9 +424,9 @@ accept	accept	engine	simple_statement/load_stmt	LOAD DATA INFILE 's' INTO TABLE 
 reject	reject	engine	simple_statement/load_stmt!drop-1	DATA INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	simple_statement/load_stmt!drop-2	LOAD INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	simple_statement/load_stmt!drop-3	LOAD DATA 's' INTO TABLE utf8mb4;
-accept	reject	engine	simple_statement/load_stmt!drop-4	LOAD DATA INFILE INTO TABLE utf8mb4;
-accept	reject	engine	simple_statement/load_stmt!drop-5	LOAD DATA INFILE 's' TABLE utf8mb4;
-accept	reject	engine	simple_statement/load_stmt!drop-6	LOAD DATA INFILE 's' INTO utf8mb4;
+reject	reject	engine	simple_statement/load_stmt!drop-4	LOAD DATA INFILE INTO TABLE utf8mb4;
+reject	reject	engine	simple_statement/load_stmt!drop-5	LOAD DATA INFILE 's' TABLE utf8mb4;
+reject	reject	engine	simple_statement/load_stmt!drop-6	LOAD DATA INFILE 's' INTO utf8mb4;
 reject	reject	engine	simple_statement/load_stmt!drop-7	LOAD DATA INFILE 's' INTO TABLE;
 reject	reject	engine	simple_statement/load_stmt!truncate	LOAD DATA INFILE 's' INTO TABLE
 reject	reject	engine	simple_statement/load_stmt!insert	LOAD DATA INFILE 's' INTO TABLE utf8mb4 zzz;
@@ -5455,9 +5455,9 @@ reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_
 reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-5	LOAD INDEX INTO CACHE PARTITION(ALL);
 reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-6	LOAD INDEX INTO CACHE utf8mb4(ALL);
 reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-7	LOAD INDEX INTO CACHE utf8mb4 PARTITION ALL);
-accept	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-8	LOAD INDEX INTO CACHE utf8mb4 PARTITION();
-accept	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-9	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL;
-accept	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!truncate	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL
+reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-8	LOAD INDEX INTO CACHE utf8mb4 PARTITION();
+reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!drop-9	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL;
+reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!truncate	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL
 reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!insert	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL) zzz;
 reject	reject	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves!swap	LOCAL INDEX INTO CACHE utf8mb4 PARTITION(ALL);
 accept	accept	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_preload_list	LOAD INDEX INTO CACHE utf8mb4;
@@ -5484,8 +5484,8 @@ reject	reject	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)!swap
 accept	accept	engine	opt_ignore_leaves/%empty	LOAD INDEX INTO CACHE utf8mb4;
 accept	accept	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES	LOAD INDEX INTO CACHE utf8mb4 IGNORE LEAVES;
 reject	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!drop-1	LOAD INDEX INTO CACHE utf8mb4 LEAVES;
-accept	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!drop-2	LOAD INDEX INTO CACHE utf8mb4 IGNORE;
-accept	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!truncate	LOAD INDEX INTO CACHE utf8mb4 IGNORE
+reject	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!drop-2	LOAD INDEX INTO CACHE utf8mb4 IGNORE;
+reject	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!truncate	LOAD INDEX INTO CACHE utf8mb4 IGNORE
 reject	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!insert	LOAD INDEX INTO CACHE utf8mb4 IGNORE LEAVES zzz;
 reject	reject	engine	opt_ignore_leaves/IGNORE_SYM_LEAVES!swap	LOAD INDEX INTO CACHE utf8mb4 IGNORE_SERVER_IDS LEAVES;
 accept	accept	engine	select_stmt/query_expression	SELECT utf8mb4;
@@ -9033,17 +9033,17 @@ accept	accept	engine	load_stmt/LOAD_data_or_xml_load_data_lock_opt_from_keyword_
 accept	accept	engine	data_or_xml/DATA_SYM	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	data_or_xml/DATA_SYM!truncate	LOAD
 reject	reject	engine	data_or_xml/DATA_SYM!insert	LOAD DATA zzz INFILE 's' INTO TABLE utf8mb4;
-accept	reject	engine	data_or_xml/DATA_SYM!swap	LOAD DATABASE INFILE 's' INTO TABLE utf8mb4;
+reject	reject	engine	data_or_xml/DATA_SYM!swap	LOAD DATABASE INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	data_or_xml/XML_SYM	LOAD XML INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	data_or_xml/XML_SYM!insert	LOAD XML zzz INFILE 's' INTO TABLE utf8mb4;
-accept	reject	engine	data_or_xml/XML_SYM!swap	LOAD XOR INFILE 's' INTO TABLE utf8mb4;
+reject	reject	engine	data_or_xml/XML_SYM!swap	LOAD XOR INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_local/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_local/LOCAL_SYM	LOAD DATA LOCAL INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	opt_local/LOCAL_SYM!truncate	LOAD DATA
 reject	reject	engine	opt_local/LOCAL_SYM!insert	LOAD DATA LOCAL zzz INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	opt_local/LOCAL_SYM!swap	LOAD DATA LOCK INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_from_keyword/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
-reject	accept	engine	opt_from_keyword/FROM	LOAD DATA FROM INFILE 's' INTO TABLE utf8mb4;
+accept	accept	engine	opt_from_keyword/FROM	LOAD DATA FROM INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	opt_from_keyword/FROM!insert	LOAD DATA FROM zzz INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	opt_from_keyword/FROM!swap	LOAD DATA FULL INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	load_data_lock/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
@@ -9056,23 +9056,23 @@ reject	reject	engine	load_data_lock/LOW_PRIORITY!swap	LOAD DATA MASTER INFILE 's
 accept	accept	engine	load_source_type/INFILE_SYM	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	load_source_type/INFILE_SYM!insert	LOAD DATA INFILE zzz 's' INTO TABLE utf8mb4;
 reject	reject	engine	load_source_type/INFILE_SYM!swap	LOAD DATA INITIAL 's' INTO TABLE utf8mb4;
-reject	accept	engine	load_source_type/URL_SYM	LOAD DATA URL 's' INTO TABLE utf8mb4;
+accept	accept	engine	load_source_type/URL_SYM	LOAD DATA URL 's' INTO TABLE utf8mb4;
 reject	reject	engine	load_source_type/URL_SYM!insert	LOAD DATA URL zzz 's' INTO TABLE utf8mb4;
 reject	reject	engine	load_source_type/URL_SYM!swap	LOAD DATA USAGE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_source_count/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/%empty!insert	LOAD DATA INFILE 's' zzz INTO TABLE utf8mb4;
-reject	accept	engine	opt_source_count/COUNT_SYM_NUM	LOAD DATA INFILE 's' COUNT 1 INTO TABLE utf8mb4;
+accept	accept	engine	opt_source_count/COUNT_SYM_NUM	LOAD DATA INFILE 's' COUNT 1 INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/COUNT_SYM_NUM!drop-1	LOAD DATA INFILE 's' 1 INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/COUNT_SYM_NUM!drop-2	LOAD DATA INFILE 's' COUNT INTO TABLE utf8mb4;
-accept	reject	engine	opt_source_count/COUNT_SYM_NUM!truncate	LOAD DATA INFILE 's' COUNT
+reject	reject	engine	opt_source_count/COUNT_SYM_NUM!truncate	LOAD DATA INFILE 's' COUNT
 reject	reject	engine	opt_source_count/COUNT_SYM_NUM!insert	LOAD DATA INFILE 's' COUNT 1 zzz INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/COUNT_SYM_NUM!swap	LOAD DATA INFILE 's' CPU 1 INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/IDENT_sys_NUM	LOAD DATA INFILE 's' utf8mb4 1 INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_count/IDENT_sys_NUM!drop-2	LOAD DATA INFILE 's' utf8mb4 INTO TABLE utf8mb4;
-accept	reject	engine	opt_source_count/IDENT_sys_NUM!truncate	LOAD DATA INFILE 's' utf8mb4
+reject	reject	engine	opt_source_count/IDENT_sys_NUM!truncate	LOAD DATA INFILE 's' utf8mb4
 reject	reject	engine	opt_source_count/IDENT_sys_NUM!insert	LOAD DATA INFILE 's' utf8mb4 1 zzz INTO TABLE utf8mb4;
 accept	accept	engine	opt_source_order/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
-reject	accept	engine	opt_source_order/IN_SYM_PRIMARY_SYM_KEY_SYM_ORDER_SYM	LOAD DATA INFILE 's' IN PRIMARY KEY ORDER INTO TABLE utf8mb4;
+accept	accept	engine	opt_source_order/IN_SYM_PRIMARY_SYM_KEY_SYM_ORDER_SYM	LOAD DATA INFILE 's' IN PRIMARY KEY ORDER INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_order/IN_SYM_PRIMARY_SYM_KEY_SYM_ORDER_SYM!drop-1	LOAD DATA INFILE 's' PRIMARY KEY ORDER INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_order/IN_SYM_PRIMARY_SYM_KEY_SYM_ORDER_SYM!drop-2	LOAD DATA INFILE 's' IN KEY ORDER INTO TABLE utf8mb4;
 reject	reject	engine	opt_source_order/IN_SYM_PRIMARY_SYM_KEY_SYM_ORDER_SYM!drop-3	LOAD DATA INFILE 's' IN PRIMARY ORDER INTO TABLE utf8mb4;
@@ -9171,9 +9171,9 @@ reject	reject	engine	opt_xml_rows_identified_by/ROWS_SYM_IDENTIFIED_SYM_BY_text_
 accept	accept	engine	opt_ignore_lines/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1 LINES;
 reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!drop-1	LOAD DATA INFILE 's' INTO TABLE utf8mb4 1 LINES;
-accept	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE LINES;
-accept	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!drop-3	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1;
-accept	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1
+reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE LINES;
+reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!drop-3	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1;
+reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1
 reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!insert	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1 LINES zzz;
 reject	reject	engine	opt_ignore_lines/IGNORE_SYM_NUM_lines_or_rows!swap	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE_SERVER_IDS 1 LINES;
 accept	accept	engine	lines_or_rows/LINES	LOAD DATA INFILE 's' INTO TABLE utf8mb4 IGNORE 1 LINES;
@@ -9184,10 +9184,10 @@ reject	reject	engine	lines_or_rows/ROWS_SYM!swap	LOAD DATA INFILE 's' INTO TABLE
 accept	accept	engine	opt_field_or_var_spec/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
 accept	accept	engine	opt_field_or_var_spec/(_fields_or_vars_)	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4);
 reject	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!drop-1	LOAD DATA INFILE 's' INTO TABLE utf8mb4 utf8mb4);
-accept	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!drop-3	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4;
-accept	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4
+reject	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!drop-3	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4;
+reject	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4
 reject	reject	engine	opt_field_or_var_spec/(_fields_or_vars_)!insert	LOAD DATA INFILE 's' INTO TABLE utf8mb4(utf8mb4) zzz;
-reject	accept	engine	opt_field_or_var_spec/(_)	LOAD DATA INFILE 's' INTO TABLE utf8mb4();
+accept	accept	engine	opt_field_or_var_spec/(_)	LOAD DATA INFILE 's' INTO TABLE utf8mb4();
 reject	reject	engine	opt_field_or_var_spec/(_)!drop-1	LOAD DATA INFILE 's' INTO TABLE utf8mb4);
 reject	reject	engine	opt_field_or_var_spec/(_)!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4(;
 reject	reject	engine	opt_field_or_var_spec/(_)!truncate	LOAD DATA INFILE 's' INTO TABLE utf8mb4(
@@ -9227,7 +9227,7 @@ reject	reject	engine	load_data_set_list/load_data_set_list_,_load_data_set_elem!
 accept	accept	engine	load_data_set_list/load_data_set_elem	LOAD DATA INFILE 's' INTO TABLE utf8mb4 SET utf8mb4 = utf8mb4;
 accept	accept	engine	load_data_set_elem/simple_ident_nospvar_equal_expr_or_default	LOAD DATA INFILE 's' INTO TABLE utf8mb4 SET utf8mb4 = utf8mb4;
 accept	accept	engine	opt_load_algorithm/%empty	LOAD DATA INFILE 's' INTO TABLE utf8mb4;
-reject	accept	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM	LOAD DATA INFILE 's' INTO TABLE utf8mb4 ALGORITHM = BULK;
+accept	accept	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM	LOAD DATA INFILE 's' INTO TABLE utf8mb4 ALGORITHM = BULK;
 reject	reject	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM!drop-1	LOAD DATA INFILE 's' INTO TABLE utf8mb4 = BULK;
 reject	reject	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM!drop-2	LOAD DATA INFILE 's' INTO TABLE utf8mb4 ALGORITHM BULK;
 reject	reject	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM!drop-3	LOAD DATA INFILE 's' INTO TABLE utf8mb4 ALGORITHM =;

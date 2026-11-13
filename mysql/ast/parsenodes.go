@@ -1826,6 +1826,10 @@ type LoadDataStmt struct {
 	FieldsOptionalEncl bool // OPTIONALLY ENCLOSED BY
 	FieldsEscapedBy    string
 	IgnoreRows         int
+	SourceURL          bool // URL 'source' in place of INFILE
+	SourceCount        int  // COUNT n (0 when not written)
+	InPrimaryKeyOrder  bool // IN PRIMARY KEY ORDER
+	AlgorithmBulk      bool // ALGORITHM = BULK
 }
 
 func (s *LoadDataStmt) nodeTag()  {}
