@@ -6,13 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-// TrinoParsingException is the class of the exception Trino's parser
-// throws, as an error's failureInfo names it: SqlParser's for text the
-// grammar does not derive, and AstBuilder's for what the grammar derives
-// and the AST refuses, such as an identifier that starts with a digit.
-const TrinoParsingException = "io.trino.sql.parser.ParsingException"
-
-// trinoSyntaxError is the errorName of every ParsingException.
+// trinoSyntaxError is the errorName of Trino's syntax errors.
 const trinoSyntaxError = "SYNTAX_ERROR"
 
 // A TrinoError is what a Trino server's answer to a failed statement says,
@@ -20,28 +14,27 @@ const trinoSyntaxError = "SYNTAX_ERROR"
 type TrinoError struct {
 	// Name is errorName, such as SYNTAX_ERROR or TABLE_NOT_FOUND.
 	Name string
-	// Type is failureInfo.type, the class of the exception.
-	Type string
 	// Line and Column are errorLocation: from 1, Column in code points, as
 	// ANTLR counts them. 0 is no location.
 	Line, Column int
 }
 
-// TrinoVerdict reads a Trino server's answer to a statement: whether its
-// parser accepts it. err is what running the statement returned, and read
+// TrinoVerdict reads a Trino server's answer to a statement: whether Trino
+// takes its syntax. err is what running the statement returned, and read
 // returns what the server said, or false for an error the server did not
 // send (a dropped connection, a timeout, an HTTP status).
 //
-// The parser's refusal is a ParsingException, at the byte of its location.
-// Its errorName, SYNTAX_ERROR, is not enough: the analyzer and the metadata
-// layer raise SYNTAX_ERROR too, after the parse, as for a table name with
-// too many dots, and those statements parsed. So does every other error,
-// and a statement that ran.
+// SYNTAX_ERROR is a rejection, at the byte of its location where it has one.
+// The parser raises it, for text the grammar does not derive and for what
+// its AST builder refuses (an identifier that starts with a digit). So do a
+// few checks after the parse that read only the text, which omni's parser
+// makes too: a name with too many parts, an INTERVAL qualifier whose fields
+// are out of order, two isolation levels. Every other error comes after the
+// parse and is an acceptance, as is a statement that ran.
 //
 // An answer that is no verdict comes back as an error, so the caller fails
-// rather than records agreement: an error the server did not send, one with
-// no exception class, a ParsingException under another name, and a
-// location outside the statement.
+// rather than records agreement: an error the server did not send, one
+// with no errorName, and a location outside the statement.
 func TrinoVerdict(statement string, err error, read func(error) (TrinoError, bool)) (string, error) {
 	if err == nil {
 		return Accept, nil
@@ -50,14 +43,11 @@ func TrinoVerdict(statement string, err error, read func(error) (TrinoError, boo
 	if !ok {
 		return "", err
 	}
-	if e.Type == "" {
-		return "", fmt.Errorf("Trino answered %s with no exception class: %w", e.Name, err)
-	}
-	if e.Type != TrinoParsingException {
-		return Accept, nil
+	if e.Name == "" {
+		return "", fmt.Errorf("Trino answered with no errorName: %w", err)
 	}
 	if e.Name != trinoSyntaxError {
-		return "", fmt.Errorf("Trino's parser answered %s, not %s: %w", e.Name, trinoSyntaxError, err)
+		return Accept, nil
 	}
 	if e.Line == 0 && e.Column == 0 {
 		return Reject, nil
