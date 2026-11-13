@@ -26,7 +26,7 @@ const (
 
 var (
 	exprName   = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
-	numberName = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms)(_?[0-9]+|_|$)`)
+	numberName = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
 	queryName  = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|copy_statement)$`)
 	typeName   = regexp.MustCompile(`(^|_)(data_type|col_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
 	stringName = regexp.MustCompile(`(^|_|-)(string|literal)(_?[0-9]+|_|-|$)`)
@@ -233,6 +233,9 @@ type failure struct {
 }
 
 var errUndefined = errors.New("undefined")
+
+// listName is the name of a list of settings, which a fragment holds.
+var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
 // missingBar finds the typo many SHOW pages share: the IN list's
 // <schema_name> line has no | before the APPLICATION lines after it.
@@ -583,6 +586,9 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	if len(toks) == 0 {
 		return nil, fmt.Errorf("no syntax")
 	}
+	if err := c.checkWords(toks); err != nil {
+		return nil, err
+	}
 	tree, err := parseNotation(toks)
 	if err != nil {
 		return nil, err
@@ -678,7 +684,8 @@ func (c *converter) token(t ntok) (string, error) {
 			return c.fragName(t.text), nil
 		}
 		if strings.ToLower(t.text) == t.text {
-			// A lowercase value, as in API_PROVIDER = { aws_api_gateway | ... }.
+			// A lowercase value, as in API_PROVIDER = { aws_api_gateway | ... }:
+			// checkWords let it through only where a value stands.
 			return quote(t.text), nil
 		}
 		return "", fmt.Errorf("%w fragment %q: the page does not define it, or it did not convert", errUndefined, t.text)
@@ -686,6 +693,35 @@ func (c *converter) token(t ntok) (string, error) {
 		return "", errElided
 	}
 	return "", fmt.Errorf("token %q", t.text)
+}
+
+// checkWords refuses a lowercase word the page does not define unless it
+// stands where a value does, first in its alternative (after =, |, {, [
+// or (), or where a property's name does, before =. Anywhere else, as in
+// TYPE = OAUTH2 oauth_parameters, it names a fragment the page never
+// wrote down.
+func (c *converter) checkWords(toks []ntok) error {
+	for i, t := range toks {
+		if t.kind != nFragment || c.defs[t.text] || strings.ToLower(t.text) != t.text {
+			continue
+		}
+		valueBefore := i > 0 && (toks[i-1].kind == nBar || toks[i-1].kind == nOpen || isLiteral(toks[i-1], "=") || isLiteral(toks[i-1], "("))
+		valueAfter := i+1 < len(toks) && isLiteral(toks[i+1], "=")
+		// A word alone in braces is text to fill in, as <name> is:
+		// APPLICATION {app_name}. One that names a list of parameters,
+		// {oauth_parameters}, is a fragment the page never wrote down.
+		if i > 0 && toks[i-1].kind == nOpen && toks[i-1].text == "{" && i+1 < len(toks) && toks[i+1].kind == nClose {
+			if listName.MatchString(t.text) {
+				return fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
+			}
+			toks[i].kind = nPlaceholder
+			continue
+		}
+		if !valueBefore && !valueAfter {
+			return fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
+		}
+	}
+	return nil
 }
 
 // quote writes text as an ANTLR literal.

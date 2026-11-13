@@ -33,6 +33,11 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"COMMENT = '<string_literal>'", "'COMMENT' '=' STRING"},
 		{"TYPE = 'SNOWPARK-OPTIMIZED'", "'TYPE' '=' '\\'SNOWPARK-OPTIMIZED\\''"},
 		{"FROM @[<namespace>.]<stage_name>[/<path>/]", "'FROM' STAGE"},
+		{"START = <initial_value>", "'START' '=' NUMBER"},
+		// [ X , ... ] is an optional list, commas kept.
+		{"DROP FUNCTION <name> ( [ <arg_data_type> , ... ] )", "'DROP' 'FUNCTION' ID '(' (DATA_TYPE (',' DATA_TYPE)*)? ')'"},
+		// [ KEY = A | B ]: each choice is a value of KEY.
+		{"SET [ SECRETS = ( <s> ) | all | none ]", "'SET' ('SECRETS' '=' '(' ID ')' | 'SECRETS' '=' 'all' | 'SECRETS' '=' 'none')"},
 		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
 		// A | inside SQL's parentheses chooses within them.
@@ -97,6 +102,20 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 
 func TestElidedTextIsNotConverted(t *testing.T) {
 	c := &converter{page: "p", defs: map[string]bool{}}
+	// A lowercase word is a value beside = or |, and an undefined fragment
+	// anywhere else.
+	if _, err := c.form("API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
+		t.Errorf("lowercase values: %v", err)
+	}
+	if _, err := c.form("{ TYPE = app | TYPE = OAUTH2 oauth_parameters | TYPE = NONE }"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+		t.Errorf("an undefined lowercase fragment: got %v", err)
+	}
+	if _, err := c.form("( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+		t.Errorf("a lowercase word alone in braces: got %v", err)
+	}
+	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
+		t.Errorf("a placeholder in braces: got %v, %v", got, err)
+	}
 	for _, in := range []string{"SELECT * ILIKE ... REPLACE ...", "[ ... ] SELECT 1", "VALUES ( ... )"} {
 		if _, err := c.form(in); err != errElided {
 			t.Errorf("%s: got %v, want errElided", in, err)

@@ -353,7 +353,38 @@ func resolveEllipses(alts [][]*node) ([][]*node, error) {
 		}
 		out[i] = r
 	}
-	return out, nil
+	return scopeValueChoice(out), nil
+}
+
+// scopeValueChoice reads [ KEY = A | B | C ] as KEY = one of A, B or C:
+// where the first alternative assigns a property and the others are bare
+// values, each other takes the first one's KEY =.
+func scopeValueChoice(alts [][]*node) [][]*node {
+	if len(alts) < 2 || len(alts[0]) < 3 {
+		return alts
+	}
+	head := alts[0]
+	if head[0].tok == nil || head[0].tok.kind != nKeyword || head[1].tok == nil || !isLiteral(*head[1].tok, "=") {
+		return alts
+	}
+	for _, alt := range alts[1:] {
+		if len(alt) == 0 {
+			return alts
+		}
+		for _, n := range alt {
+			if n.tok != nil && isLiteral(*n.tok, "=") {
+				return alts
+			}
+		}
+		if alt[0].tok != nil && alt[0].tok.text == head[0].tok.text {
+			return alts
+		}
+	}
+	out := [][]*node{head}
+	for _, alt := range alts[1:] {
+		out = append(out, append(append([]*node(nil), head[:2]...), alt...))
+	}
+	return out
 }
 
 func resolveSeq(seq []*node) ([]*node, error) {
@@ -440,6 +471,12 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 			if err != nil {
 				return nil, err
 			}
+			if n.op == '?' && optionalList(n) {
+				// [ X , ... ]: ( X ( , X )* )?
+				x := &node{alts: alts, brace: true}
+				out = append(out, &node{alts: [][]*node{{x, repeatAfterComma(x)}}, op: '?'})
+				continue
+			}
 			out = append(out, &node{alts: alts, op: n.op, brace: n.brace})
 			if n.op == '?' && len(alts) == 1 && trailingRepeat(n) {
 				out[len(out)-1].op = '*'
@@ -488,7 +525,8 @@ func resolveGroup(n *node) ([][]*node, error) {
 	if !n.brace && len(n.alts) == 1 && trailingRepeat(n) {
 		seq := n.alts[0]
 		body := seq[:len(seq)-1]
-		if len(body) >= 2 && isComma(body[len(body)-1]) {
+		comma := len(body) >= 2 && isComma(body[len(body)-1])
+		if comma {
 			body = body[:len(body)-1]
 		}
 		if len(body) == 0 || (len(body) == 1 && isComma(body[0])) {
@@ -501,6 +539,17 @@ func resolveGroup(n *node) ([][]*node, error) {
 		return [][]*node{r}, nil
 	}
 	return resolveEllipses(n.alts)
+}
+
+// optionalList reports whether a [ ] group is a list of one or more
+// elements with commas between, [ X , ... ], which is optional as a whole
+// rather than repeated as written.
+func optionalList(n *node) bool {
+	if n.brace || len(n.alts) != 1 || !trailingRepeat(n) {
+		return false
+	}
+	seq := n.alts[0]
+	return len(seq) >= 3 && isComma(seq[len(seq)-2]) && !isComma(seq[0])
 }
 
 // isRepeatable reports whether X ... can repeat X: a value or a group, not
