@@ -7,71 +7,26 @@ import (
 	"fmt"
 	"maps"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
-// analyzeOracle is a PostgreSQL 18 server, the release pg_proc_generated.go
-// is generated from, that the analyzer's results are compared with.
+// analyzeOracle is a test's connection to PostgreSQL 18, the release
+// pg_proc_generated.go is generated from, that the analyzer's results are
+// compared with: a replay of its tape, or the pinned pg18 server in a
+// recording (pg/internal/testcontainer).
 type analyzeOracle struct {
-	db  *sql.DB
-	ctx context.Context
+	db      *sql.DB
+	ctx     context.Context
+	schemas int // the schemas session has made
 }
-
-var (
-	analyzeOracleOnce    sync.Once
-	analyzeOracleInst    *analyzeOracle
-	analyzeOracleErr     error
-	analyzeOracleSchemas atomic.Int64
-)
 
 func startAnalyzeOracle(t *testing.T) *analyzeOracle {
 	t.Helper()
-	analyzeOracleOnce.Do(func() {
-		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:18-alpine",
-			tcpg.WithDatabase("omni_analyze"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
-		if err != nil {
-			analyzeOracleErr = fmt.Errorf("container start: %w", err)
-			return
-		}
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			analyzeOracleErr = fmt.Errorf("ping: %w", err)
-			return
-		}
-		analyzeOracleInst = &analyzeOracle{db: db, ctx: ctx}
-	})
-	if analyzeOracleErr != nil {
-		t.Fatalf("PostgreSQL 18 oracle required: %v", analyzeOracleErr)
-	}
-	return analyzeOracleInst
+	return &analyzeOracle{db: testcontainer.OpenRole(t, testcontainer.PG18), ctx: context.Background()}
 }
 
 // session opens a connection with its own schema holding setup, first on the
@@ -82,7 +37,8 @@ func (o *analyzeOracle) session(t *testing.T, setup string) *sql.Conn {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := fmt.Sprintf("analyze_%d", analyzeOracleSchemas.Add(1))
+	o.schemas++
+	schema := fmt.Sprintf("analyze_%d", o.schemas)
 	t.Cleanup(func() {
 		_, _ = conn.ExecContext(o.ctx, fmt.Sprintf("DROP SCHEMA %s CASCADE", schema))
 		conn.Close()
@@ -481,7 +437,7 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		byOID[BuiltinProcs[i].OID] = &BuiltinProcs[i]
 	}
 
-	rows, err := o.db.QueryContext(o.ctx, `SELECT oid, pronargdefaults, array_to_string(proargnames, ',') FROM pg_proc WHERE oid < 16384`)
+	rows, err := o.db.QueryContext(o.ctx, `SELECT oid, pronargdefaults, array_to_string(proargnames, ',') FROM pg_proc WHERE oid < 16384 ORDER BY oid`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,7 +469,8 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 	rows, err = o.db.QueryContext(o.ctx, `SELECT t.oid FROM pg_type t
 		WHERE EXISTS (SELECT 1 FROM pg_operator o WHERE o.oprname IN ('<', '>') AND o.oprleft = t.oid AND o.oprright = t.oid)
 		AND NOT EXISTS (SELECT 1 FROM pg_opclass c JOIN pg_am a ON a.oid = c.opcmethod
-			WHERE a.amname = 'btree' AND c.opcdefault AND c.opcintype = t.oid)`)
+			WHERE a.amname = 'btree' AND c.opcdefault AND c.opcintype = t.oid)
+		ORDER BY t.oid`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +487,7 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		t.Errorf("types with < or > but no default btree class: postgres %v, builtinTypesWithoutBtreeOrder %v", unordered, builtinTypesWithoutBtreeOrder)
 	}
 
-	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384`)
+	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384 ORDER BY 1`)
 	if err != nil {
 		t.Fatal(err)
 	}

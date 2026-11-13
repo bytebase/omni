@@ -2,9 +2,13 @@ package testcontainer
 
 import (
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
 func TestCodecRoundTrips(t *testing.T) {
@@ -26,6 +30,11 @@ func TestCodecRoundTrips(t *testing.T) {
 		if err := (Codec{}).DecodeError(text); !errors.As(err, &out) || *out != *in {
 			t.Errorf("%q decodes to %#v, want %#v", text, err, in)
 		}
+	}
+	catalogKey := &pgconn.PgError{Severity: "ERROR", Code: "23505", Message: `duplicate key value violates unique constraint "pg_enum_typid_label_index"`,
+		Detail: "Key (enumtypid, enumlabel)=(52831, a) already exists.", SchemaName: "pg_catalog", TableName: "pg_enum"}
+	if text, _ := (Codec{}).EncodeError(catalogKey); !strings.Contains(text, "detail: Key (enumtypid, enumlabel)=(…, a) already exists.") || catalogKey.Detail != "Key (enumtypid, enumlabel)=(52831, a) already exists." {
+		t.Errorf("a catalog key's OID is written %q, and the error left %q", text, catalogKey.Detail)
 	}
 	if _, ok := (Codec{}).EncodeError(errors.New("unexpected EOF")); ok {
 		t.Error("a dropped connection was encoded as the engine's answer")
@@ -49,5 +58,19 @@ func TestDatabaseNamesATestsDatabase(t *testing.T) {
 func TestVersionReadsASourceTag(t *testing.T) {
 	if got := Version("REL_17_12"); got != "17.12" {
 		t.Errorf("Version = %q", got)
+	}
+}
+
+// TestCodecRenamesOIDs pins that the codec is a tape.Renamer whose stand-ins
+// it matches itself, so a stand-in a test sends back reaches the server as
+// the OID it stands for, and that no OID's text is one.
+func TestCodecRenamesOIDs(t *testing.T) {
+	var r tape.Renamer = Codec{}
+	in := r.StandIn("oid:16390", 3)
+	if in != "oid:03" || !r.MadeUp().MatchString(in) {
+		t.Errorf("stand-in %q does not match %v", in, r.MadeUp())
+	}
+	if got := r.MadeUp().FindAllString("'oid:' || c.oid, oid:16390, oid:0", -1); !slices.Equal(got, []string{"oid:16390", "oid:0"}) {
+		t.Errorf("MadeUp found %q", got)
 	}
 }

@@ -395,6 +395,18 @@ func TestParseRejectsMalformedRows(t *testing.T) {
 			t.Errorf("%q: got %v, want an error holding %q", c.rows, err, c.want)
 		}
 	}
+	for _, c := range []struct{ rows, want string }{
+		{"0a000\t42P07\tengine\tfx\tr/B\tB\n", "omni:"},
+		{"42P07\t42P0\tengine\tfx\tr/B\tB\n", "expected:"},
+	} {
+		if _, err := Parse("simulate.tsv", []byte(header+c.rows)); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%q: got %v, want an error holding %q", c.rows, err, c.want)
+		}
+	}
+	// A SQLSTATE is an error code, as PostgreSQL gives one.
+	if _, err := Parse("simulate.tsv", []byte(header+"0A000\t42P07\tengine\tfx\tr/B\tB\n")); err != nil {
+		t.Errorf("a SQLSTATE: %v", err)
+	}
 	// One statement on two fixtures is two rows, and a statement keeps its tabs.
 	f, err := Parse("simulate.tsv", []byte(header+"1060\t1060\tengine\tfx\tr/B\tB\n1060\t1060\tengine\tfy\tr/B\tB\tx \n"))
 	if err != nil || len(f.Rows) != 2 || f.Rows[1].Statement != "B\tx " {
