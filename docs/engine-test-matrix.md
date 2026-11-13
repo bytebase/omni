@@ -7,7 +7,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | Engine | Current live test backend | Remaining work |
 | --- | --- | --- |
 | `cassandra` | No local database oracle | Add native Cassandra coverage. |
-| `cosmosdb` | No local database oracle | Add the official Cosmos DB NoSQL emulator. |
+| `cosmosdb` | No server. `cosmosdb/parser` replays `compat.tsv`, judged by Microsoft's grammar: `cosmosdb/testdata/sql.g4` at `3.64.0` of the .NET SDK, and by the query reference where it takes more (`grammar-overrides.tsv`) | The 19 disagreeing rows of 450. Add the official Cosmos DB NoSQL emulator, which would judge as the engine. |
 | `doris` | `dyrnq/doris:3.1.4` | Upgrade the native baseline after checking dialect drift. |
 | `elasticsearch` | No local database oracle | Add native Elasticsearch request coverage. |
 | `googlesql` | Spanner emulator `1.5.54` | Covers the GoogleSQL subset implemented by Spanner. Shared helper: `googlesql/internal/testcontainer`. |
