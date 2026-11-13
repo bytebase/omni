@@ -9976,9 +9976,9 @@ func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
 func TestParseCacheIndexPartition(t *testing.T) {
 	tests := []string{
 		"CACHE INDEX t1 PARTITION (p0, p1) IN hot_cache",
-		"CACHE INDEX t1 PARTITION ALL IN hot_cache",
+		"CACHE INDEX t1 PARTITION (ALL) IN hot_cache",
 		"CACHE INDEX t1 INDEX (idx1, idx2) IN hot_cache",
-		"CACHE INDEX t1 KEY (idx1) PARTITION (p0) IN hot_cache",
+		"CACHE INDEX t1 PARTITION (p0) KEY (idx1) IN hot_cache",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10423,14 +10423,17 @@ func TestParseFlush(t *testing.T) {
 	}
 }
 
+// TestParseReset: MySQL 8.0's reset_option is SLAVE, REPLICA or MASTER, and
+// RESET PERSIST is its own arm; the query cache is gone, so RESET QUERY CACHE
+// is a 1064.
 func TestParseReset(t *testing.T) {
-	tests := []string{
-		"RESET QUERY CACHE",
-	}
-	for _, sql := range tests {
+	for _, sql := range []string{"RESET REPLICA", "RESET MASTER", "RESET PERSIST", "RESET PERSIST IF EXISTS a.b"} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
+	}
+	if _, err := Parse("RESET QUERY CACHE"); err == nil {
+		t.Error("Parse(RESET QUERY CACHE) succeeded, want a syntax error")
 	}
 }
 

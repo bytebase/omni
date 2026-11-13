@@ -4111,7 +4111,10 @@ func writeInstallComponentStmt(sb *strings.Builder, n *InstallComponentStmt) {
 	}
 	if len(n.SetVars) > 0 {
 		sb.WriteString(" :set_vars")
-		for _, v := range n.SetVars {
+		for i, v := range n.SetVars {
+			if i < len(n.SetScopes) && n.SetScopes[i] != "" {
+				sb.WriteString(" " + n.SetScopes[i])
+			}
 			sb.WriteString(" ")
 			writeNode(sb, v)
 		}

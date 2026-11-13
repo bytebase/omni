@@ -9614,9 +9614,9 @@ func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
 func TestParseCacheIndexPartition(t *testing.T) {
 	tests := []string{
 		"CACHE INDEX t1 PARTITION (p0, p1) IN hot_cache",
-		"CACHE INDEX t1 PARTITION ALL IN hot_cache",
+		"CACHE INDEX t1 PARTITION (ALL) IN hot_cache",
 		"CACHE INDEX t1 INDEX (idx1, idx2) IN hot_cache",
-		"CACHE INDEX t1 KEY (idx1) PARTITION (p0) IN hot_cache",
+		"CACHE INDEX t1 PARTITION (p0) KEY (idx1) IN hot_cache",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10060,11 +10060,20 @@ func TestParseFlush(t *testing.T) {
 func TestParseReset(t *testing.T) {
 	tests := []string{
 		"RESET QUERY CACHE",
+		"RESET QUERY CACHE, MASTER",
+		"RESET QUERY CACHE, MASTER TO 5, SLAVE ALL, QUERY CACHE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
+	}
+	// reset_options needs an option after each comma; ulong_num puts
+	// opt_plus only before decimal numbers, not before a 0x number.
+	for _, sql := range []string{"RESET QUERY CACHE,", "RESET QUERY CACHE, zzz", "RESET MASTER TO +0x41"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want an error", sql)
+		}
 	}
 }
 

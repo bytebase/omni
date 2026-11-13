@@ -706,8 +706,15 @@ func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, erro
 func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) {
 	start := p.pos()
 	p.advance() // consume PURGE
-	p.advance() // consume BINARY or MASTER
-	p.advance() // consume LOGS
+	// PURGE {BINARY | MASTER} LOGS {TO 'log' | BEFORE expr}, whole.
+	//
+	// Ref: purge in MySQL 8.0 sql/sql_yacc.yy.
+	if _, ok := p.match(kwBINARY, kwMASTER); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwLOGS); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.PurgeBinaryLogsStmt{
 		Loc: nodes.Loc{Start: start},
@@ -715,10 +722,10 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.cur.Type == tokSCONST {
-			stmt.To = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.To = p.advance().Str
 	} else if p.cur.Type == kwBEFORE {
 		p.advance() // consume BEFORE
 		expr, err := p.parseExpr()
@@ -729,6 +736,8 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.BeforeExpr = expr
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -750,14 +759,25 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.cur.Type == tokICONST {
-			// The index is held to 1..2000000000 while the statement parses (3567).
-			if p.cur.Ival < 1 || p.cur.Ival > 2000000000 {
-				return nil, &ParseError{Message: "The requested value '" + p.cur.Str + "' is out of range for RESET MASTER TO", Position: p.cur.Loc}
+		// real_ulonglong_num: an integer or a 0x number, required. The index
+		// is held to 1..2000000000 while the statement parses (3567).
+		tok := p.cur
+		switch {
+		case tok.Type == tokICONST:
+		case tok.Type == tokXCONST && strings.HasPrefix(strings.ToLower(tok.Str), "0x"):
+			n, err := strconv.ParseInt(tok.Str[2:], 16, 64)
+			if err != nil {
+				n = math.MaxInt64
 			}
-			stmt.To = p.cur.Ival
-			p.advance()
+			tok.Ival = n
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		if tok.Ival < 1 || tok.Ival > 2000000000 {
+			return nil, &ParseError{Message: "The requested value '" + tok.Str + "' is out of range for RESET MASTER TO", Position: tok.Loc}
+		}
+		stmt.To = tok.Ival
+		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
