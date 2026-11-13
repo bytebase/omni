@@ -39,9 +39,9 @@ var (
 		_, err := p.parseVariableRef()
 		return err == nil
 	})
-	// var_name: a name that is none of the words a role may not be called.
+	// var_name: NAME_OB or unreserved_keyword_normal.
 	sysVarName = sysLeaf(func(p *Parser) bool {
-		if isAmbiguousRoleWord(p.cur.Type) {
+		if p.curIsNotNormalKeyword() {
 			return false
 		}
 		_, _, err := p.parseIdent()
@@ -212,6 +212,27 @@ var clusterForms = map[string]sysPat{
 		sysForm("TABLEGROUP", sysIfExists, sysObjName),
 		sysForm("SEQUENCE", sysIfExists, sysObjFactor),
 	),
+}
+
+// curIsNotNormalKeyword reports whether the current token is an unreserved keyword
+// that unreserved_keyword_normal leaves out, written bare: the words a role may not
+// be called (unreserved_keyword_ambiguous_roles), PASSWORD, ACCESS, and the two of
+// unreserved_keyword_adb_compatible, MAXVALUE and RANGE. Each is a name where the
+// grammar writes relation_name and none where it writes var_name: SET range = 1
+// is a 1064, and so is CREATE TENANT t SET range = 1.
+//
+// Ref: unreserved_keyword and unreserved_keyword_for_role_name in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 25806).
+func (p *Parser) curIsNotNormalKeyword() bool {
+	if isAmbiguousRoleWord(p.cur.Type) {
+		return true
+	}
+	for _, w := range []string{"PASSWORD", "ACCESS", "MAXVALUE", "RANGE"} {
+		if p.isBareWord(w) {
+			return true
+		}
+	}
+	return false
 }
 
 // clusterObjectAhead reports whether the token after CREATE, ALTER or DROP
