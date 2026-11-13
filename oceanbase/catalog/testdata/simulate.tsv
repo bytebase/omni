@@ -676,16 +676,16 @@ ok:2c46dc8f702b	ok:2c46dc8f702b	engine	one_table@table	data_type/BOOLEAN	ALTER T
 ok:c56663f91704	ok:c56663f91704	engine	one_table@table	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
 ok:1ceca8608979	ok:1ceca8608979	engine	one_table@table	data_type/date_year_type_i	ALTER TABLE a ADD a DATE
 ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/CHARACTER_opt_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a CHARACTER
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER
 ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/VARCHAR_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a VARCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR VARCHAR(1)
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary!drop-2	ALTER TABLE a ADD a NCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NVARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NVARCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL VARCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR VARCHAR(1)
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary!drop-2	ALTER TABLE a ADD a NCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NVARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NVARCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL VARCHAR(1)
 ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/CHARACTER_VARYING_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a CHARACTER VARYING(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1)
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary!drop-3	ALTER TABLE a ADD a NATIONAL CHARACTER(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1)
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary!drop-3	ALTER TABLE a ADD a NATIONAL CHARACTER(1)
 ok:7ed82b4befd0	ok:7ed82b4befd0	engine	one_table@table	data_type/blob_type_i_opt_string_length_i_v2	ALTER TABLE a ADD a TINYBLOB
 ok:c69cd6ca0ee3	ok:c69cd6ca0ee3	engine	one_table@table	data_type/text_type_i_opt_string_length_i_v2_opt_binary_opt_charset	ALTER TABLE a ADD a TINYTEXT
 ok:866bce9378bb	ok:866bce9378bb	engine	one_table@table	data_type/BINARY_opt_string_length_i	ALTER TABLE a ADD a BINARY
@@ -739,7 +739,7 @@ ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_INT
 1064	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 ok:bdd06257c2b9	ok:bdd06257c2b9	engine	one_table@table	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 ok:9bf4c7fb445a	ok:9bf4c7fb445a	engine	one_table@table	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	ok:2734973dd91f	engine	one_table@table	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+ok:2734973dd91f	ok:2734973dd91f	engine	one_table@table	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 ok:89cba07c9b2c	ok:89cba07c9b2c	engine	one_table@table	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 ok:faef2eb30e44	ok:faef2eb30e44	engine	one_table@table	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
@@ -1308,7 +1308,7 @@ ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE
 1064	1060	engine	one_table@column	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	1060	engine	one_table@column	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+1060	1060	engine	one_table@column	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 1060	1060	engine	one_table@column	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 1060	1060	engine	one_table@column	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 1060	1060	engine	one_table@column	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
@@ -1877,7 +1877,7 @@ ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE 
 1064	1060	engine	one_table@index	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	1060	engine	one_table@index	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+1060	1060	engine	one_table@index	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 1060	1060	engine	one_table@index	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 1060	1060	engine	one_table@index	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 1060	1060	engine	one_table@index	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
