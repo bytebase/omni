@@ -4,12 +4,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
 
-// TestMain removes the Trino server a test started.
+// TestMain runs the tests through the tape harness and removes the Trino
+// server a recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
+	code := tape.Main(m)
 	testcontainer.Terminate()
 	os.Exit(code)
 }

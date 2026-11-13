@@ -164,28 +164,6 @@ func TestRelation_RejectCorpusRejected(t *testing.T) {
 	}
 }
 
-func TestRelation_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	check := func(t *testing.T, sql string) {
-		_, errs := parseForTest(sql)
-		omniAccepts := len(errs) == 0
-		trinoAccepts, ok := oracleAccepts(t, o, sql)
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
-		if omniAccepts != trinoAccepts {
-			t.Errorf("MISMATCH sql=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
-				sql, omniAccepts, errs, trinoAccepts)
-		}
-	}
-	for _, sql := range relationAcceptCorpus {
-		t.Run("accept/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-	for _, sql := range relationRejectCorpus {
-		t.Run("reject/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-}
-
 // ---------------------------------------------------------------------------
 // structural tests
 // ---------------------------------------------------------------------------

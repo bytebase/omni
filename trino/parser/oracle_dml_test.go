@@ -4,12 +4,9 @@ import (
 	"testing"
 )
 
-// This file is the parser-dml node's differential-oracle gate
-// (correctness-protocol.md): for every statement in the corpus below, omni's
-// Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
-// reject and every other outcome — success or a semantic error like
-// TABLE_NOT_FOUND / COLUMN_NOT_FOUND / NOT_SUPPORTED — as accept).
+// The corpus below is the suite:dml rows of testdata/compat.tsv: Trino judged
+// each statement, and TestCompatibility holds omni's Parse to that verdict with
+// no server (TestCompatibilitySuitesAreTheCorpora keeps the two the same).
 //
 // The corpus is NOT split into hardcoded accept/reject lists: the oracle is the
 // source of truth, so each case is run through both omni and Trino and the two
@@ -26,8 +23,6 @@ import (
 // in dmlBranchDivergenceCorpus below and asserted as a KNOWN, flagged divergence
 // (omni rejects, Trino accepts) rather than mixed into the parity gate, so the
 // gate stays a true equality check.
-//
-// Skipped cleanly when no Trino oracle is reachable.
 
 // dmlOracleCorpus is the full DML statement corpus for the differential gate.
 // Each string is fed to both omni and the oracle; the verdicts must match.
@@ -151,28 +146,6 @@ var dmlOracleCorpus = []string{
 	"MERGE INTO acc t USING src s ON t.c = s.c WHEN NOT MATCHED THEN foo VALUES (1)",                 // NOT MATCHED action must be the INSERT keyword
 }
 
-// TestDML_OracleDifferential is the authoritative accept/reject gate: omni's
-// Parse verdict must equal Trino 481's verdict for every corpus statement.
-func TestDML_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	for _, sql := range dmlOracleCorpus {
-		sql := sql
-		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := parseForTest(sql)
-			omniAccepts := len(errs) == 0
-
-			trinoAccepts, ok := oracleAccepts(t, o, sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
-			if omniAccepts != trinoAccepts {
-				t.Errorf("MISMATCH %q: omni accepts=%v (errs=%v), Trino accepts=%v",
-					sql, omniAccepts, errs, trinoAccepts)
-			}
-		})
-	}
-}
-
 // dmlBranchDivergenceCorpus holds the `@ branch_name` DML forms (divergence
 // ledger #5). Trino 481 ACCEPTS each; omni REJECTS each because the lexer emits
 // no '@' token. This documents and pins the known divergence so a future lexer
@@ -203,10 +176,7 @@ func TestDML_BranchDivergence(t *testing.T) {
 					"promote this case into dmlOracleCorpus and update divergence ledger #5", sql)
 			}
 
-			trinoAccepts, ok := oracleAccepts(t, o, sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
+			trinoAccepts := oracleAccepts(t, o, sql)
 			if !trinoAccepts {
 				t.Errorf("ORACLE CHANGED: Trino 481 now REJECTS %q — revisit divergence ledger #5", sql)
 			}
