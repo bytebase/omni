@@ -257,12 +257,11 @@ func splitStatements(filename string, lines []processedLine) []ExtractedStmt {
 			atomicDepth++
 		} else if word == "CASE" && atomicDepth > 0 {
 			atomicCaseDepth++
+		} else if word == "END" && atomicCaseDepth > 0 {
+			// A CASE closes wherever it stands, inside parentheses too.
+			atomicCaseDepth--
 		} else if word == "END" && atomicDepth > 0 && parenDepth == 0 {
-			if atomicCaseDepth > 0 {
-				atomicCaseDepth--
-			} else {
-				atomicDepth--
-			}
+			atomicDepth--
 		}
 		lastWord = word
 	}

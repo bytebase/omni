@@ -130,6 +130,19 @@ SELECT 1;`
 	}
 }
 
+// TestExtract_BeginAtomicWithParenthesizedCase pins that a CASE's END closes
+// the CASE inside parentheses too, so the body's own END closes the block.
+func TestExtract_BeginAtomicWithParenthesizedCase(t *testing.T) {
+	input := "CREATE FUNCTION f() RETURNS int LANGUAGE SQL BEGIN ATOMIC SELECT (CASE WHEN true THEN 1 ELSE 2 END); END; SELECT 42; SELECT 43;"
+	stmts := ExtractStatements("test.sql", []byte(input))
+	if len(stmts) != 3 {
+		t.Fatalf("expected 3 statements, got %d: %v", len(stmts), stmtsSQL(stmts))
+	}
+	if stmts[1].SQL != "SELECT 42" || stmts[2].SQL != "SELECT 43" {
+		t.Fatalf("statements after the function = %q, %q", stmts[1].SQL, stmts[2].SQL)
+	}
+}
+
 func TestExtract_NestedDollarQuote(t *testing.T) {
 	input := "DO $$ BEGIN EXECUTE $q$ SELECT 1; $q$; END $$;"
 	stmts := ExtractStatements("test.sql", []byte(input))
