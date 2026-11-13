@@ -46,6 +46,21 @@ func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
 	return p.parseAExprTail(left, loc, minPrec)
 }
 
+// parseRequiredAExpr parses an a_expr at a position where gram.y requires
+// one. parseAExpr answers (nil, nil) when no expression starts at the current
+// token; here that is a syntax error at that token. In collect mode it
+// returns what parseAExpr gave, so completion goes on past the position.
+func (p *Parser) parseRequiredAExpr(minPrec int) (nodes.Node, error) {
+	n, err := p.parseAExpr(minPrec)
+	if err != nil {
+		return nil, err
+	}
+	if n == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return n, nil
+}
+
 // parseAExprTail applies to left, an a_expr operand that starts at loc,
 // the infix and postfix operators of precedence minPrec or higher that
 // follow it, as parseAExpr does after its operand.
@@ -521,7 +536,10 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		return fc, nil
 	case NFC, NFD, NFKC, NFKD:
 		// IS [NOT] NFC/NFD/NFKC/NFKD NORMALIZED
-		form := p.parseUnicodeNormalForm()
+		form, err := p.parseUnicodeNormalForm()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(NORMALIZED); err != nil {
 			return nil, err
 		}
@@ -540,7 +558,11 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		}
 		return fc, nil
 	default:
-		return left, nil
+		if p.collectMode() {
+			return left, nil
+		}
+		// gram.y has no other a_expr IS form.
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1249,6 +1271,18 @@ func (p *Parser) parseBExpr(minPrec int) (nodes.Node, error) {
 		}
 	}
 	return left, nil
+}
+
+// parseRequiredBExpr is parseRequiredAExpr for a b_expr.
+func (p *Parser) parseRequiredBExpr(minPrec int) (nodes.Node, error) {
+	n, err := p.parseBExpr(minPrec)
+	if err != nil {
+		return nil, err
+	}
+	if n == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return n, nil
 }
 
 // parseBExprAtom handles prefix operators for b_expr.
@@ -2085,7 +2119,7 @@ func (p *Parser) parseCastExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	arg, err := p.parseAExpr(0)
+	arg, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2140,14 +2174,14 @@ func (p *Parser) parseNullIfExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	left, err := p.parseAExpr(0)
+	left, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	right, err := p.parseAExpr(0)
+	right, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2169,21 +2203,14 @@ func (p *Parser) parseExtractExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
-	if p.cur.Type == ')' {
-		// EXTRACT() with no args
-		p.advance()
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "extract"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
+	field, err := p.parseExtractArg()
+	if err != nil {
+		return nil, err
 	}
-
-	field := p.parseExtractArg()
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2200,33 +2227,33 @@ func (p *Parser) parseExtractExpr() (nodes.Node, error) {
 }
 
 // parseExtractArg parses extract field names.
-func (p *Parser) parseExtractArg() string {
+//
+//	extract_arg: IDENT | YEAR_P | MONTH_P | DAY_P | HOUR_P | MINUTE_P | SECOND_P | Sconst
+func (p *Parser) parseExtractArg() (string, error) {
 	switch p.cur.Type {
 	case YEAR_P:
 		p.advance()
-		return "year"
+		return "year", nil
 	case MONTH_P:
 		p.advance()
-		return "month"
+		return "month", nil
 	case DAY_P:
 		p.advance()
-		return "day"
+		return "day", nil
 	case HOUR_P:
 		p.advance()
-		return "hour"
+		return "hour", nil
 	case MINUTE_P:
 		p.advance()
-		return "minute"
+		return "minute", nil
 	case SECOND_P:
 		p.advance()
-		return "second"
-	case SCONST:
+		return "second", nil
+	case SCONST, IDENT:
 		tok := p.advance()
-		return tok.Str
+		return tok.Str, nil
 	default:
-		// IDENT
-		tok := p.advance()
-		return tok.Str
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
@@ -2236,14 +2263,17 @@ func (p *Parser) parseNormalizeExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 
 	if p.cur.Type == ',' {
 		p.advance()
-		form := p.parseUnicodeNormalForm()
+		form, err := p.parseUnicodeNormalForm()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -2267,23 +2297,22 @@ func (p *Parser) parseNormalizeExpr() (nodes.Node, error) {
 }
 
 // parseUnicodeNormalForm parses NFC | NFD | NFKC | NFKD.
-func (p *Parser) parseUnicodeNormalForm() string {
+func (p *Parser) parseUnicodeNormalForm() (string, error) {
 	switch p.cur.Type {
 	case NFC:
 		p.advance()
-		return "NFC"
+		return "NFC", nil
 	case NFD:
 		p.advance()
-		return "NFD"
+		return "NFD", nil
 	case NFKC:
 		p.advance()
-		return "NFKC"
+		return "NFKC", nil
 	case NFKD:
 		p.advance()
-		return "NFKD"
+		return "NFKD", nil
 	default:
-		tok := p.advance()
-		return tok.Str
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
@@ -2294,28 +2323,44 @@ func (p *Parser) parseOverlayExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// OVERLAY '(' func_arg_list_opt ')' with an empty list.
+	if p.cur.Type == ')' {
+		p.advance()
+		return &nodes.FuncCall{
+			Funcname:   makeFuncName("overlay"),
+			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+			Loc:        nodes.NoLoc(),
+		}, nil
+	}
+
+	// OVERLAY '(' func_arg_list_opt ')' with a named argument first: the
+	// SQL-standard form starts with an a_expr.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("overlay")
+	}
+
 	// Try SQL-standard syntax: a_expr PLACING a_expr FROM a_expr [FOR a_expr]
-	first, err := p.parseAExpr(0)
+	first, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	if p.cur.Type == PLACING {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(FROM); err != nil {
 			return nil, err
 		}
-		third, err := p.parseAExpr(0)
+		third, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		args := []nodes.Node{first, second, third}
 		if p.cur.Type == FOR {
 			p.advance()
-			fourth, err := p.parseAExpr(0)
+			fourth, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2359,55 +2404,27 @@ func (p *Parser) parsePositionExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-
-	if p.cur.Type == ')' {
-		p.advance()
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "position"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
-	}
-
-	first, err := p.parseBExpr(0)
+	// position_list: b_expr IN_P b_expr. POSITION is a col_name_keyword,
+	// so it takes no other argument list.
+	first, err := p.parseRequiredBExpr(0)
 	if err != nil {
 		return nil, err
 	}
-	if p.cur.Type == IN_P {
-		p.advance()
-		second, err := p.parseBExpr(0)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		// Note: PG reverses the arguments
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "position"),
-			Args:       &nodes.List{Items: []nodes.Node{second, first}},
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Loc:        nodes.NoLoc(),
-		}, nil
+	if _, err := p.expect(IN_P); err != nil {
+		return nil, err
 	}
-
-	// Function-call syntax
-	args := []nodes.Node{first}
-	for p.cur.Type == ',' {
-		p.advance()
-		arg, err := p.parseFuncArgExpr()
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, arg)
+	second, err := p.parseRequiredBExpr(0)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	// Note: PG reverses the arguments
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName("position"),
-		Args:       &nodes.List{Items: args},
-		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+		Funcname:   makeFuncName("pg_catalog", "position"),
+		Args:       &nodes.List{Items: []nodes.Node{second, first}},
+		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
@@ -2419,34 +2436,52 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// SUBSTRING '(' func_arg_list_opt ')' with an empty list: a plain call.
 	if p.cur.Type == ')' {
 		p.advance()
 		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "substring"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+			Funcname:   makeFuncName("substring"),
+			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 			Loc:        nodes.NoLoc(),
 		}, nil
+	}
+
+	// SUBSTRING '(' func_arg_list_opt ')' with a named argument first.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("substring")
 	}
 
 	// substr_list has a special `a_expr SIMILAR a_expr ESCAPE a_expr`
 	// alternative. In the general expression grammar SIMILAR also starts the
 	// `SIMILAR TO` operator, so stop before precIn operators here and let the
 	// substring-specific branch below consume SIMILAR as a delimiter.
-	first, err := p.parseAExpr(precIn + 1)
+	firstLoc := p.pos()
+	first, err := p.parseRequiredAExpr(precIn + 1)
 	if err != nil {
 		return nil, err
+	}
+	// Anything but substr_list's delimiters continues the first argument as
+	// a full a_expr: SUBSTRING '(' func_arg_list_opt ')' takes one
+	// (substring(true OR false) calls a user function).
+	switch {
+	case p.cur.Type == FROM, p.cur.Type == FOR, p.cur.Type == ',', p.cur.Type == ')':
+	case p.cur.Type == SIMILAR && p.peekNext().Type != TO:
+	default:
+		if first, err = p.parseAExprTail(first, firstLoc, 0); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check for SQL-standard syntax with FROM/FOR/SIMILAR
 	if p.cur.Type == FROM {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == FOR {
 			p.advance()
-			third, err := p.parseAExpr(0)
+			third, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2473,13 +2508,13 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 
 	if p.cur.Type == FOR {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == FROM {
 			p.advance()
-			third, err := p.parseAExpr(0)
+			third, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -2506,14 +2541,14 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 
 	if p.cur.Type == SIMILAR {
 		p.advance()
-		second, err := p.parseAExpr(0)
+		second, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(ESCAPE); err != nil {
 			return nil, err
 		}
-		third, err := p.parseAExpr(0)
+		third, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2542,19 +2577,12 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
-	if len(args) > 1 {
-		// Regular function call form: substring(str, start, len)
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("substring"),
-			Args:       &nodes.List{Items: args},
-			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Loc:        nodes.NoLoc(),
-		}, nil
-	}
+	// SUBSTRING '(' func_arg_list_opt ')': a plain call, whatever the
+	// number of arguments (substr_list always has a delimiter).
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName("pg_catalog", "substring"),
+		Funcname:   makeFuncName("substring"),
 		Args:       &nodes.List{Items: args},
-		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
@@ -2608,7 +2636,7 @@ func (p *Parser) parseTrimList() (*nodes.List, error) {
 		return p.parseExprListFull()
 	}
 
-	first, err := p.parseAExpr(0)
+	first, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2629,7 +2657,7 @@ func (p *Parser) parseTrimList() (*nodes.List, error) {
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}
@@ -2663,7 +2691,7 @@ func (p *Parser) parseCollationForExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2684,7 +2712,7 @@ func (p *Parser) parseTreatExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseAExpr(0)
+	expr, err := p.parseRequiredAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -2713,23 +2741,22 @@ func (p *Parser) parseTreatExpr() (nodes.Node, error) {
 }
 
 // parseSVFWithOptionalPrecision parses SQL value functions that take optional (int) precision.
+//
+//	CURRENT_TIME | CURRENT_TIME '(' Iconst ')' (and CURRENT_TIMESTAMP, LOCALTIME, LOCALTIMESTAMP)
 func (p *Parser) parseSVFWithOptionalPrecision(noArgOp, withArgOp nodes.SVFOp) (nodes.Node, error) {
 	p.advance() // consume keyword
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == ICONST {
-			prec := p.cur.Ival
-			p.advance()
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(prec), Loc: nodes.NoLoc()}, nil
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
+	if p.cur.Type != '(' {
+		return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Loc: nodes.NoLoc()}, nil
 	}
-	return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Loc: nodes.NoLoc()}, nil
+	p.advance()
+	tok, err := p.expect(ICONST)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(tok.Ival), Loc: nodes.NoLoc()}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3460,8 +3487,7 @@ func (p *Parser) parseExprListFull() (*nodes.List, error) {
 func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 	// Check for named argument: name := expr or name => expr
 	if p.isColId() {
-		next := p.peekNext()
-		if next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER {
+		if p.startsNamedFuncArg() {
 			nameTok := p.advance() // consume name
 			p.advance()            // consume := or =>
 			arg, err := p.parseAExpr(0)
@@ -3479,7 +3505,36 @@ func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 			}, nil
 		}
 	}
-	return p.parseAExpr(0)
+	return p.parseRequiredAExpr(0)
+}
+
+// startsNamedFuncArg reports whether a named argument, name := expr or
+// name => expr, starts at the current token.
+func (p *Parser) startsNamedFuncArg() bool {
+	if p.collectMode() || !p.isColId() {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER
+}
+
+// parseSpecialFuncArgCall finishes OVERLAY '(' func_arg_list_opt ')',
+// SUBSTRING '(' func_arg_list_opt ')' or JSON_OBJECT '(' func_arg_list ')',
+// a plain call of the function named, after its '('.
+func (p *Parser) parseSpecialFuncArgCall(name ...string) (nodes.Node, error) {
+	args, err := p.parseFuncArgListFull()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCall{
+		Funcname:   makeFuncName(name...),
+		Args:       args,
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseFuncArgListFull parses a comma-separated list of func_arg_expr.

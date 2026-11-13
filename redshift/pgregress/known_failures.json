@@ -187,6 +187,17 @@
   "rules.sql": [
     68
   ],
+  "sqljson.sql": [
+    0,
+    22,
+    37,
+    57,
+    117
+  ],
+  "sqljson_jsontable.sql": [
+    6,
+    84
+  ],
   "stats_ext.sql": [
     2,
     3,
@@ -232,5 +243,8 @@
     298,
     299,
     300
+  ],
+  "xml.sql": [
+    221
   ]
 }

@@ -1297,6 +1297,19 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		if p.cur.Type == ROWS {
 			return p.parseRowsFromTable()
 		}
+		// A col_name_keyword before '(' starts no func_application
+		// (func_name takes type_function_name), so COALESCE(...),
+		// JSON_EXISTS(...) and the like are func_expr_common_subexpr or
+		// json_aggregate_func, parsed by their own rules. Without '(' the
+		// keyword is a relation name.
+		if !p.collectMode() && p.isFuncExprCommonSubexprStart() && p.peekNext().Type == '(' {
+			funcLoc := p.pos()
+			funcExpr, err := p.parseFuncExprWindowless()
+			if err != nil {
+				return nil, err
+			}
+			return p.finishFuncTable(funcExpr, funcLoc), nil
+		}
 		if p.isColId() {
 			return p.parseRelationOrFuncTable()
 		}
