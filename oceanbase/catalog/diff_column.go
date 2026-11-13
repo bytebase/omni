@@ -8,12 +8,10 @@ import "sort"
 // key, so a column whose surface form differs from its synced SHOW CREATE readback but
 // whose canonical form is identical produces NO phantom diff.
 //
-// Only DIFFABLE columns are compared — see diffableColumns. MySQL synthesizes columns
-// that never appear in user-authored SDL (the my_row_id generated invisible primary key
-// and the hidden expression columns that back functional indexes); including them would
-// manufacture a phantom column diff on every synced table that has a functional index or
-// GIPK. A user-declared INVISIBLE column is genuine schema and IS diffed; only
-// engine-synthesized columns are skipped.
+// Only DIFFABLE columns are compared — see diffableColumns. The hidden expression columns
+// that back functional indexes never appear in user-authored SDL; including them would
+// manufacture a phantom column diff on every synced table that has a functional index. A
+// user-declared INVISIBLE column is genuine schema and IS diffed.
 func diffColumns(from, to *Table, n *Normalizer) []ColumnDiffEntry {
 	fromCols := diffableColumns(from)
 	toCols := diffableColumns(to)
@@ -99,26 +97,14 @@ func columnsChanged(fromTbl, toTbl *Table, a, b *Column, n *Normalizer) bool {
 }
 
 // diffableColumns returns the columns of a table that participate in a declarative diff:
-// the user-authored columns, excluding every column MySQL synthesizes on its own. Two
-// kinds of synthesized column must be dropped, and VisibleColumns() alone is NOT enough:
-//   - functional-index expression columns: marked Hidden == ColumnHiddenSystem, so
-//     VisibleColumns() already excludes them; and
-//   - the generated invisible primary key (my_row_id): marked GeneratedInvisiblePrimaryKey
-//     and Invisible, but left Hidden == ColumnHiddenNone, so VisibleColumns() WOULD return
-//     it. SHOW CREATE TABLE suppresses it via a separate check (show.go), and a synced
-//     dump taken with sql_generate_invisible_primary_key=ON carries it — so comparing it
-//     against a target that does not declare it produces a phantom DROP. We exclude it
-//     here explicitly.
-//
-// A user-declared INVISIBLE column (Invisible == true, Hidden == None,
-// GeneratedInvisiblePrimaryKey == false) is real schema and is kept.
+// the user-authored columns, without the functional-index expression columns the catalog
+// synthesizes (Hidden == ColumnHiddenSystem). A user-declared INVISIBLE column is real
+// schema and is kept, and so is a column named my_row_id: OceanBase has no generated
+// invisible primary key.
 func diffableColumns(t *Table) []*Column {
 	cols := make([]*Column, 0, len(t.Columns))
 	for _, col := range t.Columns {
 		if col.Hidden != ColumnHiddenNone {
-			continue
-		}
-		if col.GeneratedInvisiblePrimaryKey {
 			continue
 		}
 		cols = append(cols, col)

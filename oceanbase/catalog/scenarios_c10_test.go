@@ -60,18 +60,17 @@ func TestScenario_C10(t *testing.T) {
 			t.Errorf("oracle SHOW CREATE VIEW v: got %q, want no ALGORITHM", showCreate)
 		}
 
-		// omni gap: the view object reports MySQL's defaults, Algorithm=UNDEFINED
-		// and SqlSecurity=DEFINER, which OceanBase does not keep. CheckOption=NONE.
+		// omni: neither is kept. CheckOption=NONE.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
 			return
 		}
-		if strings.ToUpper(v.Algorithm) != "UNDEFINED" {
-			t.Errorf("omni Algorithm: got %q, want UNDEFINED", v.Algorithm)
+		if v.Algorithm != "" {
+			t.Errorf("omni Algorithm: got %q, want none", v.Algorithm)
 		}
-		if strings.ToUpper(v.SqlSecurity) != "DEFINER" {
-			t.Errorf("omni SqlSecurity: got %q, want DEFINER", v.SqlSecurity)
+		if v.SqlSecurity != "" {
+			t.Errorf("omni SqlSecurity: got %q, want none", v.SqlSecurity)
 		}
 		// CheckOption may be represented as "" or "NONE" depending on omni; "NONE" semantics
 		// means "no WITH CHECK OPTION clause". Accept either.
@@ -163,20 +162,12 @@ func TestScenario_C10(t *testing.T) {
 			t.Errorf("oracle SHOW CREATE VIEW v_merge_bad: got %q, want no ALGORITHM", showMergeBad)
 		}
 
-		// omni gap: the catalog keeps the declared algorithm, as it does for
-		// MySQL: v_agg Algorithm=UNDEFINED, v_merge_bad MERGE.
-		vAgg := c10OmniView(c, "v_agg")
-		if vAgg == nil {
-			t.Error("omni: v_agg not found")
-		} else if strings.ToUpper(vAgg.Algorithm) != "UNDEFINED" {
-			t.Errorf("omni v_agg Algorithm: got %q, want UNDEFINED", vAgg.Algorithm)
-		}
-		vMergeBad := c10OmniView(c, "v_merge_bad")
-		if vMergeBad == nil {
-			t.Error("omni: v_merge_bad not found")
-		} else if strings.ToUpper(vMergeBad.Algorithm) != "MERGE" {
-			// Per scenario: omni must record the declared algorithm, not silently downgrade.
-			t.Errorf("omni v_merge_bad Algorithm: got %q, want MERGE (as declared)", vMergeBad.Algorithm)
+		for _, name := range []string{"v_agg", "v_merge_bad"} {
+			if v := c10OmniView(c, name); v == nil {
+				t.Errorf("omni: %s not found", name)
+			} else if v.Algorithm != "" {
+				t.Errorf("omni %s Algorithm: got %q, want none", name, v.Algorithm)
+			}
 		}
 	})
 
@@ -199,14 +190,13 @@ func TestScenario_C10(t *testing.T) {
 			t.Errorf("oracle SECURITY_TYPE: got %q, want NONE", secType)
 		}
 
-		// omni gap: the catalog defaults SqlSecurity to DEFINER, as MySQL does.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
 			return
 		}
-		if strings.ToUpper(v.SqlSecurity) != "DEFINER" {
-			t.Errorf("omni SqlSecurity: got %q, want DEFINER (must be defaulted, not empty)", v.SqlSecurity)
+		if v.SqlSecurity != "" {
+			t.Errorf("omni SqlSecurity: got %q, want none", v.SqlSecurity)
 		}
 	})
 
@@ -285,16 +275,15 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE VIEW v_distinct AS SELECT DISTINCT a FROM t;
 			 CREATE ALGORITHM=TEMPTABLE VIEW v_temp AS SELECT a FROM t;`)
 
-		// OceanBase reports every view updatable. omni gap: the catalog derives
-		// IsUpdatable as MySQL does, so DISTINCT and TEMPTABLE read NO.
+		// OceanBase reports every view updatable, and so does the catalog.
 		for _, tc := range []struct {
 			name string
 			want string
 			omni string
 		}{
 			{"v_ok", "YES", "YES"},
-			{"v_distinct", "YES", "NO"},
-			{"v_temp", "YES", "NO"},
+			{"v_distinct", "YES", "YES"},
+			{"v_temp", "YES", "YES"},
 		} {
 			var isUpd string
 			oracleScan(t, mc,
@@ -351,7 +340,6 @@ func TestScenario_C10(t *testing.T) {
 			t.Errorf("oracle view column b IS_NULLABLE: got %q, want NO", gotNullable["b"])
 		}
 
-		// omni gap: the catalog widens the optional side, as MySQL does.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
@@ -361,7 +349,7 @@ func TestScenario_C10(t *testing.T) {
 			t.Fatalf("omni: expected 2 view column metadata entries, got %d", len(v.ColumnMetadata))
 		}
 		assertBoolEq(t, "omni view column a Nullable", c10ViewColumnNullable(t, v, "a"), false)
-		assertBoolEq(t, "omni view column b Nullable", c10ViewColumnNullable(t, v, "b"), true)
+		assertBoolEq(t, "omni view column b Nullable", c10ViewColumnNullable(t, v, "b"), false)
 	})
 }
 

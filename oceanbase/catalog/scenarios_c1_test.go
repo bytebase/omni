@@ -13,8 +13,8 @@ import (
 // OceanBase has no ibfk or chk counter: it names an unnamed foreign key
 // <table>_OBFK_<microseconds> and an unnamed CHECK <table>_OBCHECK_<microseconds>.
 // A tape holds a count in place of the time, and a subtest compares the name
-// without it (withoutCount): <table>_OBFK_<n>. Where the catalog still
-// answers as MySQL does, the subtest asserts both and names the gap.
+// without it (withoutCount): <table>_OBFK_<n>. The catalog has a count there
+// too (madeUpConstraintName).
 func TestScenario_C1(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -35,14 +35,13 @@ CREATE TABLE child (
 		got := oracleFKNames(t, mc, "child")
 		assertStringEq(t, "oracle FK names", withoutCount(strings.Join(got, ",")), "child_ibfk_5,child_OBFK_<n>")
 
-		// omni gap: the catalog numbers the unnamed key as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
 			return
 		}
-		omniNames := omniFKNames(tbl)
-		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_1,child_ibfk_5")
+		omniNames := asOracleLists(omniFKNames(tbl))
+		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_5,child_OBFK_<n>")
 	})
 
 	// --- 1.2 Foreign Key name — ALTER path (max+1 counter) ---------------
@@ -61,15 +60,13 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		got := oracleFKNames(t, mc, "child")
 		assertStringEq(t, "oracle FK names", withoutCount(strings.Join(got, ",")), "child_ibfk_20,child_OBFK_<n>")
 
-		// omni gap: the catalog continues MySQL's counter from the highest
-		// ibfk number.
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
 			return
 		}
-		omniNames := omniFKNames(tbl)
-		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_20,child_ibfk_21")
+		omniNames := asOracleLists(omniFKNames(tbl))
+		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_20,child_OBFK_<n>")
 	})
 
 	// --- 1.3 Partition default naming p0..p{n-1} -------------------------
@@ -109,14 +106,13 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
             WHERE CONSTRAINT_SCHEMA='testdb'`, &got)
 		assertStringEq(t, "oracle CHECK name", withoutCount(got), "t_OBCHECK_<n>")
 
-		// omni gap: the catalog names the CHECK t_chk_1, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
 			return
 		}
-		omniChecks := omniCheckNames(tbl)
-		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "t_chk_1")
+		omniChecks := asOracleLists(omniCheckNames(tbl))
+		assertStringEq(t, "omni CHECK names", strings.Join(omniChecks, ","), "t_OBCHECK_<n>")
 	})
 
 	// --- 1.5 UNIQUE KEY auto-name uses field name ------------------------
@@ -302,14 +298,13 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			assertStringEq(t, "oracle unique index name", asString(rows[0][0]), "PRIMARY")
 		}
 
-		// omni gap: the catalog falls back to PRIMARY_2, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
 			return
 		}
 		omniIdx := omniUniqueIndexNames(tbl)
-		assertStringEq(t, "omni unique index names", strings.Join(omniIdx, ","), "PRIMARY_2")
+		assertStringEq(t, "omni unique index names", strings.Join(omniIdx, ","), "PRIMARY")
 	})
 
 	// --- 1.11 Functional index auto-name functional_index[_N] ------------

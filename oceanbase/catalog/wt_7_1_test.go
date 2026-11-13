@@ -213,7 +213,8 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE t6 (
 			id INT NOT NULL,
-			val INT NOT NULL
+			val INT NOT NULL,
+			PRIMARY KEY (val, id)
 		)
 		PARTITION BY RANGE (val) (
 			PARTITION p0 VALUES LESS THAN (10),
@@ -255,7 +256,8 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE t7 (
 			id INT NOT NULL,
-			val INT NOT NULL
+			val INT NOT NULL,
+			PRIMARY KEY (val, id)
 		)
 		PARTITION BY RANGE (val) (
 			PARTITION p0 VALUES LESS THAN (10),

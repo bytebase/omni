@@ -210,49 +210,22 @@ func TestDiff_RowFormatDefaultVsBareEmpty(t *testing.T) {
 // d_ is a Diff shorthand for table-only assertions.
 func d_(from, to *Catalog) *SchemaDiff { return Diff(from, to) }
 
-// The generated invisible primary key (my_row_id) is engine-synthesized and must NEVER
-// produce a column diff. A schema synced with sql_generate_invisible_primary_key=ON
-// carries my_row_id; the same schema declared without it must diff EMPTY. Regression for
-// the review finding that VisibleColumns() leaks the GIPK (it is Invisible but not
-// Hidden).
-func TestDiff_GIPKExcluded(t *testing.T) {
-	withGIPK := loadCat(t, "SET sql_generate_invisible_primary_key=ON;\n"+dbDDL+"CREATE TABLE t (a INT, b VARCHAR(10));")
-	withoutGIPK := loadCat(t, dbDDL+"CREATE TABLE t (a INT, b VARCHAR(10));")
-
-	// Confirm the GIPK column actually exists on the synced side (else the test is moot).
-	var tbl *Table
-	for _, db := range withGIPK.Databases() {
-		if x := db.GetTable("t"); x != nil {
-			tbl = x
-		}
+// A primary key over a column named my_row_id is a key like any other: OceanBase has no
+// generated invisible primary key (TestScenario_C24), so the diff does not pass it over
+// and SHOW CREATE TABLE prints it.
+func TestDiff_MyRowIDIsAnOrdinaryColumn(t *testing.T) {
+	with := loadCat(t, dbDDL+"CREATE TABLE t (my_row_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT INVISIBLE PRIMARY KEY, a INT);")
+	without := loadCat(t, dbDDL+"CREATE TABLE t (a INT);")
+	e := findTable(d_(without, with), "t")
+	if e == nil || findColumn(e, "my_row_id") == nil || len(e.Indexes) != 1 {
+		t.Fatalf("want my_row_id and its primary key added, got %+v", e)
 	}
-	if tbl == nil {
-		t.Fatal("table t not found")
-	}
-	hasGIPK := false
-	for _, c := range tbl.Columns {
-		if c.GeneratedInvisiblePrimaryKey {
-			hasGIPK = true
-		}
-	}
-	if !hasGIPK {
-		t.Skip("GIPK not generated in this build; nothing to assert")
-	}
-
-	if d := Diff(withGIPK, withoutGIPK); !d.IsEmpty() {
-		t.Errorf("GIPK my_row_id must not produce a diff (synced ON vs declared without), got %+v", d.Tables)
-	}
-	if d := Diff(withoutGIPK, withGIPK); !d.IsEmpty() {
-		t.Errorf("GIPK my_row_id must not produce a diff (reverse direction), got %+v", d.Tables)
-	}
-	// Self-diff of the GIPK table must be empty too.
-	if d := Diff(withGIPK, withGIPK); !d.IsEmpty() {
-		t.Errorf("self-diff of a GIPK table must be empty, got %+v", d.Tables)
+	if show := with.ShowCreateTable("app", "t"); !strings.Contains(show, "`my_row_id`") || !strings.Contains(show, "PRIMARY KEY (`my_row_id`)") {
+		t.Errorf("SHOW CREATE TABLE leaves my_row_id or its key out:\n%s", show)
 	}
 }
 
-// A user-declared INVISIBLE column is REAL schema and must be diffed (added/dropped),
-// unlike the engine-synthesized GIPK. This guards against an over-broad exclusion.
+// A user-declared INVISIBLE column is REAL schema and must be diffed (added/dropped).
 func TestDiff_UserInvisibleColumnDiffed(t *testing.T) {
 	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, a INT);")
 	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY, a INT, secret INT INVISIBLE);")

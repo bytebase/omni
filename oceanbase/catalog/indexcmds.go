@@ -95,7 +95,6 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	// Fold a meaningless `USING HASH` on InnoDB to the no-explicit-type form so a HASH index
 	// authored via CREATE [UNIQUE] INDEX round-trips empty (Fulltext/Spatial are never HASH, so
 	// the fold is a no-op for them). Mirrors the CREATE TABLE / ALTER ADD paths.
-	coerceInnoDBHashIndex(tbl, idx)
 
 	applyIndexOptions(idx, stmt.Options)
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {

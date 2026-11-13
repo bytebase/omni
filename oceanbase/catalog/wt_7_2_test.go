@@ -234,7 +234,8 @@ func TestWalkThrough_7_2_AlterReorganizePartition(t *testing.T) {
 
 	wtExec(t, c, `CREATE TABLE t6 (
 		id INT NOT NULL,
-		region INT NOT NULL
+		region INT NOT NULL,
+		PRIMARY KEY (region, id)
 	) PARTITION BY LIST (region) (
 		PARTITION p_east VALUES IN (1,2,3),
 		PARTITION p_west VALUES IN (4,5,6)

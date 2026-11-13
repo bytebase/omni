@@ -25,7 +25,7 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL;`,
 			sql: `CREATE TABLE t (a INT);
 ALTER TABLE t CHANGE COLUMN a a BLOB;
 ALTER TABLE t ALTER COLUMN a SET DEFAULT 'x';`,
-			code: 1101,
+			code: 1067, // OceanBase's answer for a BLOB or TEXT column; 1101 is for JSON and spatial
 		},
 		{
 			name: "create_table_rejects_duplicate_auto_increment",

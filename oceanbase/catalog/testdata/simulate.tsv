@@ -57,10 +57,10 @@ ok	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UN
 1064	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 ok	4028	engine	one_table@missing	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 ok	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-1822	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+5031	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-1822	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+5031	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 1146	1146	engine	one_table@missing	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 1146	1146	engine	one_table@missing	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1146	1146	engine	one_table@missing	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -676,16 +676,16 @@ ok:2c46dc8f702b	ok:2c46dc8f702b	engine	one_table@table	data_type/BOOLEAN	ALTER T
 ok:c56663f91704	ok:c56663f91704	engine	one_table@table	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
 ok:1ceca8608979	ok:1ceca8608979	engine	one_table@table	data_type/date_year_type_i	ALTER TABLE a ADD a DATE
 ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/CHARACTER_opt_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a CHARACTER
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_opt_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER
 ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/VARCHAR_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a VARCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR VARCHAR(1)
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary!drop-2	ALTER TABLE a ADD a NCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NVARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NVARCHAR(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL VARCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR VARCHAR(1)
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary!drop-2	ALTER TABLE a ADD a NCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NVARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NVARCHAR(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL VARCHAR(1)
 ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/CHARACTER_VARYING_string_length_i_opt_binary_opt_charset	ALTER TABLE a ADD a CHARACTER VARYING(1)
-ok	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1)
-ok	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary!drop-3	ALTER TABLE a ADD a NATIONAL CHARACTER(1)
+ok:f4692f929084	ok:f4692f929084	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary	ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1)
+ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	data_type/NATIONAL_CHARACTER_VARYING_string_length_i_opt_binary!drop-3	ALTER TABLE a ADD a NATIONAL CHARACTER(1)
 ok:7ed82b4befd0	ok:7ed82b4befd0	engine	one_table@table	data_type/blob_type_i_opt_string_length_i_v2	ALTER TABLE a ADD a TINYBLOB
 ok:c69cd6ca0ee3	ok:c69cd6ca0ee3	engine	one_table@table	data_type/text_type_i_opt_string_length_i_v2_opt_binary_opt_charset	ALTER TABLE a ADD a TINYTEXT
 ok:866bce9378bb	ok:866bce9378bb	engine	one_table@table	data_type/BINARY_opt_string_length_i	ALTER TABLE a ADD a BINARY
@@ -739,7 +739,7 @@ ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_INT
 1064	ok:b5e3435ca7e5	engine	one_table@table	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 ok:bdd06257c2b9	ok:bdd06257c2b9	engine	one_table@table	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 ok:9bf4c7fb445a	ok:9bf4c7fb445a	engine	one_table@table	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	ok:2734973dd91f	engine	one_table@table	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+ok:2734973dd91f	ok:2734973dd91f	engine	one_table@table	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 ok:89cba07c9b2c	ok:89cba07c9b2c	engine	one_table@table	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 ok:ae9163b4fa87	ok:ae9163b4fa87	engine	one_table@table	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 ok:faef2eb30e44	ok:faef2eb30e44	engine	one_table@table	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
@@ -791,7 +791,7 @@ ok	5258	engine	one_table@table	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALT
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@table	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
-ok	1210	engine	one_table@table	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
+1210	1210	engine	one_table@table	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:f8e70892c438	ok:f8e70892c438	engine	one_table@table	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
 ok	4179	engine	one_table@table	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:5117c6129d29	ok:5117c6129d29	engine	one_table@table	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
@@ -1100,8 +1100,8 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 1064	1072	engine	one_table@table	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1072	engine	one_table@table	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@table	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@table	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
@@ -1308,7 +1308,7 @@ ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE
 1064	1060	engine	one_table@column	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@column	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	1060	engine	one_table@column	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+1060	1060	engine	one_table@column	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 1060	1060	engine	one_table@column	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 1060	1060	engine	one_table@column	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 1060	1060	engine	one_table@column	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
@@ -1360,7 +1360,7 @@ ok	5258	engine	one_table@column	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	AL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@column	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
-ok	1210	engine	one_table@column	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
+1210	1210	engine	one_table@column	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:75c468979562	ok:75c468979562	engine	one_table@column	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
 ok	4179	engine	one_table@column	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:e8971b56c4bd	ok:e8971b56c4bd	engine	one_table@column	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
@@ -1669,8 +1669,8 @@ ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_
 1064	1687	engine	one_table@column	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1687	engine	one_table@column	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@column	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@column	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
@@ -1877,7 +1877,7 @@ ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE 
 1064	1060	engine	one_table@index	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_,_INTNUM_)	ALTER TABLE a ADD a NUMBER(1, 1)
 1060	1060	engine	one_table@index	opt_number_precision/(_INTNUM_)	ALTER TABLE a ADD a NUMBER(1)
-1818	1060	engine	one_table@index	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
+1060	1060	engine	one_table@index	opt_year_i/(_INTNUM_)	ALTER TABLE a ADD a YEAR(1)
 1060	1060	engine	one_table@index	opt_datetime_fsp_i/(_INTNUM_)	ALTER TABLE a ADD a DATETIME(1)
 1060	1060	engine	one_table@index	string_length_i/(_number_literal_)	ALTER TABLE a ADD a CHARACTER(1)
 1060	1060	engine	one_table@index	opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a TINYINT UNSIGNED
@@ -1929,7 +1929,7 @@ ok	5258	engine	one_table@index	table_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a KEY_BLOCK_SIZE 1
 1064	1064	engine	one_table@index	table_option/TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a TABLE_ID 1
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/REPLICA_NUM_opt_equal_mark_INTNUM	ALTER TABLE a REPLICA_NUM 1
-ok	1210	engine	one_table@index	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
+1210	1210	engine	one_table@index	table_option/COMPRESSION_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMPRESSION 's'
 ok:a55e5012546a	ok:a55e5012546a	engine	one_table@index	table_option/ROW_FORMAT_opt_equal_mark_row_format_option	ALTER TABLE a ROW_FORMAT REDUNDANT
 ok	4179	engine	one_table@index	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:def5440268e9	ok:def5440268e9	engine	one_table@index	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
@@ -2238,8 +2238,8 @@ ok	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name
 1064	1687	engine	one_table@index	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1687	engine	one_table@index	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@index	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@index	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@index	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)

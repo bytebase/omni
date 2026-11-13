@@ -59,7 +59,7 @@ var viewNameCases = []struct{ name, sql, want string }{
 	{`a07`, `SELECT a /* c */ + 1 FROM n1`,
 		"select (`n1`.`a` + 1) AS `a /* c */ + 1` from `n1`"},
 	{`a08`, `SELECT concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') FROM n1`,
-		"select concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') AS `concat('éééééééééééééééééééééééééééééééééééééééééééééééééé')` from `n1`"},
+		"select concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') AS `Name_exp_1` from `n1`"}, // 110 bytes: OceanBase counts the 64 in bytes
 	{`a09`, `SELECT concat('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') FROM n1`,
 		"select concat('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') AS `Name_exp_1` from `n1`"},
 	{`a10`, `SELECT * FROM (SELECT a+1, b FROM n1) d`,
@@ -181,14 +181,12 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 
 // viewNameColumnGaps holds the columns OceanBase gives the views it names
 // differently than MySQL does. omni gap: the catalog names these as MySQL
-// does. OceanBase keeps the parentheses of an unaliased (1) (a06), counts a
-// name's 64 in bytes before it falls back to Name_exp_N (a08), and orders
+// does. OceanBase keeps the parentheses of an unaliased (1) (a06) and orders
 // the columns of a NATURAL or USING join over a join its own way (b17, b22
 // to b24). The test fails when the catalog comes to agree, so this list
 // cannot outlive the gap.
 var viewNameColumnGaps = map[string][]string{
 	"a06": {"a", "b", "(1)", "0004", "- 2", "x'41'", "B'10'", "true", "date '2020-01-01'", "e", "NULL"},
-	"a08": {"Name_exp_1"},
 	"b17": {"k", "u1", "q1", "q2", "p1", "s1", "s2"},
 	"b22": {"k", "u1", "q1", "q2", "s1", "s2", "p1"},
 	"b23": {"k", "p1", "q1", "q2"},

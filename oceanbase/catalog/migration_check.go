@@ -164,9 +164,15 @@ func dropCheckOp(entry *TableDiffEntry, table string, con *Constraint) Migration
 //
 // The /*!80016 ... */ version guard makes NOT ENFORCED a no-op below 8.0.16, matching how show.go
 // renders it, so the same DDL is valid across the 8.0 line.
+//
+// A name nobody wrote is left out, so OceanBase makes its own: the loader's is a count, and a
+// count written into the engine is a name the next plan can make again.
 func formatCheckClause(con *Constraint) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "CONSTRAINT %s CHECK (%s)", migrationQuoteIdent(con.Name), con.CheckExpr)
+	if !madeUpCheckName(con) {
+		fmt.Fprintf(&b, "CONSTRAINT %s ", migrationQuoteIdent(con.Name))
+	}
+	fmt.Fprintf(&b, "CHECK (%s)", con.CheckExpr)
 	if con.NotEnforced {
 		b.WriteString(" /*!80016 NOT ENFORCED */")
 	}

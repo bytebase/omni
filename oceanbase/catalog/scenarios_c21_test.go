@@ -217,8 +217,6 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			&deleteRule, &updateRule)
 		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "RESTRICT")
 		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
-		// omni gap: the catalog renders an omitted action as NO ACTION, as
-		// MySQL does (refActionToString maps RefActNone to it).
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
@@ -235,8 +233,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			t.Errorf("omni: FK constraint missing on child")
 			return
 		}
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "RESTRICT")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -274,9 +272,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			t.Errorf("omni: FK constraint missing")
 			return
 		}
-		// omni gap: NO ACTION for the omitted ON UPDATE, as in MySQL.
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------
@@ -383,20 +380,19 @@ CREATE TABLE t_b (a INT, KEY kb (a) USING BTREE);`
 				t.Errorf("oracle %s: SHOW CREATE VIEW names an algorithm: %s", name, create)
 			}
 		}
-		// omni gap: the catalog keeps an algorithm, as it does for MySQL: ""
-		// or UNDEFINED for v1 (no explicit clause), and UNDEFINED for v2.
+		// omni: no algorithm is kept either.
 		db := c.GetDatabase("testdb")
 		v1 := db.Views["v1"]
 		v2 := db.Views["v2"]
 		if v1 == nil {
 			t.Errorf("omni: view v1 missing")
-		} else if v1.Algorithm != "" && !strings.EqualFold(v1.Algorithm, "UNDEFINED") {
-			t.Errorf("omni: v1 Algorithm = %q, want \"\" or UNDEFINED", v1.Algorithm)
+		} else if v1.Algorithm != "" {
+			t.Errorf("omni: v1 Algorithm = %q, want none", v1.Algorithm)
 		}
 		if v2 == nil {
 			t.Errorf("omni: view v2 missing")
-		} else if !strings.EqualFold(v2.Algorithm, "UNDEFINED") {
-			t.Errorf("omni: v2 Algorithm = %q, want UNDEFINED", v2.Algorithm)
+		} else if v2.Algorithm != "" {
+			t.Errorf("omni: v2 Algorithm = %q, want none", v2.Algorithm)
 		}
 	})
 

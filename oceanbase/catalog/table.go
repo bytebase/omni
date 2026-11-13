@@ -114,16 +114,15 @@ type Column struct {
 	// table's collation, a CHARACTER-SET-only column resolves to the charset default,
 	// and an explicit COLLATE is honored verbatim — three cases that are otherwise
 	// indistinguishable once the loader fills Charset/Collation from inheritance.
-	CharsetExplicit              bool
-	CollationExplicit            bool
-	Comment                      string
-	OnUpdate                     string
-	OnUpdateKind                 ColumnDefaultKind
-	Generated                    *GeneratedColumnInfo
-	Invisible                    bool
-	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
-	Hidden                       ColumnHiddenKind
-	SRID                         int // Spatial Reference ID (valid only when HasSRID)
+	CharsetExplicit   bool
+	CollationExplicit bool
+	Comment           string
+	OnUpdate          string
+	OnUpdateKind      ColumnDefaultKind
+	Generated         *GeneratedColumnInfo
+	Invisible         bool
+	Hidden            ColumnHiddenKind
+	SRID              int // Spatial Reference ID (valid only when HasSRID)
 	// HasSRID records whether the column carries an explicit spatial SRID clause. MySQL
 	// treats `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW
 	// CREATE echoes `/*!80003 SRID 0 */`; ST_GEOMETRY_COLUMNS.SRS_ID is 0 vs NULL), so
@@ -262,6 +261,10 @@ type Event struct {
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
 	Comment      string
 	Body         string
+
+	// started holds that the event started when it was made: an EVERY schedule with no
+	// STARTS. One that names a time may have started too, which only a clock can tell.
+	started bool
 
 	// Session context captured when the event was created: sql_mode, character_set_client,
 	// collation_connection, and the session time_zone (events only). These are NOT part of
