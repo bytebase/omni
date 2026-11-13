@@ -21,30 +21,7 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 
 	if p.cur.Type == kwSTART {
 		p.advance() // consume START
-		p.match(kwTRANSACTION)
-
-		// Transaction characteristics
-		for {
-			if p.cur.Type == kwWITH {
-				p.advance()
-				p.match(kwCONSISTENT)
-				p.match(kwSNAPSHOT)
-				stmt.WithConsistentSnapshot = true
-			} else if p.cur.Type == kwREAD {
-				p.advance()
-				if _, ok := p.match(kwONLY); ok {
-					stmt.ReadOnly = true
-				} else if _, ok := p.match(kwWRITE); ok {
-					stmt.ReadWrite = true
-				}
-			} else {
-				break
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
+		return p.parseStartTransactionTail(start)
 	} else {
 		// BEGIN [WORK]
 		p.advance() // consume BEGIN
@@ -60,6 +37,76 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 		}
 	}
 
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseStartTransactionTail parses START TRANSACTION after START:
+//
+//	START TRANSACTION [WITH CONSISTENT SNAPSHOT [, access] | access [, WITH CONSISTENT SNAPSHOT]]
+//
+//	access: READ ONLY | READ WRITE
+//
+// Each characteristic is whole and named once, and TRANSACTION is required.
+//
+// Ref: begin_stmt, opt_with_consistent_snapshot and transaction_access_mode in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) parseStartTransactionTail(start int) (*nodes.BeginStmt, error) {
+	if _, err := p.expect(kwTRANSACTION); err != nil {
+		return nil, err
+	}
+
+	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwWITH)
+		p.addTokenCandidate(kwREAD)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
+	snapshot := func() error {
+		for _, kw := range []int{kwWITH, kwCONSISTENT, kwSNAPSHOT} {
+			if _, err := p.expect(kw); err != nil {
+				return err
+			}
+		}
+		stmt.WithConsistentSnapshot = true
+		return nil
+	}
+	access := func() error {
+		if _, err := p.expect(kwREAD); err != nil {
+			return err
+		}
+		switch p.cur.Type {
+		case kwONLY:
+			stmt.ReadOnly = true
+		case kwWRITE:
+			stmt.ReadWrite = true
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return nil
+	}
+	first, second := snapshot, access
+	switch p.cur.Type {
+	case kwREAD:
+		first, second = access, snapshot
+	case kwWITH:
+	default:
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	if err := first(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == ',' {
+		p.advance()
+		if err := second(); err != nil {
+			return nil, err
+		}
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -144,7 +191,11 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		p.match(kwSAVEPOINT)
+		// ROLLBACK TO SAVEPOINT var_name, or ROLLBACK TO var_name, where
+		// SAVEPOINT, an unreserved keyword, may be the name itself.
+		if p.cur.Type == kwSAVEPOINT && p.peekNext().Type != tokEOF && p.peekNext().Type != ';' {
+			p.advance()
+		}
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -212,7 +263,9 @@ func (p *Parser) parseSavepointStmt() (*nodes.SavepointStmt, error) {
 func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 	start := p.pos()
 	p.advance() // consume RELEASE
-	p.match(kwSAVEPOINT)
+	if _, err := p.expect(kwSAVEPOINT); err != nil {
+		return nil, err
+	}
 
 	// Completion: after RELEASE SAVEPOINT, identifier context.
 	p.checkCursor()
@@ -237,8 +290,12 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
 //
 //	LOCK {TABLE | TABLES}
-//	    tbl_name [[AS] alias] lock_type
-//	    [, tbl_name [[AS] alias] lock_type] ...
+//	    tbl_name [AS alias] lock_type
+//	    [, tbl_name [AS alias] lock_type] ...
+//
+// OceanBase's lock_table takes an alias only after AS, and a lock_type always
+// (lock_tables_stmt, lock_table and lock_type in sql_parser_mysql_mode.y,
+// oceanbase v4.3.5_CE_BP6).
 //
 //	lock_type: {
 //	    READ [LOCAL]
@@ -267,9 +324,18 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 
 	for {
 		lockStart := p.pos()
-		ref, err := p.parseTableRefWithAlias()
+		// relation_factor [AS relation_name]: the alias takes AS.
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
+		}
+		if _, ok := p.match(kwAS); ok {
+			alias, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			ref.Alias = alias
+			ref.Loc.End = p.prev.End
 		}
 
 		lt := &nodes.LockTable{
@@ -293,10 +359,15 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 				lt.LockType = "READ"
 			}
 		} else if _, ok := p.match(kwLOW_PRIORITY); ok {
-			p.match(kwWRITE)
+			if _, err := p.expect(kwWRITE); err != nil {
+				return nil, err
+			}
 			lt.LockType = "LOW_PRIORITY WRITE"
 		} else if _, ok := p.match(kwWRITE); ok {
 			lt.LockType = "WRITE"
+		} else {
+			// lock_type is required.
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		lt.Loc.End = p.prev.End
@@ -508,7 +579,9 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 			stmt.Suspend = true
 			if p.cur.Type == kwFOR {
 				p.advance()
-				p.match(kwMIGRATE)
+				if _, err := p.expect(kwMIGRATE); err != nil {
+					return nil, err
+				}
 				stmt.Migrate = true
 			}
 		}
@@ -531,7 +604,9 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		}
 		stmt.Xid = xid
 		if _, ok := p.match(kwONE); ok {
-			p.match(kwPHASE)
+			if _, err := p.expect(kwPHASE); err != nil {
+				return nil, err
+			}
 			stmt.OnePhase = true
 		}
 
@@ -548,9 +623,8 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		stmt.Type = nodes.XARecover
 		p.advance()
 		if _, ok := p.match(kwCONVERT); ok {
-			// CONVERT XID
-			if p.cur.Type == kwXID {
-				p.advance()
+			if _, err := p.expect(kwXID); err != nil {
+				return nil, err
 			}
 			stmt.Convert = true
 		}
@@ -566,42 +640,42 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 	return stmt, nil
 }
 
-// parseXid parses an xid: gtrid [, bqual [, formatID]].
+// parseXid parses xa_xid:
+//
+//	text_string [, text_string [, ulong_num]]
+//
+// text_string is a string, hex or bit literal, ulong_num an integer or a hex
+// literal (sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6). Strings side by
+// side are one literal, as OceanBase's lexer reads them.
 func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 	var parts []nodes.ExprNode
-
-	gtrid, err := p.parseExpr()
-	if err != nil {
+	literal := func(ok func(int) bool) error {
+		if !ok(p.cur.Type) {
+			return p.syntaxErrorAtCur()
+		}
+		e, err := p.parsePrimaryExpr()
+		if err != nil {
+			return err
+		}
+		parts = append(parts, e)
+		return nil
+	}
+	textString := func(t int) bool { return t == tokSCONST || t == tokXCONST || t == tokBCONST }
+	ulongNum := func(t int) bool { return t == tokICONST || t == tokXCONST }
+	if err := literal(textString); err != nil {
 		return nil, err
 	}
-	if gtrid == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	parts = append(parts, gtrid)
-
 	if p.cur.Type == ',' {
 		p.advance()
-		bqual, err := p.parseExpr()
-		if err != nil {
+		if err := literal(textString); err != nil {
 			return nil, err
 		}
-		if bqual == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		parts = append(parts, bqual)
-
 		if p.cur.Type == ',' {
 			p.advance()
-			formatID, err := p.parseExpr()
-			if err != nil {
+			if err := literal(ulongNum); err != nil {
 				return nil, err
 			}
-			if formatID == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			parts = append(parts, formatID)
 		}
 	}
-
 	return parts, nil
 }
