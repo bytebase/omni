@@ -5574,7 +5574,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/function_call_generic
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_generic!insert	DO a() zzz;
 accept	accept	engine	column_default_non_parenthesized_expr/function_call_conflict	DO ASCII(a);
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-2	DO ASCII a);
-accept	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-3	DO ASCII();
+reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-3	DO ASCII();
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-4	DO ASCII(a;
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!truncate	DO ASCII(a
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!insert	DO ASCII(a) zzz;
@@ -5606,7 +5606,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/window_func_expr!swap
 accept	accept	engine	column_default_non_parenthesized_expr/inverse_distribution_function	DO MEDIAN(a) OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-1	DO(a) OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-2	DO MEDIAN a) OVER();
-accept	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-3	DO MEDIAN() OVER();
+reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-3	DO MEDIAN() OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-4	DO MEDIAN(a OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-5	DO MEDIAN(a)();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-6	DO MEDIAN(a) OVER);
@@ -5812,7 +5812,7 @@ reject	reject	engine	simple_expr/not2_simple_expr!insert	DO ! a zzz;
 accept	accept	engine	mysql_concatenation_expr/simple_expr	DO a;
 accept	accept	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)	DO TIMESTAMP(a);
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-2	DO TIMESTAMP a);
-accept	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-3	DO TIMESTAMP();
+reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-3	DO TIMESTAMP();
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-4	DO TIMESTAMP(a;
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!truncate	DO TIMESTAMP(a
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!insert	DO TIMESTAMP(a) zzz;
@@ -5846,21 +5846,21 @@ accept	accept	engine	function_call_keyword/CURRENT_ROLE_optional_braces	DO CURRE
 reject	reject	engine	function_call_keyword/CURRENT_ROLE_optional_braces!insert	DO CURRENT_ROLE zzz;
 accept	accept	engine	function_call_keyword/DATE_SYM_(_expr_)	DO DATE(a);
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-2	DO DATE a);
-accept	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-3	DO DATE();
+reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-3	DO DATE();
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-4	DO DATE(a;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!truncate	DO DATE(a
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!insert	DO DATE(a) zzz;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!swap	DO DATETIME(a);
 accept	accept	engine	function_call_keyword/DAY_SYM_(_expr_)	DO DAY(a);
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-2	DO DAY a);
-accept	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-3	DO DAY();
+reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-3	DO DAY();
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-4	DO DAY(a;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!truncate	DO DAY(a
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!insert	DO DAY(a) zzz;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!swap	DO DAY_HOUR(a);
 accept	accept	engine	function_call_keyword/HOUR_SYM_(_expr_)	DO HOUR(a);
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-2	DO HOUR a);
-accept	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-3	DO HOUR();
+reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-3	DO HOUR();
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-4	DO HOUR(a;
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!truncate	DO HOUR(a
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!insert	DO HOUR(a) zzz;
@@ -5911,14 +5911,14 @@ reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!insert	DO LEFT(a
 accept	accept	engine	function_call_keyword/LEFT_(_expr_,_expr_)!swap	DO LESS(a, a);
 accept	accept	engine	function_call_keyword/MINUTE_SYM_(_expr_)	DO MINUTE(a);
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-2	DO MINUTE a);
-accept	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-3	DO MINUTE();
+reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-3	DO MINUTE();
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-4	DO MINUTE(a;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!truncate	DO MINUTE(a
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!insert	DO MINUTE(a) zzz;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!swap	DO MINUTE_MICROSECOND(a);
 accept	accept	engine	function_call_keyword/MONTH_SYM_(_expr_)	DO MONTH(a);
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-2	DO MONTH a);
-accept	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-3	DO MONTH();
+reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-3	DO MONTH();
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-4	DO MONTH(a;
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!truncate	DO MONTH(a
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!insert	DO MONTH(a) zzz;
@@ -5934,7 +5934,7 @@ reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!insert	DO RIGHT
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!swap	DO ROLE(a, a);
 accept	accept	engine	function_call_keyword/SECOND_SYM_(_expr_)	DO SECOND(a);
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-2	DO SECOND a);
-accept	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-3	DO SECOND();
+reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-3	DO SECOND();
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-4	DO SECOND(a;
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!truncate	DO SECOND(a
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!insert	DO SECOND(a) zzz;
@@ -5947,7 +5947,7 @@ reject	reject	engine	function_call_keyword/SESSION_USER_SYM_(_)!insert	DO SESSIO
 reject	reject	engine	function_call_keyword/SESSION_USER_SYM_(_)!swap	DO SET();
 accept	accept	engine	function_call_keyword/TIME_SYM_(_expr_)	DO TIME(a);
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-2	DO TIME a);
-accept	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-3	DO TIME();
+reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-3	DO TIME();
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-4	DO TIME(a;
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!truncate	DO TIME(a
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!insert	DO TIME(a) zzz;
@@ -5965,7 +5965,7 @@ reject	reject	engine	function_call_keyword/USER_SYM_(_)!insert	DO USER() zzz;
 accept	accept	engine	function_call_keyword/USER_SYM_(_)!swap	DO USER_RESOURCES();
 accept	accept	engine	function_call_keyword/YEAR_SYM_(_expr_)	DO YEAR(a);
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-2	DO YEAR a);
-accept	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-3	DO YEAR();
+reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-3	DO YEAR();
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-4	DO YEAR(a;
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!truncate	DO YEAR(a
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!insert	DO YEAR(a) zzz;
@@ -6201,7 +6201,7 @@ reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_ca
 accept	accept	engine	function_call_conflict/ASCII_SYM_(_expr_)	DO ASCII(a);
 accept	accept	engine	function_call_conflict/CHARSET_(_expr_)	DO CHARSET(a);
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-2	DO CHARSET a);
-accept	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-3	DO CHARSET();
+reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-3	DO CHARSET();
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-4	DO CHARSET(a;
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!truncate	DO CHARSET(a
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!insert	DO CHARSET(a) zzz;
@@ -6219,7 +6219,7 @@ reject	reject	engine	function_call_conflict/IF_SYM_(_expr_,_expr_,_expr_)!insert
 reject	reject	engine	function_call_conflict/IF_SYM_(_expr_,_expr_,_expr_)!swap	DO IGNORE(a, a, a);
 accept	accept	engine	function_call_conflict/LAST_VALUE_(_expr_)	DO LAST_VALUE(a);
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-2	DO LAST_VALUE a);
-accept	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-3	DO LAST_VALUE();
+reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-3	DO LAST_VALUE();
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-4	DO LAST_VALUE(a;
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!truncate	DO LAST_VALUE(a
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!insert	DO LAST_VALUE(a) zzz;
@@ -6244,7 +6244,7 @@ reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!insert	DO MO
 accept	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!swap	DO MODE(a, a);
 accept	accept	engine	function_call_conflict/PASSWORD_SYM_(_expr_)	DO PASSWORD(a);
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-2	DO PASSWORD a);
-accept	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-3	DO PASSWORD();
+reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-3	DO PASSWORD();
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-4	DO PASSWORD(a;
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!truncate	DO PASSWORD(a
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!insert	DO PASSWORD(a) zzz;
@@ -6319,19 +6319,19 @@ reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!insert	DO WEIGHT_STRING(a, 1, 1, 1) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!swap	DO WHEN(a, 1, 1, 1);
 accept	accept	engine	function_call_generic/ident_func_(_opt_udf_expr_list_)	DO a();
-accept	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)	DO CONTAINS();
+reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)	DO CONTAINS();
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!drop-2	DO CONTAINS);
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!drop-3	DO CONTAINS(;
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!truncate	DO CONTAINS(
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!insert	DO CONTAINS() zzz;
 accept	accept	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!swap	DO CONTEXT();
-accept	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)	DO OVERLAPS();
+reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)	DO OVERLAPS();
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!drop-2	DO OVERLAPS);
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!drop-3	DO OVERLAPS(;
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!truncate	DO OVERLAPS(
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!insert	DO OVERLAPS() zzz;
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!swap	DO OWNER();
-accept	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)	DO WITHIN();
+reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)	DO WITHIN();
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!drop-2	DO WITHIN);
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!drop-3	DO WITHIN(;
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!truncate	DO WITHIN(
@@ -6851,9 +6851,9 @@ reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!truncate	DO CAST(a AS INTERVAL DAY_SECOND(2147483648
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!insert	DO CAST(a AS INTERVAL DAY_SECOND(2147483648) zzz);
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!swap	DO CAST(a AS INTO DAY_SECOND(2147483648));
-accept	reject	engine	opt_expr_list/%empty	DO CONTAINS();
-accept	reject	engine	opt_expr_list/%empty!insert	DO CONTAINS(zzz);
-accept	reject	engine	opt_expr_list/expr_list	DO CONTAINS(a);
+reject	reject	engine	opt_expr_list/%empty	DO CONTAINS();
+reject	reject	engine	opt_expr_list/%empty!insert	DO CONTAINS(zzz);
+reject	reject	engine	opt_expr_list/expr_list	DO CONTAINS(a);
 reject	reject	engine	opt_expr_list/expr_list!insert	DO CONTAINS(a zzz);
 accept	accept	engine	expr_list/expr	DO a;
 accept	accept	engine	expr_list/expr_list_,_expr	DO a, a;

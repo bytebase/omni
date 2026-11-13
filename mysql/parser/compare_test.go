@@ -12960,3 +12960,23 @@ func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
 		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
 	}
 }
+
+// TestSTCollectSpaced: ST_COLLECT is a keyword only right before '(', so with a
+// space it is a generic call, which takes any arguments and no DISTINCT or
+// window.
+func TestSTCollectSpaced(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		accept bool
+	}{
+		{"SELECT ST_COLLECT(a)", true},
+		{"SELECT ST_COLLECT(DISTINCT a)", true},
+		{"SELECT ST_COLLECT()", false},
+		{"SELECT ST_COLLECT (1, 2)", true},
+		{"SELECT ST_COLLECT (DISTINCT a)", false},
+	} {
+		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
+			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)
+		}
+	}
+}
