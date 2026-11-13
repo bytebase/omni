@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"unicode"
 
@@ -18,6 +17,7 @@ import (
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
@@ -222,7 +222,7 @@ func TestWalkThroughAgainstPostgres(t *testing.T) {
 // whose NOT NULL constraints have names: a fact the walk relies on must
 // hold on every version Bytebase supports.
 func TestWalkThroughAgainstPostgres18(t *testing.T) {
-	runWalkCases(t, startPostgresImage(t, "postgres:18-alpine"))
+	runWalkCases(t, startPostgresRole(t, testcontainer.PG18))
 }
 
 func runWalkCases(t *testing.T, db *sql.DB) {
@@ -254,16 +254,10 @@ func runWalkCases(t *testing.T, db *sql.DB) {
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
-var walkRolesSetup sync.Mutex
-
 // setupWalkRoles creates bob, a role the cases set, and walkOwner, who
 // then owns the database.
 func setupWalkRoles(t *testing.T, conn *sql.Conn) {
 	t.Helper()
-	// Sweep shards share a server and roles belong to it. A concurrent CREATE
-	// ROLE can fail on the catalog's unique index rather than as a duplicate.
-	walkRolesSetup.Lock()
-	defer walkRolesSetup.Unlock()
 	for _, q := range []string{
 		"DO $$ BEGIN CREATE ROLE bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
 		"DO $$ BEGIN CREATE ROLE " + walkOwner + "; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
@@ -275,46 +269,75 @@ func setupWalkRoles(t *testing.T, conn *sql.Conn) {
 	}
 }
 
-// TestWalkThroughOracleChecksClaims holds the oracle itself to its job:
-// a claim the catalog contradicts must not hold.
-func TestWalkThroughOracleChecksClaims(t *testing.T) {
+// TestWalkThroughInventory holds the oracle's list of the server's objects,
+// which Judge reads every claim off, to the catalog: each kind of object the
+// walk claims a fact of, keyed as the walk keys it, a partitioned table as a
+// partitioned one too, and the session's temporary tables under pg_temp.
+func TestWalkThroughInventory(t *testing.T) {
 	db := startPostgres(t)
 	conn, err := db.Conn(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	resetWalk(t, conn, walkBase)
-	nokey := relKey("public", "nokey")
+	resetWalk(t, conn, walkBase+"CREATE DOMAIN dom AS int;\nCREATE TEMP TABLE tmp (a int);")
+	inventory, done := prepared(t, conn, "walk_inventory", nil, walkInventory)
+	defer done()
+	e := &pgEngine{conn: conn, inventory: inventory}
+	objects := e.Inventory(t, "")
+	has := func(k walk.Key, kind string) bool {
+		return slices.Contains(objects, walktest.Object{Key: k, Kind: kind})
+	}
+	nokey, parted := relKey("public", "nokey"), relKey("public", "parted")
 	for _, tt := range []struct {
 		name string
-		v    walk.Violation
-		msg  string
+		key  walk.Key
+		kind string
 		want bool
 	}{
-		{"an existing relation claimed absent", walk.Violation{Keys: []walk.Key{schemaKey("public"), nokey}, Facts: []walk.Fact{walk.Present, walk.Absent}}, "`nokey` doesn't exist.", false},
-		{"an existing relation claimed present", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "", true},
-		{"a missing schema claimed present", walk.Violation{Keys: []walk.Key{schemaKey("nosuch")}, Facts: []walk.Fact{walk.Present}}, "", false},
-		{"a table claimed a view", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relView}, "`nokey` is a view, not a table.", false},
-		{"a table claimed a table", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relTable}, "", true},
-		{"an ordinary table claimed partitioned", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "PostgreSQL doesn't accept `TRUNCATE ONLY` of partitioned table `nokey`.", false},
-		{"an ordinary table claimed partitioned for CONCURRENTLY", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `nokey`.", false},
-		{"a claim about the text", walk.Violation{}, "This statement declares column `a` twice.", true},
+		{"a schema", schemaKey("s"), "", true},
+		{"a missing schema", schemaKey("nosuch"), "", false},
+		{"a table", nokey, relTable, true},
+		{"a view", relKey("public", "tv"), relView, true},
+		{"a materialized view", relKey("public", "mv"), relMatview, true},
+		{"a sequence", relKey("public", "q"), relSequence, true},
+		{"an index", relKey("public", "t_n_idx"), relIndex, true},
+		{"a composite type", relKey("public", "pair"), relComposite, true},
+		{"a partitioned table", parted, relTable, true},
+		{"a partitioned table, as one", parted, relPartitioned, true},
+		{"an ordinary table, as a partitioned one", nokey, relPartitioned, false},
+		{"a partition in another schema", relKey("s", "parted_1"), relTable, true},
+		{"a temporary table", relKey(tempSchema, "tmp"), relTable, true},
+		{"an enum", typeKey("public", "mood"), typOther, true},
+		{"a table's row type", typeKey("public", "nokey"), typOther, true},
+		{"a domain", typeKey("public", "dom"), typDomain, true},
+		{"a column", columnKey(nokey, "a"), "", true},
+		{"a dropped or system column", columnKey(nokey, "ctid"), "", false},
+		{"a constraint", constraintKey(relKey("public", "t"), "t_n_check"), "", true},
+		{"a primary key", primaryKeyOf(relKey("public", "t")), "", true},
+		{"no primary key", primaryKeyOf(nokey), "", false},
 	} {
-		if got, why := verifyClaim(t, conn, &tt.v, tt.msg); got != tt.want {
-			t.Errorf("%s: holds = %v (%s), want %v", tt.name, got, why, tt.want)
+		if got := has(tt.key, tt.kind); got != tt.want {
+			t.Errorf("%s: %+v (%q) listed: %v, want %v", tt.name, tt.key, tt.kind, got, tt.want)
 		}
 	}
 }
 
+// The sweep's size and seed. Its tape holds one stream of requests for
+// exactly these, so a change to either is a recording:
+//
+//	OMNI_RECORD=1 go test ./pg/review/ -run '^TestWalkThroughSweep$'
+const (
+	walkSweepN    = 40
+	walkSweepSeed = 20261019
+)
+
 // TestWalkThroughSweep runs random changes over a small pool of names, so
 // creations, drops, renames, and generated names collide often, on
 // random starting schemas. Precision must hold on every one; recall is
-// logged. WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the
-// seed, and WALK_SWEEP_IMAGE the PostgreSQL image.
+// logged.
 func TestWalkThroughSweep(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261019, "postgres:17-alpine")
-	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
+	changes := walktest.SweepChanges(walkSweepN, walkSweepSeed, func(rng *rand.Rand) (string, string) {
 		base := sweepChange(rng, 8+rng.Intn(8))
 		change := sweepChange(rng, 15+rng.Intn(15))
 		if rng.Intn(6) == 0 {
@@ -322,51 +345,39 @@ func TestWalkThroughSweep(t *testing.T) {
 		}
 		return base, change
 	})
-	shards := walktest.Shards(n)
-	for shard := range shards {
-		t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
-			t.Parallel()
-			db := startPostgresDatabase(t, image, fmt.Sprintf("omni_review_shard%d", shard))
-			ctx := context.Background()
-			conn, err := db.Conn(ctx)
-			if err != nil {
-				t.Fatal(err)
+	db := startPostgres(t)
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	setupWalkRoles(t, conn)
+	var found, rejected int
+	for i, c := range changes {
+		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+			resetWalk(t, conn, "")
+			// The base keeps only the statements the server accepts. The
+			// change then runs as Bytebase runs it, in a session of its
+			// own: no temporary relation, the default settings.
+			for _, stmt := range splitStatements(c.Base) {
+				_, _ = conn.ExecContext(ctx, stmt)
 			}
-			defer conn.Close()
-			var version string
-			if err := conn.QueryRowContext(ctx, "SHOW server_version").Scan(&version); err != nil {
-				t.Fatal(err)
+			for _, stmt := range []string{"RESET ALL", "RESET ROLE", "DISCARD TEMP"} {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("%s: %v", stmt, err)
+				}
 			}
-			t.Logf("PostgreSQL %s", version)
-			setupWalkRoles(t, conn)
-			var found, rejected int
-			for i := shard; i < len(changes); i += shards {
-				base, change := changes[i].Base, changes[i].Change
-				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-					resetWalk(t, conn, "")
-					// The base keeps only the statements the server accepts. The
-					// change then runs as Bytebase runs it, in a session of its
-					// own: no temporary relation, the default settings.
-					for _, stmt := range splitStatements(base) {
-						_, _ = conn.ExecContext(ctx, stmt)
-					}
-					for _, stmt := range []string{"RESET ALL", "RESET ROLE", "DISCARD TEMP"} {
-						if _, err := conn.ExecContext(ctx, stmt); err != nil {
-							t.Fatalf("%s: %v", stmt, err)
-						}
-					}
-					schema := walkSync(t, conn)
-					f, r := judgeWalk(t, conn, schema, "postgres", change, false, false)
-					found += f
-					rejected += r
-					if t.Failed() {
-						t.Logf("base:\n%s\nchange:\n%s", base, change)
-					}
-				})
+			schema := walkSync(t, conn)
+			f, r := judgeWalk(t, conn, schema, "postgres", c.Change, false, false)
+			found += f
+			rejected += r
+			if t.Failed() {
+				t.Logf("base:\n%s\nchange:\n%s", c.Base, c.Change)
 			}
-			t.Logf("shard %d of seed %d: found %d of the %d statements the server rejects", shard, seed, found, rejected)
 		})
 	}
+	t.Logf("seed %d: found %d of the %d statements the server rejects", walkSweepSeed, found, rejected)
 }
 
 // splitStatements splits a change into its statements, each ending with a
@@ -397,6 +408,11 @@ type pgEngine struct {
 	conn   *sql.Conn
 	target review.Target
 	tenant bool
+	// inventory is the EXECUTE of walkInventory, prepared on conn.
+	inventory string
+	// dropAtCommit holds the temporary tables the oracle's own COMMIT drops
+	// partway through the change (see dropAtCommit).
+	dropAtCommit map[string]bool
 
 	// The change as Bytebase runs it, and how far Exec has run it: units
 	// in order, which of those run accepted, and the oracle's transaction.
@@ -436,6 +452,7 @@ func (e *pgEngine) Statements(change string) []string {
 	e.accepted = make([]bool, len(e.units))
 	e.inTxn = true
 	e.mismatch = e.samePlan(change)
+	e.dropAtCommit = dropAtCommit(e)
 	return texts
 }
 
@@ -550,25 +567,172 @@ func (e *pgEngine) Report(t testing.TB, change string) *walktest.Finding {
 	return &walktest.Finding{Statement: at[f.Statement], Message: f.Message}
 }
 
+// Violation returns the walk's violation. Two findings rest on what the
+// walker keeps beside the ledger, that a table is partitioned: their claim
+// is the table, of the kind the inventory lists a partitioned one as too.
 func (e *pgEngine) Violation(t testing.TB, change string) *walk.Violation {
 	t.Helper()
 	sql, _ := e.replay(change)
-	return walkViolation(t, sql, e.target)
+	v := walkViolation(t, sql, e.target)
+	f := walkFinding(t, sql, e.target)
+	for _, prefix := range partitionedFindings {
+		if f == nil || !strings.HasPrefix(f.Message, prefix) {
+			continue
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(f.Message, prefix), "`.")
+		for _, c := range walktest.Claims(v) {
+			if c.Key.Space == spaceRelation && c.Key.Name == name && c.Fact == walk.Present {
+				return &walk.Violation{Check: walk.Check{Key: c.Key}, Got: walk.Present, Kind: relPartitioned}
+			}
+		}
+		t.Fatalf("%q claims no relation %s", f.Message, name)
+	}
+	return v
+}
+
+// partitionedFindings open the messages of the findings that claim a table
+// is partitioned.
+var partitionedFindings = []string{
+	"PostgreSQL doesn't accept `TRUNCATE ONLY` of partitioned table `",
+	"PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `",
 }
 
 func (e *pgEngine) Codes(message string) []string { return walkStates(message) }
 
-func (e *pgEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool, string) {
+// relPartitioned is the kind the inventory lists a partitioned table as,
+// beside relTable, the walk's kind of it.
+const relPartitioned = "partitioned table"
+
+// walkInventory lists, one line each, every object in a schema the walk
+// judges and in the session's temporary schema, which it lists as pg_temp:
+// schemas, the relations of pg_class with their relkind, the types of
+// pg_type with whether each is a domain, the columns of every relation,
+// constraints by their table, and each table's primary key. Each line is
+// space, schema, relation, name, kind, and the table the object is dropped
+// with: itself for a table, its table for an index, a sequence it owns, a
+// row type or its array, a column and a constraint. The list is in byte
+// order, so the tape holds the same answer for the same catalog.
+const walkInventory = `WITH ns AS (
+	SELECT n.oid, CASE WHEN n.oid = pg_catalog.pg_my_temp_schema() THEN 'pg_temp' ELSE n.nspname END AS name
+	FROM pg_catalog.pg_namespace n
+	WHERE (n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema') OR n.oid = pg_catalog.pg_my_temp_schema()
+), rel AS (
+	SELECT c.oid, ns.name AS schema, c.relname, c.relkind::text AS kind, coalesce(
+		(SELECT t.relname FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class t ON t.oid = x.indrelid WHERE x.indexrelid = c.oid),
+		(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.refclassid = d.classid AND d.deptype IN ('a', 'i') ORDER BY 1 LIMIT 1),
+		c.relname) AS owner
+	FROM pg_catalog.pg_class c JOIN ns ON ns.oid = c.relnamespace
+)
+SELECT coalesce(string_agg(line, E'\n' ORDER BY line COLLATE "C"), '') FROM (
+	SELECT concat_ws(E'\t', 'schema', '', '', n.nspname, '', '') AS line FROM pg_catalog.pg_namespace n
+		WHERE n.nspname NOT LIKE 'pg\_temp\_%' AND n.nspname NOT LIKE 'pg\_toast\_temp\_%'
+	UNION ALL SELECT concat_ws(E'\t', 'relation', schema, '', relname, kind, owner) FROM rel
+	UNION ALL SELECT concat_ws(E'\t', 'type', ns.name, '', t.typname, CASE WHEN t.typtype = 'd' THEN 'd' ELSE '' END,
+			coalesce((SELECT r.owner FROM rel r WHERE r.oid = t.typrelid),
+				(SELECT r.owner FROM pg_catalog.pg_type e JOIN rel r ON r.oid = e.typrelid WHERE e.oid = t.typelem), ''))
+		FROM pg_catalog.pg_type t JOIN ns ON ns.oid = t.typnamespace
+	UNION ALL SELECT concat_ws(E'\t', 'column', rel.schema, rel.relname, a.attname, '', rel.owner)
+		FROM pg_catalog.pg_attribute a JOIN rel ON rel.oid = a.attrelid WHERE a.attnum > 0 AND NOT a.attisdropped
+	UNION ALL SELECT concat_ws(E'\t', 'constraint', rel.schema, rel.relname, k.conname, k.contype::text, rel.owner)
+		FROM pg_catalog.pg_constraint k JOIN rel ON rel.oid = k.conrelid
+) o`
+
+// Inventory lists the server's objects as the walk keys them (walkInventory).
+// A relation's kind is the walk's; a partitioned table is listed as a table
+// and as a partitioned one. A column and a constraint carry no kind, so a
+// claim's kind of either is not checked, and a primary key is listed beside
+// its constraint. What lives and dies with a table of dropAtCommit is left
+// out.
+func (e *pgEngine) Inventory(t testing.TB, _ string) []walktest.Object {
 	t.Helper()
-	return verifyClaim(t, e.conn, v, message)
+	var lines string
+	if err := e.conn.QueryRowContext(context.Background(), e.inventory).Scan(&lines); err != nil {
+		t.Fatalf("list the server's objects: %v", err)
+	}
+	var objects []walktest.Object
+	for line := range strings.SplitSeq(lines, "\n") {
+		if line == "" {
+			continue
+		}
+		f := strings.Split(line, "\t")
+		if len(f) != 6 {
+			t.Fatalf("an object's line is %q, want its space, schema, relation, name, kind, and table", line)
+		}
+		space, schema, rel, name, kind, owner := f[0], f[1], f[2], f[3], f[4], f[5]
+		if schema == tempSchema && e.dropAtCommit[owner] {
+			continue
+		}
+		switch space {
+		case spaceSchema:
+			objects = append(objects, walktest.Object{Key: schemaKey(name)})
+		case spaceRelation:
+			k := relKey(schema, name)
+			walkKind, ok := relkinds[kind]
+			if !ok {
+				t.Fatalf("relation %s.%s of the unknown relkind %q", schema, name, kind)
+			}
+			objects = append(objects, walktest.Object{Key: k, Kind: walkKind})
+			if kind == "p" {
+				objects = append(objects, walktest.Object{Key: k, Kind: relPartitioned})
+			}
+		case spaceType:
+			typKind := typOther
+			if kind == "d" {
+				typKind = typDomain
+			}
+			objects = append(objects, walktest.Object{Key: typeKey(schema, name), Kind: typKind})
+		case spaceColumn:
+			objects = append(objects, walktest.Object{Key: columnKey(relKey(schema, rel), name)})
+		case spaceConstraint:
+			objects = append(objects, walktest.Object{Key: constraintKey(relKey(schema, rel), name)})
+			if kind == "p" {
+				objects = append(objects, walktest.Object{Key: primaryKeyOf(relKey(schema, rel))})
+			}
+		default:
+			t.Fatalf("an object of the unknown space %q: %q", space, line)
+		}
+	}
+	return objects
 }
+
+// dropAtCommit returns the temporary tables a change makes ON COMMIT DROP,
+// when the oracle commits its transaction partway through the change, as it
+// does before the statements Bytebase runs after its COMMIT. That commit
+// drops them, and Judge, which reads the server's objects before and after
+// each rejected statement, would take it for the statement's doing. They
+// vanish at a commit the oracle makes, not one the change asks for, so the
+// list leaves them out. In auto-commit mode each statement commits, and
+// such a table never outlives its own.
+func dropAtCommit(e *pgEngine) map[string]bool {
+	if e.autocommit || !slices.ContainsFunc(e.units, func(u bbUnit) bool { return u.apart }) {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, u := range e.units {
+		if m := tempOnCommitDrop.FindStringSubmatch(u.text); m != nil {
+			out[m[1]] = true
+		}
+	}
+	return out
+}
+
+// tempOnCommitDrop matches a CREATE TEMP TABLE ... ON COMMIT DROP of an
+// unquoted name, as the sweep writes it.
+var tempOnCommitDrop = regexp.MustCompile(`(?is)^\s*CREATE\s+TEMP(?:ORARY)?\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:pg_temp\.)?([a-z_][a-z0-9_]*)\b.*\bON\s+COMMIT\s+DROP\b`)
+
+// Same compares keys byte for byte: the walk folds a name as PostgreSQL
+// stores it.
+func (e *pgEngine) Same(claimed, stored walk.Key) bool { return claimed == stored }
 
 // judgeWalk runs the change on the server as Bytebase would and holds the
 // walk to it (walktest.Judge). It returns how many rejected statements the
 // walk found and how many there were.
 func judgeWalk(t *testing.T, conn *sql.Conn, schema *metadata.DatabaseSchemaMetadata, user, change string, complete, tenant bool) (found, rejected int) {
 	t.Helper()
-	e := &pgEngine{conn: conn, target: review.Target{Schema: schema, SessionUser: user}, tenant: tenant}
+	inventory, done := prepared(t, conn, "walk_inventory", nil, walkInventory)
+	defer done()
+	e := &pgEngine{conn: conn, inventory: inventory, target: review.Target{Schema: schema, SessionUser: user}, tenant: tenant}
 	e.exec(t, "BEGIN")
 	defer e.exec(t, "ROLLBACK")
 	found, rejected = walktest.Judge(t, e, change, complete)
@@ -704,93 +868,6 @@ var relkinds = map[string]string{
 	"i": relIndex, "I": relIndex, "f": relForeign, "c": relComposite,
 }
 
-// verifyClaim checks the facts a finding claims against the server's
-// catalog, as it is now, key by key (walktest.Claims). A claim about the
-// SQL's own text holds by itself. Two claims rest on what the walker
-// keeps beside the ledger, that a table is partitioned, which the catalog
-// confirms too.
-func verifyClaim(t testing.TB, conn *sql.Conn, v *walk.Violation, msg string) (bool, string) {
-	t.Helper()
-	for _, prefix := range []string{"PostgreSQL doesn't accept `TRUNCATE ONLY` of partitioned table `", "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `"} {
-		if !strings.HasPrefix(msg, prefix) {
-			continue
-		}
-		name := strings.TrimSuffix(strings.TrimPrefix(msg, prefix), "`.")
-		if !catalogAsk(t, conn, `SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name) {
-			return false, name + " is not partitioned"
-		}
-	}
-	for _, c := range walktest.Claims(v) {
-		if ok, why := claimHolds(t, conn, c); !ok {
-			return false, why
-		}
-	}
-	return true, ""
-}
-
-func catalogAsk(t testing.TB, conn *sql.Conn, q string, args ...any) bool {
-	t.Helper()
-	var ok bool
-	if err := conn.QueryRowContext(context.Background(), q, args...).Scan(&ok); err != nil {
-		t.Fatalf("%s: %v", q, err)
-	}
-	return ok
-}
-
-// claimHolds checks one fact against the catalog. An Unknown fact claims
-// nothing.
-func claimHolds(t testing.TB, conn *sql.Conn, c walktest.Claim) (bool, string) {
-	t.Helper()
-	ctx := context.Background()
-	ask := func(q string, args ...any) bool {
-		t.Helper()
-		return catalogAsk(t, conn, q, args...)
-	}
-	k := c.Key
-	if c.Fact == walk.Unknown {
-		return true, ""
-	}
-	present := c.Fact == walk.Present
-	names := walk.Names(k.Parent)
-	schemaOID := `(CASE WHEN $1 = 'pg_temp' THEN pg_my_temp_schema() ELSE (SELECT oid FROM pg_namespace WHERE nspname = $1) END)`
-	switch k.Space {
-	case spaceSchema:
-		return ask(`SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1) = $2`, k.Name, present), fmt.Sprintf("schema %s present=%v", k.Name, !present)
-	case spaceRelation:
-		var kind sql.NullString
-		if err := conn.QueryRowContext(ctx, `SELECT relkind::text FROM pg_class WHERE relnamespace = `+schemaOID+` AND relname = $2`, names[0], k.Name).Scan(&kind); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			t.Fatal(err)
-		}
-		switch {
-		case !present:
-			return !kind.Valid, fmt.Sprintf("relation %s.%s exists", names[0], k.Name)
-		case !kind.Valid:
-			return false, fmt.Sprintf("relation %s.%s does not exist", names[0], k.Name)
-		case c.Kind != "" && relkinds[kind.String] != c.Kind:
-			return false, fmt.Sprintf("relation %s.%s is %s, not %s", names[0], k.Name, relkinds[kind.String], c.Kind)
-		}
-		return true, ""
-	case spaceType:
-		if present && c.Kind == typOther {
-			return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2 AND typtype <> 'd')`, names[0], k.Name), fmt.Sprintf("type %s.%s is a domain or missing", names[0], k.Name)
-		}
-		return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2) = $3`, names[0], k.Name, present), fmt.Sprintf("type %s.%s present=%v", names[0], k.Name, !present)
-	case spaceColumn, spaceConstraint, spacePrimaryKey:
-		rel := `(SELECT c.oid FROM pg_class c WHERE c.relnamespace = ` + schemaOID + ` AND c.relname = $2)`
-		var q string
-		switch k.Space {
-		case spaceColumn:
-			q = `SELECT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = ` + rel + ` AND attname = $3 AND attnum > 0 AND NOT attisdropped) = $4`
-		case spaceConstraint:
-			q = `SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = ` + rel + ` AND conname = $3) = $4`
-		default:
-			q = `SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = ` + rel + ` AND contype = 'p' AND $3 = '') = $4`
-		}
-		return ask(q, names[0], names[1], k.Name, present), fmt.Sprintf("%s %s of %s.%s present=%v", k.Space, k.Name, names[0], names[1], !present)
-	}
-	return false, "unknown space " + k.Space
-}
-
 func walkFinding(t testing.TB, sql string, target review.Target) *review.Finding {
 	t.Helper()
 	if strings.TrimSpace(sql) == "" {
@@ -881,7 +958,7 @@ func walkStates(msg string) []string {
 func resetWalk(t *testing.T, conn *sql.Conn, base string) {
 	t.Helper()
 	ctx := context.Background()
-	rows, err := conn.QueryContext(ctx, `SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'`)
+	rows, err := conn.QueryContext(ctx, `SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema' ORDER BY 1`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -895,7 +972,7 @@ func resetWalk(t *testing.T, conn *sql.Conn, base string) {
 	}
 	rows.Close()
 	stmts := []string{"RESET ALL", "RESET ROLE", "DISCARD TEMP"}
-	rows, err = conn.QueryContext(ctx, `SELECT evtname FROM pg_event_trigger`)
+	rows, err = conn.QueryContext(ctx, `SELECT evtname FROM pg_event_trigger ORDER BY 1`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -952,6 +1029,17 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	if err := conn.QueryRowContext(ctx, "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()").Scan(&db.Owner); err != nil {
 		t.Fatal(err)
 	}
+	// The queries asked of every relation are prepared, so a tape holds
+	// their text once a sync.
+	columnsQuery, done := prepared(t, conn, "walk_columns", []string{"text"}, `SELECT attname FROM pg_attribute WHERE attrelid = substr($1, 5)::oid AND attnum > 0 AND NOT attisdropped ORDER BY attnum`)
+	defer done()
+	indexesQuery, done := prepared(t, conn, "walk_indexes", []string{"text"}, `SELECT i.relname, x.indisunique, x.indisprimary, EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid AND c.contype IN ('p', 'u', 'x')), pg_get_indexdef(i.oid) || ';'
+			FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid WHERE x.indrelid = substr($1, 5)::oid ORDER BY 1`)
+	defer done()
+	constraintsQuery, done := prepared(t, conn, "walk_constraints", []string{"text"}, `SELECT conname, contype::text FROM pg_constraint WHERE conrelid = substr($1, 5)::oid AND contype IN ('f', 'c', 'x') ORDER BY 1`)
+	defer done()
+	triggersQuery, done := prepared(t, conn, "walk_triggers", []string{"text"}, `SELECT tgname FROM pg_trigger WHERE tgrelid = substr($1, 5)::oid AND NOT tgisinternal ORDER BY 1`)
+	defer done()
 	// The sync reads in a transaction on an empty search path, so the
 	// definitions it reads name every schema.
 	for _, q := range []string{"BEGIN", "SELECT set_config('search_path', '', true)"} {
@@ -1001,9 +1089,10 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		db.Schemas = append(db.Schemas, s)
 		return nil
 	})
-	columnsOf := func(oid int64) []*metadata.ColumnMetadata {
+	// An OID crosses the tape as text with a stand-in (testcontainer.Codec).
+	columnsOf := func(oid string) []*metadata.ColumnMetadata {
 		var cols []*metadata.ColumnMetadata
-		query(`SELECT attname FROM pg_attribute WHERE attrelid = $1 AND attnum > 0 AND NOT attisdropped ORDER BY attnum`, func(rows *sql.Rows) error {
+		query(columnsQuery, func(rows *sql.Rows) error {
 			c := &metadata.ColumnMetadata{}
 			if err := rows.Scan(&c.Name); err != nil {
 				return err
@@ -1013,10 +1102,9 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}, oid)
 		return cols
 	}
-	indexesOf := func(oid int64) []*metadata.IndexMetadata {
+	indexesOf := func(oid string) []*metadata.IndexMetadata {
 		var out []*metadata.IndexMetadata
-		query(`SELECT i.relname, x.indisunique, x.indisprimary, EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid AND c.contype IN ('p', 'u', 'x')), pg_get_indexdef(i.oid) || ';'
-			FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid WHERE x.indrelid = $1 ORDER BY 1`, func(rows *sql.Rows) error {
+		query(indexesQuery, func(rows *sql.Rows) error {
 			i := &metadata.IndexMetadata{}
 			if err := rows.Scan(&i.Name, &i.Unique, &i.Primary, &i.IsConstraint, &i.Definition); err != nil {
 				return err
@@ -1032,11 +1120,11 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	type parentKey struct{ schema, name string }
 	partitions := make(map[parentKey][]*metadata.TablePartitionMetadata)
 	type part struct {
-		oid                          int64
+		oid                          string
 		name, parentSchema, parentOf string
 	}
 	var parts []part
-	query(`SELECT c.oid, c.relname, pn.nspname, p.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	query(`SELECT 'oid:' || c.oid, c.relname, pn.nspname, p.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		JOIN pg_inherits i ON i.inhrelid = c.oid JOIN pg_class p ON p.oid = i.inhparent JOIN pg_namespace pn ON pn.oid = p.relnamespace
 		WHERE c.relkind IN ('r', 'f', 'p') AND c.relispartition AND `+user+` ORDER BY c.oid`, func(rows *sql.Rows) error {
 		var p part
@@ -1067,13 +1155,13 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		return out
 	}
 	type rel struct {
-		oid    int64
+		oid    string
 		schema string
 		name   string
 		kind   string
 	}
 	var rels []rel
-	query(`SELECT c.oid, n.nspname, c.relname, c.relkind::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	query(`SELECT 'oid:' || c.oid, n.nspname, c.relname, c.relkind::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c') AND NOT c.relispartition AND `+user+` ORDER BY 2, 3`, func(rows *sql.Rows) error {
 		var r rel
 		if err := rows.Scan(&r.oid, &r.schema, &r.name, &r.kind); err != nil {
@@ -1090,7 +1178,7 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 				continue
 			}
 			tb := &metadata.TableMetadata{Name: r.name, Columns: columnsOf(r.oid), Indexes: indexesOf(r.oid), Partitions: warp(r.schema, r.name)}
-			query(`SELECT conname, contype::text FROM pg_constraint WHERE conrelid = $1 AND contype IN ('f', 'c', 'x') ORDER BY 1`, func(rows *sql.Rows) error {
+			query(constraintsQuery, func(rows *sql.Rows) error {
 				var name, kind string
 				if err := rows.Scan(&name, &kind); err != nil {
 					return err
@@ -1105,7 +1193,7 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 				}
 				return nil
 			}, r.oid)
-			query(`SELECT tgname FROM pg_trigger WHERE tgrelid = $1 AND NOT tgisinternal`, func(rows *sql.Rows) error {
+			query(triggersQuery, func(rows *sql.Rows) error {
 				tr := &metadata.TriggerMetadata{}
 				if err := rows.Scan(&tr.Name); err != nil {
 					return err

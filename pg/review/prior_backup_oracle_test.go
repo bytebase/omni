@@ -298,7 +298,7 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 	prependAt := -1
 	// changes is the table each UPDATE or DELETE changes, as the server
 	// resolves it after the change's SETs before it, 0 when unknown.
-	changes := make(map[int]int64)
+	changes := make(map[int]string)
 	ctx := context.Background()
 	etx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -370,11 +370,13 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			if rv.Schemaname != "" {
 				name = fmt.Sprintf("%q.%q", rv.Schemaname, rv.Relname)
 			}
-			var oid sql.NullInt64
-			if err := etx.QueryRowContext(ctx, "SELECT to_regclass($1)::oid::int8", name).Scan(&oid); err != nil {
+			// An OID crosses the tape as text with a stand-in
+			// (testcontainer.Codec).
+			var oid sql.NullString
+			if err := etx.QueryRowContext(ctx, "SELECT 'oid:' || to_regclass($1)::oid", name).Scan(&oid); err != nil {
 				engineKnown = false
 			} else {
-				changes[i] = oid.Int64
+				changes[i] = oid.String
 			}
 		}
 		// Bytebase refuses the statement before it runs any query.
@@ -472,12 +474,12 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		b.WriteString(";")
 		g.outcome = runBackup(t, conn, prepend, b.String(), backup, key, owns)
 		if g.outcome == "" {
-			var oid sql.NullInt64
-			if err := conn.QueryRowContext(ctx, "SELECT to_regclass($1)::oid::int8", key).Scan(&oid); err != nil {
+			var oid sql.NullString
+			if err := conn.QueryRowContext(ctx, "SELECT 'oid:' || to_regclass($1)::oid", key).Scan(&oid); err != nil {
 				t.Fatal(err)
 			}
 			for _, i := range g.statements {
-				if c := changes[i]; c != 0 && c != oid.Int64 {
+				if c := changes[i]; c != "" && c != oid.String {
 					g.outcome = fmt.Sprintf("backs up %s for statement %d, which changes another table", key, i)
 				}
 			}
@@ -510,7 +512,7 @@ func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table strin
 	counts := func() map[string]int {
 		out := make(map[string]int)
 		rows, err := tx.QueryContext(ctx, `SELECT format('%I.%I', n.nspname, c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-			WHERE c.relkind = 'r' AND n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'bbdataarchive')`)
+			WHERE c.relkind = 'r' AND n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'bbdataarchive') ORDER BY 1`)
 		if err != nil {
 			t.Fatal(err)
 		}
