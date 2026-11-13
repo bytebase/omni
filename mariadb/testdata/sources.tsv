@@ -1,0 +1,8 @@
+# Vendor files mariadb's tests read and the repo does not hold: MariaDB Server
+# is under the GPL v2, which is not this repo's license. A test downloads each
+# file once (enginetest.Fetched) and checks its SHA-256 on every use. Each URL
+# names the commit of the source tag in pins.tsv, mariadb-11.8.8.
+# sql_yacc.yy holds the default grammar and the sql_mode=ORACLE one, between
+# %ifdef MARIADB and %ifdef ORACLE lines: there is no sql_yacc_ora.yy since 10.5.
+# columns: name, sha256, url
+sql_yacc.yy	8713634bc0906fb51888afadc85df4d409f1aee9015859ca5f81c859fe05de77	https://raw.githubusercontent.com/MariaDB/server/46a8eb42a520193686d9a16d4cea4b3e002917e4/sql/sql_yacc.yy

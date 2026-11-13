@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/enginetest/compat"
 )
 
 // The option list CREATE DATABASE and ALTER DATABASE read, and the names its
@@ -171,20 +173,14 @@ func (o *parserOracle) prepareParses(t *testing.T, sql string) bool {
 	return parses
 }
 
-// prepareParsesErr is prepareParses for a caller with no test to fail.
+// prepareParsesErr is prepareParses for a caller with no test to fail. The
+// statement travels as PREPARE's argument, which the connection writes into it
+// as a string literal, and a PREPARE of the same name replaces the last one:
+// the question is one request, or two with the probe, which keeps a tape small.
 func (o *parserOracle) prepareParsesErr(sql string) (bool, error) {
-	conn, err := o.db.Conn(o.ctx)
-	if err != nil {
-		return false, err
-	}
-	defer conn.Close()
 	prepare := func(text string) (uint16, error) {
-		if _, err := conn.ExecContext(o.ctx, "SET @omni_db_option = ?", text); err != nil {
-			return 0, err
-		}
-		_, err := conn.ExecContext(o.ctx, "PREPARE omni_db_option_stmt FROM @omni_db_option")
+		_, err := o.db.ExecContext(o.ctx, "PREPARE omni_parses_stmt FROM ?", text)
 		if err == nil {
-			_, _ = conn.ExecContext(o.ctx, "DEALLOCATE PREPARE omni_db_option_stmt")
 			return 0, nil
 		}
 		var myErr *gomysql.MySQLError
@@ -197,13 +193,13 @@ func (o *parserOracle) prepareParsesErr(sql string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	switch code {
-	case 0, 1115, 1128, 1193, 1253, 1272, 1273, 1286, 1289, 4081:
+	switch {
+	case code == 0, mariaDBLookupErrors[code]:
 		return true, nil
-	case 1064:
+	case code == 1064:
 		return false, nil
 	}
-	again, err := prepare(sql + "\n; SELECT FROM")
+	again, err := prepare(sql + compat.ProbeTail)
 	if err != nil {
 		return false, err
 	}

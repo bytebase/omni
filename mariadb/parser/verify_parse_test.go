@@ -47,7 +47,7 @@ func TestVerifyCorpus(t *testing.T) {
 		}
 	}
 	if len(corpusFiles) == 0 {
-		t.Skip("No corpus files found in mariadb/quality/corpus/")
+		t.Fatalf("no corpus files found in %s", corpusDir)
 	}
 
 	var stats corpusVerifyStats

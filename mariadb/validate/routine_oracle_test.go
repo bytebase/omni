@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	"github.com/bytebase/omni/mariadb/parser"
 )
@@ -20,37 +20,20 @@ type routineValidationOracle struct {
 	ctx context.Context
 }
 
+// startRoutineValidationOracle returns the oracle with an empty `test`
+// database selected: a replay of the test's tape, or the pinned server in a
+// recording (see testcontainer.OpenEmpty).
 func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
+	return &routineValidationOracle{db: testcontainer.OpenEmpty(t), ctx: context.Background()}
+}
 
-	ctx := context.Background()
-	container, err := tcmariadb.Run(ctx, testcontainer.Image,
-		tcmariadb.WithDatabase("test"),
-		tcmariadb.WithUsername("root"),
-		tcmariadb.WithPassword("test"),
-	)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to start MariaDB container: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-
-	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("failed to ping database: %v", err)
-	}
-
-	return &routineValidationOracle{db: db, ctx: ctx}
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
+func TestMain(m *testing.M) {
+	code := tape.Main(m)
+	testcontainer.Terminate()
+	os.Exit(code)
 }
 
 func TestRoutineValidationOracleAlignment(t *testing.T) {
