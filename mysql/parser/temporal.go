@@ -59,6 +59,9 @@ var spacedFuncWords = map[string]bool{
 	"BIT_AND": true, "BIT_OR": true, "BIT_XOR": true,
 	"JSON_ARRAYAGG": true, "JSON_OBJECTAGG": true,
 	"SUBSTR": true, "SUBSTRING": true, "TRIM": true, "POSITION": true,
+	// ST_COLLECT is SYM_FN too (testdata/tokens.tsv: a keyword only right
+	// before '(').
+	"ST_COLLECT": true,
 }
 
 // spacedFuncWordIsName reports whether the function word just consumed is a plain
