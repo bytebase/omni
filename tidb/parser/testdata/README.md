@@ -1,297 +1,146 @@
-# TiDB parser corpus
+# TiDB parser test data
 
-`pingcap_parser_corpus.tsv` holds every single-statement case from pingcap's own
-parser test, with the verdict `omni/tidb/parser` and TiDB v8.5.5 each give it.
-It is the measure of how much of the TiDB grammar omni covers, and the gate the
-PRs that close that gap work down. `corpus_oracle_test.go` is its only reader;
-`docs/plans/2026-11-03-tidb-grammar-gap-inventory.md` groups what is missing.
+`compat.tsv` holds a statement per row, with omni's verdict and the pinned
+TiDB's (`../../testdata/pins.tsv`). `TestCompatibility` (`../compat_test.go`)
+reads it through `enginetest/compat`, which describes the columns and what
+passes, and starts no server. `tapes/` holds what the package's other oracle
+tests sent to TiDB and its answers (`enginetest/tape`).
 
-## Columns
+## Rows
 
-Tab-separated, three fields, one statement per line:
-
-| Field | Values | Means |
+| Rule | Rows | From |
 |---|---|---|
-| 1 | `accept`, `reject` | what `tidb/parser.Parse` does with the statement |
-| 2 | `accept`, `reject` | whether TiDB v8.5.5 accepts the syntax |
-| 3 | the statement | verbatim, one line |
+| Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 11,055 | `../../testdata/parser.y` and `../../testdata/tokens.tsv` |
+| `suite:pingcap-parser` | 3,849 | pingcap's parser test, one form at a time |
+| `suite:pingcap-parser-rest` | 884 | the rest of pingcap's parser tests, forms combined |
+| `suite:tidb-integrationtest` | 27,242 | TiDB's integration tests |
+| `suite:bytebase` | 520 | Bytebase's TiDB test files |
+| `suite:reject-fuzz-sweep` | 292 | mutants of accepted statements (`../reject_fuzz_test.go`) |
+| `suite:oracle-corpus`, `suite:tidb-extensions` | 104 | statements two oracle tests listed |
+| `suite:cited`, `suite:reject-fuzz` | 6 | statements a test cites, and minimised fuzz findings |
 
-Lines beginning with `#` are the file's own header and are written back
-unchanged by an `-update` run.
+**Generated rows.** For each alternative of each rule in `parser.y`
+(pkg/parser/parser.y at the pinned tag, vendored verbatim), the shortest
+statement that reaches it, then its near-misses: the statement with one token
+dropped, the end cut off, a stray word inserted, or a keyword swapped. Where
+several alternatives are equally short, a statement takes the one the grammar
+lists first, and `'binary'` stands for every string, because it is also a
+charset and a collation: TiDB looks those names up while parsing, and an
+unknown name answers before a later syntax error can. Three alternatives get no
+row, because the default SQL mode never lexes their tokens (`||` as
+concatenation, high-precedence `NOT`); `TestCompatibility` lists them.
+`TestCompatibility` regenerates these rows and fails if the file holds others.
 
-Closing a grammar gap flips column 1 from `reject` to `accept`. Column 2 is not
-a knob: it records what the engine does, and a disagreement with it is the
-finding, not the thing to silence. It may be rewritten only when the pinned
-image changes, and then the diff is the list of what the new release altered, or when
-the reading of the engine's answer below is corrected, and then the diff is the list
-of what the old reading misreported.
+**Hand rows** carry a label in the rule column and survive regeneration. A
+statement found elsewhere goes in as `issue:<key>` or `suite:<name>` with `?`
+in both verdict columns, and a recording judges it. A suite's statements that
+another row already held were left out of it.
 
-Some rows are deliberately awkward and must survive an edit of this file: five
-are not valid UTF-8 (pingcap's GBK and big5 cases), sixteen end in a space
-(truncated-input cases), and four carry a CR inside a string literal. The
-loader splits on `\n` rather than scanning lines so none of that is stripped.
+**The reject fuzz.** `TestRejectFuzzRows` holds the `suite:reject-fuzz-sweep`
+rows to a generator: 300 token and byte mutations, from a fixed seed, of the
+statements TiDB accepts among the generated alternatives and the four corpora.
+The pool is read from the expected column, so a gap omni closes does not move
+it. An over-acceptance is a row omni accepts and TiDB rejects.
 
-## Provenance
+## Commands
 
-Extracted from `parser_test.go` in `github.com/pingcap/tidb/pkg/parser`, module
-version `v0.0.0-20251104011144-749c973e5a70` (commit `749c973e5a70`). Each case
-there is a statement with a flag saying whether pingcap's parser should accept
-it; only the statement text was taken, and only from cases that fit on one line.
-The flag was not: it describes pingcap's parser on master, not the pinned
-server, and 109 statements it accepts are grammar TiDB v8.5.5 does not have.
-Column 2 asks the server instead.
-
-### Licensing
-
-`github.com/pingcap/tidb` is distributed under the Apache License 2.0
-(Copyright 2016 PingCAP, Inc.). The license permits redistribution with
-attribution; this file is that attribution. The rows are test fixtures read at
-test time and are not compiled into omni, and omni does not depend on pingcap:
-nothing here adds a module requirement.
-
-## Where the engine verdict comes from
-
-`PREPARE`, which parses the statement and stops. Executing the corpus cannot
-measure it, because statements in the corpus destroy the run that executes
-them:
-
-- `shutdown` succeeds and stops the server. Nothing after it gets a verdict and
-  no reconnect reaches a process that has exited.
-- `SET PASSWORD = 'password';` succeeds and changes the connecting user's
-  password. The already-authenticated connection survives, so the run looks
-  healthy, but every new connection is refused and the run dies as soon as
-  anything replaces it — which `kill CONNECTION_ID()`, later in the corpus,
-  then forces.
-- `load stats '/tmp/stats.json'` and the `PLAN REPLAYER` file forms make the
-  server ask the client for a local file, which the driver refuses with an error
-  that is not a server verdict at all.
-
-The reading is the same as everywhere else in this package. Error 1064 is the
-parser's rejection, and it is not the only one: TiDB's grammar actions refuse text
-their productions read, with the code each chooses, while the parse is still running.
-`CREATE VECTOR INDEX i ON nosuch (a)` answers 1149 and `CREATE VECTOR INDEX i ON
-nosuch ((a))` answers 1146. Any other server error came after the parse: 1295 for
-a statement the prepared-statement protocol does not carry, 1146 for a table that
-does not exist. Anything that is not a server error is no verdict and fails the test.
-
-A code does not say which side it is on (1105 is both), so the harness asks. It
-prepares the statement again with a syntax error after it as a second statement. The
-server reads all of the text before it looks at anything, so a statement refused after
-parsing now answers 1064, and a statement an action refused answers its own code again.
-
-One class counts as read even though it is raised while parsing: a name the server looks
-up, a system variable (1193), a character set (1115) or a collation (1273, 1253). `Parse`
-holds no such list, so those are not grammar it can follow.
-
-Checked against direct execution over 3,897 of the 3,902 statements: the two
-agree on every one except the two rows that are themselves `PREPARE`
-statements, where nesting answers 1295 rather than judging the inner text. For
-those two `PREPARE` is the more accurate syntax verdict — direct execution's
-1064 there is about the runtime value of a user variable, not about the
-statement. Execution lost five verdicts over the same range; `PREPARE` lost
-none.
-
-## Regenerating
-
-From `<repo root>`:
-
-```bash
-go test ./tidb/parser/ -run '^TestTiDBCorpusOmniVerdicts$' -count=1 -v -update
-```
-
-rewrites column 1 from the parser as it stands now. Read the diff: it should
-flip exactly the rows the change was for.
-
-```bash
-go test ./tidb/parser/ -run '^TestTiDBCorpusEngineVerdicts$' -count=1 -v -update
-```
-
-rewrites both columns from a live server, and is how the file is re-recorded
-when `tidbImage` moves to another TiDB release. `tidbCorpusVersion` must move
-with it, or the test refuses to run.
-
-Re-extracting from upstream, after a pingcap bump, means taking the statement
-of every one-line case in `parser_test.go` again, keeping this file's order, and
-re-recording both columns with the second command.
-
-## `compat.tsv` — the grammar's rows
-
-`pingcap_parser_corpus.tsv` is a sample: the statements pingcap happened to
-test. It can show a gap but not that none is left. `compat.tsv` is derived from
-the grammar itself. For each alternative of each rule in `../../testdata/parser.y`
-(pkg/parser/parser.y at the pinned tag, vendored verbatim), it holds the shortest
-statement that reaches that alternative, then its near-misses: the statement
-with one token dropped, the end cut off, a stray word inserted, or a keyword
-swapped. The rule column names the alternative by its symbols, such as
-`AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt`,
-and a near-miss adds its mutation (`!drop-2`, `!swap`). Where several
-alternatives are equally short, a statement takes the one the grammar lists
-first, and `'binary'` stands for every string, because it is also a charset and
-a collation: TiDB looks those names up while parsing, and an unknown name
-answers before a later syntax error can.
-
-The `suite:cited` rows are added by hand and survive regeneration: statements a
-test's comment cites as measured, which the generated rows no longer hold.
-
-`TestCompatibility` (`compat_test.go`) reads it through `enginetest/compat`,
-which describes the columns and what passes. It starts no server, and it
-regenerates the rows from the grammar and fails if the file holds others. To
-judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`:
+From `<repo root>`. Judge new rows, or every row after a pin bump:
 
 ```bash
 OMNI_RECORD=1 go test ./tidb/parser/ -run '^TestCompatibility$'
 ```
 
-To commit rows a parser fix moved to agreement:
+Commit rows a parser fix moved to agreement:
 
 ```bash
 go test ./tidb/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-A statement found elsewhere, such as a minimised reject-fuzz input, goes in as
-a hand-added row with a label in the rule column (`issue:BYT-1234`,
-`suite:reject-fuzz`) and `?` in both verdict columns, then is recorded. Token
-samples come from `../../testdata/tokens.tsv`. Three alternatives get no row,
-because the default SQL mode never lexes their tokens (`||` as concatenation,
-high-precedence `NOT`); `TestCompatibility` lists them. The Apache-2.0
-attribution above covers this file too.
-
-## `pingcap_parser_rest_corpus.tsv` — the rest of pingcap's parser tests
-
-The first sample of the design's §3.4 real-SQL corpora. `pingcap_parser_corpus.tsv`
-took the single-statement cases of pingcap's parser test one form at a time; this
-file takes what that extraction left behind and the forms people combine:
-
-- the `src` of every `[]testCase` / `[]testErrMsgCase` element in
-  `parser_test.go` that the first extraction skipped (backtick and multi-line Go
-  literals that still yield a one-line statement);
-- for every `runNodeRestoreTest` / `...WithFlags` / `...WithFlagsStmtChange` call
-  in `ast/*_test.go`, the statement the call parses — `fmt.Sprintf(template,
-  sourceSQL)` for each `NodeRestoreTestCase`, so a row is a function inside a
-  `SELECT`, a reference option inside a `CREATE TABLE`, a partition bound inside
-  an `ALTER`.
-
-`rest_corpus_oracle_test.go` is its only reader. The columns, the `accept`/`reject`
-verdicts, the `#` header, and the `PREPARE` engine harness are the pingcap corpus's
-(three fields: omni verdict, engine verdict, statement). A gap is `reject`/`accept`;
-an over-acceptance is `accept`/`reject` and is a bug.
-
-### Provenance
-
-Extracted from `parser_test.go` and `ast/*_test.go` in
-`github.com/pingcap/tidb/pkg/parser` at tag `v8.5.5` (commit
-`1fa258b833ff113883beeba40bc130be7ce66610`), by a throwaway tool that reads those
-`.go` files with `go/parser` (no build, no network) and emits one statement per
-line. Deduplicated against each other and against `pingcap_parser_corpus.tsv`.
-Only one-line statements are kept: 30 statements with an embedded newline or tab
-are excluded — multi-statement `BEGIN`/`COMMIT` scripts (not single statements),
-`LOAD DATA` line terminators and base64 `BINLOG` (newline inside a literal), and
-`set`/`enum` members with a tab — as `pingcap_parser_corpus.tsv` excludes them,
-because the format is one statement per line. The Apache-2.0 attribution above
-covers this file too.
-
-### Regenerating
-
-The engine column is sampled on a normal run and measured whole under `-update`,
-so a recorded file is always measured in full. From `<repo root>`:
+After a change to the pool or the generator, rewrite the fuzz rows, then judge
+the new ones:
 
 ```bash
-go test ./tidb/parser/ -run '^TestTiDBRestCorpusEngineVerdicts$' -count=1 -update
+go test ./tidb/parser/ -run '^TestRejectFuzzRows$' -update-compat
 ```
 
-rewrites both columns from a live server. `TIDB_CORPUS_N` caps how many rows a
-plain (non-`-update`) run measures live, so CI stays bounded as the later §3.4
-samples land; the omni-verdict pass always reads every row. Re-extracting after a
-pingcap bump means rerunning the extraction above at the new tag and re-recording.
-
-## `tidb_integrationtest_corpus.tsv` — TiDB's integration tests
-
-The second sample of the design's §3.4 real-SQL corpora. Where the two files
-above are grammar forms — tested one at a time, then combined the way pingcap's
-own parser tests combine them — this one is SQL people wrote to exercise the TiDB
-*server*: the statements of TiDB's `tests/integrationtest/t/**/*.test` files, the
-closest public stand-in for user SQL. It leans heavily on the DML and query
-shapes the other two under-sample.
-
-`integrationtest_corpus_oracle_test.go` is its only reader. The columns, the
-`accept`/`reject` verdicts, the `#` header, and the `PREPARE` engine harness are
-the pingcap corpus's (three fields: omni verdict, engine verdict, statement). A
-gap is `reject`/`accept`; an over-acceptance is `accept`/`reject` and is a bug.
-It is far larger than the other samples, so the live engine test measures only a
-`TIDB_CORPUS_N` sample on a plain run (every row under `-update`), while the
-omni-verdict test reads every row.
-
-### Provenance
-
-Extracted from `tests/integrationtest/t/**/*.test` in `github.com/pingcap/tidb`
-at tag `v8.5.5` (commit `1fa258b833ff113883beeba40bc130be7ce66610`, 239 files),
-by a throwaway tool (not checked in, like sample 1's). For each file it drops the
-mysqltest directive/comment lines (a leading `--` or `#`) and the bare mysqltest
-control lines (`connection`, `connect`, `disconnect`, `let`, `echo`, …, which
-often lack a trailing `;` and would otherwise merge into the next statement),
-runs `tidb/parser.Split` on what remains, and keeps each non-empty segment.
-Deduplicated within this corpus and against `pingcap_parser_corpus.tsv` and
-`pingcap_parser_rest_corpus.tsv`. Only single-line statements are kept, as the
-other corpora are: of 47,322 non-empty segments, 1,236 with an embedded newline
-or tab (multi-line `CREATE`/`INSERT`, compound `BEGIN`/`END` blocks) and 243
-carrying a mysqltest `$variable` are excluded, 18,515 are duplicates within this
-corpus and 82 already appear in the other two, leaving 27,246 rows. The
-Apache-2.0 attribution above covers this file too.
-
-### Regenerating
-
-The engine column is sampled on a normal run and measured whole under `-update`.
-From `<repo root>`:
+Record the tape of a test whose requests changed:
 
 ```bash
-go test ./tidb/parser/ -run '^TestTiDBIntegrationtestCorpusEngineVerdicts$' -count=1 -update
+OMNI_RECORD=1 go test ./tidb/parser/ -run '^TestName$'
 ```
 
-rewrites both columns from a live server. Re-extracting after a pingcap bump
-means rerunning the extraction above at the new tag and re-recording.
+## Where the engine verdict comes from
 
-## `bytebase_tidb_corpus.tsv` — Bytebase's own TiDB test files
+`PREPARE`, which parses the statement and stops. Executing cannot measure it,
+because statements in the corpora destroy the run that executes them:
+`shutdown` stops the server, `SET PASSWORD = 'password'` locks out every new
+connection, and `load stats '/tmp/stats.json'` and the `PLAN REPLAYER` file
+forms ask the client for a local file.
 
-The third sample of the design's §3.4 real-SQL corpora: the SQL Bytebase already
-promises to handle. Where the pingcap corpora are pingcap's grammar cases, these
-are the forms Bytebase's users and tests drive through the TiDB path — column
-rules, naming checks, DML dry-runs, schema syncs and walk-throughs — so an
-over-acceptance here is a form Bytebase ships against.
+Error 1064 is the parser's rejection, and it is not the only one: TiDB's grammar
+actions refuse text their productions read, with the code each chooses, while
+the parse is still running. `CREATE VECTOR INDEX i ON nosuch (a)` answers 1149
+and `CREATE VECTOR INDEX i ON nosuch ((a))` answers 1146. Any other server error
+came after the parse: 1295 for a statement the prepared-statement protocol does
+not carry, 1146 for a table that does not exist. Anything that is not a server
+error is no verdict and fails the recording.
 
-`bytebase_corpus_oracle_test.go` is its only reader. The columns, the
-`accept`/`reject` verdicts, the `#` header, the `PREPARE` engine harness and the
-`TIDB_CORPUS_N` sampler are the rest corpus's.
+A code does not say which side it is on (1105 is both), so the judge asks. It
+prepares the statement again with a syntax error after it as a second statement.
+The server reads all of the text before it looks at anything, so a statement
+refused after parsing now answers 1064, and a statement an action refused
+answers its own code again (`compat.PrepareVerdict`, held to the server by
+`TestSyntaxProbeControls`).
 
-### Provenance
+One class counts as read even though it is raised while parsing: a name the
+server looks up, a system variable (1193), a character set (1115) or a collation
+(1273, 1253). `Parse` holds no such list, so those are not grammar it can follow.
+It is why the one row that disagrees does: TiDB stops `ALTER DATABASE COLLATE 's'
+zzz` at the unknown collation with 1273, and never reads `zzz`, which omni
+rejects as TiDB does after a collation it knows (`suite:cited`, kept as the gap
+it is).
 
-Extracted from the 64 TiDB test files in `github.com/bytebase/bytebase` at commit
-`5a6096dfd5`, under `backend/plugin/parser/tidb/test-data` (7 files),
-`backend/plugin/advisor/tidb/test` (53 files) and
-`backend/plugin/schema/tidb/testdata` (3 of 4 files). A throwaway Go extractor
-read the input-side SQL — the values at the top-level case keys `statement`,
-`input`, `oldSchema`, `newSchema`, `schema` — split each script with
-`tidb/parser.Split`, trimmed, and kept the non-empty single-line segments.
-Top-level keys only, so a query-span source column's nested `schema` and a backup
-case's generated `result` statements are not picked up; generated-output SQL
-(backup/restore rollback, `generate_migration` `expected`,
-`get_database_definition`) is Bytebase-synthesized, not promised input, and is
-excluded. 527 rows after dropping 194 multi-line statements, 209 internal
-duplicates, and 15 already carried by the two pingcap corpora. The method is
-recorded in the file's own header and in
-`docs/plans/2026-11-08-tidb-bytebase-corpus-gap-inventory.md`.
+The judge binds each statement to a user variable and prepares from it, so a
+row reaches the server byte for byte: five rows are not valid UTF-8 (pingcap's
+GBK and big5 cases), 22 end in a space, and four carry a CR inside a string
+literal. The file is split on `\n` alone, so none of that is stripped. A taped
+test sends `PREPARE omni_stmt FROM ?` with the statement inlined as an escaped
+literal: one request per verdict.
 
-`github.com/bytebase/bytebase` is this project's own repository; these rows are
-test fixtures read at test time, not compiled into omni, and add no module
-dependency.
+## Provenance
 
-### Regenerating
+`github.com/pingcap/tidb` is distributed under the Apache License 2.0
+(Copyright 2016 PingCAP, Inc.). The license permits redistribution with
+attribution; this file is that attribution, for `parser.y` and every pingcap
+suite. The rows are test fixtures read at test time and are not compiled into
+omni, and omni does not depend on pingcap: nothing here adds a module
+requirement. Each suite is one statement per line; statements with an embedded
+newline were left out.
 
-The engine column is sampled on a normal run and measured whole under `-update`.
-From `<repo root>`:
-
-```bash
-go test ./tidb/parser/ -run '^TestTiDBBytebaseCorpusEngineVerdicts$' -count=1 -update
-```
-
-rewrites both columns from a live server. Re-extracting after a bytebase bump
-means rerunning the extraction at the new commit and re-recording.
+- **`suite:pingcap-parser`:** the statement of every one-line case in
+  `parser_test.go` of `github.com/pingcap/tidb/pkg/parser`, module version
+  `v0.0.0-20251104011144-749c973e5a70` (commit `749c973e5a70`). Only the text
+  was taken, not pingcap's flag: it describes pingcap's parser on master, and
+  109 statements it accepts are grammar TiDB v8.5.5 does not have.
+- **`suite:pingcap-parser-rest`:** from `parser_test.go` and `ast/*_test.go` at
+  tag `v8.5.5` (commit `1fa258b833ff113883beeba40bc130be7ce66610`): the `src` of
+  every test case the first extraction skipped (backtick and multi-line Go
+  literals that still yield one line), and for every `runNodeRestoreTest` call
+  the statement it parses, `fmt.Sprintf(template, sourceSQL)`, so a row is a
+  function inside a `SELECT`, a reference option inside a `CREATE TABLE`, a
+  partition bound inside an `ALTER`. Read with `go/parser` by a throwaway tool.
+- **`suite:tidb-integrationtest`:** the statements of
+  `tests/integrationtest/t/**/*.test` in `github.com/pingcap/tidb` at tag
+  `v8.5.5` (239 files), SQL written to exercise the server rather than the
+  grammar. A throwaway tool dropped mysqltest directive and control lines, ran
+  `tidb/parser.Split` on the rest, and kept each non-empty segment. Of 47,322
+  segments, 1,236 multi-line ones and 243 carrying a mysqltest `$variable` were
+  excluded, and 18,515 were duplicates.
+- **`suite:bytebase`:** the input-side SQL of the 64 TiDB test files of
+  `github.com/bytebase/bytebase` at commit `5a6096dfd5`
+  (`backend/plugin/parser/tidb/test-data`, `backend/plugin/advisor/tidb/test`,
+  `backend/plugin/schema/tidb/testdata`): the values at the top-level keys
+  `statement`, `input`, `oldSchema`, `newSchema` and `schema`, split with
+  `tidb/parser.Split`. SQL Bytebase generates (backup, `generate_migration`'s
+  `expected`) is not promised input and was left out. Bytebase is this
+  project's own repository.

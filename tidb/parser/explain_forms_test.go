@@ -245,7 +245,7 @@ func TestExplainFormsRejected(t *testing.T) {
 		}
 		t.Run(c.sql, func(t *testing.T) {
 			if _, err := Parse(c.sql); err == nil {
-				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbCorpusVersion)
+				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbRelease)
 			}
 		})
 	}
@@ -493,7 +493,6 @@ func innerStart(n nodes.StmtNode) int {
 // error means the text parsed and failed later.
 func TestExplainFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range explainFormCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)

@@ -21,10 +21,23 @@ const (
 	// dot and a word as one token, so a dot that is a token of its own must
 	// stand apart.
 	Spaced = "(spaced)"
+	// Reserved: a word, named by itself, that the engine never reads as an
+	// identifier. A recognizer matches it only where the grammar spells it,
+	// never for a token class such as a name.
+	Reserved = "(reserved)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
 // for each terminal whose grammar declaration does not spell it.
+//
+// A row may name a rule instead. Its form is then the text every other
+// rule's row writes where that rule stands, in place of the rule's shortest
+// derivation. It is for a name the engine's parser looks up while it
+// parses, where the grammar gives the name a rule of its own: MariaDB's
+// charset_name is any identifier, and an unknown one answers before a later
+// syntax error, so the rows that pass through it would all read as
+// accepted. The rule's own alternatives keep their rows, written from
+// their own symbols.
 type Tokens struct {
 	forms map[string]string
 }

@@ -257,6 +257,16 @@ const (
 	ATSecondaryUnload
 	ATPartitionBy
 	ATDropTablegroup // DROP TABLEGROUP: the table leaves its table group
+	// DROP SUBPARTITION and TRUNCATE SUBPARTITION, with PartitionNames.
+	ATDropSubpartition
+	ATTruncateSubpartition
+	// {ALTER PARTITION | ALTER SUBPARTITION} names STORAGE_CACHE_POLICY = 'policy':
+	// Name is PARTITION or SUBPARTITION, PartitionNames the names and
+	// Option.Value the policy.
+	ATAlterPartitionStorageCachePolicy
+	// MODIFY PARTITION name ADD SUBPARTITION (...): Name is the partition and
+	// PartitionDefs holds one PartitionDef whose SubPartitions are added.
+	ATAddSubpartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -586,6 +596,12 @@ type PartitionClause struct {
 	// gives every partition the same subpartitions. MySQL has no template and
 	// repeats them per partition instead.
 	SubPartTemplate []*SubPartitionDef
+	// SplitSize is a RANGE partitioning's SIZE('size'), the tablet size it splits
+	// at (auto_split_tablet_size_option).
+	SplitSize string
+	// AutoSize is auto_partition_option's PARTITION SIZE value, as written, AUTO
+	// included; empty when the table is not partitioned automatically.
+	AutoSize string
 }
 
 func (p *PartitionClause) nodeTag() {}
@@ -1969,6 +1985,9 @@ type AnalyzeTableStmt struct {
 	Buckets          int      // WITH N BUCKETS
 	// UsingData is never set: OceanBase's UPDATE HISTOGRAM takes no USING DATA.
 	UsingData string
+	// Statistics is "COMPUTE" or "ESTIMATE" for ANALYZE TABLE t [PARTITION (p)]
+	// {COMPUTE | ESTIMATE} STATISTICS ..., whose clauses are parsed and not kept.
+	Statistics string
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
@@ -2035,12 +2054,13 @@ func (s *AlterSystemStmt) nodeTag()  {}
 func (s *AlterSystemStmt) stmtNode() {}
 
 // ObjectDDLStmt is a CREATE, ALTER or DROP of an OceanBase object this parser
-// keeps no tree for: a tenant, a resource unit or pool, a tablegroup or a
-// sequence. Action is
-// the statement and its object as the grammar writes them ("CREATE TENANT",
-// "ALTER RESOURCE POOL"); Schema and Name are the object's name, Name empty
-// where the statement names none (ALTER TENANT ALL). The options are parsed
-// and not kept.
+// keeps no tree for: a tenant, a resource unit or pool, a tablegroup, a
+// sequence, an outline, a tenant snapshot, a concurrent limiting rule or a
+// sensitive rule. Action is the statement and its object as the grammar writes
+// them ("CREATE TENANT", "ALTER RESOURCE POOL", "CREATE OR REPLACE FORMAT
+// OUTLINE"); Schema and Name are the object's name, Name empty where the
+// statement names none (ALTER TENANT ALL, CREATE SNAPSHOT). The options, and
+// an outline's statements, are parsed and not kept.
 type ObjectDDLStmt struct {
 	Loc    Loc
 	Action string

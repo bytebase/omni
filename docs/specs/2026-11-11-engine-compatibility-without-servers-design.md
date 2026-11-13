@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,151 agreeing (§3, Appendix A). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 has begun: `mysql/parser` (70 tests), `mysql/validate` and three tests of `mysql/catalog` replay tapes (80 tapes, 6.9 MB, 63,496 requests) and start no server. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 has begun: `mysql/parser` (70 tests), `mysql/validate` and three tests of `mysql/catalog` replay tapes (80 tapes, 6.9 MB, 63,496 requests) and start no server. MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -36,7 +36,7 @@ Four terms are used throughout:
 3. **Agreeing:** on every row, omni's answer equals the judge's.
 4. **Replaying:** every tape replays.
 
-Until then, the disagreeing rows are the work list: 1,118 of `compat.tsv` for OceanBase today, and 1,125 of `simulate.tsv`. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
+Until then, the disagreeing rows are the work list: 675 of `compat.tsv` for OceanBase once #872 to #884 land, and 434 of `simulate.tsv`. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
 
 **What that does not claim:**
 - **Statements no row covers.** Rows sample an infinite language. A statement outside them is unknown until someone adds it as a row, and then it is covered for good.
@@ -130,14 +130,14 @@ index_or_heap/ORGANIZATION_HEAP: omni now says reject, engine says accept:
 
 - **The judge decides every row.** A near-miss can still be valid: OceanBase's own grammar accepts 900 of its 15,560.
 - **Ties follow the grammar's order.** Among equally short choices a statement takes the alternative the grammar lists first, and sits in the first statement that reaches it. So an expression is a plain name, not a keyword that may stand for one, and a hint sits in `SELECT`.
-- **Samples resolve.** Where an engine's parser looks a name up while it parses, as TiDB does for charsets and collations, `tokens.tsv` samples a name that exists. An unknown name would answer before a later syntax error, and the row would read as accepted.
+- **Samples resolve.** Where an engine's parser looks a name up while it parses, as TiDB does for charsets and collations, `tokens.tsv` samples a name that exists. An unknown name would answer before a later syntax error, and the row would read as accepted. Where the grammar gives such a name a rule of its own, as MariaDB's `charset_name`, a `tokens.tsv` row names the rule, and other rows write its text where the rule stands.
 - **Rule IDs are stable.** A row is named by its rule and the alternative's symbols, not by an index, so a pin bump's diff shows only what the release changed.
 - **Token forms come from a committed `tokens.tsv`,** cited to the vendor's lexer or lexical docs. It is written by hand, because the lexers of MySQL, MariaDB and TiDB are code, not grammar files. Other rows take their sample identifiers and literals from it.
 
 **Hand-added rows** carry a label in `rule` and survive regeneration: `issue:<key>` for a bug report, `suite:<name>` for a corpus. Today's corpora become `suite:` rows: TiDB's, Doris and StarRocks conformance, Trino's differential, pg's fuzz, and the statements that completion and analysis tests check for validity.
 
 **Grammar files.** The generator reads two formats, bison `.y` and ANTLR `.g4`.
-- A vendor `.y` or `.g4` is used as published. It is committed where the license allows, as TiDB's `parser.y` already is, and fetched otherwise (D1): `<engine>/testdata/sources.tsv` names the file by the release's commit and its SHA-256, and `enginetest.Fetched` downloads it once per machine and checks it on every use. OceanBase's grammar is read this way.
+- A vendor `.y` or `.g4` is used as published. It is committed where the license allows, as TiDB's `parser.y` already is, and fetched otherwise (D1): `<engine>/testdata/sources.tsv` names the file by the release's commit and its SHA-256, and `enginetest.Fetched` downloads it once per machine and checks it on every use. OceanBase's grammar is read this way, and MariaDB's, which holds its default and its `sql_mode=ORACLE` grammar in one file between `%ifdef` lines: `compat.Suite.Defined` names the one to read.
 - Anything else is converted once per pin to a committed `.g4`, each rule citing its source: docs syntax blocks, Doris's CUP, GoogleSQL's Textmapper, ANTLR 2 and 3 (D2).
 - A community grammar is never used. Omni's Snowflake parser was ported from one, so that grammar can't judge it.
 - Mongo and Elasticsearch have no statement grammar. Their rows cover call shapes (method names, endpoints), not argument documents or request bodies.
@@ -473,7 +473,7 @@ Progress is visible: `TestCompatibility` prints how many rows of each kind agree
 | mongo | mongosh method docs → `.g4` | docs |
 | elasticsearch | `elasticsearch-specification` → `.g4` | grammar |
 
-- **TiDB is the starting point.** Its `parser.y` rows were the first `compat.tsv`; its other corpora become `suite:` rows in step 1.
+- **TiDB is the starting point.** Its `parser.y` rows were the first `compat.tsv`; its other corpora became `suite:` rows in step 1.
 - **Engines judged by grammar or docs** move up to `engine` once an image is pinned: Cassandra, DynamoDB Local, the Cosmos DB emulator, MongoDB and Elasticsearch all ship one.
 
 ## 9. Rollout
@@ -507,32 +507,73 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,071 | 4,440 | 602 | 29 |
-| Near-misses | 15,336 | 14,849 | 105 | 382 |
+| One per alternative | 5,070 | 4,665 | 402 | 3 |
+| Near-misses | 15,337 | 15,067 | 76 | 194 |
 
-- **1,118 disagreements,** down from the 2,679 first recorded (2026-11-13). Closed since: names with a leading dot or a reserved word after a dot (585), `ALTER SYSTEM` (417), table options (109), `tbl_name`'s clauses (109), tenants and resources (104), tablegroups and sequences (85), `AUDIT` (71), `EXPLAIN` (43), and 38 before those.
+- **675 disagreements once #872, #877, #881, #883 and #884 land** (777 on main), down from the 2,679 first recorded (2026-11-13) and 1,118 before this round. This round closed: mock tablespace, server, logfile group and instance statements (79), outlines, snapshots, limiting and sensitive rules (64), privileges and roles in `GRANT` and `REVOKE` (51), `SHOW` (34), column groups (33), `GET DIAGNOSTICS` (28), transactions, locks, savepoints and XA (24), subpartition actions and name lists (24), `ALGORITHM`, `LOCK`, `ROW_FORMAT` and `INSERT_METHOD` values (21), `ANALYZE` (20), column attributes (17), `RANGE`'s empty and automatic partitioning (15), collection and other types (13), and 20 by other changes. Before it: names with a leading dot or a reserved word after a dot (585), `ALTER SYSTEM` (417), table options (109), `tbl_name`'s clauses (109), tenants and resources (104), tablegroups and sequences (85), `AUDIT` (71), `EXPLAIN` (43), and 38 more.
 - **What is left,** by what the statement is:
 
   | Rows | Omni rejects | Omni accepts | What | Why it is left |
   | --- | --- | --- | --- | --- |
-  | 184 | 159 | 25 | `SELECT` | Many small rules: `UNNEST`, `RB_ITERATE`, `JSON_TABLE` columns, natural join types, grouping sets, a flashback on a derived table |
-  | 119 | 86 | 33 | `ALTER TABLE` | Partition actions, column attributes, skip indexes, and MySQL's `ALGORITHM` and `LOCK` values OceanBase refuses |
+  | 168 | 150 | 18 | `SELECT` | Many small rules, none over 14 rows: function arguments (`func_expr`), window functions, `UNNEST`, `RB_ITERATE`, `JSON_TABLE` columns, natural join types, grouping sets, a flashback on a derived table |
   | 101 | 101 | 0 | Materialized views and their logs | Not read at all; a view's query and columns want a tree, not a matcher |
-  | 99 | 16 | 83 | `SERVER`, `TABLESPACE`, `LOGFILE GROUP`, `INSTANCE` | MySQL statements OceanBase parses only as mocks, with fewer options than omni inherited |
-  | 94 | 0 | 94 | Function calls | A keyword of OceanBase's that names no function (`SELECT gts(a)`), and a keyword function called with no argument (`SELECT date()`): needs the callable keywords measured on the server |
-  | 77 | 72 | 5 | Concurrent limiting rules, sensitive rules, outlines, snapshots | Not read; the same matchers would do |
-  | 70 | 63 | 7 | External tables and files | `SOURCE()`, `FILES()` and a location as a table, `ALTER EXTERNAL TABLE`, `LOAD DATA`'s OceanBase options |
+  | 101 | 0 | 101 | Function calls | A keyword of OceanBase's that names no function (`SELECT gts(a)`), and a keyword function called with no argument (`SELECT date()`): needs the callable keywords measured on the server |
+  | 77 | 70 | 7 | External tables and files | `SOURCE()`, `FILES()` and a location as a table, `DELETE FROM` one, `ALTER EXTERNAL TABLE`, `LOAD DATA`'s OceanBase options, `INTO OUTFILE ... PARTITION BY` |
   | 51 | 51 | 0 | `FOR COLUMNS`, `FOR ALL` | Not statements: `method_opt` is the grammar of a `DBMS_STATS` argument, which the parser also reaches as a `stmt`. Left as they are |
-  | 45 | 4 | 41 | Privileges in `GRANT` and `REVOKE` | omni takes MySQL's privilege names; OceanBase has its own list |
-  | 33 | 31 | 2 | `CREATE TABLE` | Column groups, automatic partitioning, and `TABLESPACE` options |
-  | 30 | 28 | 2 | `SHOW` | `SHOW PARAMETERS`, `SHOW TABLEGROUPS`, `SHOW SEQUENCES` and others |
-  | 28 | 0 | 28 | `GET DIAGNOSTICS` | Near-misses omni reads past: a missing item, a misspelt `DIAGNOSTICS` |
-  | 20 | 15 | 5 | `ANALYZE` | `COMPUTE` and `ESTIMATE STATISTICS` are not read, and a histogram clause missing a word is |
-  | 17 | 1 | 16 | Transactions and locks | `START TRANSACTION` and `LOCK TABLES` forms OceanBase refuses |
-  | 6 | 6 | 0 | Catalog-qualified names and database links | `catalog.d.t` and `t @link` need a field `TableRef` does not have |
-  | 144 | 74 | 70 | Everything else | No group over nine rows: users, `CACHE INDEX`, `HANDLER`, `FLASHBACK`, `PURGE`, `DUMP` |
+  | 32 | 25 | 7 | `ALTER TABLE` | 9 rows OceanBase parses and then refuses with 1064 (a column's `ID n`, `SIZE ('s')` in `ALTER TABLE`, a string as a type): taking them waits for the catalog to refuse them too, or `simulate.tsv` regresses. The rest: `ADD (KEY ...)` in parentheses, `ALTER INDEX` options, `REMOVE TTL`, `JSON (c) STORE AS`, `BEFORE` |
+  | 11 | 10 | 1 | `DELETE` and `INSERT` | `DELETE FROM TABLE(a)`, `INSERT OVERWRITE`, a repeated `QUICK` |
+  | 3 | 3 | 0 | `SET ROLE ALL EXCEPT ALL` | The statements that crash the server (§2.3) |
+  | 2 | 0 | 2 | `CREATE TABLE` | `FOREIGN (a)` without `KEY` |
+  | 129 | 68 | 61 | Everything else | No group over ten rows: `FLASHBACK`, `PURGE`, `CACHE INDEX`, users and `SET PASSWORD`, `HANDLER`, databases, `DUMP`, `EXPLAIN`'s forms |
 - **A carrier can hide its alternatives.** A row is the shortest statement that reaches an alternative, and where omni rejects that carrier, every alternative behind it disagrees for one reason. Fixing the carrier is what shows the rest.
 - **Two statements crash the server** (three rows). Their verdict comes from the probe (§2.3).
+
+**MariaDB, recorded.** `mariadb/parser/testdata/compat.tsv` at `mariadb-11.8.8` (2026-11-13): 3,553 alternatives of the default grammar, of which 82 need a token the lexer never produces under the default `sql_mode` (most are Oracle mode's), and 9,489 near-misses. The pinned server judged all 12,960 rows in 20 seconds, and two recordings on fresh servers left the same file.
+
+| Statements | Total | Agree | Only engine accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| One per alternative | 3,471 | 3,025 | 312 | 134 |
+| Near-misses | 9,489 | 9,057 | 92 | 340 |
+
+- **878 disagreements,** untriaged. By statement: expressions carried by `DO` (115), `CHANGE MASTER` (57), `ALTER EVENT`, which carries the routine statements (51), `ALTER SERVER` (48), compound statements at the top level (`BEGIN NOT ATOMIC`, 39), `ALTER TABLE` (37), `DELETE` (34), `GET DIAGNOSTICS` (25), `START` (22), `RESIGNAL` (21), `CREATE PACKAGE` (21).
+- **`PREPARE` carries every statement kind but its own** (`PREPARE`, `EXECUTE`, `DEALLOCATE`: 1295), which the probe decides (`mariadb/parser/testdata/README.md`).
+- **The grammar's actions refuse and look up while the parser runs.** A refusal is a rejection: an identifier as a data type (4161, 731 rows), a routine variable outside a routine (1327, 315), a table named twice (1066, 115). A lookup of a name the server does not have (a character set, collation, system variable, engine or plugin: nine codes) counts as read, as in the package's hand-written cases, and answers before a later syntax error, so `tokens.tsv` gives nine rules a name that exists; 163 rows are still answered that way, most of them `SET GLOBAL a = a` and its near-misses.
+
+**MariaDB, parser and validate moved.** All 117 tests of `mariadb/parser` that asked a server replay (2026-11-13): 87 tapes, 5.5 MB, 53,222 requests, recorded in 45 to 105 seconds and replayed in 25. `mariadb/validate` has one tape of 52 requests. Two recordings of each on fresh servers left the same tapes.
+
+- **The tests moved as written.** They always asked MariaDB, so no expectation changed. Two sweeps walked the keyword map in its own order and now walk it sorted; a verdict is one `PREPARE ... FROM ?` request where it was three.
+- **Each test starts on an empty server:** a recording drops what the image did not start with before a test's connection opens (`testcontainer.OpenEmpty`).
+- **No skip is left in either package.** Two were dead: a per-case skip no case set, and a skip for a corpus directory that is there.
+
+**MariaDB, catalog moved.** All 215 tests of `mariadb/catalog` that asked a server replay (2026-11-13), a tape each: 3.0 MB, 23,570 requests, recorded in 35 to 65 seconds and replayed in 6. Two recordings on fresh servers left the same tapes.
+
+- **Every connection's clock is stopped** (`SET timestamp`, below the tape): the first two recordings differed in a trigger's `Created` and in the `STARTS` of an event that names none.
+- **A test that took a fresh session per case opens a connection per case:** a tape's pool is one connection, and a temporary table or `foreign_key_checks = 0` of one case reached the next.
+- **Three map walks sort, and one read is ordered:** a view whose `ORDER BY` ties came back in either order.
+- **`information_schema`'s unsigned columns arrive as `uint64`** once arguments are inlined; two helpers read only `int64`.
+- **The 78 skips are gone.** 72 were in the view deparse tests: 56 for cases marked partial, which no case is any more, and 16 for a view MariaDB refuses to create, which three cases are (`a->'$.key'` twice, 1064; two columns of one name, 1060). Those three are recorded (`deparseRefusedViews`) and fail when the refusal changes. The other six never fired and now fail.
+
+**MariaDB, review moved.** Its six oracle tests replay (2026-11-13): 6 tapes, 6.6 MB, 13,751 requests, recorded in nine minutes on a loaded box and replayed in seconds. Two recordings on fresh servers left the same tapes.
+
+- **The walk is a `Lister`.** It was a `Holder` and a `Digester`, whose queries followed the walk's findings. Its inventory is three queries before every statement, whatever the walk reports: the user databases, what they hold, and the change's session's temporary tables. Each answers one row, the lines in byte order, since `information_schema` compares names without case and returns tied rows in either order; an index is read by its first column, since a `DISTINCT` took the indexes `x` of tables `b` and `B` for one.
+- **It finds 244 of the 296 statements MariaDB rejects in the curated cases and 354 of 547 in the sweep,** with no false finding. The sweep is 40 changes from seed 20261026, constants beside it; `WALK_SWEEP_N`, `WALK_SWEEP_SEED` and `WALK_SWEEP_IMAGE` and its shards are gone.
+- **Each case starts on a server that holds no user database,** dropped in a recording below the tape with the global settings a change may leave (`foreign_key_checks`, `system_versioning_alter_history`).
+- **The schema sync's reads are ordered by the bytes of their names.**
+
+**MariaDB, `simulate.tsv`.** Recorded 2026-11-13 on the pinned server: the 363 table, index and view statements MariaDB accepts in `compat.tsv`, on the four namings of `one_table` (OceanBase's fixtures, copied). 1,452 rows in 148 seconds, about 0.1 seconds a row; the tape is 0.6 MB, and two recordings on fresh servers left the same two files.
+
+| Fixture | Rows | MariaDB takes | Agree | Only MariaDB takes | Only omni takes | Both take, another schema | Both refuse, another code |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `one_table@missing` | 363 | 6 | 297 | 5 | 10 | 0 | 51 |
+| `one_table@table` | 363 | 163 | 196 | 12 | 91 | 9 | 55 |
+| `one_table@column` | 363 | 117 | 246 | 12 | 37 | 6 | 62 |
+| `one_table@index` | 363 | 112 | 247 | 12 | 36 | 6 | 62 |
+| All | 1,452 | 398 | 986 | 41 | 174 | 21 | 230 |
+
+- **The same schema is decided by printing.** MariaDB's catalog has no `Diff`, so the test loads MariaDB's `SHOW CREATE` texts into a second catalog and compares what the two catalogs print; the catalog prints MariaDB's text, which the container tests already hold it to. omni stores MariaDB's schema on 336 of the 398 rows MariaDB takes.
+- **466 rows disagree,** untriaged. Most are codes: omni's 1051 where MariaDB answers 1347 or 1146 (52), omni's parser 1064 on 116 rows of 29 statements (`ADD IF NOT EXISTS` among them), and omni taking what MariaDB refuses for a missing key column (1072, 38), a partition change to a table that has none (1505, 24), and an index or a key it cannot build (1911, 1283, 1005).
+- **MariaDB makes up no name that changes between runs** (`a_ibfk_1`, `CONSTRAINT_1`), so the test needs no `Renamer`.
+- **153 of the 363 statements are refused on all four namings,** as on OceanBase: a partitioned fixture and names that differ within a statement are what reach them.
 
 **OceanBase, catalog's MySQL tests.** Measured 2026-11-12 by pointing them at the pinned OceanBase as written. Nothing of the run is committed.
 
@@ -575,17 +616,49 @@ After step 0 the engines are independent. Order:
 
 | Fixture | Rows | OceanBase takes | Agree | Only OceanBase takes | Only omni takes | Both take, another schema | Both refuse, another code |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `one_table@missing` | 569 | 4 | 422 | 1 | 40 | 0 | 106 |
-| `one_table@table` | 569 | 200 | 207 | 22 | 162 | 7 | 171 |
-| `one_table@column` | 569 | 122 | 260 | 13 | 120 | 6 | 170 |
-| `one_table@index` | 569 | 124 | 262 | 13 | 119 | 6 | 169 |
-| All | 2,276 | 450 | 1,151 | 49 | 441 | 19 | 616 |
+| `one_table@missing` | 569 | 4 | 471 | 1 | 0 | 0 | 97 |
+| `one_table@table` | 569 | 200 | 455 | 22 | 6 | 7 | 79 |
+| `one_table@column` | 569 | 122 | 458 | 13 | 6 | 6 | 86 |
+| `one_table@index` | 569 | 124 | 458 | 13 | 6 | 6 | 86 |
+| All | 2,276 | 450 | 1,842 | 49 | 18 | 19 | 348 |
 
 - **Cost: 0.25 seconds a row.** The 2,276 rows recorded in 9m43s on one connection, the server's start included, and in 10m58s a second time on a busier box. A spike of 300 rows first measured 0.28 seconds: 0.21 to drop the database and build the fixture, 0.05 for the statement, 0.015 to read the schema back. The tape is 0.96 MB, 5,447 requests, and the test replays in 0.3 seconds. Two recordings on fresh servers left the same two files.
-- **1,125 rows disagree,** untriaged, down from the 1,259 first recorded: the parser now reads OceanBase's table options, so their statements reach the catalog, and the catalog keeps of a view what OceanBase keeps (#841). 441 omni takes and OceanBase refuses (249 at the recording), since the catalog applies most of those options without the engine's checks. 19 both take, and omni stores another schema (27 at the recording). At the recording, 710 were statements omni's parser rejected, the `compat.tsv` gaps of 181 statements, 86 of them rows OceanBase takes; of the 249, most were refused as not supported (1235, 43 rows), for a key column that does not exist (1072, 42) and for an unknown column (1054, 40); and 72 of the other codes were omni's 1050 where OceanBase answers 1054.
+- **434 rows disagree** once the catalog fixes below land, down from 1,125 when they were triaged (2026-11-13) and 1,259 at the recording. The table counts that state. 381 of the 434 are statements omni's parser rejects (1064): 98 statements, 49 of them rows OceanBase takes, which are `compat.tsv`'s work list. The catalog's rows were fixed cause by cause, each held to the engine by an oracle test:
+  - ALTER TABLE options OceanBase refuses, checked before the other commands (201 rows, #850)
+  - the query of a view or CREATE TABLE ... SELECT, resolved before the name (132, #854)
+  - partition names and commands (91, #861)
+  - a key's columns: missing (1072) or not text for FULLTEXT (1283) (71 at triage, 42 once #887 took the rows both close, #858)
+  - a key's parts and block size, before its name (46, #887)
+  - a column's definition, before its name (45, #871)
+  - a CREATE TABLE with no visible column (44, #864)
+  - names looked up in OceanBase's order (30, #880)
+  - index options only a vector index or a restore takes (27, #865)
+  - TTL columns (21, #873)
+  - CHECK expressions (12, #876)
+- **53 catalog rows are left,** each for a reason:
+  - 19 store another schema: the catalog applies no repartition (`PARTITION BY KEY()`, 15), plus a SERIAL and a GEOMETRYCOLLECTION column and a STORING index.
+  - 9 are DROP CHECK, DROP CONSTRAINT and ALTER CHECK of a missing CHECK, where OceanBase answers 3821 or 3940 by the keyword written, which the AST does not keep.
+  - 15 are unknown charsets, collations, tablegroups and tablespaces (1115, 1273, 5151, 3510), whose lists in OceanBase are not measured.
+  - 7 are partition definitions: duplicate partition names (1517), and RANGE with no partitions (1235 before 1503).
+  - 3 are orders: a foreign key to the table itself (1215), and STORING on a missing key column (1072).
 - **OceanBase takes 250 of the 569 statements on some naming,** 450 rows, and omni stores its schema on 382. The other 319 statements are refused on all four: a `SELECT a` with no table behind it (1054, 57 statements), forms the release does not support (1235, 42), partition changes to a table that has none (1505, 33), an external table's options (4016, 31). A partitioned fixture and names that differ within a statement are what reach them.
 - **A refused statement changed nothing** in the spike, 0 of 237. The file does not hold that: every row builds its fixture again.
 - **Text is not the test.** OceanBase's `SHOW CREATE TABLE` equalled the catalog's in 2 of the 43 schemas the spike took; `Diff` against the loaded text was empty in 39.
+
+**TiDB, `simulate.tsv`.** Recorded 2026-11-13 on the pinned server: the 431 table, index and view statements TiDB accepts in `compat.tsv`, on the four namings of `one_table`. Only the generated rows: hand rows (`suite:`, `issue:`) are corpora, left out so the file does not move when they grow. A statement names everything `ident`, as `tokens.tsv` writes an identifier, so the fixtures name `ident`.
+
+| Fixture | Rows | TiDB takes | Agree | Only TiDB takes | Only omni takes | Both take, another schema | Both refuse, another code |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `one_table@missing` | 431 | 3 | 391 | 0 | 24 | 0 | 16 |
+| `one_table@table` | 431 | 204 | 243 | 0 | 112 | 4 | 72 |
+| `one_table@column` | 431 | 105 | 257 | 0 | 82 | 4 | 88 |
+| `one_table@index` | 431 | 111 | 260 | 0 | 82 | 4 | 85 |
+| All | 1,724 | 423 | 1,151 | 0 | 300 | 12 | 261 |
+
+- **Cost: 0.05 seconds a row.** The 1,724 rows recorded in 83 seconds, the server's start included, and in 141 seconds a second time on a busier box; a spike of 100 rows took 6. The tape is 0.69 MB, 4,287 requests, and the test replays in 0.1 seconds. Two recordings on fresh servers left the same two files: no answer varies, so no name is made up.
+- **The same schema is the same text.** The catalog prints TiDB's `SHOW CREATE`, which the package's differential tests hold it to, so a row agrees when every table's and view's text is equal. Omni stores TiDB's schema on 411 of the 423 rows TiDB takes.
+- **573 rows disagree,** untriaged, and none is the parser's: omni reads every statement. 300 omni takes and TiDB refuses, 172 of them with 8200 (62 statements TiDB parses and does not run, such as adding a `UNIQUE` or `AUTO_INCREMENT` column), 30 with 1105 and 21 with 1505. Of the 261 refused with another code, 84 are partition changes to a table that has none, which omni refuses with no code and TiDB with 1505; 45 are omni's 1050 for TiDB's 1051 (a view named as the table, over `SELECT *` with no table); 26 omni's 1060 for TiDB's 8200; 24 omni's 1050 for TiDB's 1113 (`CREATE TABLE ident` with no columns). The 12 other schemas are `ALTER TABLE ident CACHE` and three `PARTITION BY KEY()` forms, on each naming with the table.
+- **TiDB takes 234 of the 431 statements on some naming.**
 
 **MySQL, recorded.** `mysql/parser/testdata/compat.tsv` at `mysql-8.0.46` (2026-11-13): 3,173 alternatives, of which 10 need a token the lexer never produces under the default `sql_mode`, and 9,119 near-misses. The pinned server judged all 12,282 rows in 13 seconds and accepts 2,928 of the 3,163 alternatives. Two recordings wrote the same file.
 
@@ -608,6 +681,27 @@ After step 0 the engines are independent. Order:
 - **3,047 disagreements,** while every existing oracle test passes. They are untriaged. `ALTER SYSTEM` and optimizer hints are the largest families, and some come from the spike's crude sample tokens.
 - **The grammar alone** agreed with the engine on 90% of statements. Most of the rest is the lexer (531 malformed hints, which live in comments) and 124 `yyerror` checks in C actions. Token rows and overrides (§2.2, §2.3) exist for these.
 - **Replay** took about 1 second per package, against 147 seconds (catalog) and about 300 seconds (review) live.
+
+**TiDB, `tidb/parser`.** Moved 2026-11-13. `compat.tsv` holds 43,952 rows at `v8.5.5`, judged in 98 seconds, and 43,951 agree. The one left, `suite:cited`'s `ALTER DATABASE COLLATE 's' zzz`, is the judge's: TiDB stops at the unknown collation with 1273, which reads as accepted, and never reaches `zzz`, which omni rejects as TiDB does after a known collation.
+
+| Rows | Total | Agree |
+| --- | --- | --- |
+| Generated: alternatives and near-misses | 11,055 | 11,055 |
+| The four corpora: pingcap's parser tests, their rest, TiDB's integration tests, Bytebase's | 32,495 | 32,495 |
+| `suite:reject-fuzz-sweep`: 300 mutations from a fixed seed | 292 | 292 |
+| Statements two oracle tests listed, cited and fuzz findings | 110 | 109 |
+
+- **The corpora** were 32,560 rows in their own files, sampled live at `TIDB_CORPUS_N`. 65 statements another row already held were left out. The pinned server gave every row the verdict its file recorded.
+- **The reject fuzz** draws its seeds from the expected column, so closing a gap no longer moves them. Its minimiser sent requests that depend on omni's verdict, and is gone: a finding is a disagreeing row.
+- **99 tests replay tapes,** 7.3 MB, recorded in 55 to 105 seconds and replayed in about 20. Each verdict is one `PREPARE omni_stmt FROM ?`, two with the probe. The codec writes `…` for the 121 characters that open a syntax error and for the TSO numbers in a read-timestamp error, which differ on every run. Six tests iterated maps while sending, and sort now. The operator sweep's size and seed are constants.
+- **Deleted:** the live corpus tests and their sampler, and the harness tests of a run that recovers a lost connection or server (`TestTiDBCorpusHarnessSurvivesALostServer`, `TestPrepareSyntaxHoldsOneConnection`, `TestLostHarnessAnswersRatherThanPanics`): a replay has no server to lose, and the judge, which runs only in a recording, fails on a lost answer rather than recovering. `TestSyntaxProbeControls` stays, on a tape.
+
+**TiDB, `tidb/review`.** Its five oracle tests replay (2026-11-13): 5 tapes, 1.6 MB, recorded in 80 to 90 seconds and replayed in 2. Two recordings left the same tapes.
+
+- **The walk is a `Lister`.** One query lists databases, relations, columns, indexes and foreign keys. A local temporary table is in no `information_schema` view, its own session's included, so the inventory asks `SHOW CREATE TABLE` in every database for each name the change's `CREATE TEMPORARY TABLE` statements hold. The `Holder` and its digest are gone.
+- **It finds 222 of the 247 statements TiDB rejects in the 60 curated cases, and 390 of 610 in a sweep of 40 changes,** with no false finding. CI swept 500 changes live on four servers; the tape holds 40, as OceanBase's does.
+- **Three connections a case,** as OceanBase's: the setup, the catalog, and the change, which sets `foreign_key_checks` itself: a new session could read the global a sweep's base had turned off before the setup turned it on again.
+- **Server state** goes through `testcontainer.Reset`: user databases dropped, `test` made again, and the global `foreign_key_checks` and `tidb_enable_check_constraint` on. The prior-backup, scan-rule and column-drop oracles stay as they were, on a tape each.
 
 **Snowflake.** A prototype converted the Syntax blocks of 77 docs pages to a `.g4` and generated 1,557 statements, of which omni accepts 64%. The blocks are near-BNF and map directly:
 

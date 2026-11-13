@@ -501,10 +501,10 @@ func sqlAt(sql string, loc nodes.Loc) string {
 // itself (container test).
 func TestSplitDistributeMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	for want, cases := range map[bool][][]string{
+	for want, cases := range byVerdict(map[bool][][]string{
 		true:  {splitDistributeAccepted, splitKeywordIdentifiers},
 		false: {splitDistributeRejected},
-	} {
+	}) {
 		for _, group := range cases {
 			for _, sql := range group {
 				t.Run(sql, func(t *testing.T) {

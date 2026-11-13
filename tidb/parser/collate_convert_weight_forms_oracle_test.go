@@ -9,7 +9,6 @@ import "testing"
 // leaving a stale expectation behind.
 func TestCollateConvertWeightFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range collateConvertWeightCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)

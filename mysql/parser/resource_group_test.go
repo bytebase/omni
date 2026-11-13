@@ -113,11 +113,16 @@ func TestResourceGroupRejected(t *testing.T) {
 // next runs.
 func TestResourceGroupOracle(t *testing.T) {
 	o := startParserOracle(t)
-	for want, cases := range map[bool][]string{
-		true:  resourceGroupAccepted,
-		false: resourceGroupRejected,
+	// A slice, not a map: the tape answers requests in the order it recorded them.
+	for _, group := range []struct {
+		want  bool
+		cases []string
+	}{
+		{true, resourceGroupAccepted},
+		{false, resourceGroupRejected},
 	} {
-		for _, sql := range cases {
+		want := group.want
+		for _, sql := range group.cases {
 			t.Run(sql, func(t *testing.T) {
 				for _, name := range []string{"x", "rg1", "`default`"} {
 					_, _ = o.db.ExecContext(o.ctx, "DROP RESOURCE GROUP "+name+" FORCE")

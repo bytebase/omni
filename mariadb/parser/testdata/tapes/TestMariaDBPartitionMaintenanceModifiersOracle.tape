@@ -1,0 +1,309 @@
+-- pin: default mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8
+
+== TestMariaDBPartitionMaintenanceModifiersOracle default#1
+> exec
+| CREATE TABLE p (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, n INT, pid INT, CONSTRAINT ck_n CHECK (n > 0), INDEX i (n), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))
+< ok 0 0
+> exec
+| CREATE TABLE pt (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20), PARTITION p2 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL p0, p1'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL ALL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REPAIR PARTITION NO_WRITE_TO_BINLOG p0'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REPAIR PARTITION LOCAL ALL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD PARTITION LOCAL p0'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD PARTITION NO_WRITE_TO_BINLOG ALL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ANALYZE PARTITION LOCAL p0'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ANALYZE PARTITION NO_WRITE_TO_BINLOG p0'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION LOCAL 3'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION NO_WRITE_TO_BINLOG 3'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION LOCAL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 10'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION LOCAL (PARTITION p9 VALUES LESS THAN (100))'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION LOCAL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION NO_WRITE_TO_BINLOG p0 INTO (PARTITION s0 VALUES LESS THAN (5))'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION p0 LOCAL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION ALL NO_WRITE_TO_BINLOG'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL p0 LOCAL'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0 NO_WRITE_TO_BINLOG'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL local'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL `local`'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD PARTITION LOCAL local, local'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION LOCAL remove INTO (PARTITION s0 VALUES LESS THAN (5))'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT, ADD INDEX (n) REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t LOCK = DEFAULT REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t MODIFY COLUMN n INT AFTER id REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t CHANGE COLUMN n m INT AFTER id REMOVE PARTITIONING'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id)'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT PARTITION BY HASH(id)'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t COMMENT ''c'' PARTITION BY HASH(id)'
+< ok 0 0
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE LOCAL PARTITION p0'
+< error
+| 1064 42000 …near 'LOCAL PARTITION p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD LOCAL PARTITION p0'
+< error
+| 1064 42000 …near 'LOCAL PARTITION p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REPAIR PARTITION p0 LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD PARTITION ALL NO_WRITE_TO_BINLOG'
+< error
+| 1064 42000 …near 'NO_WRITE_TO_BINLOG' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ANALYZE PARTITION p0 LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION 3 LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION PARTITIONS 10 LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION (PARTITION p9 VALUES LESS THAN (100)) LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION p0 LOCAL INTO (PARTITION s0 VALUES LESS THAN (5))'
+< error
+| 1064 42000 …near 'LOCAL INTO (PARTITION s0 VALUES LESS THAN (5))' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL NO_WRITE_TO_BINLOG p0'
+< error
+| 1064 42000 …near 'NO_WRITE_TO_BINLOG p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION NO_WRITE_TO_BINLOG LOCAL p0'
+< error
+| 1064 42000 …near 'p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL LOCAL p0'
+< error
+| 1064 42000 …near 'p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION p0 LOCAL LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION LOCAL NO_WRITE_TO_BINLOG PARTITIONS 10'
+< error
+| 1064 42000 …near 'NO_WRITE_TO_BINLOG PARTITIONS 10' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION LOCAL 3 LOCAL'
+< error
+| 1064 42000 …near 'LOCAL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION LOCAL'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION NO_WRITE_TO_BINLOG'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION local'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt OPTIMIZE PARTITION no_write_to_binlog'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REPAIR PARTITION LOCAL'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REBUILD PARTITION LOCAL'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt REORGANIZE PARTITION LOCAL INTO (PARTITION s0 VALUES LESS THAN (5))'
+< error
+| 1064 42000 …near 'INTO (PARTITION s0 VALUES LESS THAN (5))' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt COALESCE PARTITION LOCAL'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION LOCAL PARTITIONS'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt ADD PARTITION LOCAL ALL'
+< error
+| 1064 42000 …near 'ALL' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt CHECK PARTITION LOCAL p0'
+< error
+| 1064 42000 …near 'p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt CHECK PARTITION NO_WRITE_TO_BINLOG p0'
+< error
+| 1064 42000 …near 'NO_WRITE_TO_BINLOG p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt TRUNCATE PARTITION LOCAL p0'
+< error
+| 1064 42000 …near 'p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt TRUNCATE PARTITION NO_WRITE_TO_BINLOG p0'
+< error
+| 1064 42000 …near 'NO_WRITE_TO_BINLOG p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE pt DROP PARTITION LOCAL p0'
+< error
+| 1064 42000 …near 'p0' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT, REMOVE PARTITIONING'
+< error
+| 1064 42000 …near 'REMOVE PARTITIONING' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT, ADD INDEX (n), REMOVE PARTITIONING'
+< error
+| 1064 42000 …near 'REMOVE PARTITIONING' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITIONING, ADD COLUMN a INT'
+< error
+| 1064 42000 …near ' ADD COLUMN a INT' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITIONING ADD COLUMN a INT'
+< error
+| 1064 42000 …near 'ADD COLUMN a INT' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT REMOVE PARTITIONING REMOVE PARTITIONING'
+< error
+| 1064 42000 …near 'REMOVE PARTITIONING' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT, PARTITION BY HASH(id)'
+< error
+| 1064 42000 …near 'PARTITION BY HASH(id)' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id) ADD COLUMN a INT'
+< error
+| 1064 42000 …near 'ADD COLUMN a INT' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id), ADD COLUMN a INT'
+< error
+| 1064 42000 …near ' ADD COLUMN a INT' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t ADD COLUMN a INT REMOVE PARTITIONING PARTITION BY HASH(id)'
+< error
+| 1064 42000 …near 'PARTITION BY HASH(id)' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITIONING PARTITION BY HASH(id)'
+< error
+| 1064 42000 …near 'PARTITION BY HASH(id)' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, ALGORITHM=INPLACE'
+< error
+| 1064 42000 …near ' ALGORITHM=INPLACE' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, LOCK=NONE'
+< error
+| 1064 42000 …near ' LOCK=NONE' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id) ALGORITHM=INPLACE'
+< error
+| 1064 42000 …near 'ALGORITHM=INPLACE' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t PARTITION BY HASH(id), ENABLE KEYS'
+< error
+| 1064 42000 …near ' ENABLE KEYS' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITIONING, ALGORITHM=INPLACE'
+< error
+| 1064 42000 …near ' ALGORITHM=INPLACE' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE'
+< error
+| 1064 42000 …near '' at line 1
+> exec
+| PREPARE parse_probe FROM 'ALTER TABLE t REMOVE PARTITION'
+< error
+| 1064 42000 …near 'PARTITION' at line 1

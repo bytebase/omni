@@ -111,7 +111,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			}
 		}
 	}
-	return nil
+	return checkColumnDefinition(colDef)
 }
 
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {

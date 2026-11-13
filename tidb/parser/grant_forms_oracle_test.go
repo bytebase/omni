@@ -9,7 +9,6 @@ import "testing"
 // rather than leaving a stale expectation behind.
 func TestGrantFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range grantFormCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)
@@ -32,7 +31,6 @@ func TestGrantFormsMatchTiDB(t *testing.T) {
 // changed its mind; this test is what says the server has not.
 func TestGrantWordsStayNamesOnTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range grantWordsAsNames {
 		t.Run(sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(sql)
