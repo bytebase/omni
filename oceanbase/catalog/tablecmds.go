@@ -389,6 +389,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
+		if kind, ok := constraintKeyKind(con); ok {
+			if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+				return err
+			}
+		}
 		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
 			return err
 		}
