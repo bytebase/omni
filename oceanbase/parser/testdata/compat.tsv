@@ -597,7 +597,7 @@ reject	reject	engine	stmt/get_diagnostics_stmt!drop-1	DIAGNOSTICS @v = NUMBER
 reject	reject	engine	stmt/get_diagnostics_stmt!drop-2	GET @v = NUMBER
 reject	reject	engine	stmt/get_diagnostics_stmt!drop-3	GET DIAGNOSTICS = NUMBER
 reject	reject	engine	stmt/get_diagnostics_stmt!drop-4	GET DIAGNOSTICS @v NUMBER
-accept	reject	engine	stmt/get_diagnostics_stmt!drop-5	GET DIAGNOSTICS @v =
+reject	reject	engine	stmt/get_diagnostics_stmt!drop-5	GET DIAGNOSTICS @v =
 reject	reject	engine	stmt/get_diagnostics_stmt!insert	GET DIAGNOSTICS @v = NUMBER zzz
 reject	reject	engine	stmt/get_diagnostics_stmt!swap	GET_FORMAT DIAGNOSTICS @v = NUMBER
 accept	reject	engine	stmt/pl_expr_stmt	DO a
@@ -11706,7 +11706,7 @@ reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-3	
 reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-4	GET DIAGNOSTICS CONDITION @v = CLASS_ORIGIN
 reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-5	GET DIAGNOSTICS CONDITION 1 = CLASS_ORIGIN
 reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-6	GET DIAGNOSTICS CONDITION 1 @v CLASS_ORIGIN
-accept	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-7	GET DIAGNOSTICS CONDITION 1 @v =
+reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!drop-7	GET DIAGNOSTICS CONDITION 1 @v =
 reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!insert	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN zzz
 reject	reject	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt!swap	GET_FORMAT DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
 accept	accept	engine	get_diagnostics_stmt/get_statement_diagnostics_stmt	GET DIAGNOSTICS @v = NUMBER
@@ -11718,7 +11718,7 @@ reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_COND
 reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-5	GET CURRENT DIAGNOSTICS CONDITION @v = CLASS_ORIGIN
 reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-6	GET CURRENT DIAGNOSTICS CONDITION 1 = CLASS_ORIGIN
 reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-7	GET CURRENT DIAGNOSTICS CONDITION 1 @v CLASS_ORIGIN
-accept	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-8	GET CURRENT DIAGNOSTICS CONDITION 1 @v =
+reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-8	GET CURRENT DIAGNOSTICS CONDITION 1 @v =
 reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!insert	GET CURRENT DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN zzz
 reject	reject	engine	get_condition_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!swap	GET_FORMAT CURRENT DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
 accept	accept	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list	GET STACKED DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
@@ -11728,7 +11728,7 @@ reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_COND
 reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-5	GET STACKED DIAGNOSTICS CONDITION @v = CLASS_ORIGIN
 reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-6	GET STACKED DIAGNOSTICS CONDITION 1 = CLASS_ORIGIN
 reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-7	GET STACKED DIAGNOSTICS CONDITION 1 @v CLASS_ORIGIN
-accept	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-8	GET STACKED DIAGNOSTICS CONDITION 1 @v =
+reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!drop-8	GET STACKED DIAGNOSTICS CONDITION 1 @v =
 reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!insert	GET STACKED DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN zzz
 reject	reject	engine	get_condition_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_CONDITION_condition_arg_condition_information_item_list!swap	GET_FORMAT STACKED DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
 accept	accept	engine	condition_arg/INTNUM	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
@@ -11741,7 +11741,7 @@ reject	reject	engine	condition_arg/STRING_VALUE!insert	GET DIAGNOSTICS CONDITION
 accept	accept	engine	condition_arg/BOOL_VALUE	GET DIAGNOSTICS CONDITION TRUE @v = CLASS_ORIGIN
 reject	reject	engine	condition_arg/BOOL_VALUE!insert	GET DIAGNOSTICS CONDITION TRUE zzz @v = CLASS_ORIGIN
 accept	accept	engine	condition_arg/BOOL_VALUE!swap	GET DIAGNOSTICS CONDITION TRUNCATE @v = CLASS_ORIGIN
-accept	reject	engine	condition_arg/QUESTIONMARK	GET DIAGNOSTICS CONDITION ? @v = CLASS_ORIGIN
+reject	reject	engine	condition_arg/QUESTIONMARK	GET DIAGNOSTICS CONDITION ? @v = CLASS_ORIGIN
 reject	reject	engine	condition_arg/QUESTIONMARK!insert	GET DIAGNOSTICS CONDITION ? zzz @v = CLASS_ORIGIN
 accept	accept	engine	condition_arg/column_name	GET DIAGNOSTICS CONDITION a @v = CLASS_ORIGIN
 reject	reject	engine	condition_arg/column_name!insert	GET DIAGNOSTICS CONDITION a zzz @v = CLASS_ORIGIN
@@ -11751,7 +11751,7 @@ reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_stat
 reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!drop-3	GET CURRENT @v = NUMBER
 reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!drop-4	GET CURRENT DIAGNOSTICS = NUMBER
 reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!drop-5	GET CURRENT DIAGNOSTICS @v NUMBER
-accept	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!drop-6	GET CURRENT DIAGNOSTICS @v =
+reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!drop-6	GET CURRENT DIAGNOSTICS @v =
 reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!insert	GET CURRENT DIAGNOSTICS @v = NUMBER zzz
 reject	reject	engine	get_statement_diagnostics_stmt/GET_CURRENT_DIAGNOSTICS_statement_information_item_list!swap	GET_FORMAT CURRENT DIAGNOSTICS @v = NUMBER
 accept	accept	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list	GET STACKED DIAGNOSTICS @v = NUMBER
@@ -11759,7 +11759,7 @@ reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_stat
 reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!drop-3	GET STACKED @v = NUMBER
 reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!drop-4	GET STACKED DIAGNOSTICS = NUMBER
 reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!drop-5	GET STACKED DIAGNOSTICS @v NUMBER
-accept	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!drop-6	GET STACKED DIAGNOSTICS @v =
+reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!drop-6	GET STACKED DIAGNOSTICS @v =
 reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!insert	GET STACKED DIAGNOSTICS @v = NUMBER zzz
 reject	reject	engine	get_statement_diagnostics_stmt/GET_STACKED_DIAGNOSTICS_statement_information_item_list!swap	GET_FORMAT STACKED DIAGNOSTICS @v = NUMBER
 accept	accept	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item	GET DIAGNOSTICS @v = NUMBER, @v = NUMBER
@@ -11769,11 +11769,11 @@ reject	reject	engine	statement_information_item_list/statement_information_item_
 reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!drop-4	GET DIAGNOSTICS @v = NUMBER @v = NUMBER
 reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!drop-5	GET DIAGNOSTICS @v = NUMBER, = NUMBER
 reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!drop-6	GET DIAGNOSTICS @v = NUMBER, @v NUMBER
-accept	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!drop-7	GET DIAGNOSTICS @v = NUMBER, @v =
+reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!drop-7	GET DIAGNOSTICS @v = NUMBER, @v =
 reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!insert	GET DIAGNOSTICS @v = NUMBER, @v = NUMBER zzz
-accept	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!swap	GET DIAGNOSTICS @v = NVARCHAR, @v = NUMBER
+reject	reject	engine	statement_information_item_list/statement_information_item_list_,_statement_information_item!swap	GET DIAGNOSTICS @v = NVARCHAR, @v = NUMBER
 accept	accept	engine	statement_information_item_list/statement_information_item	GET DIAGNOSTICS @v = NUMBER
-accept	reject	engine	statement_information_item_list/statement_information_item!swap	GET DIAGNOSTICS @v = NVARCHAR
+reject	reject	engine	statement_information_item_list/statement_information_item!swap	GET DIAGNOSTICS @v = NVARCHAR
 accept	accept	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, @v = CLASS_ORIGIN
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-1	GET DIAGNOSTICS CONDITION 1 = CLASS_ORIGIN, @v = CLASS_ORIGIN
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-2	GET DIAGNOSTICS CONDITION 1 @v CLASS_ORIGIN, @v = CLASS_ORIGIN
@@ -11781,11 +11781,11 @@ reject	reject	engine	condition_information_item_list/condition_information_item_
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-4	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN @v = CLASS_ORIGIN
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-5	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, = CLASS_ORIGIN
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-6	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, @v CLASS_ORIGIN
-accept	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, @v =
+reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, @v =
 reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!insert	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN, @v = CLASS_ORIGIN zzz
-accept	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 1 @v = CLEAN, @v = CLASS_ORIGIN
+reject	reject	engine	condition_information_item_list/condition_information_item_list_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 1 @v = CLEAN, @v = CLASS_ORIGIN
 accept	accept	engine	condition_information_item_list/condition_information_item	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
-accept	reject	engine	condition_information_item_list/condition_information_item!swap	GET DIAGNOSTICS CONDITION 1 @v = CLEAN
+reject	reject	engine	condition_information_item_list/condition_information_item!swap	GET DIAGNOSTICS CONDITION 1 @v = CLEAN
 accept	accept	engine	statement_information_item/USER_VARIABLE_COMP_EQ_statement_information_item_name	GET DIAGNOSTICS @v = NUMBER
 reject	reject	engine	statement_information_item/QUESTIONMARK_COMP_EQ_statement_information_item_name	GET DIAGNOSTICS ? = NUMBER
 reject	reject	engine	statement_information_item/QUESTIONMARK_COMP_EQ_statement_information_item_name!drop-2	GET DIAGNOSTICS ? NUMBER
@@ -11794,9 +11794,9 @@ reject	reject	engine	statement_information_item/QUESTIONMARK_COMP_EQ_statement_i
 reject	reject	engine	statement_information_item/QUESTIONMARK_COMP_EQ_statement_information_item_name!swap	GET DIAGNOSTICS ? = NVARCHAR
 accept	accept	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name	GET DIAGNOSTICS a = NUMBER
 reject	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!drop-2	GET DIAGNOSTICS a NUMBER
-accept	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!drop-3	GET DIAGNOSTICS a =
+reject	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!drop-3	GET DIAGNOSTICS a =
 reject	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!insert	GET DIAGNOSTICS a = NUMBER zzz
-accept	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!swap	GET DIAGNOSTICS a = NVARCHAR
+reject	reject	engine	statement_information_item/diagnostics_info_ref_COMP_EQ_statement_information_item_name!swap	GET DIAGNOSTICS a = NVARCHAR
 accept	accept	engine	condition_information_item/USER_VARIABLE_COMP_EQ_condition_information_item_name	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
 reject	reject	engine	condition_information_item/QUESTIONMARK_COMP_EQ_condition_information_item_name	GET DIAGNOSTICS CONDITION 1 ? = CLASS_ORIGIN
 reject	reject	engine	condition_information_item/QUESTIONMARK_COMP_EQ_condition_information_item_name!drop-2	GET DIAGNOSTICS CONDITION 1 ? CLASS_ORIGIN
@@ -11805,51 +11805,51 @@ reject	reject	engine	condition_information_item/QUESTIONMARK_COMP_EQ_condition_i
 reject	reject	engine	condition_information_item/QUESTIONMARK_COMP_EQ_condition_information_item_name!swap	GET DIAGNOSTICS CONDITION 1 ? = CLEAN
 accept	accept	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name	GET DIAGNOSTICS CONDITION 1 a = CLASS_ORIGIN
 reject	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!drop-2	GET DIAGNOSTICS CONDITION 1 a CLASS_ORIGIN
-accept	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!drop-3	GET DIAGNOSTICS CONDITION 1 a =
+reject	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!drop-3	GET DIAGNOSTICS CONDITION 1 a =
 reject	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!insert	GET DIAGNOSTICS CONDITION 1 a = CLASS_ORIGIN zzz
-accept	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!swap	GET DIAGNOSTICS CONDITION 1 a = CLEAN
+reject	reject	engine	condition_information_item/diagnostics_info_ref_COMP_EQ_condition_information_item_name!swap	GET DIAGNOSTICS CONDITION 1 a = CLEAN
 accept	accept	engine	diagnostics_info_ref/column_name	GET DIAGNOSTICS a = NUMBER
 reject	reject	engine	diagnostics_info_ref/column_name!truncate	GET DIAGNOSTICS
 reject	reject	engine	diagnostics_info_ref/column_name!insert	GET DIAGNOSTICS a zzz = NUMBER
 accept	accept	engine	statement_information_item_name/NUMBER	GET DIAGNOSTICS @v = NUMBER
 accept	accept	engine	statement_information_item_name/ROW_COUNT	GET DIAGNOSTICS @v = ROW_COUNT
 reject	reject	engine	statement_information_item_name/ROW_COUNT!insert	GET DIAGNOSTICS @v = ROW_COUNT zzz
-accept	reject	engine	statement_information_item_name/ROW_COUNT!swap	GET DIAGNOSTICS @v = ROW_FORMAT
+reject	reject	engine	statement_information_item_name/ROW_COUNT!swap	GET DIAGNOSTICS @v = ROW_FORMAT
 accept	accept	engine	condition_information_item_name/CLASS_ORIGIN	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN
 accept	accept	engine	condition_information_item_name/SUBCLASS_ORIGIN	GET DIAGNOSTICS CONDITION 1 @v = SUBCLASS_ORIGIN
 reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN!insert	GET DIAGNOSTICS CONDITION 1 @v = SUBCLASS_ORIGIN zzz
-accept	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN!swap	GET DIAGNOSTICS CONDITION 1 @v = SUBDATE
+reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN!swap	GET DIAGNOSTICS CONDITION 1 @v = SUBDATE
 accept	accept	engine	condition_information_item_name/RETURNED_SQLSTATE	GET DIAGNOSTICS CONDITION 1 @v = RETURNED_SQLSTATE
 reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE!insert	GET DIAGNOSTICS CONDITION 1 @v = RETURNED_SQLSTATE zzz
-accept	reject	engine	condition_information_item_name/RETURNED_SQLSTATE!swap	GET DIAGNOSTICS CONDITION 1 @v = RETURNING
+reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE!swap	GET DIAGNOSTICS CONDITION 1 @v = RETURNING
 accept	accept	engine	condition_information_item_name/MESSAGE_TEXT	GET DIAGNOSTICS CONDITION 1 @v = MESSAGE_TEXT
 reject	reject	engine	condition_information_item_name/MESSAGE_TEXT!insert	GET DIAGNOSTICS CONDITION 1 @v = MESSAGE_TEXT zzz
-accept	reject	engine	condition_information_item_name/MESSAGE_TEXT!swap	GET DIAGNOSTICS CONDITION 1 @v = META
+reject	reject	engine	condition_information_item_name/MESSAGE_TEXT!swap	GET DIAGNOSTICS CONDITION 1 @v = META
 accept	accept	engine	condition_information_item_name/MYSQL_ERRNO	GET DIAGNOSTICS CONDITION 1 @v = MYSQL_ERRNO
 reject	reject	engine	condition_information_item_name/MYSQL_ERRNO!insert	GET DIAGNOSTICS CONDITION 1 @v = MYSQL_ERRNO zzz
-accept	reject	engine	condition_information_item_name/MYSQL_ERRNO!swap	GET DIAGNOSTICS CONDITION 1 @v = MY_NAME
+reject	reject	engine	condition_information_item_name/MYSQL_ERRNO!swap	GET DIAGNOSTICS CONDITION 1 @v = MY_NAME
 accept	accept	engine	condition_information_item_name/CONSTRAINT_CATALOG	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_CATALOG
 reject	reject	engine	condition_information_item_name/CONSTRAINT_CATALOG!insert	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_CATALOG zzz
 accept	accept	engine	condition_information_item_name/CONSTRAINT_SCHEMA	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_SCHEMA
 reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA!insert	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_SCHEMA zzz
-accept	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA!swap	GET DIAGNOSTICS CONDITION 1 @v = CONTAINS
+reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA!swap	GET DIAGNOSTICS CONDITION 1 @v = CONTAINS
 accept	accept	engine	condition_information_item_name/CONSTRAINT_NAME	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_NAME
 reject	reject	engine	condition_information_item_name/CONSTRAINT_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = CONSTRAINT_NAME zzz
 accept	accept	engine	condition_information_item_name/CATALOG_NAME	GET DIAGNOSTICS CONDITION 1 @v = CATALOG_NAME
 reject	reject	engine	condition_information_item_name/CATALOG_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = CATALOG_NAME zzz
-accept	reject	engine	condition_information_item_name/CATALOG_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = CHAIN
+reject	reject	engine	condition_information_item_name/CATALOG_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = CHAIN
 accept	accept	engine	condition_information_item_name/SCHEMA_NAME	GET DIAGNOSTICS CONDITION 1 @v = SCHEMA_NAME
 reject	reject	engine	condition_information_item_name/SCHEMA_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = SCHEMA_NAME zzz
-accept	reject	engine	condition_information_item_name/SCHEMA_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = SCN
+reject	reject	engine	condition_information_item_name/SCHEMA_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = SCN
 accept	accept	engine	condition_information_item_name/TABLE_NAME	GET DIAGNOSTICS CONDITION 1 @v = TABLE_NAME
 reject	reject	engine	condition_information_item_name/TABLE_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = TABLE_NAME zzz
-accept	reject	engine	condition_information_item_name/TABLE_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = TASK
+reject	reject	engine	condition_information_item_name/TABLE_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = TASK
 accept	accept	engine	condition_information_item_name/COLUMN_NAME	GET DIAGNOSTICS CONDITION 1 @v = COLUMN_NAME
 reject	reject	engine	condition_information_item_name/COLUMN_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = COLUMN_NAME zzz
-accept	reject	engine	condition_information_item_name/COLUMN_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = COMMENT
+reject	reject	engine	condition_information_item_name/COLUMN_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = COMMENT
 accept	accept	engine	condition_information_item_name/CURSOR_NAME	GET DIAGNOSTICS CONDITION 1 @v = CURSOR_NAME
 reject	reject	engine	condition_information_item_name/CURSOR_NAME!insert	GET DIAGNOSTICS CONDITION 1 @v = CURSOR_NAME zzz
-accept	reject	engine	condition_information_item_name/CURSOR_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = CURSOR_SHARING_EXACT
+reject	reject	engine	condition_information_item_name/CURSOR_NAME!swap	GET DIAGNOSTICS CONDITION 1 @v = CURSOR_SHARING_EXACT
 accept	accept	engine	show_stmt/SHOW_opt_extended_or_full_TABLES_opt_from_or_in_database_clause_opt_show_condition	SHOW TABLES
 accept	accept	engine	show_stmt/SHOW_databases_or_schemas_opt_status_opt_show_condition	SHOW DATABASES
 reject	reject	engine	show_stmt/SHOW_databases_or_schemas_opt_status_opt_show_condition!drop-1	DATABASES
