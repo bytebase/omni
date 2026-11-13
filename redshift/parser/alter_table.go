@@ -773,7 +773,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case SET:
 		cmd, err = p.parseAlterTableSet()
 	case RESET:
-		cmd, err = p.parseAlterTableReset(), nil
+		cmd, err = p.parseAlterTableReset()
 	case REPLICA:
 		cmd, err = p.parseAlterTableReplica(), nil
 	case OF:
@@ -1980,7 +1980,10 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 		}, nil
 	case '(':
 		// SET reloptions (starts with '(' because reloptions = '(' reloption_list ')')
-		opts := p.parseReloptions()
+		opts, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetRelOptions),
 			Def:     opts,
@@ -2019,13 +2022,16 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableReset handles RESET reloptions.
-func (p *Parser) parseAlterTableReset() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableReset() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume RESET
-	opts := p.parseReloptions()
+	opts, err := p.parseReloptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_ResetRelOptions),
 		Def:     opts,
-	}
+	}, nil
 }
 
 // parseAlterTableReplica handles REPLICA IDENTITY ...

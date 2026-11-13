@@ -724,7 +724,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume CREATE
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == VIEW || p.cur.Type == RECURSIVE {
 		// CREATE TEMP VIEW ... or CREATE TEMP RECURSIVE VIEW ...
@@ -745,13 +748,19 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// CREATE TEMP TABLE ...
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -780,7 +789,7 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// No '(' - check for AS (CTAS with no column list), PARTITION, OF
-	if p.cur.Type == AS || p.cur.Type == USING {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -826,14 +835,25 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		return stmt, nil
 	}
 
+	if p.cur.Type == SEQUENCE {
+		// CREATE UNLOGGED SEQUENCE ...
+		return p.parseCreateSeqStmt(loc, relpersistence)
+	}
+
 	// CREATE UNLOGGED TABLE ...
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -860,7 +880,7 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		return node, nil
 	}
 
-	if p.cur.Type == AS || p.cur.Type == USING {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -882,13 +902,19 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume CREATE
 	relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
-	p.expect(TABLE)
+	if _, err := p.expect(TABLE); err != nil {
+		return nil, err
+	}
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
@@ -917,7 +943,7 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	}
 
 	// No '(' - check for AS or USING (CTAS with no column list)
-	if p.cur.Type == AS || p.cur.Type == USING {
+	if p.startsCreateAsTail() {
 		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -983,10 +1009,18 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
+		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+			return nil, err
+		}
+		if stmt.Options, err = p.parseOptWith(); err != nil {
+			return nil, err
+		}
+		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+			return nil, err
+		}
+		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+			return nil, err
+		}
 		return stmt, nil
 	}
 
@@ -1009,10 +1043,18 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
+		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+			return nil, err
+		}
+		if stmt.Options, err = p.parseOptWith(); err != nil {
+			return nil, err
+		}
+		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+			return nil, err
+		}
+		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+			return nil, err
+		}
 		return stmt, nil
 	}
 
@@ -1068,10 +1110,18 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 			return nil, err
 		}
 		stmt.Partspec = partspec
-		stmt.AccessMethod = p.parseOptAccessMethod()
-		stmt.Options = p.parseOptWith()
-		stmt.OnCommit = p.parseOnCommitOption()
-		stmt.Tablespacename = p.parseOptTableSpace()
+		if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+			return nil, err
+		}
+		if stmt.Options, err = p.parseOptWith(); err != nil {
+			return nil, err
+		}
+		if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+			return nil, err
+		}
+		if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+			return nil, err
+		}
 		return stmt, nil
 	}
 
@@ -1088,10 +1138,18 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 		return nil, err
 	}
 	stmt.Partspec = partspec
-	stmt.AccessMethod = p.parseOptAccessMethod()
-	stmt.Options = p.parseOptWith()
-	stmt.OnCommit = p.parseOnCommitOption()
-	stmt.Tablespacename = p.parseOptTableSpace()
+	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+		return nil, err
+	}
+	if stmt.Options, err = p.parseOptWith(); err != nil {
+		return nil, err
+	}
+	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+		return nil, err
+	}
+	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -1101,6 +1159,21 @@ func (p *Parser) isCreateTableElement() bool {
 	return p.cur.Type == LIKE || p.startsTableConstraint()
 }
 
+// startsCreateAsTail reports whether the token after CREATE TABLE's name
+// goes on with create_as_target (gram.y: qualified_name opt_column_list
+// table_access_method_clause OptWith OnCommitOption OptTableSpace AS ...).
+// CreateStmt goes on only with '(', OF or PARTITION OF.
+func (p *Parser) startsCreateAsTail() bool {
+	if p.collectMode() {
+		return false
+	}
+	switch p.cur.Type {
+	case '(', OF, PARTITION:
+		return false
+	}
+	return true
+}
+
 // finishCTAS completes parsing a CTAS statement after names and optional column
 // list have been parsed. Handles OptAccessMethod, OptWith, OnCommitOption,
 // OptTableSpace, AS, SelectStmt, and opt_with_data.
@@ -1108,15 +1181,28 @@ func (p *Parser) finishCTAS(names *nodes.List, nameLoc nodes.Loc, colNames *node
 	rv := makeRangeVarFromAnyName(names, nameLoc)
 	rv.Relpersistence = relpersistence
 
-	accessMethod := p.parseOptAccessMethod()
-	options := p.parseOptWith()
-	onCommit := p.parseOnCommitOption()
-	tableSpace := p.parseOptTableSpace()
+	accessMethod, err := p.parseOptAccessMethod()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseOptWith()
+	if err != nil {
+		return nil, err
+	}
+	onCommit, err := p.parseOnCommitOption()
+	if err != nil {
+		return nil, err
+	}
+	tableSpace, err := p.parseOptTableSpace()
+	if err != nil {
+		return nil, err
+	}
 	// create_as_target ends here, before AS.
 	intoLoc := nodes.Loc{Start: nameLoc.Start, End: p.prev.End}
 
-	// AS
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	var query nodes.Node
 	if p.cur.Type == EXECUTE {
@@ -1197,10 +1283,18 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 		return nil, err
 	}
 	stmt.Partspec = partspec
-	stmt.AccessMethod = p.parseOptAccessMethod()
-	stmt.Options = p.parseOptWith()
-	stmt.OnCommit = p.parseOnCommitOption()
-	stmt.Tablespacename = p.parseOptTableSpace()
+	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
+		return nil, err
+	}
+	if stmt.Options, err = p.parseOptWith(); err != nil {
+		return nil, err
+	}
+	if stmt.OnCommit, err = p.parseOnCommitOption(); err != nil {
+		return nil, err
+	}
+	if stmt.Tablespacename, err = p.parseOptTableSpace(); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
