@@ -49,12 +49,12 @@ reject	reject	engine	simple_statement/alter_instance_stmt!swap	ALWAYS INSTANCE R
 accept	accept	engine	simple_statement/alter_logfile_stmt	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	simple_statement/alter_logfile_stmt!drop-1	LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	simple_statement/alter_logfile_stmt!drop-2	ALTER GROUP utf8mb4 ADD UNDOFILE 's';
-accept	reject	engine	simple_statement/alter_logfile_stmt!drop-3	ALTER LOGFILE utf8mb4 ADD UNDOFILE 's';
+reject	reject	engine	simple_statement/alter_logfile_stmt!drop-3	ALTER LOGFILE utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	simple_statement/alter_logfile_stmt!drop-4	ALTER LOGFILE GROUP ADD UNDOFILE 's';
 reject	reject	engine	simple_statement/alter_logfile_stmt!drop-5	ALTER LOGFILE GROUP utf8mb4 UNDOFILE 's';
-accept	reject	engine	simple_statement/alter_logfile_stmt!drop-6	ALTER LOGFILE GROUP utf8mb4 ADD 's';
-accept	reject	engine	simple_statement/alter_logfile_stmt!drop-7	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE;
-accept	reject	engine	simple_statement/alter_logfile_stmt!truncate	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE
+reject	reject	engine	simple_statement/alter_logfile_stmt!drop-6	ALTER LOGFILE GROUP utf8mb4 ADD 's';
+reject	reject	engine	simple_statement/alter_logfile_stmt!drop-7	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE;
+reject	reject	engine	simple_statement/alter_logfile_stmt!truncate	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE
 reject	reject	engine	simple_statement/alter_logfile_stmt!insert	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' zzz;
 reject	reject	engine	simple_statement/alter_logfile_stmt!swap	ALWAYS LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 accept	accept	engine	simple_statement/alter_procedure_stmt	ALTER PROCEDURE utf8mb4;
@@ -86,19 +86,19 @@ reject	reject	engine	simple_statement/alter_server_stmt!swap	ALWAYS SERVER utf8m
 accept	accept	engine	simple_statement/alter_tablespace_stmt	ALTER TABLESPACE utf8mb4 WAIT;
 reject	reject	engine	simple_statement/alter_tablespace_stmt!drop-1	TABLESPACE utf8mb4 WAIT;
 reject	reject	engine	simple_statement/alter_tablespace_stmt!drop-2	ALTER utf8mb4 WAIT;
-accept	reject	engine	simple_statement/alter_tablespace_stmt!drop-3	ALTER TABLESPACE WAIT;
-accept	reject	engine	simple_statement/alter_tablespace_stmt!drop-4	ALTER TABLESPACE utf8mb4;
-accept	reject	engine	simple_statement/alter_tablespace_stmt!truncate	ALTER TABLESPACE utf8mb4
+reject	reject	engine	simple_statement/alter_tablespace_stmt!drop-3	ALTER TABLESPACE WAIT;
+reject	reject	engine	simple_statement/alter_tablespace_stmt!drop-4	ALTER TABLESPACE utf8mb4;
+reject	reject	engine	simple_statement/alter_tablespace_stmt!truncate	ALTER TABLESPACE utf8mb4
 reject	reject	engine	simple_statement/alter_tablespace_stmt!insert	ALTER TABLESPACE utf8mb4 WAIT zzz;
 reject	reject	engine	simple_statement/alter_tablespace_stmt!swap	ALWAYS TABLESPACE utf8mb4 WAIT;
 accept	accept	engine	simple_statement/alter_undo_tablespace_stmt	ALTER UNDO TABLESPACE utf8mb4 SET ACTIVE;
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-1	UNDO TABLESPACE utf8mb4 SET ACTIVE;
-accept	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-2	ALTER TABLESPACE utf8mb4 SET ACTIVE;
+reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-2	ALTER TABLESPACE utf8mb4 SET ACTIVE;
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-3	ALTER UNDO utf8mb4 SET ACTIVE;
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-4	ALTER UNDO TABLESPACE SET ACTIVE;
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-5	ALTER UNDO TABLESPACE utf8mb4 ACTIVE;
-accept	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-6	ALTER UNDO TABLESPACE utf8mb4 SET;
-accept	reject	engine	simple_statement/alter_undo_tablespace_stmt!truncate	ALTER UNDO TABLESPACE utf8mb4 SET
+reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!drop-6	ALTER UNDO TABLESPACE utf8mb4 SET;
+reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!truncate	ALTER UNDO TABLESPACE utf8mb4 SET
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!insert	ALTER UNDO TABLESPACE utf8mb4 SET ACTIVE zzz;
 reject	reject	engine	simple_statement/alter_undo_tablespace_stmt!swap	ALWAYS UNDO TABLESPACE utf8mb4 SET ACTIVE;
 accept	accept	engine	simple_statement/alter_table_stmt	ALTER TABLE utf8mb4;
@@ -271,7 +271,7 @@ reject	reject	engine	simple_statement/drop_index_stmt!swap	DUAL INDEX utf8mb4 ON
 accept	accept	engine	simple_statement/drop_logfile_stmt	DROP LOGFILE GROUP utf8mb4;
 reject	reject	engine	simple_statement/drop_logfile_stmt!drop-1	LOGFILE GROUP utf8mb4;
 reject	reject	engine	simple_statement/drop_logfile_stmt!drop-2	DROP GROUP utf8mb4;
-accept	reject	engine	simple_statement/drop_logfile_stmt!drop-3	DROP LOGFILE utf8mb4;
+reject	reject	engine	simple_statement/drop_logfile_stmt!drop-3	DROP LOGFILE utf8mb4;
 reject	reject	engine	simple_statement/drop_logfile_stmt!drop-4	DROP LOGFILE GROUP;
 reject	reject	engine	simple_statement/drop_logfile_stmt!truncate	DROP LOGFILE GROUP
 reject	reject	engine	simple_statement/drop_logfile_stmt!insert	DROP LOGFILE GROUP utf8mb4 zzz;
@@ -1487,12 +1487,12 @@ reject	reject	engine	create/CREATE_USER_opt_if_not_exists_create_user_list_defau
 reject	reject	engine	create/CREATE_USER_opt_if_not_exists_create_user_list_default_role_clause_require_clause_connect_options_opt_account_lock_password_expire_options_opt_user_attribute!swap	CROSS USER utf8mb4;
 accept	accept	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-2	CREATE GROUP utf8mb4 ADD UNDOFILE 's';
-accept	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-3	CREATE LOGFILE utf8mb4 ADD UNDOFILE 's';
+reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-3	CREATE LOGFILE utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-4	CREATE LOGFILE GROUP ADD UNDOFILE 's';
 reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-5	CREATE LOGFILE GROUP utf8mb4 UNDOFILE 's';
-accept	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-6	CREATE LOGFILE GROUP utf8mb4 ADD 's';
-accept	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-7	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE;
-accept	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!truncate	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE
+reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-6	CREATE LOGFILE GROUP utf8mb4 ADD 's';
+reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!drop-7	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE;
+reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!truncate	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE
 reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!insert	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' zzz;
 reject	reject	engine	create/CREATE_LOGFILE_SYM_GROUP_SYM_ident_ADD_lg_undofile_opt_logfile_group_options!swap	CROSS LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 accept	accept	engine	create/CREATE_TABLESPACE_SYM_ident_opt_ts_datafile_name_opt_logfile_group_name_opt_tablespace_options	CREATE TABLESPACE utf8mb4;
@@ -1505,7 +1505,7 @@ reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-3	CREATE UNDO utf8mb4 ADD DATAFILE 's';
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-4	CREATE UNDO TABLESPACE ADD DATAFILE 's';
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-5	CREATE UNDO TABLESPACE utf8mb4 DATAFILE 's';
-accept	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-6	CREATE UNDO TABLESPACE utf8mb4 ADD 's';
+reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-6	CREATE UNDO TABLESPACE utf8mb4 ADD 's';
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!drop-7	CREATE UNDO TABLESPACE utf8mb4 ADD DATAFILE;
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!truncate	CREATE UNDO TABLESPACE utf8mb4 ADD DATAFILE
 reject	reject	engine	create/CREATE_UNDO_SYM_TABLESPACE_SYM_ident_ADD_ts_datafile_opt_undo_tablespace_options!insert	CREATE UNDO TABLESPACE utf8mb4 ADD DATAFILE 's' zzz;
@@ -2505,7 +2505,7 @@ reject	reject	engine	trg_event/DELETE_SYM!swap	CREATE TRIGGER utf8mb4 BEFORE DEN
 accept	accept	engine	opt_ts_datafile_name/%empty	CREATE TABLESPACE utf8mb4;
 accept	accept	engine	opt_ts_datafile_name/ADD_ts_datafile	CREATE TABLESPACE utf8mb4 ADD DATAFILE 's';
 reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!drop-1	CREATE TABLESPACE utf8mb4 DATAFILE 's';
-accept	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!drop-2	CREATE TABLESPACE utf8mb4 ADD 's';
+reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!drop-2	CREATE TABLESPACE utf8mb4 ADD 's';
 reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!drop-3	CREATE TABLESPACE utf8mb4 ADD DATAFILE;
 reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!truncate	CREATE TABLESPACE utf8mb4 ADD DATAFILE
 reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!insert	CREATE TABLESPACE utf8mb4 ADD DATAFILE 's' zzz;
@@ -2513,8 +2513,8 @@ reject	reject	engine	opt_ts_datafile_name/ADD_ts_datafile!swap	CREATE TABLESPACE
 accept	accept	engine	opt_logfile_group_name/%empty	CREATE TABLESPACE utf8mb4;
 accept	accept	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident	CREATE TABLESPACE utf8mb4 USE LOGFILE GROUP utf8mb4;
 reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-1	CREATE TABLESPACE utf8mb4 LOGFILE GROUP utf8mb4;
-accept	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-2	CREATE TABLESPACE utf8mb4 USE GROUP utf8mb4;
-accept	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-3	CREATE TABLESPACE utf8mb4 USE LOGFILE utf8mb4;
+reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-2	CREATE TABLESPACE utf8mb4 USE GROUP utf8mb4;
+reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-3	CREATE TABLESPACE utf8mb4 USE LOGFILE utf8mb4;
 reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!drop-4	CREATE TABLESPACE utf8mb4 USE LOGFILE GROUP;
 reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!truncate	CREATE TABLESPACE utf8mb4 USE LOGFILE GROUP
 reject	reject	engine	opt_logfile_group_name/USE_SYM_LOGFILE_SYM_GROUP_SYM_ident!insert	CREATE TABLESPACE utf8mb4 USE LOGFILE GROUP utf8mb4 zzz;
@@ -2574,13 +2574,13 @@ reject	reject	engine	tablespace_option/ts_option_file_block_size!truncate	CREATE
 reject	reject	engine	tablespace_option/ts_option_file_block_size!insert	CREATE TABLESPACE utf8mb4 FILE_BLOCK_SIZE 1 zzz;
 reject	reject	engine	tablespace_option/ts_option_file_block_size!swap	CREATE TABLESPACE utf8mb4 FILTER 1;
 accept	accept	engine	tablespace_option/ts_option_encryption	CREATE TABLESPACE utf8mb4 ENCRYPTION 's';
-accept	reject	engine	tablespace_option/ts_option_encryption!drop-2	CREATE TABLESPACE utf8mb4 ENCRYPTION;
-accept	reject	engine	tablespace_option/ts_option_encryption!truncate	CREATE TABLESPACE utf8mb4 ENCRYPTION
+reject	reject	engine	tablespace_option/ts_option_encryption!drop-2	CREATE TABLESPACE utf8mb4 ENCRYPTION;
+reject	reject	engine	tablespace_option/ts_option_encryption!truncate	CREATE TABLESPACE utf8mb4 ENCRYPTION
 reject	reject	engine	tablespace_option/ts_option_encryption!insert	CREATE TABLESPACE utf8mb4 ENCRYPTION 's' zzz;
 reject	reject	engine	tablespace_option/ts_option_encryption!swap	CREATE TABLESPACE utf8mb4 END 's';
-accept	reject	engine	tablespace_option/ts_option_engine_attribute	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
-accept	reject	engine	tablespace_option/ts_option_engine_attribute!drop-2	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE;
-accept	reject	engine	tablespace_option/ts_option_engine_attribute!truncate	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE
+reject	reject	engine	tablespace_option/ts_option_engine_attribute	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	tablespace_option/ts_option_engine_attribute!drop-2	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE;
+reject	reject	engine	tablespace_option/ts_option_engine_attribute!truncate	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE
 reject	reject	engine	tablespace_option/ts_option_engine_attribute!insert	CREATE TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's' zzz;
 reject	reject	engine	tablespace_option/ts_option_engine_attribute!swap	CREATE TABLESPACE utf8mb4 ENUM 's';
 accept	accept	engine	opt_alter_tablespace_options/%empty	ALTER TABLESPACE utf8mb4 ADD DATAFILE 's';
@@ -2606,7 +2606,7 @@ reject	reject	engine	alter_tablespace_option/ts_option_autoextend_size!drop-2	AL
 reject	reject	engine	alter_tablespace_option/ts_option_autoextend_size!truncate	ALTER TABLESPACE utf8mb4 AUTOEXTEND_SIZE
 reject	reject	engine	alter_tablespace_option/ts_option_autoextend_size!insert	ALTER TABLESPACE utf8mb4 AUTOEXTEND_SIZE 1 zzz;
 reject	reject	engine	alter_tablespace_option/ts_option_autoextend_size!swap	ALTER TABLESPACE utf8mb4 AUTO_INCREMENT 1;
-reject	accept	engine	alter_tablespace_option/ts_option_max_size	ALTER TABLESPACE utf8mb4 MAX_SIZE 1;
+accept	accept	engine	alter_tablespace_option/ts_option_max_size	ALTER TABLESPACE utf8mb4 MAX_SIZE 1;
 reject	reject	engine	alter_tablespace_option/ts_option_max_size!drop-2	ALTER TABLESPACE utf8mb4 MAX_SIZE;
 reject	reject	engine	alter_tablespace_option/ts_option_max_size!truncate	ALTER TABLESPACE utf8mb4 MAX_SIZE
 reject	reject	engine	alter_tablespace_option/ts_option_max_size!insert	ALTER TABLESPACE utf8mb4 MAX_SIZE 1 zzz;
@@ -2620,13 +2620,13 @@ reject	reject	engine	alter_tablespace_option/ts_option_engine!swap	ALTER TABLESP
 accept	accept	engine	alter_tablespace_option/ts_option_wait	ALTER TABLESPACE utf8mb4 WAIT;
 accept	accept	engine	alter_tablespace_option/ts_option_encryption	ALTER TABLESPACE utf8mb4 ENCRYPTION 's';
 reject	reject	engine	alter_tablespace_option/ts_option_encryption!drop-1	ALTER TABLESPACE utf8mb4 's';
-accept	reject	engine	alter_tablespace_option/ts_option_encryption!drop-2	ALTER TABLESPACE utf8mb4 ENCRYPTION;
-accept	reject	engine	alter_tablespace_option/ts_option_encryption!truncate	ALTER TABLESPACE utf8mb4 ENCRYPTION
+reject	reject	engine	alter_tablespace_option/ts_option_encryption!drop-2	ALTER TABLESPACE utf8mb4 ENCRYPTION;
+reject	reject	engine	alter_tablespace_option/ts_option_encryption!truncate	ALTER TABLESPACE utf8mb4 ENCRYPTION
 reject	reject	engine	alter_tablespace_option/ts_option_encryption!insert	ALTER TABLESPACE utf8mb4 ENCRYPTION 's' zzz;
 reject	reject	engine	alter_tablespace_option/ts_option_encryption!swap	ALTER TABLESPACE utf8mb4 END 's';
-accept	reject	engine	alter_tablespace_option/ts_option_engine_attribute	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
-accept	reject	engine	alter_tablespace_option/ts_option_engine_attribute!drop-2	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE;
-accept	reject	engine	alter_tablespace_option/ts_option_engine_attribute!truncate	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE
+reject	reject	engine	alter_tablespace_option/ts_option_engine_attribute	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	alter_tablespace_option/ts_option_engine_attribute!drop-2	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE;
+reject	reject	engine	alter_tablespace_option/ts_option_engine_attribute!truncate	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE
 reject	reject	engine	alter_tablespace_option/ts_option_engine_attribute!insert	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's' zzz;
 reject	reject	engine	alter_tablespace_option/ts_option_engine_attribute!swap	ALTER TABLESPACE utf8mb4 ENUM 's';
 accept	accept	engine	opt_undo_tablespace_options/%empty	DROP UNDO TABLESPACE utf8mb4;
@@ -2714,7 +2714,7 @@ reject	reject	engine	alter_logfile_group_option/ts_option_engine!insert	ALTER LO
 reject	reject	engine	alter_logfile_group_option/ts_option_engine!swap	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' ENGINES utf8mb4;
 accept	accept	engine	alter_logfile_group_option/ts_option_wait	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' WAIT;
 accept	accept	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys	ALTER TABLESPACE utf8mb4 ADD DATAFILE 's';
-accept	reject	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys!drop-1	ALTER TABLESPACE utf8mb4 ADD 's';
+reject	reject	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys!drop-1	ALTER TABLESPACE utf8mb4 ADD 's';
 reject	reject	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys!drop-2	ALTER TABLESPACE utf8mb4 ADD DATAFILE;
 reject	reject	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys!truncate	ALTER TABLESPACE utf8mb4 ADD DATAFILE
 reject	reject	engine	ts_datafile/DATAFILE_SYM_TEXT_STRING_sys!swap	ALTER TABLESPACE utf8mb4 ADD DATE 's';
@@ -2728,7 +2728,7 @@ reject	reject	engine	lg_undofile/UNDOFILE_SYM_TEXT_STRING_sys!swap	ALTER LOGFILE
 accept	accept	engine	ts_option_initial_size/INITIAL_SIZE_SYM_opt_equal_size_number	ALTER TABLESPACE utf8mb4 INITIAL_SIZE 1;
 accept	accept	engine	ts_option_autoextend_size/option_autoextend_size	ALTER TABLESPACE utf8mb4 AUTOEXTEND_SIZE 1;
 accept	accept	engine	option_autoextend_size/AUTOEXTEND_SIZE_SYM_opt_equal_size_number	ALTER TABLESPACE utf8mb4 AUTOEXTEND_SIZE 1;
-reject	accept	engine	ts_option_max_size/MAX_SIZE_SYM_opt_equal_size_number	ALTER TABLESPACE utf8mb4 MAX_SIZE 1;
+accept	accept	engine	ts_option_max_size/MAX_SIZE_SYM_opt_equal_size_number	ALTER TABLESPACE utf8mb4 MAX_SIZE 1;
 accept	accept	engine	ts_option_extent_size/EXTENT_SIZE_SYM_opt_equal_size_number	CREATE TABLESPACE utf8mb4 EXTENT_SIZE 1;
 accept	accept	engine	ts_option_undo_buffer_size/UNDO_BUFFER_SIZE_SYM_opt_equal_size_number	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' UNDO_BUFFER_SIZE 1;
 accept	accept	engine	ts_option_redo_buffer_size/REDO_BUFFER_SIZE_SYM_opt_equal_size_number	CREATE LOGFILE GROUP utf8mb4 ADD UNDOFILE 's' REDO_BUFFER_SIZE 1;
@@ -2737,11 +2737,11 @@ accept	accept	engine	ts_option_comment/COMMENT_SYM_opt_equal_TEXT_STRING_sys	CRE
 accept	accept	engine	ts_option_engine/opt_storage_ENGINE_SYM_opt_equal_ident_or_text	ALTER TABLESPACE utf8mb4 ENGINE utf8mb4;
 accept	accept	engine	ts_option_file_block_size/FILE_BLOCK_SIZE_SYM_opt_equal_size_number	CREATE TABLESPACE utf8mb4 FILE_BLOCK_SIZE 1;
 accept	accept	engine	ts_option_wait/WAIT_SYM	ALTER TABLESPACE utf8mb4 WAIT;
-reject	accept	engine	ts_option_wait/NO_WAIT_SYM	ALTER TABLESPACE utf8mb4 NO_WAIT;
+accept	accept	engine	ts_option_wait/NO_WAIT_SYM	ALTER TABLESPACE utf8mb4 NO_WAIT;
 reject	reject	engine	ts_option_wait/NO_WAIT_SYM!insert	ALTER TABLESPACE utf8mb4 NO_WAIT zzz;
 reject	reject	engine	ts_option_wait/NO_WAIT_SYM!swap	ALTER TABLESPACE utf8mb4 NO_WRITE_TO_BINLOG;
 accept	accept	engine	ts_option_encryption/ENCRYPTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLESPACE utf8mb4 ENCRYPTION 's';
-accept	reject	engine	ts_option_engine_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	ts_option_engine_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
 accept	accept	engine	size_number/real_ulonglong_num	ALTER TABLESPACE utf8mb4 INITIAL_SIZE 1;
 reject	reject	engine	size_number/IDENT_sys	ALTER TABLESPACE utf8mb4 INITIAL_SIZE utf8mb4;
 reject	reject	engine	size_number/IDENT_sys!insert	ALTER TABLESPACE utf8mb4 INITIAL_SIZE utf8mb4 zzz;
@@ -3135,7 +3135,7 @@ reject	reject	engine	create_table_options/create_table_options_opt_comma_create_
 reject	reject	engine	create_table_options/create_table_options_opt_comma_create_table_option!swap	CREATE TABLE utf8mb4 ENGINES utf8mb4 ENGINE utf8mb4;
 accept	accept	engine	opt_comma/%empty	ALTER TABLESPACE utf8mb4 WAIT WAIT;
 reject	reject	engine	opt_comma/%empty!insert	ALTER TABLESPACE utf8mb4 WAIT zzz WAIT;
-reject	accept	engine	opt_comma/,	ALTER TABLESPACE utf8mb4 WAIT, WAIT;
+accept	accept	engine	opt_comma/,	ALTER TABLESPACE utf8mb4 WAIT, WAIT;
 reject	reject	engine	opt_comma/,!insert	ALTER TABLESPACE utf8mb4 WAIT, zzz WAIT;
 accept	accept	engine	create_table_option/ENGINE_SYM_opt_equal_ident_or_text	ALTER TABLE utf8mb4 ENGINE utf8mb4;
 accept	accept	engine	create_table_option/SECONDARY_ENGINE_SYM_opt_equal_NULL_SYM	ALTER TABLE utf8mb4 SECONDARY_ENGINE NULL;
@@ -4349,7 +4349,7 @@ accept	accept	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_da
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-1	TABLESPACE utf8mb4 DROP DATAFILE 's';
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-2	ALTER utf8mb4 DROP DATAFILE 's';
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-3	ALTER TABLESPACE DROP DATAFILE 's';
-accept	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-5	ALTER TABLESPACE utf8mb4 DROP 's';
+reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-5	ALTER TABLESPACE utf8mb4 DROP 's';
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!drop-6	ALTER TABLESPACE utf8mb4 DROP DATAFILE;
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!truncate	ALTER TABLESPACE utf8mb4 DROP DATAFILE
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_DROP_ts_datafile_opt_alter_tablespace_options!insert	ALTER TABLESPACE utf8mb4 DROP DATAFILE 's' zzz;
@@ -4359,7 +4359,7 @@ reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-2	ALTER utf8mb4 RENAME TO utf8mb4;
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-3	ALTER TABLESPACE RENAME TO utf8mb4;
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-4	ALTER TABLESPACE utf8mb4 TO utf8mb4;
-accept	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-5	ALTER TABLESPACE utf8mb4 RENAME utf8mb4;
+reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-5	ALTER TABLESPACE utf8mb4 RENAME utf8mb4;
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!drop-6	ALTER TABLESPACE utf8mb4 RENAME TO;
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!truncate	ALTER TABLESPACE utf8mb4 RENAME TO
 reject	reject	engine	alter_tablespace_stmt/ALTER_TABLESPACE_SYM_ident_RENAME_TO_SYM_ident!insert	ALTER TABLESPACE utf8mb4 RENAME TO utf8mb4 zzz;
@@ -8351,13 +8351,13 @@ accept	accept	engine	opt_temporary/TEMPORARY	CREATE TEMPORARY TABLE utf8mb4;
 reject	reject	engine	opt_temporary/TEMPORARY!insert	CREATE TEMPORARY zzz TABLE utf8mb4;
 reject	reject	engine	opt_temporary/TEMPORARY!swap	CREATE TEMPTABLE TABLE utf8mb4;
 accept	accept	engine	opt_drop_ts_options/%empty	DROP TABLESPACE utf8mb4;
-reject	accept	engine	opt_drop_ts_options/drop_ts_option_list	DROP TABLESPACE utf8mb4 WAIT;
+accept	accept	engine	opt_drop_ts_options/drop_ts_option_list	DROP TABLESPACE utf8mb4 WAIT;
 accept	accept	engine	opt_drop_ts_options/drop_ts_option_list!truncate	DROP TABLESPACE utf8mb4
 reject	reject	engine	opt_drop_ts_options/drop_ts_option_list!insert	DROP TABLESPACE utf8mb4 WAIT zzz;
 reject	reject	engine	opt_drop_ts_options/drop_ts_option_list!swap	DROP TABLESPACE utf8mb4 WARNINGS;
-reject	accept	engine	drop_ts_option_list/drop_ts_option	DROP TABLESPACE utf8mb4 WAIT;
-reject	accept	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option	DROP TABLESPACE utf8mb4 WAIT WAIT;
-reject	accept	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option!truncate	DROP TABLESPACE utf8mb4 WAIT
+accept	accept	engine	drop_ts_option_list/drop_ts_option	DROP TABLESPACE utf8mb4 WAIT;
+accept	accept	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option	DROP TABLESPACE utf8mb4 WAIT WAIT;
+accept	accept	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option!truncate	DROP TABLESPACE utf8mb4 WAIT
 reject	reject	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option!insert	DROP TABLESPACE utf8mb4 WAIT WAIT zzz;
 reject	reject	engine	drop_ts_option_list/drop_ts_option_list_opt_comma_drop_ts_option!swap	DROP TABLESPACE utf8mb4 WARNINGS WAIT;
 accept	accept	engine	drop_ts_option/ts_option_engine	DROP TABLESPACE utf8mb4 ENGINE utf8mb4;
@@ -8366,7 +8366,7 @@ reject	reject	engine	drop_ts_option/ts_option_engine!drop-2	DROP TABLESPACE utf8
 reject	reject	engine	drop_ts_option/ts_option_engine!truncate	DROP TABLESPACE utf8mb4 ENGINE
 reject	reject	engine	drop_ts_option/ts_option_engine!insert	DROP TABLESPACE utf8mb4 ENGINE utf8mb4 zzz;
 reject	reject	engine	drop_ts_option/ts_option_engine!swap	DROP TABLESPACE utf8mb4 ENGINES utf8mb4;
-reject	accept	engine	drop_ts_option/ts_option_wait	DROP TABLESPACE utf8mb4 WAIT;
+accept	accept	engine	drop_ts_option/ts_option_wait	DROP TABLESPACE utf8mb4 WAIT;
 accept	accept	engine	insert_stmt/INSERT_SYM_insert_lock_option_opt_ignore_opt_INTO_table_ident_opt_use_partition_insert_from_constructor_opt_values_reference_opt_insert_update_list	INSERT utf8mb4 VALUE();
 reject	reject	engine	insert_stmt/INSERT_SYM_insert_lock_option_opt_ignore_opt_INTO_table_ident_opt_use_partition_insert_from_constructor_opt_values_reference_opt_insert_update_list!drop-1	utf8mb4 VALUE();
 reject	reject	engine	insert_stmt/INSERT_SYM_insert_lock_option_opt_ignore_opt_INTO_table_ident_opt_use_partition_insert_from_constructor_opt_values_reference_opt_insert_update_list!drop-2	INSERT VALUE();
@@ -12281,4 +12281,4 @@ accept	accept	engine	opt_force/%empty	ALTER RESOURCE GROUP utf8mb4;
 accept	accept	engine	opt_force/FORCE_SYM	ALTER RESOURCE GROUP utf8mb4 FORCE;
 reject	reject	engine	opt_force/FORCE_SYM!insert	ALTER RESOURCE GROUP utf8mb4 FORCE zzz;
 reject	reject	engine	opt_force/FORCE_SYM!swap	ALTER RESOURCE GROUP utf8mb4 FOREIGN;
-accept	reject	engine	json_attribute/TEXT_STRING_sys	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	json_attribute/TEXT_STRING_sys	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';

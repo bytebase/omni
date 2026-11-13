@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -1157,24 +1158,109 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 	return stmt, nil
 }
 
-// parseCreateTablespaceStmt parses a CREATE [UNDO] TABLESPACE statement.
+// tsOption is one tablespace option the grammar names, read by
+// parseTablespaceOption.
+type tsOption struct {
+	kw  int
+	val string
+}
+
+// Which options each statement takes.
+//
+// Ref: tablespace_option, alter_tablespace_option, undo_tablespace_option and
+// drop_ts_option in MySQL 8.0 sql/sql_yacc.yy.
+var (
+	tsCreateOptions = map[int]bool{kwINITIAL_SIZE: true, kwAUTOEXTEND_SIZE: true, kwMAX_SIZE: true,
+		kwEXTENT_SIZE: true, kwNODEGROUP: true, kwENGINE: true, kwWAIT: true, kwNO_WAIT: true,
+		kwCOMMENT: true, kwFILE_BLOCK_SIZE: true, kwENCRYPTION: true, kwENGINE_ATTRIBUTE: true}
+	tsAlterOptions = map[int]bool{kwINITIAL_SIZE: true, kwAUTOEXTEND_SIZE: true, kwMAX_SIZE: true,
+		kwENGINE: true, kwWAIT: true, kwNO_WAIT: true, kwENCRYPTION: true, kwENGINE_ATTRIBUTE: true}
+	tsUndoOptions = map[int]bool{kwENGINE: true}
+	tsDropOptions = map[int]bool{kwENGINE: true, kwWAIT: true, kwNO_WAIT: true}
+)
+
+// parseTablespaceOptions reads a tablespace option list: options from
+// allowed, separated by an optional comma (opt_comma). With required the list
+// may not be empty.
+func (p *Parser) parseTablespaceOptions(allowed map[int]bool, required bool) ([]tsOption, error) {
+	var opts []tsOption
+	for {
+		if !allowed[p.cur.Type] {
+			if len(opts) > 0 && p.prev.Type == ',' || len(opts) == 0 && required {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return opts, nil
+		}
+		at := p.cur
+		opt, err := p.parseTablespaceOption()
+		if err != nil {
+			return nil, err
+		}
+		// ENGINE comes once (ER_FILEGROUP_OPTION_ONLY_ONCE); WAIT may repeat.
+		if opt.kw == kwENGINE {
+			for _, o := range opts {
+				if o.kw == kwENGINE {
+					return nil, &ParseError{Message: "It is not allowed to specify STORAGE ENGINE more than once", Position: at.Loc}
+				}
+			}
+		}
+		opts = append(opts, opt)
+		p.match(',')
+	}
+}
+
+// parseTablespaceOption reads one option: a size, a number, a name or a
+// string after an optional =, or WAIT or NO_WAIT alone. ENGINE_ATTRIBUTE is a
+// JSON text, or empty (json_attribute's ER_INVALID_JSON_ATTRIBUTE).
+//
+// Ref: the ts_option_* rules and json_attribute in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseTablespaceOption() (tsOption, error) {
+	opt := tsOption{kw: p.cur.Type}
+	p.advance()
+	switch opt.kw {
+	case kwWAIT, kwNO_WAIT:
+		return opt, nil
+	}
+	p.matchEqual()
+	var err error
+	switch opt.kw {
+	case kwINITIAL_SIZE, kwAUTOEXTEND_SIZE, kwMAX_SIZE, kwEXTENT_SIZE, kwFILE_BLOCK_SIZE:
+		opt.val, err = p.consumeSizeOptionValue()
+	case kwNODEGROUP:
+		opt.val, err = p.consumeIntegerOptionValue()
+	case kwENGINE:
+		opt.val, _, err = p.parseIdentOrText()
+	case kwCOMMENT, kwENCRYPTION, kwENGINE_ATTRIBUTE:
+		if p.cur.Type != tokSCONST {
+			return opt, p.syntaxErrorAtCur()
+		}
+		if opt.kw == kwENGINE_ATTRIBUTE && p.cur.Str != "" && !json.Valid([]byte(p.cur.Str)) {
+			return opt, &ParseError{Message: "Invalid json attribute", Position: p.cur.Loc}
+		}
+		opt.val = p.advance().Str
+	}
+	return opt, err
+}
+
+// parseTsDatafile reads ts_datafile, `DATAFILE 'name'`, after ADD or DROP.
+func (p *Parser) parseTsDatafile() (string, error) {
+	if _, err := p.expect(kwDATAFILE); err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
+
+// parseCreateTablespaceStmt parses CREATE [UNDO] TABLESPACE. CREATE [UNDO]
+// have been consumed; p.cur is TABLESPACE.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-tablespace.html
-//
-//	CREATE [UNDO] TABLESPACE tablespace_name
-//	    [ADD DATAFILE 'file_name']
-//	    [AUTOEXTEND_SIZE [=] value]
-//	    [FILE_BLOCK_SIZE = value]
-//	    [ENCRYPTION [=] {'Y' | 'N'}]
-//	    [USE LOGFILE GROUP logfile_group]
-//	    [EXTENT_SIZE [=] extent_size]
-//	    [INITIAL_SIZE [=] initial_size]
-//	    [MAX_SIZE [=] max_size]
-//	    [NODEGROUP [=] nodegroup_id]
-//	    [WAIT]
-//	    [COMMENT [=] 'string']
-//	    [ENGINE [=] engine_name]
-//	    [ENGINE_ATTRIBUTE [=] 'string']
+// Ref: create's `CREATE TABLESPACE_SYM ident opt_ts_datafile_name
+// opt_logfile_group_name opt_tablespace_options` and `CREATE UNDO_SYM
+// TABLESPACE_SYM ident ADD ts_datafile opt_undo_tablespace_options` in MySQL
+// 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateTablespaceStmt, error) {
 	p.advance() // consume TABLESPACE
 
@@ -1189,135 +1275,73 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		Name: name,
 	}
 
-	// Parse optional clauses
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		switch {
-		case p.cur.Type == kwADD:
-			p.advance() // consume ADD
-			p.match(kwDATAFILE)
-			if p.cur.Type != tokSCONST {
-				return nil, &ParseError{
-					Message:  "expected string literal for DATAFILE",
-					Position: p.cur.Loc,
+	if _, ok := p.match(kwADD); ok {
+		if stmt.DataFile, err = p.parseTsDatafile(); err != nil {
+			return nil, err
+		}
+	} else if undo {
+		return nil, p.syntaxErrorAtCur()
+	}
+	allowed := tsUndoOptions
+	if !undo {
+		allowed = tsCreateOptions
+		if _, ok := p.match(kwUSE); ok {
+			for _, kw := range []int{kwLOGFILE, kwGROUP} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
 				}
 			}
-			stmt.DataFile = p.cur.Str
-			p.advance()
-		case p.cur.Type == kwAUTOEXTEND_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
+			if stmt.UseLogfileGroup, _, err = p.parseIdentifier(); err != nil {
 				return nil, err
 			}
-			stmt.AutoextendSize = size
-		case p.cur.Type == kwFILE_BLOCK_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.FileBlockSize = size
-		case p.cur.Type == kwENCRYPTION:
-			p.advance()
-			p.matchEqual()
-			if p.cur.Type == tokSCONST {
-				stmt.Encryption = p.cur.Str
-				p.advance()
-			}
-		case p.cur.Type == kwUSE:
-			p.advance() // consume USE
-			p.match(kwLOGFILE)
-			p.match(kwGROUP)
-			lg, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.UseLogfileGroup = lg
-		case p.cur.Type == kwEXTENT_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.ExtentSize = size
-		case p.cur.Type == kwINITIAL_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.InitialSize = size
-		case p.cur.Type == kwMAX_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.MaxSize = size
-		case p.cur.Type == kwNODEGROUP:
-			p.advance()
-			p.matchEqual()
-			group, err := p.consumeIntegerOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.NodeGroup = group
-		case p.cur.Type == kwWAIT:
-			p.advance()
-			stmt.Wait = true
-		case p.cur.Type == kwCOMMENT:
-			p.advance()
-			p.matchEqual()
-			// The comment is a quoted string and is required (1064 without it).
-			if p.cur.Type != tokSCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
-			p.advance()
-		case p.cur.Type == kwENGINE:
-			p.advance()
-			p.matchEqual()
-			ename, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Engine = ename
-		case p.cur.Type == kwENGINE_ATTRIBUTE:
-			p.advance()
-			p.matchEqual()
-			if p.cur.Type == tokSCONST {
-				stmt.EngineAttribute = p.cur.Str
-				p.advance()
-			}
-		default:
-			goto done
 		}
 	}
-done:
+	opts, err := p.parseTablespaceOptions(allowed, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		switch o.kw {
+		case kwINITIAL_SIZE:
+			stmt.InitialSize = o.val
+		case kwAUTOEXTEND_SIZE:
+			stmt.AutoextendSize = o.val
+		case kwMAX_SIZE:
+			stmt.MaxSize = o.val
+		case kwEXTENT_SIZE:
+			stmt.ExtentSize = o.val
+		case kwNODEGROUP:
+			stmt.NodeGroup = o.val
+		case kwENGINE:
+			stmt.Engine = o.val
+		case kwWAIT:
+			stmt.Wait = true
+		case kwNO_WAIT:
+			stmt.NoWait = true
+		case kwCOMMENT:
+			stmt.Comment = o.val
+		case kwFILE_BLOCK_SIZE:
+			stmt.FileBlockSize = o.val
+		case kwENCRYPTION:
+			stmt.Encryption = o.val
+		case kwENGINE_ATTRIBUTE:
+			stmt.EngineAttribute = o.val
+		}
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseAlterTablespaceStmt parses an ALTER [UNDO] TABLESPACE statement.
+// parseAlterTablespaceStmt parses ALTER [UNDO] TABLESPACE. ALTER [UNDO] have
+// been consumed; p.cur is TABLESPACE.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-tablespace.html
-//
-//	ALTER [UNDO] TABLESPACE tablespace_name
-//	    [ADD DATAFILE 'file_name']
-//	    [DROP DATAFILE 'file_name']
-//	    [INITIAL_SIZE [=] size]
-//	    [WAIT]
-//	    [RENAME TO tablespace_name]
-//	    [AUTOEXTEND_SIZE [=] 'value']
-//	    [SET {ACTIVE | INACTIVE}]
-//	    [ENCRYPTION [=] {'Y' | 'N'}]
-//	    [ENGINE [=] engine_name]
-//	    [ENGINE_ATTRIBUTE [=] 'string']
+// Ref: alter_tablespace_stmt, `ALTER TABLESPACE ident {ADD | DROP}
+// ts_datafile opt_alter_tablespace_options | RENAME TO ident |
+// alter_tablespace_option_list`, and alter_undo_tablespace_stmt, `ALTER UNDO
+// TABLESPACE ident SET undo_tablespace_state opt_undo_tablespace_options`, in
+// MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTablespaceStmt, error) {
 	p.advance() // consume TABLESPACE
 
@@ -1332,103 +1356,78 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		Name: name,
 	}
 
-	// Parse optional clauses
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		switch {
-		case p.cur.Type == kwADD:
-			p.advance() // consume ADD
-			p.match(kwDATAFILE)
-			if p.cur.Type != tokSCONST {
-				return nil, &ParseError{
-					Message:  "expected string literal for DATAFILE",
-					Position: p.cur.Loc,
-				}
-			}
-			stmt.AddDataFile = p.cur.Str
-			p.advance()
-		case p.cur.Type == kwDROP:
-			p.advance() // consume DROP
-			p.match(kwDATAFILE)
-			if p.cur.Type != tokSCONST {
-				return nil, &ParseError{
-					Message:  "expected string literal for DATAFILE",
-					Position: p.cur.Loc,
-				}
-			}
-			stmt.DropDataFile = p.cur.Str
-			p.advance()
-		case p.cur.Type == kwINITIAL_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.InitialSize = size
-		case p.cur.Type == kwWAIT:
-			p.advance()
-			stmt.Wait = true
-		case p.cur.Type == kwRENAME:
-			p.advance() // consume RENAME
-			p.match(kwTO)
-			rn, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.RenameTo = rn
-		case p.cur.Type == kwAUTOEXTEND_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.AutoextendSize = size
-		case p.cur.Type == kwSET:
-			p.advance() // consume SET
-			if p.cur.Type == kwACTIVE {
-				stmt.SetActive = true
-				p.advance()
-			} else if p.cur.Type == kwINACTIVE {
-				stmt.SetInactive = true
-				p.advance()
-			}
-		case p.cur.Type == kwENCRYPTION:
-			p.advance()
-			p.matchEqual()
-			if p.cur.Type == tokSCONST {
-				stmt.Encryption = p.cur.Str
-				p.advance()
-			}
-		case p.cur.Type == kwENGINE:
-			p.advance()
-			p.matchEqual()
-			ename, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Engine = ename
-		case p.cur.Type == kwENGINE_ATTRIBUTE:
-			p.advance()
-			p.matchEqual()
-			if p.cur.Type == tokSCONST {
-				stmt.EngineAttribute = p.cur.Str
-				p.advance()
-			}
+	var opts []tsOption
+	switch {
+	case undo:
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case kwACTIVE:
+			stmt.SetActive = true
+		case kwINACTIVE:
+			stmt.SetInactive = true
 		default:
-			goto done
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		opts, err = p.parseTablespaceOptions(tsUndoOptions, false)
+	case p.cur.Type == kwADD:
+		p.advance()
+		if stmt.AddDataFile, err = p.parseTsDatafile(); err != nil {
+			return nil, err
+		}
+		opts, err = p.parseTablespaceOptions(tsAlterOptions, false)
+	case p.cur.Type == kwDROP:
+		p.advance()
+		if stmt.DropDataFile, err = p.parseTsDatafile(); err != nil {
+			return nil, err
+		}
+		opts, err = p.parseTablespaceOptions(tsAlterOptions, false)
+	case p.cur.Type == kwRENAME:
+		p.advance()
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		stmt.RenameTo, _, err = p.parseIdentifier()
+	default:
+		opts, err = p.parseTablespaceOptions(tsAlterOptions, true)
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		switch o.kw {
+		case kwINITIAL_SIZE:
+			stmt.InitialSize = o.val
+		case kwAUTOEXTEND_SIZE:
+			stmt.AutoextendSize = o.val
+		case kwMAX_SIZE:
+			stmt.MaxSize = o.val
+		case kwENGINE:
+			stmt.Engine = o.val
+		case kwWAIT:
+			stmt.Wait = true
+		case kwNO_WAIT:
+			stmt.NoWait = true
+		case kwENCRYPTION:
+			stmt.Encryption = o.val
+		case kwENGINE_ATTRIBUTE:
+			stmt.EngineAttribute = o.val
 		}
 	}
-done:
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseDropTablespaceStmt parses a DROP [UNDO] TABLESPACE statement.
+// parseDropTablespaceStmt parses DROP [UNDO] TABLESPACE. DROP [UNDO] have
+// been consumed; p.cur is TABLESPACE.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-tablespace.html
-//
-//	DROP [UNDO] TABLESPACE tablespace_name [ENGINE [=] engine_name]
+// Ref: drop_tablespace_stmt, `DROP TABLESPACE ident opt_drop_ts_options`,
+// and drop_undo_tablespace_stmt, `DROP UNDO TABLESPACE ident
+// opt_undo_tablespace_options`, in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseDropTablespaceStmt(start int, undo bool) (*nodes.DropTablespaceStmt, error) {
 	p.advance() // consume TABLESPACE
 
@@ -1443,15 +1442,23 @@ func (p *Parser) parseDropTablespaceStmt(start int, undo bool) (*nodes.DropTable
 		Name: name,
 	}
 
-	// Optional ENGINE [=] engine_name
-	if p.cur.Type == kwENGINE {
-		p.advance()
-		p.matchEqual()
-		ename, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+	allowed := tsDropOptions
+	if undo {
+		allowed = tsUndoOptions
+	}
+	opts, err := p.parseTablespaceOptions(allowed, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		switch o.kw {
+		case kwENGINE:
+			stmt.Engine = o.val
+		case kwWAIT:
+			stmt.Wait = true
+		case kwNO_WAIT:
+			stmt.NoWait = true
 		}
-		stmt.Engine = ename
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -2386,7 +2393,9 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 //	    ENGINE [=] engine_name
 func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGroupStmt, error) {
 	p.advance() // consume LOGFILE
-	p.match(kwGROUP)
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
+	}
 
 	name, _, err := p.parseIdentifier()
 	if err != nil {
@@ -2398,17 +2407,20 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 		Name: name,
 	}
 
-	// ADD UNDOFILE 'file_name'
-	if p.cur.Type == kwADD {
-		p.advance() // consume ADD
-		if p.cur.Type == kwUNDOFILE {
-			p.advance()
-		}
-		if p.cur.Type == tokSCONST {
-			stmt.UndoFile = p.cur.Str
-			p.advance()
+	// ADD UNDOFILE 'file_name', required and whole.
+	//
+	// Ref: create's `CREATE LOGFILE_SYM GROUP_SYM ident ADD lg_undofile` and
+	// alter_logfile_stmt's `ALTER LOGFILE_SYM GROUP_SYM ident ADD lg_undofile`
+	// in MySQL 8.0 sql/sql_yacc.yy.
+	for _, kw := range []int{kwADD, kwUNDOFILE} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
 		}
 	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.UndoFile = p.advance().Str
 
 	// Parse optional clauses
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
@@ -2485,7 +2497,9 @@ createLGDone:
 //	    ENGINE [=] engine_name
 func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroupStmt, error) {
 	p.advance() // consume LOGFILE
-	p.match(kwGROUP)
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
+	}
 
 	name, _, err := p.parseIdentifier()
 	if err != nil {
@@ -2497,17 +2511,20 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 		Name: name,
 	}
 
-	// ADD UNDOFILE 'file_name'
-	if p.cur.Type == kwADD {
-		p.advance() // consume ADD
-		if p.cur.Type == kwUNDOFILE {
-			p.advance()
-		}
-		if p.cur.Type == tokSCONST {
-			stmt.UndoFile = p.cur.Str
-			p.advance()
+	// ADD UNDOFILE 'file_name', required and whole.
+	//
+	// Ref: create's `CREATE LOGFILE_SYM GROUP_SYM ident ADD lg_undofile` and
+	// alter_logfile_stmt's `ALTER LOGFILE_SYM GROUP_SYM ident ADD lg_undofile`
+	// in MySQL 8.0 sql/sql_yacc.yy.
+	for _, kw := range []int{kwADD, kwUNDOFILE} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
 		}
 	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.UndoFile = p.advance().Str
 
 	// Parse optional clauses
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
@@ -2548,7 +2565,9 @@ alterLGDone:
 //	    ENGINE [=] engine_name
 func (p *Parser) parseDropLogfileGroupStmt(start int) (*nodes.DropLogfileGroupStmt, error) {
 	p.advance() // consume LOGFILE
-	p.match(kwGROUP)
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
+	}
 
 	name, _, err := p.parseIdentifier()
 	if err != nil {

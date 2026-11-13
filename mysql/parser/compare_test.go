@@ -7853,8 +7853,8 @@ func TestParseAlterTablespace(t *testing.T) {
 			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1.ibd" :engine NDB}`,
 		},
 		{
-			sql:  "ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
-			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :add_datafile "undo.ibu"}`,
+			sql:  "ALTER UNDO TABLESPACE ts1 SET INACTIVE",
+			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :set_inactive true}`,
 		},
 		{
 			sql:  "ALTER TABLESPACE ts1 RENAME TO ts2",
