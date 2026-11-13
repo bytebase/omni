@@ -92,17 +92,8 @@ func ReadBison(src string, tokens *Tokens, defined ...string) (*Grammar, error) 
 	if err := g.readRules(lexGrammar(gram)); err != nil {
 		return nil, err
 	}
-	for _, r := range g.rules {
-		form, ok := tokens.forms[r.name]
-		if !ok {
-			continue
-		}
-		switch form {
-		case Spaced, Unreachable, Empty:
-			return nil, fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
-		}
-		g.ruleText[r.name] = form
-		delete(g.termText, r.name)
+	if err := g.sampleRules(tokens); err != nil {
+		return nil, err
 	}
 	if g.start == "" {
 		g.start = g.rules[0].name
@@ -114,6 +105,24 @@ func ReadBison(src string, tokens *Tokens, defined ...string) (*Grammar, error) 
 		return nil, err
 	}
 	return g, nil
+}
+
+// sampleRules moves the token table's rows that name a rule from the
+// terminals' samples to the rules' (see Tokens).
+func (g *Grammar) sampleRules(tokens *Tokens) error {
+	for _, r := range g.rules {
+		form, ok := tokens.forms[r.name]
+		if !ok {
+			continue
+		}
+		switch form {
+		case Spaced, Unreachable, Empty, Reserved:
+			return fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
+		}
+		g.ruleText[r.name] = form
+		delete(g.termText, r.name)
+	}
+	return nil
 }
 
 // newGrammar returns an empty grammar holding the token table's forms.
