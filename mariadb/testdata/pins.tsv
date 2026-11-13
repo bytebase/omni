@@ -1,0 +1,5 @@
+# The servers this engine's committed answers come from. default judges compat.tsv.
+# It reports revision 46a8eb42a520193686d9a16d4cea4b3e002917e4 in
+# @@version_source_revision: the commit of the source tag.
+# columns: role, image, digest, source tag
+default	mariadb:11.8.8	sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c	mariadb-11.8.8
