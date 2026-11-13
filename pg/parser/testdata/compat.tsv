@@ -203,9 +203,9 @@ accept	accept	engine	stmt/AlterTblSpcStmt	ALTER TABLESPACE a SET(a)
 reject@0	reject@0	engine	stmt/AlterTblSpcStmt!drop-1	TABLESPACE a SET(a)
 reject@20	reject@20	engine	stmt/AlterTblSpcStmt!drop-3	ALTER TABLESPACE SET(a)
 reject@18	reject@18	engine	stmt/AlterTblSpcStmt!drop-4	ALTER TABLESPACE a(a)
-accept	reject@23	engine	stmt/AlterTblSpcStmt!drop-5	ALTER TABLESPACE a SET a)
-accept	reject@23	engine	stmt/AlterTblSpcStmt!drop-6	ALTER TABLESPACE a SET()
-accept	reject@24	engine	stmt/AlterTblSpcStmt!drop-7	ALTER TABLESPACE a SET(a
+reject@23	reject@23	engine	stmt/AlterTblSpcStmt!drop-5	ALTER TABLESPACE a SET a)
+reject@23	reject@23	engine	stmt/AlterTblSpcStmt!drop-6	ALTER TABLESPACE a SET()
+reject@24	reject@24	engine	stmt/AlterTblSpcStmt!drop-7	ALTER TABLESPACE a SET(a
 reject@26	reject@26	engine	stmt/AlterTblSpcStmt!insert	ALTER TABLESPACE a SET(a) zzz
 reject@0	reject@0	engine	stmt/AlterTblSpcStmt!swap	ALWAYS TABLESPACE a SET(a)
 accept	accept	engine	stmt/AlterCompositeTypeStmt	ALTER TYPE a DROP ATTRIBUTE a
@@ -515,7 +515,7 @@ reject@0	reject@0	engine	stmt/CreateSeqStmt!swap	CROSS SEQUENCE a
 accept	accept	engine	stmt/CreateStmt	CREATE TABLE a()
 reject@7	reject@7	engine	stmt/CreateStmt!drop-1	TABLE a()
 reject@12	reject@12	engine	stmt/CreateStmt!drop-3	CREATE TABLE()
-accept	reject@14	engine	stmt/CreateStmt!drop-4	CREATE TABLE a)
+reject@14	reject@14	engine	stmt/CreateStmt!drop-4	CREATE TABLE a)
 reject@15	reject@15	engine	stmt/CreateStmt!drop-5	CREATE TABLE a(
 reject@17	reject@17	engine	stmt/CreateStmt!insert	CREATE TABLE a() zzz
 reject@0	reject@0	engine	stmt/CreateStmt!swap	CROSS TABLE a()
@@ -1161,7 +1161,7 @@ accept	accept	engine	schema_stmt/CreateStmt	CREATE SCHEMA a CREATE TABLE a()
 reject@16	reject@16	engine	schema_stmt/CreateStmt!drop-1	CREATE SCHEMA a TABLE a()
 reject@16	reject@23	engine	schema_stmt/CreateStmt!drop-2	CREATE SCHEMA a CREATE a()
 reject@28	reject@28	engine	schema_stmt/CreateStmt!drop-3	CREATE SCHEMA a CREATE TABLE()
-accept	reject@30	engine	schema_stmt/CreateStmt!drop-4	CREATE SCHEMA a CREATE TABLE a)
+reject@30	reject@30	engine	schema_stmt/CreateStmt!drop-4	CREATE SCHEMA a CREATE TABLE a)
 reject@31	reject@31	engine	schema_stmt/CreateStmt!drop-5	CREATE SCHEMA a CREATE TABLE a(
 reject@33	reject@33	engine	schema_stmt/CreateStmt!insert	CREATE SCHEMA a CREATE TABLE a() zzz
 reject@16	reject@16	engine	schema_stmt/CreateStmt!swap	CREATE SCHEMA a CROSS TABLE a()
@@ -2036,14 +2036,14 @@ reject@14	reject@14	engine	alter_table_cmd/SET_TABLESPACE_name!swap	ALTER TABLE 
 accept	accept	engine	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
 reject@13	reject@13	engine	alter_table_cmd/SET_reloptions!drop-1	ALTER TABLE a(a)
 reject@18	reject@18	engine	alter_table_cmd/SET_reloptions!drop-2	ALTER TABLE a SET a)
-accept	reject@18	engine	alter_table_cmd/SET_reloptions!drop-3	ALTER TABLE a SET()
-accept	reject@19	engine	alter_table_cmd/SET_reloptions!drop-4	ALTER TABLE a SET(a
+reject@18	reject@18	engine	alter_table_cmd/SET_reloptions!drop-3	ALTER TABLE a SET()
+reject@19	reject@19	engine	alter_table_cmd/SET_reloptions!drop-4	ALTER TABLE a SET(a
 reject@21	reject@21	engine	alter_table_cmd/SET_reloptions!insert	ALTER TABLE a SET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/SET_reloptions!swap	ALTER TABLE a SETOF(a)
 accept	accept	engine	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
-accept	reject@20	engine	alter_table_cmd/RESET_reloptions!drop-2	ALTER TABLE a RESET a)
-accept	reject@20	engine	alter_table_cmd/RESET_reloptions!drop-3	ALTER TABLE a RESET()
-accept	reject@21	engine	alter_table_cmd/RESET_reloptions!drop-4	ALTER TABLE a RESET(a
+reject@20	reject@20	engine	alter_table_cmd/RESET_reloptions!drop-2	ALTER TABLE a RESET a)
+reject@20	reject@20	engine	alter_table_cmd/RESET_reloptions!drop-3	ALTER TABLE a RESET()
+reject@21	reject@21	engine	alter_table_cmd/RESET_reloptions!drop-4	ALTER TABLE a RESET(a
 reject@23	reject@23	engine	alter_table_cmd/RESET_reloptions!insert	ALTER TABLE a RESET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/RESET_reloptions!swap	ALTER TABLE a RESTART(a)
 accept	accept	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
@@ -2051,7 +2051,7 @@ reject@14	reject@14	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!d
 accept	reject@22	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-2	ALTER TABLE a REPLICA NOTHING
 accept	reject@30	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!drop-3	ALTER TABLE a REPLICA IDENTITY
 reject@39	reject@39	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!insert	ALTER TABLE a REPLICA IDENTITY NOTHING zzz
-reject@29	reject@20	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!swap	ALTER TABLE a RESET IDENTITY NOTHING
+reject@20	reject@20	engine	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity!swap	ALTER TABLE a RESET IDENTITY NOTHING
 accept	accept	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
 reject@14	reject@14	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-1	ALTER TABLE a ROW LEVEL SECURITY
 reject@21	reject@21	engine	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY!drop-2	ALTER TABLE a ENABLE LEVEL SECURITY
@@ -2122,39 +2122,39 @@ reject@31	reject@31	engine	replica_identity/USING_INDEX_name!swap	ALTER TABLE a 
 accept	accept	engine	reloptions/(_reloption_list_)	ALTER TABLE a SET(a)
 accept	accept	engine	opt_reloptions/WITH_reloptions	CREATE TABLESPACE a LOCATION 's' WITH(a)
 reject@32	reject@32	engine	opt_reloptions/WITH_reloptions!drop-1	CREATE TABLESPACE a LOCATION 's'(a)
-accept	reject@38	engine	opt_reloptions/WITH_reloptions!drop-2	CREATE TABLESPACE a LOCATION 's' WITH a)
-accept	reject@38	engine	opt_reloptions/WITH_reloptions!drop-3	CREATE TABLESPACE a LOCATION 's' WITH()
-accept	reject@39	engine	opt_reloptions/WITH_reloptions!drop-4	CREATE TABLESPACE a LOCATION 's' WITH(a
+reject@38	reject@38	engine	opt_reloptions/WITH_reloptions!drop-2	CREATE TABLESPACE a LOCATION 's' WITH a)
+reject@38	reject@38	engine	opt_reloptions/WITH_reloptions!drop-3	CREATE TABLESPACE a LOCATION 's' WITH()
+reject@39	reject@39	engine	opt_reloptions/WITH_reloptions!drop-4	CREATE TABLESPACE a LOCATION 's' WITH(a
 reject@41	reject@41	engine	opt_reloptions/WITH_reloptions!insert	CREATE TABLESPACE a LOCATION 's' WITH(a) zzz
 reject@33	reject@33	engine	opt_reloptions/WITH_reloptions!swap	CREATE TABLESPACE a LOCATION 's' WITHIN(a)
 accept	accept	engine	opt_reloptions/%empty	CREATE TABLESPACE a LOCATION 's'
 accept	accept	engine	reloption_list/reloption_elem	ALTER TABLE a SET(a)
-accept	reject@18	engine	reloption_list/reloption_elem!truncate	ALTER TABLE a SET(
+reject@18	reject@18	engine	reloption_list/reloption_elem!truncate	ALTER TABLE a SET(
 reject@20	reject@20	engine	reloption_list/reloption_elem!insert	ALTER TABLE a SET(a zzz)
 accept	accept	engine	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
-accept	reject@18	engine	reloption_list/reloption_list_,_reloption_elem!drop-1	ALTER TABLE a SET(, a)
+reject@18	reject@18	engine	reloption_list/reloption_list_,_reloption_elem!drop-1	ALTER TABLE a SET(, a)
 reject@20	reject@20	engine	reloption_list/reloption_list_,_reloption_elem!drop-2	ALTER TABLE a SET(a a)
-accept	reject@20	engine	reloption_list/reloption_list_,_reloption_elem!drop-3	ALTER TABLE a SET(a,)
-accept	reject@20	engine	reloption_list/reloption_list_,_reloption_elem!truncate	ALTER TABLE a SET(a,
+reject@20	reject@20	engine	reloption_list/reloption_list_,_reloption_elem!drop-3	ALTER TABLE a SET(a,)
+reject@20	reject@20	engine	reloption_list/reloption_list_,_reloption_elem!truncate	ALTER TABLE a SET(a,
 reject@23	reject@23	engine	reloption_list/reloption_list_,_reloption_elem!insert	ALTER TABLE a SET(a, a zzz)
 accept	accept	engine	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
-accept	reject@18	engine	reloption_elem/ColLabel_=_def_arg!drop-1	ALTER TABLE a SET(= a)
-accept	reject@21	engine	reloption_elem/ColLabel_=_def_arg!drop-3	ALTER TABLE a SET(a =)
-accept	reject@21	engine	reloption_elem/ColLabel_=_def_arg!truncate	ALTER TABLE a SET(a =
+reject@18	reject@18	engine	reloption_elem/ColLabel_=_def_arg!drop-1	ALTER TABLE a SET(= a)
+reject@21	reject@21	engine	reloption_elem/ColLabel_=_def_arg!drop-3	ALTER TABLE a SET(a =)
+reject@21	reject@21	engine	reloption_elem/ColLabel_=_def_arg!truncate	ALTER TABLE a SET(a =
 reject@24	reject@24	engine	reloption_elem/ColLabel_=_def_arg!insert	ALTER TABLE a SET(a = a zzz)
 accept	accept	engine	reloption_elem/ColLabel	ALTER TABLE a SET(a)
 accept	accept	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
-accept	reject@18	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-1	ALTER TABLE a SET(.a = a)
+reject@18	reject@18	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-1	ALTER TABLE a SET(.a = a)
 reject@20	reject@20	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-2	ALTER TABLE a SET(a a = a)
-accept	reject@20	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-3	ALTER TABLE a SET(a.= a)
+reject@20	reject@20	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-3	ALTER TABLE a SET(a.= a)
 reject@22	reject@22	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-4	ALTER TABLE a SET(a.a a)
-accept	reject@23	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-5	ALTER TABLE a SET(a.a =)
-accept	reject@23	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!truncate	ALTER TABLE a SET(a.a =
+reject@23	reject@23	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!drop-5	ALTER TABLE a SET(a.a =)
+reject@23	reject@23	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!truncate	ALTER TABLE a SET(a.a =
 reject@26	reject@26	engine	reloption_elem/ColLabel_._ColLabel_=_def_arg!insert	ALTER TABLE a SET(a.a = a zzz)
 accept	accept	engine	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
-accept	reject@18	engine	reloption_elem/ColLabel_._ColLabel!drop-1	ALTER TABLE a SET(.a)
-accept	reject@20	engine	reloption_elem/ColLabel_._ColLabel!drop-3	ALTER TABLE a SET(a.)
-accept	reject@20	engine	reloption_elem/ColLabel_._ColLabel!truncate	ALTER TABLE a SET(a.
+reject@18	reject@18	engine	reloption_elem/ColLabel_._ColLabel!drop-1	ALTER TABLE a SET(.a)
+reject@20	reject@20	engine	reloption_elem/ColLabel_._ColLabel!drop-3	ALTER TABLE a SET(a.)
+reject@20	reject@20	engine	reloption_elem/ColLabel_._ColLabel!truncate	ALTER TABLE a SET(a.
 reject@22	reject@22	engine	reloption_elem/ColLabel_._ColLabel!insert	ALTER TABLE a SET(a.a zzz)
 accept	accept	engine	alter_identity_column_option_list/alter_identity_column_option	ALTER TABLE a ALTER a RESTART
 reject@22	reject@22	engine	alter_identity_column_option_list/alter_identity_column_option!swap	ALTER TABLE a ALTER a RESTRICT
@@ -2429,18 +2429,18 @@ accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_n
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a()
 reject@0	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a()
 reject@13	reject@13	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE NOT EXISTS a()
-accept	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a()
-accept	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a()
+reject@16	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a()
+reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a()
 reject@26	reject@26	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE IF NOT EXISTS()
-accept	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a)
+reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a)
 reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a(
 reject@31	reject@31	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a() zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a()
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
 reject@8	reject@8	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE a OF a
 reject@0	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE a OF a
-reject@17	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE OF a
-reject@16	reject@15	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE a a
+reject@16	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE OF a
+reject@15	reject@15	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE a a
 reject@17	reject@17	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE a OF
 reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE a OF a zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE a OF a
@@ -2448,10 +2448,10 @@ accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_n
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a OF a
 reject@0	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a OF a
 reject@13	reject@13	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE NOT EXISTS a OF a
-accept	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a OF a
-accept	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a OF a
-reject@31	reject@30	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE IF NOT EXISTS OF a
-reject@30	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a a
+reject@16	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a OF a
+reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a OF a
+reject@30	reject@30	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE IF NOT EXISTS OF a
+reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a a
 reject@31	reject@31	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a OF
 reject@34	reject@34	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a OF a zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a OF a
@@ -2469,8 +2469,8 @@ accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_n
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 reject@0	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a PARTITION OF a DEFAULT
 reject@13	reject@13	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-3	CREATE TABLE NOT EXISTS a PARTITION OF a DEFAULT
-accept	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a PARTITION OF a DEFAULT
-accept	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a PARTITION OF a DEFAULT
+reject@16	reject@16	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-4	CREATE TABLE IF EXISTS a PARTITION OF a DEFAULT
+reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE IF NOT a PARTITION OF a DEFAULT
 reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-6	CREATE TABLE IF NOT EXISTS PARTITION OF a DEFAULT
 reject@34	reject@34	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE IF NOT EXISTS a OF a DEFAULT
 accept	reject@39	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a PARTITION a DEFAULT
@@ -2480,38 +2480,38 @@ reject@52	reject@52	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 accept	accept	engine	OptTemp/TEMPORARY	CREATE TEMPORARY SEQUENCE a
 reject@0	reject@6	engine	OptTemp/TEMPORARY!truncate	CREATE
-accept	reject@17	engine	OptTemp/TEMPORARY!insert	CREATE TEMPORARY zzz SEQUENCE a
+reject@17	reject@17	engine	OptTemp/TEMPORARY!insert	CREATE TEMPORARY zzz SEQUENCE a
 reject@12	reject@12	engine	OptTemp/TEMPORARY!swap	CREATE TEXT SEQUENCE a
 accept	accept	engine	OptTemp/TEMP	CREATE TEMP SEQUENCE a
-accept	reject@12	engine	OptTemp/TEMP!insert	CREATE TEMP zzz SEQUENCE a
+reject@12	reject@12	engine	OptTemp/TEMP!insert	CREATE TEMP zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/TEMP!swap	CREATE TEMPLATE SEQUENCE a
 accept	accept	engine	OptTemp/LOCAL_TEMPORARY	CREATE LOCAL TEMPORARY SEQUENCE a
-accept	reject@13	engine	OptTemp/LOCAL_TEMPORARY!drop-2	CREATE LOCAL SEQUENCE a
+reject@13	reject@13	engine	OptTemp/LOCAL_TEMPORARY!drop-2	CREATE LOCAL SEQUENCE a
 reject@12	reject@12	engine	OptTemp/LOCAL_TEMPORARY!truncate	CREATE LOCAL
-accept	reject@23	engine	OptTemp/LOCAL_TEMPORARY!insert	CREATE LOCAL TEMPORARY zzz SEQUENCE a
+reject@23	reject@23	engine	OptTemp/LOCAL_TEMPORARY!insert	CREATE LOCAL TEMPORARY zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/LOCAL_TEMPORARY!swap	CREATE LOCALTIME TEMPORARY SEQUENCE a
 accept	accept	engine	OptTemp/LOCAL_TEMP	CREATE LOCAL TEMP SEQUENCE a
-accept	reject@18	engine	OptTemp/LOCAL_TEMP!insert	CREATE LOCAL TEMP zzz SEQUENCE a
+reject@18	reject@18	engine	OptTemp/LOCAL_TEMP!insert	CREATE LOCAL TEMP zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/LOCAL_TEMP!swap	CREATE LOCALTIME TEMP SEQUENCE a
-reject@33	accept	engine	OptTemp/GLOBAL_TEMPORARY	CREATE GLOBAL TEMPORARY SEQUENCE a
-accept	reject@14	engine	OptTemp/GLOBAL_TEMPORARY!drop-2	CREATE GLOBAL SEQUENCE a
+accept	accept	engine	OptTemp/GLOBAL_TEMPORARY	CREATE GLOBAL TEMPORARY SEQUENCE a
+reject@14	reject@14	engine	OptTemp/GLOBAL_TEMPORARY!drop-2	CREATE GLOBAL SEQUENCE a
 reject@13	reject@13	engine	OptTemp/GLOBAL_TEMPORARY!truncate	CREATE GLOBAL
-reject@28	reject@24	engine	OptTemp/GLOBAL_TEMPORARY!insert	CREATE GLOBAL TEMPORARY zzz SEQUENCE a
+reject@24	reject@24	engine	OptTemp/GLOBAL_TEMPORARY!insert	CREATE GLOBAL TEMPORARY zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/GLOBAL_TEMPORARY!swap	CREATE GRANT TEMPORARY SEQUENCE a
-reject@28	accept	engine	OptTemp/GLOBAL_TEMP	CREATE GLOBAL TEMP SEQUENCE a
-reject@23	reject@19	engine	OptTemp/GLOBAL_TEMP!insert	CREATE GLOBAL TEMP zzz SEQUENCE a
+accept	accept	engine	OptTemp/GLOBAL_TEMP	CREATE GLOBAL TEMP SEQUENCE a
+reject@19	reject@19	engine	OptTemp/GLOBAL_TEMP!insert	CREATE GLOBAL TEMP zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/GLOBAL_TEMP!swap	CREATE GRANT TEMP SEQUENCE a
-reject@26	accept	engine	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
-accept	reject@16	engine	OptTemp/UNLOGGED!insert	CREATE UNLOGGED zzz SEQUENCE a
+accept	accept	engine	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+reject@16	reject@16	engine	OptTemp/UNLOGGED!insert	CREATE UNLOGGED zzz SEQUENCE a
 reject@0	reject@7	engine	OptTemp/UNLOGGED!swap	CREATE UNTIL SEQUENCE a
 accept	accept	engine	OptTemp/%empty	CREATE SEQUENCE a
 reject@0	reject@7	engine	OptTemp/%empty!insert	CREATE zzz SEQUENCE a
 accept	accept	engine	OptTableElementList/TableElementList	CREATE TABLE a(a a)
-accept	reject@17	engine	OptTableElementList/TableElementList!drop-1	CREATE TABLE a(a)
+reject@17	reject@17	engine	OptTableElementList/TableElementList!drop-1	CREATE TABLE a(a)
 reject@16	reject@16	engine	OptTableElementList/TableElementList!truncate	CREATE TABLE a(a
 reject@19	reject@19	engine	OptTableElementList/TableElementList!insert	CREATE TABLE a(a a zzz)
 accept	accept	engine	OptTableElementList/%empty	CREATE TABLE a()
-accept	reject@19	engine	OptTableElementList/%empty!insert	CREATE TABLE a(zzz)
+reject@19	reject@19	engine	OptTableElementList/%empty!insert	CREATE TABLE a(zzz)
 accept	accept	engine	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
 reject@20	reject@20	engine	OptTypedTableElementList/(_TypedTableElementList_)!drop-1	CREATE TABLE a OF a a)
 reject@20	reject@20	engine	OptTypedTableElementList/(_TypedTableElementList_)!drop-2	CREATE TABLE a OF a()
@@ -2972,56 +2972,56 @@ reject@35	reject@35	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!d
 reject@34	reject@34	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!truncate	CREATE TABLE a() PARTITION BY a((a
 accept	reject	engine	part_elem/(_a_expr_)_opt_collate_opt_qualified_name!insert	CREATE TABLE a() PARTITION BY a((a) zzz)
 accept	accept	engine	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
-reject@17	reject@15	engine	table_access_method_clause/USING_name!drop-1	CREATE TABLE a a AS SELECT
-accept	reject@21	engine	table_access_method_clause/USING_name!drop-2	CREATE TABLE a USING AS SELECT
-accept	reject@20	engine	table_access_method_clause/USING_name!truncate	CREATE TABLE a USING
+reject@15	reject@15	engine	table_access_method_clause/USING_name!drop-1	CREATE TABLE a a AS SELECT
+reject@21	reject@21	engine	table_access_method_clause/USING_name!drop-2	CREATE TABLE a USING AS SELECT
+reject@20	reject@20	engine	table_access_method_clause/USING_name!truncate	CREATE TABLE a USING
 reject@23	reject@23	engine	table_access_method_clause/USING_name!insert	CREATE TABLE a USING a zzz AS SELECT
-reject@24	reject@15	engine	table_access_method_clause/USING_name!swap	CREATE TABLE a VACUUM a AS SELECT
+reject@15	reject@15	engine	table_access_method_clause/USING_name!swap	CREATE TABLE a VACUUM a AS SELECT
 accept	accept	engine	table_access_method_clause/%empty	CREATE TABLE a AS SELECT
-reject@19	reject@15	engine	table_access_method_clause/%empty!insert	CREATE TABLE a zzz AS SELECT
-reject@15	accept	engine	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+reject@15	reject@15	engine	table_access_method_clause/%empty!insert	CREATE TABLE a zzz AS SELECT
+accept	accept	engine	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 accept	accept	engine	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
 reject@15	reject@20	engine	OptWith/WITH_reloptions!drop-2	CREATE TABLE a WITH a) AS SELECT
-reject@15	reject@20	engine	OptWith/WITH_reloptions!drop-3	CREATE TABLE a WITH() AS SELECT
-reject@15	reject@22	engine	OptWith/WITH_reloptions!drop-4	CREATE TABLE a WITH(a AS SELECT
-reject@15	reject@21	engine	OptWith/WITH_reloptions!truncate	CREATE TABLE a WITH(a
-reject@15	reject@23	engine	OptWith/WITH_reloptions!insert	CREATE TABLE a WITH(a) zzz AS SELECT
-reject@21	reject@15	engine	OptWith/WITH_reloptions!swap	CREATE TABLE a WITHIN(a) AS SELECT
-reject@28	accept	engine	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
-reject@20	reject@15	engine	OptWith/WITHOUT_OIDS!drop-1	CREATE TABLE a OIDS AS SELECT
+reject@20	reject@20	engine	OptWith/WITH_reloptions!drop-3	CREATE TABLE a WITH() AS SELECT
+reject@22	reject@22	engine	OptWith/WITH_reloptions!drop-4	CREATE TABLE a WITH(a AS SELECT
+reject@21	reject@21	engine	OptWith/WITH_reloptions!truncate	CREATE TABLE a WITH(a
+reject@23	reject@23	engine	OptWith/WITH_reloptions!insert	CREATE TABLE a WITH(a) zzz AS SELECT
+reject@15	reject@15	engine	OptWith/WITH_reloptions!swap	CREATE TABLE a WITHIN(a) AS SELECT
+accept	accept	engine	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+reject@15	reject@15	engine	OptWith/WITHOUT_OIDS!drop-1	CREATE TABLE a OIDS AS SELECT
 reject@23	reject@23	engine	OptWith/WITHOUT_OIDS!drop-2	CREATE TABLE a WITHOUT AS SELECT
 reject@22	reject@22	engine	OptWith/WITHOUT_OIDS!truncate	CREATE TABLE a WITHOUT
 reject@28	reject@28	engine	OptWith/WITHOUT_OIDS!insert	CREATE TABLE a WITHOUT OIDS zzz AS SELECT
-reject@25	reject@15	engine	OptWith/WITHOUT_OIDS!swap	CREATE TABLE a WORK OIDS AS SELECT
+reject@15	reject@15	engine	OptWith/WITHOUT_OIDS!swap	CREATE TABLE a WORK OIDS AS SELECT
 accept	accept	engine	OptWith/%empty	CREATE TABLE a AS SELECT
-reject@15	accept	engine	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
-reject@27	reject@15	engine	OnCommitOption/ON_COMMIT_DROP!drop-1	CREATE TABLE a COMMIT DROP AS SELECT
+accept	accept	engine	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_DROP!drop-1	CREATE TABLE a COMMIT DROP AS SELECT
 reject@15	reject@18	engine	OnCommitOption/ON_COMMIT_DROP!drop-2	CREATE TABLE a ON DROP AS SELECT
-reject@15	reject@25	engine	OnCommitOption/ON_COMMIT_DROP!drop-3	CREATE TABLE a ON COMMIT AS SELECT
-reject@15	reject@24	engine	OnCommitOption/ON_COMMIT_DROP!truncate	CREATE TABLE a ON COMMIT
-reject@15	reject@30	engine	OnCommitOption/ON_COMMIT_DROP!insert	CREATE TABLE a ON COMMIT DROP zzz AS SELECT
+reject@25	reject@25	engine	OnCommitOption/ON_COMMIT_DROP!drop-3	CREATE TABLE a ON COMMIT AS SELECT
+reject@24	reject@24	engine	OnCommitOption/ON_COMMIT_DROP!truncate	CREATE TABLE a ON COMMIT
+reject@30	reject@30	engine	OnCommitOption/ON_COMMIT_DROP!insert	CREATE TABLE a ON COMMIT DROP zzz AS SELECT
 reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_DROP!swap	CREATE TABLE a ONLY COMMIT DROP AS SELECT
-reject@15	accept	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
-reject@29	reject@15	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-1	CREATE TABLE a COMMIT DELETE ROWS AS SELECT
+accept	accept	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-1	CREATE TABLE a COMMIT DELETE ROWS AS SELECT
 reject@15	reject@18	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-2	CREATE TABLE a ON DELETE ROWS AS SELECT
-reject@15	reject@25	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-3	CREATE TABLE a ON COMMIT ROWS AS SELECT
-reject@15	reject@32	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-4	CREATE TABLE a ON COMMIT DELETE AS SELECT
-reject@15	reject@31	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!truncate	CREATE TABLE a ON COMMIT DELETE
-reject@15	reject@37	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!insert	CREATE TABLE a ON COMMIT DELETE ROWS zzz AS SELECT
+reject@25	reject@25	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-3	CREATE TABLE a ON COMMIT ROWS AS SELECT
+reject@32	reject@32	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!drop-4	CREATE TABLE a ON COMMIT DELETE AS SELECT
+reject@31	reject@31	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!truncate	CREATE TABLE a ON COMMIT DELETE
+reject@37	reject@37	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!insert	CREATE TABLE a ON COMMIT DELETE ROWS zzz AS SELECT
 reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_DELETE_P_ROWS!swap	CREATE TABLE a ONLY COMMIT DELETE ROWS AS SELECT
-reject@15	accept	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
-reject@31	reject@15	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!drop-1	CREATE TABLE a COMMIT PRESERVE ROWS AS SELECT
+accept	accept	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!drop-1	CREATE TABLE a COMMIT PRESERVE ROWS AS SELECT
 reject@15	reject@18	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!drop-2	CREATE TABLE a ON PRESERVE ROWS AS SELECT
-reject@15	reject@34	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!drop-4	CREATE TABLE a ON COMMIT PRESERVE AS SELECT
-reject@15	reject@33	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!truncate	CREATE TABLE a ON COMMIT PRESERVE
-reject@15	reject@39	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!insert	CREATE TABLE a ON COMMIT PRESERVE ROWS zzz AS SELECT
+reject@34	reject@34	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!drop-4	CREATE TABLE a ON COMMIT PRESERVE AS SELECT
+reject@33	reject@33	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!truncate	CREATE TABLE a ON COMMIT PRESERVE
+reject@39	reject@39	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!insert	CREATE TABLE a ON COMMIT PRESERVE ROWS zzz AS SELECT
 reject@15	reject@15	engine	OnCommitOption/ON_COMMIT_PRESERVE_ROWS!swap	CREATE TABLE a ONLY COMMIT PRESERVE ROWS AS SELECT
 accept	accept	engine	OnCommitOption/%empty	CREATE TABLE a AS SELECT
-reject@28	accept	engine	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+accept	accept	engine	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
 reject@26	reject@26	engine	OptTableSpace/TABLESPACE_name!drop-2	CREATE TABLE a TABLESPACE AS SELECT
 reject@25	reject@25	engine	OptTableSpace/TABLESPACE_name!truncate	CREATE TABLE a TABLESPACE
 reject@28	reject@28	engine	OptTableSpace/TABLESPACE_name!insert	CREATE TABLE a TABLESPACE a zzz AS SELECT
-reject@24	reject@15	engine	OptTableSpace/TABLESPACE_name!swap	CREATE TABLE a TARGET a AS SELECT
+reject@15	reject@15	engine	OptTableSpace/TABLESPACE_name!swap	CREATE TABLE a TARGET a AS SELECT
 accept	accept	engine	OptTableSpace/%empty	CREATE TABLE a AS SELECT
 accept	accept	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name	CREATE DOMAIN a a UNIQUE USING INDEX TABLESPACE a
 reject@25	reject@25	engine	OptConsTableSpace/USING_INDEX_TABLESPACE_name!drop-1	CREATE DOMAIN a a UNIQUE INDEX TABLESPACE a
@@ -3083,8 +3083,8 @@ accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as
 reject@9	reject@9	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-1	TABLE IF NOT EXISTS a AS SELECT
 reject@0	reject@7	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-2	CREATE IF NOT EXISTS a AS SELECT
 reject@13	reject@13	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-3	CREATE TABLE NOT EXISTS a AS SELECT
-accept	reject@16	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-4	CREATE TABLE IF EXISTS a AS SELECT
-accept	reject@20	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-5	CREATE TABLE IF NOT a AS SELECT
+reject@16	reject@16	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-4	CREATE TABLE IF EXISTS a AS SELECT
+reject@20	reject@20	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-5	CREATE TABLE IF NOT a AS SELECT
 reject@27	reject@27	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-6	CREATE TABLE IF NOT EXISTS AS SELECT
 reject@29	reject@29	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-7	CREATE TABLE IF NOT EXISTS a SELECT
 accept	reject@31	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-8	CREATE TABLE IF NOT EXISTS a AS
@@ -3120,7 +3120,7 @@ accept	accept	engine	create_mv_target/qualified_name_opt_column_list_table_acces
 reject@24	reject@24	engine	create_mv_target/qualified_name_opt_column_list_table_access_method_clause_opt_reloptions_OptTableSpace!truncate	CREATE MATERIALIZED VIEW
 reject@27	reject@27	engine	create_mv_target/qualified_name_opt_column_list_table_access_method_clause_opt_reloptions_OptTableSpace!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT
 accept	accept	engine	OptNoLog/UNLOGGED	CREATE UNLOGGED MATERIALIZED VIEW a AS SELECT
-reject@38	reject@16	engine	OptNoLog/UNLOGGED!insert	CREATE UNLOGGED zzz MATERIALIZED VIEW a AS SELECT
+reject@16	reject@16	engine	OptNoLog/UNLOGGED!insert	CREATE UNLOGGED zzz MATERIALIZED VIEW a AS SELECT
 reject@0	reject@7	engine	OptNoLog/UNLOGGED!swap	CREATE UNTIL MATERIALIZED VIEW a AS SELECT
 accept	accept	engine	OptNoLog/%empty	CREATE MATERIALIZED VIEW a AS SELECT
 reject@0	reject@7	engine	OptNoLog/%empty!insert	CREATE zzz MATERIALIZED VIEW a AS SELECT
@@ -5365,7 +5365,7 @@ accept	accept	engine	index_elem_options/opt_collate_opt_qualified_name_opt_asc_d
 accept	accept	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
 accept	accept	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
 reject@22	reject@22	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-2	CREATE INDEX ON a(a a a))
-accept	reject@22	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-3	CREATE INDEX ON a(a a())
+reject@22	reject@22	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-3	CREATE INDEX ON a(a a())
 reject@24	reject@24	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-4	CREATE INDEX ON a(a a(a)
 reject@23	reject@23	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!truncate	CREATE INDEX ON a(a a(a
 reject@25	reject@25	engine	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!insert	CREATE INDEX ON a(a a(a) zzz)
@@ -6025,9 +6025,9 @@ accept	accept	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions	ALTE
 reject@0	reject@0	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-1	TABLESPACE a RESET(a)
 reject@6	reject@6	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-2	ALTER a RESET(a)
 reject@22	reject@22	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-3	ALTER TABLESPACE RESET(a)
-accept	reject@25	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-5	ALTER TABLESPACE a RESET a)
-accept	reject@25	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-6	ALTER TABLESPACE a RESET()
-accept	reject@26	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-7	ALTER TABLESPACE a RESET(a
+reject@25	reject@25	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-5	ALTER TABLESPACE a RESET a)
+reject@25	reject@25	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-6	ALTER TABLESPACE a RESET()
+reject@26	reject@26	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!drop-7	ALTER TABLESPACE a RESET(a
 reject@28	reject@28	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!insert	ALTER TABLESPACE a RESET(a) zzz
 reject@0	reject@0	engine	AlterTblSpcStmt/ALTER_TABLESPACE_name_RESET_reloptions!swap	ALWAYS TABLESPACE a RESET(a)
 accept	accept	engine	RenameStmt/ALTER_AGGREGATE_aggregate_with_argtypes_RENAME_TO_name	ALTER AGGREGATE a(*) RENAME TO a
@@ -7978,7 +7978,7 @@ accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUT
 reject@8	reject@8	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-1	TABLE a AS EXECUTE a
 reject@0	reject@7	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-2	CREATE a AS EXECUTE a
 reject@13	reject@13	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-3	CREATE TABLE AS EXECUTE a
-accept	reject@15	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-4	CREATE TABLE a EXECUTE a
+reject@15	reject@15	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-4	CREATE TABLE a EXECUTE a
 reject@18	reject@18	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-5	CREATE TABLE a AS a
 reject@25	reject@25	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-6	CREATE TABLE a AS EXECUTE
 reject@28	reject@28	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!insert	CREATE TABLE a AS EXECUTE a zzz
@@ -7987,10 +7987,10 @@ accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_
 reject@9	reject@9	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-1	TABLE IF NOT EXISTS a AS EXECUTE a
 reject@0	reject@7	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-2	CREATE IF NOT EXISTS a AS EXECUTE a
 reject@13	reject@13	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-3	CREATE TABLE NOT EXISTS a AS EXECUTE a
-accept	reject@16	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-4	CREATE TABLE IF EXISTS a AS EXECUTE a
-accept	reject@20	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-5	CREATE TABLE IF NOT a AS EXECUTE a
+reject@16	reject@16	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-4	CREATE TABLE IF EXISTS a AS EXECUTE a
+reject@20	reject@20	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-5	CREATE TABLE IF NOT a AS EXECUTE a
 reject@27	reject@27	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-6	CREATE TABLE IF NOT EXISTS AS EXECUTE a
-accept	reject@29	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-7	CREATE TABLE IF NOT EXISTS a EXECUTE a
+reject@29	reject@29	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-7	CREATE TABLE IF NOT EXISTS a EXECUTE a
 reject@32	reject@32	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-8	CREATE TABLE IF NOT EXISTS a AS a
 reject@39	reject@39	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-9	CREATE TABLE IF NOT EXISTS a AS EXECUTE
 reject@42	reject@42	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS EXECUTE a zzz

@@ -1605,7 +1605,10 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 		}, nil
 	case SET:
 		p.advance()
-		opts := p.parseReloptions()
+		opts, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableSpaceOptionsStmt{
 			Tablespacename: name,
 			Options:        opts,
@@ -1614,7 +1617,10 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 		}, nil
 	case RESET:
 		p.advance()
-		opts := p.parseReloptions()
+		opts, err := p.parseReloptions()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableSpaceOptionsStmt{
 			Tablespacename: name,
 			Options:        opts,

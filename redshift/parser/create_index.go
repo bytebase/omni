@@ -112,11 +112,16 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 		// The advance() reclassification handles WITH -> WITH_LA for TIME/ORDINALITY,
 		// so if cur is still WITH, it's reloptions.
 		p.advance()
-		options = p.parseReloptions()
+		if options, err = p.parseReloptions(); err != nil {
+			return nil, err
+		}
 	}
 
 	// OptTableSpace
-	tableSpace := p.parseOptTableSpace()
+	tableSpace, err := p.parseOptTableSpace()
+	if err != nil {
+		return nil, err
+	}
 
 	// where_clause
 	whereClause, _ := p.parseWhereClause()
@@ -198,7 +203,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 			return nil, err
 		}
 		elem.Collation = p.parseOptCollate()
-		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
+		opclass, opclassopts, err := p.parseIndexElemOpclass()
+		if err != nil {
+			return nil, err
+		}
+		elem.Opclass, elem.Opclassopts = opclass, opclassopts
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	} else if p.isColId() {
@@ -220,7 +229,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 		}
 
 		elem.Collation = p.parseOptCollate()
-		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
+		opclass, opclassopts, err := p.parseIndexElemOpclass()
+		if err != nil {
+			return nil, err
+		}
+		elem.Opclass, elem.Opclassopts = opclass, opclassopts
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	} else {
@@ -234,7 +247,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 		}
 		elem.Expr = expr
 		elem.Collation = p.parseOptCollate()
-		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
+		opclass, opclassopts, err := p.parseIndexElemOpclass()
+		if err != nil {
+			return nil, err
+		}
+		elem.Opclass, elem.Opclassopts = opclass, opclassopts
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	}
@@ -249,26 +266,29 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 //   - any_name reloptions (opclass with reloptions)
 //
 // Returns (opclass, opclassopts).
-func (p *Parser) parseIndexElemOpclass() (*nodes.List, *nodes.List) {
+func (p *Parser) parseIndexElemOpclass() (*nodes.List, *nodes.List, error) {
 	// Check if what follows looks like an opclass name.
 	// An opclass can't start with ASC, DESC, NULLS, ',', ')', or end-of-input.
 	// It also can't be WITH, INCLUDE, WHERE, TABLESPACE which are subsequent clauses.
 	if !p.isIndexElemOpclassStart() {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	opclass := p.parseOptQualifiedName()
 	if opclass == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Check for reloptions: '(' ... ')'
 	var opclassopts *nodes.List
 	if p.cur.Type == '(' {
-		opclassopts = p.parseReloptions()
+		var err error
+		if opclassopts, err = p.parseReloptions(); err != nil {
+			return nil, nil, err
+		}
 	}
 
-	return opclass, opclassopts
+	return opclass, opclassopts, nil
 }
 
 // isIndexElemOpclassStart returns true if the current token could start an opclass name.
