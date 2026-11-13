@@ -600,6 +600,10 @@ func listElement(seq []*node) (int, bool) {
 		// not the element's.
 		return optional + 1, true
 	}
+	if i >= 0 && seq[i].tok != nil && seq[i].tok.kind == nKeyword {
+		// READ [ , WRITE ] [ , ... ]: a keyword is the required part.
+		return optional + 1, true
+	}
 	depth, k := 0, 0
 	for ; i >= 0; i-- {
 		n := seq[i]

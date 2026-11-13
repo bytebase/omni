@@ -1409,7 +1409,7 @@ alterIcebergTable_clusteringAction
     : ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')' | ('SUSPEND' | 'RESUME') 'RECLUSTER' | 'DROP' 'CLUSTERING' 'KEY')
     ;
 alterIcebergTable_tableColumnAction
-    : ('ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE ('DEFAULT' ID)? alterIcebergTable_inlineConstraint? ('COLLATE' STRING)? | 'RENAME' 'COLUMN' ID 'TO' ID | 'ALTER' | 'MODIFY' ('(')? ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' ',' 'COLUMN'? ID 'SET' 'WRITE' 'DEFAULT' ID ',' 'COLUMN'? ID 'DROP' 'WRITE' 'DEFAULT' (',' 'COLUMN'? ID (',' ',' 'COLUMN'? ID)*)? (')')? | 'DROP' 'COLUMN'? ('IF' 'EXISTS')? ID (',' ID)*)
+    : ('ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE ('DEFAULT' ID)? alterIcebergTable_inlineConstraint? ('COLLATE' STRING)? | 'RENAME' 'COLUMN' ID 'TO' ID | 'ALTER' | 'MODIFY' ('(')? ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' ',' 'COLUMN'? ID 'SET' 'WRITE' 'DEFAULT' ID ',' 'COLUMN'? ID 'DROP' 'WRITE' 'DEFAULT' (',' 'COLUMN'? ID)* (',' 'DEFAULT' (',' 'COLUMN'? ID)*)* (')')? | 'DROP' 'COLUMN'? ('IF' 'EXISTS')? ID (',' ID)*)
     ;
 alterIcebergTable_inlineConstraint
     : ('NOT' 'NULL')? ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ID?
@@ -2217,7 +2217,7 @@ alterTable_clusteringAction
     : ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')' | 'RECLUSTER' ('MAX_SIZE' '=' NUMBER)? ('WHERE' EXPR)? | ('SUSPEND' | 'RESUME') 'RECLUSTER' | 'DROP' 'CLUSTERING' 'KEY')
     ;
 alterTable_tableColumnAction
-    : ('ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE (('GENERATED' 'ALWAYS')? 'AS' '(' EXPR ')' 'VIRTUAL'?)? (('DEFAULT' ID | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? alterTable_inlineConstraint? ('COLLATE' STRING)? | 'RENAME' 'COLUMN' ID 'TO' ID | 'ALTER' | 'MODIFY' ('(')? 'COLUMN'? ID 'DROP' 'DEFAULT' ',' 'COLUMN'? ID 'SET' 'DEFAULT' ID '.' 'NEXTVAL' ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' (',' 'COLUMN'? ID (',' ',' 'COLUMN'? ID)*)? (')')? | 'DROP' 'COLUMN'? ('IF' 'EXISTS')? ID (',' ID)*)
+    : ('ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE (('GENERATED' 'ALWAYS')? 'AS' '(' EXPR ')' 'VIRTUAL'?)? (('DEFAULT' ID | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? alterTable_inlineConstraint? ('COLLATE' STRING)? | 'RENAME' 'COLUMN' ID 'TO' ID | 'ALTER' | 'MODIFY' ('(')? 'COLUMN'? ID 'DROP' 'DEFAULT' ',' 'COLUMN'? ID 'SET' 'DEFAULT' ID '.' 'NEXTVAL' ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' (',' 'COLUMN'? ID)* (',' 'COMMENT' (',' 'COLUMN'? ID)*)* (')')? | 'DROP' 'COLUMN'? ('IF' 'EXISTS')? ID (',' ID)*)
     ;
 alterTable_inlineConstraint
     : ('NOT' 'NULL')? ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ID?
@@ -2261,7 +2261,7 @@ alterTable_searchOptimizationAction
 // not converted (form): undefined fragment "dataGovnPolicyTagAction": the page does not define it, or it did not convert
 //   ALTER TABLE <name> { ALTER | MODIFY } [ COLUMN ] dataGovnPolicyTagAction
 alterTableColumn
-    : 'ALTER' 'TABLE' ID ('ALTER' | 'MODIFY') ('(')? 'COLUMN'? ID 'DROP' 'DEFAULT' ',' 'COLUMN'? ID 'SET' 'DEFAULT' ID '.' 'NEXTVAL' ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' (',' 'COLUMN'? ID (',' ',' 'COLUMN'? ID)*)? (')')?
+    : 'ALTER' 'TABLE' ID ('ALTER' | 'MODIFY') ('(')? 'COLUMN'? ID 'DROP' 'DEFAULT' ',' 'COLUMN'? ID 'SET' 'DEFAULT' ID '.' 'NEXTVAL' ',' 'COLUMN'? ID ('SET'? 'NOT' 'NULL' | 'DROP' 'NOT' 'NULL') ',' 'COLUMN'? ID (('SET' 'DATA')? 'TYPE')? DATA_TYPE ',' 'COLUMN'? ID 'COMMENT' STRING ',' 'COLUMN'? ID 'UNSET' 'COMMENT' (',' 'COLUMN'? ID)* (',' 'COMMENT' (',' 'COLUMN'? ID)*)* (')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-table-event-table
@@ -2339,6 +2339,7 @@ alterType
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-user
+// fix: mfaActions: the five actions in braces have no | between them; each is one action
 alterUser
     : 'ALTER' 'USER' ('IF' 'EXISTS')? ID? 'RENAME' 'TO' ID
     | 'ALTER' 'USER' ('IF' 'EXISTS')? ID? 'RESET' 'PASSWORD'
@@ -2355,7 +2356,7 @@ alterUser
     | 'ALTER' 'USER' ('IF' 'EXISTS')? ID? 'UNSET' ID (',' ID)*
     ;
 alterUser_mfaActions
-    : 'ENROLL' 'MFA' 'SET' 'DEFAULT_MFA_METHOD' '=' ('PASSKEY' | 'TOTP' | 'DUO') 'REMOVE' 'MFA' 'METHOD' ID 'MODIFY' 'MFA' 'METHOD' ID 'SET' 'COMMENT' '=' STRING 'ADD' 'MFA' 'METHOD' 'OTP' ('COUNT' '=' NUMBER)?
+    : ('ENROLL' 'MFA' | 'SET' 'DEFAULT_MFA_METHOD' '=' ('PASSKEY' | 'TOTP' | 'DUO') | 'REMOVE' 'MFA' 'METHOD' ID | 'MODIFY' 'MFA' 'METHOD' ID 'SET' 'COMMENT' '=' STRING | 'ADD' 'MFA' 'METHOD' 'OTP' ('COUNT' '=' NUMBER)?)
     ;
 alterUser_objectProperties
     : ('PASSWORD' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'EMAIL' '=' STRING | 'MUST_CHANGE_PASSWORD' '=' ('TRUE' | 'FALSE') | 'DISABLED' '=' ('TRUE' | 'FALSE') | 'ALLOWED_INTERFACES' '=' '(' ID ')' | 'DAYS_TO_EXPIRY' '=' NUMBER | 'MINS_TO_UNLOCK' '=' NUMBER | 'DEFAULT_WAREHOUSE' '=' STRING | 'DEFAULT_NAMESPACE' '=' STRING | 'DEFAULT_ROLE' '=' STRING | 'DEFAULT_SECONDARY_ROLES' '=' '(' '\'ALL\'' ')' | 'MINS_TO_BYPASS_MFA' '=' NUMBER | 'DISABLE_MFA' '=' ('TRUE' | 'FALSE') | 'RSA_PUBLIC_KEY' '=' STRING | 'RSA_PUBLIC_KEY_FP' '=' STRING | 'RSA_PUBLIC_KEY_2' '=' STRING | 'RSA_PUBLIC_KEY_2_FP' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE' | 'SERVICE_AGENT' | 'LEGACY_SERVICE') | 'WORKLOAD_IDENTITY' '=' '(' ID ')' | 'COMMENT' '=' STRING)+
@@ -4739,8 +4740,9 @@ executeInferenceJobService
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-job-service
+// fix: REPLICAS has its = twice
 executeJobService
-    : 'EXECUTE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID (executeJobService_fromSpecification | executeJobService_fromSpecificationTemplate) ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' '=' NUMBER)? ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
+    : 'EXECUTE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID (executeJobService_fromSpecification | executeJobService_fromSpecificationTemplate) ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)? ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
     ;
 executeJobService_fromSpecification
     : ('FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' ID)
@@ -4882,7 +4884,7 @@ grantPrivilege_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | ('READ' | 'USAGE') (',' ('READ' | 'USAGE'))*
     | ('SELECT' | 'REFERENCES' | 'MONITOR') (',' ('SELECT' | 'REFERENCES' | 'MONITOR'))*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -4926,7 +4928,7 @@ grantPrivilegeApplication_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | 'READ' ',' 'USAGE' (',' 'USAGE')*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -4952,7 +4954,7 @@ grantPrivilegeApplicationRole_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | 'READ' ',' 'USAGE' (',' 'USAGE')*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -5010,7 +5012,7 @@ grantPrivilegeUser_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | ('READ' | 'USAGE') (',' ('READ' | 'USAGE'))*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -5061,11 +5063,12 @@ list_repositoryClone
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/merge
+// fix: matchedClause: one action a clause; the clauses repeat in MERGE's own form, { matchedClause | notMatchedClause } [ ... ]
 merge
     : 'MERGE' 'INTO' ID 'USING' ID 'ON' EXPR (merge_matchedClause | merge_notMatchedClause)+
     ;
 merge_matchedClause
-    : 'WHEN' 'MATCHED' ('AND' EXPR)? 'THEN' ('UPDATE' ('ALL' 'BY' 'NAME' | 'SET' ID '=' EXPR (',' ID '=' EXPR)*) | 'DELETE')+
+    : 'WHEN' 'MATCHED' ('AND' EXPR)? 'THEN' ('UPDATE' ('ALL' 'BY' 'NAME' | 'SET' ID '=' EXPR (',' ID '=' EXPR)*) | 'DELETE')
     ;
 merge_notMatchedClause
     : 'WHEN' 'NOT' 'MATCHED' ('AND' EXPR)? 'THEN' 'INSERT' ('ALL' 'BY' 'NAME' | ('(' ID (',' ID)* ')')? 'VALUES' '(' EXPR (',' EXPR)* ')')
@@ -5170,7 +5173,7 @@ revokePrivilege_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | ('READ' | 'USAGE') (',' ('READ' | 'USAGE'))*
     | ('SELECT' | 'REFERENCES' | 'MONITOR') (',' ('SELECT' | 'REFERENCES' | 'MONITOR'))*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -5213,7 +5216,7 @@ revokePrivilegeApplication_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | 'READ' ',' 'USAGE' (',' 'USAGE')*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -5239,7 +5242,7 @@ revokePrivilegeApplicationRole_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | 'READ' ',' 'USAGE' (',' 'USAGE')*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'
@@ -5297,7 +5300,7 @@ revokePrivilegeUser_schemaObjectPrivileges
     | 'APPLY' (',' 'APPLY')*
     | ('READ' | 'USAGE') (',' ('READ' | 'USAGE'))*
     | 'REFERENCES' (',' 'REFERENCES')*
-    | 'READ' (',' 'WRITE' (',' ',' 'WRITE')*)?
+    | 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*
     | 'SELECT' (',' 'SELECT')*
     | ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE') (',' ('APPLYBUDGET' | 'DELETE' | 'EVOLVE' 'SCHEMA' | 'INSERT' | 'REFERENCES' | 'SELECT' | 'SELECT' 'ERROR' 'TABLE' | 'TRUNCATE' | 'UPDATE'))*
     | 'READ'

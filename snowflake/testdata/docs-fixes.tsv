@@ -24,3 +24,6 @@ create-task	'{ XSMALL | SMALL\n      | MEDIUM | LARGE | XLARGE | XXLARGE }'	'<si
 get	'<regex_pattern>''	'<regex_pattern>'	PATTERN's string has a quote too many; dropped
 create-versioned-schema	DATA_RETENTION_TIME_IN_DAYS = ]	DATA_RETENTION_TIME_IN_DAYS = <integer> ]	the retention properties have no value; <integer>, as CREATE SCHEMA writes them
 create-versioned-schema	MAX_DATA_EXTENSION_TIME_IN_DAYS = ]	MAX_DATA_EXTENSION_TIME_IN_DAYS = <integer> ]	the retention properties have no value; <integer>, as CREATE SCHEMA writes them
+merge	| DELETE } [ ... ]	| DELETE }	matchedClause: one action a clause; the clauses repeat in MERGE's own form, { matchedClause | notMatchedClause } [ ... ]
+alter-user	    ENROLL MFA\n    SET DEFAULT_MFA_METHOD = { PASSKEY | TOTP | DUO }\n    REMOVE MFA METHOD <mfa_method>\n    MODIFY MFA METHOD <mfa_method> SET COMMENT = '<string>'\n    ADD MFA METHOD OTP	    ENROLL MFA\n    | SET DEFAULT_MFA_METHOD = { PASSKEY | TOTP | DUO }\n    | REMOVE MFA METHOD <mfa_method>\n    | MODIFY MFA METHOD <mfa_method> SET COMMENT = '<string>'\n    | ADD MFA METHOD OTP	mfaActions: the five actions in braces have no | between them; each is one action
+execute-job-service	REPLICAS = = <num>	REPLICAS = <num>	REPLICAS has its = twice
