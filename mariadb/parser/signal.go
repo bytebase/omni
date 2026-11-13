@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -203,7 +205,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 		stmt.ConditionNumber = condNum
 
 		// condition_information_item [, condition_information_item] ...
-		items, err := p.parseDiagnosticsItems()
+		items, err := p.parseDiagnosticsItems(false)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +213,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 	} else {
 		// statement_information_item [, statement_information_item] ...
 		stmt.StatementInfo = true
-		items, err := p.parseDiagnosticsItems()
+		items, err := p.parseDiagnosticsItems(true)
 		if err != nil {
 			return nil, err
 		}
@@ -231,23 +233,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 func (p *Parser) parseSignalConditionValue() (string, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
 	if p.cur.Type == kwSQLSTATE {
-		p.advance() // consume SQLSTATE
-
-		// Optional VALUE keyword
-		if p.cur.Type == kwVALUE {
-			p.advance()
-		}
-
-		// sqlstate_value (string literal)
-		if p.cur.Type != tokSCONST {
-			return "", &ParseError{
-				Message:  "expected SQLSTATE value string",
-				Position: p.cur.Loc,
-			}
-		}
-		val := p.cur.Str
-		p.advance()
-		return val, nil
+		return p.parseSQLStateValue()
 	}
 
 	// condition_name (identifier)
@@ -263,11 +249,18 @@ func (p *Parser) parseSignalSetClause() ([]*nodes.SignalInfoItem, error) {
 	p.advance() // consume SET
 
 	var items []*nodes.SignalInfoItem
+	seen := map[string]bool{}
 	for {
+		at := p.cur.Loc
 		item, err := p.parseSignalInfoItem()
 		if err != nil {
 			return nil, err
 		}
+		// Each item comes once (ER_DUP_SIGNAL_SET).
+		if seen[item.Name] {
+			return nil, &ParseError{Message: "Duplicate condition information item '" + item.Name + "'", Position: at}
+		}
+		seen[item.Name] = true
 		items = append(items, item)
 		if p.cur.Type != ',' {
 			break
@@ -284,17 +277,12 @@ func (p *Parser) parseSignalSetClause() ([]*nodes.SignalInfoItem, error) {
 func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 	start := p.pos()
 
-	// condition_information_item_name is a keyword-like identifier
-	// (MESSAGE_TEXT, MYSQL_ERRNO, CLASS_ORIGIN, etc.)
-	var name string
-	if p.cur.Type == tokIDENT {
-		name = p.cur.Str
-		p.advance()
-	} else {
-		// Some of these may be recognized as keywords
-		name = p.cur.Str
-		p.advance()
+	// signal_condition_information_item_name: one of signalItemNames.
+	name := p.signalItemWord()
+	if !signalItemNames[name] {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// '='
 	if _, err := p.expect('='); err != nil {
@@ -318,10 +306,10 @@ func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 }
 
 // parseDiagnosticsItems parses target = item_name [, target = item_name] ...
-func (p *Parser) parseDiagnosticsItems() ([]*nodes.DiagnosticsItem, error) {
+func (p *Parser) parseDiagnosticsItems(statement bool) ([]*nodes.DiagnosticsItem, error) {
 	var items []*nodes.DiagnosticsItem
 	for {
-		item, err := p.parseDiagnosticsItem()
+		item, err := p.parseDiagnosticsItem(statement)
 		if err != nil {
 			return nil, err
 		}
@@ -335,7 +323,7 @@ func (p *Parser) parseDiagnosticsItems() ([]*nodes.DiagnosticsItem, error) {
 }
 
 // parseDiagnosticsItem parses a single diagnostics item (target = item_name).
-func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
+func (p *Parser) parseDiagnosticsItem(statement bool) (*nodes.DiagnosticsItem, error) {
 	start := p.pos()
 
 	// target: user_variable (@var) | local_variable (identifier) | param
@@ -367,21 +355,88 @@ func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
 		return nil, err
 	}
 
-	// item_name (identifier-like keyword: NUMBER, ROW_COUNT, MESSAGE_TEXT, etc.)
-	// These are typically plain identifiers; some may overlap with keywords.
-	var name string
-	if p.cur.Type == tokIDENT {
-		name = p.cur.Str
-		p.advance()
-	} else {
-		// Accept any keyword token as name (e.g. NUMBER might not be a keyword)
-		name = p.cur.Str
-		p.advance()
+	// statement_information_item_name or condition_information_item_name.
+	name := p.signalItemWord()
+	if (statement && !statementInfoNames[name]) || (!statement && !conditionInfoNames[name]) {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	return &nodes.DiagnosticsItem{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Target: target,
 		Name:   name,
 	}, nil
+}
+
+// signalItemNames, statementInfoNames and conditionInfoNames are the words
+// signal_condition_information_item_name, statement_information_item_name and
+// condition_information_item_name spell in MariaDB 11.8 sql/sql_yacc.yy.
+var (
+	signalItemNames = map[string]bool{
+		"CLASS_ORIGIN": true, "SUBCLASS_ORIGIN": true, "CONSTRAINT_CATALOG": true,
+		"CONSTRAINT_SCHEMA": true, "CONSTRAINT_NAME": true, "CATALOG_NAME": true,
+		"SCHEMA_NAME": true, "TABLE_NAME": true, "COLUMN_NAME": true, "CURSOR_NAME": true,
+		"MESSAGE_TEXT": true, "MYSQL_ERRNO": true, "ROW_NUMBER": true,
+	}
+	statementInfoNames = map[string]bool{"NUMBER": true, "ROW_COUNT": true}
+	conditionInfoNames = map[string]bool{
+		"CLASS_ORIGIN": true, "SUBCLASS_ORIGIN": true, "CONSTRAINT_CATALOG": true,
+		"CONSTRAINT_SCHEMA": true, "CONSTRAINT_NAME": true, "CATALOG_NAME": true,
+		"SCHEMA_NAME": true, "TABLE_NAME": true, "COLUMN_NAME": true, "CURSOR_NAME": true,
+		"MESSAGE_TEXT": true, "MYSQL_ERRNO": true, "RETURNED_SQLSTATE": true, "ROW_NUMBER": true,
+	}
+)
+
+// parseSQLStateValue reads `SQLSTATE [VALUE] 'value'`, p.cur being SQLSTATE.
+// The action refuses a value that is not five digits or capital letters, and
+// one of class 00, the completion condition (ER_SP_BAD_SQLSTATE).
+//
+// Ref: sqlstate in MariaDB 11.8 sql/sql_yacc.yy, is_sqlstate_valid and
+// is_sqlstate_completion.
+func (p *Parser) parseSQLStateValue() (string, error) {
+	p.advance() // consume SQLSTATE
+	if p.cur.Type == kwVALUE {
+		p.advance()
+	}
+	if p.cur.Type != tokSCONST {
+		return "", &ParseError{
+			Message:  "expected SQLSTATE value string",
+			Position: p.cur.Loc,
+		}
+	}
+	val := p.cur.Str
+	if !isSQLStateValid(val) || strings.HasPrefix(val, "00") {
+		return "", &ParseError{Message: "Bad SQLSTATE: '" + val + "'", Position: p.cur.Loc}
+	}
+	p.advance()
+	return val, nil
+}
+
+// isSQLStateValid reports whether s is five characters, each a digit or a
+// capital letter.
+func isSQLStateValid(s string) bool {
+	if len(s) != 5 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z') {
+			return false
+		}
+	}
+	return true
+}
+
+// signalItemWord returns the upper-cased word at the current token when it is
+// written bare, as the grammar's item-name keywords are, and "" otherwise.
+func (p *Parser) signalItemWord() string {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return ""
+	}
+	text := p.inputText(p.cur.Loc, p.cur.End)
+	if strings.HasPrefix(text, "`") || strings.HasPrefix(text, "@") {
+		return ""
+	}
+	return strings.ToUpper(text)
 }
