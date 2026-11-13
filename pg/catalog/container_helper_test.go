@@ -4,117 +4,27 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
-// pgContainer wraps a real PostgreSQL container connection for container testing.
+// pgContainer is a test's connection to PostgreSQL 17: a replay of its tape,
+// or the pinned server in a recording (pg/internal/testcontainer). In a
+// recording each top-level test starts on a database of its own; within it,
+// tests get schema-level isolation.
 type pgContainer struct {
-	db  *sql.DB
-	ctx context.Context
+	db      *sql.DB
+	ctx     context.Context
+	schemas int // the schemas freshSchema has made
 }
 
-var (
-	pgContainerOnce sync.Once
-	pgContainerInst *pgContainer
-	pgContainerErr  error
-	pgSchemaCounter atomic.Int64
-)
-
-// startPGContainer returns the database the container tests share on the
-// PostgreSQL 17 server; individual tests get schema-level isolation.
+// startPGContainer returns t's connection to PostgreSQL 17.
 func startPGContainer(t *testing.T) *pgContainer {
 	t.Helper()
-	pgContainerOnce.Do(func() {
-		ctx := context.Background()
-		db, err := pg17Database(ctx, "omni_test")
-		if err != nil {
-			pgContainerErr = fmt.Errorf("failed to start PG container: %w", err)
-			return
-		}
-		pgContainerInst = &pgContainer{db: db, ctx: ctx}
-	})
-	if pgContainerErr != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the container gate into a green no-op.
-		t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
-	}
-	return pgContainerInst
-}
-
-// pg17Server is the one PostgreSQL 17 server of this package. Each oracle has a
-// database of its own on it. analyzeOracle has its own PostgreSQL 18 server:
-// pg_proc_generated.go is generated from that release, and the PG 17 oracles
-// hold results that 18 changes, such as named NOT NULL constraints.
-var pg17Server struct {
-	once  sync.Once
-	dsn   *url.URL
-	admin *sql.DB
-	err   error
-}
-
-func startPG17Server(ctx context.Context) (err error) {
-	// testcontainers-go panics from MustExtractDockerHost when the Docker
-	// socket is reachable but access is denied.
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("docker provider panic: %v", r)
-		}
-	}()
-	container, err := tcpg.Run(ctx, "postgres:17-alpine",
-		tcpg.WithDatabase("omni_admin"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
-	if err != nil {
-		return fmt.Errorf("container start: %w", err)
-	}
-	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		return fmt.Errorf("conn string: %w", err)
-	}
-	if pg17Server.dsn, err = url.Parse(connStr); err != nil {
-		return fmt.Errorf("conn string %q: %w", connStr, err)
-	}
-	if pg17Server.admin, err = sql.Open("pgx", connStr); err != nil {
-		return fmt.Errorf("db open: %w", err)
-	}
-	return pg17Server.admin.PingContext(ctx)
-}
-
-// pg17Database creates the named database on the PostgreSQL 17 server, started
-// on first use, and returns a pool of connections to it.
-func pg17Database(ctx context.Context, name string) (*sql.DB, error) {
-	pg17Server.once.Do(func() { pg17Server.err = startPG17Server(ctx) })
-	if pg17Server.err != nil {
-		return nil, pg17Server.err
-	}
-	if _, err := pg17Server.admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
-		return nil, fmt.Errorf("create database %s: %w", name, err)
-	}
-	dsn := *pg17Server.dsn
-	dsn.Path = "/" + name
-	db, err := sql.Open("pgx", dsn.String())
-	if err != nil {
-		return nil, fmt.Errorf("db open: %w", err)
-	}
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ping: %w", err)
-	}
-	return db, nil
+	return &pgContainer{db: testcontainer.Open(t), ctx: context.Background()}
 }
 
 // execSQL executes a SQL statement on the PG container.
@@ -137,11 +47,13 @@ func truncateSQL(sqlStr string, maxLen int) string {
 // Schema isolation helpers
 // ---------------------------------------------------------------------------
 
-// freshSchema creates a new uniquely-named schema and registers cleanup.
+// freshSchema creates a new uniquely-named schema and registers cleanup. The
+// name counts the schemas of this connection, so a test sends the same names
+// whatever ran before it.
 func (o *pgContainer) freshSchema(t *testing.T) string {
 	t.Helper()
-	n := pgSchemaCounter.Add(1)
-	name := fmt.Sprintf("test_%d", n)
+	o.schemas++
+	name := fmt.Sprintf("test_%d", o.schemas)
 	o.execSQL(t, fmt.Sprintf("DROP SCHEMA IF EXISTS %q CASCADE", name))
 	o.execSQL(t, fmt.Sprintf("CREATE SCHEMA %q", name))
 	t.Cleanup(func() {
