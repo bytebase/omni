@@ -170,6 +170,11 @@ func migrationProbes() []migrationProbe {
 		{"modify-add-autoinc", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)"},
+		// A column leaves the primary key, widens and becomes nullable, and a new index
+		// needs the width: only NULL waits for the key, the rest of the MODIFY runs first.
+		{"modify-pk-member-widen-and-null", "t",
+			"CREATE TABLE t (id INT NOT NULL, a VARCHAR(5) NOT NULL, PRIMARY KEY (id, a))",
+			"CREATE TABLE t (id INT NOT NULL, a VARCHAR(20), PRIMARY KEY (id), KEY ka (a(10)))"},
 		{"modify-generated-expr", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED)",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED)"},
@@ -178,6 +183,11 @@ func migrationProbes() []migrationProbe {
 		{"modify-generated-expr-indexed", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))"},
+		// An index stores the column: DROP COLUMN takes it out of the STORING, so that index
+		// is dropped and added again too.
+		{"modify-generated-expr-stored-by-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED, KEY k (a) STORING (g))",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED, KEY k (a) STORING (g))"},
 		// A CHECK reads the column, so it cannot be dropped: the plan keeps the MODIFY and
 		// warns, and OceanBase refuses it (obRefused).
 		{"modify-generated-expr-under-check", "t",

@@ -75,9 +75,9 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 }
 
 // indexOpsForModifiedTable emits ADD / DROP / (DROP+ADD) ops from the per-index diff of a
-// modified table, and a DROP and an ADD for an index the diff leaves alone that is over a
+// modified table, and a DROP and an ADD for an index the diff leaves alone that holds a
 // column the plan drops and adds again (recreatedColumns): DROP COLUMN takes the column
-// out of the index, or the index with it.
+// out of the index's key or its STORING, or the index with it.
 func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
@@ -131,11 +131,17 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 	return ops
 }
 
-// indexReadsAny reports whether idx has a key part over one of the columns, named or, for
-// an expression part, found in its text.
+// indexReadsAny reports whether idx holds one of the columns: as a key part, named or, for
+// an expression part, found in its text, or as a column it stores. DROP COLUMN takes a
+// stored column out of the index's STORING as it takes a key part out of the key.
 func indexReadsAny(idx *Index, columns map[string]bool) bool {
 	if len(columns) == 0 {
 		return false
+	}
+	for _, name := range idx.Storing {
+		if columns[toLower(name)] {
+			return true
+		}
 	}
 	for _, ic := range idx.Columns {
 		if columns[toLower(ic.Name)] {

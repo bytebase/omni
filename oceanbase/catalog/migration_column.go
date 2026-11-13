@@ -27,7 +27,8 @@ import (
 //   - A column of the primary key is not dropped (1235, drop rowkey column) and not made
 //     nullable (1171) while the key holds it, and a column the partitioning reads is not
 //     dropped (3855). Such a change waits for the statement that replaces the key or the
-//     partitioning (columnsThatWait, priorityColumnAfterKeys).
+//     partitioning (columnsThatWait, priorityColumnAfterKeys). Of a MODIFY only NULL
+//     waits: the rest of it is made at once (modifyKeepingNotNull).
 //   - A spatial column becomes NOT NULL only from nullable (1138): ADD COLUMN ... NOT NULL
 //     is refused even on an empty table, and so is any MODIFY of a column that is NOT NULL
 //     already. It is added, or modified, nullable first and then made NOT NULL
@@ -100,10 +101,14 @@ func generateColumnDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migrati
 				mods := modifyColumnOps(entry, table, col, n)
 				switch {
 				case waits.null(name) && col.To.Nullable:
-					if name == losing {
-						plain := *col.From
-						plain.AutoIncrement = false
-						ops = append(ops, releaseAutoIncrementOp(entry, table, entry.From, &plain, n))
+					// Only NULL waits for the key. Whatever else changes is made now, with
+					// the column still NOT NULL: an index added before the key is replaced
+					// may need the new type, and another column the AUTO_INCREMENT.
+					if early, changes := modifyKeepingNotNull(entry, table, col, n); changes || name == losing {
+						if name == losing {
+							early.Priority = priorityAutoIncrementRelease
+						}
+						ops = append(ops, early)
 					}
 					for i := range mods {
 						mods[i].Priority = priorityColumnAfterKeys
@@ -215,10 +220,26 @@ func modifyColumnOp(entry *TableDiffEntry, table string, tbl *Table, col *Column
 	}
 }
 
-// releaseAutoIncrementOp builds the MODIFY that takes AUTO_INCREMENT off a column ahead of
-// the statement that changes the column for good, for a column whose own change waits
-// (columnsThatWait) while another column takes the attribute. plain is the column as it
-// stands in between: as it was, without AUTO_INCREMENT.
+// modifyKeepingNotNull builds the MODIFY of a column that is to become nullable once the
+// primary key lets go of it, with everything the change brings but NULL, and reports
+// whether that differs from the column as it stands. The column's new type, default and
+// attributes are then in place for the statements that run before the key is replaced, and
+// the MODIFY that follows the key changes nullability alone. A default of NULL waits with
+// it: a NOT NULL column cannot have one.
+func modifyKeepingNotNull(entry *TableDiffEntry, table string, col ColumnDiffEntry, n *Normalizer) (MigrationOp, bool) {
+	notNull := *col.To
+	notNull.Nullable = false
+	if notNull.Default != nil && strings.EqualFold(strings.TrimSpace(*notNull.Default), "NULL") {
+		notNull.Default = nil
+	}
+	changes := formatColumnDefinition(entry.From, col.From, n) != formatColumnDefinition(entry.To, &notNull, n)
+	return modifyColumnOp(entry, table, entry.To, &notNull, n), changes
+}
+
+// releaseAutoIncrementOp builds the MODIFY that takes AUTO_INCREMENT off a column that is
+// to be dropped, ahead of the drop, which waits (columnsThatWait) while another column
+// takes the attribute. plain is the column as it stands in between: as it was, without
+// AUTO_INCREMENT.
 func releaseAutoIncrementOp(entry *TableDiffEntry, table string, tbl *Table, plain *Column, n *Normalizer) MigrationOp {
 	op := modifyColumnOp(entry, table, tbl, plain, n)
 	op.Priority = priorityAutoIncrementRelease
