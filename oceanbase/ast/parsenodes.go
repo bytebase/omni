@@ -1451,7 +1451,16 @@ type ExplainStmt struct {
 	Extended      bool   // EXPLAIN EXTENDED
 	Partitions    bool   // EXPLAIN PARTITIONS
 	ForConnection int64  // EXPLAIN FOR CONNECTION: no OceanBase syntax sets this
-	Stmt          StmtNode
+	// Type is the plan type word: BASIC, OUTLINE, EXTENDED, EXTENDED_NOADDR,
+	// PLANREGRESS or PARTITIONS. Extended and Partitions repeat two of them.
+	Type string
+	// Display is PRETTY or PRETTY_COLOR.
+	Display string
+	// Into is the plan table of EXPLAIN INTO, and StatementID the literal of
+	// SET STATEMENT_ID = literal.
+	Into        string
+	StatementID ExprNode
+	Stmt        StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}

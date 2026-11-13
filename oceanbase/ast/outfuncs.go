@@ -1153,6 +1153,19 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Partitions {
 		sb.WriteString(" :partitions true")
 	}
+	if n.Type != "" && n.Type != "EXTENDED" && n.Type != "PARTITIONS" {
+		fmt.Fprintf(sb, " :type %s", n.Type)
+	}
+	if n.Display != "" {
+		fmt.Fprintf(sb, " :display %s", n.Display)
+	}
+	if n.Into != "" {
+		fmt.Fprintf(sb, " :into %s", n.Into)
+	}
+	if n.StatementID != nil {
+		sb.WriteString(" :statement_id ")
+		writeNode(sb, n.StatementID)
+	}
 	if n.Format != "" {
 		fmt.Fprintf(sb, " :format %s", n.Format)
 	}

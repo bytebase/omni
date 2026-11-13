@@ -11500,53 +11500,53 @@ accept	accept	engine	explain_stmt/explain_or_desc_explainable_stmt	EXPLAIN SELEC
 reject	reject	engine	explain_stmt/explain_or_desc_explainable_stmt!drop-3	EXPLAIN SELECT
 accept	accept	engine	explain_stmt/explain_or_desc_explainable_stmt!insert	EXPLAIN SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_explainable_stmt!swap	EXPORT SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt	EXPLAIN PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt	EXPLAIN PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!drop-1	PRETTY SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!drop-3	EXPLAIN PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!drop-4	EXPLAIN PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!insert	EXPLAIN PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!insert	EXPLAIN PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_explainable_stmt!swap	EXPORT PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt	EXPLAIN PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt	EXPLAIN PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!drop-1	PRETTY_COLOR SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!drop-3	EXPLAIN PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PRETTY_COLOR_explainable_stmt!swap	EXPORT PRETTY_COLOR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt	EXPLAIN BASIC SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt	EXPLAIN BASIC SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!drop-1	BASIC SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!drop-3	EXPLAIN BASIC a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!drop-4	EXPLAIN BASIC SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!insert	EXPLAIN BASIC SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!insert	EXPLAIN BASIC SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_explainable_stmt!swap	EXPORT BASIC SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt	EXPLAIN BASIC PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt	EXPLAIN BASIC PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!drop-1	BASIC PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!drop-4	EXPLAIN BASIC PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!drop-5	EXPLAIN BASIC PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!insert	EXPLAIN BASIC PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!insert	EXPLAIN BASIC PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_explainable_stmt!swap	EXPORT BASIC PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt	EXPLAIN BASIC PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt	EXPLAIN BASIC PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!drop-1	BASIC PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN BASIC PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN BASIC PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN BASIC PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN BASIC PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_BASIC_PRETTY_COLOR_explainable_stmt!swap	EXPORT BASIC PRETTY_COLOR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt	EXPLAIN OUTLINE SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt	EXPLAIN OUTLINE SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!drop-1	OUTLINE SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!drop-3	EXPLAIN OUTLINE a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!drop-4	EXPLAIN OUTLINE SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!insert	EXPLAIN OUTLINE SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!insert	EXPLAIN OUTLINE SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_explainable_stmt!swap	EXPORT OUTLINE SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt	EXPLAIN OUTLINE PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt	EXPLAIN OUTLINE PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!drop-1	OUTLINE PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!drop-4	EXPLAIN OUTLINE PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!drop-5	EXPLAIN OUTLINE PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!insert	EXPLAIN OUTLINE PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!insert	EXPLAIN OUTLINE PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_explainable_stmt!swap	EXPORT OUTLINE PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt	EXPLAIN OUTLINE PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt	EXPLAIN OUTLINE PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!drop-1	OUTLINE PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN OUTLINE PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN OUTLINE PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN OUTLINE PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN OUTLINE PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_OUTLINE_PRETTY_COLOR_explainable_stmt!swap	EXPORT OUTLINE PRETTY_COLOR SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt	EXPLAIN EXTENDED SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt!drop-1	EXTENDED SELECT a
@@ -11554,53 +11554,53 @@ accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt!drop
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt!drop-4	EXPLAIN EXTENDED SELECT
 accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt!insert	EXPLAIN EXTENDED SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_explainable_stmt!swap	EXPORT EXTENDED SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt	EXPLAIN EXTENDED PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt	EXPLAIN EXTENDED PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!drop-1	EXTENDED PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!drop-4	EXPLAIN EXTENDED PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!drop-5	EXPLAIN EXTENDED PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!insert	EXPLAIN EXTENDED PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!insert	EXPLAIN EXTENDED PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_explainable_stmt!swap	EXPORT EXTENDED PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt	EXPLAIN EXTENDED PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt	EXPLAIN EXTENDED PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!drop-1	EXTENDED PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN EXTENDED PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN EXTENDED PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN EXTENDED PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN EXTENDED PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_PRETTY_COLOR_explainable_stmt!swap	EXPORT EXTENDED PRETTY_COLOR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt	EXPLAIN EXTENDED_NOADDR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt	EXPLAIN EXTENDED_NOADDR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!drop-1	EXTENDED_NOADDR SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!drop-3	EXPLAIN EXTENDED_NOADDR a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!drop-4	EXPLAIN EXTENDED_NOADDR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_explainable_stmt!swap	EXPORT EXTENDED_NOADDR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt	EXPLAIN EXTENDED_NOADDR PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt	EXPLAIN EXTENDED_NOADDR PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!drop-1	EXTENDED_NOADDR PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!drop-4	EXPLAIN EXTENDED_NOADDR PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!drop-5	EXPLAIN EXTENDED_NOADDR PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_explainable_stmt!swap	EXPORT EXTENDED_NOADDR PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!drop-1	EXTENDED_NOADDR PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN EXTENDED_NOADDR PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_EXTENDED_NOADDR_PRETTY_COLOR_explainable_stmt!swap	EXPORT EXTENDED_NOADDR PRETTY_COLOR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt	EXPLAIN PLANREGRESS SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt	EXPLAIN PLANREGRESS SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!drop-1	PLANREGRESS SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!drop-3	EXPLAIN PLANREGRESS a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!drop-4	EXPLAIN PLANREGRESS SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!insert	EXPLAIN PLANREGRESS SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!insert	EXPLAIN PLANREGRESS SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_explainable_stmt!swap	EXPORT PLANREGRESS SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt	EXPLAIN PLANREGRESS PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt	EXPLAIN PLANREGRESS PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!drop-1	PLANREGRESS PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!drop-4	EXPLAIN PLANREGRESS PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!drop-5	EXPLAIN PLANREGRESS PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!insert	EXPLAIN PLANREGRESS PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!insert	EXPLAIN PLANREGRESS PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_explainable_stmt!swap	EXPORT PLANREGRESS PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt	EXPLAIN PLANREGRESS PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt	EXPLAIN PLANREGRESS PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!drop-1	PLANREGRESS PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN PLANREGRESS PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN PLANREGRESS PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PLANREGRESS PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PLANREGRESS PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PLANREGRESS_PRETTY_COLOR_explainable_stmt!swap	EXPORT PLANREGRESS PRETTY_COLOR SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt	EXPLAIN PARTITIONS SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt!drop-1	PARTITIONS SELECT a
@@ -11608,19 +11608,19 @@ accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt!dr
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt!drop-4	EXPLAIN PARTITIONS SELECT
 accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt!insert	EXPLAIN PARTITIONS SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_explainable_stmt!swap	EXPORT PARTITIONS SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt	EXPLAIN PARTITIONS PRETTY SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt	EXPLAIN PARTITIONS PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!drop-1	PARTITIONS PRETTY SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!drop-4	EXPLAIN PARTITIONS PRETTY a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!drop-5	EXPLAIN PARTITIONS PRETTY SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!insert	EXPLAIN PARTITIONS PRETTY SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!insert	EXPLAIN PARTITIONS PRETTY SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_explainable_stmt!swap	EXPORT PARTITIONS PRETTY SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt	EXPLAIN PARTITIONS PRETTY_COLOR SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt	EXPLAIN PARTITIONS PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!drop-1	PARTITIONS PRETTY_COLOR SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!drop-4	EXPLAIN PARTITIONS PRETTY_COLOR a
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!drop-5	EXPLAIN PARTITIONS PRETTY_COLOR SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PARTITIONS PRETTY_COLOR SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!insert	EXPLAIN PARTITIONS PRETTY_COLOR SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_PARTITIONS_PRETTY_COLOR_explainable_stmt!swap	EXPORT PARTITIONS PRETTY_COLOR SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt	EXPLAIN SET STATEMENT_ID = 's' SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt	EXPLAIN SET STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-1	SET STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-2	EXPLAIN STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-3	EXPLAIN SET = 's' SELECT a
@@ -11628,17 +11628,17 @@ reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_liter
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-5	EXPLAIN SET STATEMENT_ID = SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-6	EXPLAIN SET STATEMENT_ID = 's' a
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-7	EXPLAIN SET STATEMENT_ID = 's' SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!insert	EXPLAIN SET STATEMENT_ID = 's' SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!insert	EXPLAIN SET STATEMENT_ID = 's' SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!swap	EXPORT SET STATEMENT_ID = 's' SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt	EXPLAIN INTO a SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt	EXPLAIN INTO a SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!drop-1	INTO a SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!drop-2	EXPLAIN a SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!drop-3	EXPLAIN INTO SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!drop-4	EXPLAIN INTO a a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!drop-5	EXPLAIN INTO a SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!insert	EXPLAIN INTO a SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!insert	EXPLAIN INTO a SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_explainable_stmt!swap	EXPORT INTO a SELECT a
-reject	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt	EXPLAIN INTO a SET STATEMENT_ID = 's' SELECT a
+accept	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt	EXPLAIN INTO a SET STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-1	INTO a SET STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-2	EXPLAIN a SET STATEMENT_ID = 's' SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-3	EXPLAIN INTO SET STATEMENT_ID = 's' SELECT a
@@ -11648,7 +11648,7 @@ reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEME
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-7	EXPLAIN INTO a SET STATEMENT_ID = SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-8	EXPLAIN INTO a SET STATEMENT_ID = 's' a
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!drop-9	EXPLAIN INTO a SET STATEMENT_ID = 's' SELECT
-reject	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!insert	EXPLAIN INTO a SET STATEMENT_ID = 's' SELECT a zzz
+accept	accept	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!insert	EXPLAIN INTO a SET STATEMENT_ID = 's' SELECT a zzz
 reject	reject	engine	explain_stmt/explain_or_desc_INTO_relation_name_SET_STATEMENT_ID_COMP_EQ_literal_explainable_stmt!swap	EXPORT INTO a SET STATEMENT_ID = 's' SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_FORMAT_COMP_EQ_format_name_explainable_stmt	EXPLAIN FORMAT = TRADITIONAL SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_FORMAT_COMP_EQ_format_name_explainable_stmt!drop-1	FORMAT = TRADITIONAL SELECT a
@@ -11696,7 +11696,7 @@ reject	reject	engine	format_name/TRADITIONAL!swap	EXPLAIN FORMAT = TRAILING SELE
 accept	accept	engine	format_name/JSON	EXPLAIN FORMAT = JSON SELECT a
 reject	reject	engine	format_name/JSON!insert	EXPLAIN FORMAT = JSON zzz SELECT a
 reject	reject	engine	format_name/JSON!swap	EXPLAIN FORMAT = JSON_ARRAYAGG SELECT a
-reject	accept	engine	format_name/OBJECT_NAME_DISPLAY	EXPLAIN FORMAT = OBJECT_NAME_DISPLAY SELECT a
+accept	accept	engine	format_name/OBJECT_NAME_DISPLAY	EXPLAIN FORMAT = OBJECT_NAME_DISPLAY SELECT a
 reject	reject	engine	format_name/OBJECT_NAME_DISPLAY!insert	EXPLAIN FORMAT = OBJECT_NAME_DISPLAY zzz SELECT a
 reject	reject	engine	format_name/OBJECT_NAME_DISPLAY!swap	EXPLAIN FORMAT = OBSOLETE SELECT a
 accept	accept	engine	get_diagnostics_stmt/get_condition_diagnostics_stmt	GET DIAGNOSTICS CONDITION 1 @v = CLASS_ORIGIN

@@ -410,6 +410,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Select)
 		}
 	case *ExplainStmt:
+		Walk(v, n.StatementID)
 		Walk(v, n.Stmt)
 	case *ExtractExpr:
 		Walk(v, n.Expr)
