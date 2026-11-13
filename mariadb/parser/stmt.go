@@ -339,34 +339,16 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
-	// Options may be multi-word (e.g. RESET QUERY CACHE) or comma-separated.
-	// Require at least one reset option.
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+	// reset_option's last arm is QUERY CACHE, both words (reset in MariaDB
+	// 11.8 sql/sql_yacc.yy).
+	if p.cur.Type != kwQUERY {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
-	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
-			break
-		}
-		// Reset option words must accept any keyword (e.g., QUERY CACHE).
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Options = append(stmt.Options, name)
-		} else {
-			break
-		}
-		// Consume optional comma separator between options
-		if p.cur.Type == ',' {
-			p.advance()
-		}
+	p.advance()
+	if _, err := p.expect(kwCACHE); err != nil {
+		return nil, err
 	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: []string{"QUERY CACHE"}}, nil
 }
 
 // parseStopDispatch dispatches STOP statements.

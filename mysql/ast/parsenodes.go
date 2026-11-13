@@ -2592,6 +2592,7 @@ type InstallComponentStmt struct {
 	Loc        Loc
 	Components []string      // component names (string literals)
 	SetVars    []*Assignment // optional SET variable = expr list
+	SetScopes  []string      // each SetVars entry's GLOBAL or PERSIST, "" when none
 }
 
 func (s *InstallComponentStmt) nodeTag()  {}

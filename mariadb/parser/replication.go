@@ -809,8 +809,15 @@ func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, erro
 func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) {
 	start := p.pos()
 	p.advance() // consume PURGE
-	p.advance() // consume BINARY or MASTER
-	p.advance() // consume LOGS
+	// PURGE {BINARY | MASTER} LOGS {TO 'log' | BEFORE expr}, whole.
+	//
+	// Ref: purge in MariaDB 11.8 sql/sql_yacc.yy.
+	if _, ok := p.match(kwBINARY, kwMASTER); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwLOGS); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.PurgeBinaryLogsStmt{
 		Loc: nodes.Loc{Start: start},
@@ -818,10 +825,10 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.cur.Type == tokSCONST {
-			stmt.To = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.To = p.advance().Str
 	} else if p.cur.Type == kwBEFORE {
 		p.advance() // consume BEFORE
 		expr, err := p.parseExpr()
@@ -832,6 +839,8 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.BeforeExpr = expr
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -853,8 +862,13 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		// ulonglong_num: any number, read by its whole part.
-		if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+		// opt_plus ulong_num: a number, required, or a 0x number.
+		p.match('+')
+		if p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x") {
+			stmt.To = replicationInt(p.advance())
+		} else if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return nil, p.syntaxErrorAtCur()
+		} else {
 			stmt.To = p.cur.Ival
 			p.advance()
 		}
