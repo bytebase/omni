@@ -570,6 +570,11 @@ func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 		}, nil
 	}
 
+	// JSON_OBJECT '(' func_arg_list ')' with a named argument first.
+	if p.startsNamedFuncArg() {
+		return p.parseSpecialFuncArgCall("pg_catalog", "json_object")
+	}
+
 	// We need to disambiguate:
 	// 1. Legacy: JSON_OBJECT(func_arg_list) - args separated by commas, no VALUE or ':'
 	// 2. SQL/JSON: JSON_OBJECT(key VALUE val, ...) or JSON_OBJECT(key : val, ...)

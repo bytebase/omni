@@ -43,6 +43,14 @@ func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
 	if left == nil {
 		return nil, nil
 	}
+	return p.parseAExprTail(left, loc, minPrec)
+}
+
+// parseAExprTail applies to left, an a_expr operand that starts at loc,
+// the infix and postfix operators of precedence minPrec or higher that
+// follow it, as parseAExpr does after its operand.
+func (p *Parser) parseAExprTail(left nodes.Node, loc, minPrec int) (nodes.Node, error) {
+	var err error
 	for {
 		if p.collectMode() {
 			// Emit all infix operators with precedence >= minPrec.
@@ -2439,9 +2447,21 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 	// alternative. In the general expression grammar SIMILAR also starts the
 	// `SIMILAR TO` operator, so stop before precIn operators here and let the
 	// substring-specific branch below consume SIMILAR as a delimiter.
+	firstLoc := p.pos()
 	first, err := p.parseRequiredAExpr(precIn + 1)
 	if err != nil {
 		return nil, err
+	}
+	// Anything but substr_list's delimiters continues the first argument as
+	// a full a_expr: SUBSTRING '(' func_arg_list_opt ')' takes one
+	// (substring(true OR false) calls a user function).
+	switch {
+	case p.cur.Type == FROM, p.cur.Type == FOR, p.cur.Type == ',', p.cur.Type == ')':
+	case p.cur.Type == SIMILAR && p.peekNext().Type != TO:
+	default:
+		if first, err = p.parseAExprTail(first, firstLoc, 0); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check for SQL-standard syntax with FROM/FOR/SIMILAR
@@ -3497,10 +3517,10 @@ func (p *Parser) startsNamedFuncArg() bool {
 	return next.Type == COLON_EQUALS || next.Type == EQUALS_GREATER
 }
 
-// parseSpecialFuncArgCall finishes OVERLAY '(' func_arg_list_opt ')' or
-// SUBSTRING '(' func_arg_list_opt ')', a plain call of the function named,
-// after its '('.
-func (p *Parser) parseSpecialFuncArgCall(name string) (nodes.Node, error) {
+// parseSpecialFuncArgCall finishes OVERLAY '(' func_arg_list_opt ')',
+// SUBSTRING '(' func_arg_list_opt ')' or JSON_OBJECT '(' func_arg_list ')',
+// a plain call of the function named, after its '('.
+func (p *Parser) parseSpecialFuncArgCall(name ...string) (nodes.Node, error) {
 	args, err := p.parseFuncArgListFull()
 	if err != nil {
 		return nil, err
@@ -3509,7 +3529,7 @@ func (p *Parser) parseSpecialFuncArgCall(name string) (nodes.Node, error) {
 		return nil, err
 	}
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName(name),
+		Funcname:   makeFuncName(name...),
 		Args:       args,
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 		Loc:        nodes.NoLoc(),
