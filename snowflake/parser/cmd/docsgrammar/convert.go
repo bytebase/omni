@@ -46,6 +46,9 @@ func placeholderClass(name string) string {
 		return tObjectTypes
 	case n == "copy_statement":
 		return tCopy
+	case n == "timestamp" || n == "function_definition" || n == "procedure_definition" || n == "yaml_definition":
+		// START_TIMESTAMP = '2026-11-13'; AS '<body>' or $$<body>$$.
+		return tString
 	case runtimeVersion.MatchString(n):
 		// RUNTIME_VERSION = '3.10': a runtime's version is a string.
 		return tString
@@ -694,7 +697,15 @@ func (c *converter) seq(seq []*node) (string, error) {
 
 func (c *converter) node(n *node) (string, error) {
 	if n.tok != nil {
-		return c.token(*n.tok)
+		s, err := c.token(*n.tok)
+		if err != nil || n.op == 0 || s == "" {
+			return s, err
+		}
+		// intoClause [ ... ]: a repeated token keeps its operator.
+		if strings.ContainsAny(s, " ()") {
+			s = "(" + s + ")"
+		}
+		return s + string(n.op), nil
 	}
 	// An empty alternative, { A | B | }, is a | left before the brace, as
 	// the SHOW pages' IN lists have: it adds nothing to choose.

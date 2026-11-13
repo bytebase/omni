@@ -257,6 +257,15 @@ func TestABareValueChoiceIsTheValues(t *testing.T) {
 	}
 }
 
+// TestARepeatedFragmentKeepsItsOperator pins intoClause [ ... ]: the
+// fragment repeats.
+func TestARepeatedFragmentKeepsItsOperator(t *testing.T) {
+	pg := convertPage("insert-multi-table", []string{"INSERT ALL intoClause [ ... ] <subquery>", "intoClause ::=\n  INTO <target_table>"}, nil)
+	if len(pg.forms) != 1 || pg.forms[0] != "'INSERT' 'ALL' insertMultiTable_intoClause+ QUERY" {
+		t.Errorf("forms %q, failed %+v", pg.forms, pg.failed)
+	}
+}
+
 func TestFixesApplyToTheirPage(t *testing.T) {
 	fixes := []*fix{{page: "get", find: "'<p>''", replace: "'<p>'", reason: "a quote too many"}}
 	pg := convertPage("get", []string{"GET <s> [ PATTERN = '<p>'' ]"}, fixes)
@@ -271,6 +280,7 @@ func TestPlaceholderClasses(t *testing.T) {
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
 		"sql":       tQuery,
+		"timestamp": tString, "procedure_definition": tString,
 		"threshold": tNumber,
 		"col1_type": tType, "specification_text": tString,
 		"python_version": tString, "scala_or_java_runtime_version": tString, "version_name": tName,
