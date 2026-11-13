@@ -37,6 +37,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"AS SELECT <query>", "'AS' QUERY"},
 		{"F ( [ <arg_name> <arg_data_type> [ , ... ] ] )", "'F' '(' (ID DATA_TYPE (',' ID DATA_TYPE)*)? ')'"},
 		{"UPDATE <t> SET <col_name> = <value> [ , ... ]", "'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)*"},
+		// Optional clauses with commas between: one or more, a comma between each two.
+		{"ALTER T <name> SET [ A = <num> ], [ B = <num> ] [ C = <num> ], [ D ],", "'ALTER' 'T' ID 'SET' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D') (',' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D'))*"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.
@@ -225,6 +227,16 @@ ALTER TABLE <name> ADD COLUMN <col_name> <col_type>`}, nil)
 	want := []string{"'CREATE' 'TABLE' ID '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE"}
 	if strings.Join(pg.forms, "\n") != strings.Join(want, "\n") {
 		t.Errorf("forms:\n%s", strings.Join(pg.forms, "\n"))
+	}
+}
+
+// TestABareValueChoiceIsTheValues pins a line KEY = A | B with no
+// brackets: the choice is the value's, inside a statement form too.
+func TestABareValueChoiceIsTheValues(t *testing.T) {
+	pg := convertPage("create-security-integration", []string{"CREATE SECURITY INTEGRATION <name>\n  TYPE = OAUTH\n  OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'\n  OAUTH_REDIRECT_URI = '<uri>'"}, nil)
+	want := "'CREATE' 'SECURITY' 'INTEGRATION' ID 'TYPE' '=' 'OAUTH' 'OAUTH_CLIENT_TYPE' '=' ('\\'CONFIDENTIAL\\'' | '\\'PUBLIC\\'') 'OAUTH_REDIRECT_URI' '=' STRING"
+	if len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
 	}
 }
 

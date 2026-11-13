@@ -392,7 +392,51 @@ func resolveSeq(seq []*node) ([]*node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return atLeastOneAfterSet(out), nil
+	return atLeastOneAfterSet(commaOptions(out)), nil
+}
+
+// commaOptions reads optional clauses separated by commas,
+//
+//	SET [ A = 1 ], [ B = 2 ], [ C = 3 ]
+//
+// as a list of one or more of them with a comma between each two, which
+// is what the commas say: a comma may stand only between clauses that are
+// there. A comma the docs leave out between two clauses changes nothing.
+func commaOptions(seq []*node) []*node {
+	isOpt := func(n *node) bool { return n.tok == nil && !n.brace && n.op == '?' }
+	for i := 0; i < len(seq); i++ {
+		if !isOpt(seq[i]) {
+			continue
+		}
+		j, commas := i, 0
+		var opts []*node
+		for j < len(seq) {
+			if isOpt(seq[j]) {
+				opts = append(opts, seq[j])
+				j++
+				continue
+			}
+			if isComma(seq[j]) && j+1 < len(seq) && isOpt(seq[j+1]) {
+				commas++
+				j++
+				continue
+			}
+			if isComma(seq[j]) && j+1 == len(seq) {
+				j++ // a comma left after the last clause
+			}
+			break
+		}
+		if commas < 2 {
+			continue
+		}
+		choice := &node{brace: true}
+		for _, o := range opts {
+			choice.alts = append(choice.alts, o.alts...)
+		}
+		out := append(append([]*node(nil), seq[:i]...), choice, repeatAfterComma(choice))
+		return append(out, seq[j:]...)
+	}
+	return seq
 }
 
 // atLeastOneAfterSet reads SET or UNSET followed only by optional parts as

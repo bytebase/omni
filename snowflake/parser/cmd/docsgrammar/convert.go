@@ -247,6 +247,9 @@ type failure struct {
 
 var errUndefined = errors.New("undefined")
 
+// valueChoiceLine is a line that is KEY = A | B, with no bracket on it.
+var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\[\]{}\n]*\|[^\[\]{}\n]*?)\s*$`)
+
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
@@ -270,6 +273,11 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 		if f.used {
 			pg.fixes = append(pg.fixes, f.reason)
 		}
+	}
+	for i, b := range blocks {
+		// A line that sets a property to one of several values, with no
+		// bracket to say so: OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'.
+		blocks[i] = valueChoiceLine.ReplaceAllString(b, "$1$2{ $3 }")
 	}
 	for i, b := range blocks {
 		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {
