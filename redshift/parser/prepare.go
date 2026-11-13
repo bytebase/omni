@@ -86,7 +86,7 @@ func (p *Parser) parseDeallocateStmt() (nodes.Node, error) {
 	p.advance() // consume DEALLOCATE
 
 	// Optional PREPARE keyword, or the name prepare
-	if p.cur.Type == PREPARE && p.keywordLeads(func(t Token) bool { return t.Type == ALL || isColIdToken(t) }) {
+	if p.cur.Type == PREPARE && p.keywordLeads(isDeallocateTargetStart) {
 		p.advance()
 	}
 

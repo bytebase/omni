@@ -60,6 +60,24 @@ func (p *Parser) isTypeFunctionName() bool {
 	return false
 }
 
+// isNonReservedWord returns true if the current token can be used as a NonReservedWord.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) isNonReservedWord() bool {
+	if p.collectMode() {
+		p.addTokenCandidate(IDENT)
+		p.addKeywordsByCategory(UnreservedKeyword, ColNameKeyword, TypeFuncNameKeyword)
+		return true
+	}
+	if p.cur.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
+	}
+	return false
+}
+
 // isColIdToken reports whether tok, the token after the current one, can be
 // a ColId: IDENT, an unreserved keyword or a column name keyword.
 func isColIdToken(tok Token) bool {
@@ -101,6 +119,17 @@ func (p *Parser) keywordLeads(goesOn func(Token) bool) bool {
 //	ColId: IDENT | unreserved_keyword | col_name_keyword
 func (p *Parser) parseColId() (string, error) {
 	if p.isColId() {
+		tok := p.advance()
+		return tok.Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseNonReservedWord parses a NonReservedWord, the name of a role among others.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) parseNonReservedWord() (string, error) {
+	if p.isNonReservedWord() {
 		tok := p.advance()
 		return tok.Str, nil
 	}

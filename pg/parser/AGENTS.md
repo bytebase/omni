@@ -38,6 +38,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `isOptTableQualifiedNameStart`, `isTempStart`, `isDeallocateTargetStart` | TABLE or a ColId; `tempLeadTokens` (2); ALL or a ColId | take a `Token` (the one after the current), for `keywordLeads` | No — each is a category or a short list; `TestKeywordLeadPredicates` checks the whole `Keywords` table |
 | `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
 
 `startsTableConstraint` is the call-site form of `isTableConstraintStart`. EXCLUDE is the one unreserved lead, so it starts a constraint only when `USING` or `(` follows it, and names a column otherwise (`CREATE TABLE t (exclude int)`).
@@ -181,7 +182,7 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 - `create_table.go` — `parseTableElement` and `parseTypedTableElement` use `startsTableConstraint`
 - `alter_table.go` — `parseAlterTableAdd` uses `startsTableConstraint`
 - `parser.go` — `isCreateTableElement` delegates to `startsTableConstraint`
-- `select.go` — `parseSelectOptions` uses `isSelectLimitStart`
+- `select.go` — `parseSelectOptions` uses `isSelectLimitStart`; `parseOptTempTableName` uses `isOptTableQualifiedNameStart` and `isTempStart` through `keywordLeads`
 - `copy.go` — `parsePreparableStmt` uses `isSelectStart`
 - `publication.go` — `parseRuleActionStmt` uses `isSelectStart` with WITH preserved
 - `expr.go` — `isAExprConstTypeCast` is a one-line wrapper around `isConstTypenameStart`; also defines `isSelectStart`

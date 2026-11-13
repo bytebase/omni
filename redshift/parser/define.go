@@ -1124,7 +1124,10 @@ func (p *Parser) parseAlterDefaultPrivilegesStmt(stmtLoc int) (nodes.Node, error
 			if p.cur.Type == ROLE || p.cur.Type == USER {
 				p.advance()
 			}
-			roles := p.parseRoleList()
+			roles, err := p.parseRoleList()
+			if err != nil {
+				return nil, err
+			}
 			optItems = append(optItems, &nodes.DefElem{Defname: "roles", Arg: roles, Loc: nodes.NoLoc()})
 		} else {
 			break
@@ -1165,7 +1168,10 @@ func (p *Parser) parseDefACLGrantAction() (*nodes.GrantStmt, error) {
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	grantees := p.parseGranteeList()
+	grantees, err := p.parseGranteeList()
+	if err != nil {
+		return nil, err
+	}
 	grantOption := false
 	if p.cur.Type == WITH {
 		p.advance()
@@ -1177,7 +1183,10 @@ func (p *Parser) parseDefACLGrantAction() (*nodes.GrantStmt, error) {
 		}
 		grantOption = true
 	}
-	grantor := p.parseOptGrantedBy()
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Privileges: privs, Targtype: nodes.ACL_TARGET_DEFAULTS,
 		Objtype: nodes.ObjectType(objtype), Grantees: grantees,
@@ -1208,8 +1217,14 @@ func (p *Parser) parseDefACLRevokeAction() (*nodes.GrantStmt, error) {
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees := p.parseGranteeList()
-	grantor := p.parseOptGrantedBy()
+	grantees, err := p.parseGranteeList()
+	if err != nil {
+		return nil, err
+	}
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 	return &nodes.GrantStmt{
 		IsGrant: false, GrantOption: grantOption, Privileges: privs,
@@ -1294,7 +1309,10 @@ func (p *Parser) parseAlterStatisticsStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_STATISTIC_EXT,
 			Object:     defnames,
@@ -1382,7 +1400,10 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 			if _, err := p.expect(TO); err != nil {
 				return nil, err
 			}
-			roleSpec := p.parseRoleSpec()
+			roleSpec, err := p.parseRoleSpec()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.AlterOwnerStmt{ObjectType: objtype, Object: object, Newowner: roleSpec}, nil
 		}
 		if p.cur.Type == RENAME {
@@ -1447,7 +1468,10 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_OPERATOR,
 			Object:     owa,

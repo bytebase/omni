@@ -1,5 +1,7 @@
 package parser
 
+import "slices"
+
 // simpleTypenameLeadTokens is the single source of truth for tokens that
 // unambiguously start a SimpleTypename production (excluding GenericType
 // which is covered by the type_function_name category check).
@@ -265,6 +267,40 @@ var selectLimitLeadSet = func() map[int]bool {
 // checks the predicate against the whole Keywords table instead.
 func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
+}
+
+// isOptTableQualifiedNameStart reports whether tok, the token after TEMP,
+// TEMPORARY or UNLOGGED in OptTempTableName, starts opt_table
+// qualified_name: TABLE or a ColId. Otherwise the keyword is the table's
+// name (SELECT INTO temp).
+//
+// Grammar reference: OptTempTableName and opt_table in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is TABLE
+// and isColIdToken's categories, which TestKeywordLeadPredicates checks
+// against the whole Keywords table.
+func isOptTableQualifiedNameStart(tok Token) bool {
+	return tok.Type == TABLE || isColIdToken(tok)
+}
+
+// tempLeadTokens is what makes LOCAL or GLOBAL lead OptTempTableName's
+// LOCAL TEMP and GLOBAL TEMP forms; before anything else LOCAL or GLOBAL is
+// the table's name.
+//
+// DO NOT extend this list without also extending parseOptTempTableName.
+var tempLeadTokens = []int{TEMPORARY, TEMP}
+
+// isTempStart reports whether tok is one of tempLeadTokens.
+func isTempStart(tok Token) bool {
+	return slices.Contains(tempLeadTokens, tok.Type)
+}
+
+// isDeallocateTargetStart reports whether tok, the token after PREPARE in
+// DeallocateStmt, starts its target: ALL or a name. Otherwise PREPARE is the
+// name (DEALLOCATE prepare).
+//
+// Grammar reference: DeallocateStmt in postgres/src/backend/parser/gram.y.
+func isDeallocateTargetStart(tok Token) bool {
+	return tok.Type == ALL || isColIdToken(tok)
 }
 
 // isFuncTypeStart reports whether the current token starts a func_type

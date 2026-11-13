@@ -42,7 +42,10 @@ func (p *Parser) parseAlterFdwStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_FDW,
 			Object:     &nodes.String{Str: name},
@@ -210,7 +213,10 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_FOREIGN_SERVER,
 			Object:     &nodes.String{Str: name},
@@ -459,9 +465,9 @@ func (p *Parser) parseCreateUserMappingIfNotExistsStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
@@ -485,9 +491,9 @@ func (p *Parser) parseAlterUserMappingStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
@@ -518,9 +524,9 @@ func (p *Parser) parseDropUserMappingStmt() (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	user := p.parseAuthIdent()
-	if user == nil {
-		return nil, p.syntaxErrorAtCur()
+	user, err := p.parseAuthIdent()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
@@ -534,12 +540,12 @@ func (p *Parser) parseDropUserMappingStmt() (nodes.Node, error) {
 	}, nil
 }
 
-func (p *Parser) parseAuthIdent() *nodes.RoleSpec {
+func (p *Parser) parseAuthIdent() (*nodes.RoleSpec, error) {
 	if p.cur.Type == USER {
 		p.advance()
 		return &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CURRENT_USER),
-		}
+		}, nil
 	}
 	return p.parseRoleSpec()
 }
