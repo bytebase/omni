@@ -1,79 +1,44 @@
-package main
+package docs
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"unicode"
 )
 
-// Token classes a placeholder stands for. tokens.tsv samples each one.
+// Token classes the notation itself spells, whatever a dialect's
+// placeholders stand for. tokens.tsv samples each class a grammar uses.
 const (
-	tName        = "ID"
-	tString      = "STRING"
-	tNumber      = "NUMBER"
-	tExpr        = "EXPR"
-	tQuery       = "QUERY"
-	tType        = "DATA_TYPE"
-	tStage       = "STAGE"
-	tPosition    = "POSITION"
-	tObjectType  = "OBJECT_TYPE"
-	tObjectTypes = "OBJECT_TYPES"
-	tFile        = "FILE"
-	tCopy        = "COPY_STATEMENT"
+	ClassName     = "ID"
+	ClassString   = "STRING"
+	ClassNumber   = "NUMBER"
+	ClassExpr     = "EXPR"
+	ClassQuery    = "QUERY"
+	ClassDataType = "DATA_TYPE"
+	ClassStage    = "STAGE"    // @<stage>
+	ClassPosition = "POSITION" // $<col_position>
+	ClassFile     = "FILE"     // file://<path>
 )
 
-var (
-	exprName       = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
-	numberName     = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms|threshold)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
-	queryName      = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|sql|sql_statement)$`)
-	typeName       = regexp.MustCompile(`(^|_)(data_type|col[0-9]*_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
-	runtimeVersion = regexp.MustCompile(`(python|java|scala|jdk|runtime)[a-z_]*_version$|^runtime_version$`)
-	stringName     = regexp.MustCompile(`(^|_|-)(string|literal|text)(_?[0-9]+|_|-|$)`)
+const (
+	tName     = ClassName
+	tString   = ClassString
+	tNumber   = ClassNumber
+	tQuery    = ClassQuery
+	tStage    = ClassStage
+	tPosition = ClassPosition
+	tFile     = ClassFile
 )
 
-// placeholderClass returns the token class a <placeholder> stands for, by
-// its name. Anything not recognised as an expression, number, query, data
-// type or string is a name.
-func placeholderClass(name string) string {
-	n := strings.ToLower(name)
-	switch {
-	case n == "object_type":
-		return tObjectType
-	case n == "object_type_plural":
-		return tObjectTypes
-	case n == "copy_statement":
-		return tCopy
-	case n == "timestamp" || n == "function_definition" || n == "procedure_definition" || n == "yaml_definition":
-		// START_TIMESTAMP = '2026-11-13'; AS '<body>' or $$<body>$$.
-		return tString
-	case runtimeVersion.MatchString(n):
-		// RUNTIME_VERSION = '3.10': a runtime's version is a string.
-		return tString
-	case queryName.MatchString(n):
-		return tQuery
-	case typeName.MatchString(n):
-		return tType
-	case exprName.MatchString(n):
-		return tExpr
-	case stringName.MatchString(n):
-		return tString
-	case strings.Contains(n, "name") || strings.Contains(n, "identifier"):
-		return tName
-	case numberName.MatchString(n):
-		return tNumber
-	}
-	return tName
-}
-
-// A fix is one hand correction of a page's syntax text, from
+// A Fix is one hand correction of a page's syntax text, from
 // docs-fixes.tsv: the docs are prose, and some blocks do not read as
-// notation as written.
-type fix struct {
-	page, find, replace, reason string
-	used                        bool
+// notation as written. Every occurrence of Find on Page is replaced, and
+// Used records that one was.
+type Fix struct {
+	Page, Find, Replace, Reason string
+	Used                        bool
 }
 
 // A unit is one statement form or one ::= definition of a page.
@@ -91,30 +56,6 @@ type codeLine struct {
 }
 
 var defHead = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(\([^)]*\))?\s*::=\s*`)
-
-// statementWords returns the words a statement form on a page can start
-// with: its slug's first word, in each spelling Snowflake takes, WITH, and
-// the DDL verbs, which a page about one statement may show another of (the
-// constraint page's CREATE TABLE and ALTER TABLE). None of them starts a
-// clause.
-func statementWords(slug string) map[string]bool {
-	first, _, _ := strings.Cut(slug, "-")
-	words := map[string]bool{strings.ToUpper(first): true, "WITH": true}
-	for _, w := range []string{"CREATE", "ALTER", "DROP", "UNDROP", "SHOW", "DESC", "DESCRIBE", "GRANT", "REVOKE"} {
-		words[w] = true
-	}
-	for _, same := range [][]string{{"DESC", "DESCRIBE"}, {"LS", "LIST"}, {"RM", "REMOVE"}, {"BEGIN", "START"}} {
-		for _, w := range same {
-			if words[w] {
-				for _, v := range same {
-					words[v] = true
-				}
-				break
-			}
-		}
-	}
-	return words
-}
 
 // splitUnits splits a page's blocks into statement forms and definitions.
 // A form starts on a line outside any bracket that is not indented and
@@ -263,25 +204,22 @@ var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
-// missingBar finds the typo many SHOW pages share: the IN list's
-// <schema_name> line has no | before the APPLICATION lines after it.
-var missingBar = regexp.MustCompile(`(<schema_name>)[ \t]*\n((?:[ \t]*\n)*[ \t]*APPLICATION )`)
-
-// convertPage converts one page.
-func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
-	pg := pageGrammar{slug: slug, url: docsSite + "/sql-reference/sql/" + slug, rule: ruleName(slug)}
+// convertPage converts one page of d's docs: slug names it in fixes, url
+// is cited above its rules.
+func convertPage(d *Dialect, slug, url string, blocks []string, fixes []*Fix) pageGrammar {
+	pg := pageGrammar{slug: slug, url: url, rule: d.ruleName(slug)}
 	for _, f := range fixes {
-		if f.page != slug {
+		if f.Page != slug {
 			continue
 		}
 		for i, b := range blocks {
-			if strings.Contains(b, f.find) {
-				blocks[i] = strings.ReplaceAll(b, f.find, f.replace)
-				f.used = true
+			if strings.Contains(b, f.Find) {
+				blocks[i] = strings.ReplaceAll(b, f.Find, f.Replace)
+				f.Used = true
 			}
 		}
-		if f.used {
-			pg.fixes = append(pg.fixes, f.reason)
+		if f.Used {
+			pg.fixes = append(pg.fixes, f.Reason)
 		}
 	}
 	for i, b := range blocks {
@@ -297,13 +235,10 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			return m[1] + m[2] + "{ " + m[3] + " }"
 		})
 	}
-	for i, b := range blocks {
-		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {
-			blocks[i] = fixed
-			pg.fixes = append(pg.fixes, "read: the IN list's <schema_name> line has no | before APPLICATION; one is read there")
-		}
+	if d.Prepare != nil {
+		pg.fixes = append(pg.fixes, d.Prepare(slug, blocks)...)
 	}
-	units := splitUnits(blocks, statementWords(slug))
+	units := splitUnits(blocks, d.StatementWords(slug))
 
 	// Definitions first: forms refer to them by name. A name defined twice,
 	// as cloudProviderParams (for Amazon S3) and (for Google Cloud Storage)
@@ -319,7 +254,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 		}
 		defs[u.def] = append(defs[u.def], u)
 	}
-	c := &converter{page: pg.rule, defs: map[string]bool{}}
+	c := &converter{d: d, slug: slug, page: pg.rule, defs: map[string]bool{}}
 	for _, name := range defOrder {
 		c.defs[name] = true
 	}
@@ -447,9 +382,9 @@ func dedupe(xs []string) []string {
 	return out
 }
 
-// ruleName turns a page's slug into a parser rule name: alter-warehouse is
-// alterWarehouse.
-func ruleName(slug string) string {
+// RuleName turns a page's slug into a parser rule name: alter-warehouse is
+// alterWarehouse. It is a Dialect's rule name unless the Dialect gives one.
+func RuleName(slug string) string {
 	parts := strings.FieldsFunc(slug, func(r rune) bool { return r == '-' || r == '_' })
 	for i := 1; i < len(parts); i++ {
 		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
@@ -458,6 +393,8 @@ func ruleName(slug string) string {
 }
 
 type converter struct {
+	d    *Dialect
+	slug string
 	page string
 	defs map[string]bool // fragments the page defines and that converted
 }
@@ -499,13 +436,19 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 		depth += bracketDepth(l.text)
 	}
 	var code []string
+	var sections [][]string // the code between comments
 	commented := false
 	for _, it := range items {
 		if it.comment {
 			commented = true
+			sections = append(sections, nil)
 			continue
 		}
 		code = append(code, it.text)
+		if len(sections) == 0 {
+			sections = append(sections, nil)
+		}
+		sections[len(sections)-1] = append(sections[len(sections)-1], it.text)
 	}
 	properties := len(code) >= 2 && !variant
 	for _, t := range code {
@@ -528,8 +471,19 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 		}
 		return []string{"(" + strings.Join(dedupe(alts), " | ") + ")+"}, nil
 	case commented && len(code) >= 2:
+		// Each line between comments is a variant, or the lines are one
+		// where a variant needs several, as a whole GRANT form does: a
+		// section whose first line starts a statement the page shows.
+		var variants []string
+		for _, sec := range sections {
+			if len(sec) > 1 && startsForm(strings.TrimSpace(sec[0]), c.d.StatementWords(c.slug)) {
+				variants = append(variants, strings.Join(sec, "\n"))
+				continue
+			}
+			variants = append(variants, sec...)
+		}
 		var alts []string
-		for _, t := range code {
+		for _, t := range variants {
 			a, err := c.form(t)
 			if err != nil {
 				return nil, err
@@ -627,7 +581,7 @@ func isName(n *node) bool {
 }
 
 func (c *converter) convert(text string, statement bool) ([]string, error) {
-	toks, err := lexNotation(text)
+	toks, err := lexNotation(text, c.d.Classify)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +602,7 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 		if next < len(toks) && toks[next].kind == nClose && i > 0 && toks[i-1].kind == nOpen {
 			next++ // [ <integration_type> ] INTEGRATION
 		}
-		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && placeholderClass(t.text) == tName &&
+		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && c.d.Classify(t.text) == tName &&
 			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
 			next < len(toks) && toks[next].kind == nKeyword {
 			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
@@ -657,21 +611,22 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	// REFRESH_INTERVAL_SECONDS = <value>: a value a key names as a count of
 	// time units, or a count, is a number, whatever the placeholder says.
 	for i, t := range toks {
-		if t.kind == nPlaceholder && placeholderClass(t.text) == tName && i >= 2 && isLiteral(toks[i-1], "=") &&
+		if t.kind == nPlaceholder && c.d.Classify(t.text) == tName && i >= 2 && isLiteral(toks[i-1], "=") &&
 			toks[i-2].kind == nKeyword && countKey.MatchString(toks[i-2].text) {
 			toks[i].text = "num"
 		}
 	}
 	// KEY = with nothing after it is a value the docs left out; an = alone
-	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign.
+	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign, and one
+	// alone in a choice, SET <parameter> { TO | = } <value>, a choice of sign.
 	for i, t := range toks {
-		if isLiteral(t, "=") && i > 0 && toks[i-1].kind != nOpen && (i+1 == len(toks) || toks[i+1].kind == nClose || toks[i+1].kind == nBar) {
+		if isLiteral(t, "=") && i > 0 && toks[i-1].kind != nOpen && toks[i-1].kind != nBar && (i+1 == len(toks) || toks[i+1].kind == nClose || toks[i+1].kind == nBar) {
 			return nil, fmt.Errorf("an = with no value after it")
 		}
 	}
 	// AS SELECT <query>: the query's sample starts with its own SELECT.
 	for i := len(toks) - 2; i >= 0; i-- {
-		if toks[i].kind == nKeyword && toks[i].text == "SELECT" && toks[i+1].kind == nPlaceholder && placeholderClass(toks[i+1].text) == tQuery {
+		if toks[i].kind == nKeyword && toks[i].text == "SELECT" && toks[i+1].kind == nPlaceholder && c.d.Classify(toks[i+1].text) == tQuery {
 			toks = append(toks[:i], toks[i+1:]...)
 		}
 	}
@@ -769,10 +724,15 @@ func (c *converter) token(t ntok) (string, error) {
 	case nTerminal:
 		return t.text, nil
 	case nPlaceholder:
+		if def, ok := c.defs[t.text]; ok && !def {
+			// A value the page defines, where option is:, whose definition
+			// did not convert.
+			return "", fmt.Errorf("%w fragment %q: it did not convert", errUndefined, t.text)
+		}
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
 		}
-		return placeholderClass(t.text), nil
+		return c.d.Classify(t.text), nil
 	case nFragment:
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
@@ -823,22 +783,12 @@ func quote(s string) string {
 	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s) + "'"
 }
 
-// writeG4 writes the grammar: a statement rule naming every page's rule,
+// writeG4 writes d's grammar: its header, a statement rule naming every page's rule,
 // then each page's rules under its URL, and what was not converted.
-func writeG4(pin string, pages []pageGrammar) string {
+func writeG4(d *Dialect, pin string, pages []pageGrammar) string {
 	var b strings.Builder
-	b.WriteString(`// Snowflake's SQL command reference as an ANTLR 4 grammar: the Syntax
-// sections of the pages https://docs.snowflake.com/en/sql-reference/sql-all
-// lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
-// correct a page's text in docs-fixes.tsv and run the converter again.
-//
-// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
-// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
-// values the docs write as <placeholders>; tokens.tsv samples them. A
-// form a page writes with ... for text it leaves out, or with a word it
-// never defines, is not converted and is listed under its page.
-`)
-	fmt.Fprintf(&b, "//\n// pin: %s\n\ngrammar SnowflakeDocs;\n\nstatement\n", pin)
+	b.WriteString(d.Header)
+	fmt.Fprintf(&b, "//\n// pin: %s\n\ngrammar %s;\n\nstatement\n", pin, d.Grammar)
 	first := true
 	for _, pg := range pages {
 		if len(pg.forms) == 0 {
@@ -887,16 +837,4 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 		fmt.Fprintf(b, "%s %s\n", lead, a)
 	}
 	b.WriteString("    ;\n")
-}
-
-// classes lists the token classes a grammar uses, for the report.
-func classes(g4 string) []string {
-	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes, tFile, tCopy} {
-		if containsWord(g4, c) {
-			out = append(out, c)
-		}
-	}
-	sort.Strings(out)
-	return out
 }

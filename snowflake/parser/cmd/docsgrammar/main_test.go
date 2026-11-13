@@ -3,12 +3,13 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/enginetest/grammar/docs"
 )
 
 func form(t *testing.T, notation string) string {
 	t.Helper()
-	c := &converter{page: "p", defs: map[string]bool{}}
-	alts, err := c.form(notation)
+	alts, err := docs.Form(dialect, notation)
 	if err != nil {
 		t.Fatalf("%s: %v", notation, err)
 	}
@@ -100,8 +101,7 @@ func TestSetSetsAtLeastOne(t *testing.T) {
 // statement form: a choice of what follows the object's name, not of
 // whole statements.
 func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
-	c := &converter{page: "p", defs: map[string]bool{}}
-	alts, err := c.statement("ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
+	alts, err := docs.Statement(dialect, "ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	alts, err = c.statement("ALTER INTEGRATION <name> UNSET ENABLED | COMMENT")
+	alts, err = docs.Statement(dialect, "ALTER INTEGRATION <name> UNSET ENABLED | COMMENT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	alts, err = c.statement("ALTER P <name> SET A = <num> | B = <num>")
+	alts, err = docs.Statement(dialect, "ALTER P <name> SET A = <num> | B = <num>")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,45 +125,44 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	if _, err := c.statement("SHOW TASKS | SUSPEND"); err != errScope {
-		t.Errorf("a choice with no name to scope it: got %v, want errScope", err)
+	if _, err := docs.Statement(dialect, "SHOW TASKS | SUSPEND"); err != docs.ErrScope {
+		t.Errorf("a choice with no name to scope it: got %v, want docs.ErrScope", err)
 	}
 }
 
 func TestElidedTextIsNotConverted(t *testing.T) {
-	c := &converter{page: "p", defs: map[string]bool{}}
 	// A lowercase word is a value beside = or |, and an undefined fragment
 	// anywhere else.
-	if _, err := c.form("API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
+	if _, err := docs.Form(dialect, "API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
 		t.Errorf("lowercase values: %v", err)
 	}
-	if _, err := c.form("{ TYPE = app | TYPE = OAUTH2 oauth_parameters | TYPE = NONE }"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+	if _, err := docs.Form(dialect, "{ TYPE = app | TYPE = OAUTH2 oauth_parameters | TYPE = NONE }"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
 		t.Errorf("an undefined lowercase fragment: got %v", err)
 	}
-	if _, err := c.form("( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+	if _, err := docs.Form(dialect, "( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
 		t.Errorf("a lowercase word alone in braces: got %v", err)
 	}
-	if _, err := c.form("CREATE S <name> [ RETENTION = ] [ COMMENT = '<s>' ]"); err == nil {
+	if _, err := docs.Form(dialect, "CREATE S <name> [ RETENTION = ] [ COMMENT = '<s>' ]"); err == nil {
 		t.Errorf("an = with no value was converted")
 	}
-	if _, err := c.form("ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
+	if _, err := docs.Form(dialect, "ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
 		t.Errorf("an optional = sign: %v", err)
 	}
-	if _, err := c.form("CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
+	if _, err := docs.Form(dialect, "CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
 		t.Errorf("a placeholder for a type's keyword was converted")
 	}
-	if _, err := c.form("ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>"); err == nil {
+	if _, err := docs.Form(dialect, "ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>"); err == nil {
 		t.Errorf("a bracketed placeholder for a type's keyword was converted")
 	}
-	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
+	if got, err := docs.Form(dialect, "SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}
 	for _, in := range []string{"SELECT * ILIKE ... REPLACE ...", "[ ... ] SELECT 1", "VALUES ( ... )"} {
-		if _, err := c.form(in); err != errElided {
-			t.Errorf("%s: got %v, want errElided", in, err)
+		if _, err := docs.Form(dialect, in); err != docs.ErrElided {
+			t.Errorf("%s: got %v, want docs.ErrElided", in, err)
 		}
 	}
-	if _, err := c.form("ALTER X { tableAction }"); err == nil || !strings.Contains(err.Error(), "tableAction") {
+	if _, err := docs.Form(dialect, "ALTER X { tableAction }"); err == nil || !strings.Contains(err.Error(), "tableAction") {
 		t.Errorf("an undefined fragment: got %v", err)
 	}
 }
@@ -185,20 +184,20 @@ ALTER WAREHOUSE [ IF EXISTS ] <name> RENAME TO <new_name>`,
 -- For another
   C`,
 	}
-	pg := convertPage("alter-warehouse", blocks, nil)
-	if len(pg.failed) > 0 {
-		t.Fatalf("not converted: %+v", pg.failed)
+	pg := docs.ConvertPage(dialect, "alter-warehouse", blocks, nil)
+	if len(pg.Failed) > 0 {
+		t.Fatalf("not converted: %+v", pg.Failed)
 	}
 	want := []string{
 		"'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID 'SET' (alterWarehouse_objectProperties alterWarehouse_objectParams? | alterWarehouse_objectParams)",
 		"'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID",
 	}
-	if strings.Join(pg.forms, "\n") != strings.Join(want, "\n") {
-		t.Errorf("forms:\n%s\nwant:\n%s", strings.Join(pg.forms, "\n"), strings.Join(want, "\n"))
+	if strings.Join(pg.Forms, "\n") != strings.Join(want, "\n") {
+		t.Errorf("forms:\n%s\nwant:\n%s", strings.Join(pg.Forms, "\n"), strings.Join(want, "\n"))
 	}
 	frags := map[string]string{}
-	for _, f := range pg.frags {
-		frags[f.name] = strings.Join(f.alts, " | ")
+	for _, f := range pg.Frags {
+		frags[f.Name] = strings.Join(f.Alts, " | ")
 	}
 	// One property per line: any number of them, each NAME = its choice.
 	if got, want := frags["alterWarehouse_objectProperties"], "('WAREHOUSE_SIZE' '=' ('XSMALL' | 'SMALL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE'))+"; got != want {
@@ -214,12 +213,12 @@ ALTER WAREHOUSE [ IF EXISTS ] <name> RENAME TO <new_name>`,
 // variant, name (for X) ::=, needs every line it lists, where an unnamed
 // list of properties is any number of them.
 func TestVariantParametersAreRequired(t *testing.T) {
-	pg := convertPage("create-catalog-integration-delta-sharing", []string{
+	pg := docs.ConvertPage(dialect, "create-catalog-integration-delta-sharing", []string{
 		"CREATE CATALOG INTEGRATION <name> REST_AUTHENTICATION = ( restAuthenticationParams )",
 		"restAuthenticationParams (for Bearer token) ::=\n  TYPE = BEARER\n  BEARER_TOKEN = '<bearer_token>'",
 	}, nil)
-	if len(pg.frags) != 1 || strings.Join(pg.frags[0].alts, " | ") != "'TYPE' '=' 'BEARER' 'BEARER_TOKEN' '=' STRING" {
-		t.Errorf("fragments %+v, failed %+v", pg.frags, pg.failed)
+	if len(pg.Frags) != 1 || strings.Join(pg.Frags[0].Alts, " | ") != "'TYPE' '=' 'BEARER' 'BEARER_TOKEN' '=' STRING" {
+		t.Errorf("fragments %+v, failed %+v", pg.Frags, pg.Failed)
 	}
 }
 
@@ -227,18 +226,18 @@ func TestVariantParametersAreRequired(t *testing.T) {
 // clauses continue its form, and ALTER TABLE's indented forms each start
 // one.
 func TestFormsStartAtTheStatementWord(t *testing.T) {
-	pg := convertPage("copy-into-table", []string{`/* Standard data load */
+	pg := docs.ConvertPage(dialect, "copy-into-table", []string{`/* Standard data load */
 COPY INTO <t>
      FROM <s>
 [ PATTERN = '<regex_pattern>' ]
 [ VALIDATION_MODE = RETURN_ERRORS ]`}, nil)
-	if len(pg.forms) != 1 || len(pg.failed) != 0 {
-		t.Errorf("COPY INTO: forms %q, failed %+v", pg.forms, pg.failed)
+	if len(pg.Forms) != 1 || len(pg.Failed) != 0 {
+		t.Errorf("COPY INTO: forms %q, failed %+v", pg.Forms, pg.Failed)
 	}
-	pg = convertPage("alter-table", []string{`   ALTER TABLE [ IF EXISTS ] <name> RENAME TO <new_table_name>
+	pg = docs.ConvertPage(dialect, "alter-table", []string{`   ALTER TABLE [ IF EXISTS ] <name> RENAME TO <new_table_name>
    ALTER TABLE [ IF EXISTS ] <name> SWAP WITH <target_table_name>`}, nil)
-	if len(pg.forms) != 2 {
-		t.Errorf("ALTER TABLE: forms %q", pg.forms)
+	if len(pg.Forms) != 2 {
+		t.Errorf("ALTER TABLE: forms %q", pg.Forms)
 	}
 }
 
@@ -246,62 +245,62 @@ COPY INTO <t>
 // line starts a form of its own, on a page about another statement, and
 // that a property named like one does not.
 func TestAPageMayShowAnotherStatement(t *testing.T) {
-	pg := convertPage("create-table-constraint", []string{`CREATE TABLE <name> ( <col_name> <col_type> )
+	pg := docs.ConvertPage(dialect, "create-table-constraint", []string{`CREATE TABLE <name> ( <col_name> <col_type> )
 COMMENT = '<string_literal>'
 ALTER TABLE <name> ADD COLUMN <col_name> <col_type>`}, nil)
 	want := []string{"'CREATE' 'TABLE' ID '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE"}
-	if strings.Join(pg.forms, "\n") != strings.Join(want, "\n") {
-		t.Errorf("forms:\n%s", strings.Join(pg.forms, "\n"))
+	if strings.Join(pg.Forms, "\n") != strings.Join(want, "\n") {
+		t.Errorf("forms:\n%s", strings.Join(pg.Forms, "\n"))
 	}
 }
 
 // TestABareValueChoiceIsTheValues pins a line KEY = A | B with no
 // brackets: the choice is the value's, inside a statement form too.
 func TestABareValueChoiceIsTheValues(t *testing.T) {
-	pg := convertPage("create-security-integration", []string{"CREATE SECURITY INTEGRATION <name>\n  TYPE = OAUTH\n  OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'\n  OAUTH_REDIRECT_URI = '<uri>'"}, nil)
+	pg := docs.ConvertPage(dialect, "create-security-integration", []string{"CREATE SECURITY INTEGRATION <name>\n  TYPE = OAUTH\n  OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'\n  OAUTH_REDIRECT_URI = '<uri>'"}, nil)
 	want := "'CREATE' 'SECURITY' 'INTEGRATION' ID 'TYPE' '=' 'OAUTH' 'OAUTH_CLIENT_TYPE' '=' ('\\'CONFIDENTIAL\\'' | '\\'PUBLIC\\'') 'OAUTH_REDIRECT_URI' '=' STRING"
-	if len(pg.forms) != 1 || pg.forms[0] != want {
-		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
+	if len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
 	}
 }
 
 // TestARepeatedFragmentKeepsItsOperator pins intoClause [ ... ]: the
 // fragment repeats.
 func TestARepeatedFragmentKeepsItsOperator(t *testing.T) {
-	pg := convertPage("insert-multi-table", []string{"INSERT ALL intoClause [ ... ] <subquery>", "intoClause ::=\n  INTO <target_table>"}, nil)
-	if len(pg.forms) != 1 || pg.forms[0] != "'INSERT' 'ALL' insertMultiTable_intoClause+ QUERY" {
-		t.Errorf("forms %q, failed %+v", pg.forms, pg.failed)
+	pg := docs.ConvertPage(dialect, "insert-multi-table", []string{"INSERT ALL intoClause [ ... ] <subquery>", "intoClause ::=\n  INTO <target_table>"}, nil)
+	if len(pg.Forms) != 1 || pg.Forms[0] != "'INSERT' 'ALL' insertMultiTable_intoClause+ QUERY" {
+		t.Errorf("forms %q, failed %+v", pg.Forms, pg.Failed)
 	}
 }
 
 // TestATrailingBarIsTheLists pins a list of names where one is written
 // with its value and the list's |: the | is not a choice of values.
 func TestATrailingBarIsTheLists(t *testing.T) {
-	pg := convertPage("alter-x", []string{"ALTER X <name> UNSET {\n    A |\n    B = <b> |\n    C }"}, nil)
-	if len(pg.forms) != 1 || pg.forms[0] != "'ALTER' 'X' ID 'UNSET' ('A' | 'B' '=' ID | 'C')" {
-		t.Errorf("forms %q, failed %+v", pg.forms, pg.failed)
+	pg := docs.ConvertPage(dialect, "alter-x", []string{"ALTER X <name> UNSET {\n    A |\n    B = <b> |\n    C }"}, nil)
+	if len(pg.Forms) != 1 || pg.Forms[0] != "'ALTER' 'X' ID 'UNSET' ('A' | 'B' '=' ID | 'C')" {
+		t.Errorf("forms %q, failed %+v", pg.Forms, pg.Failed)
 	}
 }
 
 func TestFixesApplyToTheirPage(t *testing.T) {
-	fixes := []*fix{{page: "get", find: "'<p>''", replace: "'<p>'", reason: "a quote too many"}}
-	pg := convertPage("get", []string{"GET <s> [ PATTERN = '<p>'' ]"}, fixes)
-	if !fixes[0].used || len(pg.forms) != 1 || len(pg.fixes) != 1 {
-		t.Errorf("forms %q, fixes %q, used %v", pg.forms, pg.fixes, fixes[0].used)
+	fixes := []*docs.Fix{{Page: "get", Find: "'<p>''", Replace: "'<p>'", Reason: "a quote too many"}}
+	pg := docs.ConvertPage(dialect, "get", []string{"GET <s> [ PATTERN = '<p>'' ]"}, fixes)
+	if !fixes[0].Used || len(pg.Forms) != 1 || len(pg.Fixes) != 1 {
+		t.Errorf("forms %q, fixes %q, used %v", pg.Forms, pg.Fixes, fixes[0].Used)
 	}
 }
 
 func TestPlaceholderClasses(t *testing.T) {
 	for name, want := range map[string]string{
-		"name": tName, "table_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
-		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
-		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
-		"sql":       tQuery,
-		"timestamp": tString, "procedure_definition": tString,
-		"threshold": tNumber,
-		"col1_type": tType, "specification_text": tString,
-		"python_version": tString, "scala_or_java_runtime_version": tString, "version_name": tName,
-		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,
+		"name": docs.ClassName, "table_name": docs.ClassName, "integer": docs.ClassNumber, "num": docs.ClassNumber, "rows": docs.ClassNumber,
+		"expr": docs.ClassExpr, "boolean_expr": docs.ClassExpr, "condition": docs.ClassExpr, "query": docs.ClassQuery,
+		"col_type": docs.ClassDataType, "arg_data_type": docs.ClassDataType, "string_literal": docs.ClassString, "copy_statement": tCopy,
+		"sql":       docs.ClassQuery,
+		"timestamp": docs.ClassString, "procedure_definition": docs.ClassString,
+		"threshold": docs.ClassNumber,
+		"col1_type": docs.ClassDataType, "specification_text": docs.ClassString,
+		"python_version": docs.ClassString, "scala_or_java_runtime_version": docs.ClassString, "version_name": docs.ClassName,
+		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": docs.ClassName,
 	} {
 		if got := placeholderClass(name); got != want {
 			t.Errorf("<%s> is %s, want %s", name, got, want)

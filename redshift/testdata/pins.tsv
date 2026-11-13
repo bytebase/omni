@@ -1,0 +1,6 @@
+# The docs this engine's committed answers come from. default judges compat.tsv:
+# the Syntax blocks of the pages its image (the command index) lists, their
+# SHA-256 as redshift/parser/cmd/docsgrammar reads them, and the date they
+# were read, which is the pin's source tag.
+# columns: role, image, digest, source tag
+default	https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html	sha256:7f3b2ea3e1081db8a627bff3caec95c79f80a05bb6eb5e04d0c6197dce438007	2026-11-13

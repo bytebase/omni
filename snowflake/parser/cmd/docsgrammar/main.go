@@ -12,144 +12,187 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"flag"
-	"fmt"
-	"net/http"
-	"os"
-	"path"
+	"html"
 	"path/filepath"
-	"sort"
+	"regexp"
 	"strings"
-	"time"
+
+	"github.com/bytebase/omni/enginetest/grammar/docs"
 )
 
-func main() {
-	cache := flag.String("cache", "", "read pages from, and keep fetched pages in, this directory")
-	testdata := flag.String("testdata", filepath.Join("snowflake", "testdata"), "the directory of SnowflakeDocs.g4, docs-fixes.tsv and pins.tsv")
-	date := flag.String("date", "", "the date the pages were read, when it is not today (UTC)")
-	flag.Parse()
+// Token classes of Snowflake's own placeholders, beside the ones every
+// docs grammar has (docs.ClassName and the rest).
+const (
+	tObjectType  = "OBJECT_TYPE"
+	tObjectTypes = "OBJECT_TYPES"
+	tCopy        = "COPY_STATEMENT"
+)
 
-	fixes, err := readFixes(filepath.Join(*testdata, "docs-fixes.tsv"))
-	if err != nil {
-		fail(err)
-	}
-	f := &fetcher{cache: *cache, client: &http.Client{Timeout: 60 * time.Second}, pause: 200 * time.Millisecond}
-	index, err := f.get(indexPath)
-	if err != nil {
-		fail(err)
-	}
-	digest := sha256.New()
-	var pages []pageGrammar
-	for _, p := range commandPages(index) {
-		doc, err := f.get(p)
-		if err != nil {
-			fail(err)
-		}
-		slug := path.Base(p)
-		blocks := syntaxBlocks(doc)
-		fmt.Fprintf(digest, "%s\n%s\n", slug, strings.Join(blocks, "\n\x00\n"))
-		pages = append(pages, convertPage(slug, blocks, fixes))
-	}
-	for _, fx := range fixes {
-		if !fx.used {
-			fail(fmt.Errorf("docs-fixes.tsv: %s: %q is not on the page any more", fx.page, fx.find))
-		}
-	}
-
-	pin, err := pinFor(filepath.Join(*testdata, "pins.tsv"), "sha256:"+hex.EncodeToString(digest.Sum(nil)), *date)
-	if err != nil {
-		fail(err)
-	}
-	g4 := writeG4(strings.ReplaceAll(pin, "\t", " "), pages)
-	if err := os.WriteFile(filepath.Join(*testdata, "SnowflakeDocs.g4"), []byte(g4), 0o644); err != nil {
-		fail(err)
-	}
-	report(pages)
+var dialect = &docs.Dialect{
+	Grammar:  "SnowflakeDocs",
+	Command:  "snowflake/parser/cmd/docsgrammar",
+	Testdata: filepath.Join("snowflake", "testdata"),
+	Header: `// Snowflake's SQL command reference as an ANTLR 4 grammar: the Syntax
+// sections of the pages https://docs.snowflake.com/en/sql-reference/sql-all
+// lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
+// correct a page's text in docs-fixes.tsv and run the converter again.
+//
+// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
+// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
+// values the docs write as <placeholders>; tokens.tsv samples them. A
+// form a page writes with ... for text it leaves out, or with a word it
+// never defines, is not converted and is listed under its page.
+`,
+	Site:           docsSite,
+	Index:          indexPath,
+	Pages:          commandPages,
+	Blocks:         syntaxBlocks,
+	Prepare:        prepare,
+	Classify:       placeholderClass,
+	StatementWords: statementWords,
 }
 
-// readFixes reads docs-fixes.tsv: page, text, replacement, reason. \n and
-// \t in the text and replacement stand for a newline and a tab.
-func readFixes(file string) ([]*fix, error) {
-	b, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	unescape := strings.NewReplacer(`\n`, "\n", `\t`, "\t")
-	var out []*fix
-	for i, line := range strings.Split(string(b), "\n") {
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+func main() { docs.Run(dialect) }
+
+// docsSite is where the command reference lives. The index lists every
+// command page by a link relative to the site root.
+const (
+	docsSite  = "https://docs.snowflake.com/en"
+	indexPath = "/sql-reference/sql-all"
+)
+
+var commandLink = regexp.MustCompile(`href="(/(?:en/)?sql-reference/sql/[a-z0-9_-]+)"`)
+
+// commandPages returns the command pages the index links to, in the
+// index's order, each once.
+func commandPages(index string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, m := range commandLink.FindAllStringSubmatch(index, -1) {
+		p := strings.TrimPrefix(m[1], "/en")
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
 		}
-		cols := strings.Split(line, "\t")
-		if len(cols) != 4 {
-			return nil, fmt.Errorf("%s:%d: want page, text, replacement and reason", file, i+1)
-		}
-		out = append(out, &fix{page: cols[0], find: unescape.Replace(cols[1]), replace: unescape.Replace(cols[2]), reason: cols[3]})
 	}
-	return out, nil
+	return out
 }
 
-// pinFor returns the default row of pins.tsv for blocks with digest, and
-// writes it: the pinned row as it is when the digest is the same, or a
-// row dated today (or date) when the docs changed.
-func pinFor(file, digest, date string) (string, error) {
-	header := "# The docs this engine's committed answers come from. default judges compat.tsv:\n" +
-		"# the Syntax blocks of the pages its image (the command index) lists, their\n" +
-		"# SHA-256 as snowflake/parser/cmd/docsgrammar reads them, and the date they\n" +
-		"# were read, which is the pin's source tag.\n" +
-		"# columns: role, image, digest, source tag\n"
-	if b, err := os.ReadFile(file); err == nil {
-		for _, line := range strings.Split(string(b), "\n") {
-			cols := strings.Split(line, "\t")
-			if len(cols) == 4 && cols[0] == "default" && cols[2] == digest && date == "" {
-				return line, nil
+var (
+	preBlock   = regexp.MustCompile(`(?s)<pre[^>]*>(.*?)</pre>`)
+	anyTag     = regexp.MustCompile(`(?s)<[^>]+>`)
+	nextH2     = regexp.MustCompile(`<h2[ >]`)
+	syntaxSecs = regexp.MustCompile(`data-section="syntax[a-z0-9-]*"`)
+)
+
+// syntaxBlocks returns the text of every code block in a page's Syntax
+// sections: Syntax, or Syntax for ... where a page has several, each from
+// its heading to the next second-level heading, so the subsections some
+// pages split their syntax into are included. A page with none, such as an
+// overview, returns none.
+func syntaxBlocks(doc string) []string {
+	var out []string
+	end := 0
+	for _, loc := range syntaxSecs.FindAllStringIndex(doc, -1) {
+		if loc[0] < end {
+			continue // a subsection of the section just read
+		}
+		sec := doc[loc[0]:]
+		// Skip the section's own <h2>, then stop at the next one.
+		if h := strings.Index(sec, "</h2>"); h >= 0 {
+			if j := nextH2.FindStringIndex(sec[h:]); j != nil {
+				sec = sec[:h+j[0]]
+			}
+		}
+		end = loc[0] + len(sec)
+		for _, m := range preBlock.FindAllStringSubmatch(sec, -1) {
+			text := html.UnescapeString(anyTag.ReplaceAllString(m[1], ""))
+			text = strings.ReplaceAll(text, "\u00a0", " ")
+			out = append(out, strings.TrimRight(text, " \n\t"))
+		}
+	}
+	return out
+}
+
+var (
+	exprName       = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
+	numberName     = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms|threshold)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
+	queryName      = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|sql|sql_statement)$`)
+	typeName       = regexp.MustCompile(`(^|_)(data_type|col[0-9]*_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
+	runtimeVersion = regexp.MustCompile(`(python|java|scala|jdk|runtime)[a-z_]*_version$|^runtime_version$`)
+	stringName     = regexp.MustCompile(`(^|_|-)(string|literal|text)(_?[0-9]+|_|-|$)`)
+)
+
+// placeholderClass returns the token class a <placeholder> stands for, by
+// its name. Anything not recognised as an expression, number, query, data
+// type or string is a name.
+func placeholderClass(name string) string {
+	n := strings.ToLower(name)
+	switch {
+	case n == "object_type":
+		return tObjectType
+	case n == "object_type_plural":
+		return tObjectTypes
+	case n == "copy_statement":
+		return tCopy
+	case n == "timestamp" || n == "function_definition" || n == "procedure_definition" || n == "yaml_definition":
+		// START_TIMESTAMP = '2026-11-13'; AS '<body>' or $$<body>$$.
+		return docs.ClassString
+	case runtimeVersion.MatchString(n):
+		// RUNTIME_VERSION = '3.10': a runtime's version is a string.
+		return docs.ClassString
+	case queryName.MatchString(n):
+		return docs.ClassQuery
+	case typeName.MatchString(n):
+		return docs.ClassDataType
+	case exprName.MatchString(n):
+		return docs.ClassExpr
+	case stringName.MatchString(n):
+		return docs.ClassString
+	case strings.Contains(n, "name") || strings.Contains(n, "identifier"):
+		return docs.ClassName
+	case numberName.MatchString(n):
+		return docs.ClassNumber
+	}
+	return docs.ClassName
+}
+
+// statementWords returns the words a statement form on a page can start
+// with: its slug's first word, in each spelling Snowflake takes, WITH, and
+// the DDL verbs, which a page about one statement may show another of (the
+// constraint page's CREATE TABLE and ALTER TABLE). None of them starts a
+// clause.
+func statementWords(slug string) map[string]bool {
+	first, _, _ := strings.Cut(slug, "-")
+	words := map[string]bool{strings.ToUpper(first): true, "WITH": true}
+	for _, w := range []string{"CREATE", "ALTER", "DROP", "UNDROP", "SHOW", "DESC", "DESCRIBE", "GRANT", "REVOKE"} {
+		words[w] = true
+	}
+	for _, same := range [][]string{{"DESC", "DESCRIBE"}, {"LS", "LIST"}, {"RM", "REMOVE"}, {"BEGIN", "START"}} {
+		for _, w := range same {
+			if words[w] {
+				for _, v := range same {
+					words[v] = true
+				}
+				break
 			}
 		}
 	}
-	if date == "" {
-		date = time.Now().UTC().Format("2006-01-02")
-	}
-	row := strings.Join([]string{"default", docsSite + indexPath, digest, date}, "\t")
-	return row, os.WriteFile(file, []byte(header+row+"\n"), 0o644)
+	return words
 }
 
-// report prints what was converted, and why the rest was not.
-func report(pages []pageGrammar) {
-	var withSyntax, withRule, forms, frags, failed int
-	reasons := map[string]int{}
-	for _, pg := range pages {
-		if len(pg.forms)+len(pg.failed) > 0 {
-			withSyntax++
-		}
-		if len(pg.forms) > 0 {
-			withRule++
-		}
-		forms += len(pg.forms)
-		frags += len(pg.frags)
-		failed += len(pg.failed)
-		for _, f := range pg.failed {
-			r := f.reason
-			if i := strings.Index(r, " fragment "); i >= 0 {
-				r = r[:i] + " fragment"
-			}
-			reasons[r]++
-		}
-	}
-	fmt.Printf("%d pages, %d with syntax, %d with a rule; %d alternatives, %d fragment rules; %d forms or definitions not converted\n",
-		len(pages), withSyntax, withRule, forms, frags, failed)
-	var rs []string
-	for r := range reasons {
-		rs = append(rs, r)
-	}
-	sort.Slice(rs, func(i, j int) bool { return reasons[rs[i]] > reasons[rs[j]] })
-	for _, r := range rs {
-		fmt.Printf("  %4d %s\n", reasons[r], r)
-	}
-}
+// missingBar finds the typo many SHOW pages share: the IN list's
+// <schema_name> line has no | before the APPLICATION lines after it.
+var missingBar = regexp.MustCompile(`(<schema_name>)[ \t]*\n((?:[ \t]*\n)*[ \t]*APPLICATION )`)
 
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "docsgrammar:", err)
-	os.Exit(1)
+// prepare corrects the typo many SHOW pages share.
+func prepare(_ string, blocks []string) []string {
+	var notes []string
+	for i, b := range blocks {
+		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {
+			blocks[i] = fixed
+			notes = append(notes, "read: the IN list's <schema_name> line has no | before APPLICATION; one is read there")
+		}
+	}
+	return notes
 }

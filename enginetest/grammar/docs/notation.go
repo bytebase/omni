@@ -1,4 +1,4 @@
-package main
+package docs
 
 import (
 	"fmt"
@@ -7,14 +7,8 @@ import (
 	"unicode"
 )
 
-// The Syntax blocks of Snowflake's reference are near-BNF:
-//
-//	ALTER WAREHOUSE [ IF EXISTS ] <name> SET TAG <tag_name> = '<tag_value>' [ , <tag_name> = '<tag_value>' ... ]
-//
-// Uppercase words are keywords, <placeholders> are values the reader
-// supplies, [ ] is optional, { a | b } is a choice, ... repeats, and a
-// lowercase word names a fragment the page defines below with ::=. Other
-// punctuation, ( ) included, is literal. This file reads that notation.
+// This file reads the notation the package comment describes, Snowflake's
+// as published: other docs are rewritten into it.
 
 // A ntok is one token of the notation.
 type ntok struct {
@@ -48,7 +42,7 @@ var (
 // lexNotation reads notation text into tokens. Comments (-- to the end of a
 // line, /* */) are dropped. A quoted string that holds a placeholder is a
 // STRING; $$ ... $$ is a STRING whatever it holds.
-func lexNotation(s string) ([]ntok, error) {
+func lexNotation(s string, classify func(string) string) ([]ntok, error) {
 	var out []ntok
 	rs := []rune(s)
 	n := len(rs)
@@ -145,7 +139,7 @@ func lexNotation(s string) ([]ntok, error) {
 					break
 				}
 				sample := "a"
-				if placeholderClass(strings.Trim(m, "<>")) == tNumber {
+				if classify(strings.Trim(m, "<>")) == tNumber {
 					sample = "1"
 				}
 				k := j + len([]rune(m))
