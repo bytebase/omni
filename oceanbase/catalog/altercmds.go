@@ -450,6 +450,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		return nil
 	}
 
+	if kind, ok := constraintKeyKind(con); ok {
+		if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+			return err
+		}
+	}
 	cols := extractColumnNames(con)
 	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
 	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
