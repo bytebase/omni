@@ -679,6 +679,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	// Process partition clause.
+	for _, opt := range stmt.Options {
+		if strings.EqualFold(opt.Name, "ttl") {
+			if err := checkTTL(tbl, opt); err != nil {
+				return err
+			}
+		}
+	}
 	if stmt.Partitions != nil {
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
