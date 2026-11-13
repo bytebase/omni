@@ -25,6 +25,13 @@ func TestClusterDDL(t *testing.T) {
 		{"ALTER RESOURCE POOL MERGE ('p1', 'p2') INTO ('p3')", "ALTER RESOURCE POOL", ""},
 		{"ALTER RESOURCE TENANT t1 UNIT_NUM = 2", "ALTER RESOURCE TENANT", "t1"},
 		{"DROP RESOURCE UNIT IF EXISTS u1", "DROP RESOURCE UNIT", "u1"},
+		// A variable's value is an expression before it is a bare BINARY.
+		{"CREATE TENANT t1 SET x = BINARY 'a', y = BINARY, z = ON", "CREATE TENANT", "t1"},
+		{"ALTER TENANT t1 VARIABLES x = BINARY 'a'", "ALTER TENANT", "t1"},
+		// A user variable is one value, quoted or not.
+		{"CREATE TENANT t1 PRIMARY_ZONE = @'zone', REPLICA_NUM = 1", "CREATE TENANT", "t1"},
+		{"ALTER TENANT t1 PRIMARY_ZONE = @\"zone\"", "ALTER TENANT", "t1"},
+		{"ALTER TENANT t1 PRIMARY_ZONE = @zone", "ALTER TENANT", "t1"},
 	} {
 		list, err := Parse(tc.sql)
 		if err != nil {
@@ -45,6 +52,8 @@ func TestClusterDDL(t *testing.T) {
 		"ALTER TENANT t1 SET", // the same
 		"CREATE TENANT",
 		"CREATE RESOURCE UNIT u1 MAX_CPU",
+		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1", // a clone takes two options
+		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1, UNIT u1, UNIT u2", // and no more
 		"DROP RESOURCE GROUP g1", // MySQL's, which OceanBase has not
 	} {
 		if _, err := Parse(sql); err == nil {
