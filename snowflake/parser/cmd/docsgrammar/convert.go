@@ -452,6 +452,94 @@ func typeOptions(blocks []string) ([]string, bool) {
 	return res, true
 }
 
+// objectSection starts a section of accountObjectPrivileges for one kind
+// of object: -- For WAREHOUSE.
+var objectSection = regexp.MustCompile(`^\s*--\s*For\s+([A-Z][A-Z ]*[A-Z])\s*$`)
+
+// objectPrivilegesRef grants account-object privileges on a choice of
+// object types, as GRANT and REVOKE write it.
+var objectPrivilegesRef = regexp.MustCompile(`\{ accountObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ ([A-Z |]+) \} (<[a-z_]+>)`)
+
+// objectPrivileges splits accountObjectPrivileges ::= into one definition
+// for each of its -- For X sections, and has each grant choose an object
+// type with its own privileges:
+//
+//	{ accountObjectPrivileges | ALL [ PRIVILEGES ] } ON { USER | WAREHOUSE } <name>
+//
+// reads as { { accountObjectPrivileges_1 | ALL [ PRIVILEGES ] } ON USER
+// <name> | ... }, since the pages list each privilege under the objects it
+// applies to.
+func objectPrivileges(blocks []string) ([]string, bool) {
+	const head = "accountObjectPrivileges ::="
+	at := -1
+	for i, b := range blocks {
+		if strings.Contains(b, head) {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return blocks, false
+	}
+	section := map[string]string{}
+	var names []string
+	var out []string
+	in, done := false, false
+	for _, l := range strings.Split(blocks[at], "\n") {
+		switch {
+		case done:
+			out = append(out, l)
+		case strings.Contains(l, head):
+			in = true
+		case !in:
+			out = append(out, l)
+		case objectSection.MatchString(l):
+			name := fmt.Sprintf("accountObjectPrivileges_%d", len(names)+1)
+			names = append(names, name)
+			section[objectSection.FindStringSubmatch(l)[1]] = name
+			out = append(out, name+" ::=")
+		case defHead.MatchString(l):
+			done = true
+			out = append(out, l)
+		case len(names) == 0:
+			if strings.TrimSpace(l) != "" {
+				return blocks, false
+			}
+		default:
+			out = append(out, l)
+		}
+	}
+	if len(names) == 0 {
+		return blocks, false
+	}
+	res := append([]string(nil), blocks...)
+	res[at] = strings.Join(out, "\n")
+	for i, b := range res {
+		if i == at {
+			continue
+		}
+		res[i] = objectPrivilegesRef.ReplaceAllStringFunc(b, func(m string) string {
+			sub := objectPrivilegesRef.FindStringSubmatch(m)
+			var alts []string
+			for _, o := range strings.Split(sub[1], "|") {
+				o = strings.TrimSpace(o)
+				privs := "ALL [ PRIVILEGES ]"
+				if name, ok := section[o]; ok {
+					privs = "{ " + name + " | ALL [ PRIVILEGES ] }"
+				}
+				alts = append(alts, privs+" ON "+o+" "+sub[2])
+			}
+			return "{ " + strings.Join(alts, " | ") + " }"
+		})
+		if strings.Contains(res[i], "accountObjectPrivileges ") || strings.Contains(res[i], "accountObjectPrivileges}") {
+			// A reference this does not rewrite would name a definition
+			// that is gone.
+			return blocks, false
+		}
+	}
+	return res, true
+}
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -536,6 +624,10 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	if split, ok := typeOptions(blocks); ok {
 		blocks = split
 		pg.fixes = append(pg.fixes, "read: each -- If TYPE = X section of formatTypeOptions is the options of TYPE = X alone, and TYPE = { ... } [ formatTypeOptions ] chooses a TYPE with its own options")
+	}
+	if split, ok := objectPrivileges(blocks); ok {
+		blocks = split
+		pg.fixes = append(pg.fixes, "read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges")
 	}
 	columns := false
 	for i, b := range blocks {

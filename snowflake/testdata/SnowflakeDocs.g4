@@ -778,6 +778,7 @@ statement
 // no syntax
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-account
+// fix: the schedule is a quoted string, a minute interval or a cron schedule, as the parameter says
 alterAccount
     : 'ALTER' 'ACCOUNT' 'SET' (alterAccount_accountProperties | alterAccount_accountParams | alterAccount_objectParams | alterAccount_sessionParams)
     | 'ALTER' 'ACCOUNT' 'UNSET' ID (',' ID)*
@@ -815,7 +816,7 @@ alterAccount_accountProperties
     : ('LOGIN_IDP_REDIRECT' '=' '(' ID '=' ID (',' ID '=' ID)* ')' | 'OBJECT_VISIBILITY' '=' (ID | 'PRIVILEGED'))+
     ;
 alterAccount_accountParams
-    : ('ALLOW_ID_TOKEN' '=' ('TRUE' | 'FALSE') | 'ALLOWED_SPCS_WORKLOAD_TYPES' '=' (STRING | '\'ALL\'') | 'CLIENT_ENCRYPTION_KEY_SIZE' '=' NUMBER | 'CORTEX_ENABLED_CROSS_REGION' '=' ('\'DISABLED\'' | '\'ANY_REGION\'' | STRING) | 'DISALLOWED_SPCS_WORKLOAD_TYPES' '=' (STRING | '\'ALL\'') | 'DISABLE_EXECUTE_DATA_METRIC_FUNCTION_GRANT_TO_PUBLIC' '=' ('TRUE' | 'FALSE') | 'DISABLE_USER_PRIVILEGE_GRANTS' '=' ('TRUE' | 'FALSE') | 'DEFAULT_DBT_VERSION' '=' STRING | 'ENABLE_EGRESS_COST_OPTIMIZER' '=' ('TRUE' | 'FALSE') | 'ENABLE_INTERNAL_STAGES_PRIVATELINK' '=' ('TRUE' | 'FALSE') | 'ENABLE_SNOWFLAKE_MANAGED_STORAGE_VOLUME_PRIVATELINK' '=' ('TRUE' | 'FALSE') | 'ENFORCE_NETWORK_RULES_FOR_INTERNAL_STAGES' '=' ('TRUE' | 'FALSE') | 'ENFORCE_NETWORK_RULES_FOR_SNOWFLAKE_MANAGED_STORAGE_VOLUME' '=' ('TRUE' | 'FALSE') | 'ENFORCE_TAG_PROPAGATION_FOR_DATA_MOVEMENT_POLICIES' '=' ('TRUE' | 'FALSE') | 'ENABLE_NOTEBOOK_CREATION_IN_PERSONAL_DB' '=' ('TRUE' | 'FALSE') | 'ENABLE_SPCS_BLOCK_STORAGE_SNOWFLAKE_FULL_ENCRYPTION_ENFORCEMENT' '=' ('TRUE' | 'FALSE') | 'EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST' '=' ('TRUE' | 'FALSE') | 'INITIAL_REPLICATION_SIZE_LIMIT_IN_TB' '=' NUMBER | 'LISTING_AUTO_FULFILLMENT_INITIAL_REFRESH_SIZE_LIMIT_IN_TB' '=' NUMBER | 'LISTING_AUTO_FULFILLMENT_REPLICATION_REFRESH_SCHEDULE' '=' ID | 'LLM_INFERENCE_PARSE_DOCUMENT_PRESIGNED_URL_EXPIRY_SECONDS' '=' NUMBER | 'MIN_STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY' '=' STRING | 'OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST' '=' ('TRUE' | 'FALSE') | 'PERIODIC_DATA_REKEYING' '=' ('TRUE' | 'FALSE') | 'READ_CONSISTENCY_MODE' '=' ('\'SESSION\'' | '\'GLOBAL\'') | 'REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION' '=' ('TRUE' | 'FALSE') | 'REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_OPERATION' '=' ('TRUE' | 'FALSE') | 'SAML_IDENTITY_PROVIDER' '=' ID | 'SQL_TRACE_QUERY_TEXT' '=' ('ON' | 'OFF') | 'SSO_LOGIN_PAGE' '=' ('TRUE' | 'FALSE') | 'USE_WORKSPACES_FOR_SQL' '=' ('\'always\'' | '\'never\''))+
+    : ('ALLOW_ID_TOKEN' '=' ('TRUE' | 'FALSE') | 'ALLOWED_SPCS_WORKLOAD_TYPES' '=' (STRING | '\'ALL\'') | 'CLIENT_ENCRYPTION_KEY_SIZE' '=' NUMBER | 'CORTEX_ENABLED_CROSS_REGION' '=' ('\'DISABLED\'' | '\'ANY_REGION\'' | STRING) | 'DISALLOWED_SPCS_WORKLOAD_TYPES' '=' (STRING | '\'ALL\'') | 'DISABLE_EXECUTE_DATA_METRIC_FUNCTION_GRANT_TO_PUBLIC' '=' ('TRUE' | 'FALSE') | 'DISABLE_USER_PRIVILEGE_GRANTS' '=' ('TRUE' | 'FALSE') | 'DEFAULT_DBT_VERSION' '=' STRING | 'ENABLE_EGRESS_COST_OPTIMIZER' '=' ('TRUE' | 'FALSE') | 'ENABLE_INTERNAL_STAGES_PRIVATELINK' '=' ('TRUE' | 'FALSE') | 'ENABLE_SNOWFLAKE_MANAGED_STORAGE_VOLUME_PRIVATELINK' '=' ('TRUE' | 'FALSE') | 'ENFORCE_NETWORK_RULES_FOR_INTERNAL_STAGES' '=' ('TRUE' | 'FALSE') | 'ENFORCE_NETWORK_RULES_FOR_SNOWFLAKE_MANAGED_STORAGE_VOLUME' '=' ('TRUE' | 'FALSE') | 'ENFORCE_TAG_PROPAGATION_FOR_DATA_MOVEMENT_POLICIES' '=' ('TRUE' | 'FALSE') | 'ENABLE_NOTEBOOK_CREATION_IN_PERSONAL_DB' '=' ('TRUE' | 'FALSE') | 'ENABLE_SPCS_BLOCK_STORAGE_SNOWFLAKE_FULL_ENCRYPTION_ENFORCEMENT' '=' ('TRUE' | 'FALSE') | 'EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST' '=' ('TRUE' | 'FALSE') | 'INITIAL_REPLICATION_SIZE_LIMIT_IN_TB' '=' NUMBER | 'LISTING_AUTO_FULFILLMENT_INITIAL_REFRESH_SIZE_LIMIT_IN_TB' '=' NUMBER | 'LISTING_AUTO_FULFILLMENT_REPLICATION_REFRESH_SCHEDULE' '=' STRING | 'LLM_INFERENCE_PARSE_DOCUMENT_PRESIGNED_URL_EXPIRY_SECONDS' '=' NUMBER | 'MIN_STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER | 'NETWORK_POLICY' '=' STRING | 'OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST' '=' ('TRUE' | 'FALSE') | 'PERIODIC_DATA_REKEYING' '=' ('TRUE' | 'FALSE') | 'READ_CONSISTENCY_MODE' '=' ('\'SESSION\'' | '\'GLOBAL\'') | 'REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION' '=' ('TRUE' | 'FALSE') | 'REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_OPERATION' '=' ('TRUE' | 'FALSE') | 'SAML_IDENTITY_PROVIDER' '=' ID | 'SQL_TRACE_QUERY_TEXT' '=' ('ON' | 'OFF') | 'SSO_LOGIN_PAGE' '=' ('TRUE' | 'FALSE') | 'USE_WORKSPACES_FOR_SQL' '=' ('\'always\'' | '\'never\''))+
     ;
 alterAccount_objectParams
     : ('BASE_LOCATION_PREFIX' '=' STRING | 'CATALOG' '=' ID | 'CATALOG_SYNC' '=' STRING | 'CORTEX_MODELS_ALLOWLIST' '=' (STRING | '\'ALL\'' | '\'NONE\'') | 'DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER | 'DEFAULT_DDL_COLLATION' '=' STRING | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU' '=' ID | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_GPU' '=' ID | 'DEFAULT_STREAMLIT_COMPUTE_POOL' '=' ID | 'DEFAULT_STREAMLIT_NOTEBOOK_WAREHOUSE' '=' ID | 'ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE') | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\'') | 'ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE') | 'ENABLE_TAG_PROPAGATION_EVENT_LOGGING' '=' ('TRUE' | 'FALSE') | 'ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR' '=' ('TRUE' | 'FALSE') | 'ENABLE_UNREDACTED_SECURE_OBJECT_ERROR' '=' ('TRUE' | 'FALSE') | 'EVENT_TABLE' '=' STRING | 'EXTERNAL_VOLUME' '=' ID | 'ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING | 'ICEBERG_VERSION_DEFAULT' '=' NUMBER | 'LOG_LEVEL' '=' STRING | 'MAX_CONCURRENCY_LEVEL' '=' NUMBER | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER | 'METRIC_LEVEL' '=' STRING | 'NETWORK_POLICY' '=' STRING | 'OAUTH_AUTHORIZATION_SERVER' '=' ID | 'OAUTH_SCOPES_SUPPORTED' '=' STRING | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'PREVENT_UNLOAD_TO_INLINE_URL' '=' ('TRUE' | 'FALSE') | 'PREVENT_UNLOAD_TO_INTERNAL_STAGES' '=' ('TRUE' | 'FALSE') | 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE') | 'STAGE_UNDROP_RETENTION_TIME_IN_DAYS' '=' NUMBER | 'STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER | 'STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER | 'STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED') | 'TRACE_LEVEL' '=' STRING)+
@@ -5116,27 +5117,49 @@ grantOwnership
 // fix: TO DATABASE ROLE form: the } after the database privileges ends the choice of grants one line early; dropped
 // fix: the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
 // fix: closes the { opened before ADD SEARCH OPTIMIZATION
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 grantPrivilege
-    : 'GRANT' ((grantPrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (grantPrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('USER' | 'RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'DATA' 'EXCHANGE' 'LISTING' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME' | 'APPLICATION' 'PACKAGE' | 'APPLICATION') ID | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'TO' 'ROLE'? ID ('WITH' 'GRANT' 'OPTION')?
+    : 'GRANT' ((grantPrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | ((grantPrivilege_accountObjectPrivileges_12 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (grantPrivilege_accountObjectPrivileges_11 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (grantPrivilege_accountObjectPrivileges_13 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (grantPrivilege_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (grantPrivilege_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (grantPrivilege_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATA' 'EXCHANGE' 'LISTING' ID | (grantPrivilege_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (grantPrivilege_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (grantPrivilege_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (grantPrivilege_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (grantPrivilege_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID | (grantPrivilege_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'APPLICATION' 'PACKAGE' ID | 'ALL' 'PRIVILEGES'? 'ON' 'APPLICATION' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'TO' 'ROLE'? ID ('WITH' 'GRANT' 'OPTION')?
     | 'GRANT' (('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE'))* 'ON' 'DATABASE' ID | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'TO' 'DATABASE' 'ROLE' ID ('WITH' 'GRANT' 'OPTION')?
     ;
 grantPrivilege_globalPrivileges
     : ('CREATE' ('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'LISTING' | 'DATABASE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'NETWORK' 'POLICY' | 'ORGANIZATION' 'LISTING' | 'ORGANIZATION' 'PROFILE' | 'PREVIEW' 'APPLICATION' | 'REPLICATION' 'GROUP' | 'ROLE' | 'SHARE' | 'USER' | 'WAREHOUSE') | 'ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'CONTACT' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' ('SHARE' | 'ORGANIZATION' 'LISTING') | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'APPLICATION' 'SPECIFICATIONS' | 'CORTEX' 'EXTENSION' 'SECURITY' 'SCAN' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'SHARE' 'TARGET' | 'USER' 'SUPPORT' 'CASES' | 'VISIBILITY' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('CORTEX' 'EXTENSIONS' | 'EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION' | 'READ' 'UNREDACTED' 'ERROR' 'TABLE' | 'USE' 'AI' 'FUNCTION' ID | 'USE' 'AI' 'FUNCTIONS') (',' ('CREATE' ('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'LISTING' | 'DATABASE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'NETWORK' 'POLICY' | 'ORGANIZATION' 'LISTING' | 'ORGANIZATION' 'PROFILE' | 'PREVIEW' 'APPLICATION' | 'REPLICATION' 'GROUP' | 'ROLE' | 'SHARE' | 'USER' | 'WAREHOUSE') | 'ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'CONTACT' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' ('SHARE' | 'ORGANIZATION' 'LISTING') | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'APPLICATION' 'SPECIFICATIONS' | 'CORTEX' 'EXTENSION' 'SECURITY' 'SCAN' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'SHARE' 'TARGET' | 'USER' 'SUPPORT' 'CASES' | 'VISIBILITY' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('CORTEX' 'EXTENSIONS' | 'EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION' | 'READ' 'UNREDACTED' 'ERROR' 'TABLE' | 'USE' 'AI' 'FUNCTION' ID | 'USE' 'AI' 'FUNCTIONS'))*
     ;
-grantPrivilege_accountObjectPrivileges
+grantPrivilege_accountObjectPrivileges_1
     : ('ATTACH' 'LISTING' | 'DEVELOP' | 'INSTALL' | 'MANAGE' 'VERSIONS' | 'MANAGE' 'RELEASES') (',' ('ATTACH' 'LISTING' | 'DEVELOP' | 'INSTALL' | 'MANAGE' 'VERSIONS' | 'MANAGE' 'RELEASES'))*
-    | ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('MODIFY' | 'USAGE') (',' ('MODIFY' | 'USAGE'))*
-    | ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | 'MODIFY' (',' 'MODIFY')*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR') (',' ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR'))*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_2
+    : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_3
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+grantPrivilege_accountObjectPrivileges_4
+    : ('MODIFY' | 'USAGE') (',' ('MODIFY' | 'USAGE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_5
+    : ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_6
+    : 'USAGE' (',' 'USAGE')*
+    ;
+grantPrivilege_accountObjectPrivileges_7
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_8
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_10
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilege_accountObjectPrivileges_11
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+grantPrivilege_accountObjectPrivileges_12
+    : ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR') (',' ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR'))*
+    ;
+grantPrivilege_accountObjectPrivileges_13
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 grantPrivilege_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5172,23 +5195,42 @@ grantPrivilege_schemaObjectPrivileges
 
 // https://docs.snowflake.com/en/sql-reference/sql/grant-privilege-application
 // fix: ON { <object_type> ... is not closed; closed
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 grantPrivilegeApplication
-    : 'GRANT' (grantPrivilegeApplication_globalPrivileges 'ON' 'ACCOUNT' | (grantPrivilegeApplication_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('USER' | 'RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME' | 'APPLICATION' 'PACKAGE' | 'APPLICATION') ID | (grantPrivilegeApplication_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilegeApplication_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'TO' 'APPLICATION' ID
+    : 'GRANT' (grantPrivilegeApplication_globalPrivileges 'ON' 'ACCOUNT' | ((grantPrivilegeApplication_accountObjectPrivileges_9 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (grantPrivilegeApplication_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (grantPrivilegeApplication_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (grantPrivilegeApplication_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (grantPrivilegeApplication_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (grantPrivilegeApplication_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (grantPrivilegeApplication_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (grantPrivilegeApplication_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (grantPrivilegeApplication_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (grantPrivilegeApplication_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID | 'ALL' 'PRIVILEGES'? 'ON' 'APPLICATION' 'PACKAGE' ID | 'ALL' 'PRIVILEGES'? 'ON' 'APPLICATION' ID) | (grantPrivilegeApplication_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilegeApplication_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'TO' 'APPLICATION' ID
     ;
 grantPrivilegeApplication_globalPrivileges
     : ('CREATE' ('COMPUTE' 'POOL' | 'DATABASE' | 'WAREHOUSE') | 'BIND' 'SERVICE' 'ENDPOINT' | 'EXECUTE' 'MANAGED' 'TASK' | 'MANAGE' 'WAREHOUSES' | 'READ' 'SESSION') (',' ('CREATE' ('COMPUTE' 'POOL' | 'DATABASE' | 'WAREHOUSE') | 'BIND' 'SERVICE' 'ENDPOINT' | 'EXECUTE' 'MANAGED' 'TASK' | 'MANAGE' 'WAREHOUSES' | 'READ' 'SESSION'))*
     ;
-grantPrivilegeApplication_accountObjectPrivileges
+grantPrivilegeApplication_accountObjectPrivileges_1
     : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | 'MONITOR' (',' 'MONITOR')*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_2
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_3
+    : ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_4
+    : 'USAGE' (',' 'USAGE')*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_5
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_6
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_7
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_8
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_9
+    : 'MONITOR' (',' 'MONITOR')*
+    ;
+grantPrivilegeApplication_accountObjectPrivileges_10
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 grantPrivilegeApplication_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'CREATE' ('ALERT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'IMAGE' 'REPOSITORY' | 'MATERIALIZED' 'VIEW' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'MASKING' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'STAGE' | 'STREAM' | 'TAG' | 'TABLE' | 'TASK' | 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'CREATE' ('ALERT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'IMAGE' 'REPOSITORY' | 'MATERIALIZED' 'VIEW' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'MASKING' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'STAGE' | 'STREAM' | 'TAG' | 'TABLE' | 'TASK' | 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5251,23 +5293,42 @@ grantPrivilegeShare_objectPrivilege
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/grant-privilege-user
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 grantPrivilegeUser
-    : 'GRANT' ((grantPrivilegeUser_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (grantPrivilegeUser_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('USER' | 'RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME') ID | (grantPrivilegeUser_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilegeUser_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'TO' 'USER'? ID ('WITH' 'GRANT' 'OPTION')?
+    : 'GRANT' ((grantPrivilegeUser_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | ((grantPrivilegeUser_accountObjectPrivileges_9 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (grantPrivilegeUser_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (grantPrivilegeUser_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (grantPrivilegeUser_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (grantPrivilegeUser_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (grantPrivilegeUser_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (grantPrivilegeUser_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (grantPrivilegeUser_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (grantPrivilegeUser_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (grantPrivilegeUser_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID) | (grantPrivilegeUser_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilegeUser_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'TO' 'USER'? ID ('WITH' 'GRANT' 'OPTION')?
     ;
 grantPrivilegeUser_globalPrivileges
     : ('ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' 'SHARE' | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'USER' 'SUPPORT' 'CASES' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION') (',' ('ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' 'SHARE' | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'USER' 'SUPPORT' 'CASES' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION'))*
     ;
-grantPrivilegeUser_accountObjectPrivileges
+grantPrivilegeUser_accountObjectPrivileges_1
     : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | 'MONITOR' (',' 'MONITOR')*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_2
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_3
+    : ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_4
+    : 'USAGE' (',' 'USAGE')*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_5
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_6
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_7
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_8
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_9
+    : 'MONITOR' (',' 'MONITOR')*
+    ;
+grantPrivilegeUser_accountObjectPrivileges_10
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 grantPrivilegeUser_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5404,27 +5465,43 @@ revokeDatabaseRoleShare
 // fix: FROM DATABASE ROLE form: the database privileges are one choice among the others; a | is missing before the next
 // fix: the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
 // fix: closes the { opened before ADD SEARCH OPTIMIZATION
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 revokePrivilege
-    : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ((revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (revokePrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'DATA' 'EXCHANGE' 'LISTING' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'ROLE'? ID ('RESTRICT' | 'CASCADE')?
-    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE'))* 'ON' 'DATABASE' ID | (revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (revokePrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'DATABASE' 'ROLE' ID ('RESTRICT' | 'CASCADE')?
+    : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ((revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | ((revokePrivilege_accountObjectPrivileges_11 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (revokePrivilege_accountObjectPrivileges_13 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (revokePrivilege_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (revokePrivilege_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (revokePrivilege_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATA' 'EXCHANGE' 'LISTING' ID | (revokePrivilege_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (revokePrivilege_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (revokePrivilege_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (revokePrivilege_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (revokePrivilege_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'ROLE'? ID ('RESTRICT' | 'CASCADE')?
+    | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE'))* 'ON' 'DATABASE' ID | (revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | ((revokePrivilege_accountObjectPrivileges_11 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (revokePrivilege_accountObjectPrivileges_13 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (revokePrivilege_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (revokePrivilege_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (revokePrivilege_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (revokePrivilege_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'DATABASE' 'ROLE' ID ('RESTRICT' | 'CASCADE')?
     ;
 revokePrivilege_globalPrivileges
     : ('CREATE' ('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'LISTING' | 'DATABASE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'NETWORK' 'POLICY' | 'ORGANIZATION' 'LISTING' | 'ORGANIZATION' 'PROFILE' | 'PREVIEW' 'APPLICATION' | 'REPLICATION' 'GROUP' | 'ROLE' | 'SHARE' | 'USER' | 'WAREHOUSE') | 'ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'CONTACT' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' ('SHARE' | 'ORGANIZATION' 'LISTING') | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'APPLICATION' 'SPECIFICATIONS' | 'CORTEX' 'EXTENSION' 'SECURITY' 'SCAN' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'SHARE' 'TARGET' | 'USER' 'SUPPORT' 'CASES' | 'VISIBILITY' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('CORTEX' 'EXTENSIONS' | 'EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION' | 'READ' 'UNREDACTED' 'ERROR' 'TABLE' | 'USE' 'AI' 'FUNCTION' ID | 'USE' 'AI' 'FUNCTIONS') (',' ('CREATE' ('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'LISTING' | 'DATABASE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'NETWORK' 'POLICY' | 'ORGANIZATION' 'LISTING' | 'ORGANIZATION' 'PROFILE' | 'PREVIEW' 'APPLICATION' | 'REPLICATION' 'GROUP' | 'ROLE' | 'SHARE' | 'USER' | 'WAREHOUSE') | 'ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'CONTACT' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' ('SHARE' | 'ORGANIZATION' 'LISTING') | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'APPLICATION' 'SPECIFICATIONS' | 'CORTEX' 'EXTENSION' 'SECURITY' 'SCAN' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'SHARE' 'TARGET' | 'USER' 'SUPPORT' 'CASES' | 'VISIBILITY' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('CORTEX' 'EXTENSIONS' | 'EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION' | 'READ' 'UNREDACTED' 'ERROR' 'TABLE' | 'USE' 'AI' 'FUNCTION' ID | 'USE' 'AI' 'FUNCTIONS'))*
     ;
-revokePrivilege_accountObjectPrivileges
-    : ('ATTACH' 'LISTING' | 'DEVELOP' | 'INSTALL' | 'MANAGE' 'VERSIONS' | 'MANAGE' 'RELEASES') (',' ('ATTACH' 'LISTING' | 'DEVELOP' | 'INSTALL' | 'MANAGE' 'VERSIONS' | 'MANAGE' 'RELEASES'))*
-    | ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('MODIFY' | 'USAGE') (',' ('MODIFY' | 'USAGE'))*
-    | ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | 'MODIFY' (',' 'MODIFY')*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR') (',' ('IMPERSONATE' | 'MODIFY' 'PROGRAMMATIC' 'AUTHENTICATION' 'METHODS' | 'MONITOR'))*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+revokePrivilege_accountObjectPrivileges_2
+    : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_3
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+revokePrivilege_accountObjectPrivileges_4
+    : ('MODIFY' | 'USAGE') (',' ('MODIFY' | 'USAGE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_5
+    : ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_6
+    : 'USAGE' (',' 'USAGE')*
+    ;
+revokePrivilege_accountObjectPrivileges_7
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_8
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_10
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilege_accountObjectPrivileges_11
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+revokePrivilege_accountObjectPrivileges_13
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 revokePrivilege_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5460,23 +5537,42 @@ revokePrivilege_schemaObjectPrivileges
 
 // https://docs.snowflake.com/en/sql-reference/sql/revoke-privilege-application
 // fix: ON { <object_type> ... is not closed; closed
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 revokePrivilegeApplication
-    : 'REVOKE' (revokePrivilegeApplication_globalPrivileges 'ON' 'ACCOUNT' | (revokePrivilegeApplication_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('USER' | 'RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilegeApplication_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilegeApplication_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'FROM' 'APPLICATION' ID
+    : 'REVOKE' (revokePrivilegeApplication_globalPrivileges 'ON' 'ACCOUNT' | ((revokePrivilegeApplication_accountObjectPrivileges_9 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (revokePrivilegeApplication_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (revokePrivilegeApplication_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (revokePrivilegeApplication_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (revokePrivilegeApplication_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (revokePrivilegeApplication_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (revokePrivilegeApplication_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (revokePrivilegeApplication_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (revokePrivilegeApplication_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (revokePrivilegeApplication_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID) | (revokePrivilegeApplication_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilegeApplication_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID))) 'FROM' 'APPLICATION' ID
     ;
 revokePrivilegeApplication_globalPrivileges
     : ('CREATE' ('COMPUTE' 'POOL' | 'DATABASE' | 'WAREHOUSE') | 'BIND' 'SERVICE' 'ENDPOINT' | 'EXECUTE' 'MANAGED' 'TASK' | 'MANAGE' 'WAREHOUSES' | 'READ' 'SESSION') (',' ('CREATE' ('COMPUTE' 'POOL' | 'DATABASE' | 'WAREHOUSE') | 'BIND' 'SERVICE' 'ENDPOINT' | 'EXECUTE' 'MANAGED' 'TASK' | 'MANAGE' 'WAREHOUSES' | 'READ' 'SESSION'))*
     ;
-revokePrivilegeApplication_accountObjectPrivileges
+revokePrivilegeApplication_accountObjectPrivileges_1
     : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | 'MONITOR' (',' 'MONITOR')*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_2
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_3
+    : ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'CREATE' ('DATABASE' 'ROLE' | 'SCHEMA') | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_4
+    : 'USAGE' (',' 'USAGE')*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_5
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_6
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_7
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_8
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_9
+    : 'MONITOR' (',' 'MONITOR')*
+    ;
+revokePrivilegeApplication_accountObjectPrivileges_10
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 revokePrivilegeApplication_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'CREATE' ('ALERT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'IMAGE' 'REPOSITORY' | 'MATERIALIZED' 'VIEW' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'MASKING' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'STAGE' | 'STREAM' | 'TAG' | 'TABLE' | 'TASK' | 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'CREATE' ('ALERT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'IMAGE' 'REPOSITORY' | 'MATERIALIZED' 'VIEW' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'MASKING' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'STAGE' | 'STREAM' | 'TAG' | 'TABLE' | 'TASK' | 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5538,23 +5634,39 @@ revokePrivilegeShare_objectPrivilege
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/revoke-privilege-user
+// fix: read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges
 revokePrivilegeUser
-    : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ((revokePrivilegeUser_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (revokePrivilegeUser_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilegeUser_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilegeUser_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID)) 'FROM' 'USER'? ID ('RESTRICT' | 'CASCADE')?
+    : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ((revokePrivilegeUser_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | ((revokePrivilegeUser_accountObjectPrivileges_8 | 'ALL' 'PRIVILEGES'?) 'ON' 'RESOURCE' 'MONITOR' ID | (revokePrivilegeUser_accountObjectPrivileges_10 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | (revokePrivilegeUser_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'COMPUTE' 'POOL' ID | (revokePrivilegeUser_accountObjectPrivileges_3 | 'ALL' 'PRIVILEGES'?) 'ON' 'DATABASE' ID | (revokePrivilegeUser_accountObjectPrivileges_6 | 'ALL' 'PRIVILEGES'?) 'ON' 'INTEGRATION' ID | (revokePrivilegeUser_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'CONNECTION' ID | (revokePrivilegeUser_accountObjectPrivileges_5 | 'ALL' 'PRIVILEGES'?) 'ON' 'FAILOVER' 'GROUP' ID | (revokePrivilegeUser_accountObjectPrivileges_7 | 'ALL' 'PRIVILEGES'?) 'ON' 'REPLICATION' 'GROUP' ID | (revokePrivilegeUser_accountObjectPrivileges_4 | 'ALL' 'PRIVILEGES'?) 'ON' 'EXTERNAL' 'VOLUME' ID) | (revokePrivilegeUser_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilegeUser_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID)) 'FROM' 'USER'? ID ('RESTRICT' | 'CASCADE')?
     ;
 revokePrivilegeUser_globalPrivileges
     : ('ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' 'SHARE' | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'USER' 'SUPPORT' 'CASES' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION') (',' ('ATTACH' 'POLICY' | 'AUDIT' | 'BIND' 'SERVICE' 'ENDPOINT' | 'APPLY' (('AGGREGATION' | 'AUTHENTICATION' | 'JOIN' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION') 'POLICY' | 'TAG') | 'EXECUTE' ('ALERT' | 'DATA' 'METRIC' 'FUNCTION' | 'MANAGED' 'ALERT' | 'MANAGED' 'TASK' | 'TASK') | 'IMPORT' 'SHARE' | 'MANAGE' ('ACCOUNT' 'SUPPORT' 'CASES' | 'EVENT' 'SHARING' | 'GRANTS' | 'LISTING' 'AUTO' 'FULFILLMENT' | 'ORGANIZATION' 'SUPPORT' 'CASES' | 'USER' 'SUPPORT' 'CASES' | 'WAREHOUSES') | 'MODIFY' ('LOG' 'LEVEL' | 'TRACE' 'LEVEL' | 'SESSION' 'LOG' 'LEVEL' | 'SESSION' 'TRACE' 'LEVEL') | 'MONITOR' ('EXECUTION' | 'SECURITY' | 'USAGE') | 'OVERRIDE' 'SHARE' 'RESTRICTIONS' | 'PURCHASE' 'DATA' 'EXCHANGE' 'LISTING' | 'RESOLVE' 'ALL' | 'READ' 'SESSION'))*
     ;
-revokePrivilegeUser_accountObjectPrivileges
+revokePrivilegeUser_accountObjectPrivileges_1
     : ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'OPERATE' | 'USAGE'))*
-    | 'FAILOVER' (',' 'FAILOVER')*
-    | ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
-    | 'USAGE' (',' 'USAGE')*
-    | ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
-    | ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
-    | ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
-    | 'MONITOR' (',' 'MONITOR')*
-    | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_2
+    : 'FAILOVER' (',' 'FAILOVER')*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_3
+    : ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('APPLYBUDGET' | 'IMPORTED' 'PRIVILEGES' | 'MODIFY' | 'MONITOR' | 'USAGE'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_4
+    : 'USAGE' (',' 'USAGE')*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_5
+    : ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('FAILOVER' | 'MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_6
+    : ('USAGE' | 'USE_ANY_ROLE') (',' ('USAGE' | 'USE_ANY_ROLE'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_7
+    : ('MODIFY' | 'MONITOR' | 'REPLICATE') (',' ('MODIFY' | 'MONITOR' | 'REPLICATE'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_8
+    : ('MODIFY' | 'MONITOR') (',' ('MODIFY' | 'MONITOR'))*
+    ;
+revokePrivilegeUser_accountObjectPrivileges_10
+    : ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 revokePrivilegeUser_schemaPrivileges
     : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE'))*

@@ -367,3 +367,16 @@ func TestTypeOptionsFollowTheirType(t *testing.T) {
 		t.Errorf("JSON options: %q (fragments %v)", got, frags)
 	}
 }
+
+// TestObjectPrivilegesFollowTheirObject pins that each -- For X section of
+// accountObjectPrivileges is granted on X alone.
+func TestObjectPrivilegesFollowTheirObject(t *testing.T) {
+	pg := convertPage("grant-privilege", []string{
+		"GRANT { accountObjectPrivileges  | ALL [ PRIVILEGES ] } ON { USER | WAREHOUSE | DATABASE } <object_name> TO ROLE <r>",
+		"accountObjectPrivileges ::=\n-- For USER\n   { MONITOR } [ , ... ]\n-- For WAREHOUSE\n   { OPERATE | USAGE } [ , ... ]",
+	}, nil)
+	want := "'GRANT' ((grantPrivilege_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (grantPrivilege_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | 'ALL' 'PRIVILEGES'? 'ON' 'DATABASE' ID) 'TO' 'ROLE' ID"
+	if len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
+	}
+}
