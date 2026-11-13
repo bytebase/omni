@@ -42651,6 +42651,256 @@
 | 1064 42000 …near '(a) OVER ()' at line 1
 > exec ^
 : string
+| SELECT no_parallel()
+< error
+| 1064 42000 …near 'no_parallel()' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1)
+< error
+| 1064 42000 …near 'no_parallel(1)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1,2)
+< error
+| 1064 42000 …near 'no_parallel(1,2)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1,2,3)
+< error
+| 1064 42000 …near 'no_parallel(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1,2,3,4)
+< error
+| 1064 42000 …near 'no_parallel(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(*)
+< error
+| 1064 42000 …near 'no_parallel(*)' at line 1
+> exec ^
+: string
+| SELECT no_parallel('a')
+< error
+| 1064 42000 …near 'no_parallel('a')' at line 1
+> exec ^
+: string
+| SELECT no_parallel(a USING utf8mb4)
+< error
+| 1064 42000 …near 'no_parallel(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1 AS SIGNED)
+< error
+| 1064 42000 …near 'no_parallel(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'no_parallel(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1 FROM 2)
+< error
+| 1064 42000 …near 'no_parallel(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1 IN 2)
+< error
+| 1064 42000 …near 'no_parallel(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(DISTINCT 1)
+< error
+| 1064 42000 …near 'no_parallel(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT no_parallel() OVER ()
+< error
+| 1064 42000 …near 'no_parallel() OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1) OVER ()
+< error
+| 1064 42000 …near 'no_parallel(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1,2) OVER ()
+< error
+| 1064 42000 …near 'no_parallel(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'no_parallel(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1) FROM t
+< error
+| 1064 42000 …near 'no_parallel(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT no_parallel(SELECT 1)
+< error
+| 1064 42000 …near 'no_parallel(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(YEAR FROM 1)
+< error
+| 1064 42000 …near 'no_parallel(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(DAY, 1, 2)
+< error
+| 1064 42000 …near 'no_parallel(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(1, 'a')
+< error
+| 1064 42000 …near 'no_parallel(1, 'a')' at line 1
+> exec ^
+: string
+| SELECT no_parallel(a)
+< error
+| 1064 42000 …near 'no_parallel(a)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(a, b)
+< error
+| 1064 42000 …near 'no_parallel(a, b)' at line 1
+> exec ^
+: string
+| SELECT no_parallel(a) OVER ()
+< error
+| 1064 42000 …near 'no_parallel(a) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite()
+< error
+| 1064 42000 …near 'no_rewrite()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1)
+< error
+| 1064 42000 …near 'no_rewrite(1)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1,2)
+< error
+| 1064 42000 …near 'no_rewrite(1,2)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1,2,3)
+< error
+| 1064 42000 …near 'no_rewrite(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1,2,3,4)
+< error
+| 1064 42000 …near 'no_rewrite(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(*)
+< error
+| 1064 42000 …near 'no_rewrite(*)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite('a')
+< error
+| 1064 42000 …near 'no_rewrite('a')' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(a USING utf8mb4)
+< error
+| 1064 42000 …near 'no_rewrite(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1 AS SIGNED)
+< error
+| 1064 42000 …near 'no_rewrite(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'no_rewrite(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1 FROM 2)
+< error
+| 1064 42000 …near 'no_rewrite(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1 IN 2)
+< error
+| 1064 42000 …near 'no_rewrite(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(DISTINCT 1)
+< error
+| 1064 42000 …near 'no_rewrite(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite() OVER ()
+< error
+| 1064 42000 …near 'no_rewrite() OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1) OVER ()
+< error
+| 1064 42000 …near 'no_rewrite(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1,2) OVER ()
+< error
+| 1064 42000 …near 'no_rewrite(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'no_rewrite(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1) FROM t
+< error
+| 1064 42000 …near 'no_rewrite(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(SELECT 1)
+< error
+| 1064 42000 …near 'no_rewrite(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(YEAR FROM 1)
+< error
+| 1064 42000 …near 'no_rewrite(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(DAY, 1, 2)
+< error
+| 1064 42000 …near 'no_rewrite(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(1, 'a')
+< error
+| 1064 42000 …near 'no_rewrite(1, 'a')' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(a)
+< error
+| 1064 42000 …near 'no_rewrite(a)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(a, b)
+< error
+| 1064 42000 …near 'no_rewrite(a, b)' at line 1
+> exec ^
+: string
+| SELECT no_rewrite(a) OVER ()
+< error
+| 1064 42000 …near 'no_rewrite(a) OVER ()' at line 1
+> exec ^
+: string
 | SELECT no_wait()
 < error
 | 1064 42000 …near '()' at line 1
@@ -51619,6 +51869,131 @@
 | SELECT read(a) OVER ()
 < error
 | 1064 42000 …near '(a) OVER ()' at line 1
+> exec ^
+: string
+| SELECT read_consistency()
+< error
+| 1064 42000 …near 'read_consistency()' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1)
+< error
+| 1064 42000 …near 'read_consistency(1)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1,2)
+< error
+| 1064 42000 …near 'read_consistency(1,2)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1,2,3)
+< error
+| 1064 42000 …near 'read_consistency(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1,2,3,4)
+< error
+| 1064 42000 …near 'read_consistency(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(*)
+< error
+| 1064 42000 …near 'read_consistency(*)' at line 1
+> exec ^
+: string
+| SELECT read_consistency('a')
+< error
+| 1064 42000 …near 'read_consistency('a')' at line 1
+> exec ^
+: string
+| SELECT read_consistency(a USING utf8mb4)
+< error
+| 1064 42000 …near 'read_consistency(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1 AS SIGNED)
+< error
+| 1064 42000 …near 'read_consistency(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'read_consistency(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1 FROM 2)
+< error
+| 1064 42000 …near 'read_consistency(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1 IN 2)
+< error
+| 1064 42000 …near 'read_consistency(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(DISTINCT 1)
+< error
+| 1064 42000 …near 'read_consistency(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT read_consistency() OVER ()
+< error
+| 1064 42000 …near 'read_consistency() OVER ()' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1) OVER ()
+< error
+| 1064 42000 …near 'read_consistency(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1,2) OVER ()
+< error
+| 1064 42000 …near 'read_consistency(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'read_consistency(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1) FROM t
+< error
+| 1064 42000 …near 'read_consistency(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT read_consistency(SELECT 1)
+< error
+| 1064 42000 …near 'read_consistency(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(YEAR FROM 1)
+< error
+| 1064 42000 …near 'read_consistency(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(DAY, 1, 2)
+< error
+| 1064 42000 …near 'read_consistency(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(1, 'a')
+< error
+| 1064 42000 …near 'read_consistency(1, 'a')' at line 1
+> exec ^
+: string
+| SELECT read_consistency(a)
+< error
+| 1064 42000 …near 'read_consistency(a)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(a, b)
+< error
+| 1064 42000 …near 'read_consistency(a, b)' at line 1
+> exec ^
+: string
+| SELECT read_consistency(a) OVER ()
+< error
+| 1064 42000 …near 'read_consistency(a) OVER ()' at line 1
 > exec ^
 : string
 | SELECT read_only()
@@ -67658,6 +68033,131 @@
 | SELECT table_name(a) OVER ()
 < error
 | 1064 42000 …near '(a) OVER ()' at line 1
+> exec ^
+: string
+| SELECT tablegroup()
+< error
+| 1064 42000 …near 'tablegroup()' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1)
+< error
+| 1064 42000 …near 'tablegroup(1)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1,2)
+< error
+| 1064 42000 …near 'tablegroup(1,2)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1,2,3)
+< error
+| 1064 42000 …near 'tablegroup(1,2,3)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1,2,3,4)
+< error
+| 1064 42000 …near 'tablegroup(1,2,3,4)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(*)
+< error
+| 1064 42000 …near 'tablegroup(*)' at line 1
+> exec ^
+: string
+| SELECT tablegroup('a')
+< error
+| 1064 42000 …near 'tablegroup('a')' at line 1
+> exec ^
+: string
+| SELECT tablegroup(a USING utf8mb4)
+< error
+| 1064 42000 …near 'tablegroup(a USING utf8mb4)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1 AS SIGNED)
+< error
+| 1064 42000 …near 'tablegroup(1 AS SIGNED)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1, INTERVAL 1 DAY)
+< error
+| 1064 42000 …near 'tablegroup(1, INTERVAL 1 DAY)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1 FROM 2)
+< error
+| 1064 42000 …near 'tablegroup(1 FROM 2)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1 IN 2)
+< error
+| 1064 42000 …near 'tablegroup(1 IN 2)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(DISTINCT 1)
+< error
+| 1064 42000 …near 'tablegroup(DISTINCT 1)' at line 1
+> exec ^
+: string
+| SELECT tablegroup() OVER ()
+< error
+| 1064 42000 …near 'tablegroup() OVER ()' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1) OVER ()
+< error
+| 1064 42000 …near 'tablegroup(1) OVER ()' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1,2) OVER ()
+< error
+| 1064 42000 …near 'tablegroup(1,2) OVER ()' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1,2,3) OVER ()
+< error
+| 1064 42000 …near 'tablegroup(1,2,3) OVER ()' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1) FROM t
+< error
+| 1064 42000 …near 'tablegroup(1) FROM t' at line 1
+> exec ^
+: string
+| SELECT tablegroup(SELECT 1)
+< error
+| 1064 42000 …near 'tablegroup(SELECT 1)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(YEAR FROM 1)
+< error
+| 1064 42000 …near 'tablegroup(YEAR FROM 1)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(DAY, 1, 2)
+< error
+| 1064 42000 …near 'tablegroup(DAY, 1, 2)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(1, 'a')
+< error
+| 1064 42000 …near 'tablegroup(1, 'a')' at line 1
+> exec ^
+: string
+| SELECT tablegroup(a)
+< error
+| 1064 42000 …near 'tablegroup(a)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(a, b)
+< error
+| 1064 42000 …near 'tablegroup(a, b)' at line 1
+> exec ^
+: string
+| SELECT tablegroup(a) OVER ()
+< error
+| 1064 42000 …near 'tablegroup(a) OVER ()' at line 1
 > exec ^
 : string
 | SELECT tables()

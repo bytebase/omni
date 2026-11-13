@@ -52,7 +52,7 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	}
 
 	// Table name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
@@ -589,6 +589,15 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	}
 
 	switch p.cur.Type {
+	case kwTABLEGROUP:
+		// DROP TABLEGROUP takes the table out of its table group.
+		// Ref: alter_tablegroup_option in sql_parser_mysql_mode.y (oceanbase
+		// v4.3.5_CE_BP6, line 20096). TABLEGROUP is reserved, so no column has the name.
+		p.advance()
+		cmd.Type = nodes.ATDropTablegroup
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+
 	case kwPARTITION:
 		// DROP PARTITION partition_names
 		p.advance()
@@ -992,7 +1001,7 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		// take it, so the separator is not widened here.
 		cmd.Type = nodes.ATRenameTable
 		p.match(kwTO, kwAS)
-		newTable, err := p.parseTableRef()
+		newTable, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -1189,7 +1198,7 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	tblRef, err := p.parseTableRef()
+	tblRef, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

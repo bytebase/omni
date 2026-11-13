@@ -1929,6 +1929,16 @@
 < ok 0 0
 > exec ^
 : string
+| set no_parallel = 1
+< error
+| 1064 42000 …near 'no_parallel = 1' at line 1
+> exec ^
+: string
+| set no_rewrite = 1
+< error
+| 1064 42000 …near 'no_rewrite = 1' at line 1
+> exec ^
+: string
 | set no_wait = 1
 < ok 0 0
 > exec ^
@@ -2323,6 +2333,11 @@
 | set read = 1
 < error
 | 1064 42000 …near 'read = 1' at line 1
+> exec ^
+: string
+| set read_consistency = 1
+< error
+| 1064 42000 …near 'read_consistency = 1' at line 1
 > exec ^
 : string
 | set read_only = 1
@@ -3181,6 +3196,11 @@
 : string
 | set table_name = 1
 < ok 0 0
+> exec ^
+: string
+| set tablegroup = 1
+< error
+| 1064 42000 …near 'tablegroup = 1' at line 1
 > exec ^
 : string
 | set tables = 1
@@ -5539,6 +5559,16 @@
 < ok 0 0
 > exec ^
 : string
+| set global no_parallel = 1
+< error
+| 1064 42000 …near 'no_parallel = 1' at line 1
+> exec ^
+: string
+| set global no_rewrite = 1
+< error
+| 1064 42000 …near 'no_rewrite = 1' at line 1
+> exec ^
+: string
 | set global no_wait = 1
 < ok 0 0
 > exec ^
@@ -5928,6 +5958,11 @@
 | set global read = 1
 < error
 | 1064 42000 …near 'read = 1' at line 1
+> exec ^
+: string
+| set global read_consistency = 1
+< error
+| 1064 42000 …near 'read_consistency = 1' at line 1
 > exec ^
 : string
 | set global read_only = 1
@@ -6781,6 +6816,11 @@
 : string
 | set global table_name = 1
 < ok 0 0
+> exec ^
+: string
+| set global tablegroup = 1
+< error
+| 1064 42000 …near 'tablegroup = 1' at line 1
 > exec ^
 : string
 | set global tables = 1
@@ -9449,6 +9489,16 @@
 | 1064 42000 …near 'no.a = 1' at line 1
 > exec ^
 : string
+| set no_parallel.a = 1
+< error
+| 1064 42000 …near 'no_parallel.a = 1' at line 1
+> exec ^
+: string
+| set no_rewrite.a = 1
+< error
+| 1064 42000 …near 'no_rewrite.a = 1' at line 1
+> exec ^
+: string
 | set no_wait.a = 1
 < error
 | 1064 42000 …near 'no_wait.a = 1' at line 1
@@ -9912,6 +9962,11 @@
 | set read.a = 1
 < error
 | 1064 42000 …near 'read.a = 1' at line 1
+> exec ^
+: string
+| set read_consistency.a = 1
+< error
+| 1064 42000 …near 'read_consistency.a = 1' at line 1
 > exec ^
 : string
 | set read_only.a = 1
@@ -10927,6 +10982,11 @@
 | set table_name.a = 1
 < error
 | 1064 42000 …near 'table_name.a = 1' at line 1
+> exec ^
+: string
+| set tablegroup.a = 1
+< error
+| 1064 42000 …near 'tablegroup.a = 1' at line 1
 > exec ^
 : string
 | set tables.a = 1
@@ -13659,6 +13719,16 @@
 | 1064 42000 …near 'a.no = 1' at line 1
 > exec ^
 : string
+| set a.no_parallel = 1
+< error
+| 1064 42000 …near 'a.no_parallel = 1' at line 1
+> exec ^
+: string
+| set a.no_rewrite = 1
+< error
+| 1064 42000 …near 'a.no_rewrite = 1' at line 1
+> exec ^
+: string
 | set a.no_wait = 1
 < error
 | 1064 42000 …near 'a.no_wait = 1' at line 1
@@ -14122,6 +14192,11 @@
 | set a.read = 1
 < error
 | 1064 42000 …near 'a.read = 1' at line 1
+> exec ^
+: string
+| set a.read_consistency = 1
+< error
+| 1064 42000 …near 'a.read_consistency = 1' at line 1
 > exec ^
 : string
 | set a.read_only = 1
@@ -15137,6 +15212,11 @@
 | set a.table_name = 1
 < error
 | 1064 42000 …near 'a.table_name = 1' at line 1
+> exec ^
+: string
+| set a.tablegroup = 1
+< error
+| 1064 42000 …near 'a.tablegroup = 1' at line 1
 > exec ^
 : string
 | set a.tables = 1
@@ -17564,6 +17644,16 @@
 < ok 0 0
 > exec ^
 : string
+| set @a = 1, no_parallel = 2
+< error
+| 1064 42000 …near 'no_parallel = 2' at line 1
+> exec ^
+: string
+| set @a = 1, no_rewrite = 2
+< error
+| 1064 42000 …near 'no_rewrite = 2' at line 1
+> exec ^
+: string
 | set @a = 1, no_wait = 2
 < ok 0 0
 > exec ^
@@ -17958,6 +18048,11 @@
 | set @a = 1, read = 2
 < error
 | 1064 42000 …near 'read = 2' at line 1
+> exec ^
+: string
+| set @a = 1, read_consistency = 2
+< error
+| 1064 42000 …near 'read_consistency = 2' at line 1
 > exec ^
 : string
 | set @a = 1, read_only = 2
@@ -18816,6 +18911,11 @@
 : string
 | set @a = 1, table_name = 2
 < ok 0 0
+> exec ^
+: string
+| set @a = 1, tablegroup = 2
+< error
+| 1064 42000 …near 'tablegroup = 2' at line 1
 > exec ^
 : string
 | set @a = 1, tables = 2
