@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -1273,40 +1274,69 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 	return stmt, nil
 }
 
-// parseServerOptions parses the OPTIONS (...) clause for SERVER statements.
-// It consumes everything inside the parentheses as raw option strings.
+// parseServerOptions reads `OPTIONS ( server_options_list )`, which CREATE
+// SERVER and ALTER SERVER both require. Each option is a word and a string:
+// USER, HOST, DATABASE, OWNER, PASSWORD, SOCKET, PORT, or any other name
+// (IDENT_sys, so no keyword). PORT takes ulong_num too, and a string only when
+// it spells an integer the size of a long (the action's parse_error
+// otherwise). Each of the named options comes at most once
+// (MYSQL_YYABORT_UNLESS). An option comes back as its word and its value,
+// joined by a space.
+//
+// Ref: server_options_list and server_option in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseServerOptions() ([]string, error) {
-	p.match(kwOPTIONS)
-	p.expect('(')
-
-	var opts []string
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Each option is: keyword value
-		// e.g., HOST 'host_name', DATABASE 'db_name', USER 'user_name', etc.
-		// Must accept any keyword since option names (HOST, DATABASE, USER, etc.)
-		// may be registered keywords.
-		var optStr string
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			optName, _, _ := p.parseKeywordOrIdent()
-			optStr = optName
-		} else {
-			optStr = p.cur.Str
-			p.advance()
-		}
-		// value
-		if p.cur.Type == tokSCONST {
-			optStr += " " + p.cur.Str
-			p.advance()
-		} else if p.cur.Type == tokICONST {
-			optStr += " " + p.cur.Str
-			p.advance()
-		}
-		opts = append(opts, optStr)
-		if p.cur.Type == ',' {
-			p.advance()
-		}
+	if _, err := p.expect(kwOPTIONS); err != nil {
+		return nil, err
 	}
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var opts []string
+	seen := map[int]bool{}
+	for {
+		var word string
+		named := false
+		switch p.cur.Type {
+		case kwUSER, kwHOST, kwDATABASE, kwOWNER, kwPASSWORD, kwSOCKET, kwPORT:
+			word, named = strings.ToUpper(p.cur.Str), true
+			if seen[p.cur.Type] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[p.cur.Type] = true
+		case tokIDENT:
+			if strings.HasPrefix(p.cur.Str, "@") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			word = p.cur.Str
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		isPort := named && word == "PORT"
+		p.advance()
+		var val string
+		switch {
+		case isPort && (p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
+			(p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x"))):
+			val = p.advance().Str
+		case p.cur.Type == tokSCONST:
+			if isPort {
+				if _, err := strconv.ParseInt(strings.TrimLeft(p.cur.Str, " \t\n\r"), 10, 64); err != nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+			val = p.advance().Str
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts = append(opts, word+" "+val)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return opts, nil
 }
 
@@ -1325,17 +1355,19 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 		return nil, err
 	}
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
 
 	// FOREIGN DATA WRAPPER wrapper_name
-	p.match(kwFOREIGN)
-	p.match(kwDATA)
-	p.match(kwWRAPPER)
+	for _, kw := range []int{kwFOREIGN, kwDATA, kwWRAPPER} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
-	wrapperName, _, err := p.parseIdentifier()
+	wrapperName, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
@@ -1348,14 +1380,12 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 		WrapperName: wrapperName,
 	}
 
-	// OPTIONS (...)
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseServerOptions()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+	// OPTIONS (...), which the grammar requires.
+	opts, err := p.parseServerOptions()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1369,7 +1399,7 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error) {
 	p.advance() // consume SERVER
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
@@ -1379,14 +1409,12 @@ func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error)
 		Name: name,
 	}
 
-	// OPTIONS (...)
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseServerOptions()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+	// OPTIONS (...), which the grammar requires.
+	opts, err := p.parseServerOptions()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1409,7 +1437,7 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 		stmt.IfExists = true
 	}
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}

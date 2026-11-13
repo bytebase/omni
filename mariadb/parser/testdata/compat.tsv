@@ -753,16 +753,16 @@ accept	accept	engine	create/create_or_replace_server_def	CREATE SERVER a FOREIGN
 reject	reject	engine	create/create_or_replace_server_def!drop-1	SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-2	CREATE a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-3	CREATE SERVER FOREIGN DATA WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-7	CREATE SERVER a FOREIGN DATA WRAPPER OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-8	CREATE SERVER a FOREIGN DATA WRAPPER a(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s');
-accept	reject	engine	create/create_or_replace_server_def!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER);
-accept	reject	engine	create/create_or_replace_server_def!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's';
-accept	reject	engine	create/create_or_replace_server_def!truncate	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
+reject	reject	engine	create/create_or_replace_server_def!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s');
+reject	reject	engine	create/create_or_replace_server_def!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER);
+reject	reject	engine	create/create_or_replace_server_def!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's';
+reject	reject	engine	create/create_or_replace_server_def!truncate	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
 reject	reject	engine	create/create_or_replace_server_def!insert	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's') zzz;
 reject	reject	engine	create/create_or_replace_server_def!swap	CROSS SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	accept	engine	create/create_routine	CREATE PACKAGE a END;
@@ -851,59 +851,59 @@ reject	reject	engine	force_lookahead/%empty!insert	ALTER EVENT a DO COMMIT zzz;
 accept	accept	engine	server_def/SERVER_SYM_opt_if_not_exists_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	server_def/SERVER_SYM_opt_if_not_exists_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!swap	CREATE SESSION a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 accept	accept	engine	server_options_list/server_option	ALTER SERVER a OPTIONS(USER 's');
-accept	reject	engine	server_options_list/server_option!drop-1	ALTER SERVER a OPTIONS('s');
-accept	reject	engine	server_options_list/server_option!drop-2	ALTER SERVER a OPTIONS(USER);
-accept	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
-accept	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz);
-accept	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER a OPTIONS(USER 's', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
-accept	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's');
+reject	reject	engine	server_options_list/server_option!drop-1	ALTER SERVER a OPTIONS('s');
+reject	reject	engine	server_options_list/server_option!drop-2	ALTER SERVER a OPTIONS(USER);
+reject	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
+reject	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz);
+reject	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER a OPTIONS(USER 's', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
+reject	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's');
 accept	accept	engine	server_option/USER_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(USER 's');
 accept	accept	engine	server_option/HOST_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(HOST 's');
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(HOST);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(HOST
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(HOST 's' zzz);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(HOSTS 's');
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(HOST);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(HOST
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(HOST 's' zzz);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(HOSTS 's');
 accept	accept	engine	server_option/DATABASE_TEXT_STRING_sys	ALTER SERVER a OPTIONS(DATABASE 's');
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(DATABASE);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(DATABASE
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(DATABASES 's');
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(DATABASE);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(DATABASE
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(DATABASES 's');
 accept	accept	engine	server_option/OWNER_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(OWNER 's');
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(OWNER);
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(OWNER
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(OWNER);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(OWNER
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz);
 accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PACKAGE 's');
 accept	accept	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PASSWORD 's');
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(PASSWORD);
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(PASSWORD
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz);
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PATH 's');
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(PASSWORD);
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(PASSWORD
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz);
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PATH 's');
 accept	accept	engine	server_option/SOCKET_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(SOCKET 's');
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(SOCKET);
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(SOCKET
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(SOCKET);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(SOCKET
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz);
 accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(SOFT 's');
 accept	accept	engine	server_option/PORT_SYM_ulong_num	ALTER SERVER a OPTIONS(PORT 1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER a OPTIONS(1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER a OPTIONS(PORT);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER a OPTIONS(PORT
-accept	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER a OPTIONS(PORT 1 zzz);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER a OPTIONS(PORTION 1);
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PORT 's');
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PORT 's' zzz);
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PORTION 's');
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER a OPTIONS(1);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER a OPTIONS(PORT);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER a OPTIONS(PORT
+reject	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER a OPTIONS(PORT 1 zzz);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER a OPTIONS(PORTION 1);
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PORT 's');
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PORT 's' zzz);
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PORTION 's');
 accept	accept	engine	server_option/IDENT_sys_TEXT_STRING_sys	ALTER SERVER a OPTIONS(a 's');
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(a);
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(a
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(a 's' zzz);
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(a);
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(a
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(a 's' zzz);
 accept	accept	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT a ON SCHEDULE AT a DO COMMIT;
 reject	reject	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!swap	CREATE EVENT a ONE SCHEDULE AT a DO COMMIT;
 accept	accept	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT a ON SCHEDULE EVERY a DAY;
@@ -3805,9 +3805,9 @@ reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_o
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-2	ALTER a OPTIONS(USER 's');
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-3	ALTER SERVER OPTIONS(USER 's');
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-4	ALTER SERVER a(USER 's');
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	ALTER SERVER a OPTIONS USER 's');
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-8	ALTER SERVER a OPTIONS(USER 's';
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	ALTER SERVER a OPTIONS(USER 's'
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	ALTER SERVER a OPTIONS USER 's');
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-8	ALTER SERVER a OPTIONS(USER 's';
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	ALTER SERVER a OPTIONS(USER 's'
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!insert	ALTER SERVER a OPTIONS(USER 's') zzz;
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!swap	ALWAYS SERVER a OPTIONS(USER 's');
 accept	accept	engine	alter/ALTER_USER_SYM_opt_if_exists_clear_privileges_grant_list_opt_require_clause_opt_resource_options_opt_account_locking_and_opt_password_expiration	ALTER USER a;
@@ -8547,7 +8547,7 @@ reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_n
 reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!truncate	SHOW CREATE PACKAGE BODY
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!insert	SHOW CREATE PACKAGE BODY a zzz;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!swap	SHOW CROSS PACKAGE BODY a;
-reject	accept	engine	show_param/CREATE_SERVER_SYM_ident_or_text	SHOW CREATE SERVER a;
+accept	accept	engine	show_param/CREATE_SERVER_SYM_ident_or_text	SHOW CREATE SERVER a;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!drop-1	SHOW SERVER a;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!drop-3	SHOW CREATE SERVER;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!truncate	SHOW CREATE SERVER
