@@ -709,6 +709,13 @@ func isViewStringMetadataNullableFunc(name string) bool {
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
+	// A table among the names is 1347 before any view is dropped, IF EXISTS or not,
+	// wherever it stands in the list.
+	for _, ref := range stmt.Views {
+		if db, err := c.resolveDatabase(ref.Schema); err == nil && db.Tables[toLower(ref.Name)] != nil {
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, ref.Name)}
+		}
+	}
 	for _, ref := range stmt.Views {
 		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {

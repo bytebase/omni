@@ -36,7 +36,9 @@ type sysMatch struct {
 	nameEnd int    // where the naming words of the form end
 	schema  string // the object the statement names, where a form reads one
 	name    string
-	err     error // an inner statement's own error, which the match reports
+	// ttlColumns is the column of each TTL entry matched so far, in order.
+	ttlColumns []string
+	err        error // an inner statement's own error, which the match reports
 }
 
 // sysMiss records the current token as one no matcher took.

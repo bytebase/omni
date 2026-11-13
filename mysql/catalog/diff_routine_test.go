@@ -101,7 +101,7 @@ func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, 
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] exec failed : %q: %v", o.name, s, err)
 			return nil, "", false
 		}
 	}
@@ -143,7 +143,7 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 				db := routineProbeDB + "_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, rb, ok := o.loadRoutineReadback(t, db, probe.create, probe.kind, probe.name)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not obtain readback for %s", o.name, probe.id)
 				}
 
 				// Idempotence spine: the stored form self-diffs empty.
@@ -189,7 +189,7 @@ func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
 		t.Run(o.name, func(t *testing.T) {
 			rb, ok := o.showCreateRoutine(t, "sys", "PROCEDURE", "ps_trace_thread")
 			if !ok {
-				t.Skipf("[%s] sys.ps_trace_thread unavailable (stripped sys schema?)", o.name)
+				t.Fatalf("[%s] sys.ps_trace_thread unavailable (stripped sys schema?)", o.name)
 			}
 			sdl := "CREATE DATABASE sysdump;\nUSE sysdump;\n" + rb + ";\n"
 			cat, err := LoadSDL(sdl)

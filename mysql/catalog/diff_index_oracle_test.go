@@ -148,7 +148,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup: %q: %v", o.name, s, err)
 				}
 			}
 			var sb strings.Builder
@@ -214,7 +214,7 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 				}
 				for _, s := range stmts {
 					if _, err := o.db.ExecContext(ctx, s); err != nil {
-						t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+						t.Fatalf("[%s] setup failed : %q: %v", o.name, s, err)
 					}
 				}
 				// Read both tables back and reload as a single schema.

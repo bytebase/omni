@@ -1,6 +1,10 @@
 package catalog
 
-import "testing"
+import (
+	"maps"
+	"slices"
+	"testing"
+)
 
 // constraintOfIndexScripts: a CHECK or a foreign key may share an index's name without being tied
 // to it, and the server keeps it when the index goes.
@@ -25,7 +29,8 @@ func TestConstraintOfIndexSurvivesOtherNamesOracle(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	for name, script := range constraintOfIndexScripts {
+	for _, name := range slices.Sorted(maps.Keys(constraintOfIndexScripts)) {
+		script := constraintOfIndexScripts[name]
 		t.Run(name, func(t *testing.T) {
 			if err := ctr.execSQL("DROP TABLE IF EXISTS t; DROP TABLE IF EXISTS p"); err != nil {
 				t.Fatal(err)
