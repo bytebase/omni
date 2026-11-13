@@ -19,7 +19,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `oracle` | Oracle Free `23.26.3-slim-faststart`; optional reference DSN | Move inline container setup into an engine-owned helper. |
 | `partiql` | No server. `partiql/parser` replays `compat.tsv`, judged by the reference grammar: `partiql/testdata/PartiQLParser.g4` at `v0.14.9` of partiql-lang-kotlin, with DynamoDB's documented statements as `suite:dynamodb-docs` rows | The 400 disagreeing rows of 1,910; 271 are an expression as a statement. Add DynamoDB Local for its supported PartiQL subset, which would judge that subset as the engine. |
 | `pg` | `postgres:17.12-alpine` (default) and `postgres:18.7-alpine` (`pg18`, the analyzer and a second walk), pinned by digest in `pg/testdata/pins.tsv`, started only by a recording (`OMNI_RECORD=1`) | Every package replays `compat.tsv` and tapes through `pg/internal/testcontainer` and starts no server: `pg/parser`, `pg/splittest`, `pg/catalog` and `pg/review`. Work the disagreements down: `compat.tsv` (16,792 rows, 2,216 disagreeing) and `simulate.tsv` (1,084 rows on one fixture, 497 agreeing). |
-| `redshift` | PostgreSQL `17-alpine` baseline; explicit Redshift reference checks | Temporary PostgreSQL substitute is accepted; align its version with `pg` when upgrading. |
+| `redshift` | No server. Its tests no longer ask a PostgreSQL stand-in; `redshift/compat` asks a real Redshift only with `REDSHIFT_COMPAT_DSN` | A judge: `compat.tsv` from AWS's SQL reference (§8 of the compatibility spec). `simulate.tsv` needs the engine, so it waits for a `REDSHIFT_COMPAT_DSN` recording. |
 | `snowflake` | No local native database oracle | A native test account or suitable licensed emulator is needed. |
 | `starrocks` | `starrocks/allin1-ubuntu:3.4.10` | Upgrade the native baseline after checking dialect drift. |
 | `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog`, `tidb/parser` and `tidb/review` replay tapes and start no server, and the parser's corpora are `suite:` rows of its `compat.tsv`; `tidb/catalog/testdata/simulate.tsv` holds one fixture in four namings, and 573 of its 1,724 rows disagree. |
@@ -41,6 +41,6 @@ Inline setup in other engines has not yet been extracted by this initial change.
 
 ## Selected upgrade targets
 
-The follow-up targets are MySQL `8.4.13` only, PostgreSQL `18.6-alpine` for both PostgreSQL and the temporary Redshift baseline, Doris `4.0.8`, and StarRocks `4.1.7`. These are selected targets, not claims about the baselines currently exercised above. Pin a complete patch release or a dated vendor build when switching, then rerun the corresponding native oracle suites and investigate drift.
+The follow-up targets are MySQL `8.4.13` only, PostgreSQL `18.6-alpine`, Doris `4.0.8`, and StarRocks `4.1.7`. These are selected targets, not claims about the baselines currently exercised above. Pin a complete patch release or a dated vendor build when switching, then rerun the corresponding native oracle suites and investigate drift.
 
 TiDB must use TiDB throughout the migration. Doris's reported `5.7.99` is its MySQL wire-protocol compatibility version, not a Doris release number.

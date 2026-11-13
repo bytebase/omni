@@ -2,8 +2,8 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromMixed transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.5
-// (FROM-clause mixed shapes corpus) into oracle probes. Each case asserts
+// TestParenRouteFromMixed transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.5
+// (FROM-clause mixed shapes corpus) into routing cases. Each case asserts
 // the OmniStatus omni must emit to be PG-17 aligned for paren-wrapped
 // joined_tables whose operands are subqueries, VALUES, TABLE, or bare
 // relations — the `((subquery) JOIN relation)` family, which is the exact
@@ -20,10 +20,9 @@ import "testing"
 //     42601 at the `)` following the lone relation name.
 //   - subquery as right-hand JOIN operand
 //
-// Fixture tables T/U/V/W are created by StartParenOracle
-// (see paren_oracle_test.go).
-func TestParenOracleFromMixed(t *testing.T) {
-	o := StartParenOracle(t)
+// Fixture tables T/U/V/W are created by the PostgreSQL oracle these cases were measured on
+// .
+func TestParenRouteFromMixed(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -102,7 +101,7 @@ func TestParenOracleFromMixed(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 }

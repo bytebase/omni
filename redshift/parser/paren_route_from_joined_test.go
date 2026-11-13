@@ -2,8 +2,8 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromJoined transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.4
-// (FROM-clause joined_table-shape corpus) into oracle probes. Each case
+// TestParenRouteFromJoined transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.4
+// (FROM-clause joined_table-shape corpus) into routing cases. Each case
 // asserts the OmniStatus omni must emit to be PG-17 aligned for a paren-
 // wrapped joined_table FROM item and for its nested/aliased/LATERAL
 // variants.
@@ -22,9 +22,8 @@ import "testing"
 //     first and second join levels
 //
 // Fixture tables T/U/V/W and function probe_f() are created by
-// StartParenOracle (see paren_oracle_test.go).
-func TestParenOracleFromJoined(t *testing.T) {
-	o := StartParenOracle(t)
+// the PostgreSQL oracle these cases were measured on.
+func TestParenRouteFromJoined(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -149,7 +148,7 @@ func TestParenOracleFromJoined(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 }
