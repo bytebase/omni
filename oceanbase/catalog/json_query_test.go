@@ -245,7 +245,31 @@ func TestMultiValuedIndexGoesInWithItsTable(t *testing.T) {
 			if len(adds) != 1 || !strings.Contains(adds[0], "ADD KEY `ka`") {
 				t.Errorf("want one ADD, of the plain index, got:\n%s", strings.Join(adds, "\n"))
 			}
+			if plan.HasWarnings() {
+				t.Errorf("a plan OceanBase runs carries warnings: %+v", plan.Warnings())
+			}
 		})
+	}
+}
+
+// TestAddingAMultiValuedIndexIsWarnedOf: the plan has no statement that adds a multi-valued
+// index to a table that exists, so the ADD it writes says OceanBase refuses it, and the
+// plain index beside it carries no warning.
+func TestAddingAMultiValuedIndexIsWarnedOf(t *testing.T) {
+	load := func(indexes string) *Catalog {
+		t.Helper()
+		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY, a INT, j JSON" + indexes + ")")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	from, to := load(""), load(", KEY ka (a), KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY)))")
+	n := NormalizerFor(MySQL80)
+	plan := GenerateMigrationWithNormalizer(from, to, DiffWithNormalizer(from, to, n), n)
+	warned := plan.Warnings()
+	if len(warned) != 1 || !strings.Contains(warned[0].SQL, "ADD KEY `mv`") || !strings.Contains(warned[0].Warning, "error 1235") {
+		t.Errorf("want the one warning, on the ADD of mv, got %+v\nplan:\n%s", warned, plan.SQL())
 	}
 }
 

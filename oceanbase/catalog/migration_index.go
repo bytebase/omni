@@ -180,12 +180,17 @@ func onlyVisibilityDiffers(from, to *Index, n *Normalizer) bool {
 // addIndexOp builds an ALTER TABLE ... ADD <index> op. A PRIMARY KEY uses ADD PRIMARY KEY; every
 // other kind uses ADD <UNIQUE|FULLTEXT|SPATIAL> KEY `name` (...). The op runs in PhaseMain at
 // priorityIndex.
+//
+// A multi-valued index carries a Warning: OceanBase 4.3.5.6 builds one with its table and
+// answers 1235 for ALTER TABLE ... ADD KEY and for CREATE INDEX, so the plan has no statement
+// that adds it to a table that exists. A new table's goes in its CREATE TABLE and does not
+// come here (addIndexOpsForNewTable).
 func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) MigrationOp {
 	if idx.Vector {
 		return addVectorIndexOp(entry, table, idx)
 	}
 	clause := "ADD " + formatIndexDefinition(idx, n)
-	return MigrationOp{
+	op := MigrationOp{
 		Type:         OpAddIndex,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
@@ -197,6 +202,11 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		alterClause:  clause,
 		addsIndex:    idx,
 	}
+	if isMultiValuedIndex(idx) {
+		op.Warning = fmt.Sprintf("OceanBase cannot add the multi-valued index %s to table %s (error 1235): it builds one only with its table",
+			migrationQuoteIdent(idx.Name), table)
+	}
+	return op
 }
 
 // addVectorIndexOp builds the CREATE VECTOR INDEX a vector index needs, because OceanBase 4.3.5.6
