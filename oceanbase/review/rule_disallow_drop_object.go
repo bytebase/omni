@@ -2,13 +2,14 @@ package review
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/review"
 )
 
 // checkDisallowDropObject reports every DROP: the DROP statement of any
-// object kind, and ALTER TABLE ... DROP COLUMN, DROP INDEX, and DROP
+// object kind, OceanBase's own included, and ALTER TABLE ... DROP COLUMN, DROP INDEX, and DROP
 // PARTITION, which anchor the subcommand. IF EXISTS does not exempt a
 // statement, and neither does a routine body around it: the statement
 // tree is walked, so a DROP inside a procedure is reported where it is.
@@ -65,6 +66,25 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			report(v.Loc, "server", ident(v.Name))
 		case *ast.DropLogfileGroupStmt:
 			report(v.Loc, "logfile group", ident(v.Name))
+		case *ast.ObjectDDLStmt:
+			// OceanBase's own objects: tenants, resource units and pools,
+			// tablegroups, sequences, outlines, tenant snapshots, concurrent
+			// limiting rules and sensitive rules. A tenant and its snapshot hold
+			// data, which DropCode does not know them by.
+			kind, ok := strings.CutPrefix(v.Action, "DROP ")
+			if !ok {
+				return true
+			}
+			kind = strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(kind, "FORMAT "), "_", " "))
+			var names []string
+			if v.Name != "" {
+				names = []string{table(&ast.TableRef{Schema: v.Schema, Name: v.Name})}
+			}
+			code := review.DropCode(kind)
+			if kind == "tenant" || kind == "snapshot" {
+				code = review.DropsData
+			}
+			reportAt(code, anchor(s, n, v.Loc), drops(kind, names...))
 		case *ast.DropSpatialRefSysStmt:
 			report(v.Loc, "spatial reference system", strconv.FormatInt(v.SRID, 10))
 		case *ast.DropResourceGroupStmt:

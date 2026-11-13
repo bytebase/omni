@@ -249,6 +249,19 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{
+			name: "OceanBase's own objects",
+			sql:  "DROP TENANT IF EXISTS t1 FORCE;\nDROP TABLEGROUP tg;\nDROP SEQUENCE d.s;\nDROP FORMAT OUTLINE o;\nDROP SNAPSHOT sn FOR TENANT t1;\nDROP CONCURRENT_LIMITING_RULE r;\nDROP SENSITIVE RULE sr;",
+			want: []finding{
+				{0, "DROP TENANT IF EXISTS t1 FORCE", "Drops tenant `t1`.", []int{0}},
+				{1, "DROP TABLEGROUP tg", "Drops tablegroup `tg`.", []int{0}},
+				{2, "DROP SEQUENCE d.s", "Drops sequence `d.s`.", []int{0}},
+				{3, "DROP FORMAT OUTLINE o", "Drops outline `o`.", []int{0}},
+				{4, "DROP SNAPSHOT sn FOR TENANT t1", "Drops snapshot `sn`.", []int{0}},
+				{5, "DROP CONCURRENT_LIMITING_RULE r", "Drops concurrent limiting rule `r`.", []int{0}},
+				{6, "DROP SENSITIVE RULE sr", "Drops sensitive rule `sr`.", []int{0}},
+			},
+		},
+		{
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},
