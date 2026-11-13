@@ -258,9 +258,9 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 //
 //	var_name FROM CURRENT_P
 func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
-	varName := p.parseVarName()
-	if varName == "" {
-		return nil, nil
+	varName, err := p.parseVarName()
+	if err != nil {
+		return nil, err
 	}
 
 	switch p.cur.Type {
@@ -307,20 +307,20 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 //
 //	ColId
 //	| var_name '.' ColId
-func (p *Parser) parseVarName() string {
+func (p *Parser) parseVarName() (string, error) {
 	name, err := p.parseColId()
 	if err != nil {
-		return ""
+		return "", err
 	}
 	for p.cur.Type == '.' {
 		p.advance() // consume '.'
 		part, err := p.parseColId()
 		if err != nil {
-			break
+			return "", err
 		}
 		name = name + "." + part
 	}
-	return name
+	return name, nil
 }
 
 // parseVarList parses a comma-separated list of var_value.
@@ -471,19 +471,6 @@ func (p *Parser) tryOptBooleanOrString() (string, bool) {
 	}
 }
 
-// isNonReservedWord returns true if the current token is a NonReservedWord.
-//
-// NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
-func (p *Parser) isNonReservedWord() bool {
-	if p.cur.Type == IDENT {
-		return true
-	}
-	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
-		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
-	}
-	return false
-}
-
 // parseZoneValue parses a zone_value.
 //
 // zone_value:
@@ -541,6 +528,27 @@ func (p *Parser) parseOptEncoding() string {
 	}
 }
 
+// varNameFormKind returns the token SHOW and RESET dispatch on. TIME,
+// TRANSACTION and SESSION lead their own forms only before ZONE, ISOLATION
+// and AUTHORIZATION; otherwise each is a var_name, and IDENT stands for it.
+func (p *Parser) varNameFormKind() int {
+	var follow int
+	switch p.cur.Type {
+	case TIME:
+		follow = ZONE
+	case TRANSACTION:
+		follow = ISOLATION
+	case SESSION:
+		follow = AUTHORIZATION
+	default:
+		return p.cur.Type
+	}
+	if !p.keywordLeads(func(t Token) bool { return t.Type == follow }) {
+		return IDENT
+	}
+	return p.cur.Type
+}
+
 // parseVariableShowStmt parses a SHOW statement. The SHOW keyword has already
 // been consumed by the caller.
 //
@@ -556,7 +564,7 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 	if p.isRedshiftShowStart() {
 		return p.parseRedshiftShowStmt(loc)
 	}
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {
@@ -594,7 +602,10 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 		return &nodes.VariableShowStmt{Name: "session_user", Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 
 	default:
-		name := p.parseVarName()
+		name, err := p.parseVarName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableShowStmt{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 }
@@ -614,7 +625,7 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 //	| SESSION AUTHORIZATION
 func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // RESET was already consumed
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {
@@ -660,7 +671,10 @@ func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 
 	default:
 		// generic_reset: var_name
-		name := p.parseVarName()
+		name, err := p.parseVarName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_RESET,
 			Name: name,
@@ -773,7 +787,10 @@ func (p *Parser) parseAlterSystemStmt() (nodes.Node, error) {
 				Kind: nodes.VAR_RESET_ALL,
 			}
 		} else {
-			name := p.parseVarName()
+			name, err := p.parseVarName()
+			if err != nil {
+				return nil, err
+			}
 			setstmt = &nodes.VariableSetStmt{
 				Kind: nodes.VAR_RESET,
 				Name: name,

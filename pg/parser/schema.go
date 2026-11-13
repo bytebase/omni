@@ -34,7 +34,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 		elts, err := p.parseSchemaElts(stmt.IfNotExists)
 		if err != nil {
 			return nil, err
@@ -52,7 +56,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 	}
 
 	elts, err := p.parseSchemaElts(stmt.IfNotExists)
@@ -217,7 +225,10 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 	if !orReplaceConsumed {
 		p.advance() // consume CREATE
 	}
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	switch p.cur.Type {
 	case VIEW, RECURSIVE:
@@ -288,7 +299,10 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 // inside a schema_element. CREATE and OR REPLACE have already been consumed
 // by the caller; the current token is the OptTemp lead keyword.
 func (p *Parser) parseViewStmtWithOptTemp(replace bool) (*nodes.ViewStmt, error) {
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 	stmt, err := p.parseViewStmt(replace)
 	if err != nil {
 		return nil, err
@@ -318,7 +332,11 @@ func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	var owner *nodes.RoleSpec
 	if p.cur.Type == OWNER {
 		p.advance()
-		owner = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		owner = rs
 	}
 
 	if _, err := p.expect(LOCATION); err != nil {
@@ -332,7 +350,9 @@ func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	var options *nodes.List
 	if p.cur.Type == WITH {
 		p.advance()
-		options = p.parseReloptions()
+		if options, err = p.parseReloptions(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.CreateTableSpaceStmt{

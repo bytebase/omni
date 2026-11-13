@@ -1,5 +1,7 @@
 package parser
 
+import "slices"
+
 // simpleTypenameLeadTokens is the single source of truth for tokens that
 // unambiguously start a SimpleTypename production (excluding GenericType
 // which is covered by the type_function_name category check).
@@ -264,6 +266,70 @@ var selectLimitLeadSet = func() map[int]bool {
 // checks the predicate against the whole Keywords table instead.
 func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
+}
+
+// isOptTableQualifiedNameStart reports whether tok, the token after TEMP,
+// TEMPORARY or UNLOGGED in OptTempTableName, starts opt_table
+// qualified_name: TABLE or a ColId. Otherwise the keyword is the table's
+// name (SELECT INTO temp).
+//
+// Grammar reference: OptTempTableName and opt_table in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is TABLE
+// and isColIdToken's categories, which TestKeywordLeadPredicates checks
+// against the whole Keywords table.
+func isOptTableQualifiedNameStart(tok Token) bool {
+	return tok.Type == TABLE || isColIdToken(tok)
+}
+
+// tempLeadTokens is what makes LOCAL or GLOBAL lead OptTempTableName's
+// LOCAL TEMP and GLOBAL TEMP forms; before anything else LOCAL or GLOBAL is
+// the table's name.
+//
+// DO NOT extend this list without also extending parseOptTempTableName.
+var tempLeadTokens = []int{TEMPORARY, TEMP}
+
+// isTempStart reports whether tok is one of tempLeadTokens.
+func isTempStart(tok Token) bool {
+	return slices.Contains(tempLeadTokens, tok.Type)
+}
+
+// isDeallocateTargetStart reports whether tok, the token after PREPARE in
+// DeallocateStmt, starts its target: ALL or a name. Otherwise PREPARE is the
+// name (DEALLOCATE prepare).
+//
+// Grammar reference: DeallocateStmt in postgres/src/backend/parser/gram.y.
+func isDeallocateTargetStart(tok Token) bool {
+	return tok.Type == ALL || isColIdToken(tok)
+}
+
+// createStmtTailLeadTokens is the FIRST set of what follows CREATE TABLE's
+// name in CreateStmt: '(' OptTableElementList, OF any_name, PARTITION OF.
+// Any other token goes on with create_as_target, whose table_access_method_clause,
+// OptWith, OnCommitOption and OptTableSpace come before AS.
+//
+// Grammar reference: CreateStmt and create_as_target in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending finishCreateStmt's
+// dispatch in parser.go, and vice versa.
+var createStmtTailLeadTokens = []int{'(', OF, PARTITION}
+
+var createStmtTailLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(createStmtTailLeadTokens))
+	for _, t := range createStmtTailLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isCreateStmtTailStart reports whether the token after CREATE TABLE's name
+// goes on with CreateStmt rather than create_as_target.
+//
+// No PG oracle test: '(' and the reserved OF and PARTITION start nothing
+// else there, so TestIsCreateStmtTailStartMatchesSlice checks the predicate
+// against the whole Keywords table instead.
+func (p *Parser) isCreateStmtTailStart() bool {
+	return createStmtTailLeadSet[p.cur.Type]
 }
 
 // isFuncTypeStart reports whether the current token starts a func_type

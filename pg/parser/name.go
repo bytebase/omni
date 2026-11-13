@@ -60,11 +60,76 @@ func (p *Parser) isTypeFunctionName() bool {
 	return false
 }
 
+// isNonReservedWord returns true if the current token can be used as a NonReservedWord.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) isNonReservedWord() bool {
+	if p.collectMode() {
+		p.addTokenCandidate(IDENT)
+		p.addKeywordsByCategory(UnreservedKeyword, ColNameKeyword, TypeFuncNameKeyword)
+		return true
+	}
+	if p.cur.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword
+	}
+	return false
+}
+
+// isColIdToken reports whether tok, the token after the current one, can be
+// a ColId: IDENT, an unreserved keyword or a column name keyword.
+func isColIdToken(tok Token) bool {
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword
+	}
+	return false
+}
+
+// isStmtEndToken reports whether tok ends the statement.
+func isStmtEndToken(tok Token) bool {
+	return tok.Type == ';' || tok.Type == 0
+}
+
+// completingAtNext reports whether completion's cursor is at the token after
+// the current one. A keyword that may be a name or lead a clause then leads
+// the clause, so the candidates after it are offered.
+func (p *Parser) completingAtNext() bool {
+	if !p.completing || p.collecting {
+		return false
+	}
+	next := p.peekNext()
+	return next.Loc >= p.cursorOff || next.Type == 0
+}
+
+// keywordLeads reports whether the current unreserved keyword leads its
+// optional clause rather than being the name after it. gram.y reads it as
+// the name when the token after it cannot go on with the clause: RELEASE
+// savepoint, FETCH next, SELECT INTO temp.
+func (p *Parser) keywordLeads(goesOn func(Token) bool) bool {
+	return p.collectMode() || p.completingAtNext() || goesOn(p.peekNext())
+}
+
 // parseColId parses a ColId (identifier or unreserved/col_name keyword).
 //
 //	ColId: IDENT | unreserved_keyword | col_name_keyword
 func (p *Parser) parseColId() (string, error) {
 	if p.isColId() {
+		tok := p.advance()
+		return tok.Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseNonReservedWord parses a NonReservedWord, the name of a role among others.
+//
+//	NonReservedWord: IDENT | unreserved_keyword | col_name_keyword | type_func_name_keyword
+func (p *Parser) parseNonReservedWord() (string, error) {
+	if p.isNonReservedWord() {
 		tok := p.advance()
 		return tok.Str, nil
 	}
