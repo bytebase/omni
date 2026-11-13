@@ -63,7 +63,9 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	// NOT is an expr, not a primary: it stands where an expr may stand and its
 	// operand runs down to the next AND, so it is read here where the level the
 	// caller asked for is known.
-	if p.cur.Type == kwNOT {
+	// NOT before a dot and a reserved word is a table's name (column_ref's K.K), not the
+	// operator: `SELECT not . not FROM t` parses.
+	if p.cur.Type == kwNOT && !p.reservedPairAhead() {
 		if err := p.offerExprCandidates(); err != nil {
 			return nil, err
 		}
@@ -206,6 +208,11 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			originalOp = "||"
 		case p.cur.Type == tokAndAnd:
 			originalOp = "&&"
+		}
+		// -> and ->> take a column_definition_ref on the left, which has neither the
+		// leading dot nor the reserved words of column_ref: `. t . c ->> '$'` is a 1064.
+		if prec == precJsonAccess && p.reservedColumnRef != nil && left == nodes.ExprNode(p.reservedColumnRef) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		isComparison := prec == precComparison
 		p.advance() // consume operator
@@ -379,6 +386,11 @@ func (p *Parser) parseNotExpr(start int) (nodes.ExprNode, error) {
 func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	if err := p.offerExprCandidates(); err != nil {
 		return nil, err
+	}
+
+	// column_ref's forms that open with a dot or a reserved word: .t.c and K.K.
+	if p.cur.Type == '.' || p.reservedPairAhead() {
+		return p.parseReservedColumnRef()
 	}
 
 	switch p.cur.Type {
@@ -745,6 +757,11 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// r.K and r.K.K: a reserved word is a name after a dot (column_ref).
+		if reservedNamesAfterDot[p.cur.Type] {
+			return p.parseColumnRefReservedTail(start, name)
+		}
+
 		name2, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -775,16 +792,21 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 					Star:   true,
 				}, nil
 			}
-			name3, _, err := p.parseIdentifier()
+			reserved := reservedNamesAfterDot[p.cur.Type]
+			name3, err := p.parseNameAfterDot()
 			if err != nil {
 				return nil, err
 			}
-			return &nodes.ColumnRef{
+			ref := &nodes.ColumnRef{
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				Schema: name,
 				Table:  name2,
 				Column: name3,
-			}, nil
+			}
+			if reserved {
+				p.reservedColumnRef = ref
+			}
+			return ref, nil
 		}
 
 		// table.col

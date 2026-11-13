@@ -15,7 +15,7 @@ import (
 // MySQL tree it was forked from, and it is the narrowest in this family.
 // EXTENDED and PARTITIONS are still here, as they are in MySQL 5.7, whose
 // protocol version this server reports. The format name is a closed list of
-// two bare words and is never quoted, where MySQL reads any ident_or_text and
+// three bare words and is never quoted, where MySQL reads any ident_or_text and
 // TiDB reads a closed list plus any string. There is no EXPLAIN ANALYZE and no
 // FOR CONNECTION at all, and TABLE is no statement, so four forms this parser
 // used to take are 1064 here.
@@ -36,7 +36,7 @@ type explainFormCase struct {
 }
 
 var explainFormCases = []explainFormCase{
-	// The format name is TRADITIONAL or JSON, bare. A quoted name is a 1064
+	// The format name is TRADITIONAL, JSON or OBJECT_NAME_DISPLAY, bare. A quoted name is a 1064
 	// here, where MySQL and TiDB both read one, and so is every other word.
 	{"EXPLAIN FORMAT = TRADITIONAL SELECT 1", true},
 	{"EXPLAIN FORMAT = JSON SELECT 1", true},
@@ -162,21 +162,61 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN EXTENDED", true},
 	// A statement in a string is TiDB grammar, and not OceanBase's at all.
 	{"EXPLAIN 'sqldigest'", false},
+
+	// OceanBase's own plan types and displays (explain_stmt in
+	// sql_parser_mysql_mode.y, v4.3.5_CE_BP6, line 15735): one type at most,
+	// then one display at most, and neither with a FORMAT.
+	{"EXPLAIN BASIC SELECT 1", true},
+	{"EXPLAIN OUTLINE SELECT 1", true},
+	{"EXPLAIN EXTENDED_NOADDR SELECT 1", true},
+	{"EXPLAIN PLANREGRESS SELECT 1", true},
+	{"EXPLAIN PRETTY SELECT 1", true},
+	{"EXPLAIN PRETTY_COLOR SELECT 1", true},
+	{"EXPLAIN BASIC PRETTY SELECT 1", true},
+	{"EXPLAIN PARTITIONS PRETTY_COLOR SELECT 1", true},
+	{"EXPLAIN EXTENDED PRETTY DELETE FROM t1", true},
+	{"EXPLAIN FORMAT = OBJECT_NAME_DISPLAY SELECT 1", true},
+	{"EXPLAIN PRETTY BASIC SELECT 1", false},
+	{"EXPLAIN BASIC OUTLINE SELECT 1", false},
+	{"EXPLAIN PRETTY PRETTY_COLOR SELECT 1", false},
+	{"EXPLAIN BASIC FORMAT = JSON SELECT 1", false},
+	{"EXPLAIN FORMAT = JSON PRETTY SELECT 1", false},
+	// Each word is a table's name too, and the token after it says which.
+	{"EXPLAIN basic", true},
+	{"EXPLAIN basic a", true},
+	{"EXPLAIN pretty", true},
+	{"EXPLAIN pretty basic", true},
+	{"EXPLAIN format", true},
+	{"EXPLAIN format a", true},
+	{"EXPLAIN basic pretty", false},
+	// The plan table and the statement id.
+	{"EXPLAIN SET STATEMENT_ID = 'a' SELECT 1", true},
+	{"EXPLAIN SET STATEMENT_ID = 1 SELECT 1", true},
+	{"EXPLAIN INTO p SELECT 1", true},
+	{"EXPLAIN INTO p SET STATEMENT_ID = 'a' SELECT 1", true},
+	{"EXPLAIN SET STATEMENT_ID = a SELECT 1", false},
+	{"EXPLAIN SET STATEMENT_ID = 'a' t1", false},
+	{"EXPLAIN SET STATEMENT_ID = 'a' INTO p SELECT 1", false},
+	{"EXPLAIN INTO p", false},
+	{"EXPLAIN INTO p t1", false},
+	{"EXPLAIN INTO d.p SELECT 1", false},
+	{"EXPLAIN INTO p BASIC SELECT 1", false},
+	{"EXPLAIN BASIC INTO p SELECT 1", false},
+	{"EXPLAIN FORMAT = JSON INTO p SELECT 1", false},
+	// DESC and DESCRIBE are EXPLAIN in every form.
+	{"DESC SELECT 1", true},
+	{"DESC FORMAT = TRADITIONAL SELECT 1", true},
+	{"DESCRIBE BASIC SELECT 1", true},
+	{"DESC INTO p SELECT 1", true},
 }
 
-// explainFormPendingGrammar is the additive side: EXPLAIN modifiers OceanBase
-// parses that this parser does not read yet. BASIC and OUTLINE are output
-// modes of their own, not format names -- EXPLAIN BASIC SELECT 1 parses and
-// FORMAT = BASIC does not -- and reading them means an AST field each, so they
-// are recorded here rather than guessed at.
+// explainFormPendingGrammar is the additive side: EXPLAIN forms OceanBase
+// parses that this parser does not read yet. There is none today.
 //
 // TestExplainFormPendingGrammar pins both halves: the engine must still accept
 // each one and this parser must still reject it, so the day either side
 // changes, this list is what fails.
-var explainFormPendingGrammar = []string{
-	"EXPLAIN BASIC SELECT 1",
-	"EXPLAIN OUTLINE SELECT 1",
-}
+var explainFormPendingGrammar = []string{}
 
 func TestExplainFormsAccepted(t *testing.T) {
 	for _, c := range explainFormCases {

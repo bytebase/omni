@@ -362,3 +362,139 @@
 > exec
 | EXPLAIN OUTLINE SELECT 1
 < ok 0 0
+> exec
+| EXPLAIN EXTENDED_NOADDR SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN PLANREGRESS SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN PRETTY SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN PRETTY_COLOR SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN BASIC PRETTY SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN PARTITIONS PRETTY_COLOR SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN EXTENDED PRETTY DELETE FROM t1
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN FORMAT = OBJECT_NAME_DISPLAY SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN PRETTY BASIC SELECT 1
+< error
+| 1064 42000 …near 'SELECT 1' at line 1
+> exec
+| EXPLAIN BASIC OUTLINE SELECT 1
+< error
+| 1064 42000 …near 'SELECT 1' at line 1
+> exec
+| EXPLAIN PRETTY PRETTY_COLOR SELECT 1
+< error
+| 1064 42000 …near 'SELECT 1' at line 1
+> exec
+| EXPLAIN BASIC FORMAT = JSON SELECT 1
+< error
+| 1064 42000 …near '= JSON SELECT 1' at line 1
+> exec
+| EXPLAIN FORMAT = JSON PRETTY SELECT 1
+< error
+| 1064 42000 …near 'PRETTY SELECT 1' at line 1
+> exec
+| EXPLAIN basic
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN basic a
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN pretty
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN pretty basic
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN format
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN format a
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN basic pretty
+< error
+| 1064 42000 …near 'pretty' at line 1
+> exec
+| EXPLAIN SET STATEMENT_ID = 'a' SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN SET STATEMENT_ID = 1 SELECT 1
+< ok 0 0
+> exec
+| EXPLAIN INTO p SELECT 1
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN INTO p SET STATEMENT_ID = 'a' SELECT 1
+< error
+| 1046 3D000 No database selected
+> exec
+| EXPLAIN SET STATEMENT_ID = a SELECT 1
+< error
+| 1064 42000 …near 'a SELECT 1' at line 1
+> exec
+| EXPLAIN SET STATEMENT_ID = 'a' t1
+< error
+| 1064 42000 …near 't1' at line 1
+> exec
+| EXPLAIN SET STATEMENT_ID = 'a' INTO p SELECT 1
+< error
+| 1064 42000 …near 'INTO p SELECT 1' at line 1
+> exec
+| EXPLAIN INTO p
+< error
+| 1064 42000 …near 'p' at line 1
+> exec
+| EXPLAIN INTO p t1
+< error
+| 1064 42000 …near 't1' at line 1
+> exec
+| EXPLAIN INTO d.p SELECT 1
+< error
+| 1064 42000 …near 'd.p SELECT 1' at line 1
+> exec
+| EXPLAIN INTO p BASIC SELECT 1
+< error
+| 1064 42000 …near 'BASIC SELECT 1' at line 1
+> exec
+| EXPLAIN BASIC INTO p SELECT 1
+< error
+| 1064 42000 …near 'INTO p SELECT 1' at line 1
+> exec
+| EXPLAIN FORMAT = JSON INTO p SELECT 1
+< error
+| 1064 42000 …near 'INTO p SELECT 1' at line 1
+> exec
+| DESC SELECT 1
+< ok 0 0
+> exec
+| DESC FORMAT = TRADITIONAL SELECT 1
+< ok 0 0
+> exec
+| DESCRIBE BASIC SELECT 1
+< ok 0 0
+> exec
+| DESC INTO p SELECT 1
+< error
+| 1046 3D000 No database selected

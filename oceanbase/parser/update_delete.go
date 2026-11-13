@@ -182,38 +182,13 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		singleTableOnly := leadingDot
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
-				// Optional [AS] alias
-				if _, ok := p.match(kwAS); ok {
-					alias, _, err := p.parseIdent()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Alias = alias
-					tblRef.Loc.End = p.prev.End
-					singleTableOnly = true
-				} else if p.isIdentToken() {
-					// MySQL's opt_table_alias is `opt_AS ident`, so a bare
-					// alias may be any non-reserved keyword, exactly as in
-					// UPDATE and SELECT.
-					alias, _, err := p.parseIdent()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Alias = alias
-					tblRef.Loc.End = p.prev.End
-					singleTableOnly = true
+				// The single-table form's table is a tbl_name, with its partitions,
+				// sample, flashback, alias and index hints.
+				read, err := p.parseTableNameClauses(tblRef)
+				if err != nil {
+					return nil, err
 				}
-				// Optional PARTITION (p0, p1, ...)
-				if p.cur.Type == kwPARTITION {
-					p.advance()
-					parts, err := p.parseParenIdentList()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Partitions = parts
-					tblRef.Loc.End = p.prev.End
-					singleTableOnly = true
-				}
+				singleTableOnly = singleTableOnly || read
 			}
 		}
 
