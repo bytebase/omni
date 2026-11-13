@@ -9,8 +9,8 @@ import (
 
 // parseAnalyzeTableStmt parses an ANALYZE TABLE statement.
 //
-// Ref: analyze_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
-// (v4.3.5_CE_BP6, line 15521):
+// Ref: analyze_stmt and analyze_statistics_clause in OceanBase's
+// src/sql/parser/sql_parser_mysql_mode.y (v4.3.5_CE_BP6, line 15521):
 //
 //	ANALYZE TABLE tbl_name [, tbl_name] ...
 //
@@ -20,8 +20,15 @@ import (
 //	ANALYZE TABLE tbl_name
 //	    DROP HISTOGRAM ON col_name [, col_name] ...
 //
-// MySQL's NO_WRITE_TO_BINLOG and LOCAL, and its USING DATA, are not in that
-// rule, and 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for each.
+//	ANALYZE TABLE tbl_name [PARTITION (p [, p] ...)]
+//	    {COMPUTE STATISTICS [for] | ESTIMATE STATISTICS [for] [SAMPLE n {ROWS | PERCENTAGE}]}
+//
+//	for: FOR TABLE | FOR ALL [INDEXED | HIDDEN] COLUMNS [size] | FOR COLUMNS [item [[,] item] ...]
+//
+// Each form but the first names one table, and every word is required:
+// HISTOGRAM, and BUCKETS after WITH N. MySQL's NO_WRITE_TO_BINLOG and LOCAL,
+// and its USING DATA, are not in the rule, and 5.7.25-OceanBase_CE-v4.3.5.6
+// answers 1064 for each.
 func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume ANALYZE
@@ -53,54 +60,21 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		}
 		p.advance()
 	}
-
-	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS]
-	if p.cur.Type == kwUPDATE {
-		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
-		}
-		stmt.HistogramOp = "UPDATE"
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
-		}
-		for {
-			col, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.HistogramColumns = append(stmt.HistogramColumns, col)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		// WITH N BUCKETS
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				// The count is held to 1..1024: OceanBase 4.3.5 answers 1064 for
-				// WITH 0 BUCKETS and WITH 1025 BUCKETS.
-				if p.cur.Ival < 1 || p.cur.Ival > 1024 {
-					return nil, &ParseError{Message: "Number of buckets is out of range", Position: p.cur.Loc}
-				}
-				stmt.Buckets = int(p.cur.Ival)
-				p.advance()
-			}
-			// BUCKETS keyword
-			if p.cur.Type == kwBUCKETS {
-				p.advance()
-			}
-		}
+	if len(stmt.Tables) > 1 {
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
-	// DROP HISTOGRAM ON col [, col]
-	if p.cur.Type == kwDROP {
-		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
+	switch {
+	case p.cur.Type == kwUPDATE || p.cur.Type == kwDROP:
+		stmt.HistogramOp = "UPDATE"
+		if p.cur.Type == kwDROP {
+			stmt.HistogramOp = "DROP"
 		}
-		stmt.HistogramOp = "DROP"
+		p.advance()
+		if _, err := p.expect(kwHISTOGRAM); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
 		}
@@ -115,11 +89,55 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 			}
 			p.advance()
 		}
+		// WITH N BUCKETS, on UPDATE only.
+		if stmt.HistogramOp == "UPDATE" && p.cur.Type == kwWITH {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// The count is held to 1..1024: OceanBase 4.3.5 answers 1064 for
+			// WITH 0 BUCKETS and WITH 1025 BUCKETS.
+			if p.cur.Ival < 1 || p.cur.Ival > 1024 {
+				return nil, &ParseError{Message: "Number of buckets is out of range", Position: p.cur.Loc}
+			}
+			stmt.Buckets = int(p.cur.Ival)
+			p.advance()
+			if _, err := p.expect(kwBUCKETS); err != nil {
+				return nil, err
+			}
+		}
+	case p.cur.Type == kwPARTITION || p.isBareWord("COMPUTE") || p.isBareWord("ESTIMATE"):
+		if _, err := p.matchSystemForms(analyzeStatisticsForms); err != nil {
+			return nil, err
+		}
+		stmt.Statistics = p.sys.action
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
+
+// analyzeStatisticsForms is analyze_stmt's [use_partition]
+// analyze_statistics_clause, after the table.
+var analyzeStatisticsForms = func() sysPat {
+	size := sysSeq("SIZE", sysAlt("AUTO", "REPEAT", "SKEWONLY", sysNumber)) // size_clause
+	// column_clause: column_name | '(' column_name_list ')'.
+	column := sysAlt(sysName, sysSeq(sysTok('('), sysList(sysName, sysComma), sysTok(')')))
+	// for_columns_item, and for_columns_list, whose items stand side by side or
+	// with a comma between.
+	item := sysAlt(sysSeq(column, sysOpt(size)), size)
+	forClause := sysOpt(sysAlt(
+		"FOR TABLE",
+		sysSeq("FOR ALL", sysOpt(sysAlt("INDEXED", "HIDDEN")), "COLUMNS", sysOpt(size)),
+		sysSeq("FOR COLUMNS", sysOpt(sysList(item, sysOptComma))),
+	))
+	return sysSeq(
+		sysOpt("PARTITION", sysTok('('), sysNameList, sysTok(')')), // use_partition
+		sysAlt(
+			sysForm("COMPUTE", "STATISTICS", forClause),
+			sysForm("ESTIMATE", "STATISTICS", forClause, sysOpt("SAMPLE", sysInt, sysAlt("ROWS", "PERCENTAGE"))),
+		))
+}()
 
 // parseOptimizeTableStmt parses an OPTIMIZE TABLE statement.
 //

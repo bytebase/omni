@@ -1968,6 +1968,9 @@ type AnalyzeTableStmt struct {
 	Buckets          int      // WITH N BUCKETS
 	// UsingData is never set: OceanBase's UPDATE HISTOGRAM takes no USING DATA.
 	UsingData string
+	// Statistics is "COMPUTE" or "ESTIMATE" for ANALYZE TABLE t [PARTITION (p)]
+	// {COMPUTE | ESTIMATE} STATISTICS ..., whose clauses are parsed and not kept.
+	Statistics string
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
