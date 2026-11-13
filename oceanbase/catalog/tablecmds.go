@@ -507,6 +507,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return checkConstraintNameExists(db, tbl, name)
 				})
 			}
+			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+				return err
+			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
 			}
