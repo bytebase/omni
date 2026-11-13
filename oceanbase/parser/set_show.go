@@ -29,6 +29,18 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
 
+	// SET ENCRYPTION ON IDENTIFIED BY and SET DECRYPTION IDENTIFIED BY are
+	// alternatives of alter_system_stmt. Neither word is reserved, so each is a
+	// variable's name too, and the word after it says which.
+	if (p.isBareWord("ENCRYPTION") && p.peekNext().Type == kwON) || (p.isBareWord("DECRYPTION") && p.peekNext().Type == kwIDENTIFIED) {
+		action, err := p.matchSystemForms(setEncryptionForms)
+		if err != nil {
+			return nil, err
+		}
+		word, _, _ := strings.Cut(action, " ")
+		return &nodes.AlterSystemStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Action: "SET " + word}, nil
+	}
+
 	// Completion: after SET, offer variable/scope candidates.
 	p.checkCursor()
 	if p.collectMode() {
