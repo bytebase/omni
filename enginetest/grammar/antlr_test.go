@@ -741,3 +741,23 @@ ID : [a-z]+ ;
 		t.Error("LATE before ID: SELECT late accepted")
 	}
 }
+
+// TestReservationChecksOnlyRealSpellings pins a keyword of too many case
+// spellings to list: only the forms the rule matches count, so a fixed
+// capital X keeps xabcdefg, which ID takes, from unreserving XABCDEFG.
+func TestReservationChecksOnlyRealSpellings(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+ID : [a-z]+ ;
+KW : 'X' [aA] [bB] [cC] [dD] [eE] [fF] [gG] ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT XABCDEFG": false, "SELECT abc": true} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

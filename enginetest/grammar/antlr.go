@@ -841,9 +841,8 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 }
 
 // caseVariants returns the spellings of folded, one of name's texts, that
-// differ only in case: every one where they are few, and otherwise, for a
-// keyword spelled letter by letter in either case, its lower, upper and
-// capitalized forms.
+// differ only in case: every one where they are few, and otherwise those of
+// its lower, upper and capitalized forms that the rule matches.
 func (p *antlrParser) caseVariants(name, folded string) []string {
 	if texts, ok := p.ruleTexts(name, map[string]bool{}, false); ok {
 		var out []string
@@ -857,7 +856,13 @@ func (p *antlrParser) caseVariants(name, folded string) []string {
 		}
 	}
 	lower := strings.ToLower(folded)
-	return []string{folded, lower, strings.ToUpper(folded), strings.ToUpper(lower[:1]) + lower[1:]}
+	var out []string
+	for _, v := range []string{folded, lower, strings.ToUpper(folded), strings.ToUpper(lower[:1]) + lower[1:]} {
+		if p.lexerMatches(name, v) {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // literalRule returns the text of a lexer rule that is one literal and
