@@ -468,7 +468,7 @@ reject	reject	engine	stmt/rollback_savepoint_stmt!drop-3	ROLLBACK TO
 reject	reject	engine	stmt/rollback_savepoint_stmt!insert	ROLLBACK TO a zzz
 reject	reject	engine	stmt/rollback_savepoint_stmt!swap	ROLLING TO a
 accept	accept	engine	stmt/release_savepoint_stmt	RELEASE SAVEPOINT a
-accept	reject	engine	stmt/release_savepoint_stmt!drop-2	RELEASE a
+reject	reject	engine	stmt/release_savepoint_stmt!drop-2	RELEASE a
 reject	reject	engine	stmt/release_savepoint_stmt!drop-3	RELEASE SAVEPOINT
 reject	reject	engine	stmt/release_savepoint_stmt!insert	RELEASE SAVEPOINT a zzz
 reject	reject	engine	stmt/release_savepoint_stmt!swap	RELOAD SAVEPOINT a
@@ -476,7 +476,7 @@ accept	accept	engine	stmt/lock_tables_stmt	LOCK TABLE a READ
 reject	reject	engine	stmt/lock_tables_stmt!drop-1	TABLE a READ
 reject	reject	engine	stmt/lock_tables_stmt!drop-2	LOCK a READ
 reject	reject	engine	stmt/lock_tables_stmt!drop-3	LOCK TABLE READ
-accept	reject	engine	stmt/lock_tables_stmt!drop-4	LOCK TABLE a
+reject	reject	engine	stmt/lock_tables_stmt!drop-4	LOCK TABLE a
 reject	reject	engine	stmt/lock_tables_stmt!insert	LOCK TABLE a READ zzz
 reject	reject	engine	stmt/lock_tables_stmt!swap	LOCKED TABLE a READ
 accept	accept	engine	stmt/unlock_tables_stmt	UNLOCK TABLE
@@ -12702,28 +12702,28 @@ accept	accept	engine	lock_table_list/lock_table	LOCK TABLE a READ
 reject	reject	engine	lock_table_list/lock_table!swap	LOCK TABLE a READS
 accept	accept	engine	lock_table_list/lock_table_list_,_lock_table	LOCK TABLE a READ, a READ
 reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-1	LOCK TABLE READ, a READ
-accept	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-2	LOCK TABLE a, a READ
+reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-2	LOCK TABLE a, a READ
 reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-3	LOCK TABLE a READ a READ
 reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-4	LOCK TABLE a READ, READ
-accept	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-5	LOCK TABLE a READ, a
+reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!drop-5	LOCK TABLE a READ, a
 reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!insert	LOCK TABLE a READ, a READ zzz
 reject	reject	engine	lock_table_list/lock_table_list_,_lock_table!swap	LOCK TABLE a READS, a READ
 accept	accept	engine	lock_table/relation_factor_lock_type	LOCK TABLE a READ
 accept	accept	engine	lock_table/relation_factor_AS_relation_name_lock_type	LOCK TABLE a AS a READ
 reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-1	LOCK TABLE AS a READ
-accept	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-2	LOCK TABLE a a READ
+reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-2	LOCK TABLE a a READ
 reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-3	LOCK TABLE a AS READ
-accept	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-4	LOCK TABLE a AS a
+reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!drop-4	LOCK TABLE a AS a
 reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!insert	LOCK TABLE a AS a READ zzz
 reject	reject	engine	lock_table/relation_factor_AS_relation_name_lock_type!swap	LOCK TABLE a ASC a READ
 accept	accept	engine	lock_type/READ_opt_local	LOCK TABLE a READ
 accept	accept	engine	lock_type/WRITE	LOCK TABLE a WRITE
 reject	reject	engine	lock_type/WRITE!insert	LOCK TABLE a WRITE zzz
-accept	reject	engine	lock_type/WRITE!swap	LOCK TABLE a X509
+reject	reject	engine	lock_type/WRITE!swap	LOCK TABLE a X509
 accept	accept	engine	lock_type/LOW_PRIORITY_WRITE	LOCK TABLE a LOW_PRIORITY WRITE
-accept	reject	engine	lock_type/LOW_PRIORITY_WRITE!drop-2	LOCK TABLE a LOW_PRIORITY
+reject	reject	engine	lock_type/LOW_PRIORITY_WRITE!drop-2	LOCK TABLE a LOW_PRIORITY
 reject	reject	engine	lock_type/LOW_PRIORITY_WRITE!insert	LOCK TABLE a LOW_PRIORITY WRITE zzz
-accept	reject	engine	lock_type/LOW_PRIORITY_WRITE!swap	LOCK TABLE a LS WRITE
+reject	reject	engine	lock_type/LOW_PRIORITY_WRITE!swap	LOCK TABLE a LS WRITE
 accept	accept	engine	opt_local/LOCAL	LOCK TABLE a READ LOCAL
 reject	reject	engine	opt_local/LOCAL!insert	LOCK TABLE a READ LOCAL zzz
 reject	reject	engine	opt_local/LOCAL!swap	LOCK TABLE a READ LOCALITY
@@ -12836,31 +12836,31 @@ reject	reject	engine	opt_work/WORK!swap	BEGIN WO_PULLUP
 accept	accept	engine	opt_work/%empty	BEGIN
 accept	accept	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT	START TRANSACTION WITH CONSISTENT SNAPSHOT
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!drop-1	START TRANSACTION CONSISTENT SNAPSHOT
-accept	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!drop-2	START TRANSACTION WITH SNAPSHOT
-accept	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!drop-3	START TRANSACTION WITH CONSISTENT
+reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!drop-2	START TRANSACTION WITH SNAPSHOT
+reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!drop-3	START TRANSACTION WITH CONSISTENT
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!insert	START TRANSACTION WITH CONSISTENT SNAPSHOT zzz
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT!swap	START TRANSACTION WITHOUT CONSISTENT SNAPSHOT
 accept	accept	engine	opt_with_consistent_snapshot/transaction_access_mode	START TRANSACTION READ ONLY
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode!drop-1	START TRANSACTION ONLY
-accept	reject	engine	opt_with_consistent_snapshot/transaction_access_mode!drop-2	START TRANSACTION READ
+reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode!drop-2	START TRANSACTION READ
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode!insert	START TRANSACTION READ ONLY zzz
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode!swap	START TRANSACTION READS ONLY
 accept	accept	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode	START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-1	START TRANSACTION CONSISTENT SNAPSHOT, READ ONLY
-accept	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-2	START TRANSACTION WITH SNAPSHOT, READ ONLY
-accept	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-3	START TRANSACTION WITH CONSISTENT, READ ONLY
+reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-2	START TRANSACTION WITH SNAPSHOT, READ ONLY
+reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-3	START TRANSACTION WITH CONSISTENT, READ ONLY
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-4	START TRANSACTION WITH CONSISTENT SNAPSHOT READ ONLY
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-5	START TRANSACTION WITH CONSISTENT SNAPSHOT, ONLY
-accept	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-6	START TRANSACTION WITH CONSISTENT SNAPSHOT, READ
+reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!drop-6	START TRANSACTION WITH CONSISTENT SNAPSHOT, READ
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!insert	START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY zzz
 reject	reject	engine	opt_with_consistent_snapshot/WITH_CONSISTENT_SNAPSHOT_,_transaction_access_mode!swap	START TRANSACTION WITHOUT CONSISTENT SNAPSHOT, READ ONLY
 accept	accept	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT	START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-1	START TRANSACTION ONLY, WITH CONSISTENT SNAPSHOT
-accept	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-2	START TRANSACTION READ, WITH CONSISTENT SNAPSHOT
+reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-2	START TRANSACTION READ, WITH CONSISTENT SNAPSHOT
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-3	START TRANSACTION READ ONLY WITH CONSISTENT SNAPSHOT
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-4	START TRANSACTION READ ONLY, CONSISTENT SNAPSHOT
-accept	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-5	START TRANSACTION READ ONLY, WITH SNAPSHOT
-accept	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-6	START TRANSACTION READ ONLY, WITH CONSISTENT
+reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-5	START TRANSACTION READ ONLY, WITH SNAPSHOT
+reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!drop-6	START TRANSACTION READ ONLY, WITH CONSISTENT
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!insert	START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT zzz
 reject	reject	engine	opt_with_consistent_snapshot/transaction_access_mode_,_WITH_CONSISTENT_SNAPSHOT!swap	START TRANSACTION READS ONLY, WITH CONSISTENT SNAPSHOT
 accept	accept	engine	opt_with_consistent_snapshot/%empty	START TRANSACTION
@@ -12868,7 +12868,7 @@ reject	reject	engine	opt_with_consistent_snapshot/%empty!insert	START TRANSACTIO
 accept	accept	engine	begin_stmt/BEGI_opt_hint_value_opt_work	BEGIN
 accept	accept	engine	begin_stmt/START_opt_hint_value_TRANSACTION_opt_with_consistent_snapshot	START TRANSACTION
 reject	reject	engine	begin_stmt/START_opt_hint_value_TRANSACTION_opt_with_consistent_snapshot!drop-1	TRANSACTION
-accept	reject	engine	begin_stmt/START_opt_hint_value_TRANSACTION_opt_with_consistent_snapshot!drop-2	START
+reject	reject	engine	begin_stmt/START_opt_hint_value_TRANSACTION_opt_with_consistent_snapshot!drop-2	START
 reject	reject	engine	begin_stmt/START_opt_hint_value_TRANSACTION_opt_with_consistent_snapshot!swap	STARTING TRANSACTION
 accept	accept	engine	xa_begin_stmt/XA_START_xa_xid_opt_join_or_resume	XA START 's'
 accept	accept	engine	xa_begin_stmt/XA_BEGI_xa_xid_opt_join_or_resume	XA BEGIN 's'
@@ -12889,7 +12889,7 @@ reject	reject	engine	xa_xid/text_string_,_text_string!drop-3	XA START 's',
 reject	reject	engine	xa_xid/text_string_,_text_string!insert	XA START 's', 's' zzz
 accept	accept	engine	xa_xid/text_string_,_text_string_,_ulong_num	XA START 's', 's', 1
 reject	reject	engine	xa_xid/text_string_,_text_string_,_ulong_num!drop-1	XA START, 's', 1
-accept	reject	engine	xa_xid/text_string_,_text_string_,_ulong_num!drop-2	XA START 's' 's', 1
+reject	reject	engine	xa_xid/text_string_,_text_string_,_ulong_num!drop-2	XA START 's' 's', 1
 reject	reject	engine	xa_xid/text_string_,_text_string_,_ulong_num!drop-3	XA START 's',, 1
 reject	reject	engine	xa_xid/text_string_,_text_string_,_ulong_num!drop-4	XA START 's', 's' 1
 accept	accept	engine	opt_join_or_resume/%empty	XA START 's'
@@ -12906,19 +12906,19 @@ reject	reject	engine	opt_suspend/SUSPEND!swap	XA END 's' SWAPS
 accept	accept	engine	opt_suspend/SUSPEND_FOR_MIGRATE	XA END 's' SUSPEND FOR MIGRATE
 reject	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!drop-1	XA END 's' FOR MIGRATE
 reject	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!drop-2	XA END 's' SUSPEND MIGRATE
-accept	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!drop-3	XA END 's' SUSPEND FOR
+reject	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!drop-3	XA END 's' SUSPEND FOR
 reject	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!insert	XA END 's' SUSPEND FOR MIGRATE zzz
 reject	reject	engine	opt_suspend/SUSPEND_FOR_MIGRATE!swap	XA END 's' SWAPS FOR MIGRATE
 accept	accept	engine	opt_one_phase/%empty	XA COMMIT 's'
 accept	accept	engine	opt_one_phase/ONE_PHASE	XA COMMIT 's' ONE PHASE
 reject	reject	engine	opt_one_phase/ONE_PHASE!drop-1	XA COMMIT 's' PHASE
-accept	reject	engine	opt_one_phase/ONE_PHASE!drop-2	XA COMMIT 's' ONE
+reject	reject	engine	opt_one_phase/ONE_PHASE!drop-2	XA COMMIT 's' ONE
 reject	reject	engine	opt_one_phase/ONE_PHASE!insert	XA COMMIT 's' ONE PHASE zzz
 reject	reject	engine	opt_one_phase/ONE_PHASE!swap	XA COMMIT 's' ONE_SHOT PHASE
 accept	accept	engine	opt_convert_xid/%empty	XA RECOVER
 accept	accept	engine	opt_convert_xid/CONVERT_XID	XA RECOVER CONVERT XID
 reject	reject	engine	opt_convert_xid/CONVERT_XID!drop-1	XA RECOVER XID
-accept	reject	engine	opt_convert_xid/CONVERT_XID!drop-2	XA RECOVER CONVERT
+reject	reject	engine	opt_convert_xid/CONVERT_XID!drop-2	XA RECOVER CONVERT
 reject	reject	engine	opt_convert_xid/CONVERT_XID!insert	XA RECOVER CONVERT XID zzz
 reject	reject	engine	opt_convert_xid/CONVERT_XID!swap	XA RECOVER COPY XID
 accept	accept	engine	commit_stmt/COMMIT_opt_hint_value_opt_work	COMMIT
@@ -17017,7 +17017,7 @@ reject	reject	engine	rollback_savepoint_stmt/ROLLBACK_WORK_TO_var_name!swap	ROLL
 accept	accept	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name	ROLLBACK TO SAVEPOINT a
 reject	reject	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!drop-1	TO SAVEPOINT a
 reject	reject	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!drop-2	ROLLBACK SAVEPOINT a
-reject	accept	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!drop-4	ROLLBACK TO SAVEPOINT
+accept	accept	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!drop-4	ROLLBACK TO SAVEPOINT
 reject	reject	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!insert	ROLLBACK TO SAVEPOINT a zzz
 reject	reject	engine	rollback_savepoint_stmt/ROLLBACK_TO_SAVEPOINT_var_name!swap	ROLLING TO SAVEPOINT a
 accept	accept	engine	release_savepoint_stmt/RELEASE_SAVEPOINT_var_name	RELEASE SAVEPOINT a
