@@ -71,13 +71,13 @@ reject	reject	engine	verb_clause/change!truncate	CHANGE MASTER TO MASTER_HOST =
 reject	reject	engine	verb_clause/change!insert	CHANGE MASTER TO MASTER_HOST = 's' zzz;
 reject	reject	engine	verb_clause/change!swap	CHANGED MASTER TO MASTER_HOST = 's';
 accept	accept	engine	verb_clause/check	CHECK TABLE a;
-accept	reject	engine	verb_clause/check!drop-2	CHECK a;
+reject	reject	engine	verb_clause/check!drop-2	CHECK a;
 reject	reject	engine	verb_clause/check!drop-3	CHECK TABLE;
 reject	reject	engine	verb_clause/check!truncate	CHECK TABLE
 reject	reject	engine	verb_clause/check!insert	CHECK TABLE a zzz;
 reject	reject	engine	verb_clause/check!swap	CHECKPOINT TABLE a;
 accept	accept	engine	verb_clause/checksum	CHECKSUM TABLE a;
-accept	reject	engine	verb_clause/checksum!drop-2	CHECKSUM a;
+reject	reject	engine	verb_clause/checksum!drop-2	CHECKSUM a;
 reject	reject	engine	verb_clause/checksum!drop-3	CHECKSUM TABLE;
 reject	reject	engine	verb_clause/checksum!truncate	CHECKSUM TABLE
 reject	reject	engine	verb_clause/checksum!insert	CHECKSUM TABLE a zzz;
@@ -274,7 +274,7 @@ reject	reject	engine	verb_clause/rename!truncate	RENAME TABLE a TO
 reject	reject	engine	verb_clause/rename!insert	RENAME TABLE a TO a zzz;
 reject	reject	engine	verb_clause/rename!swap	REORGANIZE TABLE a TO a;
 accept	accept	engine	verb_clause/repair	REPAIR TABLE a;
-accept	reject	engine	verb_clause/repair!drop-2	REPAIR a;
+reject	reject	engine	verb_clause/repair!drop-2	REPAIR a;
 reject	reject	engine	verb_clause/repair!drop-3	REPAIR TABLE;
 reject	reject	engine	verb_clause/repair!truncate	REPAIR TABLE
 reject	reject	engine	verb_clause/repair!insert	REPAIR TABLE a zzz;
@@ -4479,10 +4479,10 @@ accept	accept	engine	opt_checksum_type/EXTENDED_SYM	CHECKSUM TABLE a EXTENDED;
 reject	reject	engine	opt_checksum_type/EXTENDED_SYM!insert	CHECKSUM TABLE a EXTENDED zzz;
 reject	reject	engine	opt_checksum_type/EXTENDED_SYM!swap	CHECKSUM TABLE a EXTENT_SIZE;
 accept	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type	REPAIR TABLE a;
-reject	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type!swap	REPAIR TABLES a;
-reject	accept	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type	REPAIR VIEW a;
-accept	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!drop-2	REPAIR VIEW;
-accept	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!truncate	REPAIR VIEW
+accept	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type!swap	REPAIR TABLES a;
+accept	accept	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type	REPAIR VIEW a;
+reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!drop-2	REPAIR VIEW;
+reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!truncate	REPAIR VIEW
 reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!insert	REPAIR VIEW a zzz;
 reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!swap	REPAIR VIRTUAL a;
 accept	accept	engine	repair/REPAIR_opt_no_write_to_binlog_repair_table_or_view	REPAIR TABLE a;
@@ -4503,17 +4503,17 @@ reject	reject	engine	mi_repair_type/EXTENDED_SYM!swap	REPAIR TABLE a EXTENT_SIZE
 accept	accept	engine	mi_repair_type/USE_FRM	REPAIR TABLE a USE_FRM;
 reject	reject	engine	mi_repair_type/USE_FRM!insert	REPAIR TABLE a USE_FRM zzz;
 reject	reject	engine	mi_repair_type/USE_FRM!swap	REPAIR TABLE a USING;
-reject	accept	engine	mi_repair_type/FORCE_SYM	REPAIR TABLE a FORCE;
+accept	accept	engine	mi_repair_type/FORCE_SYM	REPAIR TABLE a FORCE;
 reject	reject	engine	mi_repair_type/FORCE_SYM!insert	REPAIR TABLE a FORCE zzz;
 reject	reject	engine	mi_repair_type/FORCE_SYM!swap	REPAIR TABLE a FOREIGN;
-reject	accept	engine	opt_view_repair_type/%empty	REPAIR VIEW a;
-reject	accept	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM	REPAIR VIEW a FOR UPGRADE;
+accept	accept	engine	opt_view_repair_type/%empty	REPAIR VIEW a;
+accept	accept	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM	REPAIR VIEW a FOR UPGRADE;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!drop-1	REPAIR VIEW a UPGRADE;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!drop-2	REPAIR VIEW a FOR;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!truncate	REPAIR VIEW a FOR
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!insert	REPAIR VIEW a FOR UPGRADE zzz;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!swap	REPAIR VIEW a FORCE UPGRADE;
-reject	accept	engine	opt_view_repair_type/FROM_MYSQL_SYM	REPAIR VIEW a FROM MYSQL;
+accept	accept	engine	opt_view_repair_type/FROM_MYSQL_SYM	REPAIR VIEW a FROM MYSQL;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!drop-1	REPAIR VIEW a MYSQL;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!drop-2	REPAIR VIEW a FROM;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!truncate	REPAIR VIEW a FROM
@@ -4529,16 +4529,16 @@ reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!insert	ANALYZE TABLE a, a zzz;
 accept	accept	engine	analyze_table_elem_spec/table_name_opt_persistent_stat_clause	ANALYZE TABLE a;
 accept	accept	engine	opt_persistent_stat_clause/%empty	ANALYZE TABLE a;
-reject	accept	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec	ANALYZE TABLE a PERSISTENT FOR ALL;
+accept	accept	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec	ANALYZE TABLE a PERSISTENT FOR ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-1	ANALYZE TABLE a FOR ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-2	ANALYZE TABLE a PERSISTENT ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-3	ANALYZE TABLE a PERSISTENT FOR;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!truncate	ANALYZE TABLE a PERSISTENT FOR
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!insert	ANALYZE TABLE a PERSISTENT FOR ALL zzz;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!swap	ANALYZE TABLE a PHASE FOR ALL;
-reject	accept	engine	persistent_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR ALL;
+accept	accept	engine	persistent_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR ALL;
 reject	reject	engine	persistent_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR ALTER;
-reject	accept	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-1	ANALYZE TABLE a PERSISTENT FOR ALL INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-3	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL ALL;
@@ -4546,42 +4546,42 @@ reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_IN
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL zzz;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!swap	ANALYZE TABLE a PERSISTENT FOR COLUMN_ADD ALL INDEXES ALL;
-reject	accept	engine	persistent_column_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_column_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/ALL!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS
 reject	reject	engine	persistent_column_stat_spec/ALL!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL zzz INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALTER INDEXES ALL;
-reject	accept	engine	persistent_column_stat_spec/(_table_column_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
+accept	accept	engine	persistent_column_stat_spec/(_table_column_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!drop-1	ANALYZE TABLE a PERSISTENT FOR COLUMNS) INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS(INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS(
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS() zzz INDEXES ALL;
-reject	accept	engine	persistent_index_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_index_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_index_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALTER;
-reject	accept	engine	persistent_index_stat_spec/(_table_index_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
+accept	accept	engine	persistent_index_stat_spec/(_table_index_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!drop-1	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES);
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(;
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES() zzz;
-reject	accept	engine	table_column_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
-reject	accept	engine	table_column_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(zzz) INDEXES ALL;
-reject	accept	engine	table_column_list/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a) INDEXES ALL;
+accept	accept	engine	table_column_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
+accept	accept	engine	table_column_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(zzz) INDEXES ALL;
+accept	accept	engine	table_column_list/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a) INDEXES ALL;
 reject	reject	engine	table_column_list/ident!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a zzz) INDEXES ALL;
-reject	accept	engine	table_column_list/table_column_list_,_ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a) INDEXES ALL;
+accept	accept	engine	table_column_list/table_column_list_,_ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a) INDEXES ALL;
 reject	reject	engine	table_column_list/table_column_list_,_ident!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS(,) INDEXES ALL;
 reject	reject	engine	table_column_list/table_column_list_,_ident!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS(,
 reject	reject	engine	table_column_list/table_column_list_,_ident!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a zzz) INDEXES ALL;
-reject	accept	engine	table_index_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
-reject	accept	engine	table_index_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(zzz);
-reject	accept	engine	table_index_list/table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
+accept	accept	engine	table_index_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
+accept	accept	engine	table_index_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(zzz);
+accept	accept	engine	table_index_list/table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
 reject	reject	engine	table_index_list/table_index_name!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a zzz);
-reject	accept	engine	table_index_list/table_index_list_,_table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a);
+accept	accept	engine	table_index_list/table_index_list_,_table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a);
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(,);
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(,
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a zzz);
-reject	accept	engine	table_index_name/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
-reject	accept	engine	table_index_name/PRIMARY_SYM	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY);
+accept	accept	engine	table_index_name/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
+accept	accept	engine	table_index_name/PRIMARY_SYM	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY);
 reject	reject	engine	table_index_name/PRIMARY_SYM!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY zzz);
-reject	accept	engine	table_index_name/PRIMARY_SYM!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIVILEGES);
+accept	accept	engine	table_index_name/PRIMARY_SYM!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIVILEGES);
 accept	accept	engine	binlog_base64_event/BINLOG_SYM_TEXT_STRING_sys	BINLOG 's';
 reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text	BINLOG@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-1	@a,@a;
@@ -4594,10 +4594,10 @@ reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!insert	BINLOG@a,@a zzz;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!swap	BIT@a,@a;
 accept	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type	CHECK TABLE a;
-reject	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type!swap	CHECK TABLES a;
-reject	accept	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type	CHECK VIEW a;
-accept	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!drop-2	CHECK VIEW;
-accept	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!truncate	CHECK VIEW
+accept	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type!swap	CHECK TABLES a;
+accept	accept	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type	CHECK VIEW a;
+reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!drop-2	CHECK VIEW;
+reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!truncate	CHECK VIEW
 reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!insert	CHECK VIEW a zzz;
 reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!swap	CHECK VIRTUAL a;
 accept	accept	engine	check/CHECK_SYM_check_view_or_table	CHECK TABLE a;
@@ -4626,12 +4626,12 @@ reject	reject	engine	mi_check_type/CHANGED!insert	CHECK TABLE a CHANGED zzz;
 reject	reject	engine	mi_check_type/CHANGED!swap	CHECK TABLE a CHANNEL;
 accept	accept	engine	mi_check_type/FOR_SYM_UPGRADE_SYM	CHECK TABLE a FOR UPGRADE;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-1	CHECK TABLE a UPGRADE;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE a FOR;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE a FOR
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE a FOR;
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE a FOR
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!insert	CHECK TABLE a FOR UPGRADE zzz;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!swap	CHECK TABLE a FORCE UPGRADE;
-reject	accept	engine	opt_view_check_type/%empty	CHECK VIEW a;
-reject	accept	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM	CHECK VIEW a FOR UPGRADE;
+accept	accept	engine	opt_view_check_type/%empty	CHECK VIEW a;
+accept	accept	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM	CHECK VIEW a FOR UPGRADE;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!drop-1	CHECK VIEW a UPGRADE;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK VIEW a FOR;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK VIEW a FOR
