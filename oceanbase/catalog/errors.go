@@ -306,6 +306,16 @@ func errWrongArguments(fn string) error {
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
 }
 
+// errNotUniqueTable is 1066: a statement names one table twice.
+func errNotUniqueTable(name string) error {
+	return &Error{Code: 1066, SQLState: "42000", Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
+}
+
+// errKeyNotExist is 1176: a statement names a key the table does not have.
+func errKeyNotExist(key, table string) error {
+	return &Error{Code: 1176, SQLState: "42000", Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", key, table)}
+}
+
 // errNotPartitioned is 1505: a partition command on a table with no partitions.
 func errNotPartitioned() error {
 	return &Error{Code: 1505, SQLState: "HY000", Message: "Partition management on a not partitioned table is not possible"}

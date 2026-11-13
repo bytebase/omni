@@ -775,37 +775,38 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	oldKey := toLower(cmd.Name)
 	newKey := toLower(cmd.NewName)
 
+	// OceanBase looks the key up first (1176), then the new name, which may not be
+	// any key's, the key's own included: RENAME KEY k TO k is 1061
+	// (TestOracle_OceanBaseNameOrder).
+	var found *Index
+	for _, idx := range tbl.Indexes {
+		if toLower(idx.Name) == oldKey {
+			found = idx
+			break
+		}
+	}
+	if found == nil {
+		return errKeyNotExist(cmd.Name, tbl.Name)
+	}
 	if newKey != oldKey {
 		if err := validateNonPrimaryIndexName(cmd.NewName); err != nil {
 			return err
 		}
 	}
-	if newKey != oldKey && indexNameExists(tbl, cmd.NewName) {
+	if indexNameExists(tbl, cmd.NewName) {
 		return errDupKeyName(cmd.NewName)
 	}
 
-	for _, idx := range tbl.Indexes {
-		if toLower(idx.Name) == oldKey {
-			idx.Name = cmd.NewName
-			if newKey != oldKey {
-				renameFunctionalIndexHiddenColumns(tbl, idx, cmd.NewName)
-			}
-			// Also update any constraint that references this index.
-			for _, con := range tbl.Constraints {
-				if toLower(con.IndexName) == oldKey {
-					con.IndexName = cmd.NewName
-					con.Name = cmd.NewName
-				}
-			}
-			return nil
+	found.Name = cmd.NewName
+	renameFunctionalIndexHiddenColumns(tbl, found, cmd.NewName)
+	// Also update any constraint that references this index.
+	for _, con := range tbl.Constraints {
+		if toLower(con.IndexName) == oldKey {
+			con.IndexName = cmd.NewName
+			con.Name = cmd.NewName
 		}
 	}
-
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return nil
 }
 
 // alterRenameTable moves a table to a new name.
@@ -945,11 +946,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.

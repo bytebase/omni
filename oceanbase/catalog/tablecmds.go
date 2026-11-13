@@ -27,25 +27,32 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
-	// Check for duplicate table or view with the same name.
-	if db.Tables[key] != nil {
-		if stmt.IfNotExists {
-			return nil
+	// The name is checked last: OceanBase reads the whole definition first, so
+	// CREATE TABLE t (x INT, x INT) is 1060 when t exists, even with IF NOT EXISTS
+	// (TestOracle_OceanBaseNameOrder). nameTaken answers for it; done is set when
+	// IF NOT EXISTS makes the statement do nothing.
+	nameTaken := func() (done bool, err error) {
+		if db.Tables[key] != nil {
+			if stmt.IfNotExists {
+				return true, nil
+			}
+			return false, errDupTable(tableName)
 		}
-		return errDupTable(tableName)
-	}
-	if db.Views[key] != nil {
-		return errDupTable(tableName)
+		if db.Views[key] != nil {
+			return false, errDupTable(tableName)
+		}
+		return false, nil
 	}
 
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
-		return c.createTableLike(db, tableName, key, stmt)
+		return c.createTableLike(db, tableName, key, stmt, nameTaken)
 	}
 
 	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
-		return nil
+		_, err := nameTaken()
+		return err
 	}
 
 	tbl := &Table{
@@ -648,6 +655,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if done, err := nameTaken(); done || err != nil {
+		return err
+	}
 	db.Tables[key] = tbl
 	return nil
 }
@@ -2475,16 +2485,24 @@ func escapeEnumValue(s string) string {
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
-func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
+func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt, nameTaken func() (bool, error)) error {
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
 	srcDB, err := c.resolveDatabase(srcDBName)
 	if err != nil {
 		return err
 	}
+	// A table copied onto its own name is 1066, before the source is looked up (1146)
+	// and before the name (1050).
+	if srcDB == db && toLower(stmt.Like.Name) == key {
+		return errNotUniqueTable(tableName)
+	}
 	srcTbl := srcDB.GetTable(stmt.Like.Name)
 	if srcTbl == nil {
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+	if done, err := nameTaken(); done || err != nil {
+		return err
 	}
 
 	tbl := &Table{
