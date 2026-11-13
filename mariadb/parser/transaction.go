@@ -660,13 +660,15 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 }
 
 // refuseLockDuplicate refuses a LOCK TABLES entry whose name, its alias where
-// it has one, an earlier entry already took.
+// it has one, an earlier entry already took. Names compare as written: whether
+// t and T are one table is the server's lower_case_table_names, which the
+// parser does not know, so it refuses only what is a duplicate either way.
 func refuseLockDuplicate(earlier []*nodes.LockTable, lt *nodes.LockTable) error {
 	key := func(t *nodes.LockTable) (string, string) {
 		if t.Table.Alias != "" {
-			return "", strings.ToLower(t.Table.Alias)
+			return "", t.Table.Alias
 		}
-		return strings.ToLower(t.Table.Schema), strings.ToLower(t.Table.Name)
+		return t.Table.Schema, t.Table.Name
 	}
 	db, name := key(lt)
 	for _, e := range earlier {
