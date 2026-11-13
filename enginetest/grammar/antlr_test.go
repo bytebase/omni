@@ -714,3 +714,30 @@ ID : [a-z]+ ;
 		}
 	}
 }
+
+// TestReservationChecksEveryCase pins a keyword of either case after a
+// case-sensitive identifier rule: [a-z]+ takes late, so late is a name,
+// even though it does not take LATE.
+func TestReservationChecksEveryCase(t *testing.T) {
+	for _, late := range []string{"[lL] [aA] [tT] [eE]", "L A T E ; fragment L : [lL] ; fragment A : [aA] ; fragment T : [tT] ; fragment E : [eE]"} {
+		g, err := ReadANTLR("grammar S;\ns : 'SELECT' ID ;\nID : [a-z]+ ;\nLATE : "+late+" ;\n", tokens(map[string]string{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !g.Recognizer().Accepts("SELECT late") {
+			t.Errorf("LATE : %s: SELECT late rejected", late)
+		}
+	}
+	// A keyword no case of which an earlier rule takes stays reserved.
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+LATE : [lL] [aA] [tT] [eE] ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Recognizer().Accepts("SELECT late") {
+		t.Error("LATE before ID: SELECT late accepted")
+	}
+}
