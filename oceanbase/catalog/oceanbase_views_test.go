@@ -40,8 +40,8 @@ func TestOracle_OceanBaseViewAttributes(t *testing.T) {
 		{"v_group", "CREATE VIEW v_group AS SELECT a, COUNT(*) AS c FROM t GROUP BY a", "YES", "NONE", "a NO -, c YES -"},
 		{"v_expr", "CREATE VIEW v_expr AS SELECT a + 1 AS e, 1 AS one, 'x' AS str, ABS(a) AS f, CAST(a AS SIGNED) AS g, id FROM t", "YES", "NONE", "e NO -, one NO -, str NO utf8mb4, f NO -, g NO -, id NO -"},
 		{"v_inner", "CREATE VIEW v_inner AS SELECT t.a, u.b, t.n FROM t JOIN u ON t.id = u.id", "YES", "NONE", "a NO -, b NO -, n YES -"},
-		// IF is stored as a CASE, and reads as one: nullable when a result is or there
-		// is no ELSE, with the character set of its results.
+		// IF and CASE: nullable when a result is or a CASE has no ELSE, with the
+		// character set of the results. OceanBase stores the IF as a CASE.
 		{"v_if", "CREATE VIEW v_if AS SELECT IF(a > 0, NULL, 'x') AS c, IF(a > 0, a, 1) AS e, CASE WHEN a > 0 THEN a END AS f FROM t", "YES", "NONE", "c YES utf8mb4, e NO -, f YES -"},
 		{"v_if_charset", "CREATE VIEW v_if_charset AS SELECT IF(l IS NULL, 'y', l) AS d, CASE WHEN l IS NULL THEN m ELSE l END AS g FROM s", "YES", "NONE", "d YES latin1, g YES utf8mb4"},
 		{"v_union", "CREATE VIEW v_union AS SELECT a FROM t UNION SELECT b FROM u", "YES", "NONE", "a NO -"},
