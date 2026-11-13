@@ -311,3 +311,31 @@ QID : '"' (~'"')* '"' ;
 		}
 	}
 }
+
+// TestRecognizerKeepsClassesApart pins three readings: an identifier rule
+// sampled in capitals is still a class of names, a stage @a and a column $1
+// are different classes, and a comment never closed is not a comment.
+func TestRecognizerKeepsClassesApart(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID | 'LIST' STAGE | 'SELECT' 'COL' POSITION | 'SELECT' '1' ;
+ID : [A-Z_] [A-Z0-9_]* ;
+`, tokens(map[string]string{"STAGE": "@a", "POSITION": "$1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT FOO":       true,
+		"LIST @s":          true,
+		"LIST $1":          false,
+		"SELECT COL $2":    true,
+		"SELECT COL @a":    false,
+		"SELECT 1 /* x */": true,
+		"SELECT 1 /*":      false,
+		"SELECT 1 /*oops":  false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

@@ -27,7 +27,7 @@ type Recognizer struct {
 	start  int
 	punct  []string         // the grammar's punctuation, longest first
 	exact  map[string][]int // terminals by the key of their first token
-	class  map[lkind][]int  // class terminals by the kind they match
+	class  map[string][]int // class terminals by the class they match (classOf)
 	null   []bool           // per rule: derives the empty string
 	first  []bitset         // per rule: the terminals it can start with
 	altFst [][]bitset       // per rule and alternative
@@ -51,7 +51,7 @@ type csym struct {
 
 type cterm struct {
 	toks  []ltok // the text it matches; empty for a token written as nothing
-	class lkind  // when not kNone, it matches one token of this kind
+	class string // when set, it matches one token of this class (classOf)
 }
 
 type bitset []uint64
@@ -79,7 +79,7 @@ func (b bitset) union(o bitset) bool {
 
 // Recognizer returns a recognizer for the grammar.
 func (g *Grammar) Recognizer() *Recognizer {
-	r := &Recognizer{g: g, exact: map[string][]int{}, class: map[lkind][]int{}}
+	r := &Recognizer{g: g, exact: map[string][]int{}, class: map[string][]int{}}
 	ruleID := map[string]int{}
 	for i, gr := range g.rules {
 		ruleID[gr.name] = i
@@ -132,16 +132,16 @@ func (g *Grammar) Recognizer() *Recognizer {
 		if !sym.literal && !g.fixed[sym.text] && len(toks) == 1 {
 			switch tk := toks[0]; tk.kind {
 			case kName:
-				if tk.quoted || !keywordText.MatchString(tk.text) {
-					t.class = kName
+				if tk.quoted || g.patterned[sym.text] || !keywordText.MatchString(tk.text) {
+					t.class = classOf(tk)
 				}
 			case kString, kNumber, kVar:
-				t.class = tk.kind
+				t.class = classOf(tk)
 			}
 		}
 		r.terms = append(r.terms, t)
 		switch {
-		case t.class != kNone:
+		case t.class != "":
 			r.class[t.class] = append(r.class[t.class], id)
 		case len(toks) > 0:
 			r.exact[toks[0].key()] = append(r.exact[toks[0].key()], id)
@@ -415,7 +415,7 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	if tk.kind == kName && !tk.quoted && r.g.reserved[strings.ToUpper(tk.text)] {
 		return out
 	}
-	for _, id := range r.class[tk.kind] {
+	for _, id := range r.class[classOf(tk)] {
 		out = append(out, termMatch{id, 1})
 	}
 	return out
@@ -439,6 +439,16 @@ type ltok struct {
 	kind   lkind
 	text   string
 	quoted bool
+}
+
+// classOf is the class a token stands for when a sample: its kind, and for
+// a variable its sigil, so a stage @a and a column $1 are told apart.
+func classOf(t ltok) string {
+	c := string(rune('0' + t.kind))
+	if t.kind == kVar {
+		c += t.text[:len(t.text)-len(strings.TrimLeft(t.text, "@$"))]
+	}
+	return c
 }
 
 // key is what an exact match compares: a word without regard to case,
@@ -500,7 +510,12 @@ func (r *Recognizer) lex(s string) []ltok {
 				i++
 			}
 		case c == '/' && i+1 < n && rs[i+1] == '*':
-			i = skipBlockComment(rs, i)
+			j := skipBlockComment(rs, i)
+			if j > n {
+				// A comment never closed: what follows is not a statement.
+				out = append(out, ltok{kind: kBad, text: string(rs[i:])})
+			}
+			i = j
 		case c == '\'':
 			j, closed := quoted(rs, i, '\'')
 			out = append(out, ltok{kind: closedKind(closed, kString), text: string(rs[i:j])})

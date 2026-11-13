@@ -48,6 +48,8 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 			g.termText[name] = text
 			if fixed {
 				g.fixed[name] = true
+			} else {
+				g.patterned[name] = true
 			}
 		}
 	}
