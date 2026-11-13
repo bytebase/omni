@@ -307,7 +307,7 @@ var grantFormCases = []grantFormCase{
 // TestGrantForms holds this parser to the verdicts above. It needs no
 // container.
 func TestGrantForms(t *testing.T) {
-	for _, c := range grantFormCases {
+	for _, c := range append(append([]grantFormCase{}, grantFormCases...), grantRoleNameCases...) {
 		t.Run(c.sql, func(t *testing.T) {
 			_, err := Parse(c.sql)
 			if c.accept && err != nil {
@@ -332,12 +332,17 @@ var grantKnownDivergences = []grantFormCase{
 	// OceanBase has none of them.
 	{"CREATE USER u1@'%' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK", true},
 	{"CREATE USER u1@'%' ATTRIBUTE '{\"email\": \"user@example.com\"}'", true},
-	// A privilege keyword is no role name, but this parser holds no list
-	// of which keywords are privileges; USAGE and PROCESS reach it as
-	// identifiers, so neither is read as the privilege it is.
-	{"GRANT SELECT TO u1", true},
-	{"GRANT usage TO u1", true},
-	{"GRANT process TO u1", true},
+}
+
+// grantRoleNameCases are role grants that name a privilege word, which
+// role_or_priv reads as a privilege and the rule's action refuses in a role
+// grant. They were divergences until the parser held that list
+// (rolePrivilegeWords), and stay after grantKnownDivergences so the oracle
+// test asks them in the order its tape holds.
+var grantRoleNameCases = []grantFormCase{
+	{"GRANT SELECT TO u1", false},
+	{"GRANT usage TO u1", false},
+	{"GRANT process TO u1", false},
 }
 
 // TestGrantKnownDivergences holds the list above to this parser, so a case
