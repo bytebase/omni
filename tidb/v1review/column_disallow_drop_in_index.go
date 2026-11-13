@@ -58,7 +58,7 @@ func ColumnDisallowDropInIndex(stmts []ast.Node, schema v1review.Schema) []v1rev
 				if cmd == nil || cmd.Type != ast.ATDropColumn {
 					continue
 				}
-				for _, index := range schema.TableIndexes("", table, false) {
+				for _, index := range schema.TableIndexesByName("", table, false) {
 					for _, expression := range index.GetExpressions() {
 						mark(table, expression)
 					}

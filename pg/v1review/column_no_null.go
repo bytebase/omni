@@ -28,7 +28,7 @@ import (
 // DROP NOT NULL, has no range, so the caller takes the statement's first
 // content line. The search can match inside an earlier word, as V1's did.
 // Statement says which statement holds the anchor. Each finding has code
-// ColumnNullable, Name the column, Table the table and Value its schema,
+// ColumnNullable, Name the column, Table the table and Schema its schema,
 // ordered by schema, table and column, compared bytewise. Ported from
 // Bytebase's V1 rule COLUMN_NO_NULL.
 func ColumnNoNull(stmts []ast.Node, texts []string, schema v1review.Schema) []v1review.Finding {
@@ -140,7 +140,7 @@ func ColumnNoNull(stmts []ast.Node, texts []string, schema v1review.Schema) []v1
 			Code:      v1review.ColumnNullable,
 			Name:      k.column,
 			Table:     k.table,
-			Value:     k.schema,
+			Schema:    k.schema,
 			Start:     at.start,
 			End:       at.end,
 			Statement: at.statement,

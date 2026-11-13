@@ -84,7 +84,7 @@ func TestColumnNoNull(t *testing.T) {
 				if f.Code != v1review.ColumnNullable {
 					t.Errorf("code %q", f.Code)
 				}
-				got = append(got, nullable{f.Value, f.Table, f.Name, f.Statement, tt.stmts[f.Statement][f.Start:f.End]})
+				got = append(got, nullable{f.Schema, f.Table, f.Name, f.Statement, tt.stmts[f.Statement][f.Start:f.End]})
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
