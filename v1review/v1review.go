@@ -78,6 +78,16 @@ type Finding struct {
 	// the statement's and the caller keeps that computation. Both 0 means
 	// the AST kept no range.
 	Start, End int
+	// Statement is the index, in the statements the rule function was
+	// given, of the statement Start and End are offsets into. Rules that
+	// judge statements together, where a finding can belong to any of them,
+	// set it; for every other rule it is 0 and the caller passes one
+	// statement at a time.
+	Statement int
+	// Value is a fact the V1 advisor printed besides the name, as text: a
+	// column's type, a length, a count. Rules that set it document what it
+	// holds.
+	Value string
 }
 
 // NamingConfig configures a naming rule; Bytebase builds it from the V1

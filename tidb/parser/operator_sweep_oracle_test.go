@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"strconv"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -46,7 +44,6 @@ func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error)
 // a stale expectation behind.
 func TestOperatorFormsMatchEngine(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	accepts := tc.prepareSyntax
 	for _, c := range operatorFormCases {
 		t.Run(c.sql, func(t *testing.T) {
@@ -66,7 +63,6 @@ func TestOperatorFormsMatchEngine(t *testing.T) {
 // shape that groups differently from the engine shows as a row where the two differ.
 func TestOperatorTreesMatchEngine(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	db, ctx := tc.db, tc.ctx
 	values := func(name string) string {
 		return "(SELECT 0 AS " + name + " UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT NULL)"
@@ -88,6 +84,11 @@ func TestOperatorTreesMatchEngine(t *testing.T) {
 
 // sweepExpr writes a random expression over small constants, with no parentheses
 // beyond the few it picks, so the grouping is left entirely to the grammar.
+const (
+	operatorSweepN          = 1000
+	operatorSweepSeed int64 = 1
+)
+
 func sweepExpr(r *rand.Rand, depth int) string {
 	atoms := []string{"0", "1", "2", "3", "NULL"}
 	if depth <= 0 {
@@ -134,22 +135,17 @@ func sweepExpr(r *rand.Rand, depth int) string {
 // the engine evaluates the text as written and the grouping this parser gave it, so a
 // wrong tree shows as a wrong value with no evaluator or expected tree written here.
 //
-// OPERATOR_SWEEP_N and OPERATOR_SWEEP_SEED size and seed it; a failure names the seed.
+// operatorSweepN and operatorSweepSeed size and seed it. Its tape holds the stream
+// they make, so changing either needs a recording. The second question is built
+// from omni's tree, so a change to the tree of a swept expression needs one too.
 func TestOperatorSweepMatchesEngine(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	db := tc.db
 	ctx := tc.ctx
 	if _, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS omni_sweep"); err != nil {
 		t.Fatal(err)
 	}
-	n, seed := 1000, int64(1)
-	if v, err := strconv.Atoi(os.Getenv("OPERATOR_SWEEP_N")); err == nil {
-		n = v
-	}
-	if v, err := strconv.ParseInt(os.Getenv("OPERATOR_SWEEP_SEED"), 10, 64); err == nil {
-		seed = v
-	}
+	n, seed := operatorSweepN, operatorSweepSeed
 	r := rand.New(rand.NewSource(seed))
 	var compared int
 	for i := 0; i < n; i++ {

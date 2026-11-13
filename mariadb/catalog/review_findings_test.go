@@ -4758,7 +4758,9 @@ func TestReview_SetOperationOrderByIsRewritten(t *testing.T) {
 			runOnBoth(t, mc, c, "CREATE VIEW "+view+" AS "+tc.body+";")
 			assertViewBodyMatches(t, mc, c, view)
 
-			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view))
+			// Read in the order of the one column: the view's own ORDER BY
+			// ties in these cases, and the server breaks a tie either way.
+			want := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1"))
 			if _, err := mc.db.ExecContext(mc.ctx, "DROP VIEW "+view); err != nil {
 				t.Fatalf("oracle drop: %v", err)
 			}
@@ -4766,7 +4768,7 @@ func TestReview_SetOperationOrderByIsRewritten(t *testing.T) {
 			if _, err := mc.db.ExecContext(mc.ctx, replay); err != nil {
 				t.Fatalf("oracle cannot read back what omni wrote: %v\n%s", err, replay)
 			}
-			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view)); got != want {
+			if got := fmt.Sprint(oracleRows(t, mc, "SELECT * FROM "+view+" ORDER BY 1")); got != want {
 				t.Errorf("replaying what omni wrote changed the view's rows: %s became %s\n%s",
 					want, got, replay)
 			}

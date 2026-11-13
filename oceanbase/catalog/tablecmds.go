@@ -23,6 +23,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkSomeColumnVisible(stmt); err != nil {
 		return err
 	}
+	if err := checkKeyOptions(stmt.Constraints); err != nil {
+		return err
+	}
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
@@ -386,6 +389,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
+		if kind, ok := constraintKeyKind(con); ok {
+			if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+				return err
+			}
+		}
 		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
 			return err
 		}
@@ -510,6 +518,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return checkConstraintNameExists(db, tbl, name)
 				})
 			}
+			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+				return err
+			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
 			}
@@ -566,6 +577,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -575,6 +589,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(ftIdx, con.IndexOptions)
+			if err := checkIndexOptions(con.IndexOptions, false); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrVector:
@@ -1650,14 +1667,32 @@ func indexNameExists(tbl *Table, name string) bool {
 	return false
 }
 
+// validateIndexColumns checks a key's parts against tbl.
+//
+// A key names columns the table has: 1072 otherwise, in a key part's expression too,
+// unless a later ADD COLUMN of the same ALTER TABLE adds it (tbl.addedLater). A
+// FULLTEXT key's columns are CHAR, VARCHAR or TEXT (1283). Each part is checked in
+// order, so FULLTEXT (int_col, missing) is 1283 and FULLTEXT (missing, int_col) 1072
+// (TestOracle_OceanBaseKeyColumns).
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
+			if missing := missingExprColumn(tbl, ic.ExprNode); missing != "" {
+				return errKeyColumnNotExist(missing)
+			}
 			continue
 		}
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
-			continue
+			if tbl.addedLater[toLower(ic.Name)] {
+				continue
+			}
+			return errKeyColumnNotExist(ic.Name)
+		}
+		if fulltext {
+			if err := fulltextColumnError(col); err != nil {
+				return err
+			}
 		}
 		if spatial {
 			if col.Nullable {
@@ -1675,6 +1710,38 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 	}
 	return nil
+}
+
+// fulltextColumnError is OceanBase's 1283 for a FULLTEXT column that is not CHAR,
+// VARCHAR or TEXT: SQLSTATE HY000 and its own text for a binary or BLOB column,
+// 42000 for any other (TestOracle_OceanBaseKeyColumns's tape).
+func fulltextColumnError(col *Column) error {
+	switch toLower(col.DataType) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return nil
+	case "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob":
+		return &Error{Code: 1283, SQLState: "HY000", Message: "Column cannot be part of FULLTEXT index"}
+	}
+	return &Error{Code: 1283, SQLState: "42000", Message: "A FTS index may only contain a text type column."}
+}
+
+// missingExprColumn returns the first column a key part's expression reads that the
+// table does not have, or "".
+func missingExprColumn(tbl *Table, expr nodes.ExprNode) string {
+	if expr == nil {
+		return ""
+	}
+	missing := ""
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Table == "" && tbl.GetColumn(ref.Column) == nil && !tbl.addedLater[toLower(ref.Column)] {
+			missing = ref.Column
+		}
+		return missing == ""
+	})
+	return missing
 }
 
 func fixedLengthStringColumnLimit(col *Column) (int, bool) {
