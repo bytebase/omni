@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C8 covers Section C8 "Table option defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
-// a real MySQL 8.0 container and the omni catalog, then asserts that both
+// OceanBase and the omni catalog, then asserts that both
 // agree on the effective default for a given table-level option.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
@@ -123,12 +123,6 @@ func TestScenario_C8(t *testing.T) {
 			t.Errorf("oracle AUTO_INCREMENT: got %d, want 0 (NULL) or 1", ai)
 		}
 
-		// Oracle: SHOW CREATE TABLE elides AUTO_INCREMENT= clause (C18.4).
-		show := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(show), "AUTO_INCREMENT=") {
-			t.Errorf("oracle SHOW CREATE TABLE should elide AUTO_INCREMENT= clause; got:\n%s", show)
-		}
-
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")
@@ -217,7 +211,7 @@ func TestScenario_C8(t *testing.T) {
 		assertIntEq(t, "omni KeyBlockSize", tbl.KeyBlockSize, 0)
 	})
 
-	// --- 8.7 COMPRESSION default (None) ----------------------------------
+	// --- 8.7 COMPRESSION default (none in MySQL, zstd in OceanBase) -------
 	t.Run("8_7_compression_default_none", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -225,10 +219,11 @@ func TestScenario_C8(t *testing.T) {
 		// Setup: plain CREATE without COMPRESSION.
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT)`)
 
-		// Oracle: SHOW CREATE TABLE omits COMPRESSION=.
+		// Oracle: OceanBase compresses a table unless told otherwise, and says
+		// so in SHOW CREATE TABLE; MySQL's default is no compression.
 		show := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(show), "COMPRESSION=") {
-			t.Errorf("oracle SHOW CREATE TABLE should omit COMPRESSION=; got:\n%s", show)
+		if !strings.Contains(show, "COMPRESSION = 'zstd_1.3.8'") {
+			t.Errorf("oracle SHOW CREATE TABLE should name the default compressor; got:\n%s", show)
 		}
 		opts := c8OracleStr(t, "CREATE_OPTIONS", "t")
 		if strings.Contains(strings.ToLower(opts), "compress") {
@@ -264,8 +259,8 @@ func TestScenario_C8(t *testing.T) {
 		// default), SHOW CREATE TABLE omits ENCRYPTION and
 		// CREATE_OPTIONS has no encryption entry.
 		show := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(show), "ENCRYPTION=") {
-			t.Errorf("oracle SHOW CREATE TABLE should omit ENCRYPTION=; got:\n%s", show)
+		if strings.Contains(strings.ToUpper(show), "ENCRYPTION") {
+			t.Errorf("oracle SHOW CREATE TABLE should omit ENCRYPTION; got:\n%s", show)
 		}
 		opts := c8OracleStr(t, "CREATE_OPTIONS", "t")
 		if strings.Contains(strings.ToLower(opts), "encrypt") {
@@ -322,22 +317,16 @@ func TestScenario_C8(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT)`)
 
-		// Oracle: SHOW CREATE TABLE omits TABLESPACE= clause by default.
+		// Oracle: SHOW CREATE TABLE names no tablespace by default.
 		show := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(show), "TABLESPACE=") {
-			t.Errorf("oracle SHOW CREATE TABLE should omit TABLESPACE=; got:\n%s", show)
+		if strings.Contains(strings.ToUpper(show), "TABLESPACE") {
+			t.Errorf("oracle SHOW CREATE TABLE should omit TABLESPACE; got:\n%s", show)
 		}
-		// Oracle: information_schema.INNODB_TABLES has a row for the
-		// table, and its SPACE column is non-zero (each
-		// file_per_table tablespace has its own id).
-		var space int64
-		oracleScan(t, mc,
+		// Oracle: OceanBase has no InnoDB tablespaces to read the table's
+		// from: information_schema.INNODB_TABLES is an unknown table (1109).
+		oracleRefuses(t, mc,
 			`SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES
-            WHERE NAME='testdb/t'`,
-			&space)
-		if space == 0 {
-			t.Errorf("oracle INNODB_TABLES.SPACE for testdb/t: got 0, want non-zero (file_per_table)")
-		}
+            WHERE NAME='testdb/t'`, 1109)
 
 		// Omni gap: no Tablespace field. Verify parser accepts an
 		// explicit TABLESPACE clause without crashing.

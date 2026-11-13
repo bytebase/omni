@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 
@@ -278,9 +278,9 @@ func c25Col(t *testing.T, c *Catalog, table, col string) *Column {
 	return column
 }
 
-// c25AssertBothError runs the same DDL on the MySQL container and the omni
+// c25AssertBothError runs the same DDL on OceanBase and the omni
 // catalog, asserting that BOTH return an error. If wantSubstr is non-empty it
-// must appear in the MySQL container error message (case-insensitive). label
+// must appear in OceanBase's error message (case-insensitive). label
 // is used only in error messages for easier triage.
 func c25AssertBothError(t *testing.T, mc *mysqlContainer, c *Catalog, ddl, wantSubstr, label string) {
 	t.Helper()

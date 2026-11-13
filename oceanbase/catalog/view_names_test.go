@@ -9,7 +9,9 @@ import (
 
 // View definitions MySQL 8.0 writes for unaliased select items and for NATURAL
 // and USING joins. Each want is the body of MySQL's SHOW CREATE VIEW, which
-// TestViewNamesAndJoinColumnsOracle checks against a live server.
+// the catalog prints (TestViewNamesAndJoinColumns) and mysql/catalog's copy
+// of these cases checks against MySQL. TestViewNamesAndJoinColumnsOracle
+// holds the column names the catalog gives each view to OceanBase's.
 //
 // An unaliased item is named after its source text, as MySQL names it: case,
 // spacing and comments as written (a01, a02, a05, a07), every clause of a
@@ -177,9 +179,26 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 	}
 }
 
-// TestViewNamesAndJoinColumnsOracle creates every case's view on MySQL 8.0
-// and checks its SHOW CREATE VIEW body against the pinned want, and the view's
-// columns in information_schema against the catalog's.
+// viewNameColumnGaps holds the columns OceanBase gives the views it names
+// differently than MySQL does. omni gap: the catalog names these as MySQL
+// does. OceanBase keeps the parentheses of an unaliased (1) (a06), counts a
+// name's 64 in bytes before it falls back to Name_exp_N (a08), and orders
+// the columns of a NATURAL or USING join over a join its own way (b17, b22
+// to b24). The test fails when the catalog comes to agree, so this list
+// cannot outlive the gap.
+var viewNameColumnGaps = map[string][]string{
+	"a06": {"a", "b", "(1)", "0004", "- 2", "x'41'", "B'10'", "true", "date '2020-01-01'", "e", "NULL"},
+	"a08": {"Name_exp_1"},
+	"b17": {"k", "u1", "q1", "q2", "p1", "s1", "s2"},
+	"b22": {"k", "u1", "q1", "q2", "s1", "s2", "p1"},
+	"b23": {"k", "p1", "q1", "q2"},
+	"b24": {"k", "u1", "p1", "q1", "q2"},
+}
+
+// TestViewNamesAndJoinColumnsOracle creates every case's view on OceanBase
+// and checks the view's columns in information_schema against the catalog's.
+// The definition OceanBase writes for a view is not compared: each case's
+// want is MySQL 8.0's text, which mysql/catalog's copy of this test checks.
 func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -191,22 +210,25 @@ func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 	c := viewNameCatalog(t)
 	for _, tc := range viewNameCases {
 		if err := ctr.execSQLDirect("CREATE VIEW " + tc.name + " AS " + tc.sql); err != nil {
-			t.Errorf("%s: MySQL rejects %s: %v", tc.name, tc.sql, err)
+			t.Errorf("%s: OceanBase rejects %s: %v", tc.name, tc.sql, err)
 			continue
-		}
-		show, err := ctr.showCreateView(tc.name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := extractSelectBody(show); got != tc.want {
-			t.Errorf("%s: MySQL writes\n%s\nwant\n%s", tc.name, got, tc.want)
 		}
 		cols, err := queryStrings(ctr, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = '"+tc.name+"' ORDER BY ORDINAL_POSITION")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := c.GetDatabase("test").Views[tc.name].Columns; !reflect.DeepEqual(got, cols) {
-			t.Errorf("%s: catalog columns %q, MySQL columns %q", tc.name, got, cols)
+		got := c.GetDatabase("test").Views[tc.name].Columns
+		if want, gap := viewNameColumnGaps[tc.name]; gap {
+			if !reflect.DeepEqual(cols, want) {
+				t.Errorf("%s: OceanBase columns %q, want %q", tc.name, cols, want)
+			}
+			if reflect.DeepEqual(got, cols) {
+				t.Errorf("%s: the catalog now names the columns as OceanBase does: drop it from viewNameColumnGaps", tc.name)
+			}
+			continue
+		}
+		if !reflect.DeepEqual(got, cols) {
+			t.Errorf("%s: catalog columns %q, OceanBase columns %q", tc.name, got, cols)
 		}
 	}
 }

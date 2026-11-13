@@ -21,7 +21,7 @@ import (
 // nullability. So the most useful representation of these scenarios in
 // omni today is:
 //
-//  1. Run the same CREATE TABLE / CREATE VIEW DDL against both MySQL 8.0
+//  1. Run the same CREATE TABLE / CREATE VIEW DDL against both OceanBase
 //     and the omni catalog (proves the DDL parses on both sides).
 //  2. Use information_schema.COLUMNS on the container to assert that
 //     MySQL infers IS_NULLABLE the way the SCENARIOS doc claims.

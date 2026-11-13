@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C10 covers Section C10 "View metadata defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
-// a real MySQL 8.0 container and the omni catalog, then asserts that both
+// OceanBase and the omni catalog, then asserts that both
 // agree on the effective default for a given view-metadata behavior.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
@@ -45,20 +45,23 @@ func TestScenario_C10(t *testing.T) {
 			`CREATE TABLE t (a INT);
 			 CREATE VIEW v AS SELECT a FROM t;`)
 
-		// Oracle: CHECK_OPTION=NONE, SECURITY_TYPE=DEFINER, SHOW CREATE has ALGORITHM=UNDEFINED.
+		// Oracle: CHECK_OPTION=NONE. OceanBase keeps no SQL SECURITY and no
+		// ALGORITHM for a view: SECURITY_TYPE reads NONE, and SHOW CREATE VIEW
+		// names no algorithm.
 		_, secType, checkOpt, _ := c10OracleViewRow(t, "v")
-		if secType != "DEFINER" {
-			t.Errorf("oracle SECURITY_TYPE: got %q, want %q", secType, "DEFINER")
+		if secType != "NONE" {
+			t.Errorf("oracle SECURITY_TYPE: got %q, want %q", secType, "NONE")
 		}
 		if checkOpt != "NONE" {
 			t.Errorf("oracle CHECK_OPTION: got %q, want %q", checkOpt, "NONE")
 		}
 		showCreate := oracleShow(t, mc, "SHOW CREATE VIEW v")
-		if !strings.Contains(strings.ToUpper(showCreate), "ALGORITHM=UNDEFINED") {
-			t.Errorf("oracle SHOW CREATE VIEW v: got %q, want contains ALGORITHM=UNDEFINED", showCreate)
+		if strings.Contains(strings.ToUpper(showCreate), "ALGORITHM") {
+			t.Errorf("oracle SHOW CREATE VIEW v: got %q, want no ALGORITHM", showCreate)
 		}
 
-		// omni: view object reports Algorithm=UNDEFINED, SqlSecurity=DEFINER, CheckOption=NONE.
+		// omni gap: the view object reports MySQL's defaults, Algorithm=UNDEFINED
+		// and SqlSecurity=DEFINER, which OceanBase does not keep. CheckOption=NONE.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
@@ -149,19 +152,19 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE ALGORITHM=UNDEFINED VIEW v_agg AS SELECT COUNT(*) FROM t;
 			 CREATE ALGORITHM=MERGE VIEW v_merge_bad AS SELECT DISTINCT a FROM t;`)
 
-		// Oracle: both views stored with ALGORITHM=UNDEFINED (v_merge_bad gets downgraded).
+		// Oracle: OceanBase takes the ALGORITHM clause and keeps none of it:
+		// neither view's SHOW CREATE VIEW names an algorithm.
 		showAgg := oracleShow(t, mc, "SHOW CREATE VIEW v_agg")
-		if !strings.Contains(strings.ToUpper(showAgg), "ALGORITHM=UNDEFINED") {
-			t.Errorf("oracle SHOW CREATE VIEW v_agg: got %q, want contains ALGORITHM=UNDEFINED", showAgg)
+		if strings.Contains(strings.ToUpper(showAgg), "ALGORITHM") {
+			t.Errorf("oracle SHOW CREATE VIEW v_agg: got %q, want no ALGORITHM", showAgg)
 		}
 		showMergeBad := oracleShow(t, mc, "SHOW CREATE VIEW v_merge_bad")
-		if !strings.Contains(strings.ToUpper(showMergeBad), "ALGORITHM=UNDEFINED") {
-			t.Errorf("oracle SHOW CREATE VIEW v_merge_bad (post-downgrade): got %q, want contains ALGORITHM=UNDEFINED", showMergeBad)
+		if strings.Contains(strings.ToUpper(showMergeBad), "ALGORITHM") {
+			t.Errorf("oracle SHOW CREATE VIEW v_merge_bad: got %q, want no ALGORITHM", showMergeBad)
 		}
 
-		// omni: v_agg Algorithm=UNDEFINED; v_merge_bad should record the user-declared
-		// value (MERGE) verbatim per SCENARIOS guidance — MySQL silently downgrades
-		// but the catalog representation must preserve the pre-downgrade value.
+		// omni gap: the catalog keeps the declared algorithm, as it does for
+		// MySQL: v_agg Algorithm=UNDEFINED, v_merge_bad MERGE.
 		vAgg := c10OmniView(c, "v_agg")
 		if vAgg == nil {
 			t.Error("omni: v_agg not found")
@@ -191,10 +194,12 @@ func TestScenario_C10(t *testing.T) {
 			`SELECT SECURITY_TYPE FROM information_schema.VIEWS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v'`,
 			&secType)
-		if secType != "DEFINER" {
-			t.Errorf("oracle SECURITY_TYPE: got %q, want DEFINER", secType)
+		// OceanBase keeps no SQL SECURITY for a view.
+		if secType != "NONE" {
+			t.Errorf("oracle SECURITY_TYPE: got %q, want NONE", secType)
 		}
 
+		// omni gap: the catalog defaults SqlSecurity to DEFINER, as MySQL does.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
@@ -280,13 +285,16 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE VIEW v_distinct AS SELECT DISTINCT a FROM t;
 			 CREATE ALGORITHM=TEMPTABLE VIEW v_temp AS SELECT a FROM t;`)
 
+		// OceanBase reports every view updatable. omni gap: the catalog derives
+		// IsUpdatable as MySQL does, so DISTINCT and TEMPTABLE read NO.
 		for _, tc := range []struct {
 			name string
 			want string
+			omni string
 		}{
-			{"v_ok", "YES"},
-			{"v_distinct", "NO"},
-			{"v_temp", "NO"},
+			{"v_ok", "YES", "YES"},
+			{"v_distinct", "YES", "NO"},
+			{"v_temp", "YES", "NO"},
 		} {
 			var isUpd string
 			oracleScan(t, mc,
@@ -297,9 +305,6 @@ func TestScenario_C10(t *testing.T) {
 				t.Errorf("oracle %s IS_UPDATABLE: got %q, want %q", tc.name, isUpd, tc.want)
 			}
 
-			// omni: the View struct has no IsUpdatable field today — see bug queue.
-			// This stanza documents the absence by asserting the view at least
-			// exists in the catalog.
 			v := c10OmniView(c, tc.name)
 			if v == nil {
 				t.Errorf("omni: view %s not found", tc.name)
@@ -309,8 +314,8 @@ func TestScenario_C10(t *testing.T) {
 			if v.IsUpdatable {
 				got = "YES"
 			}
-			if got != tc.want {
-				t.Errorf("omni %s IsUpdatable: got %q, want %q", tc.name, got, tc.want)
+			if got != tc.omni {
+				t.Errorf("omni %s IsUpdatable: got %q, want %q", tc.name, got, tc.omni)
 			}
 		}
 	})
@@ -325,11 +330,9 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE TABLE t2 (id INT NOT NULL, b INT NOT NULL);
 			 CREATE VIEW v AS SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.id = t2.id;`)
 
-		// Oracle (empirical, MySQL 8.0.45): t1.a stays NOT NULL (left/preserved
-		// side of LEFT JOIN), t2.b widens to nullable (right/optional side).
-		// The SCENARIOS doc text claims `a → YES` but that is incorrect; real
-		// MySQL only widens the optional side. We assert against the oracle
-		// ground truth.
+		// Oracle: OceanBase widens neither side: t1.a and t2.b both stay NOT
+		// NULL in the view, where MySQL 8.0 widens t2.b, the optional side of
+		// the LEFT JOIN.
 		rows := oracleRows(t, mc,
 			`SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v'
@@ -344,13 +347,11 @@ func TestScenario_C10(t *testing.T) {
 		if gotNullable["a"] != "NO" {
 			t.Errorf("oracle view column a IS_NULLABLE: got %q, want NO (left/preserved side)", gotNullable["a"])
 		}
-		if gotNullable["b"] != "YES" {
-			t.Errorf("oracle view column b IS_NULLABLE: got %q, want YES (right/optional side)", gotNullable["b"])
+		if gotNullable["b"] != "NO" {
+			t.Errorf("oracle view column b IS_NULLABLE: got %q, want NO", gotNullable["b"])
 		}
 
-		// omni: omni's View struct does not carry per-column nullability info.
-		// The column list (v.Columns) is just names. This is the "declared bug":
-		// omni view column resolver must track outer-join nullability.
+		// omni gap: the catalog widens the optional side, as MySQL does.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")

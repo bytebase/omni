@@ -8,13 +8,13 @@ import (
 
 // TestScenario_C20 covers Section C20 "Field-type-specific implicit defaults"
 // from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs
-// the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
+// the scenario's DDL on both OceanBase and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,
@@ -241,28 +241,23 @@ func TestScenario_C20(t *testing.T) {
 
 	// --- 20.6 BLOB/TEXT/JSON/GEOMETRY literal DEFAULT → ER 1101 -----------
 	t.Run("20_6_blob_text_literal_default_rejected", func(t *testing.T) {
+		// OceanBase answers ER_BLOB_CANT_HAVE_DEFAULT (1101) for GEOMETRY and
+		// JSON, as MySQL does, and ER_INVALID_DEFAULT (1067) for BLOB and TEXT.
 		type caze struct {
 			name string
 			ddl  string
+			code uint16
 		}
 		cases := []caze{
-			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')"},
-			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')"},
-			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')"},
-			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')"},
+			{"c20_6a", "CREATE TABLE c20_6a (b BLOB DEFAULT 'abc')", 1067},
+			{"c20_6b", "CREATE TABLE c20_6b (t TEXT DEFAULT 'hello')", 1067},
+			{"c20_6c", "CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x')", 1101},
+			{"c20_6d", "CREATE TABLE c20_6d (j JSON DEFAULT '[]')", 1101},
 		}
 		for _, tc := range cases {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
-
-			_, mysqlErr := mc.db.ExecContext(mc.ctx, tc.ddl)
-			if mysqlErr == nil {
-				t.Errorf("oracle: expected ER_BLOB_CANT_HAVE_DEFAULT (1101) for %s, got nil", tc.name)
-			} else if !strings.Contains(mysqlErr.Error(), "1101") &&
-				!strings.Contains(strings.ToLower(mysqlErr.Error()), "can't have a default value") {
-				t.Errorf("oracle: expected 1101 for %s, got %v", tc.name, mysqlErr)
-			}
-
+			oracleRefuses(t, mc, tc.ddl, tc.code)
 			omniErrored := c20execExpectError(t, c, tc.ddl+";")
 			if !omniErrored {
 				t.Errorf("omni: expected rejection of %s DDL; got success", tc.name)
@@ -287,26 +282,16 @@ func TestScenario_C20(t *testing.T) {
 			pt    POINT     DEFAULT (POINT(0, 0)),
 			uuid  BINARY(16) DEFAULT (UUID_TO_BIN(UUID()))
 		)`
-		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: each column must have a non-NULL COLUMN_DEFAULT (the
-		// expression text) and EXTRA containing "DEFAULT_GENERATED".
+		// Oracle: OceanBase gives a JSON column no default, expression or not,
+		// and refuses the table at its first one, tags
+		// (ER_BLOB_CANT_HAVE_DEFAULT, 1101).
+		oracleRefuses(t, mc, ddl, 1101)
+
+		// omni gap: the catalog takes the expression defaults, as MySQL 8.0
+		// does, and keeps each one.
+		assertIntEq(t, "omni expression defaults error code", omniCode(c, ddl), 0)
 		expressionCols := []string{"tags", "meta", "blob1", "pt", "uuid"}
-		for _, cname := range expressionCols {
-			var colDef sql.NullString
-			var extra string
-			oracleScan(t, mc, `SELECT COLUMN_DEFAULT, EXTRA FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='c20_7' AND COLUMN_NAME='`+cname+`'`,
-				&colDef, &extra)
-			if !colDef.Valid || colDef.String == "" {
-				t.Errorf("oracle: c20_7.%s COLUMN_DEFAULT expected non-empty expression text, got NULL", cname)
-			}
-			if !strings.Contains(extra, "DEFAULT_GENERATED") {
-				t.Errorf("oracle: c20_7.%s EXTRA expected DEFAULT_GENERATED, got %q", cname, extra)
-			}
-		}
-
-		// Oracle: tables exist in omni too.
 		if c20getTable(c, "c20_7") == nil {
 			t.Errorf("omni: c20_7 expected to exist in catalog after DDL accepted")
 		}

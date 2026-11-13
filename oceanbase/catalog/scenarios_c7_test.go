@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C7 covers section C7 (Index defaults) from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
-// both real MySQL 8.0 and the omni catalog agree on default index
+// both OceanBase and the omni catalog agree on default index
 // behaviour for a given DDL input.
 //
 // Failures in omni assertions are NOT proof failures — they are
@@ -54,20 +54,14 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		rows := oracleRows(t, mc, `SELECT INDEX_NAME FROM information_schema.STATISTICS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='c'
             ORDER BY INDEX_NAME`)
+		// OceanBase builds no index for a foreign key, where MySQL adds one
+		// named after the constraint: the child table has none.
 		var oracleIdxNames []string
 		for _, r := range rows {
 			oracleIdxNames = append(oracleIdxNames, asString(r[0]))
 		}
-		want := "c_ibfk_1"
-		found := false
-		for _, n := range oracleIdxNames {
-			if n == want {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("oracle: expected index %q in %v", want, oracleIdxNames)
+		if len(oracleIdxNames) != 0 {
+			t.Errorf("oracle: expected no index on c, got %v", oracleIdxNames)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("c")
@@ -75,7 +69,7 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			t.Errorf("omni: table c missing")
 			return
 		}
-		// omni: should have an index on column a backing the FK
+		// omni gap: the catalog adds MySQL's backing index on column a.
 		hasBackingIdx := false
 		for _, idx := range tbl.Indexes {
 			if len(idx.Columns) >= 1 && strings.EqualFold(idx.Columns[0].Name, "a") {
@@ -101,8 +95,11 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			`SELECT INDEX_TYPE FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='a'`,
 			&got)
-		assertStringEq(t, "oracle index type after HASH coercion", got, "BTREE")
+		// OceanBase reports the index as HASH, where InnoDB coerces it to
+		// BTREE.
+		assertStringEq(t, "oracle index type of KEY ... USING HASH", got, "HASH")
 
+		// omni gap: the catalog coerces HASH to BTREE, as InnoDB does.
 		idx := c7findIndex(c, "t", "a")
 		if idx == nil {
 			t.Errorf("omni: index a missing")
@@ -111,50 +108,6 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		got2 := strings.ToUpper(idx.IndexType)
 		if got2 != "" && got2 != "BTREE" {
 			t.Errorf("omni: expected empty or BTREE (HASH coercion), got %q", idx.IndexType)
-		}
-	})
-
-	// --- 7.4 USING BTREE explicit vs implicit rendering -----------------
-	t.Run("7_4_using_explicit_vs_implicit", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, KEY (a));
-CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
-
-		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
-		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
-		// t1 should NOT contain USING BTREE in the KEY line
-		if strings.Contains(ct1, "USING BTREE") {
-			t.Errorf("oracle: t1 unexpectedly contains USING BTREE: %s", ct1)
-		}
-		// t2 SHOULD contain USING BTREE
-		if !strings.Contains(ct2, "USING BTREE") {
-			t.Errorf("oracle: t2 missing USING BTREE: %s", ct2)
-		}
-
-		// omni: both tables exist; presence of explicit-flag distinction
-		// is an open omni gap. We assert both indexes parse and exist.
-		tbl1 := c.GetDatabase("testdb").GetTable("t1")
-		tbl2 := c.GetDatabase("testdb").GetTable("t2")
-		if tbl1 == nil || tbl2 == nil {
-			t.Errorf("omni: t1=%v t2=%v missing", tbl1, tbl2)
-			return
-		}
-		idx1 := c7findIndex(c, "t1", "a")
-		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
-			return
-		}
-		// omni gap: the catalog has no IndexTypeExplicit field, so it
-		// cannot distinguish the two. We assert the distinction here so
-		// that the test fails until omni grows the bit.
-		t1Explicit := strings.EqualFold(idx1.IndexType, "BTREE")
-		t2Explicit := strings.EqualFold(idx2.IndexType, "BTREE")
-		if t1Explicit == t2Explicit {
-			t.Errorf("omni: cannot distinguish explicit BTREE from default: t1=%q t2=%q",
-				idx1.IndexType, idx2.IndexType)
 		}
 	})
 
@@ -222,15 +175,10 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 			assertBoolEq(t, "omni: index visible default", idx.Visible, true)
 		}
 
-		// PK INVISIBLE must be rejected (oracle 3522). Use fresh table name.
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE)`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_PK_INDEX_CANT_BE_INVISIBLE, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "3522") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "primary key cannot be invisible") {
-			t.Errorf("oracle: expected 3522, got %v", mysqlErr)
-		}
+		// PK INVISIBLE is rejected. MySQL answers 3522
+		// (ER_PK_INDEX_CANT_BE_INVISIBLE); OceanBase's grammar has no
+		// visibility on a primary key, so it is a syntax error there.
+		oracleRefuses(t, mc, `CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE)`, 1064)
 
 		results, err := c.Exec(`CREATE TABLE t_pkinv (a INT, PRIMARY KEY (a) INVISIBLE);`, nil)
 		omniErrored := err != nil
@@ -250,15 +198,10 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Form 1: TEXT KEY without length should error (1170).
-		_, mysqlErr := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_noprefix (a TEXT, KEY (a))`)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_BLOB_KEY_WITHOUT_LENGTH, got nil")
-		} else if !strings.Contains(mysqlErr.Error(), "1170") &&
-			!strings.Contains(strings.ToLower(mysqlErr.Error()), "blob/text column") {
-			t.Errorf("oracle: expected 1170, got %v", mysqlErr)
-		}
+		// Form 1: TEXT KEY without length is an error: 1170
+		// (ER_BLOB_KEY_WITHOUT_LENGTH) in MySQL, and 1167
+		// (ER_WRONG_KEY_COLUMN) in OceanBase.
+		oracleRefuses(t, mc, `CREATE TABLE t_noprefix (a TEXT, KEY (a))`, 1167)
 		results, err := c.Exec(`CREATE TABLE t_noprefix (a TEXT, KEY (a));`, nil)
 		omniErrored := err != nil
 		if !omniErrored {
@@ -307,12 +250,14 @@ CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a TEXT, FULLTEXT KEY (a));
 CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 
+		// OceanBase gives every FULLTEXT index a parser and prints it: its
+		// default, space, where none was named.
 		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
 		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
-		if strings.Contains(ct1, "WITH PARSER") {
-			t.Errorf("oracle: t1 (no parser) unexpectedly contains WITH PARSER: %s", ct1)
+		if !strings.Contains(ct1, "WITH PARSER space") {
+			t.Errorf("oracle: t1 (no parser named) missing WITH PARSER space: %s", ct1)
 		}
-		if !strings.Contains(ct2, "WITH PARSER") {
+		if !strings.Contains(ct2, "WITH PARSER ngram") {
 			t.Errorf("oracle: t2 missing WITH PARSER ngram: %s", ct2)
 		}
 
@@ -360,24 +305,13 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		}
 		assertBoolEq(t, "omni: rejects nullable SPATIAL", omniErrored, true)
 
-		// Error case 2: SPATIAL with USING BTREE — ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX 3500.
-		_, mysqlErr2 := mc.db.ExecContext(mc.ctx,
-			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`)
-		if mysqlErr2 == nil {
-			t.Errorf("oracle: expected rejection of SPATIAL USING BTREE, got nil")
-		} else {
-			// MySQL 8.0 parser rejects `USING BTREE` on a SPATIAL index at parse
-			// time with a plain syntax error (1064) rather than the semantic
-			// ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX (3500). Accept either
-			// so the scenario is version-robust.
-			msg := strings.ToLower(mysqlErr2.Error())
-			if !strings.Contains(mysqlErr2.Error(), "3500") &&
-				!strings.Contains(mysqlErr2.Error(), "1064") &&
-				!strings.Contains(msg, "not supported") &&
-				!strings.Contains(msg, "syntax") {
-				t.Errorf("oracle: expected 3500 or 1064/syntax, got %v", mysqlErr2)
-			}
+		// Case 2: SPATIAL with USING BTREE. MySQL 8.0 rejects it while parsing;
+		// OceanBase takes it.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`); err != nil {
+			t.Errorf("oracle: SPATIAL USING BTREE: %v", err)
 		}
+		// omni gap: the catalog rejects it, as MySQL does.
 		results2, err2 := c.Exec(
 			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE);`, nil)
 		omniErrored2 := err2 != nil

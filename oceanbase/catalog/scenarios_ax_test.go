@@ -8,7 +8,7 @@ import (
 
 // TestScenario_AX covers section AX (ALTER TABLE sub-command implicit
 // behaviors) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest
-// asserts that real MySQL 8.0 and the omni catalog agree on the
+// asserts that OceanBase and the omni catalog agree on the
 // post-ALTER state (column order, index list, constraint presence,
 // error behavior) for a given ALTER TABLE sequence.
 //
@@ -586,7 +586,7 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
 }
 
 // axOracleColumnOrder returns the column names of the given table in
-// ORDINAL_POSITION order, as seen by the MySQL container.
+// ORDINAL_POSITION order, as seen by OceanBase.
 func axOracleColumnOrder(t *testing.T, mc *mysqlContainer, tableName string) []string {
 	t.Helper()
 	rows := oracleRows(t, mc, fmt.Sprintf(

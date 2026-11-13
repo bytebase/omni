@@ -91,6 +91,81 @@ func OpenDatabase(t testing.TB, label string) *sql.DB {
 	return OpenWith(t, Options{Database: name, MultiStatements: true, ParseTime: true})
 }
 
+// OpenEmpty returns t's connection to a server that holds nothing a test left
+// behind, with the database test selected, for a test that names its own
+// databases and accounts. In a recording every database and account that is
+// not the server's own is dropped first and test is created, on a connection
+// the tape does not see. A request may hold several statements, and dates
+// come back as time.Time.
+func OpenEmpty(t testing.TB) *sql.DB {
+	t.Helper()
+	if enginetest.Recording(t) {
+		pin, err := enginetest.LoadPin(Pins, "default")
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		admin := sql.OpenDB(Options{}.live(t, pin))
+		defer admin.Close()
+		if err := empty(context.Background(), admin); err != nil {
+			t.Fatalf("empty OceanBase: %v", err)
+		}
+	}
+	return OpenWith(t, Options{Database: "test", MultiStatements: true, ParseTime: true})
+}
+
+// empty drops what tests created on the server and creates the database test.
+// The server's own are the four system databases, root, and what OceanBase
+// names with two leading underscores (__recyclebin, __public). mysql.user
+// lists roles beside users, and DROP USER removes either.
+func empty(ctx context.Context, db *sql.DB) error {
+	databases, err := queryRows(ctx, db, "SELECT SCHEMA_NAME, '' FROM information_schema.SCHEMATA")
+	if err != nil {
+		return err
+	}
+	var stmts []string
+	for _, d := range databases {
+		switch name := strings.ToLower(d[0]); {
+		case name == "information_schema", name == "mysql", name == "oceanbase", name == "sys", strings.HasPrefix(name, "__"):
+		default:
+			stmts = append(stmts, "DROP DATABASE IF EXISTS `"+strings.ReplaceAll(d[0], "`", "``")+"`")
+		}
+	}
+	accounts, err := queryRows(ctx, db, "SELECT user, host FROM mysql.user")
+	if err != nil {
+		return err
+	}
+	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+	for _, a := range accounts {
+		if a[0] != "root" && !strings.HasPrefix(a[0], "__") {
+			stmts = append(stmts, "DROP USER IF EXISTS "+quote(a[0])+"@"+quote(a[1]))
+		}
+	}
+	for _, stmt := range append(stmts, "CREATE DATABASE test") {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("%s: %w", stmt, err)
+		}
+	}
+	return nil
+}
+
+// queryRows reads a result of two text columns.
+func queryRows(ctx context.Context, db *sql.DB, query string) ([][2]string, error) {
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var out [][2]string
+	for rows.Next() {
+		var r [2]string
+		if err := rows.Scan(&r[0], &r[1]); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // DatabaseName is the name of the database OpenDatabase selects for label.
 func DatabaseName(label string) string {
 	return databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")

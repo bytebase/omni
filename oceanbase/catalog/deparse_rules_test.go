@@ -5,9 +5,10 @@ import (
 	"testing"
 )
 
-// TestMySQL_DeparseRules creates views with specific SQL patterns and examines
-// SHOW CREATE VIEW output to discover MySQL 8.0's exact deparsing/formatting rules.
-// This is a research test — it asserts nothing, only logs results.
+// TestMySQL_DeparseRules creates views with specific SQL patterns and logs
+// OceanBase's SHOW CREATE VIEW output for each. It asserts nothing: its tape
+// is the record of how OceanBase writes a view's definition, for whoever
+// teaches the catalog's deparser OceanBase's text.
 func TestMySQL_DeparseRules(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -307,7 +308,7 @@ func TestMySQL_DeparseRules(t *testing.T) {
 		},
 	}
 
-	t.Log("=== MySQL 8.0 Deparse Rules Research ===")
+	t.Log("=== OceanBase Deparse Rules Research ===")
 	t.Log("")
 
 	for _, cat := range categories {

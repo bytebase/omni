@@ -7,9 +7,9 @@ import (
 
 // TestScenario_C17 covers section C17 (String function charset / collation
 // propagation) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
-// asserted on both a MySQL 8.0 container and the omni catalog. Every C17
+// asserted on both OceanBase and the omni catalog. Every C17
 // scenario verifies omni's view column charset/collation metadata and
-// collation conflict rejection against MySQL 8.0 behavior.
+// collation conflict rejection against OceanBase's.
 func TestScenario_C17(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -47,6 +47,8 @@ func TestScenario_C17(t *testing.T) {
 		case nil:
 			return 0, false
 		case int64:
+			return int(x), true
+		case uint64: // OceanBase's CHARACTER_MAXIMUM_LENGTH is BIGINT UNSIGNED
 			return int(x), true
 		case []byte:
 			n := 0
@@ -275,23 +277,29 @@ func TestScenario_C17(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE VIEW v6b AS SELECT LPAD(a, 20, b) AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6c AS SELECT RPAD(b, 20, a) AS c FROM t`)
 
+		// OceanBase takes LPAD's charset from its pad argument, so v6b reads
+		// utf8mb4 where MySQL pins it to the first argument's latin1.
+		// omni gap: the catalog pins v6b to the first argument, as MySQL does.
 		type want struct{ cs, co string }
-		cases := map[string]want{
-			"v6a": {"latin1", "latin1_swedish_ci"},
-			"v6b": {"latin1", "latin1_swedish_ci"},
-			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
+		cases := []struct {
+			view         string
+			oracle, omni want
+		}{
+			{"v6a", want{"latin1", "latin1_swedish_ci"}, want{"latin1", "latin1_swedish_ci"}},
+			{"v6b", want{"utf8mb4", "utf8mb4_0900_ai_ci"}, want{"latin1", "latin1_swedish_ci"}},
+			{"v6c", want{"utf8mb4", "utf8mb4_0900_ai_ci"}, want{"utf8mb4", "utf8mb4_0900_ai_ci"}},
 		}
-		for view, w := range cases {
-			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
-				assertStringEq(t, "oracle "+view+".c CHARACTER_SET_NAME", cs, w.cs)
-				assertStringEq(t, "oracle "+view+".c COLLATION_NAME", co, w.co)
+		for _, tc := range cases {
+			if cs, co, ok := c17OracleViewCol(t, tc.view, "c"); ok {
+				assertStringEq(t, "oracle "+tc.view+".c CHARACTER_SET_NAME", cs, tc.oracle.cs)
+				assertStringEq(t, "oracle "+tc.view+".c COLLATION_NAME", co, tc.oracle.co)
 			}
 		}
 
-		for view, w := range cases {
-			if cs, co, ok := c17OmniViewCol(t, c, view, "c"); ok {
-				assertStringEq(t, "omni "+view+".c CHARACTER_SET_NAME", cs, w.cs)
-				assertStringEq(t, "omni "+view+".c COLLATION_NAME", co, w.co)
+		for _, tc := range cases {
+			if cs, co, ok := c17OmniViewCol(t, c, tc.view, "c"); ok {
+				assertStringEq(t, "omni "+tc.view+".c CHARACTER_SET_NAME", cs, tc.omni.cs)
+				assertStringEq(t, "omni "+tc.view+".c COLLATION_NAME", co, tc.omni.co)
 			}
 		}
 	})
@@ -307,14 +315,8 @@ func TestScenario_C17(t *testing.T) {
 		)`)
 		// Without CONVERT this would be 17.3 (ER 1267). CONVERT rescues it.
 		ddl := `CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t`
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr != nil {
-			// If MySQL rejects even one-sided CONVERT, the scenario has no
-			// oracle ground truth to compare omni against. Record this so the
-			// scenario can be refined and return — do NOT assert omni-side
-			// behavior against a missing oracle.
-			t.Skipf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
-			return
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
+			t.Fatalf("oracle: one-sided CONVERT: %v", err)
 		}
 		if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
 			assertStringEq(t, "oracle v7.c CHARACTER_SET_NAME", cs, "utf8mb4")

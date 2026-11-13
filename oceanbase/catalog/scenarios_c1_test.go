@@ -7,12 +7,14 @@ import (
 )
 
 // TestScenario_C1 covers section C1 (Name auto-generation) from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
-// both real MySQL 8.0 and the omni catalog agree on the auto-generated
-// name for a given DDL input.
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts the
+// name OceanBase generates for a given DDL input, and the omni catalog's.
 //
-// Failures in omni assertions are NOT proof failures — they are
-// recorded in mysql/catalog/scenarios_bug_queue/c1.md.
+// OceanBase has no ibfk or chk counter: it names an unnamed foreign key
+// <table>_OBFK_<microseconds> and an unnamed CHECK <table>_OBCHECK_<microseconds>.
+// A tape holds a count in place of the time, and a subtest compares the name
+// without it (withoutCount): <table>_OBFK_<n>. Where the catalog still
+// answers as MySQL does, the subtest asserts both and names the gap.
 func TestScenario_C1(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -31,17 +33,16 @@ CREATE TABLE child (
 
 		// Oracle
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
-		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
+		assertStringEq(t, "oracle FK names", withoutCount(strings.Join(got, ",")), "child_ibfk_5,child_OBFK_<n>")
 
-		// omni
+		// omni gap: the catalog numbers the unnamed key as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
 			return
 		}
 		omniNames := omniFKNames(tbl)
-		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), strings.Join(want, ","))
+		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_1,child_ibfk_5")
 	})
 
 	// --- 1.2 Foreign Key name — ALTER path (max+1 counter) ---------------
@@ -58,16 +59,17 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		runOnBoth(t, mc, c, ddl)
 
 		got := oracleFKNames(t, mc, "child")
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
-		assertStringEq(t, "oracle FK names", strings.Join(got, ","), strings.Join(want, ","))
+		assertStringEq(t, "oracle FK names", withoutCount(strings.Join(got, ",")), "child_ibfk_20,child_OBFK_<n>")
 
+		// omni gap: the catalog continues MySQL's counter from the highest
+		// ibfk number.
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
 			return
 		}
 		omniNames := omniFKNames(tbl)
-		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), strings.Join(want, ","))
+		assertStringEq(t, "omni FK names", strings.Join(omniNames, ","), "child_ibfk_20,child_ibfk_21")
 	})
 
 	// --- 1.3 Partition default naming p0..p{n-1} -------------------------
@@ -95,7 +97,7 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		assertStringEq(t, "omni partition names", strings.Join(omniNames, ","), strings.Join(want, ","))
 	})
 
-	// --- 1.4 CHECK constraint auto-name (t_chk_1) ------------------------
+	// --- 1.4 CHECK constraint auto-name ----------------------------------
 	t.Run("1_4_check_auto_name", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -105,8 +107,9 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		var got string
 		oracleScan(t, mc, `SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb'`, &got)
-		assertStringEq(t, "oracle CHECK name", got, "t_chk_1")
+		assertStringEq(t, "oracle CHECK name", withoutCount(got), "t_OBCHECK_<n>")
 
+		// omni gap: the catalog names the CHECK t_chk_1, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")
@@ -279,7 +282,9 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 		}
 	})
 
-	// --- 1.10 UNIQUE name fallback when first column is "PRIMARY" --------
+	// --- 1.10 UNIQUE name when first column is "PRIMARY" -----------------
+	// MySQL falls back to PRIMARY_2. OceanBase names the unique key PRIMARY,
+	// though it refuses that name when it is written out (1.8).
 	t.Run("1_10_unique_primary_column_fallback", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -294,9 +299,10 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			t.Errorf("oracle: expected 1 unique index row, got %d", len(rows))
 		}
 		if len(rows) == 1 {
-			assertStringEq(t, "oracle unique index name", asString(rows[0][0]), "PRIMARY_2")
+			assertStringEq(t, "oracle unique index name", asString(rows[0][0]), "PRIMARY")
 		}
 
+		// omni gap: the catalog falls back to PRIMARY_2, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing")

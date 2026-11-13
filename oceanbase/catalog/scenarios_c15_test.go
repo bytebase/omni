@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C15 covers Section C15 "Column positioning defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
-// a real MySQL 8.0 container and the omni catalog, then asserts that both
+// OceanBase and the omni catalog, then asserts that both
 // agree on the resulting column ordering.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in

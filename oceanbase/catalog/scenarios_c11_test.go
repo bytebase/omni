@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C11 covers Section C11 "Trigger defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL on both a real
-// MySQL 8.0 container and the omni catalog, then asserts they agree on
+// OceanBase and the omni catalog, then asserts they agree on
 // trigger metadata defaults: DEFINER, SQL SECURITY (no INVOKER option),
 // charset/collation snapshot, ACTION_ORDER sequencing, NEW/OLD pseudo-row
 // access rules, and trigger-on-partitioned-table survival across partition
@@ -193,6 +193,8 @@ CREATE TRIGGER trg_c BEFORE INSERT ON t FOR EACH ROW PRECEDES trg_a SET NEW.a = 
 				switch v := rows[i][1].(type) {
 				case int64:
 					ord = v
+				case uint64:
+					ord = int64(v)
 				case int32:
 					ord = int64(v)
 				case int:
@@ -298,17 +300,12 @@ CREATE TRIGGER t_upd BEFORE UPDATE ON t FOR EACH ROW SET NEW.a = OLD.a + 1;`
 CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a * 2;`
 		runOnBoth(t, mc, c, ddl)
 
-		// Alter the partition layout. Oracle: trigger survives.
+		// Alter the partition layout. OceanBase has no COALESCE PARTITION: the
+		// ALTER is a syntax error there, and the table keeps its trigger.
 		alter := `ALTER TABLE t COALESCE PARTITION 2`
-		if _, err := mc.db.ExecContext(mc.ctx, alter); err != nil {
-			t.Errorf("oracle: COALESCE PARTITION failed: %v", err)
-		}
-		// omni: execute the same ALTER; if omni's parser does not support
-		// this syntax yet, record it as part of the bug queue but don't
-		// abort the subtest.
-		if _, err := c.Exec(alter+";", nil); err != nil {
-			t.Logf("omni: ALTER TABLE ... COALESCE PARTITION not yet supported: %v", err)
-		}
+		oracleRefuses(t, mc, alter, 1064)
+		// omni gap: the catalog runs the ALTER, as MySQL does.
+		assertIntEq(t, "omni COALESCE PARTITION error code", omniCode(c, alter+";"), 0)
 
 		var trgCount int64
 		oracleScan(t, mc,
@@ -316,7 +313,7 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a * 2;`
              WHERE TRIGGER_SCHEMA='testdb' AND EVENT_OBJECT_TABLE='t' AND TRIGGER_NAME='trg'`,
 			&trgCount)
 		if trgCount != 1 {
-			t.Errorf("oracle: trigger trg should survive COALESCE PARTITION, count=%d", trgCount)
+			t.Errorf("oracle: trigger trg should still be there, count=%d", trgCount)
 		}
 
 		// omni: trigger must still be registered against the table, not
