@@ -682,7 +682,11 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 			return nil, err
 		}
 
-		// Parse routine_body_stmt_list: (routine_body_stmt ';')*
+		// routine_body_stmt_list: routine_body_stmt_list routine_body_stmt ';'
+		//                       | /* EMPTY */
+		// Each statement, the empty one included, ends in ';'. Requiring
+		// it is also what ends the loop on a token no statement starts
+		// with, which parseStmt does not consume.
 		var stmts []nodes.Node
 		for p.cur.Type != END_P && p.cur.Type != 0 {
 			var stmt nodes.Node
@@ -707,9 +711,8 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 			if stmt != nil {
 				stmts = append(stmts, stmt)
 			}
-			// consume trailing ';'
-			if p.cur.Type == ';' {
-				p.advance()
+			if _, err := p.expect(';'); err != nil {
+				return nil, err
 			}
 		}
 		if _, err := p.expect(END_P); err != nil {
