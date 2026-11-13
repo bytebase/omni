@@ -8255,13 +8255,13 @@ func TestParseStartReplica(t *testing.T) {
 		"START REPLICA IO_THREAD",
 		"START REPLICA SQL_THREAD",
 		"START REPLICA IO_THREAD, SQL_THREAD",
-		"START REPLICA FOR CHANNEL ch1",
-		"START REPLICA IO_THREAD FOR CHANNEL ch1",
-		"START REPLICA UNTIL SOURCE_LOG_FILE = 'binlog.000002', SOURCE_LOG_POS = 1234",
-		"START REPLICA UNTIL SQL_BEFORE_GTIDS = '3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5'",
-		"START REPLICA UNTIL SQL_AFTER_MTS_GAPS",
-		"START REPLICA USER = 'repl' PASSWORD = 'secret'",
-		"START REPLICA USER = 'repl' PASSWORD = 'secret' DEFAULT_AUTH = 'mysql_native_password'",
+		"START REPLICA FOR CHANNEL 'ch1'",
+		"START REPLICA IO_THREAD FOR CHANNEL 'ch1'",
+		"START REPLICA 'ch1' SQL_THREAD",
+		"START ALL SLAVES SQL_THREAD",
+		"START REPLICA UNTIL MASTER_LOG_FILE = 'binlog.000002', MASTER_LOG_POS = 1234",
+		"START REPLICA UNTIL SQL_BEFORE_GTIDS = '0-1-5'",
+		"START REPLICA UNTIL MASTER_GTID_POS = '0-1-5'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8277,7 +8277,8 @@ func TestParseStopReplica(t *testing.T) {
 		"STOP REPLICA IO_THREAD",
 		"STOP REPLICA SQL_THREAD",
 		"STOP REPLICA IO_THREAD, SQL_THREAD",
-		"STOP REPLICA FOR CHANNEL ch1",
+		"STOP REPLICA FOR CHANNEL 'ch1'",
+		"STOP ALL SLAVES",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8627,18 +8628,20 @@ func TestParseChangeMasterTo(t *testing.T) {
 		// Numeric options
 		"CHANGE MASTER TO MASTER_PORT = 3306, MASTER_LOG_POS = 1234",
 		// Boolean-like options (0/1)
-		"CHANGE MASTER TO MASTER_AUTO_POSITION = 1",
 		"CHANGE MASTER TO MASTER_SSL = 0",
-		// NULL value
-		"CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
-		// Identifier value options
-		"CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM",
+		"CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUE",
+		// Word value options
+		"CHANGE MASTER TO MASTER_USE_GTID = SLAVE_POS",
+		// Domain ids
+		"CHANGE MASTER TO DO_DOMAIN_IDS = (1, 2)",
+		// A connection name
+		"CHANGE MASTER 'ch1' TO MASTER_HOST = 'host1'",
 		// IGNORE_SERVER_IDS
 		"CHANGE MASTER TO IGNORE_SERVER_IDS = (1, 2, 3)",
 		// Empty IGNORE_SERVER_IDS
 		"CHANGE MASTER TO IGNORE_SERVER_IDS = ()",
 		// FOR CHANNEL
-		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL 'ch1'",
 		// SSL options
 		"CHANGE MASTER TO MASTER_SSL = 1, MASTER_SSL_CA = '/ca.pem', MASTER_SSL_CERT = '/cert.pem'",
 	}
@@ -8663,11 +8666,7 @@ func TestParseChangeMasterToOptions(t *testing.T) {
 			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_PORT :val 3306})}",
 		},
 		{
-			sql:  "CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
-			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name PRIVILEGE_CHECKS_USER :val NULL})}",
-		},
-		{
-			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL 'ch1'",
 			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1}) :channel ch1}",
 		},
 	}

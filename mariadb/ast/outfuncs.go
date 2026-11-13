@@ -4824,6 +4824,9 @@ func writeStartReplicaStmt(sb *strings.Builder, n *StartReplicaStmt) {
 	if n.SQLThread {
 		sb.WriteString(" :sql_thread true")
 	}
+	if n.AllSlaves {
+		sb.WriteString(" :all_slaves true")
+	}
 	if n.UntilType != "" {
 		fmt.Fprintf(sb, " :until_type %s", n.UntilType)
 		if n.UntilValue != "" {
@@ -4859,6 +4862,9 @@ func writeStopReplicaStmt(sb *strings.Builder, n *StopReplicaStmt) {
 	}
 	if n.SQLThread {
 		sb.WriteString(" :sql_thread true")
+	}
+	if n.AllSlaves {
+		sb.WriteString(" :all_slaves true")
 	}
 	if n.Channel != "" {
 		fmt.Fprintf(sb, " :channel %s", n.Channel)

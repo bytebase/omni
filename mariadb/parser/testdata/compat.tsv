@@ -63,9 +63,9 @@ reject	reject	engine	verb_clause/call!swap	CASCADE a;
 accept	accept	engine	verb_clause/change	CHANGE MASTER TO MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-1	MASTER TO MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-2	CHANGE TO MASTER_HOST = 's';
-accept	reject	engine	verb_clause/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
+reject	reject	engine	verb_clause/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-4	CHANGE MASTER TO = 's';
-accept	reject	engine	verb_clause/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
+reject	reject	engine	verb_clause/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
 reject	reject	engine	verb_clause/change!drop-6	CHANGE MASTER TO MASTER_HOST =;
 reject	reject	engine	verb_clause/change!truncate	CHANGE MASTER TO MASTER_HOST =
 reject	reject	engine	verb_clause/change!insert	CHANGE MASTER TO MASTER_HOST = 's' zzz;
@@ -422,195 +422,195 @@ accept	accept	engine	change/CHANGE_MASTER_SYM_optional_connection_name_TO_SYM_ma
 accept	accept	engine	master_defs/master_def	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	master_defs/master_defs_,_master_def	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-1	CHANGE MASTER TO = 's', MASTER_HOST = 's';
-accept	reject	engine	master_defs/master_defs_,_master_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
+reject	reject	engine	master_defs/master_defs_,_master_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-3	CHANGE MASTER TO MASTER_HOST =, MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-4	CHANGE MASTER TO MASTER_HOST = 's' MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-5	CHANGE MASTER TO MASTER_HOST = 's', = 's';
-accept	reject	engine	master_defs/master_defs_,_master_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
+reject	reject	engine	master_defs/master_defs_,_master_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-7	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =;
 reject	reject	engine	master_defs/master_defs_,_master_def!truncate	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =
 reject	reject	engine	master_defs/master_defs_,_master_def!insert	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's' zzz;
 accept	accept	engine	master_defs/master_defs_,_master_def!swap	CHANGE MASTER TO MASTER_LOG_FILE = 's', MASTER_HOST = 's';
 accept	accept	engine	master_def/MASTER_HOST_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_USER = 's';
-accept	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_USER 's';
+reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_USER 's';
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_USER =;
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_USER =
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_USER = 's' zzz;
-accept	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_USE_GTID = 's';
+reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_USE_GTID = 's';
 accept	accept	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_PASSWORD = 's';
-accept	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
+reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_PASSWORD =;
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_PASSWORD =
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_PASSWORD = 's' zzz;
-accept	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_PORT = 's';
+reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_PORT = 's';
 accept	accept	engine	master_def/MASTER_PORT_SYM_=_ulong_num	CHANGE MASTER TO MASTER_PORT = 1;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-1	CHANGE MASTER TO = 1;
-accept	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
+reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_PORT =;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_PORT =
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_PORT = 1 zzz;
-accept	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SERVER_ID = 1;
+reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SERVER_ID = 1;
 accept	accept	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1;
-accept	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
+reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_CONNECT_RETRY =;
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_CONNECT_RETRY =
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1 zzz;
 accept	accept	engine	master_def/MASTER_DELAY_SYM_=_ulong_num	CHANGE MASTER TO MASTER_DELAY = 1;
-accept	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
+reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_DELAY =;
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_DELAY =
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_DELAY = 1 zzz;
 accept	accept	engine	master_def/MASTER_SSL_SYM_=_ulong_num	CHANGE MASTER TO MASTER_SSL = 1;
-accept	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
+reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL =;
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL =
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_SSL = 1 zzz;
-accept	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
+reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
 accept	accept	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CA = 's';
-accept	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
+reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CA =;
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CA =
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CA = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CAPATH = 's';
-accept	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
+reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CAPATH =;
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CAPATH =
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CAPATH = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CERT = 's';
-accept	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
+reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CERT =;
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CERT =
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CERT = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CIPHER = 's';
-accept	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
+reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CIPHER =;
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CIPHER =
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CIPHER = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_KEY = 's';
-accept	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
+reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_KEY =;
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_KEY =
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_KEY = 's' zzz;
-accept	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
+reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
 accept	accept	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1;
-accept	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
+reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =;
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1 zzz;
-accept	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_USER = 1;
+reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_USER = 1;
 accept	accept	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CRL = 's';
-accept	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
+reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CRL =;
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CRL =
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CRL = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's';
-accept	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
+reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CRLPATH =;
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CRLPATH =
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's' zzz;
 accept	accept	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
-accept	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
+reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-3	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =;
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!truncate	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!insert	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1 zzz;
-accept	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!swap	CHANGE MASTER TO MASTER_HOST = 1;
+reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!swap	CHANGE MASTER TO MASTER_HOST = 1;
 accept	accept	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-1	CHANGE MASTER TO =();
-accept	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
-accept	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
+reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
+reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-4	CHANGE MASTER TO IGNORE_SERVER_IDS =(;
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =() zzz;
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!swap	CHANGE MASTER TO IMMEDIATE =();
-reject	accept	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)	CHANGE MASTER TO DO_DOMAIN_IDS =();
+accept	accept	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)	CHANGE MASTER TO DO_DOMAIN_IDS =();
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-2	CHANGE MASTER TO DO_DOMAIN_IDS();
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-3	CHANGE MASTER TO DO_DOMAIN_IDS =);
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-4	CHANGE MASTER TO DO_DOMAIN_IDS =(;
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!truncate	CHANGE MASTER TO DO_DOMAIN_IDS =(
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!insert	CHANGE MASTER TO DO_DOMAIN_IDS =() zzz;
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!swap	CHANGE MASTER TO DROP =();
-reject	accept	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
+accept	accept	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-2	CHANGE MASTER TO IGNORE_DOMAIN_IDS();
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-3	CHANGE MASTER TO IGNORE_DOMAIN_IDS =);
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-4	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(;
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!truncate	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =() zzz;
 accept	accept	engine	master_def/master_file_def	CHANGE MASTER TO MASTER_LOG_FILE = 's';
-accept	reject	engine	master_def/master_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
+reject	reject	engine	master_def/master_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
 reject	reject	engine	master_def/master_file_def!drop-3	CHANGE MASTER TO MASTER_LOG_FILE =;
 reject	reject	engine	master_def/master_file_def!truncate	CHANGE MASTER TO MASTER_LOG_FILE =
 reject	reject	engine	master_def/master_file_def!insert	CHANGE MASTER TO MASTER_LOG_FILE = 's' zzz;
-accept	reject	engine	master_def/master_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
+reject	reject	engine	master_def/master_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
 accept	accept	engine	ignore_server_id_list/%empty	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	ignore_server_id_list/%empty!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(zzz);
 accept	accept	engine	ignore_server_id_list/ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(1 zzz);
-reject	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
+accept	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS =(,);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(,
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1 zzz);
 accept	accept	engine	ignore_server_id/ulong_num	CHANGE MASTER TO IGNORE_SERVER_IDS =(1);
-reject	accept	engine	do_domain_id_list/%empty	CHANGE MASTER TO DO_DOMAIN_IDS =();
+accept	accept	engine	do_domain_id_list/%empty	CHANGE MASTER TO DO_DOMAIN_IDS =();
 reject	reject	engine	do_domain_id_list/%empty!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(zzz);
-reject	accept	engine	do_domain_id_list/do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
+accept	accept	engine	do_domain_id_list/do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
 reject	reject	engine	do_domain_id_list/do_domain_id!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(1 zzz);
-reject	accept	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1);
+accept	accept	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1);
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!drop-2	CHANGE MASTER TO DO_DOMAIN_IDS =(,);
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!truncate	CHANGE MASTER TO DO_DOMAIN_IDS =(,
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1 zzz);
-reject	accept	engine	do_domain_id/ulong_num	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
-reject	accept	engine	ignore_domain_id_list/%empty	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
+accept	accept	engine	do_domain_id/ulong_num	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id_list/%empty	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
 reject	reject	engine	ignore_domain_id_list/%empty!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(zzz);
-reject	accept	engine	ignore_domain_id_list/ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id_list/ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1 zzz);
-reject	accept	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1);
+accept	accept	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!drop-2	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(,);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!truncate	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(,
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1 zzz);
-reject	accept	engine	ignore_domain_id/ulong_num	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id/ulong_num	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
 accept	accept	engine	master_file_def/MASTER_LOG_FILE_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_LOG_FILE = 's';
 accept	accept	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num	CHANGE MASTER TO MASTER_LOG_POS = 1;
-accept	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
+reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-3	CHANGE MASTER TO MASTER_LOG_POS =;
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!truncate	CHANGE MASTER TO MASTER_LOG_POS =
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!insert	CHANGE MASTER TO MASTER_LOG_POS = 1 zzz;
-accept	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
+reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
 accept	accept	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO RELAY_LOG_FILE = 's';
-accept	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
+reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO RELAY_LOG_FILE =;
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO RELAY_LOG_FILE =
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO RELAY_LOG_FILE = 's' zzz;
-accept	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
+reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
 accept	accept	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num	CHANGE MASTER TO RELAY_LOG_POS = 1;
-accept	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
+reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-3	CHANGE MASTER TO RELAY_LOG_POS =;
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!truncate	CHANGE MASTER TO RELAY_LOG_POS =
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!insert	CHANGE MASTER TO RELAY_LOG_POS = 1 zzz;
-accept	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
+reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM	CHANGE MASTER TO MASTER_USE_GTID = CURRENT_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-1	CHANGE MASTER TO = CURRENT_POS;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID CURRENT_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID CURRENT_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-3	CHANGE MASTER TO MASTER_USE_GTID =;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!truncate	CHANGE MASTER TO MASTER_USE_GTID =
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = CURRENT_POS zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!swap	CHANGE MASTER TO MATCH = CURRENT_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!swap	CHANGE MASTER TO MATCH = CURRENT_POS;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM	CHANGE MASTER TO MASTER_USE_GTID = SLAVE_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-1	CHANGE MASTER TO = SLAVE_POS;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID SLAVE_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID SLAVE_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = SLAVE_POS zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!swap	CHANGE MASTER TO MATCH = SLAVE_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!swap	CHANGE MASTER TO MATCH = SLAVE_POS;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM	CHANGE MASTER TO MASTER_USE_GTID = NO;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-1	CHANGE MASTER TO = NO;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID NO;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID NO;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = NO zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!swap	CHANGE MASTER TO MATCH = NO;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!swap	CHANGE MASTER TO MATCH = NO;
 accept	accept	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1;
-accept	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-2	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE 1;
+reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-2	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE 1;
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-3	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE =;
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!truncate	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE =
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1 zzz;
-accept	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!swap	CHANGE MASTER TO MASTER_GTID_POS = 1;
+reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!swap	CHANGE MASTER TO MASTER_GTID_POS = 1;
 accept	accept	engine	optional_connection_name/%empty	FLUSH SLAVE;
 reject	reject	engine	optional_connection_name/%empty!insert	FLUSH SLAVE zzz;
 accept	accept	engine	optional_connection_name/connection_name	FLUSH SLAVE 's';
@@ -4366,7 +4366,7 @@ accept	accept	engine	opt_to/AS	ALTER TABLE a RENAME AS a;
 reject	reject	engine	opt_to/AS!insert	ALTER TABLE a RENAME AS zzz a;
 reject	reject	engine	opt_to/AS!swap	ALTER TABLE a RENAME ASC a;
 accept	accept	engine	slave/START_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel_slave_until	START SLAVE;
-reject	accept	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts	START ALL SLAVES;
+accept	accept	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts	START ALL SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-1	ALL SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-2	START SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-3	START ALL;
@@ -4378,7 +4378,7 @@ reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!truncate	STOP
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!insert	STOP SLAVE zzz;
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!swap	STORAGE SLAVE;
-reject	accept	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts	STOP ALL SLAVES;
+accept	accept	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts	STOP ALL SLAVES;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!drop-2	STOP SLAVES;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!drop-3	STOP ALL;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!truncate	STOP ALL
@@ -4416,48 +4416,48 @@ reject	reject	engine	start_transaction_option/READ_SYM_WRITE_SYM!insert	START TR
 reject	reject	engine	start_transaction_option/READ_SYM_WRITE_SYM!swap	START TRANSACTION READS WRITE;
 accept	accept	engine	slave_thread_opts/slave_thread_opt_list	START SLAVE;
 accept	accept	engine	slave_thread_opt_list/slave_thread_opt	START SLAVE;
-reject	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt	START SLAVE,;
+accept	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt	START SLAVE,;
 accept	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt!truncate	START SLAVE
 reject	reject	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt!insert	START SLAVE, zzz;
 accept	accept	engine	slave_thread_opt/%empty	START SLAVE;
 accept	accept	engine	slave_thread_opt/SQL_THREAD	START SLAVE SQL_THREAD;
 reject	reject	engine	slave_thread_opt/SQL_THREAD!insert	START SLAVE SQL_THREAD zzz;
 reject	reject	engine	slave_thread_opt/SQL_THREAD!swap	START SLAVE SSL;
-reject	accept	engine	slave_thread_opt/RELAY_THREAD	START SLAVE RELAY_THREAD;
+accept	accept	engine	slave_thread_opt/RELAY_THREAD	START SLAVE RELAY_THREAD;
 reject	reject	engine	slave_thread_opt/RELAY_THREAD!insert	START SLAVE RELAY_THREAD zzz;
 reject	reject	engine	slave_thread_opt/RELAY_THREAD!swap	START SLAVE RELEASE;
 accept	accept	engine	slave_until/%empty	START SLAVE;
-accept	reject	engine	slave_until/UNTIL_SYM_slave_until_opts	START SLAVE UNTIL MASTER_LOG_FILE = 's';
+reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts	START SLAVE UNTIL MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-1	START SLAVE MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-2	START SLAVE UNTIL = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-3	START SLAVE UNTIL MASTER_LOG_FILE 's';
+reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-3	START SLAVE UNTIL MASTER_LOG_FILE 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-4	START SLAVE UNTIL MASTER_LOG_FILE =;
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!truncate	START SLAVE UNTIL MASTER_LOG_FILE =
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!insert	START SLAVE UNTIL MASTER_LOG_FILE = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!swap	START SLAVE UPDATE MASTER_LOG_FILE = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL MASTER_GTID_POS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE MASTER_GTID_POS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL MASTER_GTID_POS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL MASTER_GTID_POS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL MASTER_GTID_POS =;
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL MASTER_GTID_POS =
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL MASTER_GTID_POS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE MASTER_GTID_POS = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL SQL_AFTER_GTIDS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE SQL_AFTER_GTIDS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL SQL_AFTER_GTIDS =;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_AFTER_GTIDS =
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_AFTER_GTIDS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE SQL_AFTER_GTIDS = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE SQL_BEFORE_GTIDS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL SQL_BEFORE_GTIDS =;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_BEFORE_GTIDS =
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE SQL_BEFORE_GTIDS = 's';
-accept	reject	engine	slave_until_opts/master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
-accept	reject	engine	slave_until_opts/master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
+reject	reject	engine	slave_until_opts/master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
+reject	reject	engine	slave_until_opts/master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-1	START SLAVE UNTIL = 's', MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-2	START SLAVE UNTIL MASTER_LOG_FILE 's', MASTER_LOG_FILE = 's';
@@ -4465,8 +4465,8 @@ reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-3	
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-4	START SLAVE UNTIL MASTER_LOG_FILE = 's' MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-5	START SLAVE UNTIL MASTER_LOG_FILE = 's', = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-6	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE 's';
-accept	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-7	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =;
-accept	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!truncate	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =
+reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-7	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =;
+reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!truncate	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!insert	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE = 's' zzz;
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's', MASTER_LOG_FILE = 's';
 accept	accept	engine	checksum/CHECKSUM_SYM_table_or_tables_table_list_opt_checksum_type	CHECKSUM TABLE a;
@@ -7893,10 +7893,10 @@ reject	reject	engine	choice/DEFAULT!swap	ALTER TABLE a PAGE_CHECKSUM DEFINER;
 accept	accept	engine	bool/ulong_num	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1;
 accept	accept	engine	bool/TRUE_SYM	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUE;
 reject	reject	engine	bool/TRUE_SYM!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUE zzz;
-accept	reject	engine	bool/TRUE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUNCATE;
+reject	reject	engine	bool/TRUE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUNCATE;
 accept	accept	engine	bool/FALSE_SYM	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE;
 reject	reject	engine	bool/FALSE_SYM!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE zzz;
-accept	reject	engine	bool/FALSE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FAST;
+reject	reject	engine	bool/FALSE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FAST;
 reject	accept	engine	procedure_clause/PROCEDURE_SYM_ident_(_procedure_list_)	SELECT a PROCEDURE a();
 reject	accept	engine	procedure_list/%empty	SELECT a PROCEDURE a();
 reject	accept	engine	procedure_list/%empty!insert	SELECT a PROCEDURE a(zzz);
