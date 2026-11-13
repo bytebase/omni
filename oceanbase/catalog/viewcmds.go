@@ -100,8 +100,23 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     true,
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 	}
 	return nil
+}
+
+// viewColumnNamesUncertain reports whether a view's stored column names may not be
+// the ones the engine gives. A column list the statement wrote is the engine's too;
+// otherwise the names come from the body, and an analysis that did not finish
+// leaves them unknown.
+func viewColumnNamesUncertain(columns []string, q *Query, sel *nodes.SelectStmt) bool {
+	if len(columns) > 0 {
+		return false
+	}
+	if q != nil {
+		return q.namesUncertain
+	}
+	return selectDerivesNames(sel)
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
@@ -205,6 +220,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 		IsUpdatable:     true,
 	}
 	return nil

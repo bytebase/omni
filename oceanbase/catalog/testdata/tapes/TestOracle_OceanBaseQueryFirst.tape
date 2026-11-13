@@ -132,3 +132,16 @@
 > exec
 | CREATE VIEW v26 AS SELECT d.`(1)` FROM (SELECT (1)) d
 < ok 0 0
+> exec
+| CREATE VIEW w1 AS SELECT (1)
+< ok 0 0
+> exec
+| CREATE VIEW w2 AS SELECT w1.`(1)` FROM w1
+< ok 0 0
+> exec
+| CREATE VIEW w3 AS SELECT b AS q FROM a
+< ok 0 0
+> exec
+| CREATE VIEW w4 AS SELECT w3.zz FROM w3
+< error
+| 1054 42S22 Unknown column 'w3.zz' in 'field list'

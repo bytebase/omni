@@ -50,6 +50,49 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 	}
 }
 
+// TestViewColumnNamesCarryTheirUncertainty holds the names a view stores: where its
+// body names a column by its source text, as (1) or b+1, the catalog's reading may
+// differ (viewNameColumnGaps), so a query reading that view is not refused for a
+// name it does not find, and a view that stars such a view carries it on. A view
+// whose columns the statement names keeps its certainty.
+func TestViewColumnNamesCarryTheirUncertainty(t *testing.T) {
+	for _, tc := range []struct {
+		create, read string
+		code         int
+	}{
+		{"CREATE VIEW v1 AS SELECT (1)", "CREATE VIEW v2 AS SELECT v1.`(1)` FROM v1", 0},
+		{"CREATE VIEW v1 AS SELECT b+1 FROM a", "CREATE VIEW v2 AS SELECT v1.`b+1` FROM v1", 0},
+		{"CREATE VIEW v1 AS SELECT b AS q FROM a", "CREATE VIEW v2 AS SELECT v1.q FROM v1", 0},
+		{"CREATE VIEW v1 AS SELECT b AS q FROM a", "CREATE VIEW v2 AS SELECT v1.zz FROM v1", 1054},
+		{"CREATE VIEW v1 AS SELECT b FROM a", "CREATE VIEW v2 AS SELECT v1.zz FROM v1", 1054},
+	} {
+		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if code := omniCode(c, tc.create); code != 0 {
+			t.Fatalf("%s: %d", tc.create, code)
+		}
+		if code := omniCode(c, tc.read); code != tc.code {
+			t.Errorf("%s\n  after %s: got %d, want %d", tc.read, tc.create, code, tc.code)
+		}
+	}
+	// A view that stars an uncertain view carries the uncertainty on.
+	c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range []string{
+		"CREATE VIEW v1 AS SELECT (1)",
+		"CREATE VIEW v2 AS SELECT * FROM v1",
+		"CREATE VIEW v3 AS SELECT v2.`(1)` FROM v2",
+	} {
+		if code := omniCode(c, sql); code != 0 {
+			t.Errorf("%s: got %d, want 0", sql, code)
+		}
+	}
+}
+
 // TestAnalyzedQueryKeptOnlyWhenItIsFaithful holds the other half of that bargain:
 // a query the engine takes (TestOracle_OceanBaseQueryFirst) creates its view, and
 // an analyzed query is kept only where it says what the statement said. A subquery

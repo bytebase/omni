@@ -158,6 +158,9 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		if err != nil {
 			return nil, err
 		}
+		if viewNamesUncertain(c, ref) {
+			scope.namesUncertain = true
+		}
 		idx := len(q.RangeTable)
 		q.RangeTable = append(q.RangeTable, rte)
 		scope.add(rte.ERef, idx, cols)
@@ -1235,4 +1238,19 @@ func aliasOfOrdinalLiteral(expr AnalyzedExpr) bool {
 		}
 	}
 	return true
+}
+
+// viewNamesUncertain reports whether ref names a view whose stored column names
+// may not be the engine's.
+func viewNamesUncertain(c *Catalog, ref *nodes.TableRef) bool {
+	dbName := ref.Schema
+	if dbName == "" {
+		dbName = c.CurrentDatabase()
+	}
+	db := c.GetDatabase(dbName)
+	if db == nil {
+		return false
+	}
+	view := db.Views[toLower(ref.Name)]
+	return view != nil && view.namesUncertain
 }
