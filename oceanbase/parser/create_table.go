@@ -164,6 +164,13 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		stmt.Partitions = part
 	}
 
+	// with_column_group, after the options and the partitioning.
+	if group, ok, err := p.parseWithColumnGroup(); err != nil {
+		return nil, err
+	} else if ok {
+		stmt.ColumnGroup = group
+	}
+
 	// IGNORE / REPLACE before SELECT in CTAS
 	if p.cur.Type == kwIGNORE {
 		p.advance()
@@ -1324,10 +1331,23 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 			return err
 		}
 		if !ok {
-			return nil
+			break
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}
+	// A key, a unique key or a spatial key ends in with_column_group, in a table
+	// element and in ALTER TABLE ... ADD (table_element and alter_index_option in
+	// sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6). A primary, foreign or
+	// fulltext key does not.
+	switch constr.Type {
+	case nodes.ConstrIndex, nodes.ConstrUnique, nodes.ConstrSpatialIndex:
+		group, _, err := p.parseWithColumnGroup()
+		if err != nil {
+			return err
+		}
+		constr.ColumnGroup = group
+	}
+	return nil
 }
 
 // parseIndexTypeClause parses the optional index_type clause a key definition

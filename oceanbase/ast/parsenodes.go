@@ -189,6 +189,7 @@ type CreateTableStmt struct {
 	Select      *SelectStmt // CREATE TABLE ... AS SELECT
 	Ignore      bool        // IGNORE before SELECT in CTAS
 	Replace     bool        // REPLACE before SELECT in CTAS
+	ColumnGroup string      // WITH COLUMN GROUP (...): the list as written
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -267,6 +268,10 @@ const (
 	// MODIFY PARTITION name ADD SUBPARTITION (...): Name is the partition and
 	// PartitionDefs holds one PartitionDef whose SubPartitions are added.
 	ATAddSubpartition
+	// {ADD | DROP} COLUMN GROUP (...) [DELAYED]: Name is the list as written,
+	// and Option, where DELAYED stands, names it.
+	ATAddColumnGroup
+	ATDropColumnGroup
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -330,6 +335,7 @@ type CreateIndexStmt struct {
 	Options      []*IndexOption
 	Algorithm    string
 	Lock         string
+	ColumnGroup  string // WITH COLUMN GROUP (...): the list as written
 }
 
 func (s *CreateIndexStmt) nodeTag()  {}
@@ -548,6 +554,7 @@ type Constraint struct {
 	OnUpdate     ReferenceAction
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
+	ColumnGroup  string // WITH COLUMN GROUP (...) of a key: the list as written
 }
 
 func (c *Constraint) nodeTag() {}
