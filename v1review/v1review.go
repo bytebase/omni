@@ -80,9 +80,10 @@ type Finding struct {
 	Start, End int
 	// Statement is the index, among the statements the rule function was
 	// given, of the statement the finding lies in, the one Start and End
-	// are offsets into. A rule function that carries what one statement
-	// did to the next sets it, since its caller passes the whole script;
-	// the others leave it 0.
+	// are offsets into. A rule function whose caller passes it the whole
+	// script sets it: one that carries what one statement did to the next,
+	// or one that reads its snapshot once for the script. The others leave
+	// it 0.
 	Statement int
 	// Other is a second name the advice prints beside Name: the column an
 	// index lists twice, say. The rule function names what it holds.
