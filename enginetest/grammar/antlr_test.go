@@ -695,3 +695,22 @@ fragment N : ('n'|'N') ; fragment A : ('a'|'A') ;
 		}
 	}
 }
+
+// TestUnreachableTokensReserveNothing pins a token the token table marks
+// unreachable: the lexer never produces it, so its word stays a name.
+func TestUnreachableTokensReserveNothing(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID | 'SELECT' DIALECT_ONLY 'X' ;
+DIALECT_ONLY : 'special' ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{"DIALECT_ONLY": Unreachable}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT special": true, "SELECT special X": false} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
