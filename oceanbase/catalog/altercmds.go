@@ -170,7 +170,13 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	if err := checkAddedGeneratedCheck(colDef); err != nil {
+		return err
+	}
 	if err := validateColumnDefSemantics(colDef); err != nil {
+		return err
+	}
+	if err := checkAddedColumn(tbl, colDef); err != nil {
 		return err
 	}
 	colKey := toLower(colDef.Name)
@@ -903,6 +909,11 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // alterColumnDefault sets or drops the default on an existing column.
 func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// SET DEFAULT takes an expression only in parentheses, which reach here unwrapped:
+	// one that reads a column is 1235 before the column is looked up.
+	if cmd.DefaultExpr != nil && hasColumnRef(cmd.DefaultExpr) {
+		return errNotSupportedDefault()
+	}
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
@@ -911,6 +922,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		if err := checkDefault(col.Name, columnTypeOf(col), cmd.DefaultExpr); err != nil {
+			return err
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
