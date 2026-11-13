@@ -1037,9 +1037,15 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	// WindowFuncCall arm (sql_yacc.yy window_func_call), so a call outside
 	// those bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
 	// LEAD() and FIRST_VALUE() are all rejected on mysql:8.0.
+	//
+	// Its windowing_clause is no option, so the call without OVER is a 1064 too:
+	// `SELECT ROW_NUMBER()` and `DO LAG(a) b`.
 	if builtin {
 		if bounds, ok := windowFuncArity[fc.Name]; ok {
 			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.cur.Type != kwOVER {
 				return nil, p.syntaxErrorAtCur()
 			}
 		}

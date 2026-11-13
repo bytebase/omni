@@ -999,6 +999,12 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	if expr == nil {
 		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
 	}
+	// An INTERVAL literal is an operand of + and -, not an item: `SELECT INTERVAL
+	// 1 DAY` and `DO INTERVAL 1 DAY a` are 1064s. Ref: simple_expr's `INTERVAL_SYM
+	// expr interval '+' expr` in MySQL 8.0 sql/sql_yacc.yy.
+	if isBareInterval(expr) {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Check for AS alias or implicit alias
 	var alias string

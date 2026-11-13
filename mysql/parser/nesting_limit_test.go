@@ -50,13 +50,13 @@ var nestingShapes = []struct {
 		return "SELECT " + nest(n, "adddate(a, ", "1", ")")
 	}},
 	{"interval literal", func(n int) string {
-		return "SELECT " + strings.Repeat("INTERVAL ", n) + "1" + strings.Repeat(" DAY", n)
+		return "SELECT 1 + " + strings.Repeat("INTERVAL ", n) + "1" + strings.Repeat(" DAY", n)
 	}},
 	// A parenthesized value, which the reader has to tell from the INTERVAL
 	// function's argument list: the classifier scans the group, so this is
 	// also where a scan per level rather than per group would show.
 	{"parenthesized interval literal", func(n int) string {
-		return "SELECT " + nest(n, "INTERVAL (", "1", ") DAY")
+		return "SELECT 1 + " + nest(n, "INTERVAL (", "1", ") DAY")
 	}},
 	{"CONVERT", func(n int) string { return "SELECT " + nest(n, "CONVERT(", "1", ", SIGNED)") }},
 	{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "1", " THEN 1 END") }},

@@ -1333,7 +1333,7 @@ func TestRenameAttributeNonexistent(t *testing.T) {
 
 // Renaming an index renames the constraint it backs, and renaming such a
 // constraint renames its index. Verified against PostgreSQL 17 by
-// TestDependencyPG17Oracle.
+// pg/catalog's TestDependencyPG17Oracle.
 //
 // pg: src/backend/commands/tablecmds.c — RenameRelationInternal,
 // rename_constraint_internal

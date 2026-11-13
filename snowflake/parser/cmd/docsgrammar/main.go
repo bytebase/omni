@@ -9,6 +9,9 @@
 //
 // With -cache it reads pages from the directory, and keeps the ones it
 // fetches there. The date in the pin moves only when the blocks do.
+//
+// The converter is enginetest/grammar/docs; this file says where
+// Snowflake's pages are and what its placeholders stand for.
 package main
 
 import (

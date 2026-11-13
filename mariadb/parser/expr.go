@@ -1120,12 +1120,19 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	// function (`LAST_VALUE(expr,...)` returns its last argument), so its window
 	// arity binds only in window position: `SELECT LAST_VALUE(1, 2)` is the
 	// valid scalar form, while `LAST_VALUE(1, 2) OVER (...)` is a 1064.
+	//
+	// Each of them but LAST_VALUE is a window_func only, which window_func_expr
+	// reads with its OVER, so the call without one is a 1064 too: `SELECT
+	// ROW_NUMBER()` and `DO LEAD(a)`.
 	if builtin {
 		if bounds, ok := windowFuncArity[fc.Name]; ok {
 			if fc.Name != "LAST_VALUE" || p.cur.Type == kwOVER {
 				if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
 					return nil, p.syntaxErrorAtCur()
 				}
+			}
+			if fc.Name != "LAST_VALUE" && p.cur.Type != kwOVER {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}
