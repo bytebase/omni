@@ -731,3 +731,22 @@ func TestParseExpr(t *testing.T) {
 		}
 	}
 }
+
+// OceanBase names a unique key over a column named PRIMARY after it, and sync reports
+// that name, which no statement can write (1280). The key loads, by the same name.
+func TestLoadMetadataTheNamePrimary(t *testing.T) {
+	c := New()
+	report, err := c.LoadMetadata(context.Background(), snapshotWithTables(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "PRIMARY", Type: "int", Nullable: true}},
+		Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Expressions: []string{"PRIMARY"}, Unique: true, Visible: true}},
+	}))
+	if err != nil {
+		t.Fatalf("LoadMetadata: %v", err)
+	}
+	requireReport(t, report, nil, nil)
+	tbl := requireTable(t, c, "t")
+	if len(tbl.Indexes) != 1 || tbl.Indexes[0].Name != "PRIMARY" || tbl.Indexes[0].Primary || !tbl.Indexes[0].Unique {
+		t.Errorf("indexes %+v, want the unique key PRIMARY", tbl.Indexes)
+	}
+}

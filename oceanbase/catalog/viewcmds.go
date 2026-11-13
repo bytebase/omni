@@ -422,6 +422,23 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 	case *nodes.FuncCallExpr:
 		return inferViewFuncCollation(e, relations)
 	case *nodes.CaseExpr:
+		// The conditions compare what they compare, which can fail: CASE x WHEN y
+		// compares x with y. They give the CASE no character set.
+		operand, err := inferViewExprCollation(e.Operand, relations)
+		if err != nil {
+			return viewCollationInfo{}, err
+		}
+		for _, w := range e.Whens {
+			cond, err := inferViewExprCollation(w.Cond, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			if e.Operand != nil {
+				if _, err := aggregateViewCollationsForComparison(operand, cond, "case"); err != nil {
+					return viewCollationInfo{}, err
+				}
+			}
+		}
 		// The character set of a CASE is that of its results together.
 		results := make([]nodes.ExprNode, 0, len(e.Whens)+1)
 		for _, w := range e.Whens {
@@ -747,13 +764,14 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, columns []string, raw
 	}
 	resolver.Resolve(sel)
 
-	aliasViewColumns(sel, columns)
+	_, bindings := aliasViewColumns(sel, columns)
 
 	// Extract column names from the resolved target list.
 	derivedCols := extractViewColumns(sel)
 
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
+	bindings.substitute()
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
@@ -807,23 +825,31 @@ func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*
 // aliasViewColumns gives each SELECT a query joins the names of a view's column list, as
 // the aliases of its select items. A list of another length is left for the caller.
 //
-// An ORDER BY, GROUP BY or HAVING that names an item by the alias it had follows it to the
-// new one, in the SELECT and on the set operation or parentheses around it: the resolver
-// has written ORDER BY 1 as that alias by now, and the old name is no column of the body.
-// It returns the old names of the query's output columns, lower-cased, with their new ones.
-func aliasViewColumns(sel *nodes.SelectStmt, columns []string) map[string]string {
+// What names an item by the alias it had has to follow it: the resolver has written
+// ORDER BY 1 as that alias by now, and the old name is no column of the body. On a set
+// operation or parentheses, an ORDER BY names the query's output columns, so it takes the
+// new names. In a SELECT, an ORDER BY item that is the alias alone takes the new name too,
+// and becomes the item's position (deparse's orderByPosition). Anywhere else in a SELECT
+// the new name could be a column of a table, which a bare name binds to first, so the
+// alias stands for the item's expression, as OceanBase writes it: ORDER BY x + 1, for a
+// written a AS x, is stored as order by (t.a + 1). That substitution waits for the rewrite
+// pass (aliasBindings.substitute), so no expression is rewritten twice.
+func aliasViewColumns(sel *nodes.SelectStmt, columns []string) (map[string]string, aliasBindings) {
 	if sel == nil || len(columns) == 0 {
-		return nil
+		return nil, nil
 	}
 	var renamed map[string]string
+	var bindings aliasBindings
 	switch {
 	case sel.ParenSource != nil:
-		renamed = aliasViewColumns(sel.ParenSource, columns)
+		renamed, bindings = aliasViewColumns(sel.ParenSource, columns)
 	case sel.SetOp != nodes.SetOpNone:
-		renamed = aliasViewColumns(sel.Left, columns)
-		aliasViewColumns(sel.Right, columns)
+		renamed, bindings = aliasViewColumns(sel.Left, columns)
+		_, right := aliasViewColumns(sel.Right, columns)
+		bindings = append(bindings, right...)
 	case len(sel.TargetList) == len(columns):
 		renamed = map[string]string{}
+		leaf := aliasBinding{sel: sel, renamed: renamed, items: map[string]aliasItem{}}
 		for i, target := range sel.TargetList {
 			rt, ok := target.(*nodes.ResTarget)
 			if !ok {
@@ -833,38 +859,157 @@ func aliasViewColumns(sel *nodes.SelectStmt, columns []string) map[string]string
 			if old := toLower(rt.Name); old != "" && old != toLower(columns[i]) {
 				if _, twice := renamed[old]; !twice {
 					renamed[old] = columns[i]
+					leaf.items[old] = aliasItem{target: rt, position: i + 1}
 				}
 			}
 			rt.Name = columns[i]
 		}
-		for _, item := range sel.GroupBy {
-			followAliases(item.Expr, renamed)
+		for _, item := range sel.OrderBy {
+			if name, ok := aliasReference(item.Expr); ok {
+				if to, ok := renamed[name]; ok {
+					item.Expr.(*nodes.ColumnRef).Column = to
+				}
+			}
 		}
-		followAliases(sel.Having, renamed)
+		if len(leaf.items) > 0 {
+			bindings = aliasBindings{leaf}
+		}
+		return renamed, bindings
 	default:
-		return nil
+		return nil, nil
 	}
 	for _, item := range sel.OrderBy {
 		followAliases(item.Expr, renamed)
 	}
-	return renamed
+	return renamed, bindings
 }
 
-// followAliases rewrites the references to renamed aliases in expr. A reference to an
-// alias is a column written with no table: the resolver has given every column of a table
-// its table by now.
+// aliasBindings are the SELECTs whose select items a view's column list renamed.
+type aliasBindings []aliasBinding
+
+type aliasBinding struct {
+	sel     *nodes.SelectStmt
+	renamed map[string]string    // old alias, lower-cased, to the new name
+	items   map[string]aliasItem // old alias, lower-cased, to the item it named
+}
+
+type aliasItem struct {
+	target   *nodes.ResTarget
+	position int
+}
+
+// substitute puts each renamed item's expression where its old alias stands in the
+// SELECT's GROUP BY, HAVING and ORDER BY. A GROUP BY item that is the alias alone, of an
+// item that is a constant, becomes the item's position: a constant there would read as
+// one. An alias under an expression the substitution does not reach takes the new name.
+func (bs aliasBindings) substitute() {
+	for _, b := range bs {
+		for _, item := range b.sel.GroupBy {
+			if name, ok := aliasReference(item.Expr); ok {
+				if it, ok := b.items[name]; ok && isConstantLiteral(it.target.Val) {
+					item.Expr = &nodes.IntLit{Value: int64(it.position)}
+					continue
+				}
+			}
+			item.Expr = b.substituteIn(item.Expr)
+		}
+		b.sel.Having = b.substituteIn(b.sel.Having)
+		for _, item := range b.sel.OrderBy {
+			item.Expr = b.substituteIn(item.Expr)
+		}
+		for _, item := range b.sel.GroupBy {
+			followAliases(item.Expr, b.renamed)
+		}
+		followAliases(b.sel.Having, b.renamed)
+		for _, item := range b.sel.OrderBy {
+			followAliases(item.Expr, b.renamed)
+		}
+	}
+}
+
+func (b aliasBinding) substituteIn(expr nodes.ExprNode) nodes.ExprNode {
+	if expr == nil {
+		return nil
+	}
+	sub := b.substituteIn
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
+		if name, ok := aliasReference(e); ok {
+			if it, ok := b.items[name]; ok {
+				return it.target.Val
+			}
+		}
+	case *nodes.ParenExpr:
+		e.Expr = sub(e.Expr)
+	case *nodes.BinaryExpr:
+		e.Left, e.Right = sub(e.Left), sub(e.Right)
+	case *nodes.UnaryExpr:
+		e.Operand = sub(e.Operand)
+	case *nodes.FuncCallExpr:
+		for i, arg := range e.Args {
+			e.Args[i] = sub(arg)
+		}
+	case *nodes.CaseExpr:
+		e.Operand = sub(e.Operand)
+		for _, w := range e.Whens {
+			w.Cond, w.Result = sub(w.Cond), sub(w.Result)
+		}
+		e.Default = sub(e.Default)
+	case *nodes.InExpr:
+		e.Expr = sub(e.Expr)
+		for i, item := range e.List {
+			e.List[i] = sub(item)
+		}
+	case *nodes.BetweenExpr:
+		e.Expr, e.Low, e.High = sub(e.Expr), sub(e.Low), sub(e.High)
+	case *nodes.LikeExpr:
+		e.Expr, e.Pattern, e.Escape = sub(e.Expr), sub(e.Pattern), sub(e.Escape)
+	case *nodes.IsExpr:
+		e.Expr = sub(e.Expr)
+	case *nodes.CastExpr:
+		e.Expr = sub(e.Expr)
+	case *nodes.CollateExpr:
+		e.Expr = sub(e.Expr)
+	}
+	return expr
+}
+
+// aliasReference returns the lower-cased name a bare column reference holds: one written
+// with no table, which the resolver leaves only on an alias.
+func aliasReference(expr nodes.ExprNode) (string, bool) {
+	cr, ok := expr.(*nodes.ColumnRef)
+	if !ok || cr.Table != "" || cr.Schema != "" || cr.Star {
+		return "", false
+	}
+	return toLower(cr.Column), true
+}
+
+func isConstantLiteral(expr nodes.ExprNode) bool {
+	switch expr.(type) {
+	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.NullLit, *nodes.BoolLit, *nodes.BitLit:
+		return true
+	}
+	return false
+}
+
+// followAliases rewrites the references to renamed aliases in expr to the new names.
 func followAliases(expr nodes.ExprNode, renamed map[string]string) {
 	if expr == nil || len(renamed) == 0 {
 		return
 	}
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Table == "" && cr.Schema == "" && !cr.Star {
-			if name, ok := renamed[toLower(cr.Column)]; ok {
-				cr.Column = name
+		if name, ok := aliasReference(asExpr(n)); ok {
+			if to, ok := renamed[name]; ok {
+				n.(*nodes.ColumnRef).Column = to
 			}
 		}
 		return true
 	})
+}
+
+func asExpr(n nodes.Node) nodes.ExprNode {
+	e, _ := n.(nodes.ExprNode)
+	return e
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

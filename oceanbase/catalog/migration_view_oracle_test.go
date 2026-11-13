@@ -295,6 +295,16 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		{"explicit-columns-order-by-union", []string{
 			"CREATE VIEW v (p) AS SELECT 1 AS a UNION SELECT 2 ORDER BY 1",
 		}, nil, []string{"v"}},
+		// A new name that is also a column of the table: the alias under an expression
+		// stands for its item's expression, as OceanBase stores it.
+		{"explicit-columns-order-by-shadow", []string{
+			"CREATE TABLE t (a INT, p INT)",
+			"CREATE VIEW v (p) AS SELECT a AS x FROM t ORDER BY x + 1",
+		}, []string{"t"}, []string{"v"}},
+		{"explicit-columns-group-by", []string{
+			"CREATE TABLE t (a INT, p INT)",
+			"CREATE VIEW v (p, n) AS SELECT a AS x, count(*) AS c FROM t GROUP BY x HAVING c > 0 ORDER BY c DESC",
+		}, []string{"t"}, []string{"v"}},
 		{"paren-exists-depth2", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (EXISTS((SELECT 1 FROM t))) AS x",
