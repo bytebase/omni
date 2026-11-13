@@ -14,10 +14,9 @@ import (
 // PRIMARY KEY / UNIQUE / secondary indexes live on the index path and are owned by the index
 // node. So this node owns ONLY Table.Constraints entries of type ConForeignKey.
 //
-// Identity is the constraint name, lower-cased. MySQL auto-names an unnamed FK
-// `<table>_ibfk_<N>` at load time (tablecmds.go), so by the time a catalog reaches the diff
-// both the user form and the engine readback carry a concrete name — matching by name is the
-// stored-form identity. Equality is decided by a canonical key (canonicalForeignKey) that
+// Identity is the constraint name, lower-cased. An unnamed FK is named at load time
+// (madeUpConstraintName), so by the time a catalog reaches the diff both the user form and
+// the engine readback carry a concrete name — matching by name is the stored-form identity. Equality is decided by a canonical key (canonicalForeignKey) that
 // folds the referencing columns, the referenced database+table+columns, and the ON DELETE/ON
 // UPDATE actions through canonicalFKAction: RESTRICT, NO ACTION, and an absent clause are the
 // same referential behavior and must collapse onto one key. This is required because SHOW CREATE
@@ -31,8 +30,8 @@ import (
 // in PhasePost by the generator (migration_foreign_key.go).
 //
 // One case is not decided by the name. OceanBase names a foreign key written without a name
-// `<table>_OBFK_<time>`, which the loader cannot reproduce: it names the same key
-// `<table>_ibfk_<N>`. Two foreign keys that differ only in such names are one key
+// `<table>_OBFK_<time>`, which the loader cannot reproduce: it has a count where the engine
+// has the time. Two foreign keys that differ only in such names are one key
 // (forgetMadeUpRenames in diff_check.go).
 //
 // No index is this differ's concern: a foreign key has none of its own on OceanBase
@@ -103,11 +102,11 @@ func foreignKeyMap(t *Table) map[string]*Constraint {
 	return m
 }
 
-// madeUpForeignKeyName reports whether a foreign key's name is one nobody wrote: the loader's
-// `<table>_ibfk_<N>` for a key written without a name, as MySQL names it, or OceanBase's
-// `<table>_OBFK_<time in microseconds>`.
+// madeUpForeignKeyName reports whether a foreign key's name is one nobody wrote: OceanBase's
+// `<table>_OBFK_<time in microseconds>` for a key written without a name, which the loader
+// gives it too, with a count for the time (madeUpConstraintName).
 func madeUpForeignKeyName(con *Constraint) bool {
-	return madeUpName(con, "_ibfk_", "_obfk_")
+	return madeUpName(con, madeUpForeignKeyInfix)
 }
 
 // foreignKeysChanged reports whether two same-name foreign keys differ, comparing their

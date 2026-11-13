@@ -1703,7 +1703,7 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 			state:    "HY000",
 			msg:      "Cannot add foreign key constraint",
 			omniCode: 1822, omniState: "HY000",
-			omniMsg: "Failed to add the foreign key constraint. Missing index for constraint 't_fk_child_nokey_ibfk_1' in the referenced table 't_fk_parent_nokey'",
+			omniMsg: "Failed to add the foreign key constraint. Missing index for constraint 't_fk_child_nokey_OBFK_<n>' in the referenced table 't_fk_parent_nokey'",
 		},
 		{
 			name:     "3780_fk_column_type_mismatch",
@@ -1713,7 +1713,7 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 			state:    "HY000",
 			msg:      "Cannot add foreign key constraint",
 			omniCode: 3780, omniState: "HY000",
-			omniMsg: "Referencing column 'pid' and referenced column 'id' in foreign key constraint 't_fk_child_mismatch_ibfk_1' are incompatible.",
+			omniMsg: "Referencing column 'pid' and referenced column 'id' in foreign key constraint 't_fk_child_mismatch_OBFK_<n>' are incompatible.",
 		},
 	}
 	for _, tc := range cases {
@@ -1742,8 +1742,8 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 			if !ok {
 				t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
 			}
-			if catErr.Code != tc.omniCode || catErr.SQLState != tc.omniState || catErr.Message != tc.omniMsg {
-				t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, catErr.Message, tc.omniCode, tc.omniState, tc.omniMsg)
+			if catErr.Code != tc.omniCode || catErr.SQLState != tc.omniState || withoutCount(catErr.Message) != tc.omniMsg {
+				t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, withoutCount(catErr.Message), tc.omniCode, tc.omniState, tc.omniMsg)
 			}
 		})
 	}
