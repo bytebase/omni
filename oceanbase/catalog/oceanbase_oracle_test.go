@@ -208,17 +208,8 @@ var obGaps = map[string]gap{
 		twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
 	},
 
-	// What OceanBase rewrites in a view's body. The canonical body does not follow yet,
-	// so each of these views differs from its own readback.
-	"TestOracle_ViewIdempotence/oceanbase/cte":                              viewBody("OceanBase prints WITH RECURSIVE for a CTE written without RECURSIVE"),
-	"TestOracle_ViewIdempotence/oceanbase/explicit-columns":                 viewBody("OceanBase folds a view's column list into the aliases of its select list: CREATE VIEW v (p, q) AS SELECT a, b reads back as select a AS p, b AS q"),
-	"TestOracle_ViewIdempotence/oceanbase/view-on-view-explicit-cols":       viewBody("OceanBase folds a view's column list into the aliases of its select list"),
-	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-compare-if":        viewBody("OceanBase stores IF(c, a, b) as (case when c then a else b end)"),
-	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-compare-if-depth2": viewBody("OceanBase stores IF(c, a, b) as (case when c then a else b end)"),
-	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-in-depth2":         viewBody("OceanBase stores x IN ((subquery)) as x = any (subquery)"),
-	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-setop-compare":     viewBody("OceanBase prints each branch of a UNION in parentheses"),
-	"TestOracle_ViewIdempotence/oceanbase/union":                            viewBody("OceanBase prints each branch of a UNION in parentheses"),
-	"TestOracle_ViewIdempotence/oceanbase/trim-keyword-forms":               viewBody("OceanBase stores TRIM('x' FROM s) as trim(both 'x' from s)"),
+	// The one rewrite of a view's body the deparser does not follow, because the parser
+	// does not read what OceanBase prints.
 	"TestOracle_ViewIdempotence/oceanbase/weight-string-forms": {
 		"OceanBase prints WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0), which the parser does not read",
 		[]string{"load stored SDL failed"},
@@ -238,11 +229,6 @@ var obGaps = map[string]gap{
 
 // twoWays is the pair of failures of a form that differs from its readback: once each way.
 func twoWays(forward, reverse string) []string { return []string{forward, reverse} }
-
-// viewBody is the gap of a view whose body OceanBase stores in other words.
-func viewBody(why string) gap {
-	return gap{why, twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty")}
-}
 
 var obGapsSeen sync.Map
 

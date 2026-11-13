@@ -762,7 +762,7 @@ func TestDeparse_Section_4_2_BooleanContextWrapping(t *testing.T) {
 			"((0 <> (case when (`a` > 0) then 1 else 0 end)) and (0 <> `b`))"},
 		// IF in AND
 		{"if_in_and", "IF(a > 0, 1, 0) AND b",
-			"((0 <> if((`a` > 0),1,0)) and (0 <> `b`))"},
+			"((0 <> (case when (`a` > 0) then 1 else 0 end)) and (0 <> `b`))"},
 		// Literal in AND
 		{"literal_in_and", "'hello' AND 1", "((0 <> 'hello') and (0 <> 1))"},
 		// Comparison NOT wrapped: both sides are boolean
@@ -1226,19 +1226,19 @@ func TestDeparseSelect_Section_5_5_SetOperations(t *testing.T) {
 	}{
 		// UNION
 		{"union", "SELECT a FROM t UNION SELECT b FROM t",
-			"select `a` AS `a` from `t` union select `b` AS `b` from `t`"},
+			"(select `a` AS `a` from `t`) union (select `b` AS `b` from `t`)"},
 		// UNION ALL
 		{"union_all", "SELECT a FROM t UNION ALL SELECT b FROM t",
-			"select `a` AS `a` from `t` union all select `b` AS `b` from `t`"},
+			"(select `a` AS `a` from `t`) union all (select `b` AS `b` from `t`)"},
 		// Multiple UNION: three SELECTs chained flat (left-associative)
 		{"multiple_union", "SELECT a FROM t UNION SELECT b FROM t UNION SELECT c FROM t",
-			"select `a` AS `a` from `t` union select `b` AS `b` from `t` union select `c` AS `c` from `t`"},
+			"((select `a` AS `a` from `t`) union (select `b` AS `b` from `t`)) union (select `c` AS `c` from `t`)"},
 		// INTERSECT
 		{"intersect", "SELECT a FROM t INTERSECT SELECT b FROM t",
-			"select `a` AS `a` from `t` intersect select `b` AS `b` from `t`"},
+			"(select `a` AS `a` from `t`) intersect (select `b` AS `b` from `t`)"},
 		// EXCEPT
 		{"except", "SELECT a FROM t EXCEPT SELECT b FROM t",
-			"select `a` AS `a` from `t` except select `b` AS `b` from `t`"},
+			"(select `a` AS `a` from `t`) except (select `b` AS `b` from `t`)"},
 	}
 
 	for _, tc := range cases {
@@ -1298,9 +1298,9 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		{"(VALUES ROW(1) ORDER BY 1) ORDER BY 1", "(values row(1) order by 1) order by 1"},
 		{"(VALUES ROW(1) ORDER BY 1 LIMIT 2) ORDER BY 1 LIMIT 1", "(values row(1) order by 1 limit 2) order by 1 limit 1"},
 		{"(VALUES ROW(1) ORDER BY 1 LIMIT 1) ORDER BY 1", "(values row(1) order by 1 limit 1) order by 1"},
-		{"(VALUES ROW(1)) UNION VALUES ROW(2) ORDER BY 1", "(values row(1)) union values row(2) order by 1"},
-		{"SELECT 1 UNION VALUES ROW(2) ORDER BY 1 LIMIT 1", "select 1 AS `1` union values row(2) order by 1 limit 1"},
-		{"SELECT 1 UNION (VALUES ROW(2) ORDER BY 1 LIMIT 1) ORDER BY 1 LIMIT 2", "select 1 AS `1` union (values row(2) order by 1 limit 1) order by 1 limit 2"},
+		{"(VALUES ROW(1)) UNION VALUES ROW(2) ORDER BY 1", "(values row(1)) union (values row(2)) order by 1"},
+		{"SELECT 1 UNION VALUES ROW(2) ORDER BY 1 LIMIT 1", "(select 1 AS `1`) union (values row(2)) order by 1 limit 1"},
+		{"SELECT 1 UNION (VALUES ROW(2) ORDER BY 1 LIMIT 1) ORDER BY 1 LIMIT 2", "(select 1 AS `1`) union (values row(2) order by 1 limit 1) order by 1 limit 2"},
 		{"SELECT a FROM t WHERE a IN (VALUES ROW(1) ORDER BY 1 LIMIT 1)", "select `a` AS `a` from `t` where `a` in (values row(1) order by 1 limit 1)"},
 		{"SELECT a FROM t ORDER BY (VALUES ROW(2) ORDER BY (VALUES ROW(1) LIMIT 1) LIMIT 1)", "select `a` AS `a` from `t` order by (values row(2) order by (values row(1) limit 1) limit 1)"},
 	}
@@ -1326,25 +1326,25 @@ func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 		{
 			"simple_cte",
 			"WITH cte AS (SELECT 1) SELECT a FROM cte",
-			"with `cte` as (select 1 AS `1`) select `a` AS `a` from `cte`",
+			"with recursive `cte` as (select 1 AS `1`) select `a` AS `a` from `cte`",
 		},
 		// CTE with column list
 		{
 			"cte_with_columns",
 			"WITH cte(x) AS (SELECT 1) SELECT x FROM cte",
-			"with `cte` (`x`) as (select 1 AS `1`) select `x` AS `x` from `cte`",
+			"with recursive `cte` (`x`) as (select 1 AS `1`) select `x` AS `x` from `cte`",
 		},
 		// RECURSIVE CTE
 		{
 			"recursive_cte",
 			"WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT 1) SELECT a FROM cte",
-			"with recursive `cte` as (select 1 AS `1` union all select 1 AS `1`) select `a` AS `a` from `cte`",
+			"with recursive `cte` as ((select 1 AS `1`) union all (select 1 AS `1`)) select `a` AS `a` from `cte`",
 		},
 		// Multiple CTEs
 		{
 			"multiple_ctes",
 			"WITH c1 AS (SELECT 1), c2 AS (SELECT 2) SELECT a FROM c1, c2",
-			"with `c1` as (select 1 AS `1`), `c2` as (select 2 AS `2`) select `a` AS `a` from (`c1` join `c2`)",
+			"with recursive `c1` as (select 1 AS `1`), `c2` as (select 2 AS `2`) select `a` AS `a` from (`c1` join `c2`)",
 		},
 	}
 

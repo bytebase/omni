@@ -11,7 +11,7 @@ func TestAutoAliasWithoutSource(t *testing.T) {
 	for _, tc := range []struct{ sql, want string }{
 		{
 			"SELECT (WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)",
-			"select (with `c` as (select 1 AS `x`) select `x` from `c` union select 2) AS `(WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)`",
+			"select (with recursive `c` as (select 1 AS `x`) (select `x` from `c`) union (select 2)) AS `(WITH c AS (SELECT 1 AS x) SELECT x FROM c UNION SELECT 2)`",
 		},
 		{
 			"SELECT (SELECT a FROM t GROUP BY a HAVING a > 0 LIMIT 1), (SELECT a FROM t ORDER BY a DESC LIMIT 2, 1)",
@@ -19,7 +19,7 @@ func TestAutoAliasWithoutSource(t *testing.T) {
 		},
 		{
 			"SELECT EXISTS (SELECT DISTINCT a FROM t UNION ALL SELECT 1)",
-			"select exists(select distinct `a` from `t` union all select 1) AS `EXISTS(SELECT DISTINCT a FROM t UNION ALL SELECT 1)`",
+			"select exists((select distinct `a` from `t`) union all (select 1)) AS `EXISTS(SELECT DISTINCT a FROM t UNION ALL SELECT 1)`",
 		},
 		{
 			"SELECT (VALUES ROW(1) ORDER BY 1 LIMIT 1)",
