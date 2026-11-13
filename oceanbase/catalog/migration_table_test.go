@@ -83,14 +83,14 @@ func TestOracle_AutoIncFKImplicitApply(t *testing.T) {
 		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, p := range autoIncFKProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				assertAutoIncFKApply(t, o, n, p.id, p.parentDDL, p.childDDL, p.table)
-			})
+			}))
 		}
 	}
 }
 
-func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parentDDL, childDDL, childTable string) {
+func assertAutoIncFKApply(t testing.TB, o *oracleConn, n *Normalizer, id, parentDDL, childDDL, childTable string) {
 	t.Helper()
 	slug := strings.ReplaceAll(id, "-", "_")
 	sc := serverCharsetFor(o.version)
@@ -172,9 +172,9 @@ func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
 		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, p := range autoIncSupportProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				assertAutoIncApply(t, o, n, p)
-			})
+			}))
 		}
 	}
 }
@@ -183,7 +183,7 @@ func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
 // applies it to a fresh per-probe database, and asserts the apply succeeds and the result diffs
 // empty against `to` (both directions). A failure here is either errno 1075 (supporting key not
 // inline) or errno 1061 (inlined key also re-added by the index node).
-func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncProbe) {
+func assertAutoIncApply(t testing.TB, o *oracleConn, n *Normalizer, p autoIncProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
 	sc := serverCharsetFor(o.version)
@@ -259,10 +259,10 @@ func TestOracle_AutoIncSupportingKeyIdempotence(t *testing.T) {
 	for range oracleVersions() {
 		o := oceanBaseOracle(t)
 		for _, p := range autoIncSupportProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				db := "aidem_" + strings.ReplaceAll(p.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, p.createSQL, p.table)
-			})
+			}))
 		}
 	}
 }

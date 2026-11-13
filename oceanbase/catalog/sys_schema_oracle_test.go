@@ -169,7 +169,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 }
 
 // reportSysViewDrift prints per-view Definition differences for failure triage.
-func reportSysViewDrift(t *testing.T, catA, catB *Catalog) {
+func reportSysViewDrift(t testing.TB, catA, catB *Catalog) {
 	t.Helper()
 	dbA := catA.GetDatabase("sys")
 	dbB := catB.GetDatabase("sys")

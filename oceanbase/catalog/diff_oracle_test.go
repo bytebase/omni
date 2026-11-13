@@ -30,7 +30,7 @@ import (
 // applyAndReadback applies a single CREATE TABLE in a throwaway database and returns the
 // SHOW CREATE TABLE readback (the engine's canonical stored form). It reuses oracleConn
 // from normalize_oracle_test.go.
-func (o *oracleConn) applyAndReadback(t *testing.T, dbName, createSQL, table string) (string, bool) {
+func (o *oracleConn) applyAndReadback(t testing.TB, dbName, createSQL, table string) (string, bool) {
 	t.Helper()
 	return o.showCreate(t, dbName, createSQL, table)
 }
@@ -38,7 +38,7 @@ func (o *oracleConn) applyAndReadback(t *testing.T, dbName, createSQL, table str
 // loadOneTable loads a CREATE TABLE (wrapped in a database whose default charset matches
 // the oracle box, so table-charset inheritance resolves identically on both sides) and
 // returns the named table.
-func loadOneTable(t *testing.T, serverCharset, createSQL, table string) (*Catalog, *Table) {
+func loadOneTable(t testing.TB, serverCharset, createSQL, table string) (*Catalog, *Table) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE diffdb DEFAULT CHARSET=%s;\nUSE diffdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -66,7 +66,7 @@ func loadOneTable(t *testing.T, serverCharset, createSQL, table string) (*Catalo
 //
 // all under a version-correct Normalizer. A form the engine will not take has no stored
 // form: the probe ends in refused.
-func assertDiffEmptyAgainstReadback(t *testing.T, o *oracleConn, dbName, userDDL, table string) {
+func assertDiffEmptyAgainstReadback(t testing.TB, o *oracleConn, dbName, userDDL, table string) {
 	t.Helper()
 	readback, ok := o.applyAndReadback(t, dbName, userDDL, table)
 	if !ok {
@@ -191,10 +191,10 @@ func TestOracle_DiffIdempotence(t *testing.T) {
 	for range oracleVersions() {
 		o := oceanBaseOracle(t)
 		for _, probe := range diffIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "diff_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
-			})
+			}))
 		}
 	}
 }
@@ -209,7 +209,7 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
 
-		t.Run(o.name+"/two-tables-fk", func(t *testing.T) {
+		t.Run(o.name+"/two-tables-fk", gapped(func(t testing.TB) {
 			dbName := "diff_multi"
 			stmts := []string{
 				fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName),
@@ -243,7 +243,7 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 			if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
 				t.Errorf("[%s] multi-table self-diff not empty: %s", o.name, describeDiff(d))
 			}
-		})
+		}))
 	}
 }
 
@@ -289,7 +289,7 @@ func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
 				"t", DiffModify, "v", DiffModify},
 		}
 		for _, tc := range cases {
-			t.Run(o.name+"/"+tc.name, func(t *testing.T) {
+			t.Run(o.name+"/"+tc.name, gapped(func(t testing.TB) {
 				rbFrom, ok1 := o.showCreate(t, "diff_nf", tc.fromDDL, tc.wantTable)
 				rbTo, ok2 := o.showCreate(t, "diff_nt", tc.toDDL, tc.wantTable)
 				if !ok1 || !ok2 {
@@ -307,7 +307,7 @@ func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
 				if ce == nil || ce.Action != tc.wantColA {
 					t.Fatalf("[%s] want col %s %s, got %s", o.name, tc.wantCol, tc.wantColA, describeDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }

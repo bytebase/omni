@@ -130,15 +130,13 @@ func TestMigration_DropTable(t *testing.T) {
 	}
 }
 
-func TestMigration_TableEngineChange(t *testing.T) {
+// A change of ENGINE is no change on OceanBase (TestDiff_TableEngineIsNotSchema), so it
+// plans nothing.
+func TestMigration_TableEngineChangePlansNothing(t *testing.T) {
 	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB;"
 	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY) ENGINE=MyISAM;"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
-	if op.Type != OpAlterTable {
-		t.Fatalf("want AlterTable, got %s", op.Type)
-	}
-	if !strings.Contains(strings.ToUpper(op.SQL), "ENGINE=MYISAM") {
-		t.Errorf("want ENGINE=MyISAM, got %q", op.SQL)
+	if plan := planFor(t, from, to, NormalizerFor(MySQL80)); len(plan.Ops) != 0 {
+		t.Errorf("want no statement, got %q", plan.SQL())
 	}
 }
 

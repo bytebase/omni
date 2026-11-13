@@ -13,7 +13,7 @@ import (
 
 // loadViewCatalog loads SDL describing one or more views (and their tables) at a given version
 // and returns the catalog. The schema is wrapped in a database so view identity is (db, name).
-func loadViewCatalog(t *testing.T, version Version, sdl string) *Catalog {
+func loadViewCatalog(t testing.TB, version Version, sdl string) *Catalog {
 	t.Helper()
 	wrapped := "CREATE DATABASE vt DEFAULT CHARSET=utf8mb4;\nUSE vt;\n" + sdl
 	cat, err := LoadSDLWithVersion(wrapped, version)
@@ -23,7 +23,7 @@ func loadViewCatalog(t *testing.T, version Version, sdl string) *Catalog {
 	return cat
 }
 
-func getView(t *testing.T, c *Catalog, name string) *View {
+func getView(t testing.TB, c *Catalog, name string) *View {
 	t.Helper()
 	db := c.GetDatabase("vt")
 	if db == nil {
@@ -100,25 +100,20 @@ CREATE VIEW v1 AS SELECT b FROM t;`)
 	}
 }
 
-func TestDiffViews_ModifyAlgorithm(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE ALGORITHM=UNDEFINED VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
-	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
-		t.Fatalf("algorithm change should be a MODIFY, got %+v", d.Views)
-	}
-}
-
-func TestDiffViews_ModifySQLSecurity(t *testing.T) {
-	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE SQL SECURITY DEFINER VIEW v1 AS SELECT a FROM t;`)
-	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT a FROM t;`)
-	d := DiffWithNormalizer(from, to, NormalizerFor(MySQL80))
-	if e := findViewDiff(d, "v1"); e == nil || e.Action != DiffModify {
-		t.Fatalf("sql security change should be a MODIFY, got %+v", d.Views)
+// OceanBase takes a view's ALGORITHM and SQL SECURITY and keeps neither
+// (TestOracle_OceanBaseViewOptions), so a view does not differ by either.
+func TestDiffViews_AlgorithmAndSQLSecurityAreNotSchema(t *testing.T) {
+	bare := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
+CREATE VIEW v1 AS SELECT a FROM t;`)
+	for _, option := range []string{"ALGORITHM=UNDEFINED", "ALGORITHM=MERGE", "ALGORITHM=TEMPTABLE", "SQL SECURITY DEFINER", "SQL SECURITY INVOKER"} {
+		written := loadViewCatalog(t, MySQL80, "CREATE TABLE t (a INT);\nCREATE "+option+" VIEW v1 AS SELECT a FROM t;")
+		n := NormalizerFor(MySQL80)
+		if d := DiffWithNormalizer(bare, written, n); !d.IsEmpty() {
+			t.Errorf("unstated vs %s must not diff, got %+v", option, d.Views)
+		}
+		if d := DiffWithNormalizer(written, bare, n); !d.IsEmpty() {
+			t.Errorf("%s vs unstated must not diff (reverse), got %+v", option, d.Views)
+		}
 	}
 }
 

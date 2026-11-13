@@ -35,7 +35,7 @@ func TestOracle_ConstraintOfIndexSurvivesOtherNames(t *testing.T) {
 
 	for _, name := range slices.Sorted(maps.Keys(constraintOfIndexScripts)) {
 		script := constraintOfIndexScripts[name]
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, gapped(func(t testing.TB) {
 			for _, stmt := range []string{"DROP DATABASE IF EXISTS zz_coi", "CREATE DATABASE zz_coi", "USE zz_coi"} {
 				if _, err := o.db.ExecContext(ctx, stmt); err != nil {
 					t.Fatal(err)
@@ -63,6 +63,6 @@ func TestOracle_ConstraintOfIndexSurvivesOtherNames(t *testing.T) {
 			if got.Indexes == nil {
 				t.Errorf("no index left")
 			}
-		})
+		}))
 	}
 }

@@ -519,17 +519,14 @@ func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Index column direction — descending is version-flagged. (entry index-desc-asc)
+// Index column direction: OceanBase stores every index column ascending.
 // ---------------------------------------------------------------------------
 
-func TestCanonicalIndexColumn_Descending(t *testing.T) {
-	descCol := &IndexColumn{Name: "a", Descending: true}
-	ascCol := &IndexColumn{Name: "a", Descending: false}
-
-	// 8.0 supports descending: DESC and ASC produce different keys.
-	n80 := NormalizerFor(MySQL80)
-	if n80.CanonicalIndexColumn(descCol) == n80.CanonicalIndexColumn(ascCol) {
-		t.Fatal("8.0: DESC and ASC index columns must differ")
+func TestCanonicalIndexColumn_DirectionIsNotStored(t *testing.T) {
+	n := NormalizerFor(MySQL80)
+	desc, asc := &IndexColumn{Name: "a", Descending: true}, &IndexColumn{Name: "a"}
+	if n.CanonicalIndexColumn(desc) != n.CanonicalIndexColumn(asc) {
+		t.Fatal("OceanBase stores a DESC index column ascending, so DESC and ASC must share a key")
 	}
 }
 

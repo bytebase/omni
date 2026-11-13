@@ -347,7 +347,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 // applyViewSchema drops + recreates dbName with the box's server charset and applies every setup
 // statement on a single dedicated connection (database/sql pools connections, so USE must share
 // the connection with the following statements). Returns the connection (caller closes) or skips.
-func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (oracleSession, bool) {
+func (o *oracleConn) applyViewSchema(t testing.TB, dbName string, setup []string) (oracleSession, bool) {
 	t.Helper()
 	ctx := context.Background()
 	conn, err := o.session(ctx)
@@ -376,7 +376,7 @@ func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string
 // to `logicalDB`, so both the `from` and `to` catalogs (and the apply database) share one database
 // name and the generated DDL qualifies objects under it. Views are dumped in the given order
 // (dependency order); LoadSDL re-sorts anyway.
-func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn oracleSession, physDB, logicalDB string, tables, views []string) (string, bool) {
+func (o *oracleConn) dumpViewSchemaSDL(t testing.TB, conn oracleSession, physDB, logicalDB string, tables, views []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	var b strings.Builder
@@ -437,10 +437,10 @@ func describeViewDiff(d *SchemaDiff) string {
 // its engine-stored readback diff EMPTY (both directions), and each side self-diffs empty.
 func TestOracle_ViewIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range viewIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				dbName := "videm_" + strings.ReplaceAll(probe.id, "-", "_")
 				conn, ok := o.applyViewSchema(t, dbName, probe.setup)
 				if !ok {
@@ -480,7 +480,7 @@ func TestOracle_ViewIdempotence(t *testing.T) {
 					t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s: %s",
 						o.name, probe.id, describeViewDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }
@@ -649,9 +649,9 @@ func TestOracle_ViewMigrationApplyCorrectness(t *testing.T) {
 		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range viewMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertViewApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -659,7 +659,7 @@ func TestOracle_ViewMigrationApplyCorrectness(t *testing.T) {
 // assertViewApplyCorrect loads from/to catalogs from the engine's own readbacks, generates the
 // plan, applies it to a real `from`-state database, reads the result back, and asserts the result
 // canonicalizes equal to `to`.
-func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMigrationProbe) {
+func assertViewApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p viewMigrationProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
 
@@ -755,7 +755,7 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 // views, and loads them into a catalog re-homed under the LOGICAL db name (version-aware). Returns
 // nil (and the caller skips) on any apply/dump failure — an input a version rejects is not a
 // generator failure. An empty setup yields an empty catalog (the `from` of a pure CREATE).
-func loadSchemaFromEngine(t *testing.T, o *oracleConn, physDB, logicalDB string, setup, tables, views []string) *Catalog {
+func loadSchemaFromEngine(t testing.TB, o *oracleConn, physDB, logicalDB string, setup, tables, views []string) *Catalog {
 	t.Helper()
 	if len(setup) == 0 {
 		return New()

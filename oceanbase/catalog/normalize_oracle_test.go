@@ -71,7 +71,7 @@ func dsnOr(env, def string) string {
 // connectOracle dials the engine for version: the OMNI_MYSQL80_DSN override if
 // set, else the conventional local instance, else the package-shared
 // testcontainer fallback (oracle_fallback_test.go).
-func connectOracle(t *testing.T, version Version) *oracleConn {
+func connectOracle(t testing.TB, version Version) *oracleConn {
 	t.Helper()
 	const env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
 	dsn, explicit := os.Getenv(env), true
@@ -105,7 +105,7 @@ func dialOracle(dsn string) (*sql.DB, error) {
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
 // SHOW CREATE TABLE readback for the named table.
-func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (string, bool) {
+func (o *oracleConn) showCreate(t testing.TB, dbName, createSQL, table string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	stmts := []string{
@@ -138,7 +138,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 // server default (utf8mb4 on the 8.0 box) so that table-charset inheritance resolves
 // identically on both the user-input and the SHOW CREATE readback sides — without this,
 // db-inherited charset rules (e.g. column-charset-echo-80) would not be comparable.
-func loadColumn(t *testing.T, serverCharset, createSQL, table, column string) (*Table, *Column) {
+func loadColumn(t testing.TB, serverCharset, createSQL, table, column string) (*Table, *Column) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE nrmdb DEFAULT CHARSET=%s;\nUSE nrmdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -164,7 +164,7 @@ func serverCharsetFor(Version) string { return "utf8mb4" }
 
 // assertPhantomFree is the core assertion: input form and stored readback must produce
 // the same canonical column key for the engine's version.
-func assertPhantomFree(t *testing.T, o *oracleConn, dbName, inputDDL, table, column string) {
+func assertPhantomFree(t testing.TB, o *oracleConn, dbName, inputDDL, table, column string) {
 	t.Helper()
 	readback, ok := o.showCreate(t, dbName, inputDDL, table)
 	if !ok {
@@ -343,10 +343,14 @@ func normalizationProbes() []ruleProbe {
 		{"generated-expr-string-introducer",
 			"CREATE TABLE t_gen2 (a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4",
 			"t_gen2", []string{"e"}},
-		// functional default — 8.0 only.
+		// functional default.
 		{"functional-default",
-			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()), c JSON DEFAULT (JSON_ARRAY()))",
-			"t_funcdef", []string{"a", "b", "c"}},
+			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))",
+			"t_funcdef", []string{"a", "b"}},
+		// OceanBase gives a JSON column no default, an expression included (1101).
+		{"functional-default-json",
+			"CREATE TABLE t_funcjson (c JSON DEFAULT (JSON_ARRAY()))",
+			"t_funcjson", []string{"c"}},
 		// TIMESTAMP magic — both, opposite behavior.
 		{"timestamp-magic",
 			"CREATE TABLE t_ts (a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -358,15 +362,15 @@ func normalizationProbes() []ruleProbe {
 }
 
 func TestOracle_PhantomDiffElimination(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range normalizationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "nrm_" + strings.ReplaceAll(probe.id, "-", "_")
 				for _, c := range probe.columns {
 					assertPhantomFree(t, o, db, probe.create, probe.table, c)
 				}
-			})
+			}))
 		}
 	}
 }
@@ -382,7 +386,7 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 
-		t.Run(o.name+"/bare-column-follows-table-collation", func(t *testing.T) {
+		t.Run(o.name+"/bare-column-follows-table-collation", gapped(func(t testing.TB) {
 			// A bare column inherits the table COLLATE; changing the table COLLATE must
 			// change the bare column's canonical key (else the column change is invisible).
 			ddlA := "CREATE TABLE t (a VARCHAR(10)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
@@ -399,9 +403,9 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] bare column must follow table COLLATE change:\n A=%s\n B=%s",
 					o.name, n.CanonicalColumn(tA, cA), n.CanonicalColumn(tB, cB))
 			}
-		})
+		}))
 
-		t.Run(o.name+"/binary-modifier-vs-plain-collation", func(t *testing.T) {
+		t.Run(o.name+"/binary-modifier-vs-plain-collation", gapped(func(t testing.TB) {
 			// BINARY-modifier over-collapse guard: `varchar BINARY` resolves to the
 			// `<cs>_bin` collation, which is a GENUINE difference from a plain `varchar`
 			// (table-default collation). The fix must not make them share a key, else a
@@ -420,9 +424,9 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] varchar BINARY (_bin) and plain varchar (default) must differ:\n  b=%s\n  p=%s",
 					o.name, n.CanonicalColumn(tbl, bCol), n.CanonicalColumn(tbl, pCol))
 			}
-		})
+		}))
 
-		t.Run(o.name+"/year-numeric-zero-vs-string-zero", func(t *testing.T) {
+		t.Run(o.name+"/year-numeric-zero-vs-string-zero", gapped(func(t testing.TB) {
 			// YEAR over-collapse guard: numeric DEFAULT 0 stores the zero year (0000) while
 			// string DEFAULT '0' stores 2000 — genuinely different values that must NOT share
 			// a canonical key. Loaded from the real engine's readback so the stored forms are
@@ -439,6 +443,6 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] YEAR numeric 0 (0000) and string '0' (2000) must differ:\n  n=%s\n  s=%s",
 					o.name, n.CanonicalDefault(nCol), n.CanonicalDefault(sCol))
 			}
-		})
+		}))
 	}
 }

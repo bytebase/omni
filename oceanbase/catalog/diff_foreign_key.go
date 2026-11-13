@@ -30,6 +30,11 @@ import (
 // A MySQL FK cannot be altered in place, so a changed FK is a DROP followed by an ADD — emitted
 // in PhasePost by the generator (migration_foreign_key.go).
 //
+// One case is not decided by the name. OceanBase names a foreign key written without a name
+// `<table>_OBFK_<time>`, which the loader cannot reproduce: it names the same key
+// `<table>_ibfk_<N>`. Two foreign keys that differ only in such names are one key
+// (forgetMadeUpRenames in diff_check.go).
+//
 // FK-implicit backing indexes are NOT this differ's concern here — they are diffed (and
 // excluded) by the index node (diff_index.go fkImplicitIndexNames). This differ only reports
 // the FK constraint change; the generator (migration_foreign_key.go) owns the lifecycle of the
@@ -37,6 +42,7 @@ import (
 func diffForeignKeys(from, to *Table, n *Normalizer) []ForeignKeyDiffEntry {
 	fromMap := foreignKeyMap(from)
 	toMap := foreignKeyMap(to)
+	forgetMadeUpRenames(fromMap, toMap, madeUpForeignKeyName, func(con *Constraint) string { return canonicalForeignKey(con, n) })
 
 	var result []ForeignKeyDiffEntry
 
@@ -97,6 +103,13 @@ func foreignKeyMap(t *Table) map[string]*Constraint {
 		m[toLower(con.Name)] = con
 	}
 	return m
+}
+
+// madeUpForeignKeyName reports whether a foreign key's name is one nobody wrote: the loader's
+// `<table>_ibfk_<N>` for a key written without a name, as MySQL names it, or OceanBase's
+// `<table>_OBFK_<time in microseconds>`.
+func madeUpForeignKeyName(con *Constraint) bool {
+	return madeUpName(con, "_ibfk_", "_obfk_")
 }
 
 // foreignKeysChanged reports whether two same-name foreign keys differ, comparing their

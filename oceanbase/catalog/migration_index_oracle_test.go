@@ -189,9 +189,9 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range indexMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -240,7 +240,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 			return cat
 		}
 
-		assertNoIndexOps := func(t *testing.T, from, to *Catalog) {
+		assertNoIndexOps := func(t testing.TB, from, to *Catalog) {
 			t.Helper()
 			diff := DiffWithNormalizer(from, to, n)
 			plan := GenerateMigrationWithNormalizer(from, to, diff, n)
@@ -254,7 +254,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 		// from: child with FK (backing index auto-created); to: same child WITHOUT the FK (and
 		// hence — in the user's target — without the backing index). The index plan must be empty:
 		// the FK node drops the FK; the leftover backing index is the FK node's concern.
-		t.Run(o.name+"/drop-fk-no-index-op", func(t *testing.T) {
+		t.Run(o.name+"/drop-fk-no-index-op", gapped(func(t testing.TB) {
 			from := loadSchema("idxgfk1", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))")
 			// `to`: child with neither FK nor index (a plain table).
 			toWrapped := fmt.Sprintf("CREATE DATABASE idxgfk1 DEFAULT CHARSET=%s;\nUSE idxgfk1;\nCREATE TABLE p (id INT NOT NULL PRIMARY KEY, name VARCHAR(50));\nCREATE TABLE c (id INT PRIMARY KEY, pid INT);", sc)
@@ -263,14 +263,14 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 				t.Fatalf("to load: %v", err)
 			}
 			assertNoIndexOps(t, from, to)
-		})
+		}))
 
 		// from: child with neither; to: child with FK (backing index rides with it). Adding the FK
 		// is the FK node's job; the index plan must be empty.
-		t.Run(o.name+"/add-fk-no-index-op", func(t *testing.T) {
+		t.Run(o.name+"/add-fk-no-index-op", gapped(func(t testing.TB) {
 			from := loadSchema("idxgfk2", "CREATE TABLE c (id INT PRIMARY KEY, pid INT)")
 			toCat := loadSchema("idxgfk2b", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))")
 			assertNoIndexOps(t, from, toCat)
-		})
+		}))
 	}
 }

@@ -18,7 +18,7 @@ import (
 
 const scDB = "d"
 
-func loadSCCatalog(t *testing.T, ddl string) *Catalog {
+func loadSCCatalog(t testing.TB, ddl string) *Catalog {
 	t.Helper()
 	c, err := LoadSQL("CREATE DATABASE " + scDB + " DEFAULT CHARSET=utf8mb4;\nUSE " + scDB + ";\n" + ddl)
 	if err != nil {
@@ -28,7 +28,7 @@ func loadSCCatalog(t *testing.T, ddl string) *Catalog {
 }
 
 // planSQL diffs from→to and returns the full migration SQL.
-func planSQL(t *testing.T, from, to *Catalog, n *Normalizer) string {
+func planSQL(t testing.TB, from, to *Catalog, n *Normalizer) string {
 	t.Helper()
 	d := DiffWithNormalizer(from, to, n)
 	return GenerateMigrationWithNormalizer(from, to, d, n).SQL()
@@ -342,7 +342,7 @@ func TestRecreate_NoContextIsBareRecreate(t *testing.T) {
 }
 
 // mustContainInOrder asserts each substring appears in s, and in the given relative order.
-func mustContainInOrder(t *testing.T, s string, subs ...string) {
+func mustContainInOrder(t testing.TB, s string, subs ...string) {
 	t.Helper()
 	idx := 0
 	for _, sub := range subs {

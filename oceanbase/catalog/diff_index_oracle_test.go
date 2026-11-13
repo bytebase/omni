@@ -81,13 +81,13 @@ func indexDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported
 // version.
 func TestOracle_IndexDiffIdempotence(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range indexDiffProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "idx_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
-			})
+			}))
 		}
 	}
 }
@@ -129,8 +129,8 @@ func fkIndexCases() []fkIndexCase {
 // and owned by the FK node) — dropping it would fail errno 1553 ("needed in a foreign key
 // constraint"). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
@@ -160,7 +160,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 				if err := row.Scan(&nm, &ddl); err != nil {
 					t.Fatalf("[%s] show create %s: %v", o.name, tbl, err)
 				}
-				sb.WriteString(ddl + ";\n")
+				sb.WriteString(rehomed(ddl, execDB, "idxfkc") + ";\n")
 			}
 			cat, err := LoadSQL(sb.String())
 			if err != nil {
@@ -169,7 +169,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 			return cat
 		}
 
-		t.Run(o.name+"/fk-column-change", func(t *testing.T) {
+		t.Run(o.name+"/fk-column-change", gapped(func(t testing.TB) {
 			from := loadSchema("idxfkc_a", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x) REFERENCES p(a))")
 			to := loadSchema("idxfkc_b", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p(b))")
 			diff := DiffWithNormalizer(from, to, n)
@@ -179,7 +179,7 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 					t.Errorf("[%s] FK column change must emit no index op, got: %s", o.name, op.SQL)
 				}
 			}
-		})
+		}))
 	}
 }
 
@@ -204,7 +204,7 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 		}
 
 		for _, fc := range fkIndexCases() {
-			t.Run(o.name+"/"+fc.id, func(t *testing.T) {
+			t.Run(o.name+"/"+fc.id, gapped(func(t testing.TB) {
 				dbName := "idxfk_" + strings.ReplaceAll(fc.id, "-", "_")
 				stmts := []string{
 					"DROP DATABASE IF EXISTS " + dbName,
@@ -237,7 +237,7 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 				if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
 					t.Errorf("[%s] FK schema self-diff not empty (phantom on backing index): %s", o.name, describeDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }

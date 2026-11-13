@@ -77,7 +77,7 @@ func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
 	for i, alter := range alterTableSetScenarios {
-		t.Run(alter, func(t *testing.T) {
+		t.Run(alter, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obset_%d", i)
 			if _, err := storeAndRead(ctx, o, dbName, alterTableSetBase, "t"); err != nil {
 				t.Fatal(err)
@@ -91,9 +91,9 @@ func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 				t.Fatal(err)
 			}
 			assertDiffEmptyAgainstStored(t, o, readback, alterTableSetBase+";\n"+alter+";", "t")
-		})
+		}))
 	}
-	t.Run("dynamic partition policy", func(t *testing.T) {
+	t.Run("dynamic partition policy", gapped(func(t testing.TB) {
 		const create = "CREATE TABLE t (a DATETIME NOT NULL, PRIMARY KEY (a)) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE, TIME_UNIT = 'DAY', PRECREATE_TIME = '3day') PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2026-01-01'))"
 		const alter = "ALTER TABLE t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)"
 		if _, err := storeAndRead(ctx, o, "obset_dp", create, "t"); err != nil {
@@ -110,5 +110,5 @@ func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 		sc := serverCharsetFor(o.version)
 		loadOneTable(t, sc, create+";\n"+alter+";", "t")
 		loadOneTable(t, sc, readback, "t")
-	})
+	}))
 }

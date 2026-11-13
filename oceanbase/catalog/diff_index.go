@@ -351,14 +351,13 @@ func canonicalIndexScope(idx *Index) string {
 	return strings.ToUpper(strings.TrimSpace(idx.Scope))
 }
 
-// canonicalIndexType returns the index's USING type, upper-cased, but only when it is a
-// user-selectable BTREE/HASH choice. FULLTEXT and SPATIAL set IndexType to "FULLTEXT"/"SPATIAL"
-// as a redundant echo of the kind flags (already in the key), and SHOW CREATE never emits a
-// USING clause for them, so they are normalized out here to avoid a key that double-counts the
-// kind. PRIMARY likewise never carries a meaningful USING in the stored form.
-func canonicalIndexType(idx *Index) string {
-	if idx.Primary || idx.Fulltext || idx.Spatial {
-		return ""
-	}
-	return strings.ToUpper(strings.TrimSpace(idx.IndexType))
+// canonicalIndexType returns the index's USING type as a key fragment, which on OceanBase is
+// empty for every index. SHOW CREATE TABLE prints no USING clause, whether the index was
+// written USING BTREE, USING HASH or with neither, so a table's readback never says which, and
+// a written USING must not make the table differ from it. (information_schema.STATISTICS does
+// keep HASH, which changes nothing an index does on this engine.) FULLTEXT, SPATIAL and VECTOR
+// are kinds, with flags of their own in the key. TestOracle_OceanBaseIndexOrderAndType holds
+// this to the engine.
+func canonicalIndexType(*Index) string {
+	return ""
 }

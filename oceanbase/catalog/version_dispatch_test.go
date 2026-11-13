@@ -21,7 +21,7 @@ import (
 // loadOneTableWithVersion loads a CREATE TABLE wrapped in a database with the given server
 // charset and records the target version on the catalog (the bytebase wiring path:
 // LoadSDLWithVersion). It returns the catalog + the named table.
-func loadTableVersioned(t *testing.T, serverCharset, createSQL, table string, v Version) (*Catalog, *Table) {
+func loadTableVersioned(t testing.TB, serverCharset, createSQL, table string, v Version) (*Catalog, *Table) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE vdb DEFAULT CHARSET=%s;\nUSE vdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSDLWithVersion(wrapped, v)
@@ -251,7 +251,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 
 	for _, v := range oracleVersions() {
 		o := oceanBaseOracle(t)
-		t.Run(o.name, func(t *testing.T) {
+		t.Run(o.name, gapped(func(t testing.TB) {
 			// (1) engine's authentic stored form of the bare-charset target.
 			readback, ok := o.showCreate(t, "vd_bare", userTarget, "t")
 			if !ok {
@@ -321,6 +321,6 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			if d := DiffWithNormalizer(resultCat, toPlusCat, n); !d.IsEmpty() {
 				t.Errorf("[%s] apply did not converge:\n  result: %s\n  diff: %s", o.name, strings.TrimSpace(ddl), describeDiff(d))
 			}
-		})
+		}))
 	}
 }

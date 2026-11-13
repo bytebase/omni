@@ -13,7 +13,7 @@ import (
 // non-empty diffs are structurally correct) and run without a live engine.
 
 // loadCat parses SDL into a catalog or fails the test.
-func loadCat(t *testing.T, sql string) *Catalog {
+func loadCat(t testing.TB, sql string) *Catalog {
 	t.Helper()
 	c, err := LoadSDL(sql)
 	if err != nil {
@@ -108,13 +108,18 @@ func TestDiff_DropTable(t *testing.T) {
 	}
 }
 
-func TestDiff_TableEngineChange(t *testing.T) {
-	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB;")
-	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ENGINE=MyISAM;")
-	d := Diff(from, to)
-	e := findTable(d, "t")
-	if e == nil || e.Action != DiffModify {
-		t.Fatalf("want MODIFY table t on engine change, got %+v", d.Tables)
+// OceanBase has one storage engine: it takes any ENGINE and reports InnoDB for every table
+// (TestOracle_OceanBaseEngine), so a table does not differ by the ENGINE it was written with.
+func TestDiff_TableEngineIsNotSchema(t *testing.T) {
+	bare := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY);")
+	for _, engine := range []string{"InnoDB", "MyISAM", "MEMORY"} {
+		written := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ENGINE="+engine+";")
+		if d := Diff(bare, written); !d.IsEmpty() {
+			t.Errorf("unstated vs ENGINE=%s must not diff, got %+v", engine, d.Tables)
+		}
+		if d := Diff(written, bare); !d.IsEmpty() {
+			t.Errorf("ENGINE=%s vs unstated must not diff (reverse), got %+v", engine, d.Tables)
+		}
 	}
 }
 

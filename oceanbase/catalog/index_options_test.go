@@ -167,7 +167,7 @@ func TestOracle_OceanBaseIndexOptions(t *testing.T) {
 		{"noparallel", "CREATE TABLE t (a INT, KEY k (a) NOPARALLEL)", "KEY `k` (`a`)"},
 		{"rowid", "CREATE TABLE t (a INT, KEY k (a) WITH ROWID)", "KEY `k` (`a`)"},
 	} {
-		t.Run(probe.id, func(t *testing.T) {
+		t.Run(probe.id, gapped(func(t testing.TB) {
 			readback, err := storeAndRead(ctx, o, "obopt_"+probe.id, probe.create, "t")
 			if err != nil {
 				t.Fatalf("OceanBase would not take the form: %v", err)
@@ -190,7 +190,7 @@ func TestOracle_OceanBaseIndexOptions(t *testing.T) {
 					t.Errorf("the index read as a change against its readback: %s", describeDiff(d))
 				}
 			}
-		})
+		}))
 	}
 }
 
@@ -303,7 +303,7 @@ func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 		// No vector index: OceanBase 4.3.5.6 answers 1235 ("setting vector index storing column is
 		// not supported") for one with STORING, so TestVectorIndexStoringMigration holds that renderer.
 	} {
-		t.Run(target.id, func(t *testing.T) {
+		t.Run(target.id, gapped(func(t testing.TB) {
 			bare := target.bare
 			sc := serverCharsetFor(o.version)
 			from, _ := loadOneTable(t, sc, bare, "t")
@@ -336,6 +336,6 @@ func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 					t.Errorf("the applied plan left an index difference:\n%s", readback)
 				}
 			}
-		})
+		}))
 	}
 }

@@ -61,7 +61,7 @@ func triggerSchemaSDL(dbName string, version Version, schema []string) string {
 // exactly the loadOneTable-wraps-everything-in-diffdb convention the table harness uses.
 // tables lists the base tables to carry over (their SHOW CREATE TABLE), so the reloaded catalog has
 // the trigger's target table present.
-func (o *oracleConn) reconstructTriggersSQL(t *testing.T, probeDB, emitDB string, schemaDDL []string, tables []string) (string, bool) {
+func (o *oracleConn) reconstructTriggersSQL(t testing.TB, probeDB, emitDB string, schemaDDL []string, tables []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	stmts := append([]string{
@@ -105,7 +105,7 @@ func (o *oracleConn) reconstructTriggersSQL(t *testing.T, probeDB, emitDB string
 			t.Logf("[%s] scan trigger row failed: %v", o.name, err)
 			return "", false
 		}
-		fmt.Fprintf(&b, "CREATE TRIGGER `%s` %s %s ON `%s` FOR EACH ROW %s;\n", name, timing, event, table, stmt)
+		b.WriteString(createTriggerSQL(name, timing, event, table, stmt) + ";\n")
 	}
 	if err := rows.Err(); err != nil {
 		t.Logf("[%s] iterate trigger rows failed: %v", o.name, err)
@@ -114,9 +114,21 @@ func (o *oracleConn) reconstructTriggersSQL(t *testing.T, probeDB, emitDB string
 	return b.String(), true
 }
 
+// createTriggerSQL rebuilds a trigger's CREATE statement from its row of
+// information_schema.TRIGGERS. MySQL keeps only the trigger's body in ACTION_STATEMENT.
+// OceanBase keeps the statement from the word TRIGGER on, `trigger tr before insert on t
+// for each row set new.a = 1`, so there the row is the whole statement but for CREATE, and
+// putting a header of one's own before it writes the header twice.
+func createTriggerSQL(name, timing, event, table, action string) string {
+	if action = strings.TrimSpace(action); len(action) > 8 && strings.EqualFold(action[:8], "trigger ") {
+		return "CREATE " + action
+	}
+	return fmt.Sprintf("CREATE TRIGGER `%s` %s %s ON `%s` FOR EACH ROW %s", name, timing, event, table, action)
+}
+
 // triggerStoredCatalog reconstructs and loads the engine's stored form of a schema into a catalog.
 // The schema is applied in probeDB but the loaded catalog's database is named emitDB.
-func (o *oracleConn) triggerStoredCatalog(t *testing.T, probeDB, emitDB string, schemaDDL []string, tables []string) (*Catalog, bool) {
+func (o *oracleConn) triggerStoredCatalog(t testing.TB, probeDB, emitDB string, schemaDDL []string, tables []string) (*Catalog, bool) {
 	t.Helper()
 	sdl, ok := o.reconstructTriggersSQL(t, probeDB, emitDB, schemaDDL, tables)
 	if !ok {
@@ -175,10 +187,10 @@ func triggerIdempotenceProbes() []triggerIdemProbe {
 // — DEFINER, whitespace and FOLLOWS must not phantom-diff). Probed on every supported version.
 func TestOracle_TriggerIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range triggerIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				dbName := "trig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, ok := o.triggerStoredCatalog(t, dbName, dbName, probe.schema, probe.tables)
 				if !ok {
@@ -211,7 +223,7 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 				if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
 					t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s: %s", o.name, probe.id, describeTriggerDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }
@@ -222,9 +234,9 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 // user form must still collapse to empty.
 func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
-		t.Run(o.name+"/multi", func(t *testing.T) {
+		t.Run(o.name+"/multi", gapped(func(t testing.TB) {
 			tbl := "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c INT)"
 			schema := []string{
 				tbl,
@@ -253,7 +265,7 @@ func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
 			if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
 				t.Errorf("[%s] multi-trigger user vs stored not empty (FOLLOWS must not diff): %s", o.name, describeTriggerDiff(d))
 			}
-		})
+		}))
 	}
 }
 
@@ -355,9 +367,9 @@ func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range triggerMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertTriggerApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -365,7 +377,7 @@ func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
 // assertTriggerApplyCorrect builds from/to catalogs from the engine's own readbacks, generates the
 // plan, applies it to a real from-state database, reads the result's triggers back, and asserts the
 // result canonicalizes equal to `to`.
-func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p triggerMigProbe) {
+func assertTriggerApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p triggerMigProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
 
@@ -437,7 +449,7 @@ func assertTriggerApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p tri
 // already-applied database on a specific oracleSession, returning the stored-form SDL. Unlike
 // reconstructTriggersSQL it does NOT re-create the database — it inspects the just-applied state on
 // the same connection the plan ran on.
-func (o *oracleConn) reconstructTriggersFromConn(t *testing.T, conn oracleSession, dbName string, tables []string) (string, bool) {
+func (o *oracleConn) reconstructTriggersFromConn(t testing.TB, conn oracleSession, dbName string, tables []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	var b strings.Builder
@@ -466,7 +478,7 @@ func (o *oracleConn) reconstructTriggersFromConn(t *testing.T, conn oracleSessio
 			t.Logf("[%s] scan trigger row failed: %v", o.name, err)
 			return "", false
 		}
-		fmt.Fprintf(&b, "CREATE TRIGGER `%s` %s %s ON `%s` FOR EACH ROW %s;\n", name, timing, event, table, stmt)
+		b.WriteString(createTriggerSQL(name, timing, event, table, stmt) + ";\n")
 	}
 	if err := rows.Err(); err != nil {
 		t.Logf("[%s] iterate trigger rows failed: %v", o.name, err)

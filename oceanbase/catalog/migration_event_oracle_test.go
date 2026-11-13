@@ -32,7 +32,7 @@ import (
 
 // loadOneEvent loads a CREATE EVENT (wrapped in a database whose default charset matches the
 // oracle box) and returns the named event from the catalog. Mirrors loadOneTable.
-func loadOneEvent(t *testing.T, serverCharset, createSQL, event string) (*Catalog, *Event) {
+func loadOneEvent(t testing.TB, serverCharset, createSQL, event string) (*Catalog, *Event) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE evdb DEFAULT CHARSET=%s;\nUSE evdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -52,7 +52,7 @@ func loadOneEvent(t *testing.T, serverCharset, createSQL, event string) (*Catalo
 // returns the SHOW CREATE EVENT readback (the engine's canonical stored form) as a reloadable
 // CREATE EVENT statement. Returns ok=false (and logs) when the version rejects the input — the
 // caller decides whether that is expected (e.g. 5.7 rejecting a far-future AT value).
-func eventReadback(t *testing.T, conn oracleSession, name, sc, dbName, createSQL, event string) (string, bool) {
+func eventReadback(t testing.TB, conn oracleSession, name, sc, dbName, createSQL, event string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	for _, s := range []string{
@@ -129,7 +129,7 @@ func TestOracle_EventIdempotence(t *testing.T) {
 		}
 
 		for _, p := range eventIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(p.id, "-", "_")
 				rb, ok := eventReadback(t, conn, o.name, sc, "ev_idem_"+slug, p.create, p.event)
 				if !ok {
@@ -156,7 +156,7 @@ func TestOracle_EventIdempotence(t *testing.T) {
 				if plan.SQL() != "" {
 					t.Errorf("[%s] NON-EMPTY NO-OP PLAN for %s:\n%s", o.name, p.id, plan.SQL())
 				}
-			})
+			}))
 		}
 		_ = conn.Close()
 	}
@@ -218,9 +218,9 @@ func TestOracle_EventApplyCorrectness(t *testing.T) {
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
 		for _, p := range eventMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				assertEventApplyCorrect(t, o, n, sc, p.id, p.event, p.fromCreate, p.toCreate)
-			})
+			}))
 		}
 	}
 }
@@ -229,7 +229,7 @@ func TestOracle_EventApplyCorrectness(t *testing.T) {
 // forms), generates the plan, applies it to a from-state database, reads the result back, and
 // asserts the result canonicalizes equal to `to` (both directions). Each probe uses its own apply
 // database on ONE pinned connection, so the test is hermetic.
-func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id, event, fromCreate, toCreate string) {
+func assertEventApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, sc, id, event, fromCreate, toCreate string) {
 	t.Helper()
 	slug := strings.ReplaceAll(id, "-", "_")
 	applyDB := "eva_" + slug

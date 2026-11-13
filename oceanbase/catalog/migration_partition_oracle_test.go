@@ -30,7 +30,7 @@ import (
 // loadOnePartTable wraps a CREATE TABLE in a NAMED database (so each probe gets an isolated apply
 // DB, not the shared `diffdb`) whose default charset matches the oracle box, and returns the named
 // table. Mirrors loadOneTable but with a caller-chosen database name.
-func loadOnePartTable(t *testing.T, dbName, serverCharset, createSQL, table string) (*Catalog, *Table) {
+func loadOnePartTable(t testing.TB, dbName, serverCharset, createSQL, table string) (*Catalog, *Table) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n%s", dbName, serverCharset, dbName, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -50,7 +50,7 @@ func loadOnePartTable(t *testing.T, dbName, serverCharset, createSQL, table stri
 // stored forms), generates the plan, applies it to a from-state database, reads the result back,
 // and asserts the result canonicalizes equal to `to` (both directions). Each probe uses its own
 // database (pa_<slug>), on ONE dedicated connection, so the test is hermetic.
-func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationProbe) {
+func assertPartitionApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p migrationProbe) {
 	t.Helper()
 
 	slug := strings.ReplaceAll(p.id, "-", "_")
@@ -280,9 +280,9 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, p := range partitionMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				assertPartitionApplyCorrect(t, o, n, p)
-			})
+			}))
 		}
 	}
 }
@@ -292,10 +292,10 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 // plan is empty too. A non-empty no-op plan is a partition normalization/ordering bug.
 func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range partitionDiffProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, "pgen_idem_"+slug, probe.create, probe.table)
 				if !ok {
@@ -315,7 +315,7 @@ func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN (user vs stored) for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(rb), rtPlan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }

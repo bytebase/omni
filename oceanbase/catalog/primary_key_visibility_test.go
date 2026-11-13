@@ -137,7 +137,7 @@ func TestAlterIndexPrimaryRefused(t *testing.T) {
 // requirePrimaryKeyMatchesReadback loads userDDL and the engine's readback and requires
 // the readback's primary key to be visible with comment, and the two to diff empty on
 // their indexes.
-func requirePrimaryKeyMatchesReadback(t *testing.T, o *oracleConn, userDDL, readback, comment string) {
+func requirePrimaryKeyMatchesReadback(t testing.TB, o *oracleConn, userDDL, readback, comment string) {
 	t.Helper()
 	sc := serverCharsetFor(o.version)
 	userCat, _ := loadOneTable(t, sc, userDDL, "t")
@@ -157,7 +157,7 @@ func TestOracle_OceanBaseAlterAddPrimaryKey(t *testing.T) {
 	ctx := context.Background()
 	const create = "CREATE TABLE t (id INT NOT NULL, a INT)"
 	for i, alter := range addPrimaryKeyIgnoredOptionAlters {
-		t.Run(alter, func(t *testing.T) {
+		t.Run(alter, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obpkvis_%d", i)
 			if _, err := storeAndRead(ctx, o, dbName, create, "t"); err != nil {
 				t.Fatal(err)
@@ -178,17 +178,17 @@ func TestOracle_OceanBaseAlterAddPrimaryKey(t *testing.T) {
 				t.Fatal(err)
 			}
 			requirePrimaryKeyMatchesReadback(t, o, create+";\n"+alter+";", readback, "")
-		})
+		}))
 	}
-	t.Run("create table comment", func(t *testing.T) {
+	t.Run("create table comment", gapped(func(t testing.TB) {
 		readback, err := storeAndRead(ctx, o, "obpkvis_create", createPrimaryKeyComment, "t")
 		if err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _, _ = o.db.ExecContext(ctx, "DROP DATABASE IF EXISTS obpkvis_create") })
 		requirePrimaryKeyMatchesReadback(t, o, createPrimaryKeyComment+";", readback, "pk comment")
-	})
-	t.Run("alter index primary", func(t *testing.T) {
+	}))
+	t.Run("alter index primary", gapped(func(t testing.TB) {
 		if _, err := storeAndRead(ctx, o, "obpkvis_alter", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT)", "t"); err != nil {
 			t.Fatal(err)
 		}
@@ -200,5 +200,5 @@ func TestOracle_OceanBaseAlterAddPrimaryKey(t *testing.T) {
 				t.Errorf("OceanBase answered %v for %q, want 1176", err, alter)
 			}
 		}
-	})
+	}))
 }

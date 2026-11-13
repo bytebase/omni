@@ -123,9 +123,9 @@ func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
 		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range routineMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertRoutineApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -133,7 +133,7 @@ func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
 // assertRoutineApplyCorrect loads from/to catalogs from the engine's readbacks (under the SAME db
 // name so identity matches), generates the plan, applies it to a from-state database, reads the
 // result back, and asserts the result canonicalizes equal to `to`.
-func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p routineMigrationProbe) {
+func assertRoutineApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p routineMigrationProbe) {
 	t.Helper()
 	ctx := context.Background()
 	sc := serverCharsetFor(o.version)
@@ -270,7 +270,7 @@ func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
 
-		t.Run(o.name+"/mixed-routines", func(t *testing.T) {
+		t.Run(o.name+"/mixed-routines", gapped(func(t testing.TB) {
 			dbName := "rtn_multi"
 			stmts := []string{
 				"DROP DATABASE IF EXISTS " + dbName,
@@ -315,6 +315,6 @@ func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
 			if plan.SQL() != "" {
 				t.Errorf("[%s] multi-routine no-op plan not empty:\n%s", o.name, plan.SQL())
 			}
-		})
+		}))
 	}
 }
