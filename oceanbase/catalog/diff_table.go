@@ -131,7 +131,8 @@ func compareTable(key tableKey, from, to *Table, n *Normalizer) (TableDiffEntry,
 //     returns true for the format OceanBase gives every table that declares none
 //     (unstated, DEFAULT or DYNAMIC) and false for any other — so a real
 //     DYNAMIC↔COMPRESSED change is detected while the DYNAMIC a readback always carries
-//     is not read as one.
+//     is not read as one;
+//   - the column groups, which OceanBase stores as written.
 //
 // AUTO_INCREMENT=N is a live next-value counter, never schema, so it is unconditionally
 // not compared (the constant-true IgnoreTableAutoIncrement documents that choice).
@@ -149,6 +150,9 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 		return true
 	}
 	if rowFormatChanged(from, to, n) {
+		return true
+	}
+	if from.ColumnGroups != to.ColumnGroups {
 		return true
 	}
 	return false

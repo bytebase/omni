@@ -1,6 +1,10 @@
 package catalog
 
-import "slices"
+import (
+	"slices"
+
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+)
 
 type Table struct {
 	Name             string
@@ -30,6 +34,7 @@ type Table struct {
 	Checksum         string
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
+	ColumnGroups     ColumnGroups // WITH COLUMN GROUP (...), and what ALTER TABLE adds and drops
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -71,6 +76,10 @@ type PartitionInfo struct {
 	// CREATE TABLE stops printing the template once a partition is added with its own,
 	// but the engine keeps applying it, and so does the catalog.
 	SubPartTemplate []*SubPartitionDefInfo
+	// SplitSize is a RANGE partitioning's SIZE ('size'), and AutoSize the value of
+	// PARTITION SIZE ... PARTITIONS AUTO, as written; empty when not given.
+	SplitSize string
+	AutoSize  string
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -97,7 +106,12 @@ type Column struct {
 	Name       string
 	DataType   string // normalized (int, varchar, etc.)
 	ColumnType string // full type string (varchar(100), int unsigned)
-	Nullable   bool
+	// typeNode is the type as the parser read it, kept so a later statement can
+	// check a value against it without parsing the column's text again. A synced
+	// column has one too, from metadataColumnDef. Nil only where no definition
+	// was seen, as for a column a CREATE TABLE ... SELECT invents.
+	typeNode *nodes.DataType
+	Nullable bool
 	// NullExplicit records whether the user wrote an explicit NULL or NOT NULL clause on
 	// the column. The diff-time canonicalizer needs it to apply MySQL's
 	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL

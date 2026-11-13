@@ -334,6 +334,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ArrayElem != nil {
 			Walk(v, n.ArrayElem)
 		}
+		if n.MapKey != nil {
+			Walk(v, n.MapKey)
+		}
 	case *DeclareCursorStmt:
 		if n.Select != nil {
 			Walk(v, n.Select)

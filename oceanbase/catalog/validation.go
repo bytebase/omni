@@ -37,6 +37,9 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
+	if err := checkCollectionElements(colDef.TypeName); err != nil {
+		return err
+	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
 	switch typeName {
 	case "datetime", "timestamp", "time":
@@ -108,7 +111,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			}
 		}
 	}
-	return nil
+	return checkColumnDefinition(colDef)
 }
 
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {
@@ -377,4 +380,37 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 	default:
 		return nil, false
 	}
+}
+
+// checkCollectionElements refuses an ARRAY whose element OceanBase does not keep, at
+// any depth and inside a MAP, with the 1235 the engine answers. The elements it keeps
+// are integers, BOOL, FLOAT and DOUBLE, VARCHAR, VECTOR and ARRAY: cast_array_test.go
+// measured them on casts, where it refuses ENUM, SET, DECIMAL and VARBINARY, and a
+// column's TINYTEXT[] is refused the same way (simulate.tsv).
+func checkCollectionElements(dt *nodes.DataType) error {
+	for dt != nil {
+		switch normalizedTypeName(dt.Name) {
+		case "map":
+			if err := checkCollectionElements(dt.MapKey); err != nil {
+				return err
+			}
+			dt = dt.ArrayElem
+			continue
+		case "array":
+			element := dt.ArrayElem
+			if element == nil {
+				return nil
+			}
+			switch name := normalizedTypeName(element.Name); {
+			case name == "array" || name == "map":
+			case isIntegerType(name), name == "boolean", name == "float", name == "double", name == "varchar", name == "vector":
+			default:
+				return &Error{Code: 1235, SQLState: "0A000", Message: "Not supported feature or function"}
+			}
+			dt = element
+			continue
+		}
+		return nil
+	}
+	return nil
 }

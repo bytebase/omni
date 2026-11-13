@@ -262,6 +262,11 @@ func parseColumnType(columnType string) parsedType {
 // length-1 for bare CHAR/BINARY/BIT, and drops the YEAR width. The result is a stable
 // comparison key, not necessarily a SHOW CREATE rendering.
 func (n *Normalizer) CanonicalColumnType(c *Column) string {
+	// An ARRAY or MAP is stored as OceanBase prints it, its elements included, which
+	// is canonical already; the length parse below would drop the elements.
+	if upper := strings.ToUpper(c.ColumnType); strings.HasPrefix(upper, "ARRAY(") || strings.HasPrefix(upper, "MAP(") {
+		return upper
+	}
 	p := parseColumnType(c.ColumnType)
 	return n.canonicalType(p)
 }

@@ -148,6 +148,16 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterDropPartition(tbl, cmd)
 	case nodes.ATTruncatePartition:
 		return c.alterTruncatePartition(tbl, cmd)
+	case nodes.ATDropSubpartition:
+		return c.alterDropSubpartition(tbl, cmd)
+	case nodes.ATTruncateSubpartition, nodes.ATAlterPartitionStorageCachePolicy:
+		// A data operation and a cache policy, neither of which the catalog keeps.
+		if tbl.Partitioning == nil {
+			return errNotPartitioned()
+		}
+		return nil
+	case nodes.ATAddSubpartition:
+		return c.alterAddSubpartition(tbl, cmd)
 	case nodes.ATCoalescePartition:
 		return c.alterCoalescePartition(tbl, cmd)
 	case nodes.ATReorganizePartition:
@@ -157,6 +167,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATAddColumnGroup:
+		return alterAddColumnGroup(tbl, cmd)
+	case nodes.ATDropColumnGroup:
+		return alterDropColumnGroup(tbl, cmd)
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -185,7 +199,13 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	if err := checkAddedGeneratedCheck(colDef); err != nil {
+		return err
+	}
 	if err := validateColumnDefSemantics(colDef); err != nil {
+		return err
+	}
+	if err := checkAddedColumn(tbl, colDef); err != nil {
 		return err
 	}
 	colKey := toLower(colDef.Name)
@@ -933,6 +953,11 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // alterColumnDefault sets or drops the default on an existing column.
 func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// SET DEFAULT takes an expression only in parentheses, which reach here unwrapped:
+	// one that reads a column is 1235 before the column is looked up.
+	if cmd.DefaultExpr != nil && hasColumnRef(cmd.DefaultExpr) {
+		return errNotSupportedDefault()
+	}
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
@@ -941,6 +966,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		if err := checkDefault(col.Name, col.typeNode, cmd.DefaultExpr); err != nil {
+			return err
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
@@ -1012,6 +1040,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 
 	// Type info.
 	if colDef.TypeName != nil {
+		col.typeNode = colDef.TypeName
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {
@@ -1345,6 +1374,65 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 		return errNotPartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
+	return nil
+}
+
+// alterDropSubpartition drops named subpartitions from every partition that
+// lists them. OceanBase refuses it on a table without partitions with 1505
+// (simulate.tsv); no fixture holds a subpartitioned table yet, so the rest
+// follows alterDropPartition and is not measured.
+func (c *Catalog) alterDropSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	dropSet := make(map[string]bool)
+	for _, name := range cmd.PartitionNames {
+		dropSet[toLower(name)] = true
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		var remaining []*SubPartitionDefInfo
+		for _, spd := range pd.SubPartitions {
+			if !dropSet[toLower(spd.Name)] {
+				remaining = append(remaining, spd)
+			}
+		}
+		pd.SubPartitions = remaining
+	}
+	return nil
+}
+
+// alterAddSubpartition adds subpartitions to one partition: MODIFY PARTITION p
+// ADD SUBPARTITION (...). OceanBase refuses it on a table without partitions
+// with 1505 (simulate.tsv); the rest follows addedPartitionSubpartitions and is
+// not measured, since no fixture holds a subpartitioned table yet.
+func (c *Catalog) alterAddSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	if len(cmd.PartitionDefs) == 0 {
+		return nil
+	}
+	added := cmd.PartitionDefs[0]
+	// The bounds must be the table's subpartitioning kind, as CREATE and ADD
+	// PARTITION check: a VALUES IN under SUBPARTITION BY RANGE would otherwise be
+	// stored as VALUES LESS THAN.
+	if err := checkSubpartitionBoundKinds(partitionTypeFromString(tbl.Partitioning.SubType), added.SubPartitions); err != nil {
+		return err
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		if toLower(pd.Name) != toLower(cmd.Name) {
+			continue
+		}
+		for _, spd := range added.SubPartitions {
+			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pd.Engine, Comment: pd.Comment}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, partitionTypeFromString(tbl.Partitioning.SubType))
+			}
+			pd.SubPartitions = append(pd.SubPartitions, spdi)
+		}
+		tbl.Partitioning.UseDefaultSubpartitions = false
+		tbl.Partitioning.UseDefaultNumSubpartitions = false
+	}
 	return nil
 }
 

@@ -157,11 +157,18 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 
 	// Partition clause
 	if p.cur.Type == kwPARTITION {
-		part, err := p.parsePartitionClause()
+		part, err := p.parsePartitionClause(true)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Partitions = part
+	}
+
+	// with_column_group, after the options and the partitioning.
+	if group, ok, err := p.parseWithColumnGroup(); err != nil {
+		return nil, err
+	} else if ok {
+		stmt.ColumnGroup = group
 	}
 
 	// IGNORE / REPLACE before SELECT in CTAS
@@ -553,7 +560,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "DEFAULT"
 			p.advance()
 		default:
-			return false, nil
+			// COLUMN_FORMAT takes its value.
+			return false, p.syntaxErrorAtCur()
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -564,7 +572,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwSTORAGE:
-		// STORAGE {DISK | MEMORY}
+		// STORAGE {DEFAULT | DISK | MEMORY}, its value required.
 		p.advance()
 		var val string
 		switch p.cur.Type {
@@ -574,8 +582,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		case kwMEMORY:
 			val = "MEMORY"
 			p.advance()
+		case kwDEFAULT:
+			val = "DEFAULT"
+			p.advance()
 		default:
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -583,6 +594,49 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Type: nodes.ColConstrStorage,
 			Name: val,
 		})
+		return true, nil
+	}
+
+	// OceanBase's own column attributes, parsed and not kept (column_attribute and
+	// generated_column_attribute in sql_parser_mysql_mode.y, oceanbase
+	// v4.3.5_CE_BP6):
+	//
+	//	ORIG_DEFAULT now_or_signed_literal
+	//	SKIP_INDEX ( [MIN_MAX | SUM] [, {MIN_MAX | SUM}] ... )
+	//	CHUNK {n | 'size'}
+	//
+	// Known gap: ID n, which OceanBase parses and then refuses with 1064
+	// (simulate.tsv). Taking it waits for the catalog to refuse it too.
+	switch {
+	case p.isBareWord("ORIG_DEFAULT"):
+		p.advance()
+		return true, p.parseNowOrSignedLiteral()
+	case p.isBareWord("SKIP_INDEX"):
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return false, err
+		}
+		// opt_skip_index_type_list may be empty before its first comma.
+		for p.cur.Type != ')' {
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+			if !p.isBareWord("MIN_MAX") && !p.isBareWord("SUM") {
+				return false, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != ',' && p.cur.Type != ')' {
+				return false, p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume ')'
+		return true, nil
+	case p.isBareWord("CHUNK"):
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		return true, nil
 	}
 
@@ -596,7 +650,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	if p.cur.Type == kwSRID {
 		p.advance()
 		if p.cur.Type != tokICONST {
-			return false, nil
+			// SRID INTNUM: the number is required.
+			return false, p.syntaxErrorAtCur()
 		}
 		col.TypeName.SRID = int(p.cur.Ival)
 		col.TypeName.HasSRID = true
@@ -607,11 +662,66 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	return false, nil
 }
 
+// parseNowOrSignedLiteral reads now_or_signed_literal, the value ORIG_DEFAULT takes,
+// and keeps nothing of it:
+//
+//	cur_timestamp_func: NOW '(' [n] ')' | {CURRENT_TIMESTAMP | LOCALTIME | LOCALTIMESTAMP} [ '(' [n] ')' ]
+//	signed_literal:     literal | {'+' | '-'} number
+//
+// No expression: ORIG_DEFAULT 1 + 2 and ORIG_DEFAULT -CURRENT_USER are 1064s.
+//
+// Ref: now_or_signed_literal, cur_timestamp_func, opt_time_func_fsp_i and
+// signed_literal in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) parseNowOrSignedLiteral() error {
+	fsp := func(required bool) error {
+		if p.cur.Type != '(' {
+			if required {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		p.advance()
+		if p.cur.Type == tokICONST {
+			p.advance()
+		}
+		_, err := p.expect(')')
+		return err
+	}
+	switch {
+	case p.cur.Type == '+' || p.cur.Type == '-':
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return nil
+	case p.isBareWord("NOW"):
+		p.advance()
+		return fsp(true)
+	case p.isBareWord("CURRENT_TIMESTAMP"), p.isBareWord("LOCALTIME"), p.isBareWord("LOCALTIMESTAMP"):
+		p.advance()
+		return fsp(false)
+	}
+	_, err := p.parseLiteralOnly()
+	return err
+}
+
 // refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value, as the
 // grammar's literal and now_or_signed_literal do, so `a TIMESTAMP DEFAULT now` is a 1064.
+//
+// A function call is no literal either, unless it is cur_timestamp_func: NOW,
+// CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP. `a INT DEFAULT CURRENT_USER`
+// is a 1064, and a call to anything else is written in parentheses.
 func refuseColumnValue(expr nodes.ExprNode, start int) error {
-	if _, ok := expr.(*nodes.ColumnRef); ok {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
 		return &ParseError{Message: "syntax error", Position: start}
+	case *nodes.FuncCallExpr:
+		switch strings.ToUpper(e.Name) {
+		case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP":
+		default:
+			return &ParseError{Message: "syntax error", Position: start}
+		}
 	}
 	return nil
 }
@@ -754,9 +864,9 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// Optional ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// opt_generated_keyname: GENERATED ALWAYS, the ALWAYS required.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
 
 	// AS
@@ -1221,10 +1331,23 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 			return err
 		}
 		if !ok {
-			return nil
+			break
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}
+	// A key, a unique key or a spatial key ends in with_column_group, in a table
+	// element and in ALTER TABLE ... ADD (table_element and alter_index_option in
+	// sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6). A primary, foreign or
+	// fulltext key does not.
+	switch constr.Type {
+	case nodes.ConstrIndex, nodes.ConstrUnique, nodes.ConstrSpatialIndex:
+		group, _, err := p.parseWithColumnGroup()
+		if err != nil {
+			return err
+		}
+		constr.ColumnGroup = group
+	}
+	return nil
 }
 
 // parseIndexTypeClause parses the optional index_type clause a key definition
@@ -1807,7 +1930,17 @@ func (p *Parser) consumeIntegerOrDefaultOptionValue() (string, error) {
 //	    | LIST(expr) | LIST COLUMNS(column_list) }
 //	[PARTITIONS num]
 //	[(partition_definition [, partition_definition] ...)]
-func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
+//
+// auto says where opt_partition_option stands, which also takes
+// auto_partition_option: PARTITION BY RANGE ([expr]) or RANGE COLUMNS (columns),
+// then PARTITION SIZE {value | AUTO} PARTITIONS AUTO. ALTER TABLE's
+// modify_partition_info does not.
+//
+// RANGE's own forms (range_partition_option, sql_parser_mysql_mode.y, oceanbase
+// v4.3.5_CE_BP6): an empty RANGE () or RANGE COLUMNS () takes PARTITIONS n and
+// SIZE ('size') and nothing else, and a RANGE over an expression or columns
+// takes SIZE ('size') before its partition list.
+func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error) {
 	start := p.pos()
 	p.advance() // consume PARTITION
 
@@ -1871,7 +2004,16 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwRANGE:
 		p.advance()
 		part.Type = nodes.PartitionRange
-		if _, ok := p.match(kwCOLUMNS); ok {
+		columns := p.cur.Type == kwCOLUMNS
+		if columns {
+			p.advance()
+		}
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			p.advance()
+			return p.parseEmptyRangeTail(part, auto, columns)
+		}
+		if columns {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -1927,13 +2069,24 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	// PARTITIONS num
+	// auto_partition_option, after RANGE over an expression or columns.
+	if auto && part.Type == nodes.PartitionRange && p.cur.Type == kwPARTITION && p.nextIsBareWord("SIZE") {
+		if err := p.parseAutoPartitionTail(part); err != nil {
+			return nil, err
+		}
+		part.Loc.End = p.prev.End
+		return part, nil
+	}
+
+	// PARTITIONS num. partition_num is PARTITIONS INTNUM: the count is not
+	// optional.
 	if p.cur.Type == kwPARTITIONS {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumParts = int(p.cur.Ival)
-			p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		part.NumParts = int(p.cur.Ival)
+		p.advance()
 	}
 
 	// SUBPARTITION BY ..., then a SUBPARTITION TEMPLATE or SUBPARTITIONS n.
@@ -1953,6 +2106,18 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			part.NumParts = int(p.cur.Ival)
 			p.advance()
 		}
+	}
+
+	// opt_range_partition_info: SIZE ('size') before RANGE's partition list. Known
+	// gap: ALTER TABLE takes it too, and OceanBase then refuses it with 1064 after
+	// parsing (simulate.tsv), which the catalog does not yet; until it does, only
+	// CREATE TABLE reads it here.
+	if auto && part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
+		size, err := p.parseSplitSize()
+		if err != nil {
+			return nil, err
+		}
+		part.SplitSize = size
 	}
 
 	// Optional partition definitions
@@ -1994,6 +2159,79 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 
 	part.Loc.End = p.prev.End
 	return part, nil
+}
+
+// parseEmptyRangeTail parses what follows PARTITION BY RANGE () or RANGE
+// COLUMNS (): opt_partitions opt_auto_split_tablet_size_option, or, where auto
+// allows and RANGE () stands, auto_partition_option's PARTITION SIZE.
+func (p *Parser) parseEmptyRangeTail(part *nodes.PartitionClause, auto, columns bool) (*nodes.PartitionClause, error) {
+	if auto && !columns && p.cur.Type == kwPARTITION && p.nextIsBareWord("SIZE") {
+		if err := p.parseAutoPartitionTail(part); err != nil {
+			return nil, err
+		}
+		part.Loc.End = p.prev.End
+		return part, nil
+	}
+	if p.cur.Type == kwPARTITIONS {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		part.NumParts = int(p.cur.Ival)
+		p.advance()
+	}
+	if auto && p.isBareWord("SIZE") { // only in CREATE TABLE, as above
+		size, err := p.parseSplitSize()
+		if err != nil {
+			return nil, err
+		}
+		part.SplitSize = size
+	}
+	part.Loc.End = p.prev.End
+	return part, nil
+}
+
+// parseSplitSize parses auto_split_tablet_size_option, SIZE ( 'size' ), at SIZE.
+func (p *Parser) parseSplitSize() (string, error) {
+	p.advance() // consume SIZE
+	if _, err := p.expect('('); err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	size := p.advance().Str
+	if _, err := p.expect(')'); err != nil {
+		return "", err
+	}
+	return size, nil
+}
+
+// parseAutoPartitionTail parses PARTITION SIZE partition_size PARTITIONS AUTO
+// at PARTITION, where partition_size is conf_const or AUTO.
+func (p *Parser) parseAutoPartitionTail(part *nodes.PartitionClause) error {
+	p.advance() // consume PARTITION
+	p.advance() // consume SIZE
+	start := p.pos()
+	if p.isBareWord("AUTO") {
+		p.advance()
+	} else if !sysConf(p, func() bool { return true }) {
+		return p.syntaxErrorAtCur()
+	}
+	// Kept as written, but a keyword, a number or a variable in one case: only a
+	// string's case is its value, so PARTITION SIZE auto and AUTO are one setting.
+	part.AutoSize = p.inputText(start, p.prev.End)
+	if c := part.AutoSize[0]; c != '\'' && c != '"' {
+		part.AutoSize = strings.ToUpper(part.AutoSize)
+	}
+	if _, err := p.expect(kwPARTITIONS); err != nil {
+		return err
+	}
+	if !p.isBareWord("AUTO") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // parsePartitionDef parses a single partition definition.

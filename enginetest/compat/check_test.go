@@ -132,6 +132,30 @@ func TestCheckFailsARegressionAndNeverWritesIt(t *testing.T) {
 	}
 }
 
+// TestCheckCommitsAGapThatIsNowAnotherOne covers a judge that says where it
+// rejects: a row omni got wrong can move to another wrong verdict, which
+// -update-compat commits, while a row that agreed cannot.
+func TestCheckCommitsAGapThatIsNowAnotherOne(t *testing.T) {
+	s := suite(t, "accept\treject@7\tengine\tr/A\tA\nreject@7\treject@7\tengine\tr/B\tB\n",
+		map[string]string{"A": "reject@3", "B": "reject@3"})
+	rec := run(t, s)
+	if !rec.failed("a known gap is now another one") {
+		t.Errorf("a gap that moved passed: %q", rec.errors)
+	}
+	if !rec.failed("a regression") {
+		t.Errorf("an agreement that moved passed: %q", rec.errors)
+	}
+
+	*updateCompat = true
+	defer func() { *updateCompat = false }()
+	if rec := run(t, s); !rec.failed("a regression") || rec.failed("a known gap") {
+		t.Errorf("-update-compat: %q", rec.errors)
+	}
+	if got := read(t, s.Path); !strings.Contains(got, "reject@3\treject@7\tengine\tr/A\tA\nreject@7\treject@7\tengine\tr/B\tB\n") {
+		t.Errorf("-update-compat did not commit the moved gap alone:\n%s", got)
+	}
+}
+
 func TestCheckFailsAnUnjudgedRow(t *testing.T) {
 	s := suite(t, "?\t?\t-\tissue:BYT-1\tA\n", nil)
 	if rec := run(t, s); !rec.failed("not judged yet") {
@@ -139,10 +163,122 @@ func TestCheckFailsAnUnjudgedRow(t *testing.T) {
 	}
 }
 
+// docsGrammar documents DROP TABLE [IF EXISTS] t and nothing else.
+const docsGrammar = `grammar D;
+stmt : 'DROP' 'TABLE' ('IF' 'EXISTS')? NAME ;
+`
+
+// docsSuite is suite with the docs judge over docsGrammar: no Judge, since
+// the recognizer is the judge.
+func docsSuite(t *testing.T, rows string, omni map[string]string) Suite {
+	t.Helper()
+	s := suite(t, rows, omni)
+	dir := filepath.Dir(s.Path)
+	s.Grammar, s.Tokens = filepath.Join(dir, "docs.g4"), filepath.Join(dir, "tokens.tsv")
+	write(t, s.Grammar, docsGrammar)
+	write(t, s.Tokens, "NAME\ta\n")
+	s.Source, s.Judge = SourceDocs, nil
+	return s
+}
+
+// The generated rows of docsGrammar, judged by the docs. DROP TABLE IF is
+// documented, with IF as the name; DROP TABLE EXISTS a is not.
+const docsRows = "" +
+	"accept\taccept\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME\tDROP TABLE a\n" +
+	"reject\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!drop-1\tTABLE a\n" +
+	"accept\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!drop-2\tDROP a\n" +
+	"accept\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!drop-3\tDROP TABLE\n" +
+	"reject\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!insert\tDROP TABLE a zzz\n" +
+	"reject\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!swap\tEXISTS TABLE a\n" +
+	"accept\taccept\tdocs\tstmt(IF_EXISTS)?/%empty\tDROP TABLE a\n" +
+	"reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/%empty!insert\tDROP TABLE zzz a\n" +
+	"accept\taccept\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS\tDROP TABLE IF EXISTS a\n" +
+	"accept\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-1\tDROP TABLE EXISTS a\n" +
+	"reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-2\tDROP TABLE IF a\n" +
+	"reject\taccept\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!truncate\tDROP TABLE IF\n" +
+	"reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!insert\tDROP TABLE IF EXISTS zzz a\n" +
+	"reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!swap\tDROP TABLE TABLE EXISTS a\n"
+
+var docsOmni = map[string]string{"DROP TABLE a": Accept, "DROP TABLE IF EXISTS a": Accept, "DROP TABLE EXISTS a": Accept, "DROP a": Accept, "DROP TABLE": Accept}
+
 func TestCheckPassesUndocumentedWhateverOmniSays(t *testing.T) {
-	s := suite(t, "reject\tundocumented\tdocs\tr/A\tA\n", map[string]string{"A": Accept})
-	if rec := run(t, s); len(rec.errors) > 0 {
-		t.Errorf("an undocumented row failed: %q", rec.errors)
+	s := docsSuite(t, docsRows, docsOmni)
+	// omni now rejects DROP a and accepts DROP TABLE a zzz: neither is
+	// documented, so neither fails.
+	omni := map[string]string{"DROP TABLE a zzz": Accept}
+	for k, v := range docsOmni {
+		omni[k] = v
+	}
+	delete(omni, "DROP a")
+	s.Omni = func(sql string) string {
+		if v, ok := omni[sql]; ok {
+			return v
+		}
+		return Reject
+	}
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("an undocumented row failed: %q %q", rec.errors, rec.fatal)
+	}
+	*updateCompat = true
+	defer func() { *updateCompat = false }()
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("-update-compat: %q %q", rec.errors, rec.fatal)
+	}
+	got := read(t, s.Path)
+	if !strings.Contains(got, "reject\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!drop-2\tDROP a\n") ||
+		!strings.Contains(got, "accept\tundocumented\tdocs\tstmt/DROP_TABLE_(IF_EXISTS)?_NAME!insert\tDROP TABLE a zzz\n") {
+		t.Errorf("-update-compat did not keep the undocumented rows' omni cells current:\n%s", got)
+	}
+}
+
+// TestDocsRecordingJudgesByTheRecognizer pins the docs judge: the grammar's
+// own statements are accepted, a near-miss the docs derive (DROP TABLE IF,
+// with IF as the name) is accepted, and the rest are undocumented. It needs
+// no server.
+func TestDocsRecordingJudgesByTheRecognizer(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+	s := docsSuite(t, "", docsOmni)
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	if got := read(t, s.Path); got != "# pin: default img:1 sha256:abc v1\n"+columnsHeader+"\n"+docsRows {
+		t.Errorf("the recording wrote:\n%s\nwant:\n%s", got, docsRows)
+	}
+	t.Setenv(enginetest.RecordEnv, "")
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Errorf("replay after recording: %q %q", rec.errors, rec.fatal)
+	}
+}
+
+// TestDocsCellsAreJudgedAgainOnEveryRun pins that a docs cell is the
+// recognizer's: a replay fails one it no longer gives, after a grammar fix
+// or an edit by hand, and a recording moves it.
+func TestDocsCellsAreJudgedAgainOnEveryRun(t *testing.T) {
+	edited := strings.Replace(docsRows, "reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-2", "reject\treject\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-2", 1)
+	if edited == docsRows {
+		t.Fatal("no row edited")
+	}
+	s := docsSuite(t, edited, docsOmni)
+	if rec := run(t, s); !rec.failed("the docs judge now says undocumented, the row records reject") {
+		t.Errorf("an edited docs cell passed: %q %q", rec.errors, rec.fatal)
+	}
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	if got := read(t, s.Path); !strings.HasSuffix(got, docsRows) {
+		t.Errorf("the recording did not move the cell back:\n%s", got)
+	}
+}
+
+func TestDocsSuiteTakesNoJudge(t *testing.T) {
+	s := docsSuite(t, docsRows, docsOmni)
+	var asked []string
+	s.Judge = judgeOf(nil, &asked)
+	if rec := run(t, s); !strings.Contains(rec.fatal, "give the Grammar and no Judge") {
+		t.Errorf("a docs suite with a Judge: %q %q", rec.errors, rec.fatal)
 	}
 }
 
