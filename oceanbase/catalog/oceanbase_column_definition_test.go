@@ -65,6 +65,14 @@ func TestOracle_OceanBaseColumnDefinition(t *testing.T) {
 			{"ALTER TABLE a ADD r4 TINYINT DEFAULT -128.5", 1067},
 			{"ALTER TABLE a ADD r5 TINYINT DEFAULT '1e10000000'", 1067},
 			{"ALTER TABLE a ADD r6 BIGINT UNSIGNED DEFAULT 18446744073709551615", taken},
+			// A number of any exponent is refused without expanding it (DECIMAL as
+			// well as the integer types), and rounding is to the column's scale.
+			{"ALTER TABLE a ADD d1 DECIMAL DEFAULT '1e10000000'", 1067},
+			{"ALTER TABLE a ADD d2 DECIMAL DEFAULT '1e100'", 1067},
+			{"ALTER TABLE a ADD d3 DECIMAL(3,1) DEFAULT 99.94", taken},
+			{"ALTER TABLE a ADD d4 DECIMAL(3,1) DEFAULT 99.96", 1067},
+			{"ALTER TABLE a ADD b1 BIT(2) DEFAULT 3", taken},
+			{"ALTER TABLE a ADD b2 BIT(2) DEFAULT 4", 1067},
 		}},
 	})
 }

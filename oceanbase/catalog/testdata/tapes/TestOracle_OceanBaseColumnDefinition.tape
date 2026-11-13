@@ -43,6 +43,28 @@
 > exec
 | ALTER TABLE a ADD r6 BIGINT UNSIGNED DEFAULT 18446744073709551615
 < ok 0 0
+> exec
+| ALTER TABLE a ADD d1 DECIMAL DEFAULT '1e10000000'
+< error
+| 1067 42000 Invalid default value for 'd1'
+> exec
+| ALTER TABLE a ADD d2 DECIMAL DEFAULT '1e100'
+< error
+| 1067 42000 Invalid default value for 'd2'
+> exec
+| ALTER TABLE a ADD d3 DECIMAL(3,1) DEFAULT 99.94
+< ok 0 0
+> exec
+| ALTER TABLE a ADD d4 DECIMAL(3,1) DEFAULT 99.96
+< error
+| 1067 42000 Invalid default value for 'd4'
+> exec
+| ALTER TABLE a ADD b1 BIT(2) DEFAULT 3
+< ok 0 0
+> exec
+| ALTER TABLE a ADD b2 BIT(2) DEFAULT 4
+< error
+| 1067 42000 Invalid default value for 'b2'
 
 == TestOracle_OceanBaseColumnDefinition/before_the_name default#1
 > exec

@@ -103,7 +103,7 @@ type Column struct {
 	// column has one too, from metadataColumnDef. Nil only where no definition
 	// was seen, as for a column a CREATE TABLE ... SELECT invents.
 	typeNode *nodes.DataType
-	Nullable   bool
+	Nullable bool
 	// NullExplicit records whether the user wrote an explicit NULL or NOT NULL clause on
 	// the column. The diff-time canonicalizer needs it to apply MySQL's
 	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL

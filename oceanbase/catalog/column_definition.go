@@ -154,10 +154,12 @@ func literalDefaultFits(dt *nodes.DataType, expr nodes.ExprNode) bool {
 			precision = 10
 		}
 		// The integer part may have precision - scale digits once rounded to scale.
+		// As in integerInRange, the rounding moves the bound rather than the value,
+		// which is never added to: both are small and n may carry any exponent.
 		limit := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(precision-scale)), nil))
 		half := new(big.Float).Quo(big.NewFloat(0.5), new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)))
-		abs := new(big.Float).Abs(n)
-		return abs.Add(abs, half).Cmp(limit) < 0
+		bound := new(big.Float).SetPrec(numberPrec).Sub(limit, half)
+		return new(big.Float).Abs(n).Cmp(bound) < 0
 	case "float", "double", "real":
 		_, ok := literalNumber(text)
 		return ok
@@ -169,6 +171,14 @@ func literalDefaultFits(dt *nodes.DataType, expr nodes.ExprNode) bool {
 		bits := dt.Length
 		if bits == 0 {
 			bits = 1
+		}
+		if bits > maxBitWidth {
+			// No column is this wide, and the bound would be as wide as the width
+			// asks: megabytes for BIT(100000000). OceanBase's own answer to such a
+			// width is not one rule — BIT(65) and BIT(1000000) are 1439, BIT(65535)
+			// and BIT(16777215) are 4016, and BIT(65536) and BIT(16777216) are taken
+			// — so the width is left unmodelled and only the default is passed over.
+			return true
 		}
 		limit := new(big.Float).SetInt(new(big.Int).Lsh(big.NewInt(1), uint(bits)))
 		return n.Sign() >= 0 && n.Cmp(limit) < 0
@@ -244,6 +254,9 @@ func literalText(expr nodes.ExprNode) (string, bool, bool) {
 // enough to hold any integer bound exactly, and fixed so a value's own size never
 // sets it.
 const numberPrec = 256
+
+// maxBitWidth is the widest BIT a column may be.
+const maxBitWidth = 64
 
 func literalNumber(text string) (*big.Float, bool) {
 	text = strings.TrimSpace(text)
