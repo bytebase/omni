@@ -46,6 +46,10 @@ func placeholderClass(name string) string {
 		return tObjectTypes
 	case n == "copy_statement":
 		return tCopy
+	case strings.Contains(n, "public_key") || strings.HasPrefix(n, "path_to_"):
+		// RSA_PUBLIC_KEY = '<key>'; USING '@stage/path': quoted, as the
+		// examples write them.
+		return tString
 	case strings.HasSuffix(n, "password"):
 		// ADMIN_PASSWORD = '<user_password>': a password is a string.
 		return tString

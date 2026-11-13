@@ -128,3 +128,4 @@ create-task	AFTER <string> [ , <string> , ... ]	AFTER <task_name> [ , <task_name
 alter-task	AFTER <string> [ , <string> , ... ]	AFTER <task_name> [ , <task_name> , ... ]	AFTER names predecessor tasks, as the parameters and examples write them
 alter-pipe	MODIFIED_AFTER = <start_time>	MODIFIED_AFTER = '<start_time>'	the start time is a quoted ISO 8601 timestamp, as the parameters say
 create-cortex-search	VECTOR INDEXES <column_specification> [ , ... ]	VECTOR INDEXES { <text_column_name> [ ( model = '<embedding_model>' ) ] | <vector_column_name> [ ( query_model = '<embedding_model>' ) ] } [ , ... ]	the parameters list the column specifications: a text column with a model, or a vector column with a query_model
+delete	<additional_table_or_query>	{ <additional_table> | ( <query> ) }	USING takes tables or parenthesized subqueries, as the parameters say
