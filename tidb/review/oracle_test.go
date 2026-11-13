@@ -7,17 +7,13 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from. Its primary keys
@@ -37,93 +33,27 @@ INSERT INTO plain VALUES (1, 1), (2, 2);
 CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
-var tidbOracle struct {
-	once      sync.Once
-	container testcontainers.Container
-	db        *sql.DB
-	err       error
-}
-
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if tidbOracle.db != nil {
-		_ = tidbOracle.db.Close()
-	}
-	if tidbOracle.container != nil {
-		_ = testcontainers.TerminateContainer(tidbOracle.container)
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
-// tidbImage is the TiDB the oracle tests run on.
-const tidbImage = "pingcap/tidb:v8.5.5"
-
-// startTiDB returns the TiDB the oracle tests of this package ask,
-// started once, with CHECK constraints enforced, which TiDB otherwise
-// parses and drops.
-func startTiDB(t *testing.T) *sql.DB {
-	t.Helper()
-	tidbOracle.once.Do(func() {
-		tidbOracle.container, tidbOracle.db, tidbOracle.err = runTiDB(context.Background(), tidbImage)
-	})
-	if tidbOracle.err != nil {
-		t.Fatalf("tidb oracle unavailable: %v", tidbOracle.err)
-	}
-	return tidbOracle.db
-}
-
-// runTiDB starts a TiDB of the image, with CHECK constraints enforced. The
-// container is returned even when the server then fails, so the caller can
-// end it.
-func runTiDB(ctx context.Context, image string) (testcontainers.Container, *sql.DB, error) {
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        image,
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		return c, nil, err
-	}
-	host, err := c.Host(ctx)
-	if err != nil {
-		return c, nil, err
-	}
-	port, err := c.MappedPort(ctx, "4000")
-	if err != nil {
-		return c, nil, err
-	}
-	db, err := sql.Open("mysql", fmt.Sprintf("root@tcp(%s:%s)/?multiStatements=true", host, port.Port()))
-	if err != nil {
-		return c, nil, err
-	}
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		if err = db.PingContext(ctx); err == nil || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if err == nil {
-		_, err = db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = ON")
-	}
-	return c, db, err
-}
-
 // resetOracle recreates the shop database from oracleBase, and an empty
-// bbdataarchive, on a connection of its own with shop selected.
-func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
+// bbdataarchive, on t's connection to TiDB with shop selected: a replay of
+// its tape, or the pinned server, emptied first, in a recording.
+func resetOracle(t *testing.T) *sql.Conn {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := db.Conn(ctx)
+	emptyTiDB(t)
+	conn, err := testcontainer.Open(t).Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		"DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive", "DROP DATABASE IF EXISTS other",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -251,7 +181,6 @@ func parseChange(t *testing.T, change string) []statement {
 // finding on a statement must mean that query fails; for a complete case,
 // every query that fails must have a finding.
 func TestPriorBackupAgainstTiDB(t *testing.T) {
-	db := startTiDB(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -278,7 +207,7 @@ func TestPriorBackupAgainstTiDB(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			schema := syncSchema(t, conn)
 			result, err := Review(context.Background(), tt.change, review.Options{
 				Rules:  []review.Rule{review.PriorBackup},
@@ -436,7 +365,6 @@ func backupQueries(sql string, n ast.Node) []backupQuery {
 // the change without one. Every finding must match; for a complete case,
 // every expected finding must be reported.
 func TestScanRulesAgainstTiDB(t *testing.T) {
-	db := startTiDB(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -460,7 +388,7 @@ func TestScanRulesAgainstTiDB(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			schema := syncSchema(t, conn)
 			result, err := Review(context.Background(), tt.change, review.Options{
 				Rules: []review.Rule{review.DisallowDropConstraint, review.RequirePrimaryKey},
@@ -605,7 +533,6 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 //
 // tidb: https://docs.pingcap.com/tidb/stable/sql-statement-drop-column#mysql-compatibility
 func TestColumnDropAgainstTiDB(t *testing.T) {
-	db := startTiDB(t)
 	tests := []struct {
 		name   string
 		setup  string
@@ -625,7 +552,7 @@ func TestColumnDropAgainstTiDB(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			ctx := context.Background()
 			if _, err := conn.ExecContext(ctx, tt.setup); err != nil {
 				t.Fatalf("setup: %v", err)

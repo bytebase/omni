@@ -17,7 +17,8 @@ import (
 func TestGrantFormsOnOceanBase(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()
-	for _, c := range append(append([]grantFormCase{}, grantFormCases...), grantKnownDivergences...) {
+	cases := append(append([]grantFormCase{}, grantFormCases...), grantKnownDivergences...)
+	for _, c := range append(cases, grantRoleNameCases...) {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := engineAccepts(ctx, db, c.sql)
 			if err != nil {
