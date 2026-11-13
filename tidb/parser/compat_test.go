@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -32,23 +34,30 @@ func omniVerdict(sql string) string {
 	return compat.Accept
 }
 
-// compatJudge asks the package's TiDB server, through PREPARE, whether it
-// accepts each statement's syntax. It fails t unless the server is the pinned
-// image and release.
+// compatJudge asks the pinned TiDB, through PREPARE, whether it accepts each
+// statement's syntax. It runs only in a recording, on a connection outside any
+// tape. The statement is bound to a user variable and prepared from it, so it
+// reaches the server byte for byte: rows hold invalid UTF-8, trailing spaces
+// and a CR inside a literal. The variable lives on one connection, so the
+// judge holds one.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
-	if pin.Image != tidbImage || pin.Tag != tidbCorpusVersion {
-		t.Fatalf("pins.tsv pins %s at %s, but this package starts %s at %s", pin.Image, pin.Tag, tidbImage, tidbCorpusVersion)
+	ctx := context.Background()
+	conn, err := testcontainer.Judge(t).Conn(ctx)
+	if err != nil {
+		t.Fatalf("connect to TiDB: %v", err)
 	}
-	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	if err := testcontainer.CheckDigest(tc.ctx, tc.container, pin.Digest); err != nil {
-		t.Fatalf("%v", err)
+	t.Cleanup(func() { conn.Close() })
+	prepare := func(text string) error {
+		if _, err := conn.ExecContext(ctx, "SET @omni_compat = ?", text); err != nil {
+			// %v, not %w: a failed bind is no verdict, whatever its code.
+			return fmt.Errorf("binding the statement: %v", err)
+		}
+		_, err := conn.ExecContext(ctx, "PREPARE omni_compat_stmt FROM @omni_compat")
+		return err
 	}
-	previous := "<start of compat.tsv>"
 	return func(sql string) (string, error) {
-		accepts, _, err := tc.syntaxVerdict(t, sql, previous)
-		previous = sql
+		accepts, err := prepareVerdict(prepare(sql), func() error { return prepare(sql + compat.ProbeTail) })
 		if err != nil {
 			return "", err
 		}

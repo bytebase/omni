@@ -5,7 +5,7 @@ import "testing"
 // The forms PLAN REPLAYER takes, and -- the point of this file -- the forms
 // it does not.
 //
-// The corpus in testdata/pingcap_parser_corpus.tsv pins what pingcap's own
+// The corpus in compat.tsv's suite:pingcap-parser rows pins what pingcap's own
 // parser test writes, and for PLAN REPLAYER that is sixteen accepting rows
 // and no rejection at all. The statement has four shapes behind one opener,
 // and a reader that took any word after DUMP EXPLAIN would turn all sixteen
@@ -165,7 +165,7 @@ func TestPlanReplayerForms(t *testing.T) {
 			_, err := Parse(c.sql)
 			if accepts := err == nil; accepts != c.accept {
 				t.Errorf("omni %ss %q, TiDB %s %ss it (err=%v)",
-					verdictName(accepts), c.sql, tidbCorpusVersion, verdictName(c.accept), err)
+					verdictName(accepts), c.sql, tidbRelease, verdictName(c.accept), err)
 			}
 		})
 	}
