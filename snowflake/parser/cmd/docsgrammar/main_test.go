@@ -269,6 +269,15 @@ func TestARepeatedFragmentKeepsItsOperator(t *testing.T) {
 	}
 }
 
+// TestATrailingBarIsTheLists pins a list of names where one is written
+// with its value and the list's |: the | is not a choice of values.
+func TestATrailingBarIsTheLists(t *testing.T) {
+	pg := convertPage("alter-x", []string{"ALTER X <name> UNSET {\n    A |\n    B = <b> |\n    C }"}, nil)
+	if len(pg.forms) != 1 || pg.forms[0] != "'ALTER' 'X' ID 'UNSET' ('A' | 'B' '=' ID | 'C')" {
+		t.Errorf("forms %q, failed %+v", pg.forms, pg.failed)
+	}
+}
+
 func TestFixesApplyToTheirPage(t *testing.T) {
 	fixes := []*fix{{page: "get", find: "'<p>''", replace: "'<p>'", reason: "a quote too many"}}
 	pg := convertPage("get", []string{"GET <s> [ PATTERN = '<p>'' ]"}, fixes)

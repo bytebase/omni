@@ -1106,6 +1106,7 @@ alterDataMovementRule
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-database
+// fix: UNSET names a property without its value, as the page's parameters say
 alterDatabase
     : 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'SWAP' 'WITH' ID
@@ -1114,7 +1115,7 @@ alterDatabase
     | 'ALTER' 'DATABASE' ID 'UNSET' 'TAG' ID (',' ID)*
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'SET' 'FEATURE' 'POLICY' ID 'FORCE'?
     | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UNSET' 'FEATURE' 'POLICY'
-    | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UNSET' ('DATA_RETENTION_TIME_IN_DAYS' | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' | 'STAGE_UNDROP_RETENTION_TIME_IN_DAYS' | 'EXTERNAL_VOLUME' | 'CATALOG' | 'ICEBERG_DEFAULT_DDL_COLLATION' | 'ICEBERG_VERSION_DEFAULT' | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' | 'ENABLE_ICEBERG_MERGE_ON_READ' | 'DEFAULT_DDL_COLLATION' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_GPU' | 'OBJECT_VISIBILITY' | 'STORAGE_SERIALIZATION_POLICY' | 'EVENT_TABLE' '=' ID 'COMMENT' | 'CATALOG_SYNC' | 'REPLICABLE_WITH_FAILOVER_GROUPS' | 'BASE_LOCATION_PREFIX' | 'DEFAULT_STREAMLIT_NOTEBOOK_WAREHOUSE' | 'CLASSIFICATION_PROFILE' | 'CONTACT' ID | 'ENABLE_DATA_COMPACTION' | 'OAUTH_AUTHORIZATION_SERVER' | 'OAUTH_SCOPES_SUPPORTED') (',' ('DATA_RETENTION_TIME_IN_DAYS' | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' | 'STAGE_UNDROP_RETENTION_TIME_IN_DAYS' | 'EXTERNAL_VOLUME' | 'CATALOG' | 'ICEBERG_DEFAULT_DDL_COLLATION' | 'ICEBERG_VERSION_DEFAULT' | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' | 'ENABLE_ICEBERG_MERGE_ON_READ' | 'DEFAULT_DDL_COLLATION' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_GPU' | 'OBJECT_VISIBILITY' | 'STORAGE_SERIALIZATION_POLICY' | 'EVENT_TABLE' '=' ID 'COMMENT' | 'CATALOG_SYNC' | 'REPLICABLE_WITH_FAILOVER_GROUPS' | 'BASE_LOCATION_PREFIX' | 'DEFAULT_STREAMLIT_NOTEBOOK_WAREHOUSE' | 'CLASSIFICATION_PROFILE' | 'CONTACT' ID | 'ENABLE_DATA_COMPACTION' | 'OAUTH_AUTHORIZATION_SERVER' | 'OAUTH_SCOPES_SUPPORTED'))*
+    | 'ALTER' 'DATABASE' ('IF' 'EXISTS')? ID 'UNSET' ('DATA_RETENTION_TIME_IN_DAYS' | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' | 'STAGE_UNDROP_RETENTION_TIME_IN_DAYS' | 'EXTERNAL_VOLUME' | 'CATALOG' | 'ICEBERG_DEFAULT_DDL_COLLATION' | 'ICEBERG_VERSION_DEFAULT' | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' | 'ENABLE_ICEBERG_MERGE_ON_READ' | 'DEFAULT_DDL_COLLATION' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_GPU' | 'OBJECT_VISIBILITY' | 'STORAGE_SERIALIZATION_POLICY' | 'EVENT_TABLE' | 'COMMENT' | 'CATALOG_SYNC' | 'REPLICABLE_WITH_FAILOVER_GROUPS' | 'BASE_LOCATION_PREFIX' | 'DEFAULT_STREAMLIT_NOTEBOOK_WAREHOUSE' | 'CLASSIFICATION_PROFILE' | 'CONTACT' ID | 'ENABLE_DATA_COMPACTION' | 'OAUTH_AUTHORIZATION_SERVER' | 'OAUTH_SCOPES_SUPPORTED') (',' ('DATA_RETENTION_TIME_IN_DAYS' | 'MAX_DATA_EXTENSION_TIME_IN_DAYS' | 'STAGE_UNDROP_RETENTION_TIME_IN_DAYS' | 'EXTERNAL_VOLUME' | 'CATALOG' | 'ICEBERG_DEFAULT_DDL_COLLATION' | 'ICEBERG_VERSION_DEFAULT' | 'ICEBERG_MERGE_ON_READ_BEHAVIOR' | 'ENABLE_ICEBERG_MERGE_ON_READ' | 'DEFAULT_DDL_COLLATION' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_CPU' | 'DEFAULT_NOTEBOOK_COMPUTE_POOL_GPU' | 'OBJECT_VISIBILITY' | 'STORAGE_SERIALIZATION_POLICY' | 'EVENT_TABLE' | 'COMMENT' | 'CATALOG_SYNC' | 'REPLICABLE_WITH_FAILOVER_GROUPS' | 'BASE_LOCATION_PREFIX' | 'DEFAULT_STREAMLIT_NOTEBOOK_WAREHOUSE' | 'CLASSIFICATION_PROFILE' | 'CONTACT' ID | 'ENABLE_DATA_COMPACTION' | 'OAUTH_AUTHORIZATION_SERVER' | 'OAUTH_SCOPES_SUPPORTED'))*
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked
@@ -3522,11 +3523,12 @@ createSecurityIntegrationScim
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-semantic-view
+// fix: the [ ... ] repeats the whole UNIQUE ( ... ) clause
 createSemanticView
     : 'CREATE' ('OR' 'REPLACE')? 'SEMANTIC' 'VIEW' ('IF' 'NOT' 'EXISTS')? ID 'TABLES' '(' createSemanticView_logicalTable (',' createSemanticView_logicalTable)* ')' ('RELATIONSHIPS' '(' createSemanticView_relationshipDef (',' createSemanticView_relationshipDef)* ')')? ('FACTS' '(' createSemanticView_factExpression (',' createSemanticView_factExpression)* ')')? ('DIMENSIONS' '(' createSemanticView_dimensionExpression (',' createSemanticView_dimensionExpression)* ')')? ('METRICS' '(' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression) (',' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression))* ')')? ('COMMENT' '=' STRING)? ('MAX_STALENESS' '=' NUMBER)? ('AI_SQL_GENERATION' STRING)? ('AI_QUESTION_CATEGORIZATION' STRING)? ('AI_VERIFIED_QUERIES' '(' createSemanticView_verifiedQuery (',' createSemanticView_verifiedQuery)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')?
     ;
 createSemanticView_logicalTable
-    : (ID 'AS')? ID ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? ('UNIQUE' '(' ID (',' ID)* (')')+)? ('CONSTRAINT' ID? 'DISTINCT' 'RANGE' 'BETWEEN' ID 'AND' ID 'EXCLUSIVE')? ('WITH' 'SYNONYMS' '='? '(' STRING (',' STRING)* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
+    : (ID 'AS')? ID ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? (('UNIQUE' '(' ID (',' ID)* ')')+)? ('CONSTRAINT' ID? 'DISTINCT' 'RANGE' 'BETWEEN' ID 'AND' ID 'EXCLUSIVE')? ('WITH' 'SYNONYMS' '='? '(' STRING (',' STRING)* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 createSemanticView_relationshipDef
     : (ID 'AS')? ID '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ('ASOF'? ID (',' ID)* | 'BETWEEN' ID 'AND' ID 'EXCLUSIVE') ')')?
@@ -5417,8 +5419,9 @@ showApplicationPackages
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-application-roles
+// fix: LIKE takes a quoted pattern, as the page's parameters and examples write it
 showApplicationRoles
-    : 'SHOW' 'APPLICATION' 'ROLES' ('LIKE' ID)? 'IN' 'APPLICATION' ID ('LIMIT' NUMBER ('FROM' STRING)?)?
+    : 'SHOW' 'APPLICATION' 'ROLES' ('LIKE' STRING)? 'IN' 'APPLICATION' ID ('LIMIT' NUMBER ('FROM' STRING)?)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-application-services
@@ -6246,8 +6249,9 @@ showStorageLifecyclePolicies
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-streamlits
 // fix: [ LIMIT ... is not closed; closed
+// fix: IN's SCHEMA and SCHEMA <schema_name> are two choices; the | between them is missing
 showStreamlits
-    : 'SHOW' 'TERSE'? 'STREAMLITS' ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' 'SCHEMA' ID | ID))? ('LIMIT' NUMBER ('FROM' STRING)?)?
+    : 'SHOW' 'TERSE'? 'STREAMLITS' ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID | ID))? ('LIMIT' NUMBER ('FROM' STRING)?)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-streams
@@ -6331,8 +6335,9 @@ showVariables
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-versions
+// fix: LIKE takes a quoted pattern, as the page's parameters write it
 showVersions
-    : 'SHOW' 'VERSIONS' ('LIKE' ID)? 'IN' 'APPLICATION' 'PACKAGE' ID
+    : 'SHOW' 'VERSIONS' ('LIKE' STRING)? 'IN' 'APPLICATION' 'PACKAGE' ID
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-versions-in-artifact-repository

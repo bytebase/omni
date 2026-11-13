@@ -284,7 +284,15 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	for i, b := range blocks {
 		// A line that sets a property to one of several values, with no
 		// bracket to say so: OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'.
-		blocks[i] = valueChoiceLine.ReplaceAllString(b, "$1$2{ $3 }")
+		blocks[i] = valueChoiceLine.ReplaceAllStringFunc(b, func(line string) string {
+			m := valueChoiceLine.FindStringSubmatch(line)
+			if strings.HasSuffix(strings.TrimSpace(m[3]), "|") {
+				// EVENT_TABLE = <name> | in a list of names: the | is the
+				// list's, not a choice of values.
+				return line
+			}
+			return m[1] + m[2] + "{ " + m[3] + " }"
+		})
 	}
 	for i, b := range blocks {
 		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {
