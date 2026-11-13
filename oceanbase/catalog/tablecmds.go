@@ -2317,9 +2317,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint(20) unsigned"
 	}
 
-	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
-	if name == "vector" {
+	// OceanBase writes the vector type in upper case: `v` VECTOR(3). Its collection
+	// types too, with their elements, `a` ARRAY(TINYINT) and `a` MAP(TINYINT,TINYINT),
+	// and SPARSEVECTOR, while roaringbitmap stays in lower case (simulate.tsv's tape).
+	switch name {
+	case "vector":
 		return fmt.Sprintf("VECTOR(%d)", dt.Length)
+	case "array", "map":
+		return deparse.CollectionType(canonicalCollection(dt))
+	case "sparsevector":
+		return "SPARSEVECTOR"
 	}
 
 	var buf strings.Builder
@@ -2392,6 +2399,25 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 		return promoteBlobType(dt.Length)
 	}
 	return name
+}
+
+// canonicalCollection returns an ARRAY or MAP type with every element's name in its
+// canonical spelling, NUMERIC as DECIMAL and INTEGER as INT, so two spellings of one
+// type store the same text and Diff sees no change between them.
+func canonicalCollection(dt *nodes.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	c := *dt
+	switch name := normalizedTypeName(dt.Name); name {
+	case "boolean", "array", "map":
+		// BOOLEAN stays itself for the writer, which prints it as TINYINT.
+	default:
+		c.Name = name
+	}
+	c.ArrayElem = canonicalCollection(dt.ArrayElem)
+	c.MapKey = canonicalCollection(dt.MapKey)
+	return &c
 }
 
 func normalizedTypeName(name string) string {
