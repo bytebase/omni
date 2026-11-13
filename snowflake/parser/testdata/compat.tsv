@@ -3160,14 +3160,14 @@ reject	undocumented	docs	statement/createTag!drop-1	TAG a
 reject	undocumented	docs	statement/createTag!drop-3	CREATE TAG
 accept	undocumented	docs	statement/createTag!insert	CREATE TAG a zzz
 reject	undocumented	docs	statement/createTag!swap	CREATION TAG a
-accept	accept	docs	statement/createTask	CREATE TASK a AS a
-reject	undocumented	docs	statement/createTask!drop-1	TASK a AS a
-reject	undocumented	docs	statement/createTask!drop-2	CREATE a AS a
-reject	undocumented	docs	statement/createTask!drop-3	CREATE TASK AS a
-reject	undocumented	docs	statement/createTask!drop-4	CREATE TASK a a
+accept	accept	docs	statement/createTask	CREATE TASK a AS SELECT 1
+reject	undocumented	docs	statement/createTask!drop-1	TASK a AS SELECT 1
+reject	undocumented	docs	statement/createTask!drop-2	CREATE a AS SELECT 1
+reject	undocumented	docs	statement/createTask!drop-3	CREATE TASK AS SELECT 1
+reject	undocumented	docs	statement/createTask!drop-4	CREATE TASK a SELECT 1
 reject	undocumented	docs	statement/createTask!drop-5	CREATE TASK a AS
-accept	undocumented	docs	statement/createTask!insert	CREATE TASK a AS a zzz
-reject	undocumented	docs	statement/createTask!swap	CREATION TASK a AS a
+accept	undocumented	docs	statement/createTask!insert	CREATE TASK a AS SELECT 1 zzz
+reject	undocumented	docs	statement/createTask!swap	CREATION TASK a AS SELECT 1
 reject	accept	docs	statement/createTaskGraph	CREATE TASK GRAPH a
 reject	undocumented	docs	statement/createTaskGraph!drop-1	TASK GRAPH a
 reject	undocumented	docs	statement/createTaskGraph!drop-2	CREATE GRAPH a
@@ -3206,7 +3206,6 @@ reject	undocumented	docs	statement/createVersionedSchema!insert	CREATE OR ALTER 
 reject	undocumented	docs	statement/createVersionedSchema!swap	CREATION OR ALTER VERSIONED SCHEMA a
 accept	accept	docs	statement/createView	CREATE VIEW a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-1	VIEW a AS SELECT 1
-reject	undocumented	docs	statement/createView!drop-2	CREATE a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-3	CREATE VIEW AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-4	CREATE VIEW a SELECT 1
 reject	undocumented	docs	statement/createView!drop-5	CREATE VIEW a AS
@@ -25112,15 +25111,15 @@ reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_UNSET_FINALIZE!dro
 reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_UNSET_FINALIZE!drop-4	ALTER TASK a FINALIZE
 reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_UNSET_FINALIZE!insert	ALTER TASK a UNSET FINALIZE zzz
 reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_UNSET_FINALIZE!swap	ALWAYS TASK a UNSET FINALIZE
-accept	accept	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID	ALTER TASK a MODIFY AS a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-1	TASK a MODIFY AS a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-2	ALTER a MODIFY AS a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-3	ALTER TASK MODIFY AS a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-4	ALTER TASK a AS a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-5	ALTER TASK a MODIFY a
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!drop-6	ALTER TASK a MODIFY AS
-accept	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!insert	ALTER TASK a MODIFY AS a zzz
-reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_ID!swap	ALWAYS TASK a MODIFY AS a
+accept	accept	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY	ALTER TASK a MODIFY AS SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-1	TASK a MODIFY AS SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-2	ALTER a MODIFY AS SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-3	ALTER TASK MODIFY AS SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-4	ALTER TASK a AS SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-5	ALTER TASK a MODIFY SELECT 1
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!drop-6	ALTER TASK a MODIFY AS
+accept	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!insert	ALTER TASK a MODIFY AS SELECT 1 zzz
+reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_AS_QUERY!swap	ALWAYS TASK a MODIFY AS SELECT 1
 accept	accept	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_WHEN_EXPR	ALTER TASK a MODIFY WHEN 1
 reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_WHEN_EXPR!drop-1	TASK a MODIFY WHEN 1
 reject	undocumented	docs	alterTask/ALTER_TASK_(IF_EXISTS)?_ID_MODIFY_WHEN_EXPR!drop-2	ALTER a MODIFY WHEN 1
@@ -44083,227 +44082,227 @@ reject	undocumented	docs	createTag(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CR
 reject	undocumented	docs	createTag(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE TAG a COMMENT =
 accept	undocumented	docs	createTag(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TAG a COMMENT = 's' zzz
 accept	undocumented	docs	createTag(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TAG a COMMENTS = 's'
-accept	accept	docs	createTask/CREATE_(OR_REPLACE)?_TASK_(IF_NOT_EXISTS)?_ID_(WITH_TAG~5161b444	CREATE TASK a AS a
-accept	accept	docs	createTask(OR_REPLACE)?/%empty	CREATE TASK a AS a
-reject	undocumented	docs	createTask(OR_REPLACE)?/%empty!insert	CREATE zzz TASK a AS a
-accept	accept	docs	createTask(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TASK a AS a
-reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE TASK a AS a
-reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR TASK a AS a
-reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz TASK a AS a
-reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE TASK a AS a
-accept	accept	docs	createTask(IF_NOT_EXISTS)?/%empty	CREATE TASK a AS a
-accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/%empty!insert	CREATE TASK zzz a AS a
-accept	accept	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE TASK IF NOT EXISTS a AS a
-accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE TASK NOT EXISTS a AS a
-accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE TASK IF EXISTS a AS a
-reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE TASK IF NOT a AS a
+accept	accept	docs	createTask/CREATE_(OR_REPLACE)?_TASK_(IF_NOT_EXISTS)?_ID_(WITH_TAG~5faf4357	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(OR_REPLACE)?/%empty	CREATE TASK a AS SELECT 1
+reject	undocumented	docs	createTask(OR_REPLACE)?/%empty!insert	CREATE zzz TASK a AS SELECT 1
+accept	accept	docs	createTask(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TASK a AS SELECT 1
+reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE TASK a AS SELECT 1
+reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR TASK a AS SELECT 1
+reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz TASK a AS SELECT 1
+reject	undocumented	docs	createTask(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE TASK a AS SELECT 1
+accept	accept	docs	createTask(IF_NOT_EXISTS)?/%empty	CREATE TASK a AS SELECT 1
+accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/%empty!insert	CREATE TASK zzz a AS SELECT 1
+accept	accept	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE TASK IF NOT EXISTS a AS SELECT 1
+accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE TASK NOT EXISTS a AS SELECT 1
+accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE TASK IF EXISTS a AS SELECT 1
+reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE TASK IF NOT a AS SELECT 1
 reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE TASK IF NOT
-accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TASK IF NOT EXISTS zzz a AS a
-accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TASK IGNORE NOT EXISTS a AS a
-accept	accept	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE TASK a AS a
-accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty!insert	CREATE TASK a zzz AS a
-accept	accept	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE TASK a WITH TAG(a = 's') AS a
-accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE TASK a TAG(a = 's') AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE TASK a WITH(a = 's') AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE TASK a WITH TAG a = 's') AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE TASK a WITH TAG(= 's') AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE TASK a WITH TAG(a 's') AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE TASK a WITH TAG(a =) AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-7	CREATE TASK a WITH TAG(a = 's' AS a
+accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TASK IF NOT EXISTS zzz a AS SELECT 1
+accept	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TASK IGNORE NOT EXISTS a AS SELECT 1
+accept	accept	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty	CREATE TASK a AS SELECT 1
+accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/%empty!insert	CREATE TASK a zzz AS SELECT 1
+accept	accept	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)	CREATE TASK a WITH TAG(a = 's') AS SELECT 1
+accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-1	CREATE TASK a TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-2	CREATE TASK a WITH(a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-3	CREATE TASK a WITH TAG a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-4	CREATE TASK a WITH TAG(= 's') AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-5	CREATE TASK a WITH TAG(a 's') AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	CREATE TASK a WITH TAG(a =) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-7	CREATE TASK a WITH TAG(a = 's' AS SELECT 1
 reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!truncate	CREATE TASK a WITH TAG(a = 's'
-accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE TASK a WITH TAG(a = 's') zzz AS a
-reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE TASK a WITHIN TAG(a = 's') AS a
-accept	accept	docs	createTask(,_ID_=_STRING)*/%empty	CREATE TASK a WITH TAG(a = 's') AS a
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/%empty!insert	CREATE TASK a WITH TAG(a = 's' zzz) AS a
-accept	accept	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE TASK a WITH TAG(a = 's', a = 's') AS a
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE TASK a WITH TAG(a = 's' a = 's') AS a
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE TASK a WITH TAG(a = 's', = 's') AS a
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE TASK a WITH TAG(a = 's', a 's') AS a
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE TASK a WITH TAG(a = 's', a =) AS a
+accept	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	CREATE TASK a WITH TAG(a = 's') zzz AS SELECT 1
+reject	undocumented	docs	createTask(WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/WITH_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	CREATE TASK a WITHIN TAG(a = 's') AS SELECT 1
+accept	accept	docs	createTask(,_ID_=_STRING)*/%empty	CREATE TASK a WITH TAG(a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/%empty!insert	CREATE TASK a WITH TAG(a = 's' zzz) AS SELECT 1
+accept	accept	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*	CREATE TASK a WITH TAG(a = 's', a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-1	CREATE TASK a WITH TAG(a = 's' a = 's') AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-2	CREATE TASK a WITH TAG(a = 's', = 's') AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	CREATE TASK a WITH TAG(a = 's', a 's') AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE TASK a WITH TAG(a = 's', a =) AS SELECT 1
 reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE TASK a WITH TAG(a = 's', a =
-reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE TASK a WITH TAG(a = 's', a = 's' zzz) AS a
-accept	accept	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE TASK a AS a
-reject	accept	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE TASK a WITH CONTACT(a = a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE TASK a CONTACT(a = a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE TASK a WITH(a = a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE TASK a WITH CONTACT a = a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE TASK a WITH CONTACT(= a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE TASK a WITH CONTACT(a a) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE TASK a WITH CONTACT(a =) AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE TASK a WITH CONTACT(a = a AS a
+reject	undocumented	docs	createTask(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE TASK a WITH TAG(a = 's', a = 's' zzz) AS SELECT 1
+accept	accept	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE TASK a AS SELECT 1
+reject	accept	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE TASK a WITH CONTACT(a = a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE TASK a CONTACT(a = a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE TASK a WITH(a = a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE TASK a WITH CONTACT a = a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE TASK a WITH CONTACT(= a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE TASK a WITH CONTACT(a a) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE TASK a WITH CONTACT(a =) AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE TASK a WITH CONTACT(a = a AS SELECT 1
 reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!truncate	CREATE TASK a WITH CONTACT(a = a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE TASK a WITH CONTACT(a = a) zzz AS a
-reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE TASK a WITHIN CONTACT(a = a) AS a
-accept	accept	docs	createTask(,_ID_=_ID)*/%empty	CREATE TASK a a = a AS a
-accept	undocumented	docs	createTask(,_ID_=_ID)*/%empty!insert	CREATE TASK a a = a zzz AS a
-reject	accept	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK a a = a, a = a AS a
-accept	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK a a = a a = a AS a
-reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK a a = a, = a AS a
-reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK a a = a, a a AS a
-reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE TASK a a = a, a = AS a
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE TASK a WITH CONTACT(a = a) zzz AS SELECT 1
+reject	undocumented	docs	createTask(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE TASK a WITHIN CONTACT(a = a) AS SELECT 1
+accept	accept	docs	createTask(,_ID_=_ID)*/%empty	CREATE TASK a a = a AS SELECT 1
+accept	undocumented	docs	createTask(,_ID_=_ID)*/%empty!insert	CREATE TASK a a = a zzz AS SELECT 1
+reject	accept	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK a a = a, a = a AS SELECT 1
+accept	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK a a = a a = a AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK a a = a, = a AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK a a = a, a a AS SELECT 1
+reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE TASK a a = a, a = AS SELECT 1
 reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE TASK a a = a, a =
-reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE TASK a a = a, a = a zzz AS a
-accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING	CREATE TASK a WAREHOUSE = 's' AS a
-reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-1	CREATE TASK a = 's' AS a
-reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-2	CREATE TASK a WAREHOUSE 's' AS a
-reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-3	CREATE TASK a WAREHOUSE = AS a
+reject	undocumented	docs	createTask(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE TASK a a = a, a = a zzz AS SELECT 1
+accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING	CREATE TASK a WAREHOUSE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-1	CREATE TASK a = 's' AS SELECT 1
+reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-2	CREATE TASK a WAREHOUSE 's' AS SELECT 1
+reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!drop-3	CREATE TASK a WAREHOUSE = AS SELECT 1
 reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!truncate	CREATE TASK a WAREHOUSE =
-accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!insert	CREATE TASK a WAREHOUSE = 's' zzz AS a
-accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!swap	CREATE TASK a WAREHOUSES = 's' AS a
-accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' AS a
-reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-2	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE 's' AS a
-reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-3	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = AS a
+accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!insert	CREATE TASK a WAREHOUSE = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/WAREHOUSE_=_STRING!swap	CREATE TASK a WAREHOUSES = 's' AS SELECT 1
+accept	accept	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-2	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE 's' AS SELECT 1
+reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-3	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = AS SELECT 1
 reject	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!truncate	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE =
-accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!insert	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' zzz AS a
-accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!swap	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 's' AS a
-accept	accept	docs	createTask(SCHEDULE_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE TASK a SCHEDULE = 's' AS a
-reject	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE TASK a SCHEDULE 's' AS a
-reject	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE TASK a SCHEDULE = AS a
+accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!insert	CREATE TASK a USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(WAREHOUSE_=_STRING|USER_TASK_MANAGED~850a83a5)?/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!swap	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 's' AS SELECT 1
+accept	accept	docs	createTask(SCHEDULE_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE TASK a SCHEDULE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE TASK a SCHEDULE 's' AS SELECT 1
+reject	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE TASK a SCHEDULE = AS SELECT 1
 reject	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!truncate	CREATE TASK a SCHEDULE =
-accept	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE TASK a SCHEDULE = 's' zzz AS a
-accept	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE TASK a SCHEDULER = 's' AS a
-accept	accept	docs	createTask(CONFIG_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING	CREATE TASK a CONFIG = 's' AS a
-reject	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-2	CREATE TASK a CONFIG 's' AS a
-reject	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-3	CREATE TASK a CONFIG = AS a
+accept	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE TASK a SCHEDULE = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE TASK a SCHEDULER = 's' AS SELECT 1
+accept	accept	docs	createTask(CONFIG_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING	CREATE TASK a CONFIG = 's' AS SELECT 1
+reject	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-2	CREATE TASK a CONFIG 's' AS SELECT 1
+reject	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!drop-3	CREATE TASK a CONFIG = AS SELECT 1
 reject	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!truncate	CREATE TASK a CONFIG =
-accept	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!insert	CREATE TASK a CONFIG = 's' zzz AS a
-accept	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!swap	CREATE TASK a CONFIGURATION = 's' AS a
-accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP AS a
-reject	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-1	CREATE TASK a = NO_OVERLAP AS a
-accept	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-2	CREATE TASK a OVERLAP_POLICY NO_OVERLAP AS a
-reject	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-3	CREATE TASK a OVERLAP_POLICY = AS a
+accept	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!insert	CREATE TASK a CONFIG = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(CONFIG_=_STRING)?/CONFIG_=_STRING!swap	CREATE TASK a CONFIGURATION = 's' AS SELECT 1
+accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP AS SELECT 1
+reject	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-1	CREATE TASK a = NO_OVERLAP AS SELECT 1
+accept	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-2	CREATE TASK a OVERLAP_POLICY NO_OVERLAP AS SELECT 1
+reject	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-3	CREATE TASK a OVERLAP_POLICY = AS SELECT 1
 reject	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!truncate	CREATE TASK a OVERLAP_POLICY =
-accept	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!insert	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP zzz AS a
-accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!swap	CREATE TASK a OVERRIDE = NO_OVERLAP AS a
-accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP AS a
-accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP!swap	CREATE TASK a OVERLAP_POLICY = NULL AS a
-accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP	CREATE TASK a OVERLAP_POLICY = ALLOW_CHILD_OVERLAP AS a
-accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!insert	CREATE TASK a OVERLAP_POLICY = ALLOW_CHILD_OVERLAP zzz AS a
-accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!swap	CREATE TASK a OVERLAP_POLICY = ALLOW_DUPLICATE AS a
-accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP	CREATE TASK a OVERLAP_POLICY = ALLOW_ALL_OVERLAP AS a
-accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP!insert	CREATE TASK a OVERLAP_POLICY = ALLOW_ALL_OVERLAP zzz AS a
-accept	accept	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*	CREATE TASK a a = a AS a
-reject	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK a = a AS a
-accept	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK a a a AS a
-reject	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK a a = AS a
+accept	undocumented	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!insert	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP zzz AS SELECT 1
+accept	accept	docs	createTask(OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_C~297eb6c7)?/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!swap	CREATE TASK a OVERRIDE = NO_OVERLAP AS SELECT 1
+accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP	CREATE TASK a OVERLAP_POLICY = NO_OVERLAP AS SELECT 1
+accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP!swap	CREATE TASK a OVERLAP_POLICY = NULL AS SELECT 1
+accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP	CREATE TASK a OVERLAP_POLICY = ALLOW_CHILD_OVERLAP AS SELECT 1
+accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!insert	CREATE TASK a OVERLAP_POLICY = ALLOW_CHILD_OVERLAP zzz AS SELECT 1
+accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!swap	CREATE TASK a OVERLAP_POLICY = ALLOW_DUPLICATE AS SELECT 1
+accept	accept	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP	CREATE TASK a OVERLAP_POLICY = ALLOW_ALL_OVERLAP AS SELECT 1
+accept	undocumented	docs	createTask(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP!insert	CREATE TASK a OVERLAP_POLICY = ALLOW_ALL_OVERLAP zzz AS SELECT 1
+accept	accept	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*	CREATE TASK a a = a AS SELECT 1
+reject	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK a = a AS SELECT 1
+accept	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK a a a AS SELECT 1
+reject	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK a a = AS SELECT 1
 reject	undocumented	docs	createTask(ID_=_ID_(,_ID_=_ID)*)?/ID_=_ID_(,_ID_=_ID)*!truncate	CREATE TASK a a =
-accept	accept	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER	CREATE TASK a USER_TASK_TIMEOUT_MS = 1 AS a
-reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-1	CREATE TASK a = 1 AS a
-reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-2	CREATE TASK a USER_TASK_TIMEOUT_MS 1 AS a
-reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-3	CREATE TASK a USER_TASK_TIMEOUT_MS = AS a
+accept	accept	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER	CREATE TASK a USER_TASK_TIMEOUT_MS = 1 AS SELECT 1
+reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-1	CREATE TASK a = 1 AS SELECT 1
+reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-2	CREATE TASK a USER_TASK_TIMEOUT_MS 1 AS SELECT 1
+reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-3	CREATE TASK a USER_TASK_TIMEOUT_MS = AS SELECT 1
 reject	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!truncate	CREATE TASK a USER_TASK_TIMEOUT_MS =
-accept	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!insert	CREATE TASK a USER_TASK_TIMEOUT_MS = 1 zzz AS a
-accept	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!swap	CREATE TASK a USE_ANY_ROLE = 1 AS a
-accept	accept	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = 1 AS a
-reject	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-2	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES 1 AS a
-reject	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-3	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = AS a
+accept	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!insert	CREATE TASK a USER_TASK_TIMEOUT_MS = 1 zzz AS SELECT 1
+accept	undocumented	docs	createTask(USER_TASK_TIMEOUT_MS_=_NUMBER)?/USER_TASK_TIMEOUT_MS_=_NUMBER!swap	CREATE TASK a USE_ANY_ROLE = 1 AS SELECT 1
+accept	accept	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = 1 AS SELECT 1
+reject	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-2	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES 1 AS SELECT 1
+reject	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-3	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = AS SELECT 1
 reject	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!truncate	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES =
-accept	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!insert	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = 1 zzz AS a
-accept	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!swap	CREATE TASK a SWAP = 1 AS a
-accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID	CREATE TASK a ERROR_INTEGRATION = a AS a
-accept	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-2	CREATE TASK a ERROR_INTEGRATION a AS a
-reject	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-3	CREATE TASK a ERROR_INTEGRATION = AS a
+accept	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!insert	CREATE TASK a SUSPEND_TASK_AFTER_NUM_FAILURES = 1 zzz AS SELECT 1
+accept	undocumented	docs	createTask(SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER)?/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!swap	CREATE TASK a SWAP = 1 AS SELECT 1
+accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID	CREATE TASK a ERROR_INTEGRATION = a AS SELECT 1
+accept	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-2	CREATE TASK a ERROR_INTEGRATION a AS SELECT 1
+reject	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-3	CREATE TASK a ERROR_INTEGRATION = AS SELECT 1
 reject	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!truncate	CREATE TASK a ERROR_INTEGRATION =
-accept	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!insert	CREATE TASK a ERROR_INTEGRATION = a zzz AS a
-accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!swap	CREATE TASK a ERROR_LOGGING = a AS a
-accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID	CREATE TASK a SUCCESS_INTEGRATION = a AS a
-accept	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!drop-2	CREATE TASK a SUCCESS_INTEGRATION a AS a
-reject	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!drop-3	CREATE TASK a SUCCESS_INTEGRATION = AS a
+accept	undocumented	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!insert	CREATE TASK a ERROR_INTEGRATION = a zzz AS SELECT 1
+accept	accept	docs	createTask(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!swap	CREATE TASK a ERROR_LOGGING = a AS SELECT 1
+accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID	CREATE TASK a SUCCESS_INTEGRATION = a AS SELECT 1
+accept	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!drop-2	CREATE TASK a SUCCESS_INTEGRATION a AS SELECT 1
+reject	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!drop-3	CREATE TASK a SUCCESS_INTEGRATION = AS SELECT 1
 reject	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!truncate	CREATE TASK a SUCCESS_INTEGRATION =
-accept	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!insert	CREATE TASK a SUCCESS_INTEGRATION = a zzz AS a
-accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!swap	CREATE TASK a SUPPORT = a AS a
-accept	accept	docs	createTask(LOG_LEVEL_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING	CREATE TASK a LOG_LEVEL = 's' AS a
-reject	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!drop-2	CREATE TASK a LOG_LEVEL 's' AS a
-reject	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!drop-3	CREATE TASK a LOG_LEVEL = AS a
+accept	undocumented	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!insert	CREATE TASK a SUCCESS_INTEGRATION = a zzz AS SELECT 1
+accept	accept	docs	createTask(SUCCESS_INTEGRATION_=_ID)?/SUCCESS_INTEGRATION_=_ID!swap	CREATE TASK a SUPPORT = a AS SELECT 1
+accept	accept	docs	createTask(LOG_LEVEL_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING	CREATE TASK a LOG_LEVEL = 's' AS SELECT 1
+reject	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!drop-2	CREATE TASK a LOG_LEVEL 's' AS SELECT 1
+reject	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!drop-3	CREATE TASK a LOG_LEVEL = AS SELECT 1
 reject	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!truncate	CREATE TASK a LOG_LEVEL =
-accept	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!insert	CREATE TASK a LOG_LEVEL = 's' zzz AS a
-accept	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!swap	CREATE TASK a LZO = 's' AS a
-accept	accept	docs	createTask(COMMENT_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE TASK a COMMENT = 's' AS a
-reject	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE TASK a COMMENT 's' AS a
-reject	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE TASK a COMMENT = AS a
+accept	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!insert	CREATE TASK a LOG_LEVEL = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(LOG_LEVEL_=_STRING)?/LOG_LEVEL_=_STRING!swap	CREATE TASK a LZO = 's' AS SELECT 1
+accept	accept	docs	createTask(COMMENT_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE TASK a COMMENT = 's' AS SELECT 1
+reject	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE TASK a COMMENT 's' AS SELECT 1
+reject	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE TASK a COMMENT = AS SELECT 1
 reject	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE TASK a COMMENT =
-accept	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TASK a COMMENT = 's' zzz AS a
-accept	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TASK a COMMENTS = 's' AS a
-accept	accept	docs	createTask(FINALIZE_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING	CREATE TASK a FINALIZE = 's' AS a
-reject	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!drop-2	CREATE TASK a FINALIZE 's' AS a
-reject	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!drop-3	CREATE TASK a FINALIZE = AS a
+accept	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TASK a COMMENT = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TASK a COMMENTS = 's' AS SELECT 1
+accept	accept	docs	createTask(FINALIZE_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING	CREATE TASK a FINALIZE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!drop-2	CREATE TASK a FINALIZE 's' AS SELECT 1
+reject	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!drop-3	CREATE TASK a FINALIZE = AS SELECT 1
 reject	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!truncate	CREATE TASK a FINALIZE =
-accept	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!insert	CREATE TASK a FINALIZE = 's' zzz AS a
-accept	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!swap	CREATE TASK a FINALIZER = 's' AS a
-accept	accept	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = 1 AS a
-reject	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-2	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS 1 AS a
-reject	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-3	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = AS a
+accept	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!insert	CREATE TASK a FINALIZE = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(FINALIZE_=_STRING)?/FINALIZE_=_STRING!swap	CREATE TASK a FINALIZER = 's' AS SELECT 1
+accept	accept	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = 1 AS SELECT 1
+reject	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-2	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS 1 AS SELECT 1
+reject	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-3	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = AS SELECT 1
 reject	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!truncate	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS =
-accept	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!insert	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = 1 zzz AS a
-accept	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!swap	CREATE TASK a TASK_DEFAULTS = 1 AS a
-accept	accept	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 1 AS a
-reject	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!drop-2	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS 1 AS a
-reject	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!drop-3	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = AS a
+accept	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!insert	CREATE TASK a TASK_AUTO_RETRY_ATTEMPTS = 1 zzz AS SELECT 1
+accept	undocumented	docs	createTask(TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER)?/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!swap	CREATE TASK a TASK_DEFAULTS = 1 AS SELECT 1
+accept	accept	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 1 AS SELECT 1
+reject	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!drop-2	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS 1 AS SELECT 1
+reject	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!drop-3	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = AS SELECT 1
 reject	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!truncate	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS =
-accept	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!insert	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 1 zzz AS a
-accept	accept	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING	CREATE TASK a TARGET_COMPLETION_INTERVAL = 's' AS a
-reject	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!drop-2	CREATE TASK a TARGET_COMPLETION_INTERVAL 's' AS a
-reject	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!drop-3	CREATE TASK a TARGET_COMPLETION_INTERVAL = AS a
+accept	undocumented	docs	createTask(USER_TASK_MINIMUM_TRIGGER_INTERVAL_I~8c8b1b84)?/USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS_=_NUMBER!insert	CREATE TASK a USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 1 zzz AS SELECT 1
+accept	accept	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING	CREATE TASK a TARGET_COMPLETION_INTERVAL = 's' AS SELECT 1
+reject	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!drop-2	CREATE TASK a TARGET_COMPLETION_INTERVAL 's' AS SELECT 1
+reject	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!drop-3	CREATE TASK a TARGET_COMPLETION_INTERVAL = AS SELECT 1
 reject	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!truncate	CREATE TASK a TARGET_COMPLETION_INTERVAL =
-accept	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!insert	CREATE TASK a TARGET_COMPLETION_INTERVAL = 's' zzz AS a
-accept	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!swap	CREATE TASK a TARGET_FILE_SIZE = 's' AS a
-accept	accept	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' AS a
-reject	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE 's' AS a
-reject	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = AS a
+accept	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!insert	CREATE TASK a TARGET_COMPLETION_INTERVAL = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(TARGET_COMPLETION_INTERVAL_=_STRING)?/TARGET_COMPLETION_INTERVAL_=_STRING!swap	CREATE TASK a TARGET_FILE_SIZE = 's' AS SELECT 1
+accept	accept	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE 's' AS SELECT 1
+reject	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = AS SELECT 1
 reject	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!truncate	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE =
-accept	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!insert	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' zzz AS a
-accept	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!swap	CREATE TASK a SERVERS = 's' AS a
-accept	accept	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' AS a
-reject	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE 's' AS a
-reject	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = AS a
+accept	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!insert	CREATE TASK a SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' zzz AS SELECT 1
+accept	undocumented	docs	createTask(SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!swap	CREATE TASK a SERVERS = 's' AS SELECT 1
+accept	accept	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' AS SELECT 1
+reject	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE 's' AS SELECT 1
+reject	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = AS SELECT 1
 reject	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!truncate	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE =
-accept	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!insert	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' zzz AS a
-accept	accept	docs	createTask(AFTER_STRING_(,_STRING)*)?/%empty	CREATE TASK a AS a
-reject	accept	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*	CREATE TASK a AFTER 's' AS a
-reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!drop-1	CREATE TASK a 's' AS a
-reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!drop-2	CREATE TASK a AFTER AS a
+accept	undocumented	docs	createTask(SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING)?/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!insert	CREATE TASK a SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' zzz AS SELECT 1
+accept	accept	docs	createTask(AFTER_STRING_(,_STRING)*)?/%empty	CREATE TASK a AS SELECT 1
+reject	accept	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*	CREATE TASK a AFTER 's' AS SELECT 1
+reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!drop-1	CREATE TASK a 's' AS SELECT 1
+reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!drop-2	CREATE TASK a AFTER AS SELECT 1
 reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!truncate	CREATE TASK a AFTER
-reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!insert	CREATE TASK a AFTER 's' zzz AS a
-reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!swap	CREATE TASK a AGENT 's' AS a
-reject	accept	docs	createTask(,_STRING)*/%empty	CREATE TASK a AFTER 's' AS a
-reject	accept	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*	CREATE TASK a AFTER 's', 's' AS a
-reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE TASK a AFTER 's' 's' AS a
-reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE TASK a AFTER 's', AS a
+reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!insert	CREATE TASK a AFTER 's' zzz AS SELECT 1
+reject	undocumented	docs	createTask(AFTER_STRING_(,_STRING)*)?/AFTER_STRING_(,_STRING)*!swap	CREATE TASK a AGENT 's' AS SELECT 1
+reject	accept	docs	createTask(,_STRING)*/%empty	CREATE TASK a AFTER 's' AS SELECT 1
+reject	accept	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*	CREATE TASK a AFTER 's', 's' AS SELECT 1
+reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE TASK a AFTER 's' 's' AS SELECT 1
+reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE TASK a AFTER 's', AS SELECT 1
 reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE TASK a AFTER 's',
-reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE TASK a AFTER 's', 's' zzz AS a
-accept	accept	docs	createTask(EXECUTE_AS_USER_ID)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID	CREATE TASK a EXECUTE AS USER a AS a
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-1	CREATE TASK a AS USER a AS a
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-2	CREATE TASK a EXECUTE USER a AS a
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-3	CREATE TASK a EXECUTE AS a AS a
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-4	CREATE TASK a EXECUTE AS USER AS a
+reject	undocumented	docs	createTask(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE TASK a AFTER 's', 's' zzz AS SELECT 1
+accept	accept	docs	createTask(EXECUTE_AS_USER_ID)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID	CREATE TASK a EXECUTE AS USER a AS SELECT 1
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-1	CREATE TASK a AS USER a AS SELECT 1
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-2	CREATE TASK a EXECUTE USER a AS SELECT 1
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-3	CREATE TASK a EXECUTE AS a AS SELECT 1
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!drop-4	CREATE TASK a EXECUTE AS USER AS SELECT 1
 accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!truncate	CREATE TASK a EXECUTE AS USER
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!insert	CREATE TASK a EXECUTE AS USER a zzz AS a
-accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!swap	CREATE TASK a EXECUTE_AS_ROLE AS USER a AS a
-accept	accept	docs	createTask(WHEN_EXPR)?/%empty	CREATE TASK a AS a
-accept	accept	docs	createTask(WHEN_EXPR)?/WHEN_EXPR	CREATE TASK a WHEN 1 AS a
-reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!drop-1	CREATE TASK a 1 AS a
-reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!drop-2	CREATE TASK a WHEN AS a
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!insert	CREATE TASK a EXECUTE AS USER a zzz AS SELECT 1
+accept	undocumented	docs	createTask(EXECUTE_AS_USER_ID)?/EXECUTE_AS_USER_ID!swap	CREATE TASK a EXECUTE_AS_ROLE AS USER a AS SELECT 1
+accept	accept	docs	createTask(WHEN_EXPR)?/%empty	CREATE TASK a AS SELECT 1
+accept	accept	docs	createTask(WHEN_EXPR)?/WHEN_EXPR	CREATE TASK a WHEN 1 AS SELECT 1
+reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!drop-1	CREATE TASK a 1 AS SELECT 1
+reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!drop-2	CREATE TASK a WHEN AS SELECT 1
 reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!truncate	CREATE TASK a WHEN
-accept	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!insert	CREATE TASK a WHEN 1 zzz AS a
-reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!swap	CREATE TASK a WHERE 1 AS a
+accept	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!insert	CREATE TASK a WHEN 1 zzz AS SELECT 1
+reject	undocumented	docs	createTask(WHEN_EXPR)?/WHEN_EXPR!swap	CREATE TASK a WHERE 1 AS SELECT 1
 reject	accept	docs	createTaskGraph/CREATE_(OR_REPLACE)?_TASK_GRAPH_(IF_NOT_EXISTS)?_ID_(WI~638a64b6	CREATE TASK GRAPH a
 reject	accept	docs	createTaskGraph(OR_REPLACE)?/%empty	CREATE TASK GRAPH a
 reject	undocumented	docs	createTaskGraph(OR_REPLACE)?/%empty!insert	CREATE zzz TASK GRAPH a
@@ -44921,7 +44920,7 @@ reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE VARIABLE a INT COMMENT =
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE VARIABLE a INT COMMENT = 's' zzz
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE VARIABLE a INT COMMENTS = 's'
-reject	accept	docs	createVersionedSchema/CREATE_OR_ALTER_VERSIONED_SCHEMA_ID_(WITH_MANAGED_ACCES~346a2351	CREATE OR ALTER VERSIONED SCHEMA a
+reject	accept	docs	createVersionedSchema/CREATE_OR_ALTER_VERSIONED_SCHEMA_ID_(WITH_MANAGED_ACCES~9e2fbc2d	CREATE OR ALTER VERSIONED SCHEMA a
 reject	accept	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
 reject	accept	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS	CREATE OR ALTER VERSIONED SCHEMA a WITH MANAGED ACCESS
 reject	undocumented	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS!drop-1	CREATE OR ALTER VERSIONED SCHEMA a MANAGED ACCESS
@@ -44929,17 +44928,19 @@ reject	undocumented	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGE
 reject	undocumented	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS!drop-3	CREATE OR ALTER VERSIONED SCHEMA a WITH MANAGED
 reject	undocumented	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS!insert	CREATE OR ALTER VERSIONED SCHEMA a WITH MANAGED ACCESS zzz
 reject	undocumented	docs	createVersionedSchema(WITH_MANAGED_ACCESS)?/WITH_MANAGED_ACCESS!swap	CREATE OR ALTER VERSIONED SCHEMA a WITHIN MANAGED ACCESS
-reject	accept	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
-reject	accept	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/DATA_RETENTION_TIME_IN_DAYS_=	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS =
-reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/DATA_RETENTION_TIME_IN_DAYS_=!drop-1	CREATE OR ALTER VERSIONED SCHEMA a =
-reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/DATA_RETENTION_TIME_IN_DAYS_=!drop-2	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/DATA_RETENTION_TIME_IN_DAYS_=!insert	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS = zzz
-reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=)?/DATA_RETENTION_TIME_IN_DAYS_=!swap	CREATE OR ALTER VERSIONED SCHEMA a DATE_FORMAT =
-reject	accept	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
-reject	accept	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS =
-reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=!drop-2	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS
-reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=!insert	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS = zzz
-reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=!swap	CREATE OR ALTER VERSIONED SCHEMA a MAX_FILE_SIZE =
+reject	accept	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
+reject	accept	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS = 1
+reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-1	CREATE OR ALTER VERSIONED SCHEMA a = 1
+reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-2	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS 1
+reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-3	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS =
+reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!insert	CREATE OR ALTER VERSIONED SCHEMA a DATA_RETENTION_TIME_IN_DAYS = 1 zzz
+reject	undocumented	docs	createVersionedSchema(DATA_RETENTION_TIME_IN_DAYS_=_NUMBER)?/DATA_RETENTION_TIME_IN_DAYS_=_NUMBER!swap	CREATE OR ALTER VERSIONED SCHEMA a DATE_FORMAT = 1
+reject	accept	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
+reject	accept	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS = 1
+reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER!drop-2	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS 1
+reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER!drop-3	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS =
+reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER!insert	CREATE OR ALTER VERSIONED SCHEMA a MAX_DATA_EXTENSION_TIME_IN_DAYS = 1 zzz
+reject	undocumented	docs	createVersionedSchema(MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER)?/MAX_DATA_EXTENSION_TIME_IN_DAYS_=_NUMBER!swap	CREATE OR ALTER VERSIONED SCHEMA a MAX_FILE_SIZE = 1
 reject	accept	docs	createVersionedSchema(DEFAULT_DDL_COLLATION_=_STRING)?/%empty	CREATE OR ALTER VERSIONED SCHEMA a
 reject	accept	docs	createVersionedSchema(DEFAULT_DDL_COLLATION_=_STRING)?/DEFAULT_DDL_COLLATION_=_STRING	CREATE OR ALTER VERSIONED SCHEMA a DEFAULT_DDL_COLLATION = 's'
 reject	undocumented	docs	createVersionedSchema(DEFAULT_DDL_COLLATION_=_STRING)?/DEFAULT_DDL_COLLATION_=_STRING!drop-1	CREATE OR ALTER VERSIONED SCHEMA a = 's'

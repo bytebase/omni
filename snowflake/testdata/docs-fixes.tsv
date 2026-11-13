@@ -22,3 +22,5 @@ revoke-privilege-application	ALL <object_type_plural> IN { DATABASE <db_name> | 
 show-workspaces	                       <schema_name>\n                     }	                       <schema_name>\n                     } ]	[ IN { ... } is not closed; closed
 create-task	'{ XSMALL | SMALL\n      | MEDIUM | LARGE | XLARGE | XXLARGE }'	'<size>'	SERVERLESS_TASK_MIN/MAX_STATEMENT_SIZE: the choice of sizes is written inside the quotes; read as a string
 get	'<regex_pattern>''	'<regex_pattern>'	PATTERN's string has a quote too many; dropped
+create-versioned-schema	DATA_RETENTION_TIME_IN_DAYS = ]	DATA_RETENTION_TIME_IN_DAYS = <integer> ]	the retention properties have no value; <integer>, as CREATE SCHEMA writes them
+create-versioned-schema	MAX_DATA_EXTENSION_TIME_IN_DAYS = ]	MAX_DATA_EXTENSION_TIME_IN_DAYS = <integer> ]	the retention properties have no value; <integer>, as CREATE SCHEMA writes them

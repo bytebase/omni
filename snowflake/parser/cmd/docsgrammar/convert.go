@@ -28,7 +28,7 @@ const (
 var (
 	exprName   = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
 	numberName = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
-	queryName  = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement)$`)
+	queryName  = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|sql|sql_statement)$`)
 	typeName   = regexp.MustCompile(`(^|_)(data_type|col_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
 	stringName = regexp.MustCompile(`(^|_|-)(string|literal)(_?[0-9]+|_|-|$)`)
 )
@@ -601,6 +601,13 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	}
 	if err := c.checkWords(toks); err != nil {
 		return nil, err
+	}
+	// KEY = with nothing after it is a value the docs left out; an = alone
+	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign.
+	for i, t := range toks {
+		if isLiteral(t, "=") && i > 0 && toks[i-1].kind != nOpen && (i+1 == len(toks) || toks[i+1].kind == nClose || toks[i+1].kind == nBar) {
+			return nil, fmt.Errorf("an = with no value after it")
+		}
 	}
 	// AS SELECT <query>: the query's sample starts with its own SELECT.
 	for i := len(toks) - 2; i >= 0; i-- {

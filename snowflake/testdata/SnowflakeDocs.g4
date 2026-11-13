@@ -2309,7 +2309,7 @@ alterTask
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'UNSET' 'TAG' ID (',' ID)*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'SET' 'FINALIZE' '=' STRING
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'UNSET' 'FINALIZE'
-    | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'MODIFY' 'AS' ID
+    | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'MODIFY' 'AS' QUERY
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'MODIFY' 'WHEN' EXPR
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'REMOVE' 'WHEN'
     ;
@@ -3658,7 +3658,7 @@ createTag
 // https://docs.snowflake.com/en/sql-reference/sql/create-task
 // fix: SERVERLESS_TASK_MIN/MAX_STATEMENT_SIZE: the choice of sizes is written inside the quotes; read as a string
 createTask
-    : 'CREATE' ('OR' 'REPLACE')? 'TASK' ('IF' 'NOT' 'EXISTS')? ID ('WITH' 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('WAREHOUSE' '=' STRING | 'USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE' '=' STRING)? ('SCHEDULE' '=' STRING)? ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? (ID '=' ID (',' ID '=' ID)*)? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? ('FINALIZE' '=' STRING)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('AFTER' STRING (',' STRING)*)? ('EXECUTE' 'AS' 'USER' ID)? ('WHEN' EXPR)? 'AS' ID
+    : 'CREATE' ('OR' 'REPLACE')? 'TASK' ('IF' 'NOT' 'EXISTS')? ID ('WITH' 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('WAREHOUSE' '=' STRING | 'USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE' '=' STRING)? ('SCHEDULE' '=' STRING)? ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? (ID '=' ID (',' ID '=' ID)*)? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? ('FINALIZE' '=' STRING)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('AFTER' STRING (',' STRING)*)? ('EXECUTE' 'AS' 'USER' ID)? ('WHEN' EXPR)? 'AS' QUERY
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-task-graph
@@ -3691,8 +3691,10 @@ createVariable
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-versioned-schema
+// fix: the retention properties have no value; <integer>, as CREATE SCHEMA writes them
+// fix: the retention properties have no value; <integer>, as CREATE SCHEMA writes them
 createVersionedSchema
-    : 'CREATE' 'OR' 'ALTER' 'VERSIONED' 'SCHEMA' ID ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=')? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=')? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('COMMENT' '=' STRING)?
+    : 'CREATE' 'OR' 'ALTER' 'VERSIONED' 'SCHEMA' ID ('WITH' 'MANAGED' 'ACCESS')? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-view

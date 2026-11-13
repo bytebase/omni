@@ -119,6 +119,12 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 	if _, err := c.form("( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
 		t.Errorf("a lowercase word alone in braces: got %v", err)
 	}
+	if _, err := c.form("CREATE S <name> [ RETENTION = ] [ COMMENT = '<s>' ]"); err == nil {
+		t.Errorf("an = with no value was converted")
+	}
+	if _, err := c.form("ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
+		t.Errorf("an optional = sign: %v", err)
+	}
 	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}
@@ -232,6 +238,7 @@ func TestPlaceholderClasses(t *testing.T) {
 		"name": tName, "table_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
+		"sql":         tQuery,
 		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,
 	} {
 		if got := placeholderClass(name); got != want {
