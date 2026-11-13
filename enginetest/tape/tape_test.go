@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -280,6 +281,66 @@ func TestRecordingFailsOnANondeterministicAnswer(t *testing.T) {
 	_, errs := run(t, "TestFake", now)
 	if len(errs) != 1 || !strings.Contains(errs[0], `answered request 1 (query "SELECT now") differently than the committed tape`) {
 		t.Errorf("got %q", errs)
+	}
+}
+
+// An engine that makes up names gives different ones on every run. The test
+// and the tape see a stand-in for each, in answers and in errors, and the
+// engine still gets its own name back wherever the test sends the stand-in.
+func TestMadeUpNamesAreRecordedAsStandIns(t *testing.T) {
+	srv, e := harness(t)
+	srv.Codec = renamingCodec{}
+	madeUp := renamingCodec{}.MadeUp()
+	body := func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		var first, second string
+		if err := db.QueryRow("SELECT made").Scan(&first); err != nil {
+			return []string{err.Error()}
+		}
+		if err := db.QueryRow("SELECT made").Scan(&second); err != nil {
+			return []string{err.Error()}
+		}
+		log := []string{first, second}
+		_, err := db.Exec("DROP " + madeUp.FindString(first)) // in the request's text
+		log = append(log, fmt.Sprint(err))
+		_, err = db.Exec("DROP ?", madeUp.FindString(second)) // as an argument
+		log = append(log, fmt.Sprint(err))
+		_, err = db.Exec("DROP " + madeUp.FindString(first)) // gone by now, and the error names it
+		return append(log, fmt.Sprint(err))
+	}
+	want := []string{"x made_1 y", "x made_2 y", "<nil>", "<nil>", "Error 1091: can't drop made_1"}
+	path := filepath.Join(dir, "TestFake.tape")
+
+	record(t)
+	log, errs := run(t, "TestFake", body)
+	if len(errs) > 0 || fmt.Sprint(log) != fmt.Sprint(want) {
+		t.Fatalf("the recording saw %q (errors %q), want %q", log, errs, want)
+	}
+	first, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(first), "made_9") {
+		t.Errorf("the tape holds a name the engine made up:\n%s", first)
+	}
+
+	// The engine has moved on, so a second recording meets other names.
+	resetRegistry()
+	if e.now != 2 {
+		t.Fatalf("the engine made %d names, want 2", e.now)
+	}
+	log, errs = run(t, "TestFake", body)
+	if len(errs) > 0 || fmt.Sprint(log) != fmt.Sprint(want) {
+		t.Fatalf("the second recording saw %q (errors %q), want %q", log, errs, want)
+	}
+	if second, _ := os.ReadFile(path); string(second) != string(first) {
+		t.Errorf("a second recording wrote another tape:\n%s\nfirst:\n%s", second, first)
+	}
+
+	replay(t)
+	log, errs = run(t, "TestFake", body)
+	if len(errs) > 0 || fmt.Sprint(log) != fmt.Sprint(want) {
+		t.Errorf("the replay saw %q (errors %q), want %q", log, errs, want)
 	}
 }
 
@@ -653,7 +714,10 @@ func TestFormatRoundTrips(t *testing.T) {
 
 // The fake engine.
 
-type fakeEngine struct{ now int }
+type fakeEngine struct {
+	now  int
+	made map[string]bool // the names it made up and has not dropped
+}
 
 type fakeConnector struct{ e *fakeEngine }
 
@@ -675,6 +739,16 @@ func (c *fakeConn) ExecContext(_ context.Context, q string, args []driver.NamedV
 	case "TIMEOUT":
 		return nil, errors.New("i/o timeout")
 	}
+	if name, ok := strings.CutPrefix(q, "DROP "); ok {
+		if name == "?" {
+			name = args[0].Value.(string)
+		}
+		if !c.e.made[name] {
+			return nil, &fakeError{1091, "can't drop " + name}
+		}
+		delete(c.e.made, name)
+		return driver.RowsAffected(1), nil
+	}
 	return driver.RowsAffected(len(args)), nil
 }
 
@@ -688,6 +762,14 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
+	case "SELECT made":
+		c.e.now++
+		name := fmt.Sprintf("made_%d", 9000+c.e.now)
+		if c.e.made == nil {
+			c.e.made = map[string]bool{}
+		}
+		c.e.made[name] = true
+		return &fakeRows{sets: []fakeSet{{[]string{"name"}, []string{"TEXT"}, [][]driver.Value{{[]byte("x " + name + " y")}}}}}, nil
 	}
 	return nil, &fakeError{1146, "no such table"}
 }
@@ -756,3 +838,13 @@ func (fakeCodec) DecodeError(text string) error {
 	}
 	return &fakeError{n, msg}
 }
+
+// renamingCodec is fakeCodec for an engine that makes up names: made_ and a
+// number over 9000. Its stand-ins count from 1.
+type renamingCodec struct{ fakeCodec }
+
+var fakeMadeUp = regexp.MustCompile(`made_\d+`)
+
+func (renamingCodec) MadeUp() *regexp.Regexp { return fakeMadeUp }
+
+func (renamingCodec) StandIn(_ string, n int) string { return fmt.Sprintf("made_%d", n) }

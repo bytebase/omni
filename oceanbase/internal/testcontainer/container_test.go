@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
 func TestMain(m *testing.M) {
@@ -77,5 +80,26 @@ func TestCodecRoundTrips(t *testing.T) {
 	// must not reach a tape as the engine's answer.
 	if _, ok := (Codec{}).EncodeError(errors.New("OceanBase stayed unavailable")); ok {
 		t.Error("an error the server did not send was encoded as its answer")
+	}
+}
+
+// TestCodecStandIns pins the shape of the names OceanBase makes up and of what
+// a tape holds in their place.
+func TestCodecStandIns(t *testing.T) {
+	var _ tape.Renamer = Codec{}
+	re := Codec{}.MadeUp()
+	const stored = "CONSTRAINT `c_OBFK_1794529609863994` FOREIGN KEY (`a`), CONSTRAINT `t_OBCHECK_1794529978914345` CHECK ((`a` > 0)), CONSTRAINT `fk_1794529609863994` FOREIGN KEY (`b`)"
+	got := re.FindAllString(stored, -1)
+	if want := []string{"_OBFK_1794529609863994", "_OBCHECK_1794529978914345"}; !slices.Equal(got, want) {
+		t.Fatalf("made-up names in %q: %q, want %q", stored, got, want)
+	}
+	for i, name := range got {
+		in := Codec{}.StandIn(name, i+1)
+		if in == name || re.FindString(in) != in {
+			t.Errorf("the stand-in for %q is %q, which must differ from it and still read as a made-up name", name, in)
+		}
+	}
+	if in := (Codec{}).StandIn("_OBCHECK_1794529978914345", 12); in != "_OBCHECK_0000000000000012" {
+		t.Errorf("stand-in 12 is %q", in)
 	}
 }

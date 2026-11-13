@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -37,6 +38,22 @@ type Codec interface {
 	// DecodeError rebuilds the driver's own error type from its text, so a
 	// test's errors.As still finds it in a replay.
 	DecodeError(text string) error
+}
+
+// A Renamer is the Codec of an engine that makes up names, such as OceanBase's
+// for a foreign key written without one: a different name on every run. A
+// recording keeps a stand-in for each, in the engine's answers and in the
+// requests that repeat the name, and hands the test the stand-in too. So a
+// test reads the same text in a recording as in a replay, and a second
+// recording writes the same tape.
+type Renamer interface {
+	Codec
+	// MadeUp matches each name the engine makes up.
+	MadeUp() *regexp.Regexp
+	// StandIn returns what stands for the nth distinct made-up name of a
+	// test, counting from 1. It must match MadeUp and be a name the engine
+	// would never make up itself.
+	StandIn(name string, n int) string
 }
 
 // A Server is how an engine's tests reach one pinned server.
@@ -80,6 +97,7 @@ type fileState struct {
 	opened   map[string]bool
 	pins     map[string]string
 	recorded map[string]*stream
+	names    *names // the stand-ins this run's recording gave out
 }
 
 func file(path string) *fileState {
@@ -87,7 +105,7 @@ func file(path string) *fileState {
 	if f != nil {
 		return f
 	}
-	f = &fileState{path: path, opened: map[string]bool{}, pins: map[string]string{}, recorded: map[string]*stream{}}
+	f = &fileState{path: path, opened: map[string]bool{}, pins: map[string]string{}, recorded: map[string]*stream{}, names: newNames()}
 	reg.files[path] = f
 	b, err := os.ReadFile(path)
 	switch {
@@ -153,6 +171,9 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 		t.Fatalf("tape: %v", f.err)
 	}
 	ses := &session{t: t, name: name, codec: s.Codec, rec: recording, poison: f.poison}
+	if r, ok := s.Codec.(Renamer); ok && recording {
+		ses.renamer, ses.names = r, f.names
+	}
 	var committed *stream
 	if f.old != nil && f.old.pins[role] == pin.String() {
 		committed = f.old.stream(name)
