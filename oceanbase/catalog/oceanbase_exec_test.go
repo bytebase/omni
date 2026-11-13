@@ -264,3 +264,66 @@ func TestOracle_OceanBaseRefusals(t *testing.T) {
 		}},
 	})
 }
+
+// TestOracle_OceanBaseAlterTableOptions holds checkAlterTableOptions to the engine:
+// which values of OceanBase's table options ALTER TABLE takes, and that the options
+// are checked before the statement's other commands, in the order written.
+func TestOracle_OceanBaseAlterTableOptions(t *testing.T) {
+	const table = "CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT)"
+	runExecSteps(t, "oceanbase_catalog_alter_options", []struct {
+		name  string
+		steps []engineStep
+	}{
+		{"values", []engineStep{
+			{table, taken},
+			{"ALTER TABLE a TABLE_MODE 'queuing'", taken},
+			{"ALTER TABLE a TABLE_MODE ''", 1235},
+			{"ALTER TABLE a DUPLICATE_SCOPE 'CLUSTER'", taken},
+			{"ALTER TABLE a DUPLICATE_SCOPE ''", 1210},
+			{"ALTER TABLE a DUPLICATE_READ_CONSISTENCY 'weak'", taken},
+			{"ALTER TABLE a SEMISTRUCT_ENCODING_TYPE ''", taken},
+			{"ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 'none'", 1210},
+			{"ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 'encoding'", 1235},
+			{"ALTER TABLE a AUTO_INCREMENT_MODE 'ORDER'", taken},
+			{"ALTER TABLE a AUTO_INCREMENT_MODE ''", 1149},
+			{"ALTER TABLE a KV_ATTRIBUTES '{\"Hbase\": {}}'", taken},
+			{"ALTER TABLE a BLOCK_SIZE 1024", taken},
+			{"ALTER TABLE a BLOCK_SIZE 1048576", taken},
+			{"ALTER TABLE a BLOCK_SIZE 1048577", 5258},
+			{"ALTER TABLE a STORAGE_FORMAT_VERSION 4", taken},
+			{"ALTER TABLE a STORAGE_FORMAT_VERSION 3", 4179},
+			{"ALTER TABLE a STORAGE_FORMAT_VERSION 5", 1210},
+			{"ALTER TABLE a TABLET_SIZE 0", taken},
+			{"ALTER TABLE a TABLET_SIZE 4194304", taken},
+			{"ALTER TABLE a TABLET_SIZE 3145728", 4147},
+			{"ALTER TABLE a ORGANIZATION HEAP", 1235},
+			{"ALTER TABLE a FORMAT(TYPE = 'csv')", 4016},
+		}},
+		{"a ROW_FORMAT = COMPRESSED table takes semistructured encoding", []engineStep{
+			{table + " ROW_FORMAT = COMPRESSED", taken},
+			{"ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 'encoding'", taken},
+		}},
+		{"a dynamic partition policy", []engineStep{
+			{table, taken},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 'minute')", 1210},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(EXPIRE_TIME = '1 hours')", 1210},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = '+13:01')", 1298},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = 's', TIME_UNIT = 's')", 1298},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 's', TIME_ZONE = 's')", 1210},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_UNIT = 'hour' TIME_UNIT = 'hour')", 1210},
+			{"ALTER TABLE a DYNAMIC_PARTITION_POLICY(TIME_ZONE = '-12:59', PRECREATE_TIME = '+1day')", 1235},
+			{"CREATE TABLE h (b INT PRIMARY KEY) PARTITION BY HASH(b) PARTITIONS 2", taken},
+			{"ALTER TABLE h DYNAMIC_PARTITION_POLICY(TIME_UNIT = 'hour')", 1235},
+			{"CREATE TABLE r (b DATETIME PRIMARY KEY) PARTITION BY RANGE COLUMNS(b) (PARTITION p VALUES LESS THAN ('2026-01-01'))", taken},
+			{"ALTER TABLE r DYNAMIC_PARTITION_POLICY(TIME_UNIT = 'hour')", taken},
+		}},
+		{"options first, in order", []engineStep{
+			{table, taken},
+			{"ALTER TABLE a ADD b INT, BLOCK_SIZE 1", 5258},
+			{"ALTER TABLE a DROP COLUMN zz, DUPLICATE_SCOPE 's'", 1210},
+			{"ALTER TABLE a ADD KEY(zz), TABLE_MODE 's'", 1235},
+			{"ALTER TABLE a TABLE_MODE 's', LOCATION 's'", 1235},
+			{"ALTER TABLE a LOCATION 's', TABLE_MODE 's'", 4016},
+		}},
+	})
+}

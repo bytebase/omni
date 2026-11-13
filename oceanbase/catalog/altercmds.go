@@ -27,6 +27,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
+		return err
+	}
 	if err := checkKeyOptions(alterKeys(stmt.Commands)); err != nil {
 		return err
 	}
@@ -447,6 +450,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		return nil
 	}
 
+	if kind, ok := constraintKeyKind(con); ok {
+		if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+			return err
+		}
+	}
 	cols := extractColumnNames(con)
 	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
 	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
