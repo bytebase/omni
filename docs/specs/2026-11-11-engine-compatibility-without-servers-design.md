@@ -618,7 +618,7 @@ After step 0 the engines are independent. Order:
   - ALTER TABLE options OceanBase refuses, checked before the other commands (201 rows, #850)
   - the query of a view or CREATE TABLE ... SELECT, resolved before the name (132, #854)
   - partition names and commands (91, #861)
-  - a key's columns: missing (1072) or not text for FULLTEXT (1283) (71, #858)
+  - a key's columns: missing (1072) or not text for FULLTEXT (1283) (71 at triage, 42 once #887 took the rows both close, #858)
   - a key's parts and block size, before its name (46, #887)
   - a column's definition, before its name (45, #871)
   - a CREATE TABLE with no visible column (44, #864)
