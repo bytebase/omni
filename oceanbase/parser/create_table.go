@@ -603,18 +603,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	switch {
 	case p.isBareWord("ORIG_DEFAULT"):
 		p.advance()
-		exprStart := p.pos()
-		expr, err := p.parseExpr()
-		if err != nil {
-			return false, err
-		}
-		if expr == nil {
-			return false, p.syntaxErrorAtCur()
-		}
-		if _, paren := expr.(*nodes.ParenExpr); paren {
-			return false, &ParseError{Message: "syntax error", Position: exprStart}
-		}
-		return true, refuseColumnValue(expr, exprStart)
+		return true, p.parseNowOrSignedLiteral()
 	case p.isBareWord("SKIP_INDEX"):
 		p.advance()
 		if _, err := p.expect('('); err != nil {
@@ -664,6 +653,50 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// parseNowOrSignedLiteral reads now_or_signed_literal, the value ORIG_DEFAULT takes,
+// and keeps nothing of it:
+//
+//	cur_timestamp_func: NOW '(' [n] ')' | {CURRENT_TIMESTAMP | LOCALTIME | LOCALTIMESTAMP} [ '(' [n] ')' ]
+//	signed_literal:     literal | {'+' | '-'} number
+//
+// No expression: ORIG_DEFAULT 1 + 2 and ORIG_DEFAULT -CURRENT_USER are 1064s.
+//
+// Ref: now_or_signed_literal, cur_timestamp_func, opt_time_func_fsp_i and
+// signed_literal in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) parseNowOrSignedLiteral() error {
+	fsp := func(required bool) error {
+		if p.cur.Type != '(' {
+			if required {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		p.advance()
+		if p.cur.Type == tokICONST {
+			p.advance()
+		}
+		_, err := p.expect(')')
+		return err
+	}
+	switch {
+	case p.cur.Type == '+' || p.cur.Type == '-':
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return nil
+	case p.isBareWord("NOW"):
+		p.advance()
+		return fsp(true)
+	case p.isBareWord("CURRENT_TIMESTAMP"), p.isBareWord("LOCALTIME"), p.isBareWord("LOCALTIMESTAMP"):
+		p.advance()
+		return fsp(false)
+	}
+	_, err := p.parseLiteralOnly()
+	return err
 }
 
 // refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value, as the
