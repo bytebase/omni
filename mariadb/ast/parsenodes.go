@@ -172,6 +172,12 @@ type DeleteStmt struct {
 	OrderBy      []*OrderByItem // ORDER BY
 	Limit        *Limit         // LIMIT
 	Returning    []Node         // RETURNING select-list (MariaDB; single-table DELETE only)
+	// History marks DELETE HISTORY. HistoryBefore is its BEFORE SYSTEM_TIME
+	// point, nil when not written, and HistoryUnit the TRANSACTION or
+	// TIMESTAMP written before it.
+	History       bool
+	HistoryBefore ExprNode
+	HistoryUnit   string
 }
 
 func (s *DeleteStmt) nodeTag()  {}

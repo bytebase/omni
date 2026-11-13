@@ -7579,7 +7579,7 @@ reject	reject	engine	table_reference/joined_table!drop-3	DELETE utf8mb4 FROM utf
 reject	reject	engine	table_reference/joined_table!truncate	DELETE utf8mb4 FROM utf8mb4 JOIN
 accept	accept	engine	table_reference/joined_table!insert	DELETE utf8mb4 FROM utf8mb4 JOIN utf8mb4 zzz;
 reject	reject	engine	table_reference/joined_table!swap	DELETE utf8mb4 FROM utf8mb4 JSON utf8mb4;
-reject	accept	engine	table_reference/{_OJ_SYM_esc_table_reference_}	DELETE utf8mb4 FROM { OJ utf8mb4 };
+accept	accept	engine	table_reference/{_OJ_SYM_esc_table_reference_}	DELETE utf8mb4 FROM { OJ utf8mb4 };
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!drop-1	DELETE utf8mb4 FROM OJ utf8mb4 };
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!drop-2	DELETE utf8mb4 FROM { utf8mb4 };
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!drop-3	DELETE utf8mb4 FROM { OJ };
@@ -7587,15 +7587,15 @@ reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!drop-4	DELET
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!truncate	DELETE utf8mb4 FROM { OJ utf8mb4
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!insert	DELETE utf8mb4 FROM { OJ utf8mb4 } zzz;
 reject	reject	engine	table_reference/{_OJ_SYM_esc_table_reference_}!swap	DELETE utf8mb4 FROM { OLD utf8mb4 };
-reject	accept	engine	esc_table_reference/table_factor	DELETE utf8mb4 FROM { OJ utf8mb4 };
+accept	accept	engine	esc_table_reference/table_factor	DELETE utf8mb4 FROM { OJ utf8mb4 };
 reject	reject	engine	esc_table_reference/table_factor!truncate	DELETE utf8mb4 FROM { OJ
-reject	accept	engine	esc_table_reference/table_factor!insert	DELETE utf8mb4 FROM { OJ utf8mb4 zzz };
-reject	accept	engine	esc_table_reference/joined_table	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN utf8mb4 };
+accept	accept	engine	esc_table_reference/table_factor!insert	DELETE utf8mb4 FROM { OJ utf8mb4 zzz };
+accept	accept	engine	esc_table_reference/joined_table	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN utf8mb4 };
 reject	reject	engine	esc_table_reference/joined_table!drop-1	DELETE utf8mb4 FROM { OJ JOIN utf8mb4 };
-reject	accept	engine	esc_table_reference/joined_table!drop-2	DELETE utf8mb4 FROM { OJ utf8mb4 utf8mb4 };
+accept	accept	engine	esc_table_reference/joined_table!drop-2	DELETE utf8mb4 FROM { OJ utf8mb4 utf8mb4 };
 reject	reject	engine	esc_table_reference/joined_table!drop-3	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN };
 reject	reject	engine	esc_table_reference/joined_table!truncate	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN
-reject	accept	engine	esc_table_reference/joined_table!insert	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN utf8mb4 zzz };
+accept	accept	engine	esc_table_reference/joined_table!insert	DELETE utf8mb4 FROM { OJ utf8mb4 JOIN utf8mb4 zzz };
 reject	reject	engine	esc_table_reference/joined_table!swap	DELETE utf8mb4 FROM { OJ utf8mb4 JSON utf8mb4 };
 accept	accept	engine	joined_table/table_reference_inner_join_type_table_reference_ON_SYM_expr	DELETE utf8mb4 FROM utf8mb4 JOIN utf8mb4 ON utf8mb4;
 reject	reject	engine	joined_table/table_reference_inner_join_type_table_reference_ON_SYM_expr!drop-1	DELETE utf8mb4 FROM JOIN utf8mb4 ON utf8mb4;
