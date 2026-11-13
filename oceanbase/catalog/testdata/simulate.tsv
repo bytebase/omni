@@ -645,10 +645,10 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	match_action/PARTIAL	ALTE
 ok	1054	engine	one_table@table	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 ok	1054	engine	one_table@table	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 ok	ok:26e0874d4a45	engine	one_table@table	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 ok	1054	engine	one_table@table	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 ok	1054	engine	one_table@table	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 ok	1054	engine	one_table@table	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
@@ -994,7 +994,7 @@ ok	1072	engine	one_table@table	opt_constraint_name/%empty	ALTER TABLE a ADD CONS
 ok	1072	engine	one_table@table	opt_constraint_name/%empty!insert	ALTER TABLE a ADD CONSTRAINT zzz UNIQUE(a)
 1091	3821	engine	one_table@table	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok	1072	engine	one_table@table	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
-ok	1060	engine	one_table@table	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+1060	1060	engine	one_table@table	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
 ok	1072	engine	one_table@table	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
 1064	1072	engine	one_table@table	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 ok	1072	engine	one_table@table	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
@@ -1015,20 +1015,20 @@ ok	1072	engine	one_table@table	fulltext_parser_properties/IK_MODE_COMP_EQ_STRING
 ok	1072	engine	one_table@table	fulltext_parser_properties/MIN_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_NGRAM_SIZE = 1)
 ok	1072	engine	one_table@table	fulltext_parser_properties/MAX_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_NGRAM_SIZE = 1)
 ok	1072	engine	one_table@table	index_option/LOCAL	ALTER TABLE a ADD KEY(a) LOCAL
-ok	5258	engine	one_table@table	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
+5258	5258	engine	one_table@table	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
 ok	1072	engine	one_table@table	index_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
 ok	1072	engine	one_table@table	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 1054	1072	engine	one_table@table	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok	1072	engine	one_table@table	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@table	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@table	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok	1072	engine	one_table@table	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok	1072	engine	one_table@table	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@table	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok	1072	engine	one_table@table	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok	1072	engine	one_table@table	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@table	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@table	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok	1072	engine	one_table@table	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -1128,11 +1128,11 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_drop_behavior/RESTRIC
 1054	1235	engine	one_table@table	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@table	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@table	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@table	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@table	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@table	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@table	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@table	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	ok:158492498704	engine	one_table@table	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	ok:158492498704	engine	one_table@table	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	ok:ade19a09cac6	engine	one_table@table	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
@@ -1214,10 +1214,10 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@column	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 1060	1060	engine	one_table@column	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 1060	1060	engine	one_table@column	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
@@ -1550,10 +1550,10 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_table/TABLE	TRUNCATE
 1050	1054	engine	one_table@column	opt_column_list/(_column_name_list_)	CREATE VIEW a(a) AS SELECT a
 1064	1054	engine	one_table@column	opt_table_id/TABLE_ID_COMP_EQ_INTNUM	CREATE VIEW a TABLE_ID = 1 AS SELECT a
 1064	ok:989aaa2a0497	engine	one_table@column	create_index_stmt/create_with_opt_hint_opt_index_keyname_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
-ok	1283	engine	one_table@column	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option	CREATE FULLTEXT INDEX a ON a(a)
+1283	1283	engine	one_table@column	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option	CREATE FULLTEXT INDEX a ON a(a)
 1064	1283	engine	one_table@column	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option_with_column_group	CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
-ok	7601	engine	one_table@column	opt_index_keyname/VECTOR	CREATE VECTOR INDEX a ON a(a)
-1252	1687	engine	one_table@column	opt_index_keyname/SPATIAL	CREATE SPATIAL INDEX a ON a(a)
+7601	7601	engine	one_table@column	opt_index_keyname/VECTOR	CREATE VECTOR INDEX a ON a(a)
+1687	1687	engine	one_table@column	opt_index_keyname/SPATIAL	CREATE SPATIAL INDEX a ON a(a)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	opt_index_keyname/UNIQUE	CREATE UNIQUE INDEX a ON a(a)
 1091	1091	engine	one_table@column	index_name/relation_name	ALTER TABLE a DROP KEY a
 3940	3940	engine	one_table@column	check_state/NOT_ENFORCED	ALTER TABLE a ALTER CONSTRAINT a NOT ENFORCED
@@ -1563,41 +1563,41 @@ ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	opt_constraint_name/%emp
 ok:934c824fed49	ok:934c824fed49	engine	one_table@column	opt_constraint_name/%empty!insert	ALTER TABLE a ADD CONSTRAINT zzz UNIQUE(a)
 1091	3821	engine	one_table@column	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
-ok	1060	engine	one_table@column	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
-ok	3762	engine	one_table@column	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+1060	1060	engine	one_table@column	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+3762	3762	engine	one_table@column	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
 1064	ok:e5cac50200af	engine	one_table@column	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
-ok	1089	engine	one_table@column	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
+1089	1089	engine	one_table@column	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:8c5785ed3496	ok:8c5785ed3496	engine	one_table@column	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
-ok	1283	engine	one_table@column	opt_fulltext_index_option_list/%empty	ALTER TABLE a ADD FULLTEXT(a)
-ok	1283	engine	one_table@column	opt_fulltext_index_option_list/opt_fulltext_index_options	ALTER TABLE a ADD FULLTEXT(a) GLOBAL
+1283	1283	engine	one_table@column	opt_fulltext_index_option_list/%empty	ALTER TABLE a ADD FULLTEXT(a)
+1283	1283	engine	one_table@column	opt_fulltext_index_option_list/opt_fulltext_index_options	ALTER TABLE a ADD FULLTEXT(a) GLOBAL
 ok:8c5785ed3496	ok:8c5785ed3496	engine	one_table@column	opt_index_options/opt_index_options_index_option	ALTER TABLE a ADD KEY(a) GLOBAL GLOBAL
-ok	1283	engine	one_table@column	opt_fulltext_index_options/opt_fulltext_index_options_fulltext_index_option	ALTER TABLE a ADD FULLTEXT(a) GLOBAL GLOBAL
-ok	1283	engine	one_table@column	fulltext_index_option/WITH_PARSER_relation_name	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
-ok	1283	engine	one_table@column	fulltext_index_option/PARSER_PROPERTIES_opt_equal_mark_(_fulltext_parser_properties_list_)	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@column	fulltext_parser_properties_list/fulltext_parser_properties_list_opt_comma_fulltext_parser_properties	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@column	fulltext_parser_properties/MAX_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@column	fulltext_parser_properties/NGRAM_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(NGRAM_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@column	fulltext_parser_properties/STOPWORD_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(STOPWORD_TABLE = 's')
-ok	1283	engine	one_table@column	fulltext_parser_properties/DICT_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(DICT_TABLE = 's')
-ok	1283	engine	one_table@column	fulltext_parser_properties/QUANTIFIER_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(QUANTIFIER_TABLE = 's')
-ok	1283	engine	one_table@column	fulltext_parser_properties/IK_MODE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(IK_MODE = 's')
-ok	1283	engine	one_table@column	fulltext_parser_properties/MIN_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_NGRAM_SIZE = 1)
-ok	1283	engine	one_table@column	fulltext_parser_properties/MAX_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_NGRAM_SIZE = 1)
+1283	1283	engine	one_table@column	opt_fulltext_index_options/opt_fulltext_index_options_fulltext_index_option	ALTER TABLE a ADD FULLTEXT(a) GLOBAL GLOBAL
+1283	1283	engine	one_table@column	fulltext_index_option/WITH_PARSER_relation_name	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
+1283	1283	engine	one_table@column	fulltext_index_option/PARSER_PROPERTIES_opt_equal_mark_(_fulltext_parser_properties_list_)	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@column	fulltext_parser_properties_list/fulltext_parser_properties_list_opt_comma_fulltext_parser_properties	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@column	fulltext_parser_properties/MAX_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@column	fulltext_parser_properties/NGRAM_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(NGRAM_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@column	fulltext_parser_properties/STOPWORD_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(STOPWORD_TABLE = 's')
+1283	1283	engine	one_table@column	fulltext_parser_properties/DICT_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(DICT_TABLE = 's')
+1283	1283	engine	one_table@column	fulltext_parser_properties/QUANTIFIER_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(QUANTIFIER_TABLE = 's')
+1283	1283	engine	one_table@column	fulltext_parser_properties/IK_MODE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(IK_MODE = 's')
+1283	1283	engine	one_table@column	fulltext_parser_properties/MIN_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_NGRAM_SIZE = 1)
+1283	1283	engine	one_table@column	fulltext_parser_properties/MAX_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_NGRAM_SIZE = 1)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/LOCAL	ALTER TABLE a ADD KEY(a) LOCAL
-ok	5258	engine	one_table@column	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
+5258	5258	engine	one_table@column	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
 ok:ea2c84a22033	ok:ea2c84a22033	engine	one_table@column	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 ok	ok:e5cac50200af	engine	one_table@column	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@column	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@column	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@column	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@column	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:4b216dacf428	ok:4b216dacf428	engine	one_table@column	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok:c074959e710c	ok:c074959e710c	engine	one_table@column	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -1650,7 +1650,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/EXCLUSIVE	ALTER
 1505	1505	engine	one_table@column	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 1064	1505	engine	one_table@column	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
-1252	1687	engine	one_table@column	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
+1687	1687	engine	one_table@column	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
@@ -1697,11 +1697,11 @@ ok	1067	engine	one_table@column	alter_column_behavior/SET_DEFAULT_signed_literal
 ok	1235	engine	one_table@column	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@column	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@column	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@column	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@column	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@column	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@column	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@column	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	1060	engine	one_table@column	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	1060	engine	one_table@column	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@column	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
@@ -1783,10 +1783,10 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@index	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 1060	1060	engine	one_table@index	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 1060	1060	engine	one_table@index	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
@@ -2119,10 +2119,10 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_table/TABLE	TRUNCATE 
 1050	1054	engine	one_table@index	opt_column_list/(_column_name_list_)	CREATE VIEW a(a) AS SELECT a
 1064	1054	engine	one_table@index	opt_table_id/TABLE_ID_COMP_EQ_INTNUM	CREATE VIEW a TABLE_ID = 1 AS SELECT a
 1064	1061	engine	one_table@index	create_index_stmt/create_with_opt_hint_opt_index_keyname_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
-1061	1283	engine	one_table@index	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option	CREATE FULLTEXT INDEX a ON a(a)
+1283	1283	engine	one_table@index	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option	CREATE FULLTEXT INDEX a ON a(a)
 1064	1283	engine	one_table@index	create_index_stmt/create_with_opt_hint_FULLTEXT_INDEX_opt_if_not_exists_normal_relation_factor_opt_index_using_algorithm_ON_relation_factor_(_sort_column_list_)_opt_fulltext_index_option_list_opt_partition_option_with_column_group	CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
-1061	7601	engine	one_table@index	opt_index_keyname/VECTOR	CREATE VECTOR INDEX a ON a(a)
-1061	1687	engine	one_table@index	opt_index_keyname/SPATIAL	CREATE SPATIAL INDEX a ON a(a)
+7601	7601	engine	one_table@index	opt_index_keyname/VECTOR	CREATE VECTOR INDEX a ON a(a)
+1687	1687	engine	one_table@index	opt_index_keyname/SPATIAL	CREATE SPATIAL INDEX a ON a(a)
 1061	1061	engine	one_table@index	opt_index_keyname/UNIQUE	CREATE UNIQUE INDEX a ON a(a)
 ok:7b0f12d09c84	ok:7b0f12d09c84	engine	one_table@index	index_name/relation_name	ALTER TABLE a DROP KEY a
 3940	3940	engine	one_table@index	check_state/NOT_ENFORCED	ALTER TABLE a ALTER CONSTRAINT a NOT ENFORCED
@@ -2132,41 +2132,41 @@ ok:25c111463945	ok:25c111463945	engine	one_table@index	opt_constraint_name/%empt
 ok:fd1a18b592c6	ok:fd1a18b592c6	engine	one_table@index	opt_constraint_name/%empty!insert	ALTER TABLE a ADD CONSTRAINT zzz UNIQUE(a)
 1091	3821	engine	one_table@index	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
-ok	1060	engine	one_table@index	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
-ok	3762	engine	one_table@index	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+1060	1060	engine	one_table@index	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+3762	3762	engine	one_table@index	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
 1064	ok:7c097d37a5bb	engine	one_table@index	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
-ok	1089	engine	one_table@index	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
+1089	1089	engine	one_table@index	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:aa069d086dd7	ok:aa069d086dd7	engine	one_table@index	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
-ok	1283	engine	one_table@index	opt_fulltext_index_option_list/%empty	ALTER TABLE a ADD FULLTEXT(a)
-ok	1283	engine	one_table@index	opt_fulltext_index_option_list/opt_fulltext_index_options	ALTER TABLE a ADD FULLTEXT(a) GLOBAL
+1283	1283	engine	one_table@index	opt_fulltext_index_option_list/%empty	ALTER TABLE a ADD FULLTEXT(a)
+1283	1283	engine	one_table@index	opt_fulltext_index_option_list/opt_fulltext_index_options	ALTER TABLE a ADD FULLTEXT(a) GLOBAL
 ok:aa069d086dd7	ok:aa069d086dd7	engine	one_table@index	opt_index_options/opt_index_options_index_option	ALTER TABLE a ADD KEY(a) GLOBAL GLOBAL
-ok	1283	engine	one_table@index	opt_fulltext_index_options/opt_fulltext_index_options_fulltext_index_option	ALTER TABLE a ADD FULLTEXT(a) GLOBAL GLOBAL
-ok	1283	engine	one_table@index	fulltext_index_option/WITH_PARSER_relation_name	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
-ok	1283	engine	one_table@index	fulltext_index_option/PARSER_PROPERTIES_opt_equal_mark_(_fulltext_parser_properties_list_)	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@index	fulltext_parser_properties_list/fulltext_parser_properties_list_opt_comma_fulltext_parser_properties	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@index	fulltext_parser_properties/MAX_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@index	fulltext_parser_properties/NGRAM_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(NGRAM_TOKEN_SIZE = 1)
-ok	1283	engine	one_table@index	fulltext_parser_properties/STOPWORD_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(STOPWORD_TABLE = 's')
-ok	1283	engine	one_table@index	fulltext_parser_properties/DICT_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(DICT_TABLE = 's')
-ok	1283	engine	one_table@index	fulltext_parser_properties/QUANTIFIER_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(QUANTIFIER_TABLE = 's')
-ok	1283	engine	one_table@index	fulltext_parser_properties/IK_MODE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(IK_MODE = 's')
-ok	1283	engine	one_table@index	fulltext_parser_properties/MIN_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_NGRAM_SIZE = 1)
-ok	1283	engine	one_table@index	fulltext_parser_properties/MAX_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_NGRAM_SIZE = 1)
+1283	1283	engine	one_table@index	opt_fulltext_index_options/opt_fulltext_index_options_fulltext_index_option	ALTER TABLE a ADD FULLTEXT(a) GLOBAL GLOBAL
+1283	1283	engine	one_table@index	fulltext_index_option/WITH_PARSER_relation_name	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
+1283	1283	engine	one_table@index	fulltext_index_option/PARSER_PROPERTIES_opt_equal_mark_(_fulltext_parser_properties_list_)	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@index	fulltext_parser_properties_list/fulltext_parser_properties_list_opt_comma_fulltext_parser_properties	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@index	fulltext_parser_properties/MAX_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@index	fulltext_parser_properties/NGRAM_TOKEN_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(NGRAM_TOKEN_SIZE = 1)
+1283	1283	engine	one_table@index	fulltext_parser_properties/STOPWORD_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(STOPWORD_TABLE = 's')
+1283	1283	engine	one_table@index	fulltext_parser_properties/DICT_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(DICT_TABLE = 's')
+1283	1283	engine	one_table@index	fulltext_parser_properties/QUANTIFIER_TABLE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(QUANTIFIER_TABLE = 's')
+1283	1283	engine	one_table@index	fulltext_parser_properties/IK_MODE_COMP_EQ_STRING_VALUE	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(IK_MODE = 's')
+1283	1283	engine	one_table@index	fulltext_parser_properties/MIN_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_NGRAM_SIZE = 1)
+1283	1283	engine	one_table@index	fulltext_parser_properties/MAX_NGRAM_SIZE_COMP_EQ_INTNUM	ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MAX_NGRAM_SIZE = 1)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/LOCAL	ALTER TABLE a ADD KEY(a) LOCAL
-ok	5258	engine	one_table@index	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
+5258	5258	engine	one_table@index	index_option/BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) BLOCK_SIZE 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/KEY_BLOCK_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
 ok:cd75ff775535	ok:cd75ff775535	engine	one_table@index	index_option/COMMENT_STRING_VALUE	ALTER TABLE a ADD KEY(a) COMMENT 's'
 ok	ok:7c097d37a5bb	engine	one_table@index	index_option/STORING_(_column_name_list_)	ALTER TABLE a ADD KEY(a) STORING(a)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
-ok	1235	engine	one_table@index	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
+1235	1235	engine	one_table@index	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
-ok	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+1235	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
+1235	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1064	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
-ok	1235	engine	one_table@index	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@index	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
 ok:c65f397a37a1	ok:c65f397a37a1	engine	one_table@index	opt_index_using_algorithm/%empty!insert	ALTER TABLE a ADD KEY zzz(a)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	opt_index_using_algorithm/index_using_algorithm	ALTER TABLE a ADD KEY USING BTREE(a)
 ok:b1c3376df5ad	ok:b1c3376df5ad	engine	one_table@index	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
@@ -2219,7 +2219,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/EXCLUSIVE	ALTER 
 1505	1505	engine	one_table@index	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 1064	1505	engine	one_table@index	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
-1252	1687	engine	one_table@index	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
+1687	1687	engine	one_table@index	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
 1068	1068	engine	one_table@index	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 1068	1068	engine	one_table@index	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:8ad4b5558f9a	ok:8ad4b5558f9a	engine	one_table@index	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
@@ -2266,11 +2266,11 @@ ok	1067	engine	one_table@index	alter_column_behavior/SET_DEFAULT_signed_literal	
 ok	1235	engine	one_table@index	alter_column_behavior/SET_DEFAULT_(_expr_)	ALTER TABLE a ALTER a SET DEFAULT(a)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_empty_table_list/%empty!insert	ALTER TABLE a UNION(zzz)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_empty_table_list/table_list	ALTER TABLE a UNION(a)
-ok	1235	engine	one_table@index	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
-ok	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
-ok	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
-ok	1235	engine	one_table@index	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
-ok	1235	engine	one_table@index	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
+1235	1235	engine	one_table@index	vec_index_params/vec_index_params_,_vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1, a = 1)
+1235	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE	ALTER TABLE a ADD KEY(a) WITH(a = TRUE)
+1235	1235	engine	one_table@index	vec_index_param_value/BOOL_VALUE!swap	ALTER TABLE a ADD KEY(a) WITH(a = TRUNCATE)
+1235	1235	engine	one_table@index	vec_index_param_value/DECIMAL_VAL	ALTER TABLE a ADD KEY(a) WITH(a = 1.5)
+1235	1235	engine	one_table@index	vec_index_param_value/relation_name	ALTER TABLE a ADD KEY(a) WITH(a = a)
 1064	1060	engine	one_table@index	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 1064	1060	engine	one_table@index	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 1064	1060	engine	one_table@index	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
