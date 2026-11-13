@@ -497,6 +497,11 @@ var keywordCategories = map[int]keywordCategory{
 	kwENCRYPTION: kwCatUnambiguous,
 	kwHEADER:     kwCatUnambiguous,
 	kwS3:         kwCatUnambiguous,
+	// OceanBase's own reserved words (see their tokens in lexer.go).
+	kwNO_PARALLEL:      kwCatReserved,
+	kwNO_REWRITE:       kwCatReserved,
+	kwREAD_CONSISTENCY: kwCatReserved,
+	kwTABLEGROUP:       kwCatReserved,
 }
 
 // categoryOf returns the category of a keyword token. Registered keywords
@@ -893,6 +898,123 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	return ref, nil
 }
 
+// parseRelationFactor reads relation_factor, the name of a table in most statements:
+//
+//	relation_factor:        normal_relation_factor | dot_relation_factor
+//	normal_relation_factor: relation_name
+//	                      | relation_name '.' relation_name
+//	                      | relation_name '.' mysql_reserved_keyword
+//	dot_relation_factor:    '.' relation_name
+//	                      | '.' mysql_reserved_keyword
+//
+// A leading dot names no database: `.t` is the table t of the current one, and the node
+// holds no Schema. After a dot, a word of mysql_reserved_keyword is a name too, so
+// `SELECT * FROM d . table` and `EXPLAIN . select` differ: TABLE is in that list and SELECT
+// is not. Words joined to their dot were names already, since OceanBase's lexer reads
+// `d.table` as one token (ID_DOT_ID).
+//
+// Not read here: normal_relation_factor's database link (`t@link`) and its three-part
+// names (`catalog.d.t`).
+//
+// Ref: relation_factor, normal_relation_factor and dot_relation_factor in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines 14870-14981). The pinned server
+// accepts `EXPLAIN . LINEAR` and the row of each other word (testdata/compat.tsv, rule
+// mysql_reserved_keyword); TestRelationFactorFormsOceanBaseOracle holds the other
+// statements to it.
+func (p *Parser) parseRelationFactor() (*nodes.TableRef, error) {
+	ref := &nodes.TableRef{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type == '.' {
+		p.advance()
+		name, err := p.parseNameAfterDot()
+		if err != nil {
+			return nil, err
+		}
+		ref.Name = name
+		ref.Loc.End = p.prev.End
+		return ref, nil
+	}
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	ref.Name = name
+	if p.cur.Type == '.' {
+		p.advance()
+
+		// Completion: after "db.", offer table_ref qualified with database.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		name2, err := p.parseNameAfterDot()
+		if err != nil {
+			return nil, err
+		}
+		ref.Schema, ref.Name = name, name2
+	}
+	ref.Loc.End = p.prev.End
+	return ref, nil
+}
+
+// parseNameAfterDot reads the name after a qualifying dot: relation_name, or a word of
+// mysql_reserved_keyword, which the grammar lists beside it there.
+func (p *Parser) parseNameAfterDot() (string, error) {
+	if reservedNamesAfterDot[p.cur.Type] {
+		return p.advance().Str, nil
+	}
+	name, _, err := p.parseIdent()
+	return name, err
+}
+
+// reservedNamesAfterDot is mysql_reserved_keyword (sql_parser_mysql_mode.y, oceanbase
+// v4.3.5_CE_BP6, line 26758): the reserved words that name a table or a column after a dot.
+// It is not every reserved word: the grammar leaves out ALL, DISTINCT, FROM, SELECT, UNIQUE,
+// WHEN and ten more, and those stay a 1064 there.
+var reservedNamesAfterDot = map[int]bool{
+	kwACCESSIBLE: true, kwADD: true, kwALTER: true, kwANALYZE: true, kwAND: true, kwAS: true, kwASC: true,
+	kwASENSITIVE: true, kwBEFORE: true, kwBETWEEN: true, kwBIGINT: true, kwBINARY: true, kwBLOB: true,
+	kwBY: true, kwCALL: true, kwCASCADE: true, kwCASE: true, kwCHANGE: true, kwCHAR: true,
+	kwCHARACTER: true, kwCHECK: true, kwCOLLATE: true, kwCOLUMN: true, kwCONDITION: true,
+	kwCONSTRAINT: true, kwCONTINUE: true, kwCONVERT: true, kwCREATE: true, kwCROSS: true,
+	kwCURRENT_DATE: true, kwCURRENT_TIME: true, kwCURRENT_TIMESTAMP: true, kwCURRENT_USER: true,
+	kwCURSOR: true, kwDATABASE: true, kwDATABASES: true, kwDAY_HOUR: true, kwDAY_MICROSECOND: true,
+	kwDAY_MINUTE: true, kwDAY_SECOND: true, kwDECLARE: true, kwDECIMAL: true, kwDEFAULT: true,
+	kwDELAYED: true, kwDELETE: true, kwDESC: true, kwDESCRIBE: true, kwDETERMINISTIC: true,
+	kwDISTINCTROW: true, kwDIV: true, kwDOUBLE: true, kwDROP: true, kwDUAL: true, kwEACH: true,
+	kwELSE: true, kwELSEIF: true, kwENCLOSED: true, kwESCAPED: true, kwEXISTS_KW: true, kwEXIT: true,
+	kwEXPLAIN: true, kwFETCH: true, kwFLOAT: true, kwFLOAT4: true, kwFLOAT8: true, kwFOR: true,
+	kwFORCE: true, kwFOREIGN: true, kwFULLTEXT: true, kwGENERATED: true, kwGET: true, kwGRANT: true,
+	kwGROUP: true, kwHAVING: true, kwHIGH_PRIORITY: true, kwHOUR_MICROSECOND: true, kwHOUR_MINUTE: true,
+	kwHOUR_SECOND: true, kwIF: true, kwIGNORE: true, kwIN: true, kwINDEX: true, kwINFILE: true,
+	kwINNER: true, kwINOUT: true, kwINSENSITIVE: true, kwINSERT: true, kwINT: true, kwINT1: true,
+	kwINT2: true, kwINT3: true, kwINT4: true, kwINT8: true, kwINTEGER: true, kwINTERVAL: true,
+	kwINTO: true, kwIO_AFTER_GTIDS: true, kwIO_BEFORE_GTIDS: true, kwIS: true, kwITERATE: true,
+	kwJOIN: true, kwKEY: true, kwKEYS: true, kwKILL: true, kwLEAVE: true, kwLEFT: true, kwLIKE: true,
+	kwLIMIT: true, kwLINEAR: true, kwLINES: true, kwLOAD: true, kwLOCALTIME: true, kwLOCALTIMESTAMP: true,
+	kwLONG: true, kwLONGBLOB: true, kwLONGTEXT: true, kwLOOP: true, kwLOW_PRIORITY: true,
+	kwMASTER_BIND: true, kwMASTER_SSL_VERIFY_SERVER_CERT: true, kwMATCH: true, kwMEDIUMBLOB: true,
+	kwMEDIUMINT: true, kwMEDIUMTEXT: true, kwMIDDLEINT: true, kwMINUTE_MICROSECOND: true,
+	kwMINUTE_SECOND: true, kwMOD: true, kwMODIFIES: true, kwNATURAL: true, kwNOT: true,
+	kwNO_WRITE_TO_BINLOG: true, kwNUMERIC: true, kwON: true, kwOPTIMIZE: true, kwOPTION: true,
+	kwOPTIONALLY: true, kwOR: true, kwORDER: true, kwOUT: true, kwOUTER: true, kwOUTFILE: true,
+	kwPARTITION: true, kwPRECISION: true, kwPRIMARY: true, kwPROCEDURE: true, kwPURGE: true, kwREAD: true,
+	kwREADS: true, kwREAD_WRITE: true, kwREAL: true, kwREFERENCES: true, kwREGEXP: true, kwRELEASE: true,
+	kwRENAME: true, kwREPEAT: true, kwREPLACE: true, kwREQUIRE: true, kwRESIGNAL: true, kwRESTRICT: true,
+	kwRETURN: true, kwREVOKE: true, kwRIGHT: true, kwRLIKE: true, kwSCHEMA: true, kwSCHEMAS: true,
+	kwSECOND_MICROSECOND: true, kwSENSITIVE: true, kwSEPARATOR: true, kwSET: true, kwSHOW: true,
+	kwSIGNAL: true, kwSMALLINT: true, kwSPATIAL: true, kwSPECIFIC: true, kwSQL: true,
+	kwSQLEXCEPTION: true, kwSQLSTATE: true, kwSQLWARNING: true, kwSQL_BIG_RESULT: true,
+	kwSQL_SMALL_RESULT: true, kwSSL: true, kwSKIP: true, kwSTARTING: true, kwSTORED: true, kwTABLE: true,
+	kwTERMINATED: true, kwTHEN: true, kwTINYBLOB: true, kwTINYINT: true, kwTINYTEXT: true, kwTO: true,
+	kwTRIGGER: true, kwUNDO: true, kwUNION: true, kwUNLOCK: true, kwUNSIGNED: true, kwUPDATE: true,
+	kwUSAGE: true, kwUSE: true, kwUSING: true, kwUTC_DATE: true, kwUTC_TIME: true, kwUTC_TIMESTAMP: true,
+	kwVALUES: true, kwVARBINARY: true, kwVARCHAR: true, kwVARCHARACTER: true, kwVARYING: true,
+	kwVIRTUAL: true, kwWHERE: true, kwWHILE: true, kwWITH: true, kwWRITE: true, kwXOR: true,
+	kwYEAR_MONTH: true, kwZEROFILL: true,
+}
+
 // parseSpName reads sp_name, the name of a stored program with its database or without:
 //
 //	sp_name: ident '.' ident | ident
@@ -921,7 +1043,7 @@ func (p *Parser) parseSpName() (schema, name string, err error) {
 //	table_ref_alias:
 //	    table_ref [AS identifier | identifier]
 func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

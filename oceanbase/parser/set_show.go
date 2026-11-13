@@ -694,7 +694,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -745,7 +745,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -774,7 +774,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("table_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -808,7 +808,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("view_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -822,7 +822,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("procedure_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -836,7 +836,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("function_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -844,7 +844,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwTRIGGER:
 			stmt.Type = "CREATE TRIGGER"
 			p.advance()
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -894,7 +894,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -918,7 +918,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				if _, err := p.expectFromOrIn(); err != nil {
 					return nil, err
 				}
-				ref, err := p.parseTableRef()
+				ref, err := p.parseRelationFactor()
 				if err != nil {
 					return nil, err
 				}
@@ -955,7 +955,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -1003,7 +1003,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -1286,7 +1286,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwCODE {
 			stmt.Type = "PROCEDURE CODE"
 			p.advance() // consume CODE
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -1306,7 +1306,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwCODE {
 			stmt.Type = "FUNCTION CODE"
 			p.advance() // consume CODE
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -1505,7 +1505,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -1886,7 +1886,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 		// DESCRIBE tbl_name [col_name | wild]
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -2000,7 +2000,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		if stmt.Extended || stmt.Partitions || hasFormat {
 			return nil, p.syntaxErrorAtCur()
 		}
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}

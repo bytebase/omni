@@ -1,10 +1,10 @@
 // Command compatcheck fails a change to committed engine answers that only a
-// recording may make. It compares each compat.tsv the commits since <base>
-// change with the file at their merge base (see compat.Guard), and fails a
-// pin bump that also changes non-test Go code: a pin bump's diff must be
-// what the release changed, so omni's fixes go in later changes. A pin bump
-// is a compat.tsv recorded at a new pin, as its # pin: line shows; an edit
-// to pins.tsv alone bumps nothing.
+// recording may make. It compares each compat.tsv and simulate.tsv the
+// commits since <base> change with the file at their merge base (see
+// compat.Guard), and fails a pin bump that also changes non-test Go code: a
+// pin bump's diff must be what the release changed, so omni's fixes go in
+// later changes. A pin bump is a file recorded at a new pin, as its # pin:
+// line shows; an edit to pins.tsv alone bumps nothing.
 //
 // CI runs it on every pull request. From the repo root:
 //
@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/enginetest/compat"
+	"github.com/bytebase/omni/enginetest/simulate"
 )
 
 func main() {
@@ -30,18 +31,14 @@ func main() {
 	mergeBase := strings.TrimSpace(git("merge-base", base, "HEAD"))
 	changed := strings.Fields(git("diff", "--name-only", base+"...HEAD"))
 
-	type pair struct {
-		path          string
-		before, after *compat.File
-	}
-	var files []pair
 	bumped := map[string]bool{}
-	var code []string
+	var code, guarded []string
 	for _, f := range changed {
 		if strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") {
 			code = append(code, f)
 		}
-		if path.Base(f) != "compat.tsv" {
+		guard := guards[path.Base(f)]
+		if guard == nil {
 			continue
 		}
 		before, ok := show(mergeBase, f)
@@ -52,16 +49,14 @@ func main() {
 		if !ok {
 			continue // a deleted file
 		}
-		b, err := compat.Parse(mergeBase+":"+f, before)
+		problems, repinned, err := guard(mergeBase+":"+f, before, f, after)
 		if err != nil {
 			fail(err)
 		}
-		a, err := compat.Parse(f, after)
-		if err != nil {
-			fail(err)
+		for _, msg := range problems {
+			guarded = append(guarded, f+": "+msg)
 		}
-		files = append(files, pair{f, b, a})
-		if compat.PinChanged(b, a) {
+		if repinned {
 			bumped[top(f)] = true
 		}
 	}
@@ -71,16 +66,39 @@ func main() {
 		problems = append(problems, fmt.Sprintf("a pin bump changes the pin and the recorded answers only, but this change also edits %s; fix omni in a separate change",
 			strings.Join(code, ", ")))
 	}
-	for _, p := range files {
-		for _, msg := range compat.Guard(p.before, p.after) {
-			problems = append(problems, p.path+": "+msg)
-		}
-	}
+	problems = append(problems, guarded...)
 	if len(problems) > 0 {
 		fmt.Fprintf(os.Stderr, "compatcheck: %d problems:\n%s\n", len(problems), strings.Join(problems, "\n"))
 		os.Exit(1)
 	}
 	fmt.Println("compatcheck: committed answers change only as recordings change them")
+}
+
+// guards holds each kind of committed answer file to its rules: what a
+// change may not do to it, and whether the change recorded it at a new pin.
+var guards = map[string]func(beforeName string, before []byte, afterName string, after []byte) ([]string, bool, error){
+	"compat.tsv": func(beforeName string, before []byte, afterName string, after []byte) ([]string, bool, error) {
+		b, err := compat.Parse(beforeName, before)
+		if err != nil {
+			return nil, false, err
+		}
+		a, err := compat.Parse(afterName, after)
+		if err != nil {
+			return nil, false, err
+		}
+		return compat.Guard(b, a), compat.PinChanged(b, a), nil
+	},
+	"simulate.tsv": func(beforeName string, before []byte, afterName string, after []byte) ([]string, bool, error) {
+		b, err := simulate.Parse(beforeName, before)
+		if err != nil {
+			return nil, false, err
+		}
+		a, err := simulate.Parse(afterName, after)
+		if err != nil {
+			return nil, false, err
+		}
+		return simulate.Guard(b, a), simulate.PinChanged(b, a), nil
+	},
 }
 
 // top returns the top-level directory of a repo path: its engine.

@@ -43,7 +43,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 
 	// Table list
 	for {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +150,7 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 	}
 
 	for {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}

@@ -152,9 +152,24 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 	if _, ok := p.match(kwFROM); ok {
 		// Could be single-table: DELETE FROM tbl WHERE ...
 		// or multi-table syntax 2: DELETE FROM t1, t2 USING ...
-		tables, err := p.parseDeleteTableList()
-		if err != nil {
-			return nil, err
+		// A name with a leading dot is the single-table form's: its tbl_name is a
+		// relation_factor, where the multi-table list (relation_with_star_list) has
+		// none. Ref: delete_basic_stmt and multi_delete_table in
+		// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines 4162 and 4238).
+		var tables []nodes.TableExpr
+		leadingDot := p.cur.Type == '.'
+		if leadingDot {
+			ref, err := p.parseRelationFactor()
+			if err != nil {
+				return nil, err
+			}
+			tables = []nodes.TableExpr{ref}
+		} else {
+			list, err := p.parseDeleteTableList()
+			if err != nil {
+				return nil, err
+			}
+			tables = list
 		}
 		stmt.Tables = tables
 
@@ -164,7 +179,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		// USING holds bare table names (or aliases declared in USING), so an
 		// alias or PARTITION there followed by USING is a syntax error in
 		// MySQL.
-		singleTableOnly := false
+		singleTableOnly := leadingDot
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// Optional [AS] alias
