@@ -3,6 +3,15 @@ package catalog
 import nodes "github.com/bytebase/omni/oceanbase/ast"
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
+	// A table named twice is 1066 before any is looked up, IF EXISTS or not.
+	seen := map[[2]string]bool{}
+	for _, ref := range stmt.Tables {
+		k := [2]string{toLower(ref.Schema), toLower(ref.Name)}
+		if seen[k] {
+			return errNotUniqueTable(ref.Name)
+		}
+		seen[k] = true
+	}
 	for _, ref := range stmt.Tables {
 		dbName := ref.Schema
 		db, err := c.resolveDatabase(dbName)

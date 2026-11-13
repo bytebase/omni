@@ -3,8 +3,8 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"hash/fnv"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -268,11 +268,8 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 
 	// One pinned connection for ALL of this probe's statements (readbacks + setup + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	// readbackVia applies a CREATE in a throwaway db on this connection and returns its SHOW
 	// CREATE (the engine's authentic stored form). The throwaway db name is derived per-probe so
@@ -285,7 +282,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 			createSQL,
 		} {
 			if _, err := conn.ExecContext(ctx, s); err != nil {
-				t.Logf("[%s] %s readback setup failed (may be expected): %q: %v", o.name, p.id, s, err)
+				t.Logf("[%s] %s readback setup failed : %q: %v", o.name, p.id, s, err)
 				return "", false
 			}
 		}
@@ -306,7 +303,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if tableInTo {
 		rb, ok := readbackVia(applyDB+"_to", p.toDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+			t.Fatalf("[%s] could not obtain `to` readback for %s", o.name, p.id)
 		}
 		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -318,7 +315,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if tableInFrom {
 		rb, ok := readbackVia(applyDB+"_from", p.fromDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+			t.Fatalf("[%s] could not obtain `from` readback for %s", o.name, p.id)
 		}
 		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -340,7 +337,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
 		}
 	}
 
@@ -389,16 +386,12 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	}
 }
 
-// applyDBName builds a per-probe, identifier-safe apply-database name for the shared apply harness
-// so each probe (and each suite that reuses assertApplyCorrect) is isolated instead of contending
-// on one fixed `diffdb`. It combines the slugged probe id with a short hash of (process pid +
-// full test name): the test name (t.Name()) carries the suite path
-// (e.g. TestOracle_IndexMigrationApplyCorrectness/8.0/...) so two probes sharing an id across suites
-// get distinct databases within a process, and the pid salts the hash so two CONCURRENT `go test`
-// processes targeting the same engine never compute the same DROP/CREATE DATABASE name (the
-// remaining cross-process race the fixed `diffdb` had). The result stays well under MySQL's 64-char
-// identifier limit even with the harness's `_to` / `_from` throwaway suffixes appended. The `pa_`
-// prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
+// applyDBName builds a per-probe, identifier-safe apply-database name for the shared apply harness,
+// so each probe is isolated instead of contending on one fixed database. It combines the slugged
+// probe id with a short hash of the full test name (t.Name()), which carries the suite path, so two
+// probes sharing an id across suites get distinct databases. The name is the same on every run, as
+// a tape needs. It stays well under MySQL's 64-character limit with the harness's `_to` / `_from`
+// suffixes. The `pa_` prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
 func applyDBName(t *testing.T, probeID string) string {
 	t.Helper()
 	slug := strings.ReplaceAll(probeID, "-", "_")
@@ -406,7 +399,7 @@ func applyDBName(t *testing.T, probeID string) string {
 		slug = slug[:40]
 	}
 	h := fnv.New32a()
-	_, _ = fmt.Fprintf(h, "%d:%s", os.Getpid(), t.Name())
+	_, _ = fmt.Fprintf(h, "%s", t.Name())
 	return "pa_" + slug + "_" + strconv.FormatUint(uint64(h.Sum32()), 16)
 }
 
@@ -424,7 +417,7 @@ func TestOracle_MigrationIdempotence(t *testing.T) {
 				// Load the engine's stored form of the schema.
 				cat, _, rb, ok := o.catalogFromReadback(t, "gen_idem_"+strings.ReplaceAll(probe.id, "-", "_"), probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not obtain readback for %s", o.name, probe.id)
 				}
 				// Self-plan must be empty (idempotence spine).
 				diff := DiffWithNormalizer(cat, cat, n)
@@ -479,11 +472,8 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 
 				// One pinned connection for all statements so a pooled USE never lands on a
 				// different connection than the next statement.
-				conn, err := o.db.Conn(ctx)
-				if err != nil {
-					t.Fatalf("[%s] grab conn: %v", o.name, err)
-				}
-				defer func() { _ = conn.Close() }()
+				// A connection of its own: the test's other one stays free for the helpers.
+				conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 				readbackVia := func(throwaway, createSQL string) (string, bool) {
 					for _, s := range []string{
@@ -509,11 +499,11 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 				// qualifies tables as `applyDB`.`t` — the db we set up and apply in below.
 				fromRB, ok := readbackVia(applyDB+"_from", fromDDL)
 				if !ok {
-					t.Skipf("[%s] could not obtain `from` readback", o.name)
+					t.Fatalf("[%s] could not obtain `from` readback", o.name)
 				}
 				toRB, ok := readbackVia(applyDB+"_to", toDDL)
 				if !ok {
-					t.Skipf("[%s] could not obtain `to` readback", o.name)
+					t.Fatalf("[%s] could not obtain `to` readback", o.name)
 				}
 				fromCat, _ := loadOnePartTable(t, applyDB, sc, fromRB, "t")
 				toCat, _ := loadOnePartTable(t, applyDB, sc, toRB, "t")
@@ -539,7 +529,7 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 					fromDDL,
 				} {
 					if _, err := conn.ExecContext(ctx, s); err != nil {
-						t.Skipf("[%s] could not set up from-state: %q: %v", o.name, s, err)
+						t.Fatalf("[%s] could not set up from-state: %q: %v", o.name, s, err)
 					}
 				}
 				for _, op := range plan.Ops {

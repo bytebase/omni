@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -96,11 +97,8 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 	sc := serverCharsetFor(o.version)
 	ctx := context.Background()
 
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	applyDB := "aifk_" + slug
 	// Build the `to` catalog by applying both tables in the apply db, then reading them back.
@@ -112,13 +110,13 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 		childDDL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s `to` setup failed: %q: %v", o.name, id, s, err)
+			t.Fatalf("[%s] %s `to` setup failed: %q: %v", o.name, id, s, err)
 		}
 	}
 	readback := func(tbl string) string {
 		var name, ddl string
 		if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", applyDB, tbl)).Scan(&name, &ddl); err != nil {
-			t.Skipf("[%s] %s SHOW CREATE %s failed: %v", o.name, id, tbl, err)
+			t.Fatalf("[%s] %s SHOW CREATE %s failed: %v", o.name, id, tbl, err)
 		}
 		return ddl
 	}
@@ -141,7 +139,7 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 		"USE " + applyDB,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s apply db reset failed: %v", o.name, id, err)
+			t.Fatalf("[%s] %s apply db reset failed: %v", o.name, id, err)
 		}
 	}
 	for _, op := range plan.Ops {
@@ -186,11 +184,8 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 	sc := serverCharsetFor(o.version)
 	ctx := context.Background()
 
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	// Readback `to` in a throwaway db, then load it into the apply db so identities match.
 	for _, s := range []string{
@@ -200,12 +195,12 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 		p.createSQL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s `to` readback setup failed: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] %s `to` readback setup failed: %q: %v", o.name, p.id, s, err)
 		}
 	}
 	var name, rb string
 	if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE rto_%s.%s", slug, p.table)).Scan(&name, &rb); err != nil {
-		t.Skipf("[%s] %s SHOW CREATE failed: %v", o.name, p.id, err)
+		t.Fatalf("[%s] %s SHOW CREATE failed: %v", o.name, p.id, err)
 	}
 
 	applyDB := "ai_" + slug
@@ -221,7 +216,7 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 		"USE " + applyDB,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s apply db setup failed: %v", o.name, p.id, err)
+			t.Fatalf("[%s] %s apply db setup failed: %v", o.name, p.id, err)
 		}
 	}
 	for _, op := range plan.Ops {
