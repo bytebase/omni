@@ -842,6 +842,12 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 
 	switch toLower(opt.Name) {
+	case "table_id":
+		// OceanBase parses ALTER TABLE t TABLE_ID = n and refuses to run it: the
+		// pinned server answers 1064 on a table that exists and 1146 on one that
+		// does not (testdata/simulate.tsv, rule table_option/TABLE_ID). A table's
+		// id is given when it is created and never altered.
+		return &Error{Code: 1064, SQLState: "42000", Message: "TABLE_ID cannot be altered"}
 	case "engine":
 		tbl.Engine = opt.Value
 	case "charset", "character set", "default charset", "default character set":
