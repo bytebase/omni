@@ -668,7 +668,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Process partition clause.
 	for _, opt := range stmt.Options {
 		if strings.EqualFold(opt.Name, "ttl") {
-			if err := checkTTL(tbl, opt.Value); err != nil {
+			if err := checkTTL(tbl, opt); err != nil {
 				return err
 			}
 		}

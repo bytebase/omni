@@ -947,7 +947,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "delay_key_write":
 		tbl.DelayKeyWrite = opt.Value
 	case "ttl":
-		return checkTTL(tbl, opt.Value)
+		return checkTTL(tbl, opt)
 	}
 	return nil
 }
