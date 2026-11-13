@@ -159,14 +159,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			// Handle SERIAL: expands to BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
+				col.typeNode = colDef.TypeName
 				col.DataType = "bigint"
 				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "boolean" || typeName == "bool" {
+				col.typeNode = colDef.TypeName
 				col.DataType = "tinyint"
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			} else {
+				col.typeNode = colDef.TypeName
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
