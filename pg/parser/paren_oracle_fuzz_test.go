@@ -1,99 +1,36 @@
 package parser
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/bytebase/omni/enginetest/compat"
 )
 
-// TestParenOracleFuzz implements SCENARIOS-pg-paren-dispatch.md §2.8 — a
-// property-based fuzz corpus that generates balanced-paren FROM-clause SQL
-// and compares omni's routing against PG 17 accept/reject. It complements
-// §2.2–§2.7 (hand-written shape corpora) by exercising depth/composition
-// combinations no human would enumerate.
+// The paren fuzz generates balanced-paren FROM-clause statements from a
+// handful of template families (nested parens, SELECT/VALUES/WITH/TABLE
+// subqueries, set operations, joins, LATERAL, alias lists, obvious rejects)
+// and holds omni's routing of `(` to PostgreSQL on each. It complements the
+// hand-written shape tests (paren_oracle_from_*_test.go) with depths and
+// compositions no one would enumerate.
 //
-// Design:
-//
-//  1. Deterministic PRNG (fuzzSeed constant) so CI reruns produce the same
-//     corpus; no runtime-derived entropy.
-//  2. A handful of template families — nested parens, SELECT/VALUES/WITH/
-//     TABLE subqueries, UNION/INTERSECT/EXCEPT, JOIN/CROSS/NATURAL, LATERAL,
-//     alias/column-list, obvious-reject — random substitution per slot.
-//  3. Target size fuzzCorpusSizeDefault = 100 (tuned from the ~2-min-for-200-probes
-//     budget in paren_oracle_test.go minus overhead of PG + omni double-
-//     parse per probe; at ~500ms each this leaves margin).
-//  4. Probe each via ProbeParen (NOT assertParenParity — the fuzz loop
-//     collects results, classifies, and fails only if the mismatch rate
-//     exceeds fuzzMismatchThreshold).
-//  5. Mismatches persist to testdata/paren-fuzz-corpus/mismatches.txt with
-//     SQL + statuses + errors for human triage; discovered corpus is
-//     reproducible because of (1).
-//  6. testdata/paren-fuzz-corpus/seed-cases.txt (if present) is replayed
-//     as additional deterministic probes; this is where known-mismatch
-//     regressions get pinned after triage.
-//
-// A mismatch is any of:
-//   - PG accepts, omni rejects
-//   - PG rejects, omni accepts (any shape)
-//   - PG accepts, omni accepts but classifies as OmniOther (routing drift:
-//     we expected subquery or joined_table; anything else on a balanced-
-//     paren FROM shape means the routing fell through)
-//
-// PG-accept+omni-accept with OmniSubquery or OmniJoinedTable is green
-// regardless of WHICH of the two omni chose — the fuzz corpus doesn't
-// predict the target shape (that's §2.2–§2.7's job), only that the
-// accept/reject decision agrees.
+// The statements are rows of compat.tsv labelled parenFuzzLabel, judged once
+// in a recording like any other row. So accept against reject is
+// TestCompatibility's to hold: a statement only one side accepts is a
+// disagreeing row, and a change that adds one fails by name.
+// TestParenFuzzRows holds the rows to the generator, parenFuzzSize statements
+// from a fixed seed, and holds the one thing a verdict does not say: a
+// statement both accept routes its first FROM item, when that opens with a
+// paren, to a subquery or a joined table.
 const (
-	fuzzSeed              int64 = 0xBADC0DE1 // stable across CI runs
-	fuzzCorpusSizeDefault int   = 100
-
-	// fuzzCorpusDir is relative to the test binary's working directory
-	// (pg/parser/). seed-cases.txt, mismatches.txt, and
-	// known-mismatches.txt all live here.
-	fuzzCorpusDir = "testdata/paren-fuzz-corpus"
-
-	// fuzzDeferDir receives auto-persisted mismatches in CI-defer mode
-	// (see PAREN_FUZZ_DEFER env var below). One timestamped file per
-	// run; humans triage from there into known-mismatches.txt.
-	fuzzDeferDir = "testdata/paren-fuzz-defer"
-
-	// PAREN_FUZZ_SIZE overrides fuzzCorpusSizeDefault at runtime so CI
-	// can dial the per-PR batch (N=1000) up to nightly (N=10000) without
-	// recompiling. Unset or <=0 falls back to the default.
-	envFuzzSize = "PAREN_FUZZ_SIZE"
-
-	// PAREN_FUZZ_DEFER switches the strict set-equality gate against
-	// known-mismatches.txt into a non-blocking "log + persist" mode
-	// used by the CI fuzz job (§5.2). Non-empty value enables defer
-	// mode: new mismatches get written under fuzzDeferDir with a
-	// timestamp and the test returns success so the CI job doesn't
-	// auto-fail on findings that need human triage.
-	envFuzzDefer = "PAREN_FUZZ_DEFER"
+	fuzzSeed       int64 = 0xBADC0DE1
+	parenFuzzSize        = 10000
+	parenFuzzLabel       = "suite:paren-fuzz"
 )
-
-// fuzzCorpusSize resolves the effective corpus size for this run,
-// honouring the PAREN_FUZZ_SIZE env var (see envFuzzSize).
-func fuzzCorpusSize() int {
-	if v := strings.TrimSpace(os.Getenv(envFuzzSize)); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return n
-		}
-	}
-	return fuzzCorpusSizeDefault
-}
-
-// fuzzDeferMode reports whether the strict known-mismatches gate
-// should downgrade to log-and-persist (see envFuzzDefer).
-func fuzzDeferMode() bool {
-	return strings.TrimSpace(os.Getenv(envFuzzDefer)) != ""
-}
 
 // parenFuzzGenerator produces balanced-paren FROM-clause SQL statements
 // from a template family + random slot substitutions. It's deliberately
@@ -365,45 +302,21 @@ func (g *parenFuzzGenerator) genReservedMisuse() string {
 	}
 }
 
-// fuzzMismatch is one recorded divergence between PG and omni. Persisted
-// to mismatches.txt on test completion.
-type fuzzMismatch struct {
-	family string
-	sql    string
-	r      *ParenProbeResult
-}
-
-// isMismatch decides whether a probe result is a mismatch for fuzz
-// purposes. OmniOther on a PG-accept is treated as a mismatch because
-// the generator only produces FROM-clause shapes; OmniOther means
-// routing fell through to RangeVar/RangeFunction/etc., which on a
-// `SELECT * FROM (...)` probe we don't expect.
-//
-// One exception: some generator families emit shapes that resolve to a
-// bare RangeVar legitimately — `SELECT * FROM T, LATERAL (...)` classifies
-// on its first FROM item, which IS a RangeVar. We can't easily filter
-// those out pre-probe, so we accept OmniOther when the first FROM token
-// after `FROM ` is a bare identifier (not `(`).
-func isMismatch(sql string, r *ParenProbeResult) bool {
-	// PG vs omni accept/reject disagreement is always a mismatch.
-	pgAccept := r.PGStatus == PGAccept
-	omniAccept := r.OmniStatus != OmniRejected
-	if pgAccept != omniAccept {
-		return true
-	}
-	// Both reject: agreement.
-	if !pgAccept {
-		return false
-	}
-	// Both accept. OmniOther is suspicious unless the first FROM item
-	// is NOT a paren expression (LATERAL family emits FROM T, LATERAL (...)
-	// whose first item is a bare relation — OmniOther is correct there).
-	if r.OmniStatus == OmniOther {
-		if firstFromIsParen(sql) {
-			return true
+// parenFuzzStatements returns the sweep's distinct statements, in the order
+// the generator first makes them.
+func parenFuzzStatements() []string {
+	gen := newParenFuzzGenerator(fuzzSeed)
+	seen := map[string]bool{}
+	var out []string
+	for i := 0; i < parenFuzzSize; i++ {
+		sql, _ := gen.generateOne()
+		if seen[sql] {
+			continue
 		}
+		seen[sql] = true
+		out = append(out, sql)
 	}
-	return false
+	return out
 }
 
 // firstFromIsParen returns true iff the first token after `FROM` is `(`.
@@ -418,301 +331,66 @@ func firstFromIsParen(sql string) bool {
 	return strings.HasPrefix(rest, "(")
 }
 
-// loadSeedCases reads `testdata/paren-fuzz-corpus/seed-cases.txt` if it
-// exists. Blank lines and lines starting with `#` are skipped. Each
-// remaining line is one SQL statement replayed as an additional probe.
-func loadSeedCases(t *testing.T) []string {
-	t.Helper()
-	path := filepath.Join(fuzzCorpusDir, "seed-cases.txt")
-	f, err := os.Open(path)
-	if err != nil {
-		// seed-cases.txt is optional; silently skip if absent.
-		if os.IsNotExist(err) {
-			return nil
-		}
-		t.Logf("seed-cases.txt open: %v (continuing without seeds)", err)
-		return nil
-	}
-	defer f.Close()
-	var out []string
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		out = append(out, line)
-	}
-	if err := sc.Err(); err != nil {
-		t.Logf("seed-cases.txt read: %v (partial seeds used)", err)
-	}
-	return out
-}
-
-// persistMismatches writes the collected mismatches to mismatches.txt in
-// deterministic order (by SQL) so diffs across runs are meaningful.
+// TestParenFuzzRows fails when compat.tsv's parenFuzzLabel rows are not the
+// sweep's statements. -update-compat rewrites them, keeping the verdicts of
+// statements it had; a new one comes in unjudged, for a recording of
+// TestCompatibility to judge.
 //
-// Write failures are escalated to t.Fatalf: on a read-only CI worktree
-// the artifact silently disappearing would erase the regression signal
-// this file exists to provide. If the directory is legitimately
-// read-only for reasons beyond this test's control, the test should
-// fail loudly so the operator surfaces the misconfiguration.
-func persistMismatches(t *testing.T, mismatches []fuzzMismatch) {
-	t.Helper()
-	path := filepath.Join(fuzzCorpusDir, "mismatches.txt")
-	if len(mismatches) == 0 {
-		// If the file exists from a previous run but this run is clean,
-		// truncate it so the repo reflects current reality.
-		if _, err := os.Stat(path); err == nil {
-			if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
-				t.Fatalf("mismatches.txt truncate failed (read-only testdata?): %v", err)
-			}
-		}
-		return
-	}
-	// Sort for deterministic output.
-	sort.Slice(mismatches, func(i, j int) bool {
-		return mismatches[i].sql < mismatches[j].sql
-	})
-	var b strings.Builder
-	fmt.Fprintf(&b, "# paren-fuzz mismatches (seed=0x%x, corpus=%d)\n", fuzzSeed, fuzzCorpusSize())
-	fmt.Fprintf(&b, "# %d mismatches recorded; see README.md for format.\n\n", len(mismatches))
-	for i, m := range mismatches {
-		fmt.Fprintf(&b, "--- mismatch %d (family=%s) ---\n", i+1, m.family)
-		fmt.Fprintf(&b, "SQL:      %s\n", m.sql)
-		fmt.Fprintf(&b, "pg:       %s\n", m.r.PGStatus)
-		fmt.Fprintf(&b, "omni:     %s\n", m.r.OmniStatus)
-		fmt.Fprintf(&b, "pg_err:   %s\n", m.r.PGError)
-		fmt.Fprintf(&b, "omni_err: %s\n", m.r.OmniError)
-		fmt.Fprintf(&b, "duration: %v\n\n", m.r.Duration)
-	}
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
-		t.Fatalf("mismatches.txt write failed (read-only testdata?): %v", err)
-	}
-	t.Logf("wrote %d mismatches to %s", len(mismatches), path)
-}
-
-// mismatchKey normalizes a mismatch to the subset-comparable tuple
-// {sql, pg_status, omni_status}. Timestamps, durations, and exact error
-// text (which can vary across PG patch releases) are deliberately
-// dropped so the allowlist stays stable across benign infrastructure
-// churn.
-func mismatchKey(m fuzzMismatch) string {
-	return fmt.Sprintf("%s | %s | %s", m.sql, m.r.PGStatus, m.r.OmniStatus)
-}
-
-// loadKnownMismatches reads the known-mismatch allowlist from
-// `testdata/paren-fuzz-corpus/known-mismatches.txt`. Each non-blank,
-// non-# line is a pipe-separated {sql | pg_status | omni_status}
-// triple. Whitespace around each field is trimmed. Missing file is
-// treated as "no known mismatches" — discovered mismatches will then
-// fail the test, which is the right default on first run.
-func loadKnownMismatches(t *testing.T) map[string]struct{} {
-	t.Helper()
-	path := filepath.Join(fuzzCorpusDir, "known-mismatches.txt")
-	out := make(map[string]struct{})
-	f, err := os.Open(path)
+// It then checks the routing of every row PostgreSQL accepts and omni
+// parses. The generator only makes FROM-clause shapes, so a first FROM item
+// that opens with a paren and is neither a subquery nor a joined table
+// means the dispatch fell through. The LATERAL family writes FROM T,
+// LATERAL (...), whose first item is a plain relation; those are left out.
+func TestParenFuzzRows(t *testing.T) {
+	path := filepath.Join("testdata", "compat.tsv")
+	f, err := compat.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return out
-		}
-		t.Fatalf("known-mismatches.txt open: %v", err)
+		t.Fatal(err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+	want := parenFuzzStatements()
+
+	var kept []compat.Row
+	had := map[string]compat.Row{}
+	var got []string
+	for _, r := range f.Rows {
+		if r.Rule == parenFuzzLabel {
+			had[r.Statement] = r
+			got = append(got, r.Statement)
 			continue
 		}
-		parts := strings.Split(line, "|")
-		if len(parts) != 3 {
-			t.Fatalf("known-mismatches.txt malformed line (need 3 fields): %q", line)
+		kept = append(kept, r)
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		if !compat.Updating() {
+			t.Fatalf("%s holds %d %s rows, but the sweep makes %d other ones; rerun with -update-compat, then judge the new rows:\n  OMNI_RECORD=1 go test ./pg/parser/ -run '^TestCompatibility$'",
+				path, len(got), parenFuzzLabel, len(want))
 		}
-		sql := strings.TrimSpace(parts[0])
-		pgStat := strings.TrimSpace(parts[1])
-		omniStat := strings.TrimSpace(parts[2])
-		out[fmt.Sprintf("%s | %s | %s", sql, pgStat, omniStat)] = struct{}{}
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("known-mismatches.txt read: %v", err)
-	}
-	return out
-}
-
-func TestParenOracleFuzz(t *testing.T) {
-	o := StartParenOracle(t)
-
-	gen := newParenFuzzGenerator(fuzzSeed)
-
-	type probe struct {
-		sql    string
-		family string
-	}
-	size := fuzzCorpusSize()
-	probes := make([]probe, 0, size+32)
-	for i := 0; i < size; i++ {
-		sql, family := gen.generateOne()
-		probes = append(probes, probe{sql: sql, family: family})
-	}
-	// Replay seed-cases.txt on top of the random batch.
-	for _, s := range loadSeedCases(t) {
-		probes = append(probes, probe{sql: s, family: "seed"})
-	}
-
-	var (
-		mismatches []fuzzMismatch
-		byFamily   = make(map[string]int)
-		greenByFam = make(map[string]int)
-	)
-	for _, p := range probes {
-		r := ProbeParen(o.ctx, o, p.sql)
-		byFamily[p.family]++
-		if isMismatch(p.sql, r) {
-			mismatches = append(mismatches, fuzzMismatch{
-				family: p.family, sql: p.sql, r: r,
-			})
-		} else {
-			greenByFam[p.family]++
-		}
-	}
-
-	total := len(probes)
-	t.Logf("fuzz corpus: %d probes, %d mismatches", total, len(mismatches))
-	// Per-family green/total report — helps triage when a new mismatch lands.
-	fams := make([]string, 0, len(byFamily))
-	for f := range byFamily {
-		fams = append(fams, f)
-	}
-	sort.Strings(fams)
-	for _, f := range fams {
-		t.Logf("  family %-18s green=%3d / total=%3d", f, greenByFam[f], byFamily[f])
-	}
-
-	persistMismatches(t, mismatches)
-
-	// Log up to 5 sample divergences inline so CI logs reveal the pattern
-	// without requiring an artifact download.
-	for i, m := range mismatches {
-		if i >= 5 {
-			t.Logf("  ... (%d more mismatches persisted to mismatches.txt)",
-				len(mismatches)-5)
-			break
-		}
-		t.Logf("  mismatch[%s]: %q → pg=%s omni=%s",
-			m.family, summarize(m.sql), m.r.PGStatus, m.r.OmniStatus)
-	}
-
-	// Known-mismatch allowlist enforcement (C3.1 fix).
-	//
-	// We require set-equality between the discovered mismatches (keyed
-	// by {sql, pg_status, omni_status}) and the allowlist in
-	// testdata/paren-fuzz-corpus/known-mismatches.txt. Previously the
-	// harness accepted up to 15% mismatches, which left ~3 regression
-	// slots unfilled — new bugs could land silently. Strict set-equality
-	// forces two properties:
-	//   (a) any NEW mismatch fails the test (regression caught),
-	//   (b) any EXPECTED mismatch that disappears also fails (drives
-	//       known-mismatches.txt to be re-baselined when a bug is fixed).
-	known := loadKnownMismatches(t)
-	discovered := make(map[string]struct{}, len(mismatches))
-	for _, m := range mismatches {
-		discovered[mismatchKey(m)] = struct{}{}
-	}
-	var unexpected, disappeared []string
-	for k := range discovered {
-		if _, ok := known[k]; !ok {
-			unexpected = append(unexpected, k)
-		}
-	}
-	for k := range known {
-		if _, ok := discovered[k]; !ok {
-			disappeared = append(disappeared, k)
-		}
-	}
-	sort.Strings(unexpected)
-	sort.Strings(disappeared)
-
-	// CI-defer mode (SCENARIOS §5.2): the ci.yml fuzz job runs with
-	// PAREN_FUZZ_DEFER=1 and a larger corpus. In that mode we don't
-	// want a fresh mismatch to auto-fail the build — the fuzz corpus
-	// is inherently probabilistic at N=1000+ and humans need to triage
-	// each finding before pinning it to known-mismatches.txt. So we
-	// persist unexpected mismatches to testdata/paren-fuzz-defer/
-	// <timestamp>.txt and return green. Disappeared mismatches are
-	// still reported (as info) because a fuzz run at larger N is a
-	// superset — anything in known-mismatches should still appear.
-	if fuzzDeferMode() {
-		if len(unexpected) > 0 {
-			if err := persistDeferredMismatches(t, mismatches, known); err != nil {
-				t.Fatalf("defer persist: %v", err)
+		for _, sql := range want {
+			r, ok := had[sql]
+			if !ok {
+				r = compat.Row{Omni: compat.Unjudged, Expected: compat.Unjudged, Source: "-", Rule: parenFuzzLabel, Statement: sql}
 			}
-			t.Logf("fuzz-defer: %d new mismatch(es) logged to %s for triage",
-				len(unexpected), fuzzDeferDir)
+			kept = append(kept, r)
 		}
-		if len(disappeared) > 0 {
-			t.Logf("fuzz-defer: %d known mismatch(es) did not reproduce at N=%d (expected when larger N shifts RNG sampling)",
-				len(disappeared), size)
+		f.Rows = kept
+		if err := f.Write(path); err != nil {
+			t.Fatal(err)
 		}
+		t.Logf("rewrote the %d %s rows of %s", len(want), parenFuzzLabel, path)
 		return
 	}
 
-	if len(unexpected) > 0 || len(disappeared) > 0 {
-		if len(unexpected) > 0 {
-			t.Errorf("fuzz discovered %d NEW mismatch(es) not in known-mismatches.txt:", len(unexpected))
-			for _, k := range unexpected {
-				t.Errorf("  + %s", k)
-			}
-		}
-		if len(disappeared) > 0 {
-			t.Errorf("fuzz: %d expected mismatch(es) disappeared from known-mismatches.txt (update the allowlist after verifying the fix):", len(disappeared))
-			for _, k := range disappeared {
-				t.Errorf("  - %s", k)
-			}
-		}
-		t.Fatalf("fuzz mismatch set differs from known-mismatches.txt; see testdata/paren-fuzz-corpus/mismatches.txt for full triage")
-	}
-}
-
-// persistDeferredMismatches writes only the NEW (not-in-known) mismatches
-// to a timestamped file under testdata/paren-fuzz-defer/. Used by the
-// CI fuzz job running with PAREN_FUZZ_DEFER=1 so regressions don't
-// auto-fail the pipeline but do get surfaced for human triage.
-func persistDeferredMismatches(t *testing.T, all []fuzzMismatch, known map[string]struct{}) error {
-	t.Helper()
-	if err := os.MkdirAll(fuzzDeferDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", fuzzDeferDir, err)
-	}
-	stamp := time.Now().UTC().Format("20060102T150405Z")
-	path := filepath.Join(fuzzDeferDir, stamp+".txt")
-	var b strings.Builder
-	fmt.Fprintf(&b, "# paren-fuzz deferred mismatches (seed=0x%x, corpus=%d, timestamp=%s)\n",
-		fuzzSeed, fuzzCorpusSize(), stamp)
-	fmt.Fprintf(&b, "# NEW mismatches (not present in known-mismatches.txt).\n")
-	fmt.Fprintf(&b, "# Triage: if legitimate, move the line into known-mismatches.txt; if a bug, fix and drop here.\n\n")
-	n := 0
-	// Deterministic ordering.
-	sort.Slice(all, func(i, j int) bool { return all[i].sql < all[j].sql })
-	for _, m := range all {
-		if _, ok := known[mismatchKey(m)]; ok {
+	routed := 0
+	for _, r := range f.Rows {
+		if r.Rule != parenFuzzLabel || r.Expected != compat.Accept || !firstFromIsParen(r.Statement) {
 			continue
 		}
-		n++
-		fmt.Fprintf(&b, "--- deferred mismatch %d (family=%s) ---\n", n, m.family)
-		fmt.Fprintf(&b, "SQL:      %s\n", m.sql)
-		fmt.Fprintf(&b, "pg:       %s\n", m.r.PGStatus)
-		fmt.Fprintf(&b, "omni:     %s\n", m.r.OmniStatus)
-		fmt.Fprintf(&b, "pg_err:   %s\n", m.r.PGError)
-		fmt.Fprintf(&b, "omni_err: %s\n\n", m.r.OmniError)
+		switch status, _ := classifyOmni(r.Statement); status {
+		case OmniSubquery, OmniJoinedTable:
+			routed++
+		case OmniOther:
+			t.Errorf("omni routes the first FROM item to neither a subquery nor a joined table:\n    %s", r.Statement)
+		}
 	}
-	if n == 0 {
-		// Nothing to write.
-		return nil
-	}
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	return nil
+	t.Logf("%d %s rows; %d that PostgreSQL accepts open FROM with a paren and route to a subquery or a joined table", len(want), parenFuzzLabel, routed)
 }
