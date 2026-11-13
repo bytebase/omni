@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
+	obparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 // checkAlterTableOptions refuses an ALTER TABLE whose table options OceanBase
@@ -187,104 +188,65 @@ func validOffsetZone(text string) bool {
 	return minutes <= 13*60
 }
 
-// An optionToken is one token of an option's value as the parser keeps it, the
-// written text: a string (adjacent strings folded into one, escapes decoded), one
-// of the punctuation marks ( ) , =, or a run of other characters. Comments are
-// dropped, so a comma or = inside one separates nothing.
+// An optionToken is one token of an option's value, read with the parser's own
+// lexer (obparser.Tokenize): the same words, comments and escapes the parser saw
+// when it accepted the statement. A comment of any form — /* */, /*! */, -- and #
+// — is read as the parser reads it, so what one holds separates nothing.
 type optionToken struct {
 	text  string
-	str   bool // a string literal
+	str   bool // a string literal, whose text is decoded
 	punct byte // '(', ')', ',' or '=' for punctuation, else 0
 }
 
+// stringTokenType is the lexer's type for a string literal, taken from the lexer
+// rather than named here, since the parser exports no token constants. A lexer
+// that stopped answering this leaves strings read as their decoded text, folding
+// no adjacent pair.
+var stringTokenType = func() int {
+	if toks := obparser.Tokenize("''"); len(toks) == 1 {
+		return toks[0].Type
+	}
+	return 0
+}()
+
+// lexOption reads an option's value into tokens, folding adjacent string literals
+// as the parser folds them ('DA' 'Y' is DAY).
 func lexOption(text string) []optionToken {
 	var toks []optionToken
-	for i := 0; i < len(text); {
-		c := text[i]
+	for _, tok := range obparser.Tokenize(text) {
 		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			i++
-		case c == '#' || (c == '-' && strings.HasPrefix(text[i:], "-- ")):
-			for i < len(text) && text[i] != '\n' {
-				i++
+		case tok.Type == stringTokenType:
+			if n := len(toks) - 1; n >= 0 && toks[n].str {
+				toks[n].text += tok.Str
+				continue
 			}
-		case strings.HasPrefix(text[i:], "/*"):
-			if j := strings.Index(text[i+2:], "*/"); j >= 0 {
-				i += j + 4
-			} else {
-				i = len(text)
-			}
-		case c == '\'' || c == '"':
-			value, n := decodeOptionString(text[i:])
-			i += n
-			if k := len(toks) - 1; k >= 0 && toks[k].str {
-				toks[k].text += value // 'DA' 'Y' is 'DAY'
-			} else {
-				toks = append(toks, optionToken{text: value, str: true})
-			}
-		case c == '(' || c == ')' || c == ',' || c == '=':
-			toks = append(toks, optionToken{text: string(c), punct: c})
-			i++
+			toks = append(toks, optionToken{text: tok.Str, str: true})
+		case tok.Type == '(' || tok.Type == ')' || tok.Type == ',' || tok.Type == '=':
+			toks = append(toks, optionToken{text: tok.Str, punct: byte(tok.Type)})
 		default:
-			j := i
-			for j < len(text) && !strings.ContainsRune(" \t\n\r#'\"(),=", rune(text[j])) && !strings.HasPrefix(text[j:], "/*") && !strings.HasPrefix(text[j:], "-- ") {
-				j++
-			}
-			toks = append(toks, optionToken{text: text[i:j]})
-			i = j
+			toks = append(toks, optionToken{text: tok.Str})
 		}
 	}
 	return toks
 }
 
-// decodeOptionString decodes the string literal text starts with and returns it and
-// the bytes it took: a doubled quote is one, and a backslash escapes the next byte.
-func decodeOptionString(text string) (string, int) {
-	quote := text[0]
-	var b strings.Builder
-	i := 1
-	for i < len(text) {
-		c := text[i]
-		switch {
-		case c == '\\' && i+1 < len(text):
-			switch e := text[i+1]; e {
-			case 'n':
-				b.WriteByte('\n')
-			case 't':
-				b.WriteByte('\t')
-			case 'r':
-				b.WriteByte('\r')
-			case '0':
-				b.WriteByte(0)
-			default:
-				b.WriteByte(e)
-			}
-			i += 2
-		case c == quote && i+1 < len(text) && text[i+1] == quote:
-			b.WriteByte(quote)
-			i += 2
-		case c == quote:
-			return b.String(), i + 1
-		default:
-			b.WriteByte(c)
-			i++
-		}
-	}
-	return b.String(), i
-}
-
-// unquoteOption is an option's value as OceanBase reads it: a string literal decoded,
-// or the written text of anything else.
+// unquoteOption is an option's value as OceanBase reads it: a string literal
+// decoded, the written word of anything else, and the words joined by a space
+// where the value is several, as HOT_RETENTION = 1 YEAR.
 func unquoteOption(value string) string {
 	toks := lexOption(value)
 	if len(toks) > 0 && toks[0].punct == '=' {
-		// The option's optional =, which a comment before it keeps in the text.
+		// The option's optional =, which the parser keeps in the value's text.
 		toks = toks[1:]
 	}
 	if len(toks) == 1 {
 		return toks[0].text
 	}
-	return strings.TrimSpace(value)
+	words := make([]string, len(toks))
+	for i, t := range toks {
+		words[i] = t.text
+	}
+	return strings.Join(words, " ")
 }
 
 // optionEntries reads a (key = value, ...) list. ok is false when an entry is not
