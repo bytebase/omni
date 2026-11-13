@@ -2436,11 +2436,12 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// SUBSTRING '(' func_arg_list_opt ')' with an empty list: a plain call.
 	if p.cur.Type == ')' {
 		p.advance()
 		return &nodes.FuncCall{
-			Funcname:   makeFuncName("pg_catalog", "substring"),
-			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+			Funcname:   makeFuncName("substring"),
+			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 			Loc:        nodes.NoLoc(),
 		}, nil
 	}
@@ -2576,19 +2577,12 @@ func (p *Parser) parseSubstringExpr() (nodes.Node, error) {
 		return nil, err
 	}
 
-	if len(args) > 1 {
-		// Regular function call form: substring(str, start, len)
-		return &nodes.FuncCall{
-			Funcname:   makeFuncName("substring"),
-			Args:       &nodes.List{Items: args},
-			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Loc:        nodes.NoLoc(),
-		}, nil
-	}
+	// SUBSTRING '(' func_arg_list_opt ')': a plain call, whatever the
+	// number of arguments (substr_list always has a delimiter).
 	return &nodes.FuncCall{
-		Funcname:   makeFuncName("pg_catalog", "substring"),
+		Funcname:   makeFuncName("substring"),
 		Args:       &nodes.List{Items: args},
-		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
 		Loc:        nodes.NoLoc(),
 	}, nil
 }
