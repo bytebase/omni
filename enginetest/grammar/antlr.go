@@ -40,6 +40,9 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 	if len(g.rules) == 0 {
 		return nil, fmt.Errorf("no parser rules found")
 	}
+	if err := g.sampleRules(tokens); err != nil {
+		return nil, err
+	}
 	if _, ok := g.termText["EOF"]; !ok && !g.unreachable["EOF"] {
 		g.termText["EOF"] = ""
 	}

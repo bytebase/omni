@@ -475,3 +475,31 @@ s : 'SELECT' ( ID | QUOTED | ION 'ION' ) ;
 		}
 	}
 }
+
+// TestReadANTLRSamplesARuleFromTheTokenTable pins a token table row that
+// names a rule of a .g4, as one may name a rule of a bison grammar: other
+// rules' rows write its text where it stands, and its own alternatives keep
+// their rows.
+func TestReadANTLRSamplesARuleFromTheTokenTable(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' term ('+' term)? ;
+term : 'CURRENT_USER' | ID ;
+`, tokens(map[string]string{"ID": "a", "term": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := g.Rows()
+	got := map[string]string{}
+	for _, r := range rows {
+		got[r.Rule] = r.Statement
+	}
+	for rule, want := range map[string]string{
+		"s(+_term)?/+_term": "SELECT a + a",
+		"term/CURRENT_USER": "SELECT CURRENT_USER",
+		"term/ID":           "SELECT a",
+	} {
+		if got[rule] != want {
+			t.Errorf("%s = %q, want %q", rule, got[rule], want)
+		}
+	}
+}
