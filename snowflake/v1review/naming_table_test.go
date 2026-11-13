@@ -10,7 +10,7 @@ import (
 )
 
 // finding is a finding as the tests compare it: the code, the judged name,
-// and the text its range anchors.
+// and the text its range anchors, which is the statement node's range.
 type finding struct {
 	Code v1review.Code
 	Name string
@@ -43,77 +43,45 @@ func TestNamingTable(t *testing.T) {
 		config v1review.NamingConfig
 		want   []finding
 	}{
-		{
-			name:   "a statement under EXPLAIN, which does not run it",
-			sql:    "EXPLAIN CREATE TABLE OrderItem (id INT);",
-			config: pattern,
-		},
+		{name: "a statement under EXPLAIN is not judged", sql: "EXPLAIN CREATE TABLE OrderItem (id INT);", config: pattern},
 		{name: "create ok", sql: "CREATE TABLE order_item (id INT PRIMARY KEY);", config: pattern},
-		{name: "identifier literal judged by the name it spells", sql: "CREATE TABLE IDENTIFIER('order_item') (id INT);", config: pattern},
-		{name: "identifier literal qualifier not judged", sql: "CREATE TABLE IDENTIFIER('Shop.PUBLIC.order_item') (id INT);", config: pattern},
-		{
-			name:   "identifier literal mismatch",
-			sql:    `CREATE TABLE identifier('"OrderItem"') (id INT);`,
-			config: pattern,
-			want:   []finding{mismatch("OrderItem", `identifier('"OrderItem"')`)},
-		},
-		{name: "identifier variable not judged", sql: "CREATE TABLE IDENTIFIER($tbl) (id INT);", config: pattern},
-		{
-			name:   "identifier literal on rename",
-			sql:    "ALTER TABLE t RENAME TO IDENTIFIER('OrderItem');",
-			config: pattern,
-			want:   []finding{mismatch("OrderItem", "IDENTIFIER('OrderItem')")},
-		},
 		{
 			name:   "create mismatch",
 			sql:    "CREATE TABLE OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE OrderItem (id INT PRIMARY KEY)")},
 		},
 		{name: "qualifier not judged", sql: "CREATE TABLE Shop.order_item (id INT PRIMARY KEY);", config: pattern},
 		{
 			name:   "qualified name judged",
 			sql:    "CREATE TABLE shop.public.OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "shop.public.OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE shop.public.OrderItem (id INT PRIMARY KEY)")},
 		},
 		{
 			name:   "or replace",
 			sql:    "CREATE OR REPLACE TABLE OrderItem (id INT);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE OR REPLACE TABLE OrderItem (id INT)")},
 		},
 		{
 			name:   "temporary and transient tables judged",
 			sql:    "CREATE TEMPORARY TABLE TmpStage (id INT);\nCREATE TRANSIENT TABLE TmpStage (id INT);",
 			config: pattern,
 			want: []finding{
-				mismatch("TmpStage", "TmpStage"),
-				mismatch("TmpStage", "TmpStage"),
+				mismatch("TmpStage", "CREATE TEMPORARY TABLE TmpStage (id INT)"),
+				mismatch("TmpStage", "CREATE TRANSIENT TABLE TmpStage (id INT)"),
 			},
 		},
+		{name: "create as select not judged", sql: "CREATE TABLE BadSel AS SELECT id FROM t;", config: pattern},
+		{name: "create like and clone not judged", sql: "CREATE TABLE BadCopy LIKE t;\nCREATE TABLE BadClone CLONE t;", config: pattern},
 		{
-			name:   "create as select",
-			sql:    "CREATE TABLE BadSel AS SELECT id FROM t;",
-			config: pattern,
-			want:   []finding{mismatch("BadSel", "BadSel")},
-		},
-		{
-			name:   "create like and clone",
-			sql:    "CREATE TABLE BadCopy LIKE t;\nCREATE TABLE BadClone CLONE t;",
-			config: pattern,
-			want: []finding{
-				mismatch("BadCopy", "BadCopy"),
-				mismatch("BadClone", "BadClone"),
-			},
-		},
-		{
-			name:   "alter rename judges only the new name",
+			name:   "alter rename judges only the new name, anchored from TABLE",
 			sql:    "ALTER TABLE BadOld RENAME TO NewName;\nALTER TABLE IF EXISTS t RENAME TO s.NewName;",
 			config: pattern,
 			want: []finding{
-				mismatch("NewName", "NewName"),
-				mismatch("NewName", "s.NewName"),
+				mismatch("NewName", "TABLE BadOld RENAME TO NewName"),
+				mismatch("NewName", "TABLE IF EXISTS t RENAME TO s.NewName"),
 			},
 		},
 		{
@@ -126,15 +94,30 @@ func TestNamingTable(t *testing.T) {
 			sql:    "CREATE TABLE \"OrderItem\" (id INT);\nCREATE TABLE \"order_item\" (id INT);\nCREATE TABLE ORDER_ITEM (id INT);",
 			config: pattern,
 			want: []finding{
-				mismatch("OrderItem", `"OrderItem"`),
-				mismatch("ORDER_ITEM", "ORDER_ITEM"),
+				mismatch("OrderItem", `CREATE TABLE "OrderItem" (id INT)`),
+				mismatch("ORDER_ITEM", "CREATE TABLE ORDER_ITEM (id INT)"),
 			},
 		},
 		{
-			name:   "length counts code points",
+			name:   "a quoted name keeps its inner quotes doubled",
+			sql:    `CREATE TABLE "a""b" (id INT);`,
+			config: pattern,
+			want:   []finding{mismatch(`a""b`, `CREATE TABLE "a""b" (id INT)`)},
+		},
+		{
+			name:   "an identifier literal is judged as written",
+			sql:    "CREATE TABLE IDENTIFIER('order_item') (id INT);\nALTER TABLE t RENAME TO IDENTIFIER($tbl);",
+			config: pattern,
+			want: []finding{
+				mismatch("IDENTIFIER('order_item')", "CREATE TABLE IDENTIFIER('order_item') (id INT)"),
+				mismatch("IDENTIFIER($tbl)", "TABLE t RENAME TO IDENTIFIER($tbl)"),
+			},
+		},
+		{
+			name:   "length counts bytes",
 			sql:    "CREATE TABLE \"数据表\" (id INT);",
-			config: v1review.NamingConfig{MaxLength: 2},
-			want:   []finding{{v1review.NameTooLong, "数据表", `"数据表"`}},
+			config: v1review.NamingConfig{MaxLength: 8},
+			want:   []finding{{v1review.NameTooLong, "数据表", `CREATE TABLE "数据表" (id INT)`}},
 		},
 		{name: "length within limit", sql: "CREATE TABLE order_item (id INT PRIMARY KEY);", config: v1review.NamingConfig{MaxLength: 10}},
 		{
@@ -142,8 +125,8 @@ func TestNamingTable(t *testing.T) {
 			sql:    "CREATE TABLE Toolong5 (id INT);",
 			config: v1review.NamingConfig{Pattern: "^[a-z]+$", MaxLength: 4},
 			want: []finding{
-				{v1review.NameMismatch, "Toolong5", "Toolong5"},
-				{v1review.NameTooLong, "Toolong5", "Toolong5"},
+				{v1review.NameMismatch, "Toolong5", "CREATE TABLE Toolong5 (id INT)"},
+				{v1review.NameTooLong, "Toolong5", "CREATE TABLE Toolong5 (id INT)"},
 			},
 		},
 		{name: "empty config requires nothing", sql: "CREATE TABLE OrderItem (id INT PRIMARY KEY);"},
@@ -151,13 +134,13 @@ func TestNamingTable(t *testing.T) {
 			name:   "findings in statement order",
 			sql:    "CREATE TABLE order_item (id INT PRIMARY KEY);\nCREATE TABLE OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE OrderItem (id INT PRIMARY KEY)")},
 		},
+		{name: "a scripting block is not judged", sql: "BEGIN\n  CREATE TABLE Bad (id INT);\nEND", config: pattern},
 		{
-			name:   "inside a block",
-			sql:    "BEGIN\n  CREATE TABLE Bad (id INT);\nEND",
+			name:   "a task body is not judged",
+			sql:    "CREATE TASK tk WAREHOUSE = wh SCHEDULE = '1 MINUTE' AS CREATE TABLE Bad (id INT);",
 			config: pattern,
-			want:   []finding{mismatch("Bad", "Bad")},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -7,23 +7,30 @@ package v1review
 import (
 	"regexp"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/v1review"
 )
 
-// NamingTable judges every table name the statements introduce against
-// cfg: the table a CREATE TABLE (plain, CTAS, or AS CLONE OF) or a
-// SELECT ... INTO creates, and the new name a RENAME OBJECT or an
-// sp_rename gives, at top level or inside a routine body. The name is
-// judged as written, without its database or schema qualifier, a
-// temporary table's # prefix included; CREATE EXTERNAL and REMOTE TABLE
-// are not judged. The rule reads an sp_rename with no type or OBJECT, not
-// through another database, the old name readable; the SQL alone cannot
-// tell such a rename's table from a view, so the new name is judged
-// either way. NameMismatch and NameTooLong are the codes. Ported from
-// Bytebase's V1 rule NAMING_TABLE.
+// NamingTable judges the table names top-level statements introduce
+// against cfg: the table a plain CREATE TABLE creates, and the second
+// argument of an EXEC sp_rename. Statements nested in a routine body or an
+// IF or BEGIN block are not judged, nor are CREATE TABLE AS SELECT, CREATE
+// TABLE AS CLONE OF, SELECT INTO, and RENAME OBJECT. A CREATE TABLE name is
+// judged as written without its database or schema qualifier, a temporary
+// table's # prefix included.
+//
+// Every unqualified sp_rename call is judged, whatever its @objtype, so a
+// column, index, user data type, or database rename is judged too; a
+// schema-qualified call such as sys.sp_rename is not. The judged name is
+// the second argument read positionally even when arguments are named, so
+// in sp_rename @newname = 'a', @objname = 'b' the name judged is b. Any
+// literal there is judged, its text with one pair of enclosing single
+// quotes removed; a variable is not judged.
+//
+// Lengths are in bytes. Every finding anchors the whole statement.
+// NameMismatch and NameTooLong are the codes. Ported from Bytebase's V1
+// rule NAMING_TABLE.
 func NamingTable(stmts []ast.Node, cfg v1review.NamingConfig) ([]v1review.Finding, error) {
 	pattern, err := cfg.Compile()
 	if err != nil {
@@ -34,52 +41,42 @@ func NamingTable(stmts []ast.Node, cfg v1review.NamingConfig) ([]v1review.Findin
 	}
 	naming := &tableNaming{pattern: pattern, max: cfg.MaxLength}
 	for _, stmt := range stmts {
-		if stmt == nil {
-			continue
-		}
-		ast.Inspect(stmt, func(n ast.Node) bool {
-			switch v := n.(type) {
-			case *ast.CreateTableStmt:
-				if v.Name != nil {
-					naming.check(v.Name.Loc, v.Name.Object)
-				}
-			case *ast.CreateTableAsSelectStmt:
-				if v.Name != nil {
-					naming.check(v.Name.Loc, v.Name.Object)
-				}
-			case *ast.CreateTableCloneStmt:
-				if v.Name != nil {
-					naming.check(v.Name.Loc, v.Name.Object)
-				}
-			case *ast.SelectStmt:
-				if v.IntoTable != nil {
-					naming.check(v.IntoTable.Loc, v.IntoTable.Object)
-				}
-			case *ast.RenameStmt:
-				if v.ColumnName == "" && !strings.EqualFold(v.ObjectType, "DATABASE") {
-					naming.check(v.Loc, v.NewName)
-				}
-			case *ast.ExecStmt:
-				name, newName, kind, ok := spRename(v)
-				if !ok {
-					return true
-				}
-				switch strings.ToUpper(kind) {
-				case "", "OBJECT":
-					// sp_rename called through another database renames
-					// an object there.
-					if v.Name.Database != "" || v.Name.Server != "" {
-						return true
-					}
-					if readableObjectName(name) {
-						naming.check(v.Loc, newName)
-					}
-				}
+		switch n := stmt.(type) {
+		case *ast.CreateTableStmt:
+			if n.Name != nil {
+				naming.check(n.Loc, n.Name.Object)
 			}
-			return true
-		})
+		case *ast.ExecStmt:
+			if name, ok := spRenameNewName(n); ok {
+				naming.check(n.Loc, name)
+			}
+		}
 	}
 	return naming.findings, nil
+}
+
+// spRenameNewName returns the literal second argument of an unqualified
+// sp_rename call.
+func spRenameNewName(n *ast.ExecStmt) (string, bool) {
+	if n.Name == nil || n.Name.Schema != "" || !strings.EqualFold(n.Name.Object, "sp_rename") {
+		return "", false
+	}
+	if n.Args == nil || n.Args.Len() < 2 {
+		return "", false
+	}
+	arg, ok := n.Args.Items[1].(*ast.ExecArg)
+	if !ok || arg == nil {
+		return "", false
+	}
+	lit, ok := arg.Value.(*ast.Literal)
+	if !ok || lit == nil {
+		return "", false
+	}
+	name := lit.Str
+	if len(name) >= 2 && strings.HasPrefix(name, "'") && strings.HasSuffix(name, "'") {
+		name = name[1 : len(name)-1]
+	}
+	return name, true
 }
 
 // tableNaming applies NamingTable's compiled config.
@@ -90,135 +87,23 @@ type tableNaming struct {
 }
 
 func (c *tableNaming) check(loc ast.Loc, name string) {
+	if name == "" {
+		return
+	}
 	start, end := span(loc)
 	if c.pattern != nil && !c.pattern.MatchString(name) {
 		c.findings = append(c.findings, v1review.Finding{Code: v1review.NameMismatch, Name: name, Start: start, End: end})
 	}
-	if c.max > 0 && utf8.RuneCountInString(name) > c.max {
+	if c.max > 0 && len(name) > c.max {
 		c.findings = append(c.findings, v1review.Finding{Code: v1review.NameTooLong, Name: name, Start: start, End: end})
 	}
 }
 
-// span returns a Loc as a finding's byte range, 0,0 when the AST kept none.
+// span returns a Loc as a finding's byte range, 0,0 when the AST kept no
+// start. A missing end collapses the range to its start.
 func span(loc ast.Loc) (int, int) {
-	if loc.Start < 0 || loc.End <= loc.Start {
+	if loc.Start < 0 {
 		return 0, 0
 	}
-	return loc.Start, loc.End
-}
-
-// spRename reads a call of sp_rename: the object name, the new name, and
-// the object type, from positional or named arguments; ok is false for
-// another call, or one whose names are not string literals. Inlined from
-// the V2 mssql review package's helper of the same name, since V1 and V2
-// share no code.
-//
-// sql: https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-rename-transact-sql
-func spRename(v *ast.ExecStmt) (name, newName, kind string, ok bool) {
-	if v.Name == nil || !strings.EqualFold(v.Name.Object, "sp_rename") || v.Name.Schema != "" && !strings.EqualFold(v.Name.Schema, "sys") || v.Args == nil {
-		return "", "", "", false
-	}
-	params := []string{"@objname", "@newname", "@objtype"}
-	values := make(map[string]string)
-	for i, item := range v.Args.Items {
-		arg, isArg := item.(*ast.ExecArg)
-		if !isArg {
-			return "", "", "", false
-		}
-		key := strings.ToLower(arg.Name)
-		if key == "" {
-			if i >= len(params) {
-				return "", "", "", false
-			}
-			key = params[i]
-		}
-		lit, isLit := arg.Value.(*ast.Literal)
-		if !isLit || lit.Type != ast.LitString {
-			return "", "", "", false
-		}
-		values[key] = lit.Str
-	}
-	name, newName = values["@objname"], values["@newname"]
-	if name == "" || newName == "" {
-		return "", "", "", false
-	}
-	return name, newName, values["@objtype"], true
-}
-
-// readableObjectName reports whether sp_rename's object name is one the
-// rule can read: one to three dot-separated parts, each bare or in
-// brackets or double quotes.
-func readableObjectName(s string) bool {
-	parts := splitParts(s)
-	return len(parts) >= 1 && len(parts) <= 3
-}
-
-// splitParts splits a dotted name, honoring brackets and double quotes;
-// nil when a part is empty or unterminated.
-func splitParts(s string) []string {
-	var parts []string
-	i := 0
-	for {
-		var part strings.Builder
-		switch {
-		case i < len(s) && s[i] == '[':
-			i++
-			for {
-				if i >= len(s) {
-					return nil
-				}
-				if s[i] == ']' {
-					if i+1 < len(s) && s[i+1] == ']' {
-						part.WriteByte(']')
-						i += 2
-						continue
-					}
-					i++
-					break
-				}
-				part.WriteByte(s[i])
-				i++
-			}
-		case i < len(s) && s[i] == '"':
-			i++
-			for {
-				if i >= len(s) {
-					return nil
-				}
-				if s[i] == '"' {
-					if i+1 < len(s) && s[i+1] == '"' {
-						part.WriteByte('"')
-						i += 2
-						continue
-					}
-					i++
-					break
-				}
-				part.WriteByte(s[i])
-				i++
-			}
-		default:
-			for i < len(s) && s[i] != '.' {
-				part.WriteByte(s[i])
-				i++
-			}
-			// Spaces around a bare name are not part of it; inside
-			// delimiters they are.
-			bare := strings.TrimSpace(part.String())
-			part.Reset()
-			part.WriteString(bare)
-		}
-		p := part.String()
-		if p == "" {
-			return nil
-		}
-		parts = append(parts, p)
-		if i >= len(s) {
-			return parts
-		}
-		if s[i] != '.' {
-			return nil
-		}
-		i++
-	}
+	return loc.Start, max(loc.End, loc.Start)
 }

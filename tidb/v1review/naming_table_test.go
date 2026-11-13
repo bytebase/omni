@@ -10,7 +10,7 @@ import (
 )
 
 // finding is a finding as the tests compare it: the code, the judged name,
-// and the text its range anchors.
+// and the text its range anchors, which is always the whole statement.
 type finding struct {
 	Code v1review.Code
 	Name string
@@ -48,74 +48,71 @@ func TestNamingTable(t *testing.T) {
 			name:   "create mismatch",
 			sql:    "CREATE TABLE OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE OrderItem (id INT PRIMARY KEY)")},
 		},
 		{name: "qualifier not judged", sql: "CREATE TABLE Shop.order_item (id INT PRIMARY KEY);", config: pattern},
 		{
 			name:   "qualified name judged",
 			sql:    "CREATE TABLE shop.OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "shop.OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE shop.OrderItem (id INT PRIMARY KEY)")},
 		},
 		{
 			name:   "temporary table judged",
 			sql:    "CREATE TEMPORARY TABLE TmpStage (id INT);",
 			config: pattern,
-			want:   []finding{mismatch("TmpStage", "TmpStage")},
+			want:   []finding{mismatch("TmpStage", "CREATE TEMPORARY TABLE TmpStage (id INT)")},
 		},
 		{
 			name:   "create like",
 			sql:    "CREATE TABLE BadCopy LIKE t;",
 			config: pattern,
-			want:   []finding{mismatch("BadCopy", "BadCopy")},
+			want:   []finding{mismatch("BadCopy", "CREATE TABLE BadCopy LIKE t")},
 		},
 		{
 			name:   "create as select",
 			sql:    "CREATE TABLE BadSel AS SELECT 1;",
 			config: pattern,
-			want:   []finding{mismatch("BadSel", "BadSel")},
+			want:   []finding{mismatch("BadSel", "CREATE TABLE BadSel AS SELECT 1")},
 		},
 		{
-			name:   "rename table judges the new name",
-			sql:    "RENAME TABLE BadOld TO NewName;",
+			name:   "rename table judges every new name",
+			sql:    "RENAME TABLE BadOld TO NewName, a TO Other;",
 			config: pattern,
-			want:   []finding{mismatch("NewName", "NewName")},
+			want: []finding{
+				mismatch("NewName", "RENAME TABLE BadOld TO NewName, a TO Other"),
+				mismatch("Other", "RENAME TABLE BadOld TO NewName, a TO Other"),
+			},
 		},
 		{
 			name:   "alter rename to",
 			sql:    "ALTER TABLE t RENAME TO NewName;",
 			config: pattern,
-			want:   []finding{mismatch("NewName", "NewName")},
+			want:   []finding{mismatch("NewName", "ALTER TABLE t RENAME TO NewName")},
 		},
 		{
 			name:   "alter rename bare",
 			sql:    "ALTER TABLE t RENAME NewName;",
 			config: pattern,
-			want:   []finding{mismatch("NewName", "NewName")},
+			want:   []finding{mismatch("NewName", "ALTER TABLE t RENAME NewName")},
 		},
 		{
-			name:   "routine body",
-			sql:    "CREATE PROCEDURE pr() BEGIN CREATE TABLE Bad (id INT); END;",
+			name:   "alter rename judges the qualifier too",
+			sql:    "ALTER TABLE t RENAME TO shop.order_item;",
 			config: pattern,
-			want:   []finding{mismatch("Bad", "Bad")},
+			want:   []finding{mismatch("shop.order_item", "ALTER TABLE t RENAME TO shop.order_item")},
 		},
+		{name: "routine body not judged", sql: "CREATE PROCEDURE pr() BEGIN CREATE TABLE Bad (id INT); END;", config: pattern},
 		{
-			name:   "a plain EXPLAIN does not run the rename, EXPLAIN ANALYZE does",
-			sql:    "EXPLAIN ALTER TABLE t RENAME TO BadName;\nEXPLAIN ANALYZE ALTER TABLE t RENAME TO BadName;",
+			name:   "wrapped statements not judged",
+			sql:    "EXPLAIN ANALYZE ALTER TABLE t RENAME TO BadName;\nPLAN REPLAYER DUMP EXPLAIN ANALYZE ALTER TABLE t RENAME TO BadName;",
 			config: pattern,
-			want:   []finding{mismatch("BadName", "BadName")},
 		},
 		{
-			name:   "a plain PLAN REPLAYER DUMP does not run the rename, DUMP EXPLAIN ANALYZE does",
-			sql:    "PLAN REPLAYER DUMP EXPLAIN ALTER TABLE t RENAME TO BadName;\nPLAN REPLAYER DUMP EXPLAIN ANALYZE ALTER TABLE t RENAME TO BadName;",
-			config: pattern,
-			want:   []finding{mismatch("BadName", "BadName")},
-		},
-		{
-			name:   "length counts code points",
+			name:   "length counts bytes",
 			sql:    "CREATE TABLE `数据表` (id INT);",
-			config: v1review.NamingConfig{MaxLength: 2},
-			want:   []finding{{v1review.NameTooLong, "数据表", "`数据表`"}},
+			config: v1review.NamingConfig{MaxLength: 8},
+			want:   []finding{{v1review.NameTooLong, "数据表", "CREATE TABLE `数据表` (id INT)"}},
 		},
 		{name: "length within limit", sql: "CREATE TABLE order_item (id INT PRIMARY KEY);", config: v1review.NamingConfig{MaxLength: 10}},
 		{
@@ -123,8 +120,8 @@ func TestNamingTable(t *testing.T) {
 			sql:    "CREATE TABLE Toolong5 (id INT);",
 			config: v1review.NamingConfig{Pattern: "^[a-z]+$", MaxLength: 4},
 			want: []finding{
-				{v1review.NameMismatch, "Toolong5", "Toolong5"},
-				{v1review.NameTooLong, "Toolong5", "Toolong5"},
+				{v1review.NameMismatch, "Toolong5", "CREATE TABLE Toolong5 (id INT)"},
+				{v1review.NameTooLong, "Toolong5", "CREATE TABLE Toolong5 (id INT)"},
 			},
 		},
 		{name: "empty config requires nothing", sql: "CREATE TABLE OrderItem (id INT PRIMARY KEY);"},
@@ -132,7 +129,7 @@ func TestNamingTable(t *testing.T) {
 			name:   "findings in statement order",
 			sql:    "CREATE TABLE order_item (id INT PRIMARY KEY);\nCREATE TABLE OrderItem (id INT PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("OrderItem", "OrderItem")},
+			want:   []finding{mismatch("OrderItem", "CREATE TABLE OrderItem (id INT PRIMARY KEY)")},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

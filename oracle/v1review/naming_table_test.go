@@ -10,7 +10,8 @@ import (
 )
 
 // finding is a finding as the tests compare it: the code, the judged name,
-// and the text its range anchors.
+// and the text its range anchors: the whole CREATE TABLE, or the RENAME
+// clause of an ALTER TABLE.
 type finding struct {
 	Code v1review.Code
 	Name string
@@ -48,38 +49,39 @@ func TestNamingTable(t *testing.T) {
 			name:   "create mismatch",
 			sql:    `CREATE TABLE "orderItem" (id NUMBER PRIMARY KEY);`,
 			config: pattern,
-			want:   []finding{mismatch("orderItem", `"orderItem"`)},
+			want:   []finding{mismatch("orderItem", `CREATE TABLE "orderItem" (id NUMBER PRIMARY KEY)`)},
 		},
 		{name: "qualifier not judged", sql: `CREATE TABLE "shop".order_item (id NUMBER PRIMARY KEY);`, config: pattern},
 		{
 			name:   "qualified name judged",
 			sql:    `CREATE TABLE shop."orderItem" (id NUMBER PRIMARY KEY);`,
 			config: pattern,
-			want:   []finding{mismatch("orderItem", `shop."orderItem"`)},
+			want:   []finding{mismatch("orderItem", `CREATE TABLE shop."orderItem" (id NUMBER PRIMARY KEY)`)},
 		},
 		{
 			name:   "global temporary table judged",
 			sql:    `CREATE GLOBAL TEMPORARY TABLE "tmpStage" (id NUMBER);`,
 			config: pattern,
-			want:   []finding{mismatch("tmpStage", `"tmpStage"`)},
+			want:   []finding{mismatch("tmpStage", `CREATE GLOBAL TEMPORARY TABLE "tmpStage" (id NUMBER)`)},
 		},
 		{
 			name:   "private temporary table judged",
 			sql:    "CREATE PRIVATE TEMPORARY TABLE ora$ptt_stage (id NUMBER);",
 			config: pattern,
-			want:   []finding{mismatch("ORA$PTT_STAGE", "ora$ptt_stage")},
+			want:   []finding{mismatch("ORA$PTT_STAGE", "CREATE PRIVATE TEMPORARY TABLE ora$ptt_stage (id NUMBER)")},
 		},
 		{
 			name:   "create as select",
 			sql:    `CREATE TABLE "badSel" AS SELECT 1 FROM dual;`,
 			config: pattern,
-			want:   []finding{mismatch("badSel", `"badSel"`)},
+			want:   []finding{mismatch("badSel", `CREATE TABLE "badSel" AS SELECT 1 FROM dual`)},
 		},
+		{name: "rename statement not judged", sql: `RENAME "badOld" TO "newName";`, config: pattern},
+		{name: "explain plan not judged", sql: `EXPLAIN PLAN FOR CREATE TABLE "badName" AS SELECT 1 AS id FROM dual`, config: pattern},
 		{
-			name:   "rename judges the new name",
-			sql:    `RENAME "badOld" TO "newName";`,
+			name:   "create schema nested table not judged",
+			sql:    `CREATE SCHEMA AUTHORIZATION shop CREATE TABLE "badNested" (id NUMBER)`,
 			config: pattern,
-			want:   []finding{mismatch("newName", `"newName"`)},
 		},
 		{
 			name:   "alter rename to",
@@ -91,7 +93,7 @@ func TestNamingTable(t *testing.T) {
 			name:   "unquoted name folds to upper case",
 			sql:    "CREATE TABLE bad_name (id NUMBER);",
 			config: v1review.NamingConfig{Pattern: "^[a-z_]+$"},
-			want:   []finding{mismatch("BAD_NAME", "bad_name")},
+			want:   []finding{mismatch("BAD_NAME", "CREATE TABLE bad_name (id NUMBER)")},
 		},
 		{
 			name:   "quoted name kept as written",
@@ -99,10 +101,10 @@ func TestNamingTable(t *testing.T) {
 			config: v1review.NamingConfig{Pattern: "^[a-z_]+$"},
 		},
 		{
-			name:   "length counts code points",
+			name:   "length counts bytes",
 			sql:    `CREATE TABLE "数据表" (id NUMBER);`,
-			config: v1review.NamingConfig{MaxLength: 2},
-			want:   []finding{{v1review.NameTooLong, "数据表", `"数据表"`}},
+			config: v1review.NamingConfig{MaxLength: 8},
+			want:   []finding{{v1review.NameTooLong, "数据表", `CREATE TABLE "数据表" (id NUMBER)`}},
 		},
 		{name: "length within limit", sql: "CREATE TABLE order_item (id NUMBER PRIMARY KEY);", config: v1review.NamingConfig{MaxLength: 10}},
 		{
@@ -110,8 +112,8 @@ func TestNamingTable(t *testing.T) {
 			sql:    "CREATE TABLE toolong5 (id NUMBER);",
 			config: v1review.NamingConfig{Pattern: "^[A-Z]+$", MaxLength: 4},
 			want: []finding{
-				{v1review.NameMismatch, "TOOLONG5", "toolong5"},
-				{v1review.NameTooLong, "TOOLONG5", "toolong5"},
+				{v1review.NameMismatch, "TOOLONG5", "CREATE TABLE toolong5 (id NUMBER)"},
+				{v1review.NameTooLong, "TOOLONG5", "CREATE TABLE toolong5 (id NUMBER)"},
 			},
 		},
 		{name: "empty config requires nothing", sql: `CREATE TABLE "orderItem" (id NUMBER PRIMARY KEY);`},
@@ -119,7 +121,13 @@ func TestNamingTable(t *testing.T) {
 			name:   "findings in statement order",
 			sql:    "CREATE TABLE order_item (id NUMBER PRIMARY KEY);\nCREATE TABLE \"orderItem\" (id NUMBER PRIMARY KEY);",
 			config: pattern,
-			want:   []finding{mismatch("orderItem", `"orderItem"`)},
+			want:   []finding{mismatch("orderItem", `CREATE TABLE "orderItem" (id NUMBER PRIMARY KEY)`)},
+		},
+		{
+			name:   "multi-line create anchors the statement",
+			sql:    "CREATE TABLE\n  \"orderItem\" (id NUMBER);",
+			config: pattern,
+			want:   []finding{mismatch("orderItem", "CREATE TABLE\n  \"orderItem\" (id NUMBER)")},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

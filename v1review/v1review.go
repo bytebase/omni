@@ -12,6 +12,11 @@
 // config the engine cannot use, such as a Pattern that does not compile, is
 // an error: the rule was misconfigured, not evaluated.
 //
+// A ported rule keeps exactly the judgment the V1 advisor made: the same
+// statement forms, the same name text, the same unit of length, and the
+// same anchor, defects included. A port is a move; a change to what V1
+// reports is a separate commit, named as one.
+//
 // This package is entirely separate from package review, the SQL Review V2
 // contract: neither imports the other, the two share no types, and nothing
 // here joins the V2 standard rule set.
@@ -34,13 +39,13 @@ const (
 type Finding struct {
 	// Code is the condition the finding reports.
 	Code Code
-	// Name is the judged identifier, as the engine's parser stores it,
-	// without its qualifiers.
+	// Name is the judged identifier, the text the V1 advisor matched and
+	// printed.
 	Name string
 	// Start and End are the byte range that anchors the finding in the
-	// text the statements were parsed from: the judged name's range where
-	// the AST keeps one, else its clause's. Both 0 means the AST kept no
-	// range; the caller then anchors the statement.
+	// text the statements were parsed from, where the V1 advisor anchored
+	// it: each engine's rule function documents which node that is. Both 0
+	// means the AST kept no range; the caller then anchors the statement.
 	Start, End int
 }
 
@@ -51,8 +56,8 @@ type NamingConfig struct {
 	// match, matched anywhere in the name unless anchored with ^ and $.
 	// Empty requires nothing.
 	Pattern string
-	// MaxLength is the longest allowed name, counted in Unicode code
-	// points. 0 means no limit.
+	// MaxLength is the longest allowed name, counted in bytes of its UTF-8
+	// text, as every V1 advisor counts it. 0 means no limit.
 	MaxLength int
 }
 
