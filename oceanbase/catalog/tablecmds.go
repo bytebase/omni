@@ -755,6 +755,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
+		SplitSize:  pc.SplitSize,
+		AutoSize:   pc.AutoSize,
 		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
@@ -1317,7 +1319,9 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+	// Automatic partitioning (PARTITION SIZE ... PARTITIONS AUTO) lists no
+	// partitions: the engine makes them as the table grows.
+	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
