@@ -630,9 +630,9 @@ The docs judged the 58,616 rows in about a minute, and a replay asks the recogni
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
 | One per alternative | 15,771 | 9,625 | 6,146 | 0 |
-| Near-misses | 42,845 | 552 | 289 | 42,004 |
+| Near-misses | 42,845 | 552 | 288 | 42,005 |
 
-- **6,435 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 315 of the 761 commands (107 `ALTER`, 85 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (328), `ALTER ICEBERG TABLE` (108), `ALTER DATABASE` (78), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
+- **6,434 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 315 of the 761 commands (107 `ALTER`, 85 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (328), `ALTER ICEBERG TABLE` (108), `ALTER DATABASE` (78), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
 - **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
 - **Size.** The file is 9.2 MB. The undocumented near-misses are 6.9 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 2.3 MB.
 

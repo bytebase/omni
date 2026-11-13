@@ -4252,7 +4252,7 @@ reject	undocumented	docs	statement/executeImmediate!swap	EXECUTE_AS_ROLE IMMEDIA
 reject	accept	docs	statement/executeImmediateFrom	EXECUTE IMMEDIATE FROM @a
 reject	undocumented	docs	statement/executeImmediateFrom!drop-1	IMMEDIATE FROM @a
 reject	undocumented	docs	statement/executeImmediateFrom!drop-2	EXECUTE FROM @a
-reject	accept	docs	statement/executeImmediateFrom!drop-3	EXECUTE IMMEDIATE @a
+reject	undocumented	docs	statement/executeImmediateFrom!drop-3	EXECUTE IMMEDIATE @a
 reject	undocumented	docs	statement/executeImmediateFrom!drop-4	EXECUTE IMMEDIATE FROM
 reject	undocumented	docs	statement/executeImmediateFrom!insert	EXECUTE IMMEDIATE FROM @a zzz
 reject	undocumented	docs	statement/executeImmediateFrom!swap	EXECUTE_AS_ROLE IMMEDIATE FROM @a
