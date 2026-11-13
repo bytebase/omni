@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestKeywordLeadPredicates checks the lookahead sets keywordLeads decides
 // on against the whole Keywords table, and IDENT.
@@ -19,6 +22,10 @@ func TestKeywordLeadPredicates(t *testing.T) {
 		}
 		if got, want := isTempStart(tok), kw.Token == TEMP || kw.Token == TEMPORARY; got != want {
 			t.Errorf("isTempStart(%q) = %v, want %v", kw.Name, got, want)
+		}
+		identityOption := kw.Token == GENERATED || slices.Contains(seqOptElemLeadTokens, kw.Token)
+		if got := isAlterIdentityOptionStart(tok); got != identityOption {
+			t.Errorf("isAlterIdentityOptionStart(%q) = %v, want %v", kw.Name, got, identityOption)
 		}
 	}
 	ident := Token{Type: IDENT, Str: "a"}

@@ -91,7 +91,7 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 	for index, r := range ranges {
 		list, err := parser.ParseRange(sql, r.Start, r.End)
 		if err != nil {
-			return nil, syntaxFinding(err, ranges)
+			return nil, syntaxFinding(sql, err, ranges, index)
 		}
 		found := false
 		if list != nil {
@@ -139,9 +139,12 @@ func isSpace(c byte) bool {
 // syntaxFinding turns a parse failure into the Syntax finding. A parser
 // error carries the byte offset of the offending token and the message
 // PostgreSQL would print; the finding's range starts and ends at that
-// offset, which the caller anchors to its line. Any other error, which
-// the parser does not produce today, addresses the whole change.
-func syntaxFinding(err error, ranges []review.Range) *review.Finding {
+// offset, which the caller anchors to its line. An error PostgreSQL gives
+// no position for (a grammar action's, such as a constraint attribute its
+// kind cannot take) belongs to the statement that failed, index, and starts
+// at its first token. Any other error, which the parser does not produce
+// today, addresses the whole change.
+func syntaxFinding(sql string, err error, ranges []review.Range, index int) *review.Finding {
 	f := finding(review.SyntaxError, -1, review.Range{}, escapeLines(err.Error()))
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
@@ -151,6 +154,10 @@ func syntaxFinding(err error, ranges []review.Range) *review.Finding {
 		if perr.Position >= 0 {
 			f.Statement = statementAt(ranges, perr.Position)
 			f.Range = review.Range{Start: perr.Position, End: perr.Position}
+		} else {
+			start := skipTrivia(sql, ranges[index].Start, ranges[index].End)
+			f.Statement = index
+			f.Range = review.Range{Start: start, End: start}
 		}
 	}
 	return &f

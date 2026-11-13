@@ -232,9 +232,11 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 				}
 				return stmt, err
 			}
-		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind — caller handles nil via outer error (post-KB-2c)
+		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind. Only a
+		// schema_stmt can follow CREATE SCHEMA's name, so a CREATE there
+		// starts one and the error is at the token after it.
 		default:
-			return nil, nil
+			return nil, p.syntaxErrorAtTok(next)
 		}
 	case GRANT:
 		p.advance() // consume GRANT
@@ -986,7 +988,10 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	provider := ""
 	if p.cur.Type == FOR {
 		p.advance()
-		provider = p.parseNonReservedWordOrSconst()
+		var err error
+		if provider, err = p.parseNonReservedWordOrSconstStrict(); err != nil {
+			return nil, err
+		}
 	}
 
 	if _, err := p.expect(ON); err != nil {

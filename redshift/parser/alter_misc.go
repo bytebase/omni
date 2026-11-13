@@ -200,6 +200,17 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 		// ALTER TYPE name ADD ATTRIBUTE ... (AlterCompositeTypeStmt)
 		return p.parseAlterCompositeType(names, nameLoc, loc)
 	case DROP:
+		if p.peekNext().Type == VALUE_P {
+			// ALTER TYPE any_name DROP VALUE_P Sconst: the grammar reads it
+			// and its action refuses it at DROP.
+			drop := p.cur.Loc
+			p.advance() // consume DROP
+			p.advance() // consume VALUE
+			if _, err := p.expect(SCONST); err != nil {
+				return nil, err
+			}
+			return nil, &ParseError{Code: "0A000", Message: "dropping an enum value is not implemented", Position: drop}
+		}
 		// ALTER TYPE name DROP ATTRIBUTE ... (AlterCompositeTypeStmt)
 		return p.parseAlterCompositeType(names, nameLoc, loc)
 	case ALTER:
@@ -586,7 +597,8 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
-		return nil, p.syntaxErrorAtCur()
+		// SET leads only these, so the error is at the token after it.
+		return nil, p.syntaxErrorAtTok(next)
 	case DROP:
 		p.advance() // consume DROP
 		if p.cur.Type == NOT {

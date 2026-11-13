@@ -143,18 +143,14 @@ func (p *Parser) parseFdwOption() (*nodes.DefElem, error) {
 	return nil, p.syntaxErrorAtCur()
 }
 
-// parseOptFdwOptions parses opt_fdw_options: a run of fdw_option, or nothing.
+// parseOptFdwOptions parses opt_fdw_options: a run of fdw_option, or
+// nothing. NO starts nothing else after a wrapper's name or its options, so
+// it is read as NO HANDLER or NO VALIDATOR.
 func (p *Parser) parseOptFdwOptions() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		if p.cur.Type != HANDLER && p.cur.Type != VALIDATOR && p.cur.Type != NO {
 			break
-		}
-		if p.cur.Type == NO {
-			next := p.peekNext()
-			if next.Type != HANDLER && next.Type != VALIDATOR {
-				break
-			}
 		}
 		opt, err := p.parseFdwOption()
 		if err != nil {
@@ -735,10 +731,10 @@ func (p *Parser) parseCreatePLangStmt(replace bool) (nodes.Node, error) {
 				return nil, err
 			}
 		} else if p.cur.Type == NO {
-			next := p.peekNext()
-			if next.Type == VALIDATOR {
-				p.advance()
-				p.advance()
+			// opt_validator: NO starts nothing else here.
+			p.advance()
+			if _, err := p.expect(VALIDATOR); err != nil {
+				return nil, err
 			}
 		}
 	}

@@ -18,29 +18,44 @@ func (p *Parser) parseDefineStmtAggregate(replace bool, stmtLoc int) (nodes.Node
 		return nil, err
 	}
 
-	// Try the new-style form (aggr_args definition) first. Both forms
-	// start with '(': an aggr_args that fails to parse, or one no
-	// definition follows, means the old form, so the error is not
-	// returned and the token stream is rolled back.
+	// Both forms start with '('. The old form's elements are IDENT '='
+	// def_arg, and in aggr_args an IDENT is never followed by '=', so that
+	// pair after the '(' is the old form and anything else the new one
+	// (aggr_args definition), whose errors are then the statement's. While
+	// completing, a new form that does not parse falls back to the old one
+	// as well, for its candidates.
 	snap := p.snapshotTokenStream()
-	if args, err := p.parseAggrArgs(); err == nil && args != nil && p.cur.Type == '(' {
-		def, err := p.parseDefinition()
-		if err != nil {
+	oldStyle := false
+	if p.cur.Type == '(' {
+		p.advance()
+		oldStyle = p.cur.Type == IDENT && p.peekNext().Type == '='
+		p.restoreTokenStream(snap)
+	}
+	if !oldStyle {
+		args, err := p.parseAggrArgs()
+		if err == nil && args == nil {
+			err = p.syntaxErrorAtCur()
+		}
+		var def *nodes.List
+		if err == nil {
+			def, err = p.parseDefinition()
+		}
+		if err == nil {
+			return &nodes.DefineStmt{
+				Kind:       nodes.OBJECT_AGGREGATE,
+				Oldstyle:   false,
+				Replace:    replace,
+				Defnames:   defnames,
+				Args:       args,
+				Definition: def,
+				Loc:        nodes.Loc{Start: stmtLoc, End: p.prev.End},
+			}, nil
+		}
+		if !p.collectMode() {
 			return nil, err
 		}
-		return &nodes.DefineStmt{
-			Kind:       nodes.OBJECT_AGGREGATE,
-			Oldstyle:   false,
-			Replace:    replace,
-			Defnames:   defnames,
-			Args:       args,
-			Definition: def,
-			Loc:        nodes.Loc{Start: stmtLoc, End: p.prev.End},
-		}, nil
+		p.restoreTokenStream(snap)
 	}
-
-	// Restore and try old-style
-	p.restoreTokenStream(snap)
 
 	def, err := p.parseOldAggrDefinition()
 	if err != nil {
@@ -104,7 +119,10 @@ func (p *Parser) parseDefineStmtType(stmtLoc int) (nodes.Node, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			vals := p.parseOptEnumValList()
+			vals, err := p.parseOptEnumValList()
+			if err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -1430,16 +1448,16 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 		}
 		object := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: amName}}, names.Items...)}
 		if p.cur.Type == SET {
-			next := p.peekNext()
-			if next.Type == SCHEMA {
-				p.advance()
-				p.advance()
-				newschema, err := p.parseName()
-				if err != nil {
-					return nil, err
-				}
-				return &nodes.AlterObjectSchemaStmt{ObjectType: objtype, Object: object, Newschema: newschema}, nil
+			// SET leads only SET SCHEMA here.
+			p.advance()
+			if _, err := p.expect(SCHEMA); err != nil {
+				return nil, err
 			}
+			newschema, err := p.parseName()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.AlterObjectSchemaStmt{ObjectType: objtype, Object: object, Newschema: newschema}, nil
 		}
 		if p.cur.Type == OWNER {
 			p.advance()
@@ -1584,7 +1602,9 @@ func (p *Parser) parseOperatorDefElem() (*nodes.DefElem, error) {
 //	CREATE [ DEFAULT ] CONVERSION name
 //	    FOR source_encoding TO dest_encoding FROM function_name
 func (p *Parser) parseCreateConversionStmt(isDef bool, stmtLoc int) (nodes.Node, error) {
-	p.advance() // consume CONVERSION_P
+	if _, err := p.expect(CONVERSION_P); err != nil {
+		return nil, err
+	}
 
 	convName, err := p.parseAnyName()
 	if err != nil {

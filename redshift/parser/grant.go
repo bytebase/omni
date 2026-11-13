@@ -1039,12 +1039,18 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 	return p.parseRoleSpec()
 }
 
+// parseOptGrantGrantOption parses opt_grant_grant_option. WITH starts
+// nothing else after the grantees, so it is read as WITH GRANT OPTION.
+//
+//	opt_grant_grant_option: WITH GRANT OPTION | /* EMPTY */
 func (p *Parser) parseOptGrantGrantOption() (bool, error) {
-	if p.cur.Type != WITH || p.peekNext().Type != GRANT {
+	if p.cur.Type != WITH {
 		return false, nil
 	}
 	p.advance()
-	p.advance()
+	if _, err := p.expect(GRANT); err != nil {
+		return false, err
+	}
 	if _, err := p.expect(OPTION); err != nil {
 		return false, err
 	}

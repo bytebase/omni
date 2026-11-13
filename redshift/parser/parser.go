@@ -744,6 +744,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// CREATE SCHEMA ...
 		p.advance() // consume CREATE
 		return p.parseCreateSchemaStmt(createLoc)
+	case ASSERTION:
+		p.advance() // consume CREATE
+		return nil, p.parseCreateAssertionStmt()
 	// exhaustive: gram.y:6780 CreateStmt-family — no CREATE statement goes
 	// on with this token, so the syntax error is at it.
 	default:

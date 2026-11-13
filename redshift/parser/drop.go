@@ -528,6 +528,24 @@ func (p *Parser) parseDropSubscription() (nodes.Node, error) {
 	}, nil
 }
 
+// parseIfExistsBeforeKeyword parses opt_if_exists where what follows it
+// cannot start with a name (DROP CAST's '(', DROP TRANSFORM's FOR), so IF
+// is not a name there and EXISTS must follow it.
+//
+//	opt_if_exists:
+//	    IF_P EXISTS
+//	    | /* EMPTY */
+func (p *Parser) parseIfExistsBeforeKeyword() (bool, error) {
+	if p.cur.Type != IF_P {
+		return false, nil
+	}
+	p.advance() // consume IF
+	if _, err := p.expect(EXISTS); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // parseOptIfExists parses the optional IF EXISTS clause.
 //
 //	opt_if_exists:

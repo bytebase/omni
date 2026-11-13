@@ -635,7 +635,10 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		noInherit := p.parseNoInherit()
+		noInherit, err := p.parseNoInherit()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.Constraint{
 			Contype:        nodes.CONSTR_CHECK,
 			RawExpr:        expr,
@@ -683,7 +686,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		// The column's DEFERRABLE and INITIALLY clauses that follow are
 		// kept on the key; NOT VALID and NO INHERIT do not follow a
 		// column's constraint.
-		attrs, _, err := p.parseConstraintAttrs(false)
+		attrs, err := p.parseConstraintAttrs(false)
 		if err != nil {
 			return nil, err
 		}
@@ -879,33 +882,8 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 			return nil, err
 		}
 
-		// Check for ExistingIndex: USING INDEX name
 		if p.cur.Type == USING {
-			next := p.peekNext()
-			if next.Type == INDEX {
-				p.advance() // USING
-				p.advance() // INDEX
-				if p.collectMode() {
-					p.addRuleCandidate("qualified_name")
-					return nil, nil
-				}
-				idxName, err := p.parseName()
-				if err != nil {
-					return nil, err
-				}
-				attrs, err := p.parseKindAttributes("UNIQUE", true, false, false)
-				if err != nil {
-					return nil, err
-				}
-				n := &nodes.Constraint{
-					Contype:        nodes.CONSTR_UNIQUE,
-					Indexname:      idxName,
-					Loc:            nodes.NoLoc(),
-					InitiallyValid: true,
-				}
-				applyConstraintAttrs(n, attrs)
-				return n, nil
-			}
+			return p.parseExistingIndexConstraint(nodes.CONSTR_UNIQUE, "UNIQUE")
 		}
 
 		keys, err := p.parseParenColumnList()
@@ -943,33 +921,8 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 			return nil, err
 		}
 
-		// Check for ExistingIndex: USING INDEX name
 		if p.cur.Type == USING {
-			next := p.peekNext()
-			if next.Type == INDEX {
-				p.advance() // USING
-				p.advance() // INDEX
-				if p.collectMode() {
-					p.addRuleCandidate("qualified_name")
-					return nil, nil
-				}
-				idxName, err := p.parseName()
-				if err != nil {
-					return nil, err
-				}
-				attrs, err := p.parseKindAttributes("PRIMARY KEY", true, false, false)
-				if err != nil {
-					return nil, err
-				}
-				n := &nodes.Constraint{
-					Contype:        nodes.CONSTR_PRIMARY,
-					Indexname:      idxName,
-					Loc:            nodes.NoLoc(),
-					InitiallyValid: true,
-				}
-				applyConstraintAttrs(n, attrs)
-				return n, nil
-			}
+			return p.parseExistingIndexConstraint(nodes.CONSTR_PRIMARY, "PRIMARY KEY")
 		}
 
 		keys, err := p.parseParenColumnList()
@@ -1649,24 +1602,23 @@ func (p *Parser) parseKeyActionType(setCols **nodes.List) (byte, error) {
 }
 
 // parseConstraintAttributeSpec parses ConstraintAttributeSpec and returns
-// its CAS bits and where it begins, -1 when it is empty.
+// its CAS bits.
 //
 //	ConstraintAttributeSpec: /* EMPTY */ | ConstraintAttributeSpec ConstraintAttributeElem
-func (p *Parser) parseConstraintAttributeSpec() (int64, int, error) {
+func (p *Parser) parseConstraintAttributeSpec() (int64, error) {
 	return p.parseConstraintAttrs(true)
 }
 
 // parseConstraintAttrs parses constraint attributes. validity tells whether
 // NOT VALID and NO INHERIT belong to the production; when they do not, they
-// end it. Like gram.y's ConstraintAttributeSpec, it refuses INITIALLY
-// DEFERRED with NOT DEFERRABLE, and DEFERRABLE with NOT DEFERRABLE or
-// INITIALLY IMMEDIATE with INITIALLY DEFERRED, at the attribute that
-// conflicts.
+// end it; when they do, NOT and NO start nothing else. Like gram.y's
+// ConstraintAttributeSpec, it refuses INITIALLY DEFERRED with NOT
+// DEFERRABLE, and DEFERRABLE with NOT DEFERRABLE or INITIALLY IMMEDIATE
+// with INITIALLY DEFERRED, at the attribute that conflicts.
 //
 // pg: src/backend/parser/gram.y — ConstraintAttributeSpec
-func (p *Parser) parseConstraintAttrs(validity bool) (int64, int, error) {
+func (p *Parser) parseConstraintAttrs(validity bool) (int64, error) {
 	var attrs int64
-	start := -1
 	for {
 		loc := p.cur.Loc
 		var bit int64
@@ -1677,11 +1629,22 @@ func (p *Parser) parseConstraintAttrs(validity bool) (int64, int, error) {
 				bit = int64(nodes.CAS_NOT_DEFERRABLE)
 			case VALID:
 				if !validity {
-					return attrs, start, nil
+					return attrs, nil
 				}
 				bit = int64(nodes.CAS_NOT_VALID)
 			default:
-				return attrs, start, nil
+				// In ConstraintAttributeSpec, NOT starts an attribute and
+				// nothing else, so the error is at the token after it.
+				if !validity {
+					return attrs, nil
+				}
+				p.advance()
+				if p.collectMode() {
+					p.addTokenCandidate(DEFERRABLE)
+					p.addTokenCandidate(VALID)
+					return attrs, nil
+				}
+				return 0, p.syntaxErrorAtCur()
 			}
 			p.advance()
 			p.advance()
@@ -1697,47 +1660,48 @@ func (p *Parser) parseConstraintAttrs(validity bool) (int64, int, error) {
 				bit = int64(nodes.CAS_INITIALLY_DEFERRED)
 			default:
 				if p.collectMode() {
-					return attrs, start, nil
+					return attrs, nil
 				}
-				return 0, -1, p.syntaxErrorAtCur()
+				return 0, p.syntaxErrorAtCur()
 			}
 			p.advance()
 		case NO:
-			if !validity || p.peekNext().Type != INHERIT {
-				return attrs, start, nil
+			if !validity {
+				return attrs, nil
 			}
 			p.advance()
-			p.advance()
+			if _, err := p.expect(INHERIT); err != nil {
+				return 0, err
+			}
 			bit = int64(nodes.CAS_NO_INHERIT)
 		default:
-			return attrs, start, nil
-		}
-		if start < 0 {
-			start = loc
+			return attrs, nil
 		}
 		attrs |= bit
 		notDeferrable, deferrable := int64(nodes.CAS_NOT_DEFERRABLE), int64(nodes.CAS_DEFERRABLE)
 		immediate, deferred := int64(nodes.CAS_INITIALLY_IMMEDIATE), int64(nodes.CAS_INITIALLY_DEFERRED)
 		switch {
 		case attrs&(notDeferrable|deferred) == notDeferrable|deferred:
-			return 0, -1, &ParseError{Message: "constraint declared INITIALLY DEFERRED must be DEFERRABLE", Position: loc}
+			return 0, &ParseError{Message: "constraint declared INITIALLY DEFERRED must be DEFERRABLE", Position: loc}
 		case attrs&(notDeferrable|deferrable) == notDeferrable|deferrable, attrs&(immediate|deferred) == immediate|deferred:
-			return 0, -1, &ParseError{Message: "conflicting constraint properties", Position: loc}
+			return 0, &ParseError{Message: "conflicting constraint properties", Position: loc}
 		}
 	}
 }
 
 // processCASbits refuses the attributes a constraint of the kind cannot
 // take: deferrable, notValid, and noInherit tell which it can. The server
-// reports no position for these; the error points at the attribute list.
+// reports no position for these: the location gram.y passes is
+// ConstraintAttributeSpec's, which begins with the empty alternative and so
+// is always -1.
 //
 // pg: src/backend/parser/gram.y — processCASbits
-func (p *Parser) processCASbits(attrs int64, loc int, constrType string, deferrable, notValid, noInherit bool) error {
+func (p *Parser) processCASbits(attrs int64, constrType string, deferrable, notValid, noInherit bool) error {
 	if p.collectMode() {
 		return nil
 	}
 	refuse := func(what string) error {
-		return &ParseError{Code: "0A000", Message: constrType + " constraints cannot be marked " + what, Position: loc}
+		return &ParseError{Code: "0A000", Message: constrType + " constraints cannot be marked " + what, Position: -1}
 	}
 	switch {
 	case !deferrable && attrs&int64(nodes.CAS_DEFERRABLE|nodes.CAS_INITIALLY_DEFERRED) != 0:
@@ -1753,14 +1717,43 @@ func (p *Parser) processCASbits(attrs int64, loc int, constrType string, deferra
 // parseKindAttributes parses the ConstraintAttributeSpec of a constraint of
 // the kind and refuses the attributes the kind cannot take.
 func (p *Parser) parseKindAttributes(constrType string, deferrable, notValid, noInherit bool) (int64, error) {
-	attrs, loc, err := p.parseConstraintAttributeSpec()
+	attrs, err := p.parseConstraintAttributeSpec()
 	if err != nil {
 		return 0, err
 	}
-	if err := p.processCASbits(attrs, loc, constrType, deferrable, notValid, noInherit); err != nil {
+	if err := p.processCASbits(attrs, constrType, deferrable, notValid, noInherit); err != nil {
 		return 0, err
 	}
 	return attrs, nil
+}
+
+// parseCreateAssertionStmt reads CREATE ASSERTION, which the grammar takes
+// and its action then refuses, with no position, as not implemented. It
+// returns that refusal, or the syntax error the grammar finds first.
+// CREATE has been consumed; the current token is ASSERTION.
+//
+//	CreateAssertionStmt:
+//	    CREATE ASSERTION any_name CHECK '(' a_expr ')' ConstraintAttributeSpec
+//
+// pg: src/backend/parser/gram.y — CreateAssertionStmt
+func (p *Parser) parseCreateAssertionStmt() error {
+	p.advance() // consume ASSERTION
+	if _, err := p.parseAnyName(); err != nil {
+		return err
+	}
+	if _, err := p.expect(CHECK); err != nil {
+		return err
+	}
+	if _, err := p.parseParenRequiredAExpr(); err != nil {
+		return err
+	}
+	if _, err := p.parseConstraintAttributeSpec(); err != nil {
+		return err
+	}
+	if p.collectMode() {
+		return errCollecting
+	}
+	return &ParseError{Code: "0A000", Message: "CREATE ASSERTION is not yet implemented", Position: -1}
 }
 
 // applyConstraintAttrs applies constraint attribute flags to a Constraint node.
@@ -1820,13 +1813,11 @@ func (p *Parser) parseOptCInclude() (*nodes.List, error) {
 //
 //	opt_definition: WITH definition | /* EMPTY */
 //	definition: '(' def_list ')'
+//
+// Nowhere opt_definition stands does anything else start with WITH, so it
+// is read as the clause.
 func (p *Parser) parseOptDefinition() (*nodes.List, error) {
 	if p.cur.Type != WITH {
-		return nil, nil
-	}
-	// Need lookahead to distinguish WITH '(' from WITH OIDS etc.
-	next := p.peekNext()
-	if next.Type != '(' {
 		return nil, nil
 	}
 	p.advance() // WITH
@@ -1841,16 +1832,55 @@ func (p *Parser) parseOptDefinition() (*nodes.List, error) {
 // parseOptConsTableSpace parses OptConsTableSpace.
 //
 //	OptConsTableSpace: USING INDEX TABLESPACE name | /* EMPTY */
+//
+// Nothing else after a key's options starts with USING, so the clause is
+// read from it.
 func (p *Parser) parseOptConsTableSpace() (string, error) {
-	if p.cur.Type != USING || p.peekNext().Type != INDEX {
+	if p.cur.Type != USING {
 		return "", nil
 	}
 	p.advance() // USING
-	p.advance() // INDEX
+	if _, err := p.expect(INDEX); err != nil {
+		return "", err
+	}
 	if _, err := p.expect(TABLESPACE); err != nil {
 		return "", err
 	}
 	return p.parseName()
+}
+
+// parseExistingIndexConstraint parses the rest of a UNIQUE or PRIMARY KEY
+// table constraint on an existing index. The current token is USING, which
+// starts nothing else there.
+//
+//	UNIQUE ExistingIndex ConstraintAttributeSpec
+//	PRIMARY KEY ExistingIndex ConstraintAttributeSpec
+//	ExistingIndex: USING INDEX name
+func (p *Parser) parseExistingIndexConstraint(contype nodes.ConstrType, constrType string) (*nodes.Constraint, error) {
+	p.advance() // USING
+	if _, err := p.expect(INDEX); err != nil {
+		return nil, err
+	}
+	if p.collectMode() {
+		p.addRuleCandidate("qualified_name")
+		return nil, nil
+	}
+	idxName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	attrs, err := p.parseKindAttributes(constrType, true, false, false)
+	if err != nil {
+		return nil, err
+	}
+	n := &nodes.Constraint{
+		Contype:        contype,
+		Indexname:      idxName,
+		Loc:            nodes.NoLoc(),
+		InitiallyValid: true,
+	}
+	applyConstraintAttrs(n, attrs)
+	return n, nil
 }
 
 // parseIndexOptions parses the opt_definition OptConsTableSpace of a key
@@ -1867,19 +1897,19 @@ func (p *Parser) parseIndexOptions() (*nodes.List, string, error) {
 	return options, indexspace, nil
 }
 
-// parseNoInherit parses no_inherit.
+// parseNoInherit parses opt_no_inherit. Nothing else after a column's
+// CHECK starts with NO, so the clause is read from it.
 //
-//	no_inherit: NO INHERIT | /* EMPTY */
-func (p *Parser) parseNoInherit() bool {
-	if p.cur.Type == NO {
-		next := p.peekNext()
-		if next.Type == INHERIT {
-			p.advance()
-			p.advance()
-			return true
-		}
+//	opt_no_inherit: NO INHERIT | /* EMPTY */
+func (p *Parser) parseNoInherit() (bool, error) {
+	if p.cur.Type != NO {
+		return false, nil
 	}
-	return false
+	p.advance()
+	if _, err := p.expect(INHERIT); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // parseOptInherit parses OptInherit.
@@ -2078,21 +2108,16 @@ func (p *Parser) parseOptAccessMethod() (string, error) {
 	return "", nil
 }
 
-// parseOptWith parses OptWith for CREATE TABLE.
+// parseOptWith parses OptWith for CREATE TABLE. WITH starts nothing else
+// there, so it is read as the clause; WITH OIDS has been a syntax error
+// since PostgreSQL 12.
 //
-//	OptWith: WITH reloptions | WITH OIDS | WITHOUT OIDS | /* EMPTY */
+//	OptWith: WITH reloptions | WITHOUT OIDS | /* EMPTY */
 func (p *Parser) parseOptWith() (*nodes.List, error) {
 	switch p.cur.Type {
 	case WITH:
-		switch p.peekNext().Type {
-		case '(':
-			p.advance() // WITH
-			return p.parseReloptions()
-		case OIDS:
-			p.advance()     // WITH
-			p.advance()     // OIDS
-			return nil, nil // deprecated
-		}
+		p.advance() // WITH
+		return p.parseReloptions()
 	case WITHOUT:
 		p.advance() // WITHOUT
 		if _, err := p.expect(OIDS); err != nil {
@@ -2171,12 +2196,16 @@ func (p *Parser) parseReloptionElem() (*nodes.DefElem, error) {
 // parseOnCommitOption parses OnCommitOption.
 //
 //	OnCommitOption: ON COMMIT DROP | ON COMMIT DELETE ROWS | ON COMMIT PRESERVE ROWS | /* EMPTY */
+//
+// ON starts nothing else where the option stands, so it is read from ON.
 func (p *Parser) parseOnCommitOption() (nodes.OnCommitAction, error) {
-	if p.cur.Type != ON || p.peekNext().Type != COMMIT {
+	if p.cur.Type != ON {
 		return nodes.ONCOMMIT_NOOP, nil
 	}
 	p.advance() // ON
-	p.advance() // COMMIT
+	if _, err := p.expect(COMMIT); err != nil {
+		return 0, err
+	}
 	switch p.cur.Type {
 	case DROP:
 		p.advance()

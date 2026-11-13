@@ -831,7 +831,11 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 				p.advance() // consume SETOF
 			}
 			if p.peekNext().Type == '.' {
-				if tn := p.tryParsePctTypeTail(); tn != nil {
+				tn, err := p.tryParsePctTypeTail()
+				if err != nil {
+					return nil, err
+				}
+				if tn != nil {
 					tn.Setof = setof
 					return tn, nil
 				}
@@ -844,25 +848,26 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 
 // tryParsePctTypeTail parses type_function_name attrs '%' TYPE_P at the
 // current token, or returns nil where the tokens are not that form; the
-// caller restores the token stream then.
+// caller restores the token stream then. A '%' after the name starts
+// nothing else where a func_type stands, so TYPE_P must follow it, and the
+// error is at the token that does instead.
 //
 // Use snapshotTokenStream/restoreTokenStream for the rollback: a hand-rolled
 // save of cur/prev/nextBuf missed the lexer's position and corrupted every
 // qualified type after it.
-func (p *Parser) tryParsePctTypeTail() *nodes.TypeName {
+func (p *Parser) tryParsePctTypeTail() (*nodes.TypeName, error) {
 	name, err := p.parseTypeFunctionName()
 	if err != nil || p.cur.Type != '.' {
-		return nil
+		return nil, nil
 	}
 	attrs, err := p.parseAttrs()
 	if err != nil || p.cur.Type != '%' {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	if p.cur.Type != TYPE_P {
-		return nil
+	if _, err := p.expect(TYPE_P); err != nil {
+		return nil, err
 	}
-	p.advance()
 	nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
 	nameItems = append(nameItems, &nodes.String{Str: name})
 	nameItems = append(nameItems, attrs.Items...)
@@ -870,7 +875,7 @@ func (p *Parser) tryParsePctTypeTail() *nodes.TypeName {
 		Names:   &nodes.List{Items: nameItems},
 		PctType: true,
 		Loc:     nodes.NoLoc(),
-	}
+	}, nil
 }
 
 // isTypeFunctionNameToken checks if a token could be a type_function_name.
