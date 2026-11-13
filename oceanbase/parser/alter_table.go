@@ -415,7 +415,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwPARTITION:
 		// PARTITION BY ... (repartition)
 		if p.peekNext().Type == kwBY {
-			part, err := p.parsePartitionClause()
+			part, err := p.parsePartitionClause(false)
 			if err != nil {
 				return nil, err
 			}

@@ -308,16 +308,16 @@ ok	1054	engine	one_table@missing	table_option_list/table_option_,_table_option_l
 1146	1146	engine	one_table@missing	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
 1146	1146	engine	one_table@missing	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 ok	1054	engine	one_table@missing	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
-1064	1054	engine	one_table@missing	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
+ok	1054	engine	one_table@missing	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 ok	1054	engine	one_table@missing	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
 ok	1054	engine	one_table@missing	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
-1064	1054	engine	one_table@missing	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+ok	1054	engine	one_table@missing	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@missing	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@missing	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
 1064	1054	engine	one_table@missing	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
-1064	1054	engine	one_table@missing	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+ok	1054	engine	one_table@missing	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
+ok	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+ok	1054	engine	one_table@missing	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1146	1146	engine	one_table@missing	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1146	1146	engine	one_table@missing	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
 1146	1146	engine	one_table@missing	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
@@ -326,9 +326,9 @@ ok	1054	engine	one_table@missing	opt_partition_option/partition_option	CREATE TA
 1146	1146	engine	one_table@missing	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 1146	1146	engine	one_table@missing	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
 1146	1146	engine	one_table@missing	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
-1064	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
+1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
 1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
-1064	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
+1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1146	engine	one_table@missing	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1146	engine	one_table@missing	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -877,16 +877,16 @@ ok	10502	engine	one_table@table	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DA
 ok	10502	engine	one_table@table	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
 ok	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@table	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
-1064	1054	engine	one_table@table	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
+1050	1054	engine	one_table@table	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@table	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
 1050	1054	engine	one_table@table	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
-1064	1054	engine	one_table@table	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@table	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@table	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@table	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
 1064	1054	engine	one_table@table	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
-1064	1054	engine	one_table@table	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@table	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1054	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1054	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
 1054	1054	engine	one_table@table	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
@@ -895,9 +895,9 @@ ok	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1054	1054	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:f09a89150ba7	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
 ok	ok:509600a00022	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
-1064	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
+ok	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
 1054	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
-1064	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
+ok	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1054	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@table	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -1446,16 +1446,16 @@ ok	10503	engine	one_table@column	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 D
 ok	10503	engine	one_table@column	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
 ok	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@column	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
-1064	1054	engine	one_table@column	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
+1050	1054	engine	one_table@column	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@column	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
 1050	1054	engine	one_table@column	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
-1064	1054	engine	one_table@column	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@column	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@column	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@column	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
 1064	1054	engine	one_table@column	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
-1064	1054	engine	one_table@column	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@column	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1503	1503	engine	one_table@column	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1503	1503	engine	one_table@column	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
 1054	1054	engine	one_table@column	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
@@ -1464,9 +1464,9 @@ ok	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 
 1503	1503	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:cf8feb37e772	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
 ok	ok:f2971bd4adee	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
-1064	ok:e999ba0a84f6	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
+ok	ok:e999ba0a84f6	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
 1503	1235	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
-1064	ok:e999ba0a84f6	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
+ok	ok:e999ba0a84f6	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1503	1235	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@column	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1064	engine	one_table@column	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -2015,16 +2015,16 @@ ok	10503	engine	one_table@index	ttl_unit/DAY	ALTER TABLE a TTL(a + INTERVAL 1 DA
 ok	10503	engine	one_table@index	ttl_unit/MONTH	ALTER TABLE a TTL(a + INTERVAL 1 MONTH)
 ok	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 1050	1054	engine	one_table@index	partition_option/hash_partition_option	CREATE TABLE a PARTITION BY HASH(a) SELECT a
-1064	1054	engine	one_table@index	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
+1050	1054	engine	one_table@index	partition_option/range_partition_option	CREATE TABLE a PARTITION BY RANGE() SELECT a
 1050	1054	engine	one_table@index	partition_option/list_partition_option	CREATE TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a)) SELECT a
 1050	1054	engine	one_table@index	opt_partition_option/partition_option	CREATE TABLE a NOPARALLEL PARTITION BY KEY() SELECT a
-1064	1054	engine	one_table@index	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@index	opt_partition_option/auto_partition_option	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@index	column_group_element/EACH_COLUMN	CREATE TABLE a WITH COLUMN GROUP(EACH COLUMN) SELECT a
 1064	1054	engine	one_table@index	column_group_element/relation_name_(_column_name_list_)	CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
 1064	1054	engine	one_table@index	column_group_list/column_group_list_,_column_group_element	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
-1064	1054	engine	one_table@index	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-1064	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@index	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
+1050	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1503	1503	engine	one_table@index	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1503	1503	engine	one_table@index	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
 1054	1054	engine	one_table@index	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
@@ -2033,9 +2033,9 @@ ok	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1503	1503	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:283b765e5fd8	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
 ok	ok:4c9e15aeb927	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
-1064	ok:dde5650d5287	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
+ok	ok:dde5650d5287	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
 1503	1235	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
-1064	ok:dde5650d5287	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
+ok	ok:dde5650d5287	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1503	1235	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@index	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1064	engine	one_table@index	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
