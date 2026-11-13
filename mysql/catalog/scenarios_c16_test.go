@@ -118,7 +118,8 @@ func TestScenario_C16(t *testing.T) {
 
 		// 0..6 should all work at runtime via SELECT LENGTH(NOW(n)).
 		wantLen := map[int]int{0: 19, 1: 21, 2: 22, 3: 23, 4: 24, 5: 25, 6: 26}
-		for n, want := range wantLen {
+		for n := range len(wantLen) {
+			want := wantLen[n]
 			var got int
 			row := mc.db.QueryRowContext(mc.ctx,
 				`SELECT LENGTH(NOW(`+itoaC16(n)+`))`)

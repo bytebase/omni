@@ -328,7 +328,7 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 		{"inner_join", "SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a", "", false},
 		{"left_join", "SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a", "", false},
 		{"multi_table", "SELECT t1.a FROM t1, t2 WHERE t1.a = t2.a", "", false},
-		{"subquery_from", "SELECT d.x FROM (SELECT a AS x FROM t) d", "", true},
+		{"subquery_from", "SELECT d.x FROM (SELECT a AS x FROM t) d", "", false},
 	}
 
 	for _, tc := range cases {
@@ -360,20 +360,23 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -386,9 +389,12 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -443,20 +449,23 @@ func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser/resolver limitation)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial — parser/resolver limitation)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -469,9 +478,12 @@ func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -634,11 +646,7 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -654,20 +662,23 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -678,9 +689,12 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -720,8 +734,7 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -856,11 +869,7 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -876,20 +885,23 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -900,9 +912,12 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -943,8 +958,7 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1015,8 +1029,7 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1082,8 +1095,7 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1160,11 +1172,7 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1183,20 +1191,23 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1207,9 +1218,12 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -1249,8 +1263,7 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1327,8 +1340,7 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1468,8 +1480,7 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1544,11 +1555,7 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1566,20 +1573,23 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1590,9 +1600,12 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -1637,11 +1650,7 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1660,20 +1669,23 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1684,9 +1696,12 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -1723,11 +1738,7 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1743,20 +1754,23 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1767,9 +1781,12 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -1806,8 +1823,7 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1823,20 +1839,23 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1847,9 +1866,12 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -1857,6 +1879,14 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 
 // TestDeparseContainer_5_3_ColumnAliasPatterns verifies column and alias patterns
 // against MySQL 8.0 SHOW CREATE VIEW output.
+// columnAliasRefusals are the cases MySQL refuses, with the code it answers.
+// Each is a recorded gap: the catalog takes the view, and the case fails once
+// MySQL takes it or the catalog refuses it.
+var columnAliasRefusals = map[string]int{
+	// Two columns named a in one view: ER_DUP_FIELDNAME.
+	"same_name_columns_join": 1060,
+}
+
 func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -1921,8 +1951,18 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 			// --- MySQL 8.0 side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				if code, ok := columnAliasRefusals[tc.name]; ok && strings.HasPrefix(err.Error(), fmt.Sprintf("Error %d ", code)) {
+					// omni gap: the catalog takes the view MySQL refuses.
+					results, err := New().Exec("CREATE DATABASE test; USE test; CREATE TABLE t1 (a INT, b INT); CREATE TABLE t2 (a INT, b INT); "+tc.viewSQL, nil)
+					if err != nil || len(results) == 0 || results[len(results)-1].Error != nil {
+						t.Errorf("the catalog refuses %s now (%v): take it off columnAliasRefusals and assert the code", tc.name, err)
+					}
+					return
+				}
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
+			}
+			if _, ok := columnAliasRefusals[tc.name]; ok {
+				t.Fatalf("MySQL takes %s now: take it off columnAliasRefusals", tc.name)
 			}
 			mysqlOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
@@ -1943,20 +1983,23 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -1967,9 +2010,12 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -2030,7 +2076,8 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
 				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
+					t.Logf("known gap: MySQL 8.0 rejected (expected partial): %v", err)
+					return
 				}
 				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
 			}
@@ -2049,20 +2096,23 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -2073,9 +2123,12 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -2161,7 +2214,8 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
 				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
+					t.Logf("known gap: MySQL 8.0 rejected (expected partial): %v", err)
+					return
 				}
 				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
 			}
@@ -2179,20 +2233,23 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+					t.Logf("known gap: CREATE VIEW on catalog returned no results (expected partial)")
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
 				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					t.Logf("known gap: CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+					return
 				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
 				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
+					t.Log("known gap: ShowCreateView returned empty (expected partial)")
+					return
 				}
 				t.Fatal("ShowCreateView returned empty")
 			}
@@ -2203,9 +2260,12 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 
 			if mysqlBody != omniBody {
 				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					t.Logf("known gap: SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+					return
 				}
 				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			} else if tc.partial {
+				t.Errorf("%s matches MySQL now: take partial off its case", tc.name)
 			}
 		})
 	}
@@ -2421,8 +2481,7 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("MySQL 8.0 rejected: %v", err)
 			}
 			mysqlOutput, err := ctr.showCreateView(viewName)
 			if err != nil {

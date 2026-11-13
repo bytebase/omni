@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -100,7 +102,7 @@ func qualifiedCatalogCode(c *Catalog, stmt string) int {
 	return 0
 }
 
-func qualifiedServerState(t *testing.T, conn *sql.Conn) string {
+func qualifiedServerState(t *testing.T, conn *sql.DB) string {
 	t.Helper()
 	ctx := context.Background()
 	var state []string
@@ -140,16 +142,12 @@ func qualifiedCatalogState(c *Catalog) string {
 func TestQualifiedEventsAndTriggers(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
-	db := ctr.db
+	conn := ctr.db
 	const setup = "CREATE TABLE a.t (id INT); CREATE TABLE b.t (id INT); CREATE TABLE b.only_b (id INT)"
-	for name, script := range qualifiedNameScripts {
+	for _, name := range slices.Sorted(maps.Keys(qualifiedNameScripts)) {
+		script := qualifiedNameScripts[name]
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
-			conn, err := db.Conn(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer conn.Close()
 			for _, stmt := range append([]string{
 				"DROP DATABASE IF EXISTS a", "DROP DATABASE IF EXISTS b", "CREATE DATABASE a", "CREATE DATABASE b",
 				"USE a",

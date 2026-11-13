@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -281,14 +283,16 @@ func TestScenario_C17(t *testing.T) {
 			"v6b": {"latin1", "latin1_swedish_ci"},
 			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
 		}
-		for view, w := range cases {
+		for _, view := range slices.Sorted(maps.Keys(cases)) {
+			w := cases[view]
 			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
 				assertStringEq(t, "oracle "+view+".c CHARACTER_SET_NAME", cs, w.cs)
 				assertStringEq(t, "oracle "+view+".c COLLATION_NAME", co, w.co)
 			}
 		}
 
-		for view, w := range cases {
+		for _, view := range slices.Sorted(maps.Keys(cases)) {
+			w := cases[view]
 			if cs, co, ok := c17OmniViewCol(t, c, view, "c"); ok {
 				assertStringEq(t, "omni "+view+".c CHARACTER_SET_NAME", cs, w.cs)
 				assertStringEq(t, "omni "+view+".c COLLATION_NAME", co, w.co)
@@ -313,7 +317,7 @@ func TestScenario_C17(t *testing.T) {
 			// oracle ground truth to compare omni against. Record this so the
 			// scenario can be refined and return — do NOT assert omni-side
 			// behavior against a missing oracle.
-			t.Skipf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
+			t.Fatalf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
 			return
 		}
 		if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
