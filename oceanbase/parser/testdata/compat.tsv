@@ -129,25 +129,25 @@ accept	accept	engine	stmt/explain_stmt	EXPLAIN a
 reject	reject	engine	stmt/explain_stmt!drop-2	EXPLAIN
 accept	accept	engine	stmt/explain_stmt!insert	EXPLAIN a zzz
 reject	reject	engine	stmt/explain_stmt!swap	EXPORT a
-reject	accept	engine	stmt/create_outline_stmt	CREATE OUTLINE a ON SELECT a
+accept	accept	engine	stmt/create_outline_stmt	CREATE OUTLINE a ON SELECT a
 reject	reject	engine	stmt/create_outline_stmt!drop-1	OUTLINE a ON SELECT a
 reject	reject	engine	stmt/create_outline_stmt!drop-2	CREATE a ON SELECT a
 reject	reject	engine	stmt/create_outline_stmt!drop-3	CREATE OUTLINE ON SELECT a
 reject	reject	engine	stmt/create_outline_stmt!drop-4	CREATE OUTLINE a SELECT a
 reject	reject	engine	stmt/create_outline_stmt!drop-5	CREATE OUTLINE a ON a
 reject	reject	engine	stmt/create_outline_stmt!drop-6	CREATE OUTLINE a ON SELECT
-reject	accept	engine	stmt/create_outline_stmt!insert	CREATE OUTLINE a ON SELECT a zzz
+accept	accept	engine	stmt/create_outline_stmt!insert	CREATE OUTLINE a ON SELECT a zzz
 reject	reject	engine	stmt/create_outline_stmt!swap	CREATE_TIMESTAMP OUTLINE a ON SELECT a
-reject	accept	engine	stmt/alter_outline_stmt	ALTER OUTLINE a ADD SELECT a
+accept	accept	engine	stmt/alter_outline_stmt	ALTER OUTLINE a ADD SELECT a
 reject	reject	engine	stmt/alter_outline_stmt!drop-1	OUTLINE a ADD SELECT a
 reject	reject	engine	stmt/alter_outline_stmt!drop-2	ALTER a ADD SELECT a
 reject	reject	engine	stmt/alter_outline_stmt!drop-3	ALTER OUTLINE ADD SELECT a
 reject	reject	engine	stmt/alter_outline_stmt!drop-4	ALTER OUTLINE a SELECT a
 reject	reject	engine	stmt/alter_outline_stmt!drop-5	ALTER OUTLINE a ADD a
 reject	reject	engine	stmt/alter_outline_stmt!drop-6	ALTER OUTLINE a ADD SELECT
-reject	accept	engine	stmt/alter_outline_stmt!insert	ALTER OUTLINE a ADD SELECT a zzz
+accept	accept	engine	stmt/alter_outline_stmt!insert	ALTER OUTLINE a ADD SELECT a zzz
 reject	reject	engine	stmt/alter_outline_stmt!swap	ALWAYS OUTLINE a ADD SELECT a
-reject	accept	engine	stmt/drop_outline_stmt	DROP OUTLINE a
+accept	accept	engine	stmt/drop_outline_stmt	DROP OUTLINE a
 reject	reject	engine	stmt/drop_outline_stmt!drop-1	OUTLINE a
 reject	reject	engine	stmt/drop_outline_stmt!drop-3	DROP OUTLINE
 reject	reject	engine	stmt/drop_outline_stmt!insert	DROP OUTLINE a zzz
@@ -622,12 +622,12 @@ reject	reject	engine	stmt/recover_tenant_stmt!drop-2	ALTER RECOVER STANDBY
 reject	reject	engine	stmt/recover_tenant_stmt!drop-4	ALTER SYSTEM RECOVER
 reject	reject	engine	stmt/recover_tenant_stmt!insert	ALTER SYSTEM RECOVER STANDBY zzz
 reject	reject	engine	stmt/recover_tenant_stmt!swap	ALWAYS SYSTEM RECOVER STANDBY
-reject	accept	engine	stmt/create_tenant_snapshot_stmt	CREATE SNAPSHOT
+accept	accept	engine	stmt/create_tenant_snapshot_stmt	CREATE SNAPSHOT
 reject	reject	engine	stmt/create_tenant_snapshot_stmt!drop-1	SNAPSHOT
 reject	reject	engine	stmt/create_tenant_snapshot_stmt!drop-2	CREATE
-reject	accept	engine	stmt/create_tenant_snapshot_stmt!insert	CREATE SNAPSHOT zzz
+accept	accept	engine	stmt/create_tenant_snapshot_stmt!insert	CREATE SNAPSHOT zzz
 reject	reject	engine	stmt/create_tenant_snapshot_stmt!swap	CREATE_TIMESTAMP SNAPSHOT
-reject	accept	engine	stmt/drop_tenant_snapshot_stmt	DROP SNAPSHOT a
+accept	accept	engine	stmt/drop_tenant_snapshot_stmt	DROP SNAPSHOT a
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!drop-1	SNAPSHOT a
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!drop-3	DROP SNAPSHOT
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!insert	DROP SNAPSHOT a zzz
@@ -667,7 +667,7 @@ reject	reject	engine	stmt/service_name_stmt!drop-4	ALTER SYSTEM CREATE a
 reject	reject	engine	stmt/service_name_stmt!drop-5	ALTER SYSTEM CREATE SERVICE
 reject	reject	engine	stmt/service_name_stmt!insert	ALTER SYSTEM CREATE SERVICE a zzz
 reject	reject	engine	stmt/service_name_stmt!swap	ALWAYS SYSTEM CREATE SERVICE a
-reject	accept	engine	stmt/create_ccl_rule_stmt	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	stmt/create_ccl_rule_stmt	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	stmt/create_ccl_rule_stmt!drop-1	CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	stmt/create_ccl_rule_stmt!drop-2	CREATE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	stmt/create_ccl_rule_stmt!drop-3	CREATE CONCURRENT_LIMITING_RULE ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
@@ -682,12 +682,12 @@ reject	reject	engine	stmt/create_ccl_rule_stmt!drop-11	CREATE CONCURRENT_LIMITIN
 reject	reject	engine	stmt/create_ccl_rule_stmt!drop-12	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY
 reject	reject	engine	stmt/create_ccl_rule_stmt!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 zzz
 reject	reject	engine	stmt/create_ccl_rule_stmt!swap	CREATE_TIMESTAMP CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	stmt/drop_ccl_rule_stmt	DROP CONCURRENT_LIMITING_RULE a
+accept	accept	engine	stmt/drop_ccl_rule_stmt	DROP CONCURRENT_LIMITING_RULE a
 reject	reject	engine	stmt/drop_ccl_rule_stmt!drop-1	CONCURRENT_LIMITING_RULE a
 reject	reject	engine	stmt/drop_ccl_rule_stmt!drop-3	DROP CONCURRENT_LIMITING_RULE
 reject	reject	engine	stmt/drop_ccl_rule_stmt!insert	DROP CONCURRENT_LIMITING_RULE a zzz
 reject	reject	engine	stmt/drop_ccl_rule_stmt!swap	DUAL CONCURRENT_LIMITING_RULE a
-reject	accept	engine	stmt/create_sensitive_rule_stmt	CREATE SENSITIVE RULE a ON a(a) USING ENCRYPTION
+accept	accept	engine	stmt/create_sensitive_rule_stmt	CREATE SENSITIVE RULE a ON a(a) USING ENCRYPTION
 reject	reject	engine	stmt/create_sensitive_rule_stmt!drop-1	SENSITIVE RULE a ON a(a) USING ENCRYPTION
 reject	reject	engine	stmt/create_sensitive_rule_stmt!drop-2	CREATE RULE a ON a(a) USING ENCRYPTION
 reject	reject	engine	stmt/create_sensitive_rule_stmt!drop-3	CREATE SENSITIVE a ON a(a) USING ENCRYPTION
@@ -701,14 +701,14 @@ reject	reject	engine	stmt/create_sensitive_rule_stmt!drop-10	CREATE SENSITIVE RU
 reject	reject	engine	stmt/create_sensitive_rule_stmt!drop-11	CREATE SENSITIVE RULE a ON a(a) USING
 reject	reject	engine	stmt/create_sensitive_rule_stmt!insert	CREATE SENSITIVE RULE a ON a(a) USING ENCRYPTION zzz
 reject	reject	engine	stmt/create_sensitive_rule_stmt!swap	CREATE_TIMESTAMP SENSITIVE RULE a ON a(a) USING ENCRYPTION
-reject	accept	engine	stmt/drop_sensitive_rule_stmt	DROP SENSITIVE RULE a
+accept	accept	engine	stmt/drop_sensitive_rule_stmt	DROP SENSITIVE RULE a
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!drop-1	SENSITIVE RULE a
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!drop-2	DROP RULE a
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!drop-3	DROP SENSITIVE a
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!drop-4	DROP SENSITIVE RULE
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!insert	DROP SENSITIVE RULE a zzz
 reject	reject	engine	stmt/drop_sensitive_rule_stmt!swap	DUAL SENSITIVE RULE a
-reject	accept	engine	stmt/alter_sensitive_rule_stmt	ALTER SENSITIVE RULE a ENABLE
+accept	accept	engine	stmt/alter_sensitive_rule_stmt	ALTER SENSITIVE RULE a ENABLE
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-1	SENSITIVE RULE a ENABLE
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-2	ALTER RULE a ENABLE
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-3	ALTER SENSITIVE a ENABLE
@@ -3534,7 +3534,7 @@ reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!drop-3	ALTER TENANT LOCK
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!insert	ALTER TENANT a LOCK zzz
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!swap	ALWAYS TENANT a LOCK
-reject	accept	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name	CREATE SNAPSHOT FOR TENANT a
+accept	accept	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name	CREATE SNAPSHOT FOR TENANT a
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!drop-1	SNAPSHOT FOR TENANT a
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!drop-2	CREATE FOR TENANT a
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!drop-3	CREATE SNAPSHOT TENANT a
@@ -3542,11 +3542,11 @@ reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_F
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!drop-5	CREATE SNAPSHOT FOR TENANT
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!insert	CREATE SNAPSHOT FOR TENANT a zzz
 reject	reject	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name_FOR_TENANT_relation_name!swap	CREATE_TIMESTAMP SNAPSHOT FOR TENANT a
-reject	accept	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name	CREATE SNAPSHOT
-reject	accept	engine	snapshot_name/relation_name	CREATE SNAPSHOT a
+accept	accept	engine	create_tenant_snapshot_stmt/CREATE_SNAPSHOT_snapshot_name	CREATE SNAPSHOT
+accept	accept	engine	snapshot_name/relation_name	CREATE SNAPSHOT a
 reject	reject	engine	snapshot_name/relation_name!insert	CREATE SNAPSHOT a zzz
-reject	accept	engine	snapshot_name/%empty	CREATE SNAPSHOT
-reject	accept	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name	DROP SNAPSHOT a FOR TENANT a
+accept	accept	engine	snapshot_name/%empty	CREATE SNAPSHOT
+accept	accept	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name	DROP SNAPSHOT a FOR TENANT a
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!drop-1	SNAPSHOT a FOR TENANT a
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!drop-2	DROP a FOR TENANT a
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!drop-3	DROP SNAPSHOT FOR TENANT a
@@ -3555,7 +3555,7 @@ reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_T
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!drop-6	DROP SNAPSHOT a FOR TENANT
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!insert	DROP SNAPSHOT a FOR TENANT a zzz
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!swap	DUAL SNAPSHOT a FOR TENANT a
-reject	accept	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name	DROP SNAPSHOT a
+accept	accept	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name	DROP SNAPSHOT a
 accept	accept	engine	clone_tenant_stmt/create_with_opt_hint_TENANT_opt_if_not_exists_relation_name_FROM_relation_name_clone_snapshot_option_WITH_clone_tenant_option_list	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 accept	accept	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name	CREATE TENANT a FROM a USING SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!drop-1	CREATE TENANT a FROM a SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
@@ -7195,13 +7195,13 @@ accept	reject	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!drop-4	CREATE VIEW
 reject	reject	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!insert	CREATE VIEW a AS SELECT a WITH LOCAL CHECK OPTION zzz
 reject	reject	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!swap	CREATE VIEW a AS SELECT a WITHOUT LOCAL CHECK OPTION
 accept	accept	engine	opt_check_option/%empty	CREATE VIEW a AS SELECT a
-reject	accept	engine	opt_replace/OR_REPLACE	CREATE OR REPLACE OUTLINE a ON SELECT a
+accept	accept	engine	opt_replace/OR_REPLACE	CREATE OR REPLACE OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/OR_REPLACE!drop-1	CREATE REPLACE OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/OR_REPLACE!drop-2	CREATE OR OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/OR_REPLACE!truncate	CREATE OR
 reject	reject	engine	opt_replace/OR_REPLACE!insert	CREATE OR REPLACE zzz OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/OR_REPLACE!swap	CREATE ORDER REPLACE OUTLINE a ON SELECT a
-reject	accept	engine	opt_replace/%empty	CREATE OUTLINE a ON SELECT a
+accept	accept	engine	opt_replace/%empty	CREATE OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/%empty!insert	CREATE zzz OUTLINE a ON SELECT a
 reject	accept	engine	view_name/relation_factor	ALTER MATERIALIZED VIEW a NOPARALLEL
 reject	reject	engine	view_name/relation_factor!truncate	ALTER MATERIALIZED VIEW
@@ -11469,8 +11469,8 @@ reject	reject	engine	sample_option/ROWS!swap	ANALYZE TABLE a ESTIMATE STATISTICS
 reject	accept	engine	sample_option/PERCENTAGE	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTAGE
 reject	reject	engine	sample_option/PERCENTAGE!insert	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTAGE zzz
 reject	reject	engine	sample_option/PERCENTAGE!swap	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTILE_CONT
-reject	accept	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_explainable_stmt_opt_outline_target	CREATE OUTLINE a ON SELECT a
-reject	accept	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end	CREATE OUTLINE a ON 's' USING HINT /*+ */
+accept	accept	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_explainable_stmt_opt_outline_target	CREATE OUTLINE a ON SELECT a
+accept	accept	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end	CREATE OUTLINE a ON 's' USING HINT /*+ */
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!drop-1	OUTLINE a ON 's' USING HINT /*+ */
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!drop-2	CREATE a ON 's' USING HINT /*+ */
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!drop-3	CREATE OUTLINE ON 's' USING HINT /*+ */
@@ -11481,20 +11481,20 @@ reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outlin
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!drop-8	CREATE OUTLINE a ON 's' USING HINT /*+
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!insert	CREATE OUTLINE a ON 's' USING HINT /*+ */ zzz
 reject	reject	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_STRING_VALUE_USING_HINT_HINT_BEGIN_hint_list_with_end!swap	CREATE_TIMESTAMP OUTLINE a ON 's' USING HINT /*+ */
-reject	accept	engine	alter_outline_stmt/ALTER_outline_type_OUTLINE_relation_name_ADD_explainable_stmt_opt_outline_target	ALTER OUTLINE a ADD SELECT a
-reject	accept	engine	drop_outline_stmt/DROP_outline_type_OUTLINE_relation_factor	DROP OUTLINE a
-reject	accept	engine	outline_type/FORMAT	DROP FORMAT OUTLINE a
+accept	accept	engine	alter_outline_stmt/ALTER_outline_type_OUTLINE_relation_name_ADD_explainable_stmt_opt_outline_target	ALTER OUTLINE a ADD SELECT a
+accept	accept	engine	drop_outline_stmt/DROP_outline_type_OUTLINE_relation_factor	DROP OUTLINE a
+accept	accept	engine	outline_type/FORMAT	DROP FORMAT OUTLINE a
 reject	reject	engine	outline_type/FORMAT!insert	DROP FORMAT zzz OUTLINE a
 reject	reject	engine	outline_type/FORMAT!swap	DROP FOUND OUTLINE a
-reject	accept	engine	outline_type/%empty	DROP OUTLINE a
+accept	accept	engine	outline_type/%empty	DROP OUTLINE a
 reject	reject	engine	outline_type/%empty!insert	DROP zzz OUTLINE a
-reject	accept	engine	opt_outline_target/TO_explainable_stmt	CREATE OUTLINE a ON SELECT a TO SELECT a
+accept	accept	engine	opt_outline_target/TO_explainable_stmt	CREATE OUTLINE a ON SELECT a TO SELECT a
 reject	reject	engine	opt_outline_target/TO_explainable_stmt!drop-1	CREATE OUTLINE a ON SELECT a SELECT a
 reject	reject	engine	opt_outline_target/TO_explainable_stmt!drop-2	CREATE OUTLINE a ON SELECT a TO a
 reject	reject	engine	opt_outline_target/TO_explainable_stmt!drop-3	CREATE OUTLINE a ON SELECT a TO SELECT
-reject	accept	engine	opt_outline_target/TO_explainable_stmt!insert	CREATE OUTLINE a ON SELECT a TO SELECT a zzz
+accept	accept	engine	opt_outline_target/TO_explainable_stmt!insert	CREATE OUTLINE a ON SELECT a TO SELECT a zzz
 reject	reject	engine	opt_outline_target/TO_explainable_stmt!swap	CREATE OUTLINE a ON SELECT a TOPK SELECT a
-reject	accept	engine	opt_outline_target/%empty	CREATE OUTLINE a ON SELECT a
+accept	accept	engine	opt_outline_target/%empty	CREATE OUTLINE a ON SELECT a
 accept	accept	engine	explain_stmt/explain_or_desc_relation_factor_opt_desc_column_option	EXPLAIN a
 accept	accept	engine	explain_stmt/explain_or_desc_explainable_stmt	EXPLAIN SELECT a
 reject	reject	engine	explain_stmt/explain_or_desc_explainable_stmt!drop-3	EXPLAIN SELECT
@@ -17734,38 +17734,38 @@ reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!drop-9	SELECT a FROM UNNEST(a) AS a(a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!insert	SELECT a FROM UNNEST(a) AS a(a) zzz
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!swap	SELECT a FROM UNSIGNED(a) AS a(a)
-reject	accept	engine	create_ccl_rule_stmt/CREATE_CONCURRENT_LIMITING_RULE_opt_if_not_exists_relation_name_ON_ccl_database_table_optition_TO_user_with_host_name_FOR_ccl_for_effect_dml_ccl_filter_options_ccl_with_options_ccl_per_sql	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_database_table_optition/*_._*	CREATE CONCURRENT_LIMITING_RULE a ON * . * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	create_ccl_rule_stmt/CREATE_CONCURRENT_LIMITING_RULE_opt_if_not_exists_relation_name_ON_ccl_database_table_optition_TO_user_with_host_name_FOR_ccl_for_effect_dml_ccl_filter_options_ccl_with_options_ccl_per_sql	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_database_table_optition/*_._*	CREATE CONCURRENT_LIMITING_RULE a ON * . * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/*_._*!drop-1	CREATE CONCURRENT_LIMITING_RULE a ON . * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/*_._*!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON * * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/*_._*!drop-3	CREATE CONCURRENT_LIMITING_RULE a ON * . TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/*_._*!truncate	CREATE CONCURRENT_LIMITING_RULE a ON * .
 reject	reject	engine	ccl_database_table_optition/*_._*!insert	CREATE CONCURRENT_LIMITING_RULE a ON * . * zzz TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_database_table_optition/relation_name_._*	CREATE CONCURRENT_LIMITING_RULE a ON a . * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_database_table_optition/relation_name_._*	CREATE CONCURRENT_LIMITING_RULE a ON a . * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/relation_name_._*!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON a * TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/relation_name_._*!drop-3	CREATE CONCURRENT_LIMITING_RULE a ON a . TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/relation_name_._*!truncate	CREATE CONCURRENT_LIMITING_RULE a ON a .
 reject	reject	engine	ccl_database_table_optition/relation_name_._*!insert	CREATE CONCURRENT_LIMITING_RULE a ON a . * zzz TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_database_table_optition/id_dot_id	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_database_table_optition/id_dot_id	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_database_table_optition/id_dot_id!truncate	CREATE CONCURRENT_LIMITING_RULE a ON
 reject	reject	engine	ccl_database_table_optition/id_dot_id!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a zzz TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_for_effect_dml/ALL	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_for_effect_dml/ALL	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/ALL!truncate	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR
 reject	reject	engine	ccl_for_effect_dml/ALL!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/ALL!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALLOW WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_for_effect_dml/SELECT	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR SELECT WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_for_effect_dml/SELECT	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR SELECT WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/SELECT!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR SELECT zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/SELECT!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR SEMISTRUCT_ENCODING_TYPE WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_for_effect_dml/UPDATE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR UPDATE WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_for_effect_dml/UPDATE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR UPDATE WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/UPDATE!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR UPDATE zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/UPDATE!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR UPGRADE WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_for_effect_dml/INSERT	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR INSERT WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_for_effect_dml/INSERT	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR INSERT WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/INSERT!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR INSERT zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/INSERT!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR INSERT_METHOD WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_for_effect_dml/DELETE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR DELETE WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_for_effect_dml/DELETE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR DELETE WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/DELETE!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR DELETE zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_for_effect_dml/DELETE!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR DELETE_INSERT WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s') WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!drop-1	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL BY KEYWORD('s') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER KEYWORD('s') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!drop-3	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY('s') WITH MAX_CONCURRENCY 1
@@ -17775,34 +17775,34 @@ reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!d
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!truncate	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s'
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s') zzz WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_filter_options/FILTER_BY_KEYWORD_(_ccl_keyword_list_)!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FINAL_COUNT BY KEYWORD('s') WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_filter_options/%empty	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s', 's') WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_filter_options/%empty	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s', 's') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!drop-1	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD(, 's') WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s' 's') WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s' 's') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!drop-3	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s',) WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!truncate	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s',
 reject	reject	engine	ccl_keyword_list/ccl_keyword_list_,_STRING_VALUE!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s', 's' zzz) WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_keyword_list/STRING_VALUE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s') WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_keyword_list/STRING_VALUE	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s') WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_keyword_list/STRING_VALUE!truncate	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD(
 reject	reject	engine	ccl_keyword_list/STRING_VALUE!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL FILTER BY KEYWORD('s' zzz) WITH MAX_CONCURRENCY 1
-reject	accept	engine	ccl_with_options/WITH_MAX_CONCURRENCY_opt_equal_mark_INTNUM	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	ccl_with_options/WITH_MAX_CONCURRENCY_opt_equal_mark_INTNUM	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
 reject	reject	engine	ccl_with_options/WITH_MAX_CONCURRENCY_opt_equal_mark_INTNUM!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITHOUT MAX_CONCURRENCY 1
-reject	accept	engine	ccl_per_sql/PER_SQL	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 PER SQL
+accept	accept	engine	ccl_per_sql/PER_SQL	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 PER SQL
 reject	reject	engine	ccl_per_sql/PER_SQL!drop-1	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 SQL
 reject	reject	engine	ccl_per_sql/PER_SQL!drop-2	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 PER
 reject	reject	engine	ccl_per_sql/PER_SQL!insert	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 PER SQL zzz
 reject	reject	engine	ccl_per_sql/PER_SQL!swap	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1 PERCENTAGE SQL
-reject	accept	engine	ccl_per_sql/%empty	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
-reject	accept	engine	drop_ccl_rule_stmt/DROP_CONCURRENT_LIMITING_RULE_opt_if_exists_relation_factor	DROP CONCURRENT_LIMITING_RULE a
-reject	accept	engine	create_sensitive_rule_stmt/CREATE_SENSITIVE_RULE_sensitive_rule_name_ON_sensitive_field_list_USING_sensitivity_protection_spec	CREATE SENSITIVE RULE a ON a(a) USING ENCRYPTION
-reject	accept	engine	sensitive_rule_name/relation_name	DROP SENSITIVE RULE a
-reject	accept	engine	sensitive_field_list/sensitive_field	ALTER SENSITIVE RULE a ADD COLUMN a(a)
+accept	accept	engine	ccl_per_sql/%empty	CREATE CONCURRENT_LIMITING_RULE a ON a.a TO 's' FOR ALL WITH MAX_CONCURRENCY 1
+accept	accept	engine	drop_ccl_rule_stmt/DROP_CONCURRENT_LIMITING_RULE_opt_if_exists_relation_factor	DROP CONCURRENT_LIMITING_RULE a
+accept	accept	engine	create_sensitive_rule_stmt/CREATE_SENSITIVE_RULE_sensitive_rule_name_ON_sensitive_field_list_USING_sensitivity_protection_spec	CREATE SENSITIVE RULE a ON a(a) USING ENCRYPTION
+accept	accept	engine	sensitive_rule_name/relation_name	DROP SENSITIVE RULE a
+accept	accept	engine	sensitive_field_list/sensitive_field	ALTER SENSITIVE RULE a ADD COLUMN a(a)
 reject	reject	engine	sensitive_field_list/sensitive_field!drop-1	ALTER SENSITIVE RULE a ADD COLUMN(a)
 reject	reject	engine	sensitive_field_list/sensitive_field!drop-2	ALTER SENSITIVE RULE a ADD COLUMN a a)
 reject	reject	engine	sensitive_field_list/sensitive_field!drop-3	ALTER SENSITIVE RULE a ADD COLUMN a()
 reject	reject	engine	sensitive_field_list/sensitive_field!drop-4	ALTER SENSITIVE RULE a ADD COLUMN a(a
 reject	reject	engine	sensitive_field_list/sensitive_field!insert	ALTER SENSITIVE RULE a ADD COLUMN a(a) zzz
-reject	accept	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field	ALTER SENSITIVE RULE a ADD COLUMN a(a), a(a)
+accept	accept	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field	ALTER SENSITIVE RULE a ADD COLUMN a(a), a(a)
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!drop-1	ALTER SENSITIVE RULE a ADD COLUMN(a), a(a)
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!drop-2	ALTER SENSITIVE RULE a ADD COLUMN a a), a(a)
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!drop-3	ALTER SENSITIVE RULE a ADD COLUMN a(), a(a)
@@ -17813,30 +17813,30 @@ reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!drop-8	ALTER SENSITIVE RULE a ADD COLUMN a(a), a()
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!drop-9	ALTER SENSITIVE RULE a ADD COLUMN a(a), a(a
 reject	reject	engine	sensitive_field_list/sensitive_field_list_,_sensitive_field!insert	ALTER SENSITIVE RULE a ADD COLUMN a(a), a(a) zzz
-reject	accept	engine	sensitive_field/relation_factor_(_column_name_list_)	ALTER SENSITIVE RULE a ADD COLUMN a(a)
-reject	accept	engine	sensitivity_protection_spec/sensitivity_encryption_spec	ALTER SENSITIVE RULE a USING ENCRYPTION
+accept	accept	engine	sensitive_field/relation_factor_(_column_name_list_)	ALTER SENSITIVE RULE a ADD COLUMN a(a)
+accept	accept	engine	sensitivity_protection_spec/sensitivity_encryption_spec	ALTER SENSITIVE RULE a USING ENCRYPTION
 reject	reject	engine	sensitivity_protection_spec/sensitivity_encryption_spec!drop-1	ALTER SENSITIVE RULE a USING
 reject	reject	engine	sensitivity_protection_spec/sensitivity_encryption_spec!insert	ALTER SENSITIVE RULE a USING ENCRYPTION zzz
 reject	reject	engine	sensitivity_protection_spec/sensitivity_encryption_spec!swap	ALTER SENSITIVE RULE a USING END
-reject	accept	engine	sensitivity_encryption_spec/ENCRYPTION	ALTER SENSITIVE RULE a USING ENCRYPTION
-reject	accept	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT	ALTER SENSITIVE RULE a USING ENCRYPTION = DEFAULT
+accept	accept	engine	sensitivity_encryption_spec/ENCRYPTION	ALTER SENSITIVE RULE a USING ENCRYPTION
+accept	accept	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT	ALTER SENSITIVE RULE a USING ENCRYPTION = DEFAULT
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT!drop-1	ALTER SENSITIVE RULE a USING = DEFAULT
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT!drop-2	ALTER SENSITIVE RULE a USING ENCRYPTION DEFAULT
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT!drop-3	ALTER SENSITIVE RULE a USING ENCRYPTION =
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT!insert	ALTER SENSITIVE RULE a USING ENCRYPTION = DEFAULT zzz
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_DEFAULT!swap	ALTER SENSITIVE RULE a USING END = DEFAULT
-reject	accept	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal	ALTER SENSITIVE RULE a USING ENCRYPTION = 's'
+accept	accept	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal	ALTER SENSITIVE RULE a USING ENCRYPTION = 's'
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal!drop-1	ALTER SENSITIVE RULE a USING = 's'
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal!drop-2	ALTER SENSITIVE RULE a USING ENCRYPTION 's'
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal!insert	ALTER SENSITIVE RULE a USING ENCRYPTION = 's' zzz
 reject	reject	engine	sensitivity_encryption_spec/ENCRYPTION_COMP_EQ_complex_string_literal!swap	ALTER SENSITIVE RULE a USING END = 's'
-reject	accept	engine	drop_sensitive_rule_stmt/DROP_SENSITIVE_RULE_sensitive_rule_name	DROP SENSITIVE RULE a
-reject	accept	engine	alter_sensitive_rule_stmt/ALTER_SENSITIVE_RULE_sensitive_rule_name_alter_sensitive_rule_action	ALTER SENSITIVE RULE a ENABLE
-reject	accept	engine	alter_sensitive_rule_action/ADD_COLUMN_sensitive_field_list	ALTER SENSITIVE RULE a ADD COLUMN a(a)
+accept	accept	engine	drop_sensitive_rule_stmt/DROP_SENSITIVE_RULE_sensitive_rule_name	DROP SENSITIVE RULE a
+accept	accept	engine	alter_sensitive_rule_stmt/ALTER_SENSITIVE_RULE_sensitive_rule_name_alter_sensitive_rule_action	ALTER SENSITIVE RULE a ENABLE
+accept	accept	engine	alter_sensitive_rule_action/ADD_COLUMN_sensitive_field_list	ALTER SENSITIVE RULE a ADD COLUMN a(a)
 reject	reject	engine	alter_sensitive_rule_action/ADD_COLUMN_sensitive_field_list!drop-1	ALTER SENSITIVE RULE a COLUMN a(a)
 reject	reject	engine	alter_sensitive_rule_action/ADD_COLUMN_sensitive_field_list!drop-2	ALTER SENSITIVE RULE a ADD a(a)
 reject	reject	engine	alter_sensitive_rule_action/ADD_COLUMN_sensitive_field_list!swap	ALTER SENSITIVE RULE a ADDDATE COLUMN a(a)
-reject	accept	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list	ALTER SENSITIVE RULE a DROP COLUMN a(a)
+accept	accept	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list	ALTER SENSITIVE RULE a DROP COLUMN a(a)
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!drop-2	ALTER SENSITIVE RULE a DROP a(a)
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!drop-3	ALTER SENSITIVE RULE a DROP COLUMN(a)
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!drop-4	ALTER SENSITIVE RULE a DROP COLUMN a a)
@@ -17844,12 +17844,12 @@ reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_lis
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!drop-6	ALTER SENSITIVE RULE a DROP COLUMN a(a
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!insert	ALTER SENSITIVE RULE a DROP COLUMN a(a) zzz
 reject	reject	engine	alter_sensitive_rule_action/DROP_COLUMN_sensitive_field_list!swap	ALTER SENSITIVE RULE a DUAL COLUMN a(a)
-reject	accept	engine	alter_sensitive_rule_action/ENABLE	ALTER SENSITIVE RULE a ENABLE
+accept	accept	engine	alter_sensitive_rule_action/ENABLE	ALTER SENSITIVE RULE a ENABLE
 reject	reject	engine	alter_sensitive_rule_action/ENABLE!swap	ALTER SENSITIVE RULE a ENABLE_ARBITRATION_SERVICE
-reject	accept	engine	alter_sensitive_rule_action/DISABLE	ALTER SENSITIVE RULE a DISABLE
+accept	accept	engine	alter_sensitive_rule_action/DISABLE	ALTER SENSITIVE RULE a DISABLE
 reject	reject	engine	alter_sensitive_rule_action/DISABLE!insert	ALTER SENSITIVE RULE a DISABLE zzz
 reject	reject	engine	alter_sensitive_rule_action/DISABLE!swap	ALTER SENSITIVE RULE a DISABLE_PARALLEL_DAS_DML
-reject	accept	engine	alter_sensitive_rule_action/USING_sensitivity_protection_spec	ALTER SENSITIVE RULE a USING ENCRYPTION
+accept	accept	engine	alter_sensitive_rule_action/USING_sensitivity_protection_spec	ALTER SENSITIVE RULE a USING ENCRYPTION
 reject	reject	engine	alter_sensitive_rule_action/USING_sensitivity_protection_spec!drop-1	ALTER SENSITIVE RULE a ENCRYPTION
 reject	reject	engine	alter_sensitive_rule_action/USING_sensitivity_protection_spec!swap	ALTER SENSITIVE RULE a UTC_DATE ENCRYPTION
 accept	accept	engine	unreserved_keyword/unreserved_keyword_for_role_name	SELECT ACCESS_INFO

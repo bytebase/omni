@@ -601,6 +601,10 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 	}
 	p.advance() // consume REPLACE
 
+	if stmt, ok, err := p.parseClusterDDL(start, "CREATE OR REPLACE"); ok {
+		return stmt, err
+	}
+
 	switch p.cur.Type {
 	case kwVIEW, kwALGORITHM, kwSQL:
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
