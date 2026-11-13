@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
 func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
@@ -142,6 +143,11 @@ func formatDataType(dt *nodes.DataType) string {
 	}
 
 	name := strings.ToLower(dt.Name)
+	// An ARRAY or MAP parameter or return keeps its elements, written as a column's
+	// are, so SHOW CREATE PROCEDURE reads back.
+	if name == "array" || name == "map" {
+		return deparse.CollectionType(canonicalCollection(dt))
+	}
 
 	switch name {
 	case "int", "integer":

@@ -2256,7 +2256,7 @@ func formatColumnType(dt *nodes.DataType) string {
 	case "vector":
 		return fmt.Sprintf("VECTOR(%d)", dt.Length)
 	case "array", "map":
-		return deparse.CollectionType(dt)
+		return deparse.CollectionType(canonicalCollection(dt))
 	case "sparsevector":
 		return "SPARSEVECTOR"
 	}
@@ -2331,6 +2331,25 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 		return promoteBlobType(dt.Length)
 	}
 	return name
+}
+
+// canonicalCollection returns an ARRAY or MAP type with every element's name in its
+// canonical spelling, NUMERIC as DECIMAL and INTEGER as INT, so two spellings of one
+// type store the same text and Diff sees no change between them.
+func canonicalCollection(dt *nodes.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	c := *dt
+	switch name := normalizedTypeName(dt.Name); name {
+	case "boolean", "array", "map":
+		// BOOLEAN stays itself for the writer, which prints it as TINYINT.
+	default:
+		c.Name = name
+	}
+	c.ArrayElem = canonicalCollection(dt.ArrayElem)
+	c.MapKey = canonicalCollection(dt.MapKey)
+	return &c
 }
 
 func normalizedTypeName(name string) string {

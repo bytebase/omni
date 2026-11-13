@@ -707,7 +707,7 @@ ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_(_data_ty
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 ok:d31c42b0504b	ok:d31c42b0504b	engine	one_table@table	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-ok	1235	engine	one_table@table	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1235	1235	engine	one_table@table	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 ok:4faba2678da9	ok:4faba2678da9	engine	one_table@table	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
 ok:66be5cb7d630	ok:66be5cb7d630	engine	one_table@table	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
 ok:4b865b50957a	ok:4b865b50957a	engine	one_table@table	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
@@ -1276,7 +1276,7 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
 1060	1060	engine	one_table@column	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1060	1235	engine	one_table@column	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1235	1235	engine	one_table@column	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 1060	1060	engine	one_table@column	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
 1060	1060	engine	one_table@column	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
 1060	1060	engine	one_table@column	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
@@ -1845,7 +1845,7 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
 1060	1060	engine	one_table@index	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
-1060	1235	engine	one_table@index	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+1235	1235	engine	one_table@index	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 1060	1060	engine	one_table@index	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
 1060	1060	engine	one_table@index	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
 1060	1060	engine	one_table@index	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
