@@ -12607,7 +12607,10 @@ func TestDeleteBareAliasAcceptsNonReservedKeywords(t *testing.T) {
 	for _, kw := range []string{"status", "header", "manifest", "data", "after", "s3"} {
 		ParseAndCheck(t, "DELETE FROM t "+kw+" WHERE id = 1")
 		ParseAndCheck(t, "DELETE FROM t AS "+kw+" WHERE id = 1")
-		ParseAndCheck(t, "DELETE FROM t "+kw+" PARTITION (p0) WHERE id = 1")
+		// tbl_name puts the partitions before the alias, where MySQL puts them after:
+		// TestTableNameClausesOceanBaseOracle holds both orders to OceanBase.
+		ParseAndCheck(t, "DELETE FROM t PARTITION (p0) "+kw+" WHERE id = 1")
+		ParseExpectError(t, "DELETE FROM t "+kw+" PARTITION (p0) WHERE id = 1")
 	}
 	ParseAndCompare(t,
 		"DELETE FROM t status WHERE id = 1",
@@ -12631,7 +12634,7 @@ func TestDeleteAliasOrPartitionExcludesUsing(t *testing.T) {
 	ParseAndCheck(t, "DELETE FROM status USING t AS status WHERE status.id = 1")
 	ParseAndCheck(t, "DELETE FROM t, t2 USING t JOIN t2 ON t.id = t2.id")
 	// And so is the single-table form with alias / PARTITION.
-	ParseAndCheck(t, "DELETE FROM t AS foo PARTITION (p0) WHERE foo.id = 1 ORDER BY id LIMIT 1")
+	ParseAndCheck(t, "DELETE FROM t PARTITION (p0) AS foo WHERE foo.id = 1 ORDER BY id LIMIT 1")
 }
 
 func TestUncategorizedKeywordsAreUnambiguous(t *testing.T) {

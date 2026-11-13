@@ -2933,14 +2933,21 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	if p.cur.Type != ')' {
-		// Parse comma-separated index names
+	// index_element is NAME_OB or PRIMARY, so a keyword names no index here until it is
+	// quoted, and only USE takes an empty list: `FORCE KEY ()` is a 1064.
+	// Ref: index_element and index_hint_definition in sql_parser_mysql_mode.y
+	// (oceanbase v4.3.5_CE_BP6, lines 14796 and 14836).
+	if p.cur.Type != ')' || hint.Type != nodes.HintUse {
 		for {
-			name, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
+			if p.cur.Type == kwPRIMARY {
+				hint.Indexes = append(hint.Indexes, p.advance().Str)
+			} else {
+				name, _, err := p.parseNameOB()
+				if err != nil {
+					return nil, err
+				}
+				hint.Indexes = append(hint.Indexes, name)
 			}
-			hint.Indexes = append(hint.Indexes, name)
 			if p.cur.Type != ',' {
 				break
 			}
