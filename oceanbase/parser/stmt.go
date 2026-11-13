@@ -416,15 +416,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	temporary := false
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseCreateTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	// TEMPORARY
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
@@ -508,7 +499,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateRoleStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseCreateTablespaceStmt(start, false)
+		return p.parseCreateTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseCreateServerStmt(start)
@@ -628,15 +619,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseAlterTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	if stmt, ok, err := p.parseClusterDDL(start, "ALTER"); ok {
 		return stmt, err
 	}
@@ -660,7 +642,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterUserStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseAlterTablespaceStmt(start, false)
+		return p.parseAlterTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseAlterServerStmt(start)
@@ -739,15 +721,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return stmt, err
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseDropTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	temporary := false
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
@@ -786,7 +759,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropEventStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseDropTablespaceStmt(start, false)
+		return p.parseDropTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseDropServerStmt(start)
