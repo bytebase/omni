@@ -323,6 +323,36 @@ func TestWalkThroughInventory(t *testing.T) {
 	}
 }
 
+// TestWalkThroughPartitionedClaim holds the claim the oracle checks for a
+// finding that a table is partitioned: the table the message names, however
+// the SQL qualified or quoted it.
+func TestWalkThroughPartitionedClaim(t *testing.T) {
+	parted := relKey("public", "parted")
+	truncate := &walk.Violation{Keys: []walk.Key{parted}, Facts: []walk.Fact{walk.Present}}
+	for _, tt := range []struct {
+		name     string
+		v        *walk.Violation
+		rendered string
+		want     walk.Key // the zero key when the violation stands as it is
+	}{
+		{"a bare name the walk claims", truncate, "parted", parted},
+		{"a qualified name", truncate, "public.parted", parted},
+		{"a name with its database", truncate, "omni_review.public.parted", parted},
+		{"quoted parts", &walk.Violation{}, `"S.x"."Odd""Name"`, relKey("S.x", `Odd"Name`)},
+		{"a bare name and no claim", &walk.Violation{}, "parted", walk.Key{}},
+	} {
+		got := partitionedClaim(tt.v, tt.rendered)
+		switch {
+		case tt.want == walk.Key{}:
+			if got != tt.v {
+				t.Errorf("%s: %+v, want the violation as it was", tt.name, got)
+			}
+		case got.Check.Key != tt.want || got.Kind != relPartitioned || got.Got != walk.Present:
+			t.Errorf("%s: %+v, want %+v claimed a partitioned table", tt.name, got, tt.want)
+		}
+	}
+}
+
 // The sweep's size and seed. Its tape holds one stream of requests for
 // exactly these, so a change to either is a recording:
 //
@@ -576,18 +606,55 @@ func (e *pgEngine) Violation(t testing.TB, change string) *walk.Violation {
 	v := walkViolation(t, sql, e.target)
 	f := walkFinding(t, sql, e.target)
 	for _, prefix := range partitionedFindings {
-		if f == nil || !strings.HasPrefix(f.Message, prefix) {
-			continue
+		if f != nil && strings.HasPrefix(f.Message, prefix) {
+			return partitionedClaim(v, strings.TrimSuffix(strings.TrimPrefix(f.Message, prefix), "`."))
 		}
-		name := strings.TrimSuffix(strings.TrimPrefix(f.Message, prefix), "`.")
-		for _, c := range walktest.Claims(v) {
-			if c.Key.Space == spaceRelation && c.Key.Name == name && c.Fact == walk.Present {
-				return &walk.Violation{Check: walk.Check{Key: c.Key}, Got: walk.Present, Kind: relPartitioned}
-			}
-		}
-		t.Fatalf("%q claims no relation %s", f.Message, name)
 	}
 	return v
+}
+
+// partitionedClaim returns the violation of a finding that claims a table
+// is partitioned, as a claim of that kind on the table. rendered is the
+// table as the message writes it, as the SQL qualified it (relation in
+// names.go): a schema there names the key; a bare name is the relation the
+// walk claims under it. A finding that claims no key, as CREATE INDEX
+// CONCURRENTLY's does on a bare name, rests on what the walker keeps, and
+// its violation is returned as it is.
+func partitionedClaim(v *walk.Violation, rendered string) *walk.Violation {
+	parts := splitQualified(rendered)
+	name := parts[len(parts)-1]
+	if len(parts) > 1 {
+		return &walk.Violation{Check: walk.Check{Key: relKey(parts[len(parts)-2], name)}, Got: walk.Present, Kind: relPartitioned}
+	}
+	for _, c := range walktest.Claims(v) {
+		if c.Key.Space == spaceRelation && c.Key.Name == name && c.Fact == walk.Present {
+			return &walk.Violation{Check: walk.Check{Key: c.Key}, Got: walk.Present, Kind: relPartitioned}
+		}
+	}
+	return v
+}
+
+// splitQualified splits a name as qualified writes it into its parts: dots
+// outside double quotes separate them, and a quoted part loses its quotes.
+func splitQualified(s string) []string {
+	var parts []string
+	var b strings.Builder
+	quoted := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"' && quoted && i+1 < len(s) && s[i+1] == '"':
+			b.WriteByte('"')
+			i++
+		case c == '"':
+			quoted = !quoted
+		case c == '.' && !quoted:
+			parts = append(parts, b.String())
+			b.Reset()
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return append(parts, b.String())
 }
 
 // partitionedFindings open the messages of the findings that claim a table
