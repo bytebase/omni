@@ -2617,6 +2617,7 @@ type CreateTablespaceStmt struct {
 	MaxSize         string // MAX_SIZE value
 	NodeGroup       string // NODEGROUP value
 	Wait            bool   // WAIT
+	NoWait          bool   // NO_WAIT
 	Comment         string // COMMENT value
 	Engine          string // ENGINE name
 	EngineAttribute string // ENGINE_ATTRIBUTE value
@@ -2634,6 +2635,8 @@ type AlterTablespaceStmt struct {
 	DropDataFile    string // DROP DATAFILE 'file_name'
 	InitialSize     string // INITIAL_SIZE value
 	Wait            bool   // WAIT
+	NoWait          bool   // NO_WAIT
+	MaxSize         string // MAX_SIZE value
 	RenameTo        string // RENAME TO tablespace_name
 	AutoextendSize  string // AUTOEXTEND_SIZE value
 	Encryption      string // ENCRYPTION value
@@ -2652,6 +2655,8 @@ type DropTablespaceStmt struct {
 	Undo   bool   // UNDO tablespace
 	Name   string // tablespace name
 	Engine string // ENGINE name
+	Wait   bool   // WAIT
+	NoWait bool   // NO_WAIT
 }
 
 func (s *DropTablespaceStmt) nodeTag()  {}
