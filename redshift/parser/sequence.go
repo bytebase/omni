@@ -120,7 +120,10 @@ func (p *Parser) parseCreateTypeEnumStmt() (nodes.Node, error) {
 		return nil, err
 	}
 
-	vals := p.parseOptEnumValList()
+	vals, err := p.parseOptEnumValList()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -314,11 +317,11 @@ func (p *Parser) parseNumericOnlyRequired() (nodes.Node, error) {
 //	opt_enum_val_list:
 //	    enum_val_list
 //	    | /* EMPTY */
-func (p *Parser) parseOptEnumValList() *nodes.List {
+func (p *Parser) parseOptEnumValList() (*nodes.List, error) {
 	if p.cur.Type == SCONST {
 		return p.parseEnumValList()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseEnumValList parses a comma-separated list of string constants for enum values.
@@ -326,15 +329,18 @@ func (p *Parser) parseOptEnumValList() *nodes.List {
 //	enum_val_list:
 //	    Sconst
 //	    | enum_val_list ',' Sconst
-func (p *Parser) parseEnumValList() *nodes.List {
+func (p *Parser) parseEnumValList() (*nodes.List, error) {
 	tok := p.advance() // consume first Sconst
 	items := []nodes.Node{&nodes.String{Str: tok.Str}}
 
 	for p.cur.Type == ',' {
 		p.advance()
-		tok = p.advance() // consume Sconst
+		tok, err := p.expect(SCONST)
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, &nodes.String{Str: tok.Str})
 	}
 
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }

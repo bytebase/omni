@@ -262,7 +262,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}, nil
 		}
 		if p.cur.Type == ICONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			howMany := p.parseSignedIconst()
+			howMany, err := p.parseFetchSignedIconst()
+			if err != nil {
+				return nil, err
+			}
 			p.parseOptFromIn()
 			name, err := p.parseCursorName()
 			if err != nil {
@@ -303,7 +306,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}, nil
 		}
 		if p.cur.Type == ICONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			howMany := p.parseSignedIconst()
+			howMany, err := p.parseFetchSignedIconst()
+			if err != nil {
+				return nil, err
+			}
 			p.parseOptFromIn()
 			name, err := p.parseCursorName()
 			if err != nil {
@@ -342,7 +348,10 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 
 	case ICONST, '+', '-':
 		// SignedIconst opt_from_in cursor_name
-		howMany := p.parseSignedIconst()
+		howMany, err := p.parseFetchSignedIconst()
+		if err != nil {
+			return nil, err
+		}
 		p.parseOptFromIn()
 		name, err := p.parseCursorName()
 		if err != nil {

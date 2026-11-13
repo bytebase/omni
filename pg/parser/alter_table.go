@@ -1139,15 +1139,11 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 	}
 }
 
-// isAlterIdentityOption checks if the current SET is the start of an identity column option
-// (SET GENERATED ...) rather than other SET subcommands. We peek ahead.
+// isAlterIdentityOption reports whether the current SET starts an
+// alter_identity_column_option (SET GENERATED or SET SeqOptElem) rather than
+// another SET subcommand.
 func (p *Parser) isAlterIdentityOption() bool {
-	next := p.peekNext()
-	switch next.Type {
-	case GENERATED, CACHE, CYCLE, NO, INCREMENT, MAXVALUE, MINVALUE, START:
-		return true
-	}
-	return false
+	return isAlterIdentityOptionStart(p.peekNext())
 }
 
 // parseAlterColumnSet handles ALTER COLUMN colname SET ...
@@ -2029,7 +2025,7 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 			return makeDefElem("generated", makeIntConst(int64(gw))), nil
 		}
 		// SET SeqOptElem. gram.y rejects AS, RESTART and OWNED BY here
-		// with a syntax error at the option.
+		// after reading them, as not supported here, at the option.
 		optTok := p.cur
 		elem, err := p.parseOneSeqOptElem()
 		if err != nil {
@@ -2037,7 +2033,7 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 		}
 		switch elem.Defname {
 		case "as", "restart", "owned_by":
-			return nil, p.syntaxErrorAtTok(optTok)
+			return nil, &ParseError{Message: "sequence option \"" + elem.Defname + "\" not supported here", Position: optTok.Loc}
 		}
 		return elem, nil
 	// optional-probe: alter_identity_column_option list — list caller breaks on nil after first match

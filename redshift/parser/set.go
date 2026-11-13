@@ -366,14 +366,20 @@ func (p *Parser) parseVarName() (string, error) {
 // Every element is a var_value, so the list is never empty and a comma
 // with no value after it is a syntax error at the token after the comma.
 func (p *Parser) parseVarList() (*nodes.List, error) {
-	val := p.parseVarValue()
+	val, err := p.parseVarValue()
+	if err != nil {
+		return nil, err
+	}
 	if val == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{val}
 	for p.cur.Type == ',' {
 		p.advance()
-		v := p.parseVarValue()
+		v, err := p.parseVarValue()
+		if err != nil {
+			return nil, err
+		}
 		if v == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -382,30 +388,35 @@ func (p *Parser) parseVarList() (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-// parseVarValue parses a single variable value.
+// parseVarValue parses a single variable value, and returns nil where none
+// starts.
 //
 // var_value:
 //
 //	opt_boolean_or_string   -> A_Const{String{...}}
 //	| NumericOnly           -> A_Const{Integer/Float}
-func (p *Parser) parseVarValue() nodes.Node {
+func (p *Parser) parseVarValue() (nodes.Node, error) {
 	loc := p.pos()
-	// Try NumericOnly first (numbers and signed numbers).
-	if num := p.tryParseNumericOnly(); num != nil {
-		return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+	num, err := p.tryParseNumericOnly()
+	if err != nil {
+		return nil, err
+	}
+	if num != nil {
+		return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
 	// opt_boolean_or_string
 	s, ok := p.tryOptBooleanOrString()
 	if ok {
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
-// tryParseNumericOnly tries to parse a NumericOnly value.
-// Returns nil if the current token is not a numeric value.
+// tryParseNumericOnly parses a NumericOnly where one starts, and returns
+// nil where none does. A sign starts nothing else, so the number after it
+// is required.
 //
 // NumericOnly:
 //
@@ -413,60 +424,11 @@ func (p *Parser) parseVarValue() nodes.Node {
 //	| '+' FCONST
 //	| '-' FCONST
 //	| SignedIconst
-func (p *Parser) tryParseNumericOnly() nodes.Node {
-	switch p.cur.Type {
-	case ICONST:
-		val := p.cur.Ival
-		p.advance()
-		return &nodes.Integer{Ival: val}
-	case FCONST:
-		val := p.cur.Str
-		p.advance()
-		return &nodes.Float{Fval: val}
-	case '+':
-		next := p.peekNext()
-		if next.Type == ICONST {
-			p.advance() // consume '+'
-			val := p.cur.Ival
-			p.advance()
-			return &nodes.Integer{Ival: val}
-		}
-		if next.Type == FCONST {
-			p.advance() // consume '+'
-			val := p.cur.Str
-			p.advance()
-			return &nodes.Float{Fval: val}
-		}
-		return nil
-	case '-':
-		next := p.peekNext()
-		if next.Type == ICONST {
-			p.advance() // consume '-'
-			val := p.cur.Ival
-			p.advance()
-			return &nodes.Integer{Ival: -val}
-		}
-		if next.Type == FCONST {
-			p.advance() // consume '-'
-			val := p.cur.Str
-			p.advance()
-			f := &nodes.Float{Fval: val}
-			doNegateFloat(f)
-			return f
-		}
-		return nil
-	default:
-		return nil
+func (p *Parser) tryParseNumericOnly() (nodes.Node, error) {
+	if !p.isNumericOnlyStart() {
+		return nil, nil
 	}
-}
-
-// doNegateFloat negates a Float value by prepending or removing a '-'.
-func doNegateFloat(f *nodes.Float) {
-	if len(f.Fval) > 0 && f.Fval[0] == '-' {
-		f.Fval = f.Fval[1:]
-	} else {
-		f.Fval = "-" + f.Fval
-	}
+	return p.parseNumericOnlyRequired()
 }
 
 // tryOptBooleanOrString tries to parse an opt_boolean_or_string value.
@@ -525,7 +487,11 @@ func (p *Parser) parseZoneValue() (nodes.Node, error) {
 	case INTERVAL:
 		return p.parseZoneInterval()
 	default:
-		if num := p.tryParseNumericOnly(); num != nil {
+		num, err := p.tryParseNumericOnly()
+		if err != nil {
+			return nil, err
+		}
+		if num != nil {
 			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 		}
 		return nil, nil

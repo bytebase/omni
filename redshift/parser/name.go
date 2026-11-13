@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
+
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
@@ -208,43 +211,62 @@ func (p *Parser) parseTypeFunctionName() (string, error) {
 //
 //	qualified_name:
 //	    ColId
-//	    | ColId '.' attr_name
-//	    | ColId '.' attr_name '.' attr_name
+//	    | ColId indirection
+//
+// The grammar reads any indirection, as func_name does, and
+// makeRangeVarFromQualifiedName then refuses what a relation name cannot
+// hold: a subscript or '*' as a syntax error at the token after the name
+// (check_qualified_name's parser_yyerror), and more than three parts as an
+// improper qualified name at the first.
 func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("qualified_name")
 		return nil, errCollecting
 	}
+	loc := p.pos()
 	id, err := p.parseColId()
 	if err != nil {
 		return nil, err
 	}
 	items := []nodes.Node{&nodes.String{Str: id}}
 
-	if p.cur.Type == '.' {
+	subscripted := false
+	for p.cur.Type == '.' || p.cur.Type == '[' {
+		if p.cur.Type == '[' {
+			if _, err := p.parseIndirectionEl(); err != nil {
+				return nil, err
+			}
+			subscripted = true
+			continue
+		}
 		p.advance()
 		// After "name.", we may have reached the cursor position.
 		// Emit rule candidates so callers (relation_expr, etc.) are recognized.
 		if p.collectMode() {
 			p.addRuleCandidate("qualified_name")
 		}
+		if p.cur.Type == '*' {
+			p.advance()
+			subscripted = true
+			continue
+		}
 		attr, err := p.parseAttrName()
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, &nodes.String{Str: attr})
-
-		if p.cur.Type == '.' {
-			p.advance()
-			// Same for second dot in 3-part names.
-			if p.collectMode() {
-				p.addRuleCandidate("qualified_name")
-			}
-			attr2, err := p.parseAttrName()
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, &nodes.String{Str: attr2})
+	}
+	if subscripted {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if len(items) > 3 {
+		parts := make([]string, len(items))
+		for i, item := range items {
+			parts[i] = item.(*nodes.String).Str
+		}
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("improper qualified name (too many dotted names): %s", strings.Join(parts, ".")),
+			Position: loc,
 		}
 	}
 

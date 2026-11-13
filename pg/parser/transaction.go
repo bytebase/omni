@@ -309,16 +309,14 @@ func (p *Parser) parseTransactionModeItem() (nodes.Node, error) {
 		return makeDefElem("transaction_deferrable", makeIntConst(1)), nil
 
 	case NOT:
-		// NOT DEFERRABLE — but we need to check that it's actually DEFERRABLE after NOT.
-		// Note: NOT may have been reclassified to NOT_LA, but in statement context
-		// (not expression context), it stays NOT.
-		next := p.peekNext()
-		if next.Type == DEFERRABLE {
-			p.advance() // consume NOT
-			p.advance() // consume DEFERRABLE
-			return makeDefElem("transaction_deferrable", makeIntConst(0)), nil
+		// NOT DEFERRABLE. NOT starts nothing else after a transaction mode,
+		// so DEFERRABLE must follow it. (NOT before BETWEEN, IN, LIKE,
+		// ILIKE or SIMILAR is NOT_LA, below.)
+		p.advance() // consume NOT
+		if _, err := p.expect(DEFERRABLE); err != nil {
+			return nil, err
 		}
-		return nil, nil
+		return makeDefElem("transaction_deferrable", makeIntConst(0)), nil
 
 	case NOT_LA:
 		// NOT_LA DEFERRABLE

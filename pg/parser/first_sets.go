@@ -455,6 +455,20 @@ func (p *Parser) isFrameCurrentRowStart() bool {
 	return p.cur.Type == CURRENT_P && p.keywordLeads(func(t Token) bool { return t.Type == ROW })
 }
 
+// isAlterIdentityOptionStart reports whether tok, the token after SET in
+// ALTER [COLUMN] name SET, starts alter_identity_column_option's SET
+// GENERATED or SET SeqOptElem. None of these tokens goes on with any other
+// SET of alter_table_cmd (DEFAULT, NOT NULL, DATA TYPE, STATISTICS, STORAGE,
+// COMPRESSION, EXPRESSION, reloptions). The grammar takes SET AS, SET
+// RESTART and SET OWNED BY too and refuses them in its action.
+//
+// Grammar reference: alter_identity_column_option in
+// postgres/src/backend/parser/gram.y. No PG oracle test:
+// TestKeywordLeadPredicates checks it against the whole Keywords table.
+func isAlterIdentityOptionStart(tok Token) bool {
+	return tok.Type == GENERATED || slices.Contains(seqOptElemLeadTokens, tok.Type)
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

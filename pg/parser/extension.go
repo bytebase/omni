@@ -64,7 +64,7 @@ func (p *Parser) parseCreateExtensionOptList() (*nodes.List, error) {
 // parseCreateExtensionOptItem parses create_extension_opt_item, or returns
 // nil when none starts here.
 //
-//	create_extension_opt_item: SCHEMA name | VERSION_P NonReservedWord_or_Sconst | CASCADE
+//	create_extension_opt_item: SCHEMA name | VERSION_P NonReservedWord_or_Sconst | FROM NonReservedWord_or_Sconst | CASCADE
 func (p *Parser) parseCreateExtensionOptItem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case SCHEMA:
@@ -84,6 +84,18 @@ func (p *Parser) parseCreateExtensionOptItem() (*nodes.DefElem, error) {
 	case CASCADE:
 		p.advance()
 		return makeDefElem("cascade", &nodes.Boolean{Boolval: true}), nil
+	case FROM:
+		// FROM NonReservedWord_or_Sconst: the grammar reads it and its
+		// action refuses it at FROM.
+		from := p.cur.Loc
+		p.advance()
+		if _, err := p.parseNonReservedWordOrSconstStrict(); err != nil {
+			return nil, err
+		}
+		if p.collectMode() {
+			return nil, errCollecting
+		}
+		return nil, &ParseError{Code: "0A000", Message: "CREATE EXTENSION ... FROM is no longer supported", Position: from}
 	// optional-probe: create_extension_opt_list ends at any other token
 	default:
 		return nil, nil
@@ -426,7 +438,9 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 		if _, err := p.expect(FUNCTION); err != nil {
 			return nil, err
 		}
-		stmt.Context = p.parseCastContext()
+		if stmt.Context, err = p.parseCastContext(); err != nil {
+			return nil, err
+		}
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
 	}
@@ -435,7 +449,9 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 	}
 	if p.cur.Type == INOUT {
 		p.advance()
-		stmt.Context = p.parseCastContext()
+		if stmt.Context, err = p.parseCastContext(); err != nil {
+			return nil, err
+		}
 		stmt.Inout = true
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
@@ -448,32 +464,45 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	stmt.Func = fn
-	stmt.Context = p.parseCastContext()
+	if stmt.Context, err = p.parseCastContext(); err != nil {
+		return nil, err
+	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 
-func (p *Parser) parseCastContext() nodes.CoercionContext {
-	if p.cur.Type == AS {
-		next := p.peekNext()
-		if next.Type == IMPLICIT_P {
-			p.advance()
-			p.advance()
-			return nodes.COERCION_IMPLICIT
-		}
-		if next.Type == ASSIGNMENT {
-			p.advance()
-			p.advance()
-			return nodes.COERCION_ASSIGNMENT
-		}
+// parseCastContext parses cast_context, which ends CREATE CAST: AS starts
+// nothing else there.
+//
+//	cast_context: AS IMPLICIT_P | AS ASSIGNMENT | /* EMPTY */
+func (p *Parser) parseCastContext() (nodes.CoercionContext, error) {
+	if p.cur.Type != AS {
+		return nodes.COERCION_EXPLICIT, nil
 	}
-	return nodes.COERCION_EXPLICIT
+	p.advance() // AS
+	switch p.cur.Type {
+	case IMPLICIT_P:
+		p.advance()
+		return nodes.COERCION_IMPLICIT, nil
+	case ASSIGNMENT:
+		p.advance()
+		return nodes.COERCION_ASSIGNMENT, nil
+	}
+	if p.collectMode() {
+		p.addTokenCandidate(IMPLICIT_P)
+		p.addTokenCandidate(ASSIGNMENT)
+		return nodes.COERCION_EXPLICIT, errCollecting
+	}
+	return nodes.COERCION_EXPLICIT, p.syntaxErrorAtCur()
 }
 
 // parseDropCastStmt parses DROP CAST statement.
 func (p *Parser) parseDropCastStmt() (nodes.Node, error) {
 	p.advance() // consume CAST
-	missingOk := p.parseOptIfExists()
+	missingOk, err := p.parseIfExistsBeforeKeyword()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -593,7 +622,10 @@ func (p *Parser) parseTransformElement(lead int) (*nodes.ObjectWithArgs, error) 
 // parseDropTransformStmt parses DROP TRANSFORM statement.
 func (p *Parser) parseDropTransformStmt() (nodes.Node, error) {
 	p.advance() // consume TRANSFORM
-	missingOk := p.parseOptIfExists()
+	missingOk, err := p.parseIfExistsBeforeKeyword()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
