@@ -40,6 +40,11 @@ const (
 	// does not compile, so that object's name could not be judged. Detail
 	// holds the compile error.
 	PatternInvalid Code = "pattern-invalid"
+	// NameIsKeyword: a name is a keyword in the table the engine's V1
+	// advisor checked names against.
+	NameIsKeyword Code = "name-is-keyword"
+	// NameCaseMismatch: a name is not in the configured letter case.
+	NameCaseMismatch Code = "name-case-mismatch"
 )
 
 // Finding is one violation a rule function reports, in statement order.
@@ -85,6 +90,13 @@ func (c NamingConfig) Compile() (*regexp.Regexp, error) {
 		return nil, nil
 	}
 	return regexp.Compile(c.Pattern)
+}
+
+// CaseConfig configures an identifier case rule; Bytebase builds it from the
+// V1 NamingCaseRulePayload.
+type CaseConfig struct {
+	// Upper requires upper case; false requires lower case.
+	Upper bool
 }
 
 // The tokens a template rule's Format may hold. Which of them a rule gives
