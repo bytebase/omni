@@ -662,8 +662,10 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 // parser does not know, so it refuses only what is a duplicate either way.
 func refuseLockDuplicate(earlier []*nodes.LockTable, lt *nodes.LockTable) error {
 	key := func(t *nodes.LockTable) (string, string) {
+		// An alias is unique within its table's database: `db1.t AS a,
+		// db2.t AS a` locks two tables.
 		if t.Table.Alias != "" {
-			return "", t.Table.Alias
+			return t.Table.Schema, t.Table.Alias
 		}
 		return t.Table.Schema, t.Table.Name
 	}

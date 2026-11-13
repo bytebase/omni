@@ -15,6 +15,8 @@ func TestLockTablesNamesOnce(t *testing.T) {
 		{"LOCK TABLES t READ, t AS a READ", true},
 		{"LOCK TABLES t AS a READ, t AS A READ", true},
 		{"LOCK TABLES t READ, T READ", true},
+		{"LOCK TABLES db1.t AS a READ, db2.t AS a READ", true},
+		{"LOCK TABLES db1.t AS a READ, db1.u AS a READ", false},
 	} {
 		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
 			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)
