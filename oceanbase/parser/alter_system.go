@@ -205,15 +205,9 @@ var (
 		}
 		return true
 	})
-	// INTNUM: an integer of no more than 63 bits. A longer run of digits is a
-	// DECIMAL_VAL.
-	sysInt = sysLeaf(func(p *Parser) bool {
-		if p.cur.Type != tokICONST || !p.cur.isInt64() {
-			return false
-		}
-		p.advance()
-		return true
-	})
+	// INTNUM: an integer of up to 64 bits, which is what the lexer's integer token
+	// holds. A longer run of digits is a DECIMAL_VAL (number_token_forms_test.go).
+	sysInt = sysTok(tokICONST)
 
 	// relation_name: NAME_OB or an unreserved keyword.
 	sysName = sysLeaf(func(p *Parser) bool {
