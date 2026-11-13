@@ -5310,7 +5310,7 @@ reject	reject	engine	table_option/PARTITION_TYPE_opt_equal_mark_USER_SPECIFIED!s
 accept	accept	engine	table_option/location_expr	ALTER TABLE a LOCATION 's'
 reject	reject	engine	table_option/location_expr!drop-2	ALTER TABLE a LOCATION
 reject	reject	engine	table_option/location_expr!insert	ALTER TABLE a LOCATION 's' zzz
-accept	reject	engine	table_option/location_expr!swap	ALTER TABLE a LOCK 's'
+reject	reject	engine	table_option/location_expr!swap	ALTER TABLE a LOCK 's'
 accept	accept	engine	table_option/format_expr	ALTER TABLE a FORMAT(TYPE = 's')
 reject	reject	engine	table_option/format_expr!drop-1	ALTER TABLE a(TYPE = 's')
 reject	reject	engine	table_option/format_expr!drop-2	ALTER TABLE a FORMAT TYPE = 's')
@@ -5596,13 +5596,13 @@ accept	accept	engine	retention_time_unit/SECOND	ALTER TABLE a STORAGE_CACHE_POLI
 reject	reject	engine	retention_time_unit/SECOND!insert	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND zzz)
 reject	reject	engine	retention_time_unit/SECOND!swap	ALTER TABLE a STORAGE_CACHE_POLICY(HOT_RETENTION = 1 SECOND_MICROSECOND)
 accept	accept	engine	merge_insert_types/NO	ALTER TABLE a INSERT_METHOD NO
-accept	reject	engine	merge_insert_types/NO!swap	ALTER TABLE a INSERT_METHOD NOARCHIVELOG
+reject	reject	engine	merge_insert_types/NO!swap	ALTER TABLE a INSERT_METHOD NOARCHIVELOG
 accept	accept	engine	merge_insert_types/FIRST	ALTER TABLE a INSERT_METHOD FIRST
 reject	reject	engine	merge_insert_types/FIRST!insert	ALTER TABLE a INSERT_METHOD FIRST zzz
-accept	reject	engine	merge_insert_types/FIRST!swap	ALTER TABLE a INSERT_METHOD FIRST_VALUE
+reject	reject	engine	merge_insert_types/FIRST!swap	ALTER TABLE a INSERT_METHOD FIRST_VALUE
 accept	accept	engine	merge_insert_types/LAST	ALTER TABLE a INSERT_METHOD LAST
 reject	reject	engine	merge_insert_types/LAST!insert	ALTER TABLE a INSERT_METHOD LAST zzz
-accept	reject	engine	merge_insert_types/LAST!swap	ALTER TABLE a INSERT_METHOD LAST_REFRESH_SCN
+reject	reject	engine	merge_insert_types/LAST!swap	ALTER TABLE a INSERT_METHOD LAST_REFRESH_SCN
 accept	accept	engine	merge_engine_types/PARTIAL_UPDATE	ALTER TABLE a MERGE_ENGINE PARTIAL_UPDATE
 reject	reject	engine	merge_engine_types/PARTIAL_UPDATE!swap	ALTER TABLE a MERGE_ENGINE PARTITION
 accept	accept	engine	merge_engine_types/DELETE_INSERT	ALTER TABLE a MERGE_ENGINE DELETE_INSERT
@@ -6585,22 +6585,22 @@ reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_I
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 accept	accept	engine	tg_subpartition_option/%empty	CREATE TABLEGROUP a PARTITION BY HASH
 accept	accept	engine	row_format_option/REDUNDANT	ALTER TABLE a ROW_FORMAT REDUNDANT
-accept	reject	engine	row_format_option/REDUNDANT!swap	ALTER TABLE a ROW_FORMAT REFERENCES
+reject	reject	engine	row_format_option/REDUNDANT!swap	ALTER TABLE a ROW_FORMAT REFERENCES
 accept	accept	engine	row_format_option/COMPACT	ALTER TABLE a ROW_FORMAT COMPACT
 reject	reject	engine	row_format_option/COMPACT!insert	ALTER TABLE a ROW_FORMAT COMPACT zzz
-accept	reject	engine	row_format_option/COMPACT!swap	ALTER TABLE a ROW_FORMAT COMPLETE
+reject	reject	engine	row_format_option/COMPACT!swap	ALTER TABLE a ROW_FORMAT COMPLETE
 accept	accept	engine	row_format_option/DYNAMIC	ALTER TABLE a ROW_FORMAT DYNAMIC
 reject	reject	engine	row_format_option/DYNAMIC!insert	ALTER TABLE a ROW_FORMAT DYNAMIC zzz
-accept	reject	engine	row_format_option/DYNAMIC!swap	ALTER TABLE a ROW_FORMAT DYNAMIC_PARTITION_POLICY
+reject	reject	engine	row_format_option/DYNAMIC!swap	ALTER TABLE a ROW_FORMAT DYNAMIC_PARTITION_POLICY
 accept	accept	engine	row_format_option/COMPRESSED	ALTER TABLE a ROW_FORMAT COMPRESSED
 reject	reject	engine	row_format_option/COMPRESSED!insert	ALTER TABLE a ROW_FORMAT COMPRESSED zzz
-accept	reject	engine	row_format_option/COMPRESSED!swap	ALTER TABLE a ROW_FORMAT COMPRESSION
+reject	reject	engine	row_format_option/COMPRESSED!swap	ALTER TABLE a ROW_FORMAT COMPRESSION
 accept	accept	engine	row_format_option/CONDENSED	ALTER TABLE a ROW_FORMAT CONDENSED
 reject	reject	engine	row_format_option/CONDENSED!insert	ALTER TABLE a ROW_FORMAT CONDENSED zzz
-accept	reject	engine	row_format_option/CONDENSED!swap	ALTER TABLE a ROW_FORMAT CONDITION
+reject	reject	engine	row_format_option/CONDENSED!swap	ALTER TABLE a ROW_FORMAT CONDITION
 accept	accept	engine	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
 reject	reject	engine	row_format_option/DEFAULT!insert	ALTER TABLE a ROW_FORMAT DEFAULT zzz
-accept	reject	engine	row_format_option/DEFAULT!swap	ALTER TABLE a ROW_FORMAT DEFAULT_AUTH
+reject	reject	engine	row_format_option/DEFAULT!swap	ALTER TABLE a ROW_FORMAT DEFAULT_AUTH
 reject	accept	engine	external_properties_list/external_properties	DELETE FROM SOURCE(TYPE = 's')
 reject	reject	engine	external_properties_list/external_properties!drop-1	DELETE FROM SOURCE(= 's')
 reject	reject	engine	external_properties_list/external_properties!drop-2	DELETE FROM SOURCE(TYPE 's')
@@ -7146,13 +7146,13 @@ reject	reject	engine	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm!swap	CREATE 
 accept	accept	engine	opt_algorithm/%empty	CREATE VIEW a AS SELECT a
 reject	reject	engine	opt_algorithm/%empty!insert	CREATE zzz VIEW a AS SELECT a
 accept	accept	engine	view_algorithm/UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
-accept	reject	engine	view_algorithm/UNDEFINED!swap	CREATE ALGORITHM = UNDO VIEW a AS SELECT a
+reject	reject	engine	view_algorithm/UNDEFINED!swap	CREATE ALGORITHM = UNDO VIEW a AS SELECT a
 accept	accept	engine	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 reject	reject	engine	view_algorithm/MERGE!insert	CREATE ALGORITHM = MERGE zzz VIEW a AS SELECT a
-accept	reject	engine	view_algorithm/MERGE!swap	CREATE ALGORITHM = MERGE_ENGINE VIEW a AS SELECT a
+reject	reject	engine	view_algorithm/MERGE!swap	CREATE ALGORITHM = MERGE_ENGINE VIEW a AS SELECT a
 accept	accept	engine	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
 reject	reject	engine	view_algorithm/TEMPTABLE!insert	CREATE ALGORITHM = TEMPTABLE zzz VIEW a AS SELECT a
-accept	reject	engine	view_algorithm/TEMPTABLE!swap	CREATE ALGORITHM = TENANT VIEW a AS SELECT a
+reject	reject	engine	view_algorithm/TEMPTABLE!swap	CREATE ALGORITHM = TENANT VIEW a AS SELECT a
 reject	reject	engine	opt_definer/DEFINER_COMP_EQ_user_with_host_name	CREATE DEFINER = 's' VIEW a AS SELECT a
 reject	reject	engine	opt_definer/DEFINER_COMP_EQ_user_with_host_name!drop-1	CREATE = 's' VIEW a AS SELECT a
 reject	reject	engine	opt_definer/DEFINER_COMP_EQ_user_with_host_name!drop-2	CREATE DEFINER 's' VIEW a AS SELECT a
@@ -13762,27 +13762,27 @@ reject	reject	engine	alter_table_action/LOCK__opt_equal_mark_lock_opt!drop-2	ALT
 reject	reject	engine	alter_table_action/LOCK__opt_equal_mark_lock_opt!insert	ALTER TABLE a LOCK DEFAULT zzz
 reject	reject	engine	alter_table_action/LOCK__opt_equal_mark_lock_opt!swap	ALTER TABLE a LOCKED DEFAULT
 accept	accept	engine	algorithm_opt/DEFAULT	ALTER TABLE a ALGORITHM DEFAULT
-accept	reject	engine	algorithm_opt/DEFAULT!swap	ALTER TABLE a ALGORITHM DEFAULT_AUTH
+reject	reject	engine	algorithm_opt/DEFAULT!swap	ALTER TABLE a ALGORITHM DEFAULT_AUTH
 accept	accept	engine	algorithm_opt/INPLACE	ALTER TABLE a ALGORITHM INPLACE
 reject	reject	engine	algorithm_opt/INPLACE!insert	ALTER TABLE a ALGORITHM INPLACE zzz
-accept	reject	engine	algorithm_opt/INPLACE!swap	ALTER TABLE a ALGORITHM INSENSITIVE
+reject	reject	engine	algorithm_opt/INPLACE!swap	ALTER TABLE a ALGORITHM INSENSITIVE
 accept	accept	engine	algorithm_opt/COPY	ALTER TABLE a ALGORITHM COPY
 reject	reject	engine	algorithm_opt/COPY!insert	ALTER TABLE a ALGORITHM COPY zzz
-accept	reject	engine	algorithm_opt/COPY!swap	ALTER TABLE a ALGORITHM COSINE
+reject	reject	engine	algorithm_opt/COPY!swap	ALTER TABLE a ALGORITHM COSINE
 accept	accept	engine	algorithm_opt/INSTANT	ALTER TABLE a ALGORITHM INSTANT
 reject	reject	engine	algorithm_opt/INSTANT!insert	ALTER TABLE a ALGORITHM INSTANT zzz
-accept	reject	engine	algorithm_opt/INSTANT!swap	ALTER TABLE a ALGORITHM INTEGER
+reject	reject	engine	algorithm_opt/INSTANT!swap	ALTER TABLE a ALGORITHM INTEGER
 accept	accept	engine	lock_opt/DEFAULT	ALTER TABLE a LOCK DEFAULT
-accept	reject	engine	lock_opt/DEFAULT!swap	ALTER TABLE a LOCK DEFAULT_AUTH
+reject	reject	engine	lock_opt/DEFAULT!swap	ALTER TABLE a LOCK DEFAULT_AUTH
 accept	accept	engine	lock_opt/NONE	ALTER TABLE a LOCK NONE
 reject	reject	engine	lock_opt/NONE!insert	ALTER TABLE a LOCK NONE zzz
-accept	reject	engine	lock_opt/NONE!swap	ALTER TABLE a LOCK NOORDER
+reject	reject	engine	lock_opt/NONE!swap	ALTER TABLE a LOCK NOORDER
 accept	accept	engine	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 reject	reject	engine	lock_opt/SHARED!insert	ALTER TABLE a LOCK SHARED zzz
-accept	reject	engine	lock_opt/SHARED!swap	ALTER TABLE a LOCK SHARED_STORAGE_DEST
+reject	reject	engine	lock_opt/SHARED!swap	ALTER TABLE a LOCK SHARED_STORAGE_DEST
 accept	accept	engine	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
 reject	reject	engine	lock_opt/EXCLUSIVE!insert	ALTER TABLE a LOCK EXCLUSIVE zzz
-accept	reject	engine	lock_opt/EXCLUSIVE!swap	ALTER TABLE a LOCK EXECUTE
+reject	reject	engine	lock_opt/EXCLUSIVE!swap	ALTER TABLE a LOCK EXECUTE
 reject	accept	engine	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
 reject	reject	engine	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)!drop-1	ALTER TABLE a CONSTRAINT(a)
 reject	reject	engine	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)!drop-2	ALTER TABLE a DROP(a)
