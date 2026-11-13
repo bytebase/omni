@@ -33,6 +33,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"COMMENT = '<string_literal>'", "'COMMENT' '=' STRING"},
 		{"TYPE = 'SNOWPARK-OPTIMIZED'", "'TYPE' '=' '\\'SNOWPARK-OPTIMIZED\\''"},
 		{"FROM @[<namespace>.]<stage_name>[/<path>/]", "'FROM' STAGE"},
+		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
+		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
 		// A | inside SQL's parentheses chooses within them.
 		{"[ ENCRYPTION = ( TYPE = 'A' | TYPE = 'B' ) ]", "('ENCRYPTION' '=' '(' ('TYPE' '=' '\\'A\\'' | 'TYPE' '=' '\\'B\\'') ')')?"},
 		{"ALTER T [ ( ] <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ('(')? ID 'DROP' 'DEFAULT' (')')?"},

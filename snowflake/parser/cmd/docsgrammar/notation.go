@@ -36,7 +36,14 @@ const (
 	nEllipsis                  // ... or <...>
 )
 
-var placeholderRE = regexp.MustCompile(`^<[A-Za-z_][A-Za-z0-9_ .-]*>`)
+var (
+	placeholderRE = regexp.MustCompile(`^<[A-Za-z_][A-Za-z0-9_ .-]*>`)
+	// quotedChoice is a choice written inside quotes: '{ S3 | S3CHINA }',
+	// 'LOGIN_NAME | EMAIL_ADDRESS'. Each choice is a string of its own.
+	quotedChoice = regexp.MustCompile(`^\s*\{?\s*([A-Za-z0-9_-]+(?:\s*\|\s*[A-Za-z0-9_-]+)+)\s*\}?\s*$`)
+	// keywordSuffix is a keyword's optional ending, DESC[RIBE].
+	keywordSuffix = regexp.MustCompile(`^\[([A-Z]+)\]`)
+)
 
 // lexNotation reads notation text into tokens. Comments (-- to the end of a
 // line, /* */) are dropped. A quoted string that holds a placeholder is a
@@ -96,6 +103,15 @@ func lexNotation(s string) ([]ntok, error) {
 			case c == '"':
 				// A quoted identifier: a name, whatever the docs show in it.
 				out = append(out, ntok{nTerminal, tName})
+			case quotedChoice.MatchString(body):
+				out = append(out, ntok{nOpen, "{"})
+				for k, v := range strings.Split(quotedChoice.FindStringSubmatch(body)[1], "|") {
+					if k > 0 {
+						out = append(out, ntok{nBar, "|"})
+					}
+					out = append(out, ntok{nLiteral, "'" + strings.TrimSpace(v) + "'"})
+				}
+				out = append(out, ntok{nClose, "}"})
 			case strings.ContainsAny(body, "<>") || body == "":
 				out = append(out, ntok{nTerminal, tString})
 			default:
@@ -121,6 +137,13 @@ func lexNotation(s string) ([]ntok, error) {
 				j++
 			}
 			w := string(rs[i:j])
+			if m := keywordSuffix.FindString(string(rs[j:])); m != "" && unicode.IsUpper([]rune(w)[0]) {
+				// DESC[RIBE] is DESC or DESCRIBE.
+				full := w + keywordSuffix.FindStringSubmatch(m)[1]
+				out = append(out, ntok{nOpen, "{"}, ntok{nKeyword, w}, ntok{nBar, "|"}, ntok{nKeyword, full}, ntok{nClose, "}"})
+				i = j + len([]rune(m))
+				continue
+			}
 			if unicode.IsUpper([]rune(w)[0]) {
 				out = append(out, ntok{nKeyword, w})
 			} else {
