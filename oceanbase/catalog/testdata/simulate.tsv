@@ -2,7 +2,7 @@
 # columns: omni, expected, source, fixture, rule, statement
 ok	1054	engine	one_table@missing	stmt/create_table_stmt	CREATE TABLE a SELECT a
 ok	1054	engine	one_table@missing	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
-1146	1066	engine	one_table@missing	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
+1066	1066	engine	one_table@missing	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
 1051	1051	engine	one_table@missing	stmt/drop_table_stmt	DROP TABLE a
 1051	1051	engine	one_table@missing	stmt/drop_view_stmt	DROP VIEW a
 1146	1146	engine	one_table@missing	stmt/alter_table_stmt	ALTER TABLE a
@@ -10,13 +10,13 @@ ok	1054	engine	one_table@missing	stmt/create_table_stmt!insert	CREATE TABLE a SE
 1146	1146	engine	one_table@missing	stmt/drop_index_stmt	DROP INDEX a ON a
 ok	1054	engine	one_table@missing	stmt/create_view_stmt	CREATE VIEW a AS SELECT a
 ok	1054	engine	one_table@missing	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
-1146	1017	engine	one_table@missing	stmt/rename_table_stmt	RENAME TABLE a TO a
+1017	1017	engine	one_table@missing	stmt/rename_table_stmt	RENAME TABLE a TO a
 1146	1146	engine	one_table@missing	stmt/truncate_table_stmt	TRUNCATE a
 1146	1146	engine	one_table@missing	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
 1146	1146	engine	one_table@missing	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
 1146	1146	engine	one_table@missing	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
 1146	1146	engine	one_table@missing	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
-1146	1066	engine	one_table@missing	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
+1066	1066	engine	one_table@missing	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	ok:32b490ff5720	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
 ok	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a(a TINYINT) SELECT a
@@ -465,7 +465,7 @@ ok	1054	engine	one_table@missing	opt_column_list/(_column_name_list_)	CREATE VIE
 1146	1146	engine	one_table@missing	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
 1146	1146	engine	one_table@missing	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 1146	1146	engine	one_table@missing	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
-1051	1066	engine	one_table@missing	table_list/table_list_,_relation_factor	DROP TABLE a, a
+1066	1066	engine	one_table@missing	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1146	1146	engine	one_table@missing	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1064	1146	engine	one_table@missing	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
 1064	1146	engine	one_table@missing	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
@@ -476,7 +476,7 @@ ok	1054	engine	one_table@missing	opt_column_list/(_column_name_list_)	CREATE VIE
 1064	1146	engine	one_table@missing	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
 1146	1146	engine	one_table@missing	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
 1146	1146	engine	one_table@missing	key_or_index/INDEX	ALTER TABLE a DROP INDEX a
-1146	1017	engine	one_table@missing	rename_table_actions/rename_table_actions_,_rename_table_action	RENAME TABLE a TO a, a TO a
+1017	1017	engine	one_table@missing	rename_table_actions/rename_table_actions_,_rename_table_action	RENAME TABLE a TO a, a TO a
 1064	1146	engine	one_table@missing	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 1064	1146	engine	one_table@missing	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1146	1146	engine	one_table@missing	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
@@ -571,9 +571,9 @@ ok	1054	engine	one_table@missing	opt_column_list/(_column_name_list_)	CREATE VIE
 1146	1146	engine	one_table@missing	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@table	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@table	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
-1050	1066	engine	one_table@table	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
+1066	1066	engine	one_table@table	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	stmt/drop_table_stmt	DROP TABLE a
-1051	1347	engine	one_table@table	stmt/drop_view_stmt	DROP VIEW a
+1347	1347	engine	one_table@table	stmt/drop_view_stmt	DROP VIEW a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	stmt/alter_table_stmt	ALTER TABLE a
 ok	1072	engine	one_table@table	stmt/create_index_stmt	CREATE INDEX a ON a(a)
 1091	1091	engine	one_table@table	stmt/drop_index_stmt	DROP INDEX a ON a
@@ -585,7 +585,7 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	stmt/truncate_table_stmt	
 4016	4016	engine	one_table@table	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
 4016	4016	engine	one_table@table	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
 4016	4016	engine	one_table@table	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
-1050	1066	engine	one_table@table	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
+1066	1066	engine	one_table@table	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
 1050	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a(a TINYINT) SELECT a
@@ -613,8 +613,8 @@ ok	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_ta
 1050	1054	engine	one_table@table	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@table	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@table	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
-1050	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
-1050	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
+1060	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
+1060	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
 4028	4028	engine	one_table@table	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
 4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@table	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
@@ -1034,7 +1034,7 @@ ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm	A
 ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
 ok	1072	engine	one_table@table	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok	1072	engine	one_table@table	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
-1051	1066	engine	one_table@table	table_list/table_list_,_relation_factor	DROP TABLE a, a
+1066	1066	engine	one_table@table	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@table	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1064	1505	engine	one_table@table	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
 1064	1505	engine	one_table@table	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
@@ -1085,9 +1085,9 @@ ok	1072	engine	one_table@table	alter_index_option/ADD_add_spatial_index_opt	ALTE
 1068	1068	engine	one_table@table	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 1068	1068	engine	one_table@table	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
-1061	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
+1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1064	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
-1061	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
 1064	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@table	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
 1064	1072	engine	one_table@table	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
@@ -1102,7 +1102,7 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 1064	1068	engine	one_table@table	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
-1061	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
+1176	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@table	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
@@ -1140,9 +1140,9 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_empty_table_list/tabl
 1210	1210	engine	one_table@table	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@column	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@column	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
-1050	1066	engine	one_table@column	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
+1066	1066	engine	one_table@column	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	stmt/drop_table_stmt	DROP TABLE a
-1051	1347	engine	one_table@column	stmt/drop_view_stmt	DROP VIEW a
+1347	1347	engine	one_table@column	stmt/drop_view_stmt	DROP VIEW a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	stmt/alter_table_stmt	ALTER TABLE a
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	stmt/create_index_stmt	CREATE INDEX a ON a(a)
 1091	1091	engine	one_table@column	stmt/drop_index_stmt	DROP INDEX a ON a
@@ -1154,7 +1154,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	stmt/truncate_table_stmt
 4016	4016	engine	one_table@column	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
 4016	4016	engine	one_table@column	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
 4016	4016	engine	one_table@column	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
-1050	1066	engine	one_table@column	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
+1066	1066	engine	one_table@column	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
 1050	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a(a TINYINT) SELECT a
@@ -1182,8 +1182,8 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1050	1054	engine	one_table@column	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@column	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@column	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
-1050	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
-1050	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
+1060	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
+1060	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
 4028	4028	engine	one_table@column	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
 4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@column	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
@@ -1603,7 +1603,7 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	opt_index_using_algorith
 ok:c074959e710c	ok:c074959e710c	engine	one_table@column	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok:1894f59014d4	ok:1894f59014d4	engine	one_table@column	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
-1051	1066	engine	one_table@column	table_list/table_list_,_relation_factor	DROP TABLE a, a
+1066	1066	engine	one_table@column	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@column	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1064	1505	engine	one_table@column	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
 1064	1505	engine	one_table@column	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
@@ -1654,9 +1654,9 @@ ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_a
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
-1061	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
+1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1064	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
-1061	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
 1064	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@column	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
 1064	ok:e5cac50200af	engine	one_table@column	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
@@ -1671,7 +1671,7 @@ ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_
 1064	1068	engine	one_table@column	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
-1061	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
+1176	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@column	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 1060	1060	engine	one_table@column	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
@@ -1709,9 +1709,9 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/tab
 1210	1210	engine	one_table@column	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 1050	1054	engine	one_table@index	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1050	1054	engine	one_table@index	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
-1050	1066	engine	one_table@index	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
+1066	1066	engine	one_table@index	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	stmt/drop_table_stmt	DROP TABLE a
-1051	1347	engine	one_table@index	stmt/drop_view_stmt	DROP VIEW a
+1347	1347	engine	one_table@index	stmt/drop_view_stmt	DROP VIEW a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	stmt/alter_table_stmt	ALTER TABLE a
 1061	1061	engine	one_table@index	stmt/create_index_stmt	CREATE INDEX a ON a(a)
 ok:7b0f12d09c84	ok:7b0f12d09c84	engine	one_table@index	stmt/drop_index_stmt	DROP INDEX a ON a
@@ -1723,7 +1723,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	stmt/truncate_table_stmt	
 4016	4016	engine	one_table@index	binary_format/STRING_VALUE	ALTER TABLE a FORMAT(BINARY_FORMAT = 's')
 4016	4016	engine	one_table@index	binary_format/unreserved_keyword	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCESS_INFO)
 4016	4016	engine	one_table@index	binary_format/unreserved_keyword!swap	ALTER TABLE a FORMAT(BINARY_FORMAT = ACCOUNT)
-1050	1066	engine	one_table@index	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
+1066	1066	engine	one_table@index	create_table_like_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_LIKE_relation_factor_)	CREATE TABLE a(LIKE a)
 1050	1050	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option	CREATE TABLE a(a TINYINT)
 1064	1050	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_with_column_group	CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS)
 1050	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_(_table_element_list_)_opt_table_option_list_opt_partition_option_opt_ignore_or_replace_opt_as_select_stmt	CREATE TABLE a(a TINYINT) SELECT a
@@ -1751,8 +1751,8 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1050	1054	engine	one_table@index	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
 1050	1054	engine	one_table@index	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@index	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
-1050	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
-1050	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
+1060	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
+1060	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
 4028	4028	engine	one_table@index	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
 4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@index	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
@@ -2172,7 +2172,7 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	opt_index_using_algorithm
 ok:b1c3376df5ad	ok:b1c3376df5ad	engine	one_table@index	opt_index_using_algorithm/index_using_algorithm!drop-1	ALTER TABLE a ADD KEY BTREE(a)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok:872adc6fc998	ok:872adc6fc998	engine	one_table@index	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
-1051	1066	engine	one_table@index	table_list/table_list_,_relation_factor	DROP TABLE a, a
+1066	1066	engine	one_table@index	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@index	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1064	1505	engine	one_table@index	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
 1064	1505	engine	one_table@index	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
@@ -2225,7 +2225,7 @@ ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_ad
 ok:8ad4b5558f9a	ok:8ad4b5558f9a	engine	one_table@index	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1064	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
-ok	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1061	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
 1064	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@index	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
 1064	ok:7c097d37a5bb	engine	one_table@index	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
