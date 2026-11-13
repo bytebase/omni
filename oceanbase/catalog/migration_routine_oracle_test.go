@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle apply-correctness proof for the routine generator (correctness-protocol.md gate 2),
-// against the LIVE MySQL 8.0 engine (:13306). For representative (from, to) pairs
+// against OceanBase. For representative (from, to) pairs
 // covering every routine variant — function vs procedure, CREATE / DROP / characteristic-ALTER /
 // body-change(=DROP+CREATE) / param-change / RETURNS-change / DETERMINISTIC-change — the generated
 // DDL applied to a real `from` database must yield a routine whose canonical form equals `to`.
@@ -22,8 +22,7 @@ import (
 // TestOracle_RoutineDiffIdempotence; this file proves the EMITTED DDL is correct, and additionally
 // asserts the chosen PATH (single ALTER vs DROP+CREATE) for the characteristic-only cases.
 //
-// The harness reuses connectOracle / serverCharsetFor and skips cleanly when the engines
-// are unreachable.
+// The harness reuses oceanBaseOracle / serverCharsetFor.
 
 const routineApplyDB = "rtn_apply"
 

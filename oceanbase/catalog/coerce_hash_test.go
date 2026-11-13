@@ -149,7 +149,7 @@ func hashRoundTripProbes() []hashProbe {
 	}
 }
 
-// TestOracle_InnoDBHashRoundTrip proves the USING HASH fold against the LIVE 8.0 engine (:13306):
+// TestOracle_InnoDBHashRoundTrip proves the USING HASH fold against OceanBase:
 // every probe's user form vs its engine readback diffs empty.
 func TestOracle_InnoDBHashRoundTrip(t *testing.T) {
 	for range oracleVersions() {

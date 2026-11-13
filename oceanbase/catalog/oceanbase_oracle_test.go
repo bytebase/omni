@@ -17,8 +17,7 @@ import (
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
-// The OceanBase oracle for this package: every TestOracle_* that has moved off the
-// MySQL container asks it. The ones that have not moved still call connectOracle.
+// The OceanBase oracle for this package: every TestOracle_* asks it.
 //
 // oceanBaseOracle opens the test's connection to OceanBase: a replay of its tape, or the
 // pinned server in a recording (testcontainer.OpenWith). The pool holds one connection,
@@ -96,17 +95,25 @@ var obRefused = map[string]refusal{
 	"TestOracle_PhantomDiffElimination/oceanbase/char-binary-attribute-ascii-explicit": {1064, "BINARY after CHARACTER SET in a column's type"},
 	"TestOracle_PhantomDiffElimination/oceanbase/char-binary-attribute-utf8-alias":     {1064, "BINARY after CHARACTER SET in a column's type"},
 	"TestOracle_PhantomDiffElimination/oceanbase/functional-default-json":              {1101, "a default on a JSON column"},
+
+	"TestOracle_PartitionApplyCorrectness/oceanbase/create-key-algorithm-2":    {1064, "KEY ALGORITHM = n partitioning"},
+	"TestOracle_PartitionApplyCorrectness/oceanbase/create-linear-key":         {1064, "LINEAR KEY partitioning"},
+	"TestOracle_PartitionApplyCorrectness/oceanbase/repartition-toggle-linear": {1064, "LINEAR KEY partitioning"},
+
+	"TestOracle_EventIdempotence/oceanbase/every-disable-on-slave":            {1064, "DISABLE ON SLAVE on an event"},
+	"TestOracle_EventApplyCorrectness/oceanbase/alter-status-slave":           {1064, "DISABLE ON SLAVE on an event"},
+	"TestOracle_EventIdempotence/oceanbase/every-interval-quoted-hm":          {1064, "a quoted interval, EVERY '1:30' HOUR_MINUTE"},
+	"TestOracle_EventIdempotence/oceanbase/every-interval-quoted-leadingzero": {1064, "a quoted interval, EVERY '02:03:04' HOUR_SECOND"},
+	"TestOracle_EventIdempotence/oceanbase/every-interval-quoted-daysecond":   {1064, "a quoted interval, EVERY '1 12:30:00' DAY_SECOND"},
+	"TestOracle_EventIdempotence/oceanbase/every-interval-single-quoted":      {1064, "a quoted interval, EVERY '05' MINUTE"},
 }
 
 var obRefusedSeen sync.Map
 
 // refused ends a probe whose statement the engine would not take. err is the engine's
-// answer, or nil when the helper that gave up kept it in o.refusal. On OceanBase the
-// probe passes only if obRefused records this subtest with the error number the engine
-// answered; anything else fails. The caller returns after it.
-//
-// On the MySQL oracle, which the tests that have not moved still ask, it skips, as
-// those tests always have.
+// answer, or nil when the helper that gave up kept it in o.refusal. The probe passes only
+// if obRefused records this subtest with the error number the engine answered; anything
+// else fails. The caller returns after it.
 func (o *oracleConn) refused(t testing.TB, err error, format string, args ...any) {
 	t.Helper()
 	if err == nil {
@@ -114,9 +121,6 @@ func (o *oracleConn) refused(t testing.TB, err error, format string, args ...any
 	}
 	o.refusal = nil
 	why := fmt.Sprintf(format, args...)
-	if o.name != "oceanbase" {
-		t.Skipf("[%s] %s: %v", o.name, why, err)
-	}
 	var myErr *gomysql.MySQLError
 	if !errors.As(err, &myErr) {
 		t.Fatalf("%s, and not because OceanBase refused a statement: %v", why, err)
@@ -196,7 +200,140 @@ var obGaps = map[string]gap{
 		"OceanBase prints WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0), which the parser does not read",
 		[]string{"load stored SDL failed"},
 	},
+
+	// ---- Migrations: what the generator writes and OceanBase will not run. ----
+
+	// A foreign key has no index of its own on OceanBase. The catalog gives it one, as
+	// MySQL does, and the plan then drops an index that was never there.
+	"TestOracle_ForeignKeyMigrationApplyCorrectness/oceanbase/drop-fk-and-backing-index":           backingIndex,
+	"TestOracle_ForeignKeyMigrationApplyCorrectness/oceanbase/drop-fk-unnamed":                     backingIndex,
+	"TestOracle_ForeignKeyMigrationApplyCorrectness/oceanbase/modify-fk-column":                    backingIndex,
+	"TestOracle_ForeignKeyMultiTableApplyCorrectness/oceanbase/drop-column-and-its-fk":             backingIndex,
+	"TestOracle_ForeignKeyMultiTableApplyCorrectness/oceanbase/drop-fk-reuse-name-for-other-index": backingIndex,
+	"TestOracle_ForeignKeyMultiTableApplyCorrectness/oceanbase/drop-referenced-table":              backingIndex,
+	"TestOracle_ForeignKeyMultiTableApplyCorrectness/oceanbase/drop-two-fks-sharing-index":         backingIndex,
+	"TestOracle_ForeignKeyMultiTableApplyCorrectness/oceanbase/drop-two-unnamed-fks-sharing-index": backingIndex,
+	"TestOracle_AutoIncGroupingFKImplicitBacking/oceanbase/aig-fk-implicit-backing-drop":           backingIndex,
+	"TestOracle_AutoIncGroupingFKImplicitBacking/oceanbase/aig-fk-rename-in-place-to-ai":           backingIndex,
+
+	// One ALTER TABLE that MySQL needs whole, to keep an AUTO_INCREMENT column keyed at
+	// every statement's end, and that OceanBase takes only in parts.
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-add-col-promote-pk":           primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-drop-composite-pk-and-column": primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-drop-pk-and-column":           primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-drop-pk-deai":                 primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-pk-keep-ai-demote-member":     primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-pk-relocate-ai-to-secondary":  primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-pk-swap-drop-secondary":       primaryKeyAndMore,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-multi-drop-plus-add":          dropAndAddIndex,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-replace-backing-key":          dropAndAddIndex,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-swap-backing-key":             dropAndAddIndex,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-widen-ai-key-replaced":        dropAndAddIndex,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-drop-key-and-column": {
+		"the plan drops an index and a column in one ALTER TABLE, which OceanBase will not combine",
+		[]string{"Error 1235 (0A000): table redefinition and drop index in single statment not supported"},
+	},
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-myisam-shared-key-ai-migrate": {
+		"the plan drops an index and a column in one ALTER TABLE, which OceanBase will not combine",
+		[]string{"Error 1235 (0A000): table redefinition and drop index in single statment not supported"},
+	},
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-modify-gain-ai-new-key": {
+		"the plan makes a column AUTO_INCREMENT and adds its key in one ALTER TABLE, which OceanBase will not combine",
+		[]string{"Error 1235 (0A000): modify auto_increment and add index in single statment not supported"},
+	},
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-pk-drop-member-drop-newkey":           dropPrimaryKeyColumn,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-pk-shrink-member-drop":                dropPrimaryKeyColumn,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-ai-migrate-columns":                   moveAutoIncrement,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-myisam-shared-key-ai-migrate-survive": moveAutoIncrement,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-add-col-new-pk":                       addKeyedAutoIncrement,
+	"TestOracle_AutoIncGroupingApplyCorrectness/oceanbase/aig-add-col-promote-pk-drop-old":          addKeyedAutoIncrement,
+
+	// What OceanBase has no statement for.
+	"TestOracle_PartitionApplyCorrectness/oceanbase/remove-partitioning":                 removePartitioning,
+	"TestOracle_PartitionApplyCorrectness/oceanbase/remove-partitioning-range":           removePartitioning,
+	"TestOracle_PartitionApplyCorrectness/oceanbase/remove-partitioning-drop-key-column": removePartitioning,
+	"TestOracle_PartitionApplyCorrectness/oceanbase/repartition-drop-old-key-column":     removePartitioning,
+	"TestOracle_PartitionApplyCorrectness/oceanbase/repartition-drop-special-col":        removePartitioning,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/add-srid-none-to-4326":            alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/add-srid-none-to-zero":            alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/change-srid-4326-to-zero":         alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/change-srid-zero-to-4326":         alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/remove-srid-4326-to-none":         alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/remove-srid-zero-to-none":         alterSRID,
+	"TestOracle_SRIDPresenceApplyCorrectness/oceanbase/add-column-with-srid-zero": {
+		"OceanBase will not add a NOT NULL geometry column, even to an empty table",
+		[]string{"Error 1138 (22004): Invalid use of NULL value"},
+	},
+	"TestOracle_MigrationApplyCorrectness/oceanbase/modify-generated-expr": {
+		"OceanBase will not change a generated column's expression in place",
+		[]string{"Error 1235 (0A000): Modify generated column definition not supported"},
+	},
+
+	// The parser again: a multi-valued index, and a trigger named with its database, which
+	// is how the generator writes CREATE TRIGGER and how OceanBase then keeps it.
+	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/create-with-mv-index":         multiValuedIndex,
+	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/add-mv-index":                 multiValuedIndex,
+	"TestOracle_IndexMigrationApplyCorrectness/oceanbase/drop-mv-index":                multiValuedIndex,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-before-insert":       qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-after-update":        qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-before-delete":       qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/create-begin-end":           qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-body":                qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-timing":              qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/change-event":               qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/multi-add-drop":             qualifiedTrigger,
+	"TestOracle_TriggerMigrationApplyCorrectness/oceanbase/modify-table-move-drop-old": qualifiedTrigger,
+
+	// Events. OceanBase keeps an event's comment when ALTER EVENT gives an empty one, and
+	// gives an altered event the server's sql_mode, not the session's.
+	"TestOracle_EventApplyCorrectness/oceanbase/alter-remove-comment": {
+		"OceanBase's ALTER EVENT ... COMMENT '' leaves the comment as it was, so the plan cannot take one away",
+		twoWays("APPLY-CORRECTNESS FAILED for alter-remove-comment: result != to", "APPLY-CORRECTNESS (reverse) FAILED for alter-remove-comment"),
+	},
+	"TestOracle_EventAlterPreservesSQLMode/oceanbase": {
+		"OceanBase gives an event altered under SET sql_mode the server's sql_mode, so the plan's SET does not carry the mode the event had",
+		[]string{"event sql_mode not preserved across ALTER"},
+	},
 }
+
+var (
+	backingIndex = gap{
+		"OceanBase makes no index for a foreign key; the catalog gives it one, as MySQL does, and the plan drops what was never there",
+		[]string{"Error 1091 (42000): Can't DROP"},
+	}
+	primaryKeyAndMore = gap{
+		"the plan changes the primary key and something else in one ALTER TABLE, which OceanBase takes one at a time",
+		[]string{"Error 1235 (0A000): Multiple complex DDLs about primary in single stmt not supported"},
+	}
+	dropAndAddIndex = gap{
+		"the plan drops one index and adds another in one ALTER TABLE, which OceanBase refuses",
+		[]string{"Error 4179 (HY000): Dropping and adding indexes at the same time"},
+	}
+	dropPrimaryKeyColumn = gap{
+		"the plan drops a column of the primary key, which OceanBase will not do",
+		[]string{"Error 1235 (0A000): drop rowkey column is not supported"},
+	}
+	moveAutoIncrement = gap{
+		"the plan moves AUTO_INCREMENT from one column to another in one ALTER TABLE; OceanBase reads the second MODIFY before it has taken the first",
+		[]string{"Error 1075 (42000): Incorrect table definition; there can be only one auto column"},
+	}
+	addKeyedAutoIncrement = gap{
+		"the plan adds an AUTO_INCREMENT column and its primary key in one ALTER TABLE; OceanBase looks for the key before the column is there",
+		[]string{"Error 1176 (42000): Key 'seq' doesn't exist in table 't'"},
+	}
+	removePartitioning = gap{
+		"OceanBase has no ALTER TABLE ... REMOVE PARTITIONING, which the plan writes for a table that stops being partitioned",
+		[]string{"near 'PARTITIONING' at line 1"},
+	}
+	alterSRID = gap{
+		"OceanBase will not change a geometry column's SRID in place",
+		[]string{"Error 1235 (0A000): alter geometry srid not supported"},
+	}
+	qualifiedTrigger = gap{
+		"the parser does not read CREATE TRIGGER `db`.`name`, which the generator writes and OceanBase keeps as written, so the result does not load",
+		[]string{"reload of result SDL failed"},
+	}
+)
 
 var binaryBeforeCharset = gap{
 	"OceanBase takes VARCHAR(10) BINARY CHARACTER SET ascii and refuses CHARACTER SET ascii BINARY; the parser reads the second and not the first",

@@ -8,8 +8,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for the partition differ (correctness-protocol.md gates 1 & 2), against the
-// LIVE MySQL 8.0 engine (:13306). Partitioning is the diff-core idempotence gap the
+// The oracle proof for the partition differ (correctness-protocol.md gates 1 & 2), against
+// OceanBase. Partitioning is the diff-core idempotence gap the
 // breadth node closes: a partitioned table's SHOW CREATE emits a canonical partition clause whose
 // surface form differs from the user DDL (per-partition `ENGINE = ...` echo, 8.0's backtick-quoted
 // lower-cased expression, `PARTITIONS N` defaulting), and diff-core deliberately deferred it, so
@@ -24,8 +24,8 @@ import (
 //     (and partitioned-vs-not) diff with PartitionChanged=true. Without this, a differ that
 //     always returned false would pass the idempotence gate vacuously.
 //
-// The harness reuses assertDiffEmptyAgainstReadback / connectOracle / serverCharsetFor
-// from the diff oracle tests; it skips cleanly when the engines are unreachable.
+// The harness reuses assertDiffEmptyAgainstReadback / oceanBaseOracle / serverCharsetFor
+// from the diff oracle tests.
 
 // partitionDiffProbes enumerates the single-table partition FORMS that must round-trip empty: a
 // user-form DDL whose engine-stored partition clause differs (engine echo, expr quoting, default

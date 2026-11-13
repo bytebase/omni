@@ -11,7 +11,7 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// End-to-end apply-correctness proof for BYT-9832 against the LIVE 8.0 engine (:13306): a
+// End-to-end apply-correctness proof for BYT-9832 against OceanBase: a
 // routine / event whose BODY changes must be re-emitted under its ORIGINAL session context.
 // Each case creates the object under a distinctive sql_mode (and, for events, time_zone),
 // syncs that context into the source catalog via ApplySessionContext exactly as bytebase
@@ -19,9 +19,6 @@ import (
 // information_schema to prove the original context survived the recreate/ALTER. Without the
 // framing these assertions fail (the object comes back under the deploy session's mode) —
 // which is the whole point of the change.
-//
-// connectOracle falls back to a container when there is no local instance
-// (oracle_fallback_test.go).
 
 const scOracleDB = "byt9832_sc_apply"
 
@@ -120,7 +117,7 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		t.Run(o.name, gapped(func(t testing.TB) {
 			ctx := context.Background()

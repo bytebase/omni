@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle apply-correctness proof for CROSS-OBJECT operation ordering (correctness-protocol.md
-// gate 2), against the LIVE MySQL 8.0 engine (:13306). Per-object-kind
+// gate 2), against OceanBase. Per-object-kind
 // apply-correctness lives with each kind's own oracle file; THIS file proves the plan-level
 // ordering rules that span kinds — currently view ↔ stored-function:
 //

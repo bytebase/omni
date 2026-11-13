@@ -181,3 +181,45 @@ func TestOracle_OceanBaseViewOptions(t *testing.T) {
 		})
 	}
 }
+
+// TestOracle_OceanBaseInvisibleIndex holds to the engine what the migration generator
+// rests on (addIndexOps): CREATE TABLE and ALTER INDEX make an index invisible, in either
+// spelling, and ALTER TABLE ... ADD KEY does not: it takes the word and leaves the index
+// visible.
+func TestOracle_OceanBaseInvisibleIndex(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx := context.Background()
+	const db = "obidx_invisible"
+	visible := func(t *testing.T, index string) string {
+		t.Helper()
+		var v string
+		if err := o.db.QueryRowContext(ctx, "SELECT IS_VISIBLE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 't' AND INDEX_NAME = ? AND SEQ_IN_INDEX = 1", db, index).Scan(&v); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	if _, err := storeAndRead(ctx, o, db, "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c INT, KEY in_create (a) INVISIBLE, KEY in_create_comment (b) /*!80000 INVISIBLE */)", "t"); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, stmt, index, want string
+	}{
+		{"CREATE TABLE, INVISIBLE", "", "in_create", "NO"},
+		{"CREATE TABLE, the versioned comment", "", "in_create_comment", "NO"},
+		{"ALTER TABLE ADD KEY, INVISIBLE", "ALTER TABLE t ADD KEY in_alter (c) INVISIBLE", "in_alter", "YES"},
+		{"ALTER TABLE ADD KEY, the versioned comment", "ALTER TABLE t ADD KEY in_alter_comment (a, b) /*!80000 INVISIBLE */", "in_alter_comment", "YES"},
+		{"ALTER INDEX INVISIBLE", "ALTER TABLE t ALTER INDEX in_alter INVISIBLE", "in_alter", "NO"},
+		{"ALTER INDEX VISIBLE", "ALTER TABLE t ALTER INDEX in_create VISIBLE", "in_create", "YES"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.stmt != "" {
+				if _, err := o.db.ExecContext(ctx, tc.stmt); err != nil {
+					t.Fatalf("%s: %v", tc.stmt, err)
+				}
+			}
+			if got := visible(t, tc.index); got != tc.want {
+				t.Errorf("IS_VISIBLE of %s is %s, recorded %s", tc.index, got, tc.want)
+			}
+		})
+	}
+}

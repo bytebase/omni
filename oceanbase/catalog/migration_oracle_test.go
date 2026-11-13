@@ -11,8 +11,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for generate-core (correctness-protocol.md gates 1 & 2), against the
-// LIVE MySQL 8.0 engine. This is the first node that EMITS DDL, so it proves both
+// The oracle proof for generate-core (correctness-protocol.md gates 1 & 2), against
+// OceanBase. This is the first node that EMITS DDL, so it proves both
 // oracle gates mechanically:
 //
 //  1. APPLY-CORRECTNESS. For a representative (from, to) pair: build a real database in
@@ -27,9 +27,8 @@ import (
 //     generate → empty — produces no DDL. A non-empty no-op plan is a bug in ordering or
 //     rendering (or an upstream normalization gap → flagged, not patched here).
 //
-// The harness reuses connectOracle / showCreate / serverCharsetFor / loadOneTable
-// from the diff + normalize oracle tests. It falls back to a shared testcontainer
-// when the local engine is unreachable (oracle_fallback_test.go).
+// The harness reuses oceanBaseOracle / showCreate / serverCharsetFor / loadOneTable
+// from the diff + normalize oracle tests.
 
 // catalogFromReadback applies createSQL in a throwaway db, reads back the table's SHOW
 // CREATE, and loads it into a catalog (wrapped with the box's server charset so table-charset
@@ -227,7 +226,7 @@ func migrationProbes() []migrationProbe {
 // the generated DDL transforms a real `from` database into a `to`-equal one.
 func TestOracle_MigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range migrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
@@ -297,43 +296,41 @@ func assertApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p migrationP
 			o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
 			return
 		}
-		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
+		toCat, _ = loadOnePartTable(t, applyDB, sc, rehomed(rb, applyDB+"_to", applyDB), p.table)
 	} else {
 		toCat = New()
 	}
 
+	// The `from` state is built in the apply database itself and read back from there: a
+	// name the engine makes up for an unnamed CHECK or foreign key belongs to one table in
+	// one database, so a plan drawn from a readback taken anywhere else would drop a name
+	// this database does not have. readbackVia selects the apply database, so the plan
+	// applies there.
 	var fromCat *Catalog
 	tableInFrom := strings.TrimSpace(p.fromDDL) != ""
 	if tableInFrom {
-		rb, ok := readbackVia(applyDB+"_from", p.fromDDL, p.table)
+		rb, ok := readbackVia(applyDB, p.fromDDL, p.table)
 		if !ok {
-			o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+			o.refused(t, nil, "could not set up `from` state for %s", p.id)
 			return
 		}
 		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
 		fromCat = New()
+		for _, s := range []string{
+			"DROP DATABASE IF EXISTS " + applyDB,
+			fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", applyDB, sc),
+			"USE " + applyDB,
+		} {
+			if _, err := conn.ExecContext(ctx, s); err != nil {
+				t.Fatalf("[%s] could not set up the apply database for %s: %q: %v", o.name, p.id, s, err)
+			}
+		}
 	}
 
 	// Generate the plan (version-aware).
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
-
-	// Build a real database in state `from` and apply the plan, on the same pinned connection.
-	setup := []string{
-		"DROP DATABASE IF EXISTS " + applyDB,
-		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", applyDB, sc),
-		"USE " + applyDB,
-	}
-	if tableInFrom {
-		setup = append(setup, p.fromDDL)
-	}
-	for _, s := range setup {
-		if _, err := conn.ExecContext(ctx, s); err != nil {
-			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
-			return
-		}
-	}
 
 	// Apply the migration statements one at a time on the same connection.
 	for _, op := range plan.Ops {

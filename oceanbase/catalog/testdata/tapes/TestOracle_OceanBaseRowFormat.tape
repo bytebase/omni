@@ -202,31 +202,6 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS pa_rowformat_reset_compact_a000152c_from
-< ok 0 0
-> exec
-| CREATE DATABASE pa_rowformat_reset_compact_a000152c_from DEFAULT CHARSET=utf8mb4
-< ok 1 0
-> exec
-| USE pa_rowformat_reset_compact_a000152c_from
-< ok 0 0
-> exec
-| CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPACT
-< ok 0 0
-> query
-| SHOW CREATE TABLE pa_rowformat_reset_compact_a000152c_from.t
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `id` int(11) NOT NULL,
-|   PRIMARY KEY (`id`)
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPACT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
-> exec
 | DROP DATABASE IF EXISTS pa_rowformat_reset_compact_a000152c
 < ok 0 0
 > exec
@@ -238,6 +213,19 @@
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPACT
 < ok 0 0
+> query
+| SHOW CREATE TABLE pa_rowformat_reset_compact_a000152c.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPACT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | ALTER TABLE `pa_rowformat_reset_compact_a000152c`.`t` ROW_FORMAT=DEFAULT
 < ok 0 0
@@ -280,31 +268,6 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS pa_rowformat_reset_compressed_9b75c244_from
-< ok 0 0
-> exec
-| CREATE DATABASE pa_rowformat_reset_compressed_9b75c244_from DEFAULT CHARSET=utf8mb4
-< ok 1 0
-> exec
-| USE pa_rowformat_reset_compressed_9b75c244_from
-< ok 0 0
-> exec
-| CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED
-< ok 0 0
-> query
-| SHOW CREATE TABLE pa_rowformat_reset_compressed_9b75c244_from.t
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
-< row
-: bytes
-| t
-: bytes
-| CREATE TABLE `t` (
-|   `id` int(11) NOT NULL,
-|   PRIMARY KEY (`id`)
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPRESSED COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
-> exec
 | DROP DATABASE IF EXISTS pa_rowformat_reset_compressed_9b75c244
 < ok 0 0
 > exec
@@ -316,6 +279,19 @@
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED
 < ok 0 0
+> query
+| SHOW CREATE TABLE pa_rowformat_reset_compressed_9b75c244.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPRESSED COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | ALTER TABLE `pa_rowformat_reset_compressed_9b75c244`.`t` ROW_FORMAT=DEFAULT
 < ok 0 0

@@ -11,7 +11,7 @@ import (
 )
 
 // The oracle proof for the routine (function + procedure) differ (correctness-protocol.md
-// gate 1: idempotence), against the LIVE MySQL 8.0 engine (:13306). Two
+// gate 1: idempotence), against OceanBase. Two
 // properties are proven mechanically for every routine FORM:
 //
 //  1. Idempotence (the spine): a routine in its real stored form (the engine's own SHOW
@@ -24,8 +24,8 @@ import (
 //     if it compared surface tokens these would phantom-diff forever.
 //
 // Both sides are loaded under the SAME database name (routineProbeDB) so identity matches the
-// single-database release path; the harness reuses connectOracle / serverCharsetFor
-// from the diff + normalize oracle tests and skips cleanly when the engines are unreachable.
+// single-database release path; the harness reuses oceanBaseOracle / serverCharsetFor
+// from the diff + normalize oracle tests.
 
 const routineProbeDB = "rtn_idem"
 
@@ -174,35 +174,6 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 				}
 			}))
 		}
-	}
-}
-
-// TestOracle_SysProcedureAdjacentLiterals proves the real-world motivation for
-// adjacent string-literal support against the engine's OWN schema: the stock
-// sys.ps_trace_thread body (shipped in every 5.7/8.0 server) contains an
-// adjacent-literal run ('tmp disk tables: ...\n' followed by 'select scan: ...'
-// with no comma), so its SHOW CREATE readback must parse, load through LoadSDL,
-// and self-diff empty. Before adjacency support this failed with "unexpected
-// token" — hard-blocking the declarative path for any dump containing sys.
-func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
-		n := NormalizerFor(o.version)
-		t.Run(o.name, gapped(func(t testing.TB) {
-			rb, ok := o.showCreateRoutine(t, "sys", "PROCEDURE", "ps_trace_thread")
-			if !ok {
-				t.Skipf("[%s] sys.ps_trace_thread unavailable (stripped sys schema?)", o.name)
-			}
-			sdl := "CREATE DATABASE sysdump;\nUSE sysdump;\n" + rb + ";\n"
-			cat, err := LoadSDL(sdl)
-			if err != nil {
-				t.Fatalf("[%s] LoadSDL of stock sys.ps_trace_thread failed: %v", o.name, err)
-			}
-			if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
-				t.Errorf("[%s] self-diff of stock sys.ps_trace_thread not empty: %s",
-					o.name, describeRoutineDiff(d))
-			}
-		}))
 	}
 }
 

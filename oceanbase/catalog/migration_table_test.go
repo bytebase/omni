@@ -10,7 +10,7 @@ import (
 )
 
 // Oracle proof for the AUTO_INCREMENT-supporting-key inlining in formatCreateTable (the errno-1075
-// fix), against the LIVE MySQL 8.0 engine (:13306). MySQL rejects CREATE TABLE for an
+// fix), against OceanBase. MySQL rejects CREATE TABLE for an
 // AUTO_INCREMENT column that is not the first column of a key ("there can be only one auto column
 // and it must be defined as a key", errno 1075). When the only backing key is a non-PK index,
 // generate-core previously rendered the CREATE without that key, so the statement failed on apply.
@@ -24,8 +24,8 @@ import (
 //     empty (no phantom diff from the inlined key).
 //
 // The apply is SELF-CONTAINED (its own per-probe database via loadOnePartTable), like the partition
-// oracle test, so it does not contend on the shared `diffdb`. It reuses connectOracle / NormalizerFor
-// / serverCharsetFor from the shared harness and skips cleanly when the engines are down.
+// oracle test, so it does not contend on the shared `diffdb`. It reuses oceanBaseOracle / NormalizerFor
+// / serverCharsetFor from the shared harness.
 
 // autoIncProbe is a single CREATE-TABLE form whose AUTO_INCREMENT column is backed only by a non-PK
 // key; the generated plan must apply cleanly and round-trip empty.

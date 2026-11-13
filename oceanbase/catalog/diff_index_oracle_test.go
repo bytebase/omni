@@ -9,8 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for the index differ (correctness-protocol.md gates 1 & 2), against the LIVE
-// MySQL 8.0 engine (:13306). For every index variant the node covers, two
+// The oracle proof for the index differ (correctness-protocol.md gates 1 & 2), against OceanBase. For every index variant the node covers, two
 // properties are proven mechanically:
 //
 //  1. Idempotence (the spine): a schema in its real stored form (the engine's SHOW CREATE
@@ -21,8 +20,8 @@ import (
 //     index diff (the auto-created KEY is excluded on both sides), proven via a multi-table
 //     round-trip (single-table readback cannot resolve the FK's referenced table).
 //
-// The harness reuses assertDiffEmptyAgainstReadback / connectOracle / serverCharsetFor
-// from the diff + normalize oracle tests; it skips cleanly when the engines are unreachable.
+// The harness reuses assertDiffEmptyAgainstReadback / oceanBaseOracle / serverCharsetFor
+// from the diff + normalize oracle tests.
 
 // indexDiffProbes enumerates the single-table index FORMS that must round-trip empty: a user-form
 // DDL whose engine-stored form differs (auto-name, prefix echo, version-flagged DESC/KBS, ...) but

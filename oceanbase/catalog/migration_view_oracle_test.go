@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle proof for the view differ + generator (correctness-protocol.md gates 1 & 2), against
-// the LIVE MySQL 8.0 engine (:13306). Two properties are proven
+// OceanBase. Two properties are proven
 // mechanically across every view FORM the node covers:
 //
 //  1. IDEMPOTENCE (the spine). A schema (tables + views) is applied to a real database; each
@@ -24,9 +24,8 @@ import (
 //     REPLACE / DROP VIEW DDL applied to a real `from` database yields a schema whose views
 //     canonicalize equal to `to` — including view-on-table and view-on-view dependency ordering.
 //
-// The harness reuses connectOracle / serverCharsetFor from the
-// normalize + diff oracle tests, and falls back to a shared testcontainer when the
-// local engine is unreachable (oracle_fallback_test.go).
+// The harness reuses oceanBaseOracle / serverCharsetFor from the
+// normalize + diff oracle tests,
 //
 // View-body rewrites this file exercises (oracle-verified, see diff_view.go):
 //   - column qualification: 8.0 qualifies same-db refs with the database — folded by
@@ -814,68 +813,4 @@ func firstIdentAfter(s string, pos int) string {
 		ident = ident[dot+1:]
 	}
 	return ident
-}
-
-// TestOracle_SysMetricsViewRoundTrip is the north-star gate for the
-// paren-subquery-operand parser fix: the STOCK MySQL 8.0 sys.metrics view —
-// whose stored body contains `if((((select count(0) from
-// performance_schema.setup_instruments where ...))) = 0),'NO',...)`-shaped
-// expressions — must load through LoadSDL from its live SHOW CREATE VIEW
-// readback (unparseable before the fix), self-diff empty, and reach a
-// dump→load fixed point: the catalog's regenerated CREATE statement reloads
-// into a catalog that diffs empty against the first load in both directions.
-// 8.0 only: 5.7 ships a different sys version without the metrics view.
-func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
-	o := connectOracle(t, MySQL80)
-	n := NormalizerFor(MySQL80)
-	ctx := context.Background()
-
-	var name, ddl, csClient, coll string
-	row := o.db.QueryRowContext(ctx, "SHOW CREATE VIEW sys.metrics")
-	if err := row.Scan(&name, &ddl, &csClient, &coll); err != nil {
-		t.Skipf("[%s] SHOW CREATE VIEW sys.metrics failed (sys schema not installed?): %v", o.name, err)
-	}
-
-	readbackSDL := "CREATE DATABASE sys;\nUSE sys;\n" + ddl + ";\n"
-	cat1, err := LoadSDLWithVersion(readbackSDL, MySQL80)
-	if err != nil {
-		t.Fatalf("[%s] LoadSDL(sys.metrics readback) failed: %v\n%s", o.name, err, readbackSDL)
-	}
-	if d := DiffWithNormalizer(cat1, cat1, n); !d.IsEmpty() {
-		t.Errorf("[%s] sys.metrics self-diff not empty: %s", o.name, describeViewDiff(d))
-	}
-
-	db1 := cat1.GetDatabase("sys")
-	if db1 == nil {
-		t.Fatalf("[%s] loaded catalog has no sys database", o.name)
-	}
-	v1 := db1.Views["metrics"]
-	if v1 == nil {
-		t.Fatalf("[%s] loaded catalog has no sys.metrics view", o.name)
-	}
-
-	// Second generation: regenerate the CREATE from the loaded catalog (the
-	// canonical stored form the migration generator emits) and reload it.
-	regenSDL := "CREATE DATABASE sys;\nUSE sys;\n" + formatCreateOrReplaceView(v1) + ";\n"
-	cat2, err := LoadSDLWithVersion(regenSDL, MySQL80)
-	if err != nil {
-		t.Fatalf("[%s] LoadSDL(regenerated sys.metrics) failed: %v\n%s", o.name, err, regenSDL)
-	}
-	if d := DiffWithNormalizer(cat1, cat2, n); !d.IsEmpty() {
-		t.Errorf("[%s] DUMP FIXED POINT: first load vs regenerated load not empty: %s\n  regen SDL:\n%s",
-			o.name, describeViewDiff(d), regenSDL)
-	}
-	if d := DiffWithNormalizer(cat2, cat1, n); !d.IsEmpty() {
-		t.Errorf("[%s] DUMP FIXED POINT (reverse): %s", o.name, describeViewDiff(d))
-	}
-
-	// Third generation must equal the second textually (fixed point reached).
-	db2 := cat2.GetDatabase("sys")
-	if db2 == nil || db2.Views["metrics"] == nil {
-		t.Fatalf("[%s] regenerated catalog lost sys.metrics", o.name)
-	}
-	if v2 := db2.Views["metrics"]; v2.Definition != v1.Definition {
-		t.Errorf("[%s] view Definition not a fixed point:\n  gen1: %s\n  gen2: %s",
-			o.name, v1.Definition, v2.Definition)
-	}
 }

@@ -9,8 +9,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for the foreign-key differ (correctness-protocol.md gates 1 & 2), against the
-// LIVE MySQL 8.0 engine (:13306). A foreign key always lives on a CHILD table that
+// The oracle proof for the foreign-key differ (correctness-protocol.md gates 1 & 2), against
+// OceanBase. A foreign key always lives on a CHILD table that
 // references a PARENT, so every FK form is proven through a multi-table round-trip: parent `p` +
 // child `c` are applied to the real engine, BOTH are read back via SHOW CREATE, reloaded as one
 // schema, and the self-diff must be empty. The headline properties:
@@ -25,9 +25,8 @@ import (
 //  3. Auto-name normalization: an unnamed FK (auto-named `<table>_ibfk_N`) and an unnamed-backing
 //     index round-trip empty.
 //
-// The harness reuses connectOracle / serverCharsetFor /
-// describeDiff from the diff + normalize oracle tests; it skips cleanly when the engines are
-// unreachable.
+// The harness reuses oceanBaseOracle / serverCharsetFor /
+// describeDiff from the diff + normalize oracle tests.
 
 // TestForeignKeyCanonicalHelpers is a hermetic (no-engine) unit test for the canonicalization
 // helpers, locking in the action-default fold, the comma-safe column encoding, and the same-db

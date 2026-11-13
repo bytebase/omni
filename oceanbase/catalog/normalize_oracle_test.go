@@ -4,16 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 // The oracle proof for normalize-core. For every normalization.md entry, this applies
-// the input DDL to a LIVE MySQL 8.0 engine, reads back
+// the input DDL to OceanBase, reads back
 // SHOW CREATE TABLE, and asserts the phantom-diff-elimination property:
 //
 //	CanonicalColumn(loaded(input_ddl))  ==  CanonicalColumn(loaded(SHOW CREATE readback))
@@ -23,9 +21,8 @@ import (
 // canonicalizer disagrees with what the engine actually stores, which would produce a
 // phantom diff forever. These tests are the correctness spine (correctness-protocol.md).
 //
-// Connection: the local oracle instance from the work order, overridable via env,
-// with a shared testcontainer fallback when it is not reachable
-// (oracle_fallback_test.go), so the proof also runs unattended in CI.
+// Connection: oceanBaseOracle (oceanbase_oracle_test.go), the test's tape, or the pinned
+// server in a recording.
 
 type oracleConn struct {
 	db      *sql.DB
@@ -45,63 +42,18 @@ type oracleSession interface {
 	Close() error
 }
 
-// session returns the connection a probe runs all its statements on. The MySQL oracle
-// pins one from its pool. A tape's stream is one connection already, and pinning it
-// would leave nothing for a helper that asks o.db: that helper would wait forever, with
-// the server idle. So on OceanBase the session is the pool itself, and closing it does
-// nothing.
-func (o *oracleConn) session(ctx context.Context) (oracleSession, error) {
-	if o.name == "oceanbase" {
-		return poolSession{o.db}, nil
-	}
-	return o.db.Conn(ctx)
+// session returns the connection a probe runs all its statements on, which is the pool
+// itself: a tape's stream is one connection, so a USE holds from one statement to the
+// next without pinning anything. Pinning that one connection (db.Conn) would leave
+// nothing for a helper that asks o.db, which would then wait forever with the server
+// idle. Closing the session does nothing.
+func (o *oracleConn) session(context.Context) (oracleSession, error) {
+	return poolSession{o.db}, nil
 }
 
 type poolSession struct{ *sql.DB }
 
 func (poolSession) Close() error { return nil }
-
-func dsnOr(env, def string) string {
-	if v := os.Getenv(env); v != "" {
-		return v
-	}
-	return def
-}
-
-// connectOracle dials the engine for version: the OMNI_MYSQL80_DSN override if
-// set, else the conventional local instance, else the package-shared
-// testcontainer fallback (oracle_fallback_test.go).
-func connectOracle(t testing.TB, version Version) *oracleConn {
-	t.Helper()
-	const env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
-	dsn, explicit := os.Getenv(env), true
-	if dsn == "" {
-		dsn, explicit = def, false
-	}
-	db, err := dialOracle(dsn)
-	if err == nil {
-		t.Cleanup(func() { _ = db.Close() })
-		return &oracleConn{db: db, version: version, name: name}
-	}
-	if explicit {
-		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
-	}
-	return &oracleConn{db: fallbackOracle(t), version: version, name: name}
-}
-
-func dialOracle(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	return db, nil
-}
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
 // SHOW CREATE TABLE readback for the named table.

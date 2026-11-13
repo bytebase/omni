@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle proof for the event differ + generator (correctness-protocol.md gates 1 & 2),
-// against the LIVE MySQL 8.0 engine (:13306). Events are database-level
+// against OceanBase. Events are database-level
 // objects, so this harness is event-shaped (SHOW CREATE EVENT, a per-probe apply database) rather
 // than reusing the table harness. Two properties are proven:
 //
@@ -25,9 +25,8 @@ import (
 //     Covers CREATE (add), DROP, and ALTER (every mutable aspect: schedule, status, ON COMPLETION,
 //     comment, body). When nothing changed the plan is empty.
 //
-// The harness reuses connectOracle / serverCharsetFor /
-// NormalizerFor from the existing oracle tests; it falls back to a shared testcontainer
-// when the local engine is unreachable (oracle_fallback_test.go). Event DDL applies regardless of
+// The harness reuses oceanBaseOracle / serverCharsetFor /
+// NormalizerFor from the existing oracle tests; Event DDL applies regardless of
 // event_scheduler state, so these run with the scheduler at the box default.
 
 // loadOneEvent loads a CREATE EVENT (wrapped in a database whose default charset matches the
@@ -48,11 +47,11 @@ func loadOneEvent(t testing.TB, serverCharset, createSQL, event string) (*Catalo
 	return nil, nil
 }
 
-// eventReadback applies createSQL in a throwaway database (on the given pinned connection) and
-// returns the SHOW CREATE EVENT readback (the engine's canonical stored form) as a reloadable
-// CREATE EVENT statement. Returns ok=false (and logs) when the version rejects the input — the
-// caller decides whether that is expected (e.g. 5.7 rejecting a far-future AT value).
-func eventReadback(t testing.TB, conn oracleSession, name, sc, dbName, createSQL, event string) (string, bool) {
+// eventReadback applies createSQL in a throwaway database (on the given connection) and
+// returns the engine's stored form of the event as a reloadable CREATE EVENT statement. It
+// returns ok=false, and keeps the engine's answer in o.refusal, when the engine refuses the
+// input; the caller ends the probe in refused.
+func eventReadback(t testing.TB, conn oracleSession, o *oracleConn, sc, dbName, createSQL, event string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	for _, s := range []string{
@@ -62,27 +61,75 @@ func eventReadback(t testing.TB, conn oracleSession, name, sc, dbName, createSQL
 		createSQL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] event readback setup failed: %q: %v", name, s, err)
+			t.Logf("[%s] event readback setup failed: %q: %v", o.name, s, err)
+			o.refusal = fmt.Errorf("%q: %w", s, err)
 			return "", false
 		}
 	}
-	ddl, ok := scanShowCreateEvent(conn, dbName, event)
-	if !ok {
-		t.Logf("[%s] SHOW CREATE EVENT %s.%s failed", name, dbName, event)
-	}
-	return ddl, ok
-}
-
-// scanShowCreateEvent runs SHOW CREATE EVENT and returns the "Create Event" column. The result set
-// has seven columns: Event, sql_mode, time_zone, Create Event, character_set_client,
-// collation_connection, Database Collation.
-func scanShowCreateEvent(conn oracleSession, dbName, event string) (string, bool) {
-	var name, sqlMode, tz, ddl, csClient, collConn, dbColl string
-	row := conn.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE EVENT %s.%s", dbName, event))
-	if err := row.Scan(&name, &sqlMode, &tz, &ddl, &csClient, &collConn, &dbColl); err != nil {
+	ddl, err := storedEvent(conn, dbName, event)
+	if err != nil {
+		t.Logf("[%s] reading event %s.%s back failed: %v", o.name, dbName, event, err)
+		o.refusal = err
 		return "", false
 	}
 	return ddl, true
+}
+
+// storedEvent returns the stored form of an event as a CREATE EVENT statement. OceanBase has
+// no SHOW CREATE EVENT to print one (it answers 1064), so the statement is rebuilt from the
+// event's row of information_schema.EVENTS.
+//
+// The rebuilt statement leaves STARTS out. OceanBase fills it with the time of creation when
+// an event names none, which no tape could replay, and the diff's key drops STARTS for the
+// same reason (canonicalEventSchedule).
+func storedEvent(conn oracleSession, dbName, event string) (string, error) {
+	ctx := context.Background()
+	rows, err := conn.QueryContext(ctx, `SELECT EVENT_TYPE, IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), ''),
+			IFNULL(INTERVAL_VALUE, ''), IFNULL(INTERVAL_FIELD, ''), IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), ''),
+			STATUS, ON_COMPLETION, IFNULL(EVENT_COMMENT, ''), EVENT_DEFINITION
+		FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? AND EVENT_NAME = ?`, dbName, event)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var found []string
+	for rows.Next() {
+		var kind, at, every, field, ends, status, completion, comment, body string
+		if err := rows.Scan(&kind, &at, &every, &field, &ends, &status, &completion, &comment, &body); err != nil {
+			return "", err
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "CREATE EVENT `%s` ON SCHEDULE ", event)
+		if kind == "ONE TIME" {
+			fmt.Fprintf(&b, "AT '%s'", at)
+		} else {
+			fmt.Fprintf(&b, "EVERY %s %s", every, field)
+			if ends != "" {
+				fmt.Fprintf(&b, " ENDS '%s'", ends)
+			}
+		}
+		fmt.Fprintf(&b, " ON COMPLETION %s", completion)
+		switch status {
+		case "ENABLED":
+			b.WriteString(" ENABLE")
+		case "DISABLED":
+			b.WriteString(" DISABLE")
+		default:
+			return "", fmt.Errorf("event %s.%s has STATUS %q", dbName, event, status)
+		}
+		if comment != "" {
+			fmt.Fprintf(&b, " COMMENT %s", quoteStringLiteral(comment))
+		}
+		fmt.Fprintf(&b, " DO %s", strings.TrimSuffix(strings.TrimSpace(body), ";"))
+		found = append(found, b.String())
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if len(found) != 1 {
+		return "", fmt.Errorf("information_schema.EVENTS holds %d rows for %s.%s, want 1: %q", len(found), dbName, event, found)
+	}
+	return found[0], nil
 }
 
 // eventIdempotenceProbes enumerates representative event FORMS that must round-trip empty: user
@@ -119,7 +166,7 @@ func eventIdempotenceProbes() []struct {
 // version.
 func TestOracle_EventIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
 		ctx := context.Background()
@@ -131,7 +178,7 @@ func TestOracle_EventIdempotence(t *testing.T) {
 		for _, p := range eventIdempotenceProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(p.id, "-", "_")
-				rb, ok := eventReadback(t, conn, o.name, sc, "ev_idem_"+slug, p.create, p.event)
+				rb, ok := eventReadback(t, conn, o, sc, "ev_idem_"+slug, p.create, p.event)
 				if !ok {
 					o.refused(t, nil, "could not obtain readback for %s", p.id)
 					return
@@ -214,7 +261,7 @@ func eventMigrationProbes() []struct {
 // event-database into a `to`-equal one, for CREATE / DROP / ALTER across every form.
 func TestOracle_EventApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
 		for _, p := range eventMigrationProbes() {
@@ -245,7 +292,7 @@ func assertEventApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, sc, id,
 
 	var toCat, fromCat *Catalog
 	if eventInTo {
-		rb, ok := eventReadback(t, conn, o.name, sc, "evto_"+slug, toCreate, event)
+		rb, ok := eventReadback(t, conn, o, sc, "evto_"+slug, toCreate, event)
 		if !ok {
 			o.refused(t, nil, "could not obtain `to` readback for %s", id)
 			return
@@ -255,7 +302,7 @@ func assertEventApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, sc, id,
 		toCat = New()
 	}
 	if eventInFrom {
-		rb, ok := eventReadback(t, conn, o.name, sc, "evfrom_"+slug, fromCreate, event)
+		rb, ok := eventReadback(t, conn, o, sc, "evfrom_"+slug, fromCreate, event)
 		if !ok {
 			o.refused(t, nil, "could not obtain `from` readback for %s", id)
 			return
@@ -290,15 +337,15 @@ func assertEventApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, sc, id,
 	}
 
 	if !eventInTo {
-		if _, ok := scanShowCreateEvent(conn, applyDB, event); ok {
+		if _, err := storedEvent(conn, applyDB, event); err == nil {
 			t.Errorf("[%s] %s: event %s still exists after DROP plan:\n%s", o.name, id, event, plan.SQL())
 		}
 		return
 	}
 
-	resultRB, ok := scanShowCreateEvent(conn, applyDB, event)
-	if !ok {
-		t.Fatalf("[%s] %s: result event %s missing after apply:\n%s", o.name, id, event, plan.SQL())
+	resultRB, err := storedEvent(conn, applyDB, event)
+	if err != nil {
+		t.Fatalf("[%s] %s: result event %s missing after apply: %v\n%s", o.name, id, event, err, plan.SQL())
 	}
 	resultCat, _ := loadOneEvent(t, sc, resultRB, event)
 

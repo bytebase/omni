@@ -8,14 +8,14 @@ import (
 )
 
 // The oracle apply-correctness proof for the CHECK-constraint generator (correctness-protocol.md
-// gate 2), against the LIVE MySQL 8.0 engine (CHECK is 8.0.16+ only). For representative (from, to)
+// gate 2), against OceanBase. For representative (from, to)
 // pairs covering every CHECK variant, the generated ALTER TABLE ... ADD/DROP CHECK DDL applied to a
 // real `from` database must yield a table whose canonical form equals `to`. Idempotence (gate 1) for
 // CHECK forms is covered by TestOracle_CheckDiffIdempotence (the no-op plan is empty because the
 // diff is empty); this file proves the EMITTED DDL is correct.
 //
-// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / connectOracle
-// from migration_oracle_test.go; it skips cleanly when the engine is unreachable.
+// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / oceanBaseOracle
+// from migration_oracle_test.go.
 
 // checkMigrationProbes enumerates the CHECK ADD/DROP/MODIFY FORMS the generator covers. Each is a
 // single-table (from, to) pair. An empty fromDDL means a pure CREATE, which exercises the
@@ -101,7 +101,7 @@ func checkMigrationProbes() []migrationProbe {
 // TestOracle_CheckMigrationApplyCorrectness proves gate 2 for every check probe: the generated DDL
 // transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_CheckMigrationApplyCorrectness(t *testing.T) {
-	o := connectOracle(t, MySQL80)
+	o := oceanBaseOracle(t)
 	n := NormalizerFor(MySQL80)
 	for _, probe := range checkMigrationProbes() {
 		t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
