@@ -38,6 +38,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `startsColNameKeywordColumnRef` | the col_name_keyword category | category + the token after it (not `(`, not an Sconst after a typed constant) | No — a keyword category; `TestStartsColNameKeywordColumnRef` checks the whole `Keywords` table |
 | `isSeqOptElemStart` | `seqOptElemLeadTokens` (13) | set; NO only before CYCLE, MAXVALUE or MINVALUE | Yes — `TestSeqOptElemLeadTokensMatchPG` via `CREATE SEQUENCE s X`, plus the ALTER-only NO split |
 | `isSeqOptElemLead` | reuses `seqOptElemLeadTokens` | set only (NO leads whatever follows) | Yes — through `TestSeqOptElemLeadTokensMatchPG`, as `seqOptElemLeadTokens` |
 | `isNumericOnlyStart` | `numericOnlyLeadTokens` (4) | set only | No — no keyword starts a NumericOnly; `TestIsNumericOnlyStartMatchesSlice` checks the whole `Keywords` table |
