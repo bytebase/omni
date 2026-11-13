@@ -68,8 +68,11 @@ type fix struct {
 
 // A unit is one statement form or one ::= definition of a page.
 type unit struct {
-	def   string     // the defined fragment, or "" for a statement form
-	lines []codeLine // the text, without the definition's head
+	def string // the defined fragment, or "" for a statement form
+	// variant is set for a definition written for one variant, as
+	// restAuthenticationParams (for Bearer token) ::= is.
+	variant bool
+	lines   []codeLine // the text, without the definition's head
 }
 
 type codeLine struct {
@@ -129,7 +132,7 @@ func splitUnits(blocks []string, starts map[string]bool) []unit {
 			if m := defHead.FindStringSubmatch(line); m != nil {
 				flush()
 				depth = 0
-				cur = &unit{def: m[1]}
+				cur = &unit{def: m[1], variant: m[2] != ""}
 				line = line[len(m[0]):]
 				if strings.TrimSpace(line) == "" {
 					continue
@@ -291,7 +294,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			var err error
 			for _, u := range defs[name] {
 				var a []string
-				a, err = c.definition(u.lines)
+				a, err = c.definition(u.lines, u.variant)
 				if err != nil {
 					break
 				}
@@ -423,9 +426,10 @@ var propertyLine = regexp.MustCompile(`^\s*[A-Z][A-Z0-9_]*\s*=`)
 
 // definition converts a ::= body. A body that lists one property per line
 // (NAME = value), or variants between -- comments, is a choice among its
-// lines: any number of properties, one variant. Anything else is one
-// sequence.
-func (c *converter) definition(lines []codeLine) ([]string, error) {
+// lines: any number of properties, one variant. A definition written for
+// one variant, name (for X) ::=, lists that variant's parameters, which
+// it needs in order. Anything else is one sequence.
+func (c *converter) definition(lines []codeLine, variant bool) ([]string, error) {
 	type item struct {
 		text    string
 		comment bool
@@ -461,7 +465,7 @@ func (c *converter) definition(lines []codeLine) ([]string, error) {
 		}
 		code = append(code, it.text)
 	}
-	properties := len(code) >= 2
+	properties := len(code) >= 2 && !variant
 	for _, t := range code {
 		if !propertyLine.MatchString(t) {
 			properties = false

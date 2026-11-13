@@ -2740,8 +2740,8 @@ createCatalogIntegrationDeltaSharing
     : 'CREATE' ('OR' 'REPLACE')? 'CATALOG' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'CATALOG_SOURCE' '=' 'DELTA_SHARING' 'TABLE_FORMAT' '=' 'DELTA' 'REST_CONFIG' '=' '(' 'CATALOG_URI' '=' STRING 'CATALOG_NAME' '=' STRING 'ACCESS_DELEGATION_MODE' '=' 'VENDED_CREDENTIALS' ')' 'REST_AUTHENTICATION' '=' '(' createCatalogIntegrationDeltaSharing_restAuthenticationParams ')' 'ENABLED' '=' ('TRUE' | 'FALSE') ('COMMENT' '=' STRING)?
     ;
 createCatalogIntegrationDeltaSharing_restAuthenticationParams
-    : ('TYPE' '=' 'BEARER' | 'BEARER_TOKEN' '=' STRING)+
-    | ('TYPE' '=' 'OIDC' | 'OIDC_AUDIENCE' '=' STRING)+
+    : 'TYPE' '=' 'BEARER' 'BEARER_TOKEN' '=' STRING
+    | 'TYPE' '=' 'OIDC' 'OIDC_AUDIENCE' '=' STRING
     | 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_TOKEN_URI' '=' STRING
     ;
 
@@ -2780,7 +2780,7 @@ createCatalogIntegrationRest_restConfigParams
     ;
 createCatalogIntegrationRest_restAuthenticationParams
     : 'TYPE' '=' 'OAUTH' ('OAUTH_API_TYPE' '=' ('PUBLIC' | 'PRIVATE'))? ('OAUTH_TOKEN_URI' '=' STRING)? 'OAUTH_CLIENT_ID' '=' STRING 'OAUTH_CLIENT_SECRET' '=' STRING 'OAUTH_ALLOWED_SCOPES' '=' '(' STRING ',' STRING ')'
-    | ('TYPE' '=' 'BEARER' | 'BEARER_TOKEN' '=' STRING)+
+    | 'TYPE' '=' 'BEARER' 'BEARER_TOKEN' '=' STRING
     | 'TYPE' '=' 'SIGV4' 'SIGV4_IAM_ROLE' '=' STRING ('SIGV4_SIGNING_REGION' '=' STRING)? ('SIGV4_EXTERNAL_ID' '=' STRING)?
     ;
 

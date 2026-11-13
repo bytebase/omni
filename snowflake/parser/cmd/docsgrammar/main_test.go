@@ -147,6 +147,19 @@ ALTER WAREHOUSE [ IF EXISTS ] <name> RENAME TO <new_name>`,
 	}
 }
 
+// TestVariantParametersAreRequired pins that a definition written for one
+// variant, name (for X) ::=, needs every line it lists, where an unnamed
+// list of properties is any number of them.
+func TestVariantParametersAreRequired(t *testing.T) {
+	pg := convertPage("create-catalog-integration-delta-sharing", []string{
+		"CREATE CATALOG INTEGRATION <name> REST_AUTHENTICATION = ( restAuthenticationParams )",
+		"restAuthenticationParams (for Bearer token) ::=\n  TYPE = BEARER\n  BEARER_TOKEN = '<bearer_token>'",
+	}, nil)
+	if len(pg.frags) != 1 || strings.Join(pg.frags[0].alts, " | ") != "'TYPE' '=' 'BEARER' 'BEARER_TOKEN' '=' STRING" {
+		t.Errorf("fragments %+v, failed %+v", pg.frags, pg.failed)
+	}
+}
+
 // TestFormsStartAtTheStatementWord pins the split: COPY INTO's unindented
 // clauses continue its form, and ALTER TABLE's indented forms each start
 // one.
