@@ -265,7 +265,10 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStartReplicaStmt(start)
+		return p.parseStartReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStartReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {
@@ -289,8 +292,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	for {
 		if p.cur.Type == kwWITH {
 			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
+			for _, kw := range []int{kwCONSISTENT, kwSNAPSHOT} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
 			stmt.WithConsistentSnapshot = true
 		} else if p.cur.Type == kwREAD {
 			p.advance()
@@ -298,6 +304,12 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 				stmt.ReadOnly = true
 			} else if _, ok := p.match(kwWRITE); ok {
 				stmt.ReadWrite = true
+			} else {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// READ ONLY with READ WRITE is the action's syntax error (start, MariaDB 11.8 sql/sql_yacc.yy).
+			if stmt.ReadOnly && stmt.ReadWrite {
+				return nil, p.syntaxErrorAtTok(p.prev)
 			}
 		} else {
 			break
@@ -365,7 +377,10 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStopReplicaStmt(start)
+		return p.parseStopReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStopReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {

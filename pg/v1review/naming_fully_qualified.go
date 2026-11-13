@@ -81,8 +81,8 @@ func NamingFullyQualified(stmts []ast.Node, schema v1review.Schema) []v1review.F
 				continue
 			}
 			for _, item := range n.Objects.Items {
-				list, ok := item.(*ast.List)
-				if !ok {
+				list := dropObjectNames(item)
+				if list == nil {
 					continue
 				}
 				if name := strings.Join(names(list), "."); !qualified(name) {

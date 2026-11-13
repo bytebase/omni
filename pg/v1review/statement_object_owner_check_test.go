@@ -32,6 +32,7 @@ func TestStatementObjectOwnerCheck(t *testing.T) {
 		{name: "database owner", sql: "SELECT 1; CREATE SCHEMA s", role: "bob", want: []v1review.Finding{owner("Database", "shop", "alice", 1)}},
 		{name: "unknown schema not judged", sql: "CREATE TABLE nosuch.t (a int)", role: "carol"},
 		{name: "drop lists each name", sql: "DROP TABLE sales.a, b", role: "carol", want: []v1review.Finding{owner("Schema", "sales", "bob", 0), owner("Schema", "public", "alice", 0)}},
+		{name: "drop type by a type name", sql: "DROP TYPE SETOF sales.mood, sales.mood[]", role: "carol", want: []v1review.Finding{owner("Schema", "sales", "bob", 0), owner("Schema", "sales", "bob", 0)}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got := StatementObjectOwnerCheck(parseStatements(t, tt.sql), schema, tt.role)
