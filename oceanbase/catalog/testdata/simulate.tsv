@@ -645,10 +645,10 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	match_action/PARTIAL	ALTE
 ok	1054	engine	one_table@table	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 ok	1054	engine	one_table@table	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 ok	ok:26e0874d4a45	engine	one_table@table	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 ok	1054	engine	one_table@table	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 ok	1054	engine	one_table@table	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 ok	1054	engine	one_table@table	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
@@ -1214,10 +1214,10 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@column	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 1060	1060	engine	one_table@column	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 1060	1060	engine	one_table@column	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
@@ -1783,10 +1783,10 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column	ALTER TABLE a ADD a TINYINT AS(a)
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
-ok	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
-ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
-ok	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
-ok	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
+3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
+3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@index	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 1060	1060	engine	one_table@index	opt_generated_column_attribute_list/opt_generated_column_attribute_list_generated_column_attribute	ALTER TABLE a ADD a TINYINT AS(a) NULL
 1060	1060	engine	one_table@index	generated_column_attribute/NOT_NULLX	ALTER TABLE a ADD a TINYINT AS(a) NOT NULL
