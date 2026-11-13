@@ -563,6 +563,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -1628,14 +1631,34 @@ func indexNameExists(tbl *Table, name string) bool {
 	return false
 }
 
+// validateIndexColumns checks a key's parts against tbl.
+//
+// A key names columns the table has: 1072 otherwise, in a key part's expression too,
+// unless a later ADD COLUMN of the same ALTER TABLE adds it (tbl.addedLater). A
+// FULLTEXT key's columns are CHAR, VARCHAR or TEXT (1283). Each part is checked in
+// order, so FULLTEXT (int_col, missing) is 1283 and FULLTEXT (missing, int_col) 1072
+// (TestOracle_OceanBaseKeyColumns).
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
+			if missing := missingExprColumn(tbl, ic.ExprNode); missing != "" {
+				return errKeyColumnNotExist(missing)
+			}
 			continue
 		}
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
-			continue
+			if tbl.addedLater[toLower(ic.Name)] {
+				continue
+			}
+			return errKeyColumnNotExist(ic.Name)
+		}
+		if fulltext {
+			switch toLower(col.DataType) {
+			case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+			default:
+				return &Error{Code: 1283, SQLState: "HY000", Message: "A FTS index may only contain a text type column."}
+			}
 		}
 		if spatial {
 			if col.Nullable {
@@ -1653,6 +1676,25 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 	}
 	return nil
+}
+
+// missingExprColumn returns the first column a key part's expression reads that the
+// table does not have, or "".
+func missingExprColumn(tbl *Table, expr nodes.ExprNode) string {
+	if expr == nil {
+		return ""
+	}
+	missing := ""
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Table == "" && tbl.GetColumn(ref.Column) == nil && !tbl.addedLater[toLower(ref.Column)] {
+			missing = ref.Column
+		}
+		return missing == ""
+	})
+	return missing
 }
 
 func fixedLengthStringColumnLimit(col *Column) (int, bool) {

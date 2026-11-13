@@ -305,3 +305,8 @@ func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
 }
+
+// errKeyColumnNotExist is 1072: a key names a column the table does not have.
+func errKeyColumnNotExist(name string) error {
+	return &Error{Code: 1072, SQLState: "42000", Message: fmt.Sprintf("Key column '%s' doesn't exist in table", name)}
+}

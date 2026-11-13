@@ -58,6 +58,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 // alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
 func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
+	// A key may name a column a later ADD COLUMN of the statement adds: OceanBase takes
+	// ADD KEY (n), ADD n INT.
+	tbl.addedLater = statementAddedColumns(stmt.Commands)
+	defer func() { tbl.addedLater = nil }()
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
@@ -629,6 +633,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			return err
+		}
 		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -1524,4 +1531,34 @@ func partitionKeyColumn(expr string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// statementAddedColumns is the lowered names of the columns an ALTER TABLE adds or
+// renames to, or nil.
+func statementAddedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
+	var names map[string]bool
+	add := func(name string) {
+		if names == nil {
+			names = map[string]bool{}
+		}
+		names[toLower(name)] = true
+	}
+	for _, cmd := range cmds {
+		switch cmd.Type {
+		case nodes.ATAddColumn:
+			if cmd.Column != nil {
+				add(cmd.Column.Name)
+			}
+			for _, col := range cmd.Columns {
+				add(col.Name)
+			}
+		case nodes.ATChangeColumn:
+			if cmd.Column != nil {
+				add(cmd.Column.Name)
+			}
+		case nodes.ATRenameColumn:
+			add(cmd.NewName)
+		}
+	}
+	return names
 }

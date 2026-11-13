@@ -35,6 +35,9 @@ type Table struct {
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
 	droppedByCleanup map[string]bool
+	// addedLater holds, while an ALTER TABLE runs, the lowered names of the columns
+	// it adds or renames to, which a key earlier in the statement may name.
+	addedLater map[string]bool
 }
 
 // PartitionInfo holds partition metadata for a table.
