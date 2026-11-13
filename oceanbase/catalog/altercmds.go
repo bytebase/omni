@@ -27,6 +27,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if tbl.Partitioning == nil && repartition == nil {
