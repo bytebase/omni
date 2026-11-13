@@ -12220,3 +12220,23 @@ func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
 		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
 	}
 }
+
+// TestServerOptionNames: a server option other than the named ones is any
+// IDENT_sys, a backquoted one included, but not a user variable or keyword.
+func TestServerOptionNames(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		accept bool
+	}{
+		{"ALTER SERVER s OPTIONS (custom 'v')", true},
+		{"ALTER SERVER s OPTIONS (`@custom` 'v')", true},
+		{"ALTER SERVER s OPTIONS (@custom 'v')", false},
+		{"ALTER SERVER s OPTIONS (USER 'u', USER 'v')", false},
+		{"ALTER SERVER s OPTIONS (PORT '3306')", true},
+		{"ALTER SERVER s OPTIONS (PORT 'x')", false},
+	} {
+		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
+			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)
+		}
+	}
+}

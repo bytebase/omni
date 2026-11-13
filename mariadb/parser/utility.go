@@ -1304,7 +1304,9 @@ func (p *Parser) parseServerOptions() ([]string, error) {
 			}
 			seen[p.cur.Type] = true
 		case tokIDENT:
-			if strings.HasPrefix(p.cur.Str, "@") {
+			// The lexer gives a user variable as an identifier too; a name
+			// backquoted, `@custom`, is an IDENT_sys all the same.
+			if strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@") {
 				return nil, p.syntaxErrorAtCur()
 			}
 			word = p.cur.Str
