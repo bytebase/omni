@@ -74,6 +74,9 @@ var aggArgSpecs = map[string]aggArgSpec{
 	// it before either argument.
 	"JSON_ARRAYAGG":  {quant: quantAll, args: 1},
 	"JSON_OBJECTAGG": {quant: quantAll, args: 2, allPerArg: true},
+	// ST_COLLECT reads an in_sum_expr, with or without DISTINCT before it.
+	// Ref: sum_expr's two ST_COLLECT_SYM arms in MySQL 8.0 sql/sql_yacc.yy.
+	"ST_COLLECT": {quant: distinctInSumExpr, args: 1},
 }
 
 // parseAggQuantifier reads the [DISTINCT|DISTINCTROW] [ALL] prefix of an

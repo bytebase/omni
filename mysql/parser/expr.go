@@ -1033,6 +1033,15 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
+	// A function the grammar spells with its own keyword takes the argument
+	// counts its productions list (keywordFuncArity).
+	if builtin && !fc.SpacedParen {
+		if bounds, ok := keywordFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || (bounds[1] >= 0 && len(fc.Args) > bounds[1]) {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+	}
 	// A dedicated window function takes a fixed argument count in its
 	// WindowFuncCall arm (sql_yacc.yy window_func_call), so a call outside
 	// those bounds is a 1064 before OVER is even reached: NTILE(), NTILE(a, b),
@@ -1068,6 +1077,27 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 
 	fc.Loc.End = p.prev.End
 	return fc, nil
+}
+
+// keywordFuncArity is the inclusive [min, max] argument count (-1: no max) of
+// each function whose name is a keyword the grammar gives its own productions,
+// so no other call of that name parses: `SELECT DATE()` and `SELECT POINT(1)`
+// are 1064s.
+//
+// Ref: function_call_keyword, function_call_conflict, geometry_function and
+// grouping_operation in MySQL 8.0 sql/sql_yacc.yy.
+var keywordFuncArity = map[string][2]int{
+	"DATE": {1, 1}, "DAY": {1, 1}, "HOUR": {1, 1}, "INSERT": {4, 4},
+	"LEFT": {2, 2}, "MINUTE": {1, 1}, "MONTH": {1, 1}, "RIGHT": {2, 2},
+	"SECOND": {1, 1}, "TIME": {1, 1}, "TIMESTAMP": {1, 2}, "USER": {0, 0},
+	"YEAR":  {1, 1},
+	"ASCII": {1, 1}, "CHARSET": {1, 1}, "COALESCE": {1, -1}, "COLLATION": {1, 1},
+	"DATABASE": {0, 0}, "IF": {3, 3}, "FORMAT": {2, 3}, "MICROSECOND": {1, 1},
+	"MOD": {2, 2}, "QUARTER": {1, 1}, "REPEAT": {2, 2}, "REPLACE": {3, 3},
+	"REVERSE": {1, 1}, "ROW_COUNT": {0, 0}, "TRUNCATE": {2, 2}, "WEEK": {1, 2},
+	"GEOMETRYCOLLECTION": {0, -1}, "LINESTRING": {1, -1}, "MULTILINESTRING": {1, -1},
+	"MULTIPOINT": {1, -1}, "MULTIPOLYGON": {1, -1}, "POINT": {2, 2}, "POLYGON": {1, -1},
+	"GROUPING": {1, -1},
 }
 
 // windowFuncArity is the inclusive [min, max] argument count each dedicated
