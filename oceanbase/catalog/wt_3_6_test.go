@@ -60,16 +60,17 @@ func TestWalkThrough_3_6_CreateViewAttributes(t *testing.T) {
 	if v == nil {
 		t.Fatal("view v1 not found")
 	}
-	if !strings.EqualFold(v.Algorithm, "MERGE") {
-		t.Errorf("expected Algorithm 'MERGE', got %q", v.Algorithm)
+	// OceanBase keeps neither ALGORITHM nor SQL SECURITY (TestOracle_OceanBaseViewAttributes).
+	if v.Algorithm != "" {
+		t.Errorf("expected no Algorithm, got %q", v.Algorithm)
 	}
 	// The parser stores the definer as-is (without backtick-quoting).
 	// Backtick formatting is applied only in showCreateView via formatDefiner.
 	if !strings.Contains(v.Definer, "admin") || !strings.Contains(v.Definer, "localhost") {
 		t.Errorf("expected Definer to contain 'admin' and 'localhost', got %q", v.Definer)
 	}
-	if !strings.EqualFold(v.SqlSecurity, "INVOKER") {
-		t.Errorf("expected SqlSecurity 'INVOKER', got %q", v.SqlSecurity)
+	if v.SqlSecurity != "" {
+		t.Errorf("expected no SqlSecurity, got %q", v.SqlSecurity)
 	}
 }
 

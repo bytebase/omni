@@ -696,11 +696,10 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 		if v == nil {
 			t.Fatal("omni: view v_opts should exist")
 		}
-		if v.Algorithm != "MERGE" {
-			t.Errorf("omni: expected Algorithm=MERGE, got %q", v.Algorithm)
-		}
-		if v.SqlSecurity != "INVOKER" {
-			t.Errorf("omni: expected SqlSecurity=INVOKER, got %q", v.SqlSecurity)
+		// OceanBase takes both clauses and keeps neither
+		// (TestOracle_OceanBaseViewAttributes).
+		if v.Algorithm != "" || v.SqlSecurity != "" {
+			t.Errorf("omni: Algorithm=%q, SqlSecurity=%q, want neither kept", v.Algorithm, v.SqlSecurity)
 		}
 	})
 
@@ -2145,7 +2144,8 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 // TestContainer_Section_4_1_Partitioning holds the partitioning statements of
 // MySQL 8.0 that OceanBase refuses.
 //
-// omni gap: the catalog runs each of them, as MySQL does.
+// omni gap: the parser takes the three that are syntax errors (1064), as
+// MySQL's does. The catalog refuses the fourth, REORGANIZE PARTITION.
 func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()

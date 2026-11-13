@@ -277,16 +277,15 @@ func TestScenario_C17(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE VIEW v6b AS SELECT LPAD(a, 20, b) AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6c AS SELECT RPAD(b, 20, a) AS c FROM t`)
 
-		// OceanBase takes LPAD's charset from its pad argument, so v6b reads
-		// utf8mb4 where MySQL pins it to the first argument's latin1.
-		// omni gap: the catalog pins v6b to the first argument, as MySQL does.
+		// OceanBase gives LPAD and RPAD the charset of the string and of the pad,
+		// so v6b reads utf8mb4 where MySQL pins it to the first argument's latin1.
 		type want struct{ cs, co string }
 		cases := []struct {
 			view         string
 			oracle, omni want
 		}{
 			{"v6a", want{"latin1", "latin1_swedish_ci"}, want{"latin1", "latin1_swedish_ci"}},
-			{"v6b", want{"utf8mb4", "utf8mb4_0900_ai_ci"}, want{"latin1", "latin1_swedish_ci"}},
+			{"v6b", want{"utf8mb4", "utf8mb4_0900_ai_ci"}, want{"utf8mb4", "utf8mb4_0900_ai_ci"}},
 			{"v6c", want{"utf8mb4", "utf8mb4_0900_ai_ci"}, want{"utf8mb4", "utf8mb4_0900_ai_ci"}},
 		}
 		for _, tc := range cases {

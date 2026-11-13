@@ -380,20 +380,19 @@ CREATE TABLE t_b (a INT, KEY kb (a) USING BTREE);`
 				t.Errorf("oracle %s: SHOW CREATE VIEW names an algorithm: %s", name, create)
 			}
 		}
-		// omni gap: the catalog keeps an algorithm, as it does for MySQL: ""
-		// or UNDEFINED for v1 (no explicit clause), and UNDEFINED for v2.
+		// omni: no algorithm is kept either.
 		db := c.GetDatabase("testdb")
 		v1 := db.Views["v1"]
 		v2 := db.Views["v2"]
 		if v1 == nil {
 			t.Errorf("omni: view v1 missing")
-		} else if v1.Algorithm != "" && !strings.EqualFold(v1.Algorithm, "UNDEFINED") {
-			t.Errorf("omni: v1 Algorithm = %q, want \"\" or UNDEFINED", v1.Algorithm)
+		} else if v1.Algorithm != "" {
+			t.Errorf("omni: v1 Algorithm = %q, want none", v1.Algorithm)
 		}
 		if v2 == nil {
 			t.Errorf("omni: view v2 missing")
-		} else if !strings.EqualFold(v2.Algorithm, "UNDEFINED") {
-			t.Errorf("omni: v2 Algorithm = %q, want UNDEFINED", v2.Algorithm)
+		} else if v2.Algorithm != "" {
+			t.Errorf("omni: v2 Algorithm = %q, want none", v2.Algorithm)
 		}
 	})
 

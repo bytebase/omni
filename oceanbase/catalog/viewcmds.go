@@ -78,28 +78,19 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		return err
 	}
 
-	algorithm := stmt.Algorithm
-	if algorithm == "" {
-		algorithm = "UNDEFINED"
-	}
-	sqlSecurity := stmt.SqlSecurity
-	if sqlSecurity == "" {
-		sqlSecurity = "DEFINER"
-	}
-
+	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
+	// updatable (TestOracle_OceanBaseViewAttributes).
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
-		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
+		IsUpdatable:     true,
 	}
 	return nil
 }
@@ -198,28 +189,19 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return err
 	}
 
-	algorithm := stmt.Algorithm
-	if algorithm == "" {
-		algorithm = "UNDEFINED"
-	}
-	sqlSecurity := stmt.SqlSecurity
-	if sqlSecurity == "" {
-		sqlSecurity = "DEFINER"
-	}
-
+	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
+	// updatable (TestOracle_OceanBaseViewAttributes).
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
-		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
+		IsUpdatable:     true,
 	}
 	return nil
 }
@@ -294,16 +276,10 @@ func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out m
 		}
 		out[toLower(key)] = viewRelationInfo{table: tbl, optional: optional}
 	case *nodes.JoinClause:
-		leftOptional := optional
-		rightOptional := optional
-		switch n.Type {
-		case nodes.JoinLeft, nodes.JoinNaturalLeft:
-			rightOptional = true
-		case nodes.JoinRight, nodes.JoinNaturalRight:
-			leftOptional = true
-		}
-		collectViewRelations(n.Left, db, leftOptional, out)
-		collectViewRelations(n.Right, db, rightOptional, out)
+		// OceanBase reports a column of an outer join's optional side as it is in its
+		// table, where MySQL widens it to nullable.
+		collectViewRelations(n.Left, db, optional, out)
+		collectViewRelations(n.Right, db, optional, out)
 	}
 }
 
@@ -312,7 +288,8 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
 	case *nodes.FuncCallExpr:
-		if isViewStringMetadataNullableFunc(e.Name) {
+		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
+		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -464,11 +441,30 @@ func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRel
 			out = agg
 		}
 		return out, nil
-	case "repeat", "lpad", "rpad":
+	case "repeat":
 		if len(fn.Args) == 0 {
 			return viewCollationInfo{}, nil
 		}
 		return inferViewExprCollation(fn.Args[0], relations)
+	case "lpad", "rpad":
+		// OceanBase gives the result the character set of the string and of the pad,
+		// where MySQL pins it to the string's.
+		var out viewCollationInfo
+		for i, arg := range fn.Args {
+			if i == 1 {
+				continue // the length
+			}
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
 	default:
 		var out viewCollationInfo
 		for _, arg := range fn.Args {
@@ -664,30 +660,6 @@ func isViewStringMetadataNullableFunc(name string) bool {
 	default:
 		return false
 	}
-}
-
-func inferViewUpdatable(sel *nodes.SelectStmt, algorithm string) bool {
-	if sel == nil || strings.EqualFold(algorithm, "TEMPTABLE") {
-		return false
-	}
-	if sel.DistinctKind != nodes.DistinctNone && sel.DistinctKind != nodes.DistinctAll {
-		return false
-	}
-	if sel.SetOp != nodes.SetOpNone || len(sel.GroupBy) > 0 || sel.Having != nil {
-		return false
-	}
-	hasAgg := false
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if hasAgg {
-			return false
-		}
-		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) {
-			hasAgg = true
-			return false
-		}
-		return true
-	})
-	return !hasAgg
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {

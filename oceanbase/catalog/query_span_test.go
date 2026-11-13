@@ -280,7 +280,9 @@ func TestLineage_14_4b_ParenthesizedTableReferenceList(t *testing.T) {
 	})
 }
 
-// TestLineage_14_5_TemptableView tests that TEMPTABLE views remain opaque.
+// TestLineage_14_5_TemptableView tests that a view written ALGORITHM=TEMPTABLE is read
+// through like any other: OceanBase keeps no algorithm
+// (TestOracle_OceanBaseViewAttributes), where MySQL's TEMPTABLE view is opaque.
 func TestLineage_14_5_TemptableView(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, `
@@ -295,9 +297,8 @@ func TestLineage_14_5_TemptableView(t *testing.T) {
 	expanded := q.ExpandMergeViews(c)
 	lineage := collectColumnLineage(c, expanded)
 
-	// TEMPTABLE view is opaque — lineage stops at the view, not the base table.
 	assertLineage(t, lineage, []resultLineage{
-		{Name: "name", SourceCols: []columnLineage{{DB: "testdb", Table: "temp_v", Column: "name"}}},
+		{Name: "name", SourceCols: []columnLineage{{DB: "testdb", Table: "employees", Column: "name"}}},
 	})
 }
 
