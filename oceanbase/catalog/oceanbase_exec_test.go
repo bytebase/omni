@@ -327,3 +327,64 @@ func TestOracle_OceanBaseAlterTableOptions(t *testing.T) {
 		}},
 	})
 }
+
+// TestOracle_OceanBaseQueryFirst holds resolveQueryFirst to the engine: CREATE VIEW,
+// ALTER VIEW and CREATE TABLE ... SELECT resolve the query before they look at the
+// name, and the clauses after the select list may name its aliases, a subquery of
+// one of those clauses included, while WHERE may not.
+func TestOracle_OceanBaseQueryFirst(t *testing.T) {
+	runExecSteps(t, "oceanbase_catalog_query_first", []struct {
+		name  string
+		steps []engineStep
+	}{
+		{"before the name", []engineStep{
+			{"CREATE TABLE a (b INT PRIMARY KEY, c INT)", taken},
+			{"CREATE VIEW a AS SELECT 1", 1050},
+			{"CREATE VIEW a AS SELECT zz FROM a", 1054},
+			{"CREATE VIEW a AS SELECT * FROM zz", 1146},
+			{"CREATE OR REPLACE VIEW a AS SELECT a", 1054},
+			{"CREATE TABLE a AS SELECT zz FROM a", 1054},
+			{"CREATE TABLE IF NOT EXISTS a AS SELECT zz", 1054},
+			{"CREATE TABLE IF NOT EXISTS a AS SELECT 1", taken},
+			{"ALTER VIEW zz AS SELECT a", 1054},
+			{"ALTER VIEW zz AS SELECT * FROM qq", 1146},
+		}},
+		{"names in the query", []engineStep{
+			{"CREATE TABLE a (b INT PRIMARY KEY, c INT)", taken},
+			{"CREATE VIEW v1 AS SELECT b FROM a ORDER BY zz", 1054},
+			{"CREATE VIEW v2 AS SELECT b FROM a GROUP BY zz", 1054},
+			{"CREATE VIEW v3 AS SELECT (SELECT zz) FROM a", 1054},
+			{"CREATE VIEW v4 AS SELECT b AS q FROM a ORDER BY q", taken},
+			{"CREATE VIEW v5 AS SELECT b + 1 AS q, count(*) AS n FROM a GROUP BY q HAVING n > 0", taken},
+			{"CREATE VIEW v6 AS (SELECT b AS q FROM a) ORDER BY q", taken},
+			{"CREATE VIEW v7 AS SELECT b AS q FROM a WHERE q > 0", 1054},
+			{"CREATE VIEW v8 AS SELECT b AS q FROM a ORDER BY (SELECT q)", taken},
+			{"CREATE VIEW v9 AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0", taken},
+			{"CREATE VIEW v10 AS SELECT b AS q FROM a ORDER BY (SELECT zz)", 1054},
+			{"CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0", 1054},
+			{"CREATE VIEW v12 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x", taken},
+			{"CREATE VIEW v13 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)", taken},
+			{"CREATE VIEW v14 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz", 1054},
+			{"CREATE VIEW v15 AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)", 1054},
+			{"CREATE VIEW v16 AS (SELECT b+1 FROM a) ORDER BY `b+1`", taken},
+			{"CREATE VIEW v17 AS (SELECT count(*) FROM a) ORDER BY `count(*)`", taken},
+			{"CREATE VIEW v18 AS (SELECT b FROM a) ORDER BY zz", 1054},
+			{"CREATE VIEW v19 AS WITH RECURSIVE c AS (SELECT 1 AS x), r AS (SELECT x FROM c UNION ALL SELECT x+1 FROM r WHERE x < 3) SELECT * FROM r", taken},
+			{"CREATE VIEW v20 AS SELECT d.`b+1` FROM (SELECT * FROM (SELECT b+1 FROM a) s) d", taken},
+			{"CREATE VIEW v21 AS SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1`", taken},
+			{"CREATE VIEW v22 AS SELECT b FROM a UNION ALL SELECT b FROM a ORDER BY zz", 1054},
+			{"CREATE VIEW v23 AS SELECT x.column_0 FROM (VALUES ROW(1)) x", taken},
+			{"CREATE VIEW v24 AS VALUES ROW(1) ORDER BY column_0", taken},
+			{"CREATE VIEW v25 AS SELECT 2 AS q, b FROM a ORDER BY q", taken},
+			{"CREATE VIEW v26 AS SELECT d.`(1)` FROM (SELECT (1)) d", taken},
+			{"CREATE VIEW w1 AS SELECT (1)", taken},
+			{"CREATE VIEW w2 AS SELECT w1.`(1)` FROM w1", taken},
+			{"CREATE VIEW w3 AS SELECT b AS q FROM a", taken},
+			{"CREATE VIEW w4 AS SELECT w3.zz FROM w3", 1054},
+			{"CREATE VIEW w5 AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r", taken},
+			{"CREATE VIEW w6 AS SELECT b+1 FROM a ORDER BY `b+1`", taken},
+			{"CREATE VIEW w7 AS SELECT count(*) FROM a ORDER BY `count(*)`", taken},
+			{"CREATE VIEW w8 AS SELECT b+1 FROM a WHERE zz = 1", 1054},
+		}},
+	})
+}

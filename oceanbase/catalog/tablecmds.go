@@ -37,26 +37,42 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
+		return err
+	}
 
-	// Check for duplicate table or view with the same name.
-	if db.Tables[key] != nil {
-		if stmt.IfNotExists {
-			return nil
+	// The name is checked last: OceanBase reads the whole definition first, so
+	// CREATE TABLE t (x INT, x INT) is 1060 when t exists, even with IF NOT EXISTS
+	// (TestOracle_OceanBaseNameOrder). nameTaken answers for it; done is set when
+	// IF NOT EXISTS makes the statement do nothing.
+	nameTaken := func() (done bool, err error) {
+		if db.Tables[key] != nil {
+			if stmt.IfNotExists {
+				return true, nil
+			}
+			return false, errDupTable(tableName)
 		}
-		return errDupTable(tableName)
+		if db.Views[key] != nil {
+			return false, errDupTable(tableName)
+		}
+		return false, nil
 	}
-	if db.Views[key] != nil {
-		return errDupTable(tableName)
-	}
+
+	// A constraint name that collides with another table's is the engine's answer
+	// only once this table's own name is free: CREATE TABLE IF NOT EXISTS a, with a
+	// there already, does nothing whatever its constraints are named, while a name
+	// the definition itself repeats is refused before that (TestOracle_OceanBaseNameOrder).
+	var laterCheckNames, laterForeignKeyNames []string
 
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
-		return c.createTableLike(db, tableName, key, stmt)
+		return c.createTableLike(db, tableName, key, stmt, nameTaken)
 	}
 
 	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
-		return nil
+		_, err := nameTaken()
+		return err
 	}
 
 	tbl := &Table{
@@ -299,9 +315,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 						return checkConstraintNameExists(db, tbl, name)
 					})
 				}
-				if checkConstraintNameExists(db, tbl, conName) {
+				if constraintNameExistsInTable(tbl, ConCheck, conName) {
 					return errCheckConstraintDupName(conName)
 				}
+				laterCheckNames = append(laterCheckNames, conName)
 				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
 					return err
 				}
@@ -499,9 +516,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
 				return errCannotAddForeign()
 			}
-			if foreignKeyConstraintNameExists(db, nil, conName) {
-				return errFKDupName(tableName)
-			}
+			laterForeignKeyNames = append(laterForeignKeyNames, conName)
 			refDB := ""
 			refTable := ""
 			if con.RefTable != nil {
@@ -533,9 +548,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
 				return err
 			}
-			if checkConstraintNameExists(db, tbl, conName) {
+			if constraintNameExistsInTable(tbl, ConCheck, conName) {
 				return errCheckConstraintDupName(conName)
 			}
+			laterCheckNames = append(laterCheckNames, conName)
 			if err := validateCheckExpr(conName, con.Expr); err != nil {
 				return err
 			}
@@ -666,6 +682,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	// Process partition clause.
+	for _, opt := range stmt.Options {
+		if strings.EqualFold(opt.Name, "ttl") {
+			if err := checkTTL(tbl, opt); err != nil {
+				return err
+			}
+		}
+	}
 	if stmt.Partitions != nil {
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
@@ -677,6 +700,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if done, err := nameTaken(); done || err != nil {
+		return err
+	}
+	// The table's own name is free, so a constraint name another table holds is
+	// now the answer. The pending table is not in db yet, so it matches none.
+	for _, name := range laterCheckNames {
+		if checkConstraintNameExists(db, nil, name) {
+			return errCheckConstraintDupName(name)
+		}
+	}
+	for _, name := range laterForeignKeyNames {
+		if foreignKeyConstraintNameExists(db, nil, name) {
+			return errFKDupName(tableName)
+		}
+	}
 	db.Tables[key] = tbl
 	return nil
 }
@@ -2584,16 +2622,24 @@ func escapeEnumValue(s string) string {
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
-func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
+func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt, nameTaken func() (bool, error)) error {
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
 	srcDB, err := c.resolveDatabase(srcDBName)
 	if err != nil {
 		return err
 	}
+	// A table copied onto its own name is 1066, before the source is looked up (1146)
+	// and before the name (1050).
+	if srcDB == db && toLower(stmt.Like.Name) == key {
+		return errNotUniqueTable(tableName)
+	}
 	srcTbl := srcDB.GetTable(stmt.Like.Name)
 	if srcTbl == nil {
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+	if done, err := nameTaken(); done || err != nil {
+		return err
 	}
 
 	tbl := &Table{

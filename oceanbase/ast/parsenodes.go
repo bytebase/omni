@@ -577,6 +577,10 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// TTLColumns is the column each entry of a TTL (col + INTERVAL n unit, ...)
+	// names, as the parser read them, so a consumer needs no second reading of
+	// Value. Nil for every other option.
+	TTLColumns []string
 }
 
 func (o *TableOption) nodeTag() {}

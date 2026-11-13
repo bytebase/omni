@@ -406,7 +406,7 @@ func TestComplete_2_4_IncompleteTrailingSpace(t *testing.T) {
 	// keyword tokens for the follow set (WHERE, JOIN, etc.).
 	candidates := Complete("SELECT * FROM ", 14, cat)
 	if len(candidates) == 0 {
-		t.Skip("FROM clause not yet instrumented (Phase 3); tricky mechanism works but parser lacks rule candidates here")
+		t.Fatal("no candidates after FROM: the tricky path or the FROM clause's instrumentation lost them")
 	}
 }
 

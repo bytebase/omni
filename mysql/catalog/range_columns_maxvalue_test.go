@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"regexp"
 	"strings"
@@ -62,13 +61,10 @@ func TestRangeColumnsMaxvalue(t *testing.T) {
 // TestRangeColumnsMaxvalue_Oracle proves rangeColumnsCases against MySQL 8.0,
 // and that the catalog reads back the partition bounds the engine prints.
 func TestRangeColumnsMaxvalue_Oracle(t *testing.T) {
-	db := func() *sql.DB { ctr, cleanup := startContainer(t); t.Cleanup(cleanup); return ctr.db }()
+	ctr, cleanup := startContainer(t)
+	t.Cleanup(cleanup)
+	conn := ctr.db
 	ctx := context.Background()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
 	for _, q := range []string{"CREATE DATABASE IF NOT EXISTS rc_test", "USE rc_test"} {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			t.Fatal(err)
