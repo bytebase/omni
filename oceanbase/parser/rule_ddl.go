@@ -31,9 +31,14 @@ import (
 // testdata/compat.tsv hold every alternative, and its near-misses, to the
 // pinned server.
 var (
-	// explainable_stmt, as EXPLAIN reads it.
+	// explainable_stmt, as EXPLAIN reads it. Once a statement has begun, its own
+	// error is the statement's: the match keeps it, so a nesting error stays one
+	// and a syntax error points where the inner statement failed.
 	sysExplainable = sysLeaf(func(p *Parser) bool {
 		_, ok, err := p.parseExplainableStmt()
+		if err != nil && p.sys.err == nil {
+			p.sys.err = err
+		}
 		return ok && err == nil
 	})
 	// HINT_HINT_BEGIN hint_list_with_end: the lexer reads `HINT /*+` as one
@@ -52,7 +57,8 @@ var (
 	// id_dot_id: a name, a dot and a name with nothing between them, which
 	// OceanBase's lexer reads as one token. Spaced, `d . t` is no table here.
 	sysIDDotID = sysLeaf(func(p *Parser) bool {
-		if !p.isIdentToken() || p.backtickQuotedAt(p.cur.Loc) {
+		// A user variable is no name on either side: d.@t is no target.
+		if !p.isIdentToken() || p.backtickQuotedAt(p.cur.Loc) || p.curIsVariableOrIntroducer() {
 			return false
 		}
 		p.advance()
@@ -60,7 +66,8 @@ var (
 			return false
 		}
 		p.advance()
-		if (p.cur.Type != tokIDENT && p.cur.Type < 700) || p.cur.Loc != p.prev.End || p.backtickQuotedAt(p.cur.Loc) {
+		if (p.cur.Type != tokIDENT && p.cur.Type < 700) || p.cur.Loc != p.prev.End || p.backtickQuotedAt(p.cur.Loc) ||
+			strings.HasPrefix(p.cur.Str, "@") {
 			return false
 		}
 		p.advance()
@@ -78,8 +85,18 @@ var (
 		sysSeq("CURRENT_USER", sysOpt(sysTok('('), sysTok(')'))),
 	)
 
-	// complex_string_literal: a string, with a charset introducer or without.
+	// complex_string_literal: a string, with a charset introducer or without, or
+	// a national string, N'text'.
 	sysComplexStr = sysAlt(sysStr, sysLeaf(func(p *Parser) bool {
+		if !p.atNationalString() {
+			return false
+		}
+		p.advance() // N
+		for p.cur.Type == tokSCONST {
+			p.advance()
+		}
+		return true
+	}), sysLeaf(func(p *Parser) bool {
 		if !p.curIsVariableOrIntroducer() || !isCharsetIntroducer(p.cur.Str) {
 			return false
 		}
