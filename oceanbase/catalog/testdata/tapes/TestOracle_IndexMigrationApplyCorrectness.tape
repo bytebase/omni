@@ -2302,10 +2302,7 @@
 |   PRIMARY KEY (`a`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_modify_pk_columns_6203f0d8`.`t` DROP PRIMARY KEY
-< ok 0 0
-> exec
-| ALTER TABLE `pa_modify_pk_columns_6203f0d8`.`t` ADD PRIMARY KEY (`a`,`b`)
+| ALTER TABLE `pa_modify_pk_columns_6203f0d8`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`a`,`b`)
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_modify_pk_columns_6203f0d8.t
@@ -2515,16 +2512,13 @@
 |   PRIMARY KEY (`a`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` DROP PRIMARY KEY
-< ok 0 0
-> exec
-| ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` DROP COLUMN `a`
-< ok 0 0
-> exec
 | ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` ADD COLUMN `c` int DEFAULT NULL
 < ok 0 0
 > exec
-| ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` ADD PRIMARY KEY (`b`)
+| ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`b`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_pk_drop_old_member_6f193c55`.`t` DROP COLUMN `a`
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_modify_pk_drop_old_member_6f193c55.t
@@ -2593,13 +2587,10 @@
 |   PRIMARY KEY (`a`, `b`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_modify_pk_shrink_demote_nullable_c7332ccf`.`t` DROP PRIMARY KEY
+| ALTER TABLE `pa_modify_pk_shrink_demote_nullable_c7332ccf`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`a`)
 < ok 0 0
 > exec
 | ALTER TABLE `pa_modify_pk_shrink_demote_nullable_c7332ccf`.`t` MODIFY COLUMN `b` int DEFAULT NULL
-< ok 0 0
-> exec
-| ALTER TABLE `pa_modify_pk_shrink_demote_nullable_c7332ccf`.`t` ADD PRIMARY KEY (`a`)
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_modify_pk_shrink_demote_nullable_c7332ccf.t

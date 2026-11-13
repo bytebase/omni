@@ -22,8 +22,8 @@ import (
 //     echoes RESTRICT; 5.7 omits RESTRICT, echoes NO ACTION). canonicalFKAction folds all three
 //     onto one key, so the diff is empty on both versions regardless of which form the readback
 //     took.
-//  3. Auto-name normalization: an unnamed FK (auto-named `<table>_ibfk_N`) and an unnamed-backing
-//     index round-trip empty.
+//  3. Auto-name normalization: an unnamed FK (`<table>_ibfk_N` to the loader, `<table>_OBFK_<time>`
+//     to OceanBase) round-trips empty.
 //
 // The harness reuses oceanBaseOracle / serverCharsetFor /
 // describeDiff from the diff + normalize oracle tests.
@@ -106,7 +106,8 @@ const fkParentComposite = "CREATE TABLE p (a INT NOT NULL, b INT NOT NULL, c INT
 
 // fkDiffCases enumerate the FK FORMS that must round-trip empty. Each builds parent + child,
 // reads BOTH back, reloads as one schema, and asserts the self-diff is empty (and the user form
-// vs the stored form is empty).
+// vs the stored form is empty). Where a case's comment speaks of a backing index, that is the
+// index MySQL adds for a foreign key and the case was chosen for; OceanBase adds none.
 func fkDiffCases() []fkDiffCase {
 	return []fkDiffCase{
 		// ---- naming ----

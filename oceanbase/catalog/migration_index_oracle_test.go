@@ -21,8 +21,8 @@ import (
 // from migration_oracle_test.go.
 
 // indexMigrationProbes enumerates the index ADD/DROP/MODIFY FORMS the generator covers. Each is a
-// single-table (from, to) pair (FK-backing indexes are proven separately — they need a parent and
-// are owned by the FK node). An empty fromDDL means a pure CREATE, which exercises the
+// single-table (from, to) pair (indexes beside a foreign key are proven separately: they need
+// a parent). An empty fromDDL means a pure CREATE, which exercises the
 // "new table → ADD INDEX for every non-PK index" path (formatCreateTable inlines only the PK).
 func indexMigrationProbes() []migrationProbe {
 	return []migrationProbe{
@@ -141,15 +141,14 @@ func indexMigrationProbes() []migrationProbe {
 		{"modify-pk-drop-old-member", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
 			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))"},
-		// PK shrink that demotes a removed PK member to nullable: the PK must be dropped before the
+		// PK shrink that demotes a removed PK member to nullable: the key is replaced before the
 		// MODIFY ... NULL (errno 1171 otherwise — a still-PK column cannot be made nullable).
 		{"modify-pk-shrink-demote-nullable", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))",
 			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))"},
 		// NOTE: the combination "AUTO_INCREMENT keeps the PK AND a different old-PK member is
-		// demoted to nullable in the same migration" is handled by the AUTO_INCREMENT grouping
-		// pass (mergeAutoIncrementKeyOps) and proven by the aig-pk-keep-ai-demote-member probe in
-		// migration_autoinc_oracle_test.go.
+		// demoted to nullable in the same migration" is the aig-pk-keep-ai-demote-member probe
+		// in migration_autoinc_oracle_test.go.
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
@@ -196,11 +195,10 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 	}
 }
 
-// TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps proves the generate-side of the FK-implicit
-// contract: when the only difference between `from` and `to` is a foreign key (its backing index
-// rides along), the index generator emits NO ADD/DROP index ops — the FK node owns that index.
-// This guards against the index node fighting the FK node (duplicate-key-name on ADD, errno 1553
-// on DROP). Proven via a multi-table schema loaded from real engine readbacks.
+// TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps proves that when the only difference
+// between `from` and `to` is a foreign key, the plan holds NO ADD/DROP index ops: a foreign
+// key brings no index with it. Proven via a multi-table schema loaded from real engine
+// readbacks.
 func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 	for range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -251,9 +249,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 			}
 		}
 
-		// from: child with FK (backing index auto-created); to: same child WITHOUT the FK (and
-		// hence — in the user's target — without the backing index). The index plan must be empty:
-		// the FK node drops the FK; the leftover backing index is the FK node's concern.
+		// from: child with FK; to: same child WITHOUT the FK. The index plan must be empty.
 		t.Run(o.name+"/drop-fk-no-index-op", gapped(func(t testing.TB) {
 			from := loadSchema("idxgfk1", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))")
 			// `to`: child with neither FK nor index (a plain table).
@@ -265,8 +261,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 			assertNoIndexOps(t, from, to)
 		}))
 
-		// from: child with neither; to: child with FK (backing index rides with it). Adding the FK
-		// is the FK node's job; the index plan must be empty.
+		// from: child with neither; to: child with FK. The index plan must be empty.
 		t.Run(o.name+"/add-fk-no-index-op", gapped(func(t testing.TB) {
 			from := loadSchema("idxgfk2", "CREATE TABLE c (id INT PRIMARY KEY, pid INT)")
 			toCat := loadSchema("idxgfk2b", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))")

@@ -5,10 +5,13 @@ import (
 	"testing"
 )
 
-// TestForeignKeyAndIndexNames pins how MySQL names a foreign key and
-// the index it adds when the CONSTRAINT symbol, the name after FOREIGN
-// KEY, or both are written, and a UNIQUE key with a symbol and a name
-// (verified on 8.0.46).
+// TestForeignKeyAndIndexNames pins how a foreign key is named when the
+// CONSTRAINT symbol, the name after FOREIGN KEY, or both are written, and
+// that no index is made for it, as OceanBase makes none (measured on
+// 4.3.5.6: each table below has the indexes it declares). A UNIQUE key
+// with a symbol and a name takes the name. OceanBase names a foreign key
+// that has no symbol `<table>_OBFK_<time>`, which the differ treats as
+// the loader's `<table>_ibfk_<N>` (forgetMadeUpRenames).
 func TestForeignKeyAndIndexNames(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, `CREATE TABLE r (id INT PRIMARY KEY);
@@ -25,18 +28,19 @@ ALTER TABLE y2 ADD FOREIGN KEY f8 (a) REFERENCES r (id);
 CREATE TABLE y3 (a INT);
 ALTER TABLE y3 ADD CONSTRAINT cu UNIQUE KEY u9 (a);`)
 	for _, w := range []struct {
-		table             string
-		foreignKey, index string
+		table      string
+		foreignKey string
+		indexes    []string
 	}{
-		{"x1", "c", "c"},
-		{"x2", "x2_ibfk_1", "f2"},
-		{"x3", "x3_ibfk_1", "f3"},
-		{"x4", "c4", "c4"},
-		{"x5", "c5", "k5"},
-		{"x6", "", "u6"},
-		{"y1", "c7", "c7"},
-		{"y2", "y2_ibfk_1", "f8"},
-		{"y3", "", "u9"},
+		{"x1", "c", nil},
+		{"x2", "x2_ibfk_1", nil},
+		{"x3", "x3_ibfk_1", nil},
+		{"x4", "c4", nil},
+		{"x5", "c5", []string{"k5"}},
+		{"x6", "", []string{"u6"}},
+		{"y1", "c7", nil},
+		{"y2", "y2_ibfk_1", nil},
+		{"y3", "", []string{"u9"}},
 	} {
 		tbl := c.GetDatabase("testdb").GetTable(w.table)
 		var fks, indexes []string
@@ -51,8 +55,8 @@ ALTER TABLE y3 ADD CONSTRAINT cu UNIQUE KEY u9 (a);`)
 		if w.foreignKey != "" && !slices.Equal(fks, []string{w.foreignKey}) {
 			t.Errorf("%s: foreign keys %v, want [%s]", w.table, fks, w.foreignKey)
 		}
-		if !slices.Equal(indexes, []string{w.index}) {
-			t.Errorf("%s: indexes %v, want [%s]", w.table, indexes, w.index)
+		if !slices.Equal(indexes, w.indexes) {
+			t.Errorf("%s: indexes %v, want %v", w.table, indexes, w.indexes)
 		}
 	}
 }

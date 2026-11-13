@@ -16,9 +16,10 @@ import (
 //     readback, reloaded into a catalog) self-diffs empty, and the user form vs the engine's
 //     stored form diffs empty — e.g. an unnamed KEY (a) (which MySQL auto-names `a`) collapses
 //     onto the readback's named form. A non-empty diff is a normalization bug.
-//  2. The FK-implicit cross-reference: a foreign key with no explicit backing index produces NO
-//     index diff (the auto-created KEY is excluded on both sides), proven via a multi-table
-//     round-trip (single-table readback cannot resolve the FK's referenced table).
+//  2. Foreign keys beside indexes: a table with a foreign key self-diffs empty, with the
+//     indexes it declares and no other (OceanBase makes none for the foreign key), proven
+//     via a multi-table round-trip (single-table readback cannot resolve the FK's referenced
+//     table).
 //
 // The harness reuses assertDiffEmptyAgainstReadback / oceanBaseOracle / serverCharsetFor
 // from the diff + normalize oracle tests.
@@ -121,34 +122,29 @@ type fkIndexCase struct {
 }
 
 // fkIndexCases enumerate the FK + index interplay forms. Each builds parent `p` + child `c`,
-// reads BOTH back, reloads as one schema, and the diff must be empty — the FK backing index
-// (auto-created by MySQL, synthesized by the loader) must not phantom-diff.
+// reads BOTH back, reloads as one schema, and the diff must be empty. The cases were chosen
+// for the index MySQL adds for a foreign key and the names it gives it; OceanBase adds
+// none, so each child has the indexes it declares.
 func fkIndexCases() []fkIndexCase {
 	return []fkIndexCase{
-		// Named FK, no explicit backing index → MySQL auto-creates KEY `fk`.
+		// Named FK, no index over its column.
 		{"fk-named-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
-		// Unnamed FK → constraint `c_ibfk_1`, backing index named after the column `pid`.
+		// Unnamed FK: OceanBase names it `c_OBFK_<time>`, the loader `c_ibfk_1`.
 		{"fk-unnamed-implicit", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))"},
-		// Explicit covering index present (distinct name) → MySQL reuses it, no separate backing
-		// index; the explicit index is user-managed and must round-trip.
+		// A declared index over the FK's column must round-trip.
 		{"fk-explicit-covering", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
-		// Composite FK with its own auto-created composite backing index.
+		// Composite FK.
 		{"fk-composite", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))"},
-		// Unnamed FK whose first-column index name collides with a user index, so MySQL/the loader
-		// names the backing index `pid_2` (allocIndexName suffix). The structural FK-implicit
-		// detection must still exclude `pid_2` while keeping the user's `KEY pid (a)`.
+		// An index named as the FK's column, over another column, beside an unnamed FK.
 		{"fk-backing-name-collision", "CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))"},
-		// FK with a user-chosen constraint name that matches the auto `<table>_ibfk_N` shape; the
-		// backing index is named after the constraint and must be excluded structurally.
+		// FK with a user-chosen constraint name in the loader's `<table>_ibfk_N` shape.
 		{"fk-user-named-ibfk", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))"},
 	}
 }
 
-// TestOracle_IndexFKColumnChangeNoIndexOps proves the FK-implicit cross-side rule for a FK whose
-// COLUMNS change (the backing index name stays `fk` on both sides, but its columns differ): the
-// index node must emit NO ADD/DROP/MODIFY for that backing index (it is FK-implicit on both sides
-// and owned by the FK node) — dropping it would fail errno 1553 ("needed in a foreign key
-// constraint"). Proven via a multi-table schema loaded from real engine readbacks.
+// TestOracle_IndexFKColumnChangeNoIndexOps proves that a FK whose COLUMNS change brings no
+// index op with it: the foreign key has no index of its own on either side. Proven via a
+// multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 	for range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -204,10 +200,10 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 	}
 }
 
-// TestOracle_IndexDiffFKImplicit proves the FK-implicit cross-reference: a schema with a foreign
-// key and its (auto-created) backing index self-diffs empty when loaded from the real engine
-// readbacks of BOTH tables. This is the multi-table analog of the idempotence probe — the
-// single-table harness cannot resolve the FK's referenced table.
+// TestOracle_IndexDiffFKImplicit proves that a schema with a foreign key self-diffs empty
+// when loaded from the real engine readbacks of BOTH tables. This is the multi-table analog
+// of the idempotence probe — the single-table harness cannot resolve the FK's referenced
+// table.
 func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 	for range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -256,7 +252,7 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 					t.Fatalf("[%s] reload of FK readback failed: %v\n%s", o.name, err, b.String())
 				}
 				if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
-					t.Errorf("[%s] FK schema self-diff not empty (phantom on backing index): %s", o.name, describeDiff(d))
+					t.Errorf("[%s] FK schema self-diff not empty: %s", o.name, describeDiff(d))
 				}
 			}))
 		}

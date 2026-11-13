@@ -170,9 +170,29 @@ func migrationProbes() []migrationProbe {
 		{"modify-add-autoinc", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY)"},
+		// A column leaves the primary key, widens and becomes nullable, and a new index
+		// needs the width: only NULL waits for the key, the rest of the MODIFY runs first.
+		{"modify-pk-member-widen-and-null", "t",
+			"CREATE TABLE t (id INT NOT NULL, a VARCHAR(5) NOT NULL, PRIMARY KEY (id, a))",
+			"CREATE TABLE t (id INT NOT NULL, a VARCHAR(20), PRIMARY KEY (id), KEY ka (a(10)))"},
 		{"modify-generated-expr", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED)",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED)"},
+		// OceanBase refuses the MODIFY (1235), so the column is dropped and added again, and
+		// the indexes over it with it: one of its own and one it shares with another column.
+		{"modify-generated-expr-indexed", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))"},
+		// An index stores the column: DROP COLUMN takes it out of the STORING, so that index
+		// is dropped and added again too.
+		{"modify-generated-expr-stored-by-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED, KEY k (a) STORING (g))",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED, KEY k (a) STORING (g))"},
+		// A CHECK reads the column, so it cannot be dropped: the plan keeps the MODIFY and
+		// warns, and OceanBase refuses it (obRefused).
+		{"modify-generated-expr-under-check", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED, CONSTRAINT c_g CHECK (g > 0))",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED, CONSTRAINT c_g CHECK (g > 0))"},
 
 		// ---- table-option ALTER (engine / charset / comment / row_format) ----
 		{"alter-engine", "t",
@@ -333,11 +353,8 @@ func assertApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p migrationP
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
 	// Apply the migration statements one at a time on the same connection.
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, p.id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 
 	// Read back the result (on the same connection) and compare to `to`.
@@ -535,10 +552,8 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 						return
 					}
 				}
-				for _, op := range plan.Ops {
-					if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-						t.Fatalf("[%s] APPLY FAILED: %s: %v", o.name, op.SQL, err)
-					}
+				if !o.applyPlan(t, conn, plan) {
+					return
 				}
 				// COLUMN_DEFAULT is NOT NULL for these columns; COALESCE guards against a driver
 				// surfacing it as NULL so a plain string scan is safe.
@@ -554,64 +569,5 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 				}
 			}))
 		}
-	}
-}
-
-// fkDropTableEntry builds a DiffModify TableDiffEntry whose `from` table has a single foreign key
-// (named fkName, on column col) backed by a plain auto-created index of the SAME name, and whose
-// `to` table keeps neither — so dropForeignKeyOps emits both the DROP FOREIGN KEY and the
-// leftover-backing-index DROP INDEX. It is the minimal fixture that drives leftoverBackingIndexToDrop
-// down its positive branch.
-func fkDropTableEntry(dbName, table, fkName, col string) TableDiffEntry {
-	db := &Database{Name: dbName}
-	fk := &Constraint{Name: fkName, Type: ConForeignKey, Columns: []string{col}, RefTable: "ref", RefColumns: []string{"id"}}
-	backing := &Index{Name: fkName, Columns: []*IndexColumn{{Name: col}}, Visible: true}
-	from := &Table{Name: table, Database: db, Constraints: []*Constraint{fk}, Indexes: []*Index{backing}}
-	to := &Table{Name: table, Database: db} // FK gone, no surviving index of that name
-	return TableDiffEntry{
-		Action:      DiffModify,
-		Database:    dbName,
-		Name:        table,
-		From:        from,
-		To:          to,
-		ForeignKeys: []ForeignKeyDiffEntry{{Action: DiffDrop, Name: fkName, From: fk}},
-	}
-}
-
-// TestForeignKeyBackingDropDedupDottedIdentifiers is the regression for the FK dedup-key collision.
-// The leftover-backing-index DROP is deduplicated per (database, table, index). The old key joined
-// those three with '.', so two DISTINCT triples whose names contain a literal '.' could collapse to
-// the same string and wrongly suppress a legitimate second DROP INDEX:
-//
-//	(db "d", table "a",   index "b.c")  -> "d.a.b.c"
-//	(db "d", table "a.b", index "c")    -> "d.a.b.c"   // collision!
-//
-// Both tables legitimately need their backing index dropped, so a correct plan emits TWO DROP INDEX
-// ops. encodeKeyFields length-prefixes each field, so the two triples encode distinctly and both
-// drops survive. This test fails (only one DROP INDEX) under the dotted key and passes under the
-// collision-free key. It is a pure unit test (no engine) and ordinary-identifier behavior is
-// unaffected.
-func TestForeignKeyBackingDropDedupDottedIdentifiers(t *testing.T) {
-	diff := &SchemaDiff{Tables: []TableDiffEntry{
-		fkDropTableEntry("d", "a", "b.c", "x"),
-		fkDropTableEntry("d", "a.b", "c", "y"),
-	}}
-
-	ops := generateForeignKeyDDL(nil, nil, diff, NormalizerFor(MySQL80))
-
-	var dropIndex []string
-	for _, op := range ops {
-		if strings.Contains(op.SQL, "DROP INDEX") {
-			dropIndex = append(dropIndex, op.SQL)
-		}
-	}
-	if len(dropIndex) != 2 {
-		t.Fatalf("dotted-identifier dedup collision: want 2 DROP INDEX ops (one per table), got %d:\n%s",
-			len(dropIndex), strings.Join(dropIndex, "\n"))
-	}
-	// Both tables' leftover indexes must be present — the collision would drop exactly one of these.
-	joined := strings.Join(dropIndex, "\n")
-	if !strings.Contains(joined, "`d`.`a`") || !strings.Contains(joined, "`d`.`a.b`") {
-		t.Errorf("expected a DROP INDEX for both `d`.`a` and `d`.`a.b`, got:\n%s", joined)
 	}
 }

@@ -109,9 +109,34 @@
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `fk`
 < ok 0 0
 > exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+| ALTER TABLE `fkmulti`.`c` DROP COLUMN `pid`
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_drop_referenced_table
 < ok 0 0
@@ -204,10 +229,20 @@
 > exec
 | DROP TABLE `fkmulti`.`p`
 < ok 0 0
-> exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_drop_two_fks_sharing_index
 < ok 0 0
@@ -320,10 +355,33 @@
 > exec
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `fkb`
 < ok 0 0
-> exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fkb`
-< error
-| 1091 42000 Can't DROP 'fkb'; check that column/key exists
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_drop_one_of_two_fks_sharing_index
 < ok 0 0
@@ -574,9 +632,37 @@
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `fk`
 < ok 0 0
 > exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+| ALTER TABLE `fkmulti`.`c` ADD KEY `fk` (`other_col`) LOCAL
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   `other_col` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk` (`other_col`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_drop_parent_and_child_name_order
 < ok 0 0
@@ -592,7 +678,7 @@
 < column "table_name" "CHAR"
 > exec
 | DROP DATABASE IF EXISTS fkmulti
-< ok 2 0
+< ok 3 0
 > exec
 | CREATE DATABASE fkmulti DEFAULT CHARSET=utf8mb4
 < ok 1 0
@@ -764,7 +850,173 @@
 > exec
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `c_OBFK_0000000000000002`
 < ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `c_OBFK_0000000000000001`
-< error
-| 1091 42000 Can't DROP 'c_OBFK_0000000000000001'; check that column/key exists
+| DROP DATABASE IF EXISTS fkmulti_t_replace_primary_key_of_referenced_table
+< ok 0 0
+> exec
+| CREATE DATABASE fkmulti_t_replace_primary_key_of_referenced_table DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkmulti_t_replace_primary_key_of_referenced_table
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL, u INT NOT NULL, PRIMARY KEY (id, u), UNIQUE KEY uu (u))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pu INT, CONSTRAINT fk FOREIGN KEY (pu) REFERENCES p(u))
+< ok 0 0
+> query
+| SELECT table_name FROM information_schema.tables WHERE table_schema = 'fkmulti_t_replace_primary_key_of_referenced_table' AND table_type='BASE TABLE' ORDER BY table_name
+< result
+< column "table_name" "CHAR"
+< row
+: bytes
+| c
+< row
+: bytes
+| p
+> query
+| SHOW CREATE TABLE fkmulti_t_replace_primary_key_of_referenced_table.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pu` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pu`) REFERENCES `fkmulti_t_replace_primary_key_of_referenced_table`.`p`(`u`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti_t_replace_primary_key_of_referenced_table.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `u` int(11) NOT NULL,
+|   PRIMARY KEY (`id`, `u`),
+|   UNIQUE KEY `uu` (`u`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkmulti
+< ok 2 0
+> exec
+| CREATE DATABASE fkmulti DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkmulti
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL, u INT NOT NULL, PRIMARY KEY (id), UNIQUE KEY uu (u))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pu INT, CONSTRAINT fk FOREIGN KEY (pu) REFERENCES p(u))
+< ok 0 0
+> query
+| SELECT table_name FROM information_schema.tables WHERE table_schema = 'fkmulti' AND table_type='BASE TABLE' ORDER BY table_name
+< result
+< column "table_name" "CHAR"
+< row
+: bytes
+| c
+< row
+: bytes
+| p
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pu` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pu`) REFERENCES `fkmulti`.`p`(`u`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `u` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uu` (`u`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkmulti`.`p` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`,`u`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `u` int(11) NOT NULL,
+|   PRIMARY KEY (`id`, `u`),
+|   UNIQUE KEY `uu` (`u`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pu` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pu`) REFERENCES `fkmulti`.`p`(`u`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0

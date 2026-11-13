@@ -39,9 +39,11 @@
 > exec
 | CREATE TABLE `ai_autoinc_nonpk_unique`.`t` (
 |   `id` int NOT NULL AUTO_INCREMENT,
-|   `name` varchar(20) DEFAULT NULL,
-|   UNIQUE KEY `uk` (`id`) LOCAL
+|   `name` varchar(20) DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| ALTER TABLE `ai_autoinc_nonpk_unique`.`t` ADD UNIQUE KEY `uk` (`id`) LOCAL
 < ok 0 0
 > query
 | SHOW CREATE TABLE ai_autoinc_nonpk_unique.t
@@ -95,9 +97,11 @@
 > exec
 | CREATE TABLE `ai_autoinc_nonpk_unique_composite`.`t` (
 |   `id` int NOT NULL AUTO_INCREMENT,
-|   `a` int NOT NULL,
-|   UNIQUE KEY `uk` (`id`,`a`) LOCAL
+|   `a` int NOT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| ALTER TABLE `ai_autoinc_nonpk_unique_composite`.`t` ADD UNIQUE KEY `uk` (`id`,`a`) LOCAL
 < ok 0 0
 > query
 | SHOW CREATE TABLE ai_autoinc_nonpk_unique_composite.t
@@ -151,9 +155,11 @@
 > exec
 | CREATE TABLE `ai_autoinc_plain_key`.`t` (
 |   `id` int NOT NULL AUTO_INCREMENT,
-|   `a` int DEFAULT NULL,
-|   KEY `k` (`id`) LOCAL
+|   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| ALTER TABLE `ai_autoinc_plain_key`.`t` ADD KEY `k` (`id`) LOCAL
 < ok 0 0
 > query
 | SHOW CREATE TABLE ai_autoinc_plain_key.t
@@ -209,9 +215,11 @@
 | CREATE TABLE `ai_autoinc_unique_with_other_pk`.`t` (
 |   `pk` int NOT NULL,
 |   `id` int NOT NULL AUTO_INCREMENT,
-|   PRIMARY KEY (`pk`),
-|   UNIQUE KEY `uk` (`id`) LOCAL
+|   PRIMARY KEY (`pk`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| ALTER TABLE `ai_autoinc_unique_with_other_pk`.`t` ADD UNIQUE KEY `uk` (`id`) LOCAL
 < ok 0 0
 > query
 | SHOW CREATE TABLE ai_autoinc_unique_with_other_pk.t

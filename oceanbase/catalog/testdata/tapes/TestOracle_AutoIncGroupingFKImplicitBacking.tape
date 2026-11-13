@@ -108,7 +108,7 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `fkmulti`.`c` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT, ADD KEY `fk_seq` (`seq`)
+| ALTER TABLE `fkmulti`.`c` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT
 < ok 0 0
 > exec
 | ALTER TABLE `fkmulti`.`c` ADD CONSTRAINT `fk_seq` FOREIGN KEY (`seq`) REFERENCES `fkmulti`.`p` (`id`)
@@ -140,8 +140,7 @@
 |   `x` int(11) DEFAULT NULL,
 |   `seq` int(11) NOT NULL AUTO_INCREMENT,
 |   PRIMARY KEY (`id`),
-|   CONSTRAINT `fk_seq` FOREIGN KEY (`seq`) REFERENCES `fkmulti`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
-|   KEY `fk_seq` (`seq`) BLOCK_SIZE 16384 LOCAL
+|   CONSTRAINT `fk_seq` FOREIGN KEY (`seq`) REFERENCES `fkmulti`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_aig_fk_implicit_backing_drop
@@ -197,7 +196,7 @@
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti
-< ok 3 0
+< ok 2 0
 > exec
 | CREATE DATABASE fkmulti DEFAULT CHARSET=utf8mb4
 < ok 1 0
@@ -253,9 +252,35 @@
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `fk_seq`
 < ok 0 0
 > exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fk_seq`, DROP COLUMN `seq`
-< error
-| 1091 42000 Can't DROP 'fk_seq'; check that column/key exists
+| ALTER TABLE `fkmulti`.`c` DROP COLUMN `seq`
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `x` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkmulti_t_aig_fk_rename_in_place_to_ai
 < ok 0 0
@@ -367,6 +392,37 @@
 | ALTER TABLE `fkmulti`.`c` DROP FOREIGN KEY `fk`
 < ok 0 0
 > exec
-| ALTER TABLE `fkmulti`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+| ALTER TABLE `fkmulti`.`c` ADD COLUMN `seq` int NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| ALTER TABLE `fkmulti`.`c` ADD CONSTRAINT `fk` FOREIGN KEY (`seq`) REFERENCES `fkmulti`.`p` (`id`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkmulti.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkmulti.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `old_id` int(11) DEFAULT NULL,
+|   `seq` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`seq`) REFERENCES `fkmulti`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0

@@ -8,15 +8,16 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for the AUTO_INCREMENT / backing-key ALTER grouping (migration_autoinc.go),
-// against OceanBase (5.7.25 and 8.0.32 showed identical errno-1075 behavior,
-// probed 2026-07). MySQL enforces, at the END OF EVERY STATEMENT, that a table has at most one
-// AUTO_INCREMENT column and that this column is the FIRST column of some index (errno 1075;
-// MyISAM alone also accepts a non-first position). A plan that adds an AUTO_INCREMENT column in
-// one ALTER and its backing key in the next therefore fails on the FIRST statement — the column
-// and its key must land in the SAME statement. These probes cover every grouping form the merge
-// pass emits (correctness-protocol.md gate 2: each generated plan, applied to a real `from`
-// database, must yield `to`), plus the no-merge control cases that must keep working ungrouped.
+// Apply probes for changes around an AUTO_INCREMENT column and its keys, run on OceanBase.
+//
+// The cases were written for MySQL, which checks at the end of every statement that the
+// AUTO_INCREMENT column leads some key (1075) and so needs several clauses in one ALTER
+// TABLE. Each case's comment names the MySQL hazard it stands for. OceanBase has no such
+// rule and refuses most of those groupings (TestOracle_OceanBaseAlterTableClauses), so here
+// each case is the same change made one clause at a time, in the order
+// TestMigration_StatementOrder pins: the probe is that OceanBase takes every statement and
+// the table ends as `to` (correctness-protocol.md gate 2). The last cases are OceanBase's
+// own: orders it needs and MySQL does not.
 //
 // The idempotence gate (gate 1) for the same forms is TestOracle_AutoIncGroupingIdempotence:
 // every `to` schema, read back from the engine, must self-plan to an empty migration.
@@ -219,12 +220,29 @@ func autoIncMigrationProbes() []migrationProbe {
 		{"aig-widen-ai-key-replaced", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, UNIQUE KEY uk_c (c))",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c BIGINT NOT NULL AUTO_INCREMENT, a INT NOT NULL, UNIQUE KEY uk_c (c, a))"},
+
+		// ---- OceanBase's own orders ----
+
+		// AUTO_INCREMENT moves to a column whose name sorts first: the MODIFY that takes it
+		// off runs before the one that puts it on (1075, only one auto column).
+		{"aig-ai-migrate-to-earlier-name", "t",
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT, UNIQUE KEY uk_a (a), UNIQUE KEY uk_b (b))",
+			"CREATE TABLE t (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, UNIQUE KEY uk_a (a), UNIQUE KEY uk_b (b))"},
+		// The primary key's AUTO_INCREMENT column hands the attribute to the new key column and
+		// is dropped: it gives up AUTO_INCREMENT first, and goes once the key is replaced (1235,
+		// drop rowkey column).
+		{"aig-pk-ai-member-hands-on-and-drops", "t",
+			"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, PRIMARY KEY (c))",
+			"CREATE TABLE t (b INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (b))"},
+		// The same column stays, nullable: NULL waits for the key to let go of it (1171).
+		{"aig-pk-ai-member-hands-on-and-nulls", "t",
+			"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, PRIMARY KEY (c))",
+			"CREATE TABLE t (c INT, b INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (b))"},
 	}
 }
 
-// TestOracle_AutoIncGroupingApplyCorrectness proves gate 2 for every grouping form: the
-// generated plan, applied statement-by-statement to a real `from` database, must yield `to`.
-// Before the merge pass, the hazard probes fail on the first ungrouped statement (errno 1075).
+// TestOracle_AutoIncGroupingApplyCorrectness proves gate 2 for every case: the generated
+// plan, applied statement-by-statement to a real `from` database, must yield `to`.
 func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -238,8 +256,8 @@ func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 }
 
 // TestOracle_AutoIncGroupingIdempotence proves gate 1 for the same forms: each `to` schema,
-// loaded from the engine's own readback, must self-plan to an EMPTY migration (the merge pass
-// must never manufacture ops on a no-op release), and the user-form round-trip must be empty.
+// loaded from the engine's own readback, must self-plan to an EMPTY migration, and the
+// user-form round-trip must be empty.
 func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -273,11 +291,10 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 	}
 }
 
-// TestOracle_AutoIncGroupingFKImplicitBacking proves the FK-implicit last-resort form on the
-// ALTER path (the analog of formatCreateTable's last-resort inline): an AUTO_INCREMENT column
-// added together with a FOREIGN KEY on it — and no user key — must have the FK's backing index
-// synthesized into the grouped ADD COLUMN statement; the deferred PhasePost FK then reuses that
-// index instead of auto-creating a duplicate (probed live: both versions accept the sequence).
+// TestOracle_AutoIncGroupingFKImplicitBacking applies changes to an AUTO_INCREMENT column
+// whose only key, on MySQL, would be the index MySQL adds for a foreign key on it. On
+// OceanBase the column has no key at all and needs none, and the foreign key has no index:
+// the plan is the column and the foreign key, and the probe is that it applies.
 func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
 	cases := []fkMultiCase{
 		{

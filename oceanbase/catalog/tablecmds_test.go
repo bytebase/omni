@@ -295,16 +295,11 @@ func TestCreateTableWithFK(t *testing.T) {
 		t.Errorf("expected ON DELETE CASCADE, got %q", fk.OnDelete)
 	}
 
-	// Check that FK has a backing index (MySQL uses constraint name when provided).
-	var fkIdx *Index
+	// No index is made for the foreign key: OceanBase makes none.
 	for _, idx := range tbl.Indexes {
 		if idx.Name == "fk_dept" {
-			fkIdx = idx
-			break
+			t.Errorf("index %s was made for the foreign key", idx.Name)
 		}
-	}
-	if fkIdx == nil {
-		t.Fatal("FK backing index not found")
 	}
 }
 
