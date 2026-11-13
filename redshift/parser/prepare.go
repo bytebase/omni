@@ -64,7 +64,10 @@ func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	params, _ := p.parseExecuteParamClause()
+	params, err := p.parseExecuteParamClause()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.ExecuteStmt{
 		Name:   name,
