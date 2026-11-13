@@ -240,6 +240,29 @@ func (p *Parser) startsTableConstraint() bool {
 	return true
 }
 
+// startsColNameKeywordColumnRef reports whether the current token, a
+// col_name_keyword where a c_expr starts, is the ColId of a columnref
+// rather than the lead of a form of its own. Each such form goes on with
+// '(' (row, EXISTS select_with_parens, and func_expr_common_subexpr's
+// COALESCE, NULLIF, XMLROOT, JSON_OBJECT and the rest) or is a typed
+// constant (ConstTypename Sconst, ConstInterval Sconst); and func_name,
+// which an Sconst may follow, takes no col_name_keyword. Before any other
+// token the keyword names a column: SELECT nullif, OFFSET row.
+//
+// Grammar reference: c_expr, columnref and func_expr_common_subexpr in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is a
+// keyword category, which TestStartsColNameKeywordColumnRef checks against
+// the whole Keywords table.
+func (p *Parser) startsColNameKeywordColumnRef() bool {
+	if !p.isColNameKeyword() {
+		return false
+	}
+	if next := p.peekNext().Type; next == '(' || next == SCONST {
+		return false
+	}
+	return !p.isAExprConstTypeCast()
+}
+
 // selectLimitLeadTokens is the FIRST set of select_limit: a limit_clause
 // starts with LIMIT or FETCH, an offset_clause with OFFSET.
 //

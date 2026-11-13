@@ -72,10 +72,18 @@ func (p *Parser) parseJsonFormatClause() (*nodes.JsonFormat, error) {
 
 // parseJsonFormatClauseOpt parses an optional FORMAT clause.
 func (p *Parser) parseJsonFormatClauseOpt() (*nodes.JsonFormat, error) {
-	if p.cur.Type == FORMAT {
+	if p.startsJsonFormat() {
 		return p.parseJsonFormatClause()
 	}
 	return nil, nil
+}
+
+// startsJsonFormat reports whether a json_format_clause starts at the
+// current token. PostgreSQL's lexer makes FORMAT before JSON a FORMAT_LA,
+// the token json_format_clause starts with; any other FORMAT is the
+// unreserved keyword, a name.
+func (p *Parser) startsJsonFormat() bool {
+	return p.cur.Type == FORMAT && p.keywordLeads(func(t Token) bool { return t.Type == JSON })
 }
 
 // parseJsonReturningClauseOpt parses an optional RETURNING Typename [FORMAT ...].
@@ -340,21 +348,18 @@ func (p *Parser) parseJsonPredicateTypeConstraint() (nodes.JsonValueType, bool) 
 //	json_key_uniqueness_constraint_opt:
 //	    WITH UNIQUE [KEYS] | WITHOUT UNIQUE [KEYS] | /* EMPTY */
 //
-// WITH starts the clause only before UNIQUE, since WITH may follow the
-// expression (CREATE TABLE AS ... WITH DATA). WITHOUT always starts it:
-// nothing else takes it there, not even a column label (kwlist.h marks it
-// AS_LABEL), so a WITHOUT not followed by UNIQUE is an error at that token.
+// WITH and WITHOUT always start it: PostgreSQL shifts WITH there, so even
+// CREATE TABLE AS SELECT a IS JSON WITH DATA is a syntax error at DATA.
 func (p *Parser) parseJsonKeyUniquenessConstraintOpt() (bool, error) {
 	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == UNIQUE {
-			p.advance() // consume WITH
-			p.advance() // consume UNIQUE
-			if p.cur.Type == KEYS {
-				p.advance()
-			}
-			return true, nil
+		p.advance() // consume WITH
+		if _, err := p.expect(UNIQUE); err != nil {
+			return false, err
 		}
+		if p.cur.Type == KEYS {
+			p.advance()
+		}
+		return true, nil
 	}
 	if p.cur.Type == WITHOUT {
 		p.advance() // consume WITHOUT
@@ -1263,8 +1268,9 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// NESTED path
-	if p.cur.Type == NESTED {
+	// NESTED path_opt Sconst ...; before any token but PATH or an
+	// Sconst, NESTED, an unreserved keyword, is the column's name.
+	if p.cur.Type == NESTED && p.keywordLeads(func(t Token) bool { return t.Type == PATH || t.Type == SCONST }) {
 		p.advance() // consume NESTED
 		// path_opt: PATH | empty
 		if p.cur.Type == PATH {
@@ -1332,7 +1338,10 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 		}, nil
 	}
 
-	// ColId Typename ...
+	// ColId Typename ... FORMAT_LA starts no Typename.
+	if p.startsJsonFormat() && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	tn, err := p.parseTypename()
 	if err != nil {
 		return nil, err
@@ -1340,7 +1349,7 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 
 	// Check for FORMAT JSON clause
 	var format *nodes.JsonFormat
-	if p.cur.Type == FORMAT {
+	if p.startsJsonFormat() {
 		format, err = p.parseJsonFormatClause()
 		if err != nil {
 			return nil, err

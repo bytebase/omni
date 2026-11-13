@@ -30,6 +30,11 @@ type Parser struct {
 	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+	// lastRow is the node the row production parsed last made, and
+	// lastRowEnd the end of its ')': a c_expr that is that node and ends
+	// there is the row itself, not a parenthesized expression holding it.
+	lastRow    nodes.Node
+	lastRowEnd int
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates

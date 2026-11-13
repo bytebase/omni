@@ -35,6 +35,11 @@ type Parser struct {
 	// targetDepth is the depth at which the expression of the target_el being
 	// parsed is complete, where a keyword may be its bare label; 0 outside one.
 	targetDepth int
+	// lastRow is the node the row production parsed last made, and
+	// lastRowEnd the end of its ')': a c_expr that is that node and ends
+	// there is the row itself, not a parenthesized expression holding it.
+	lastRow    nodes.Node
+	lastRowEnd int
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates
