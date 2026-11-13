@@ -435,6 +435,24 @@ func replicationWhole(tok Token) uint64 {
 	return uint64(tok.Ival)
 }
 
+// replicationInt is replicationWhole as the int64 the AST holds, the widest
+// when it does not fit.
+func replicationInt(tok Token) int64 {
+	n := replicationWhole(tok)
+	if n > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(n)
+}
+
+// replicationValueInt decodes a number parseMasterDef kept as its text.
+func replicationValueInt(s string) int64 {
+	if strings.HasPrefix(strings.ToLower(s), "0x") {
+		return replicationInt(Token{Type: tokXCONST, Str: s})
+	}
+	return numberWhole(s)
+}
+
 // parseConnectionName reads optional_connection_name, a string, when one is
 // next.
 func (p *Parser) parseConnectionName() (string, bool) {
@@ -556,7 +574,7 @@ func (p *Parser) parseMasterDef(fileOnly bool) (*nodes.ReplicationOption, error)
 			if err != nil {
 				return nil, err
 			}
-			opt.IDs = append(opt.IDs, tok.Ival)
+			opt.IDs = append(opt.IDs, replicationInt(tok))
 		}
 		for p.cur.Type == ',' {
 			p.advance() // consume ','
@@ -564,7 +582,7 @@ func (p *Parser) parseMasterDef(fileOnly bool) (*nodes.ReplicationOption, error)
 			if err != nil {
 				return nil, err
 			}
-			opt.IDs = append(opt.IDs, tok.Ival)
+			opt.IDs = append(opt.IDs, replicationInt(tok))
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -623,7 +641,12 @@ func (p *Parser) atAllSlaves() bool {
 		return false
 	}
 	next := p.peekNext()
-	return next.Type == kwREPLICAS || strings.EqualFold(next.Str, "SLAVES")
+	if next.Type == kwREPLICAS {
+		return true
+	}
+	// SLAVES is a keyword the lexer does not know: it must be the bare word,
+	// not a string or a backquoted name.
+	return next.Type == tokIDENT && strings.EqualFold(p.inputText(next.Loc, next.End), "SLAVES")
 }
 
 // parseStartReplicaStmt parses START SLAVE (or REPLICA, the same token) and
@@ -694,7 +717,7 @@ func (p *Parser) parseSlaveUntil(stmt *nodes.StartReplicaStmt) error {
 		case "MASTER_LOG_FILE", "RELAY_LOG_FILE":
 			stmt.UntilType, stmt.UntilValue = opt.Name, opt.Value
 		case "MASTER_LOG_POS", "RELAY_LOG_POS":
-			stmt.UntilPos = numberWhole(opt.Value)
+			stmt.UntilPos = replicationValueInt(opt.Value)
 		}
 		if p.cur.Type != ',' {
 			break

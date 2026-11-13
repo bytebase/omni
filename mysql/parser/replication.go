@@ -154,6 +154,16 @@ func replicationWhole(tok Token) uint64 {
 	return uint64(tok.Ival)
 }
 
+// replicationInt is replicationWhole as the int64 the AST holds, the widest
+// when it does not fit.
+func replicationInt(tok Token) int64 {
+	n := replicationWhole(tok)
+	if n > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(n)
+}
+
 // parseReplicationChannel reads opt_channel, `FOR CHANNEL 'name'`, when FOR is
 // next. The channel is TEXT_STRING_sys_nonewline, a string and not a name.
 //
@@ -268,7 +278,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 			if err != nil {
 				return nil, err
 			}
-			opt.IDs = append(opt.IDs, tok.Ival)
+			opt.IDs = append(opt.IDs, replicationInt(tok))
 		}
 		for p.cur.Type == ',' {
 			p.advance() // consume ','
@@ -276,7 +286,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 			if err != nil {
 				return nil, err
 			}
-			opt.IDs = append(opt.IDs, tok.Ival)
+			opt.IDs = append(opt.IDs, replicationInt(tok))
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -620,7 +630,7 @@ func (p *Parser) parseReplicaUntil(stmt *nodes.StartReplicaStmt) error {
 			if err != nil {
 				return err
 			}
-			stmt.UntilPos = tok.Ival
+			stmt.UntilPos = replicationInt(tok)
 		default:
 			return p.syntaxErrorAtCur()
 		}
