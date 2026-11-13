@@ -174,12 +174,16 @@ func (p *Parser) parsePreparableStmt() (nodes.Node, error) {
 // token when no select_no_parens starts there. In collect mode it returns
 // what parseSelectNoParens did, so completion goes on to offer what
 // follows.
-func (p *Parser) parseRequiredSelectNoParens() (*nodes.SelectStmt, error) {
+func (p *Parser) parseRequiredSelectNoParens() (nodes.Node, error) {
 	stmt, err := p.parseSelectNoParens()
 	if err != nil {
 		return nil, err
 	}
-	if stmt == nil && !p.collectMode() {
+	if stmt == nil {
+		// A nil *SelectStmt must not become a non-nil Node.
+		if p.collectMode() {
+			return nil, nil
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	return stmt, nil
