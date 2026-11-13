@@ -362,8 +362,8 @@ reject	reject	engine	simple_statement/get_diagnostics!drop-1	DIAGNOSTICS utf8mb4
 reject	reject	engine	simple_statement/get_diagnostics!drop-2	GET utf8mb4 = NUMBER;
 reject	reject	engine	simple_statement/get_diagnostics!drop-3	GET DIAGNOSTICS = NUMBER;
 reject	reject	engine	simple_statement/get_diagnostics!drop-4	GET DIAGNOSTICS utf8mb4 NUMBER;
-accept	reject	engine	simple_statement/get_diagnostics!drop-5	GET DIAGNOSTICS utf8mb4 =;
-accept	reject	engine	simple_statement/get_diagnostics!truncate	GET DIAGNOSTICS utf8mb4 =
+reject	reject	engine	simple_statement/get_diagnostics!drop-5	GET DIAGNOSTICS utf8mb4 =;
+reject	reject	engine	simple_statement/get_diagnostics!truncate	GET DIAGNOSTICS utf8mb4 =
 reject	reject	engine	simple_statement/get_diagnostics!insert	GET DIAGNOSTICS utf8mb4 = NUMBER zzz;
 reject	reject	engine	simple_statement/get_diagnostics!swap	GET_FORMAT DIAGNOSTICS utf8mb4 = NUMBER;
 accept	accept	engine	simple_statement/group_replication	START GROUP_REPLICATION;
@@ -2033,21 +2033,21 @@ reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!truncate	ALT
 reject	reject	engine	sp_hcond_list/sp_hcond_list_,_sp_hcond_element!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1, 1 zzz COMMIT; END;
 accept	accept	engine	sp_hcond_element/sp_hcond	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 COMMIT; END;
 accept	accept	engine	sp_cond/ulong_num	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR 1; END;
-accept	reject	engine	sp_cond/sqlstate	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLSTATE 's'; END;
+reject	reject	engine	sp_cond/sqlstate	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLSTATE 's'; END;
 reject	reject	engine	sp_cond/sqlstate!drop-1	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR 's'; END;
 reject	reject	engine	sp_cond/sqlstate!drop-2	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLSTATE; END;
 reject	reject	engine	sp_cond/sqlstate!truncate	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLSTATE
 reject	reject	engine	sp_cond/sqlstate!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLSTATE 's' zzz; END;
 reject	reject	engine	sp_cond/sqlstate!swap	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 CONDITION FOR SQLWARNING 's'; END;
-accept	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
+reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-1	RESIGNAL 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-2	RESIGNAL SQLSTATE;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!truncate	RESIGNAL SQLSTATE
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!insert	RESIGNAL SQLSTATE 's' zzz;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!swap	RESIGNAL SQLWARNING 's';
-accept	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
+reject	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
 reject	reject	engine	opt_value/%empty!insert	RESIGNAL SQLSTATE zzz 's';
-accept	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
+reject	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
 reject	reject	engine	opt_value/VALUE_SYM!insert	RESIGNAL SQLSTATE VALUE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM!swap	RESIGNAL SQLSTATE VALUES 's';
 accept	accept	engine	sp_hcond/sp_cond	ALTER EVENT utf8mb4 DO BEGIN DECLARE EXIT HANDLER FOR 1 COMMIT; END;
@@ -2069,7 +2069,7 @@ accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_informat
 accept	reject	engine	signal_value/ident	RESIGNAL utf8mb4;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL utf8mb4 zzz;
-accept	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
+reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
 accept	reject	engine	opt_signal_value/signal_value	RESIGNAL utf8mb4;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
@@ -2082,8 +2082,8 @@ reject	reject	engine	opt_set_signal_information/SET_SYM_signal_information_item_
 reject	reject	engine	opt_set_signal_information/SET_SYM_signal_information_item_list!insert	RESIGNAL SET CLASS_ORIGIN = 's' zzz;
 reject	reject	engine	opt_set_signal_information/SET_SYM_signal_information_item_list!swap	RESIGNAL SHARE CLASS_ORIGIN = 's';
 accept	accept	engine	signal_information_item_list/signal_condition_information_item_name_EQ_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's';
-accept	reject	engine	signal_information_item_list/signal_condition_information_item_name_EQ_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_condition_information_item_name_EQ_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!drop-1	RESIGNAL SET = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!drop-2	RESIGNAL SET CLASS_ORIGIN 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!drop-3	RESIGNAL SET CLASS_ORIGIN =, CLASS_ORIGIN = 's';
@@ -2093,7 +2093,7 @@ reject	reject	engine	signal_information_item_list/signal_information_item_list_,
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!drop-7	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =;
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!truncate	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!insert	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's' zzz;
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_EQ_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/literal_or_null	RESIGNAL SET CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable	RESIGNAL SET CLASS_ORIGIN =@utf8mb4;
 reject	accept	engine	signal_allowed_expr/rvalue_system_or_user_variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
@@ -2106,35 +2106,35 @@ reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!tru
 reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!insert	RESIGNAL SET CLASS_ORIGIN zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM	RESIGNAL SET SUBCLASS_ORIGIN = 's';
 reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	RESIGNAL SET SUBCLASS_ORIGIN zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
+reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM	RESIGNAL SET CONSTRAINT_CATALOG = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	RESIGNAL SET CONSTRAINT_CATALOG zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM	RESIGNAL SET CONSTRAINT_SCHEMA = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	RESIGNAL SET CONSTRAINT_SCHEMA zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
+reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM	RESIGNAL SET CONSTRAINT_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM!insert	RESIGNAL SET CONSTRAINT_NAME zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CATALOG_NAME_SYM	RESIGNAL SET CATALOG_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!insert	RESIGNAL SET CATALOG_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
+reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
 accept	accept	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM	RESIGNAL SET SCHEMA_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!insert	RESIGNAL SET SCHEMA_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/TABLE_NAME_SYM	RESIGNAL SET TABLE_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!insert	RESIGNAL SET TABLE_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
+reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
 accept	accept	engine	signal_condition_information_item_name/COLUMN_NAME_SYM	RESIGNAL SET COLUMN_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!insert	RESIGNAL SET COLUMN_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
+reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
 accept	accept	engine	signal_condition_information_item_name/CURSOR_NAME_SYM	RESIGNAL SET CURSOR_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!insert	RESIGNAL SET CURSOR_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET DATA = 's';
+reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET DATA = 's';
 accept	accept	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM	RESIGNAL SET MESSAGE_TEXT = 's';
 reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!insert	RESIGNAL SET MESSAGE_TEXT zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM	RESIGNAL SET MYSQL_ERRNO = 's';
 reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!insert	RESIGNAL SET MYSQL_ERRNO zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
+reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
 accept	accept	engine	resignal_stmt/RESIGNAL_SYM_opt_signal_value_opt_set_signal_information	RESIGNAL;
 accept	reject	engine	get_diagnostics/GET_SYM_which_area_DIAGNOSTICS_SYM_diagnostics_information	GET DIAGNOSTICS utf8mb4 = NUMBER;
 accept	reject	engine	which_area/%empty	GET DIAGNOSTICS utf8mb4 = NUMBER;
@@ -2147,14 +2147,14 @@ accept	reject	engine	which_area/STACKED_SYM	GET STACKED DIAGNOSTICS utf8mb4 = NU
 reject	reject	engine	which_area/STACKED_SYM!insert	GET STACKED zzz DIAGNOSTICS utf8mb4 = NUMBER;
 reject	reject	engine	which_area/STACKED_SYM!swap	GET START DIAGNOSTICS utf8mb4 = NUMBER;
 accept	reject	engine	diagnostics_information/statement_information	GET DIAGNOSTICS utf8mb4 = NUMBER;
-accept	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS utf8mb4 = NUMERIC;
+reject	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS utf8mb4 = NUMERIC;
 accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-1	GET DIAGNOSTICS 's' utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-2	GET DIAGNOSTICS CONDITION utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-3	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-4	GET DIAGNOSTICS CONDITION 's' utf8mb4 CLASS_ORIGIN;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' utf8mb4 =;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' utf8mb4 =
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' utf8mb4 =;
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' utf8mb4 =
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN zzz;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!swap	GET DIAGNOSTICS CONNECTION 's' utf8mb4 = CLASS_ORIGIN;
 accept	reject	engine	statement_information/statement_information_item	GET DIAGNOSTICS utf8mb4 = NUMBER;
@@ -2165,10 +2165,10 @@ reject	reject	engine	statement_information/statement_information_,_statement_inf
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-4	GET DIAGNOSTICS utf8mb4 = NUMBER utf8mb4 = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-5	GET DIAGNOSTICS utf8mb4 = NUMBER, = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-6	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 NUMBER;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 =;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 =
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 =;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 =
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!insert	GET DIAGNOSTICS utf8mb4 = NUMBER, utf8mb4 = NUMBER zzz;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS utf8mb4 = NUMERIC, utf8mb4 = NUMBER;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS utf8mb4 = NUMERIC, utf8mb4 = NUMBER;
 accept	reject	engine	statement_information_item/simple_target_specification_EQ_statement_information_item_name	GET DIAGNOSTICS utf8mb4 = NUMBER;
 accept	reject	engine	simple_target_specification/ident	GET DIAGNOSTICS utf8mb4 = NUMBER;
 reject	reject	engine	simple_target_specification/ident!truncate	GET DIAGNOSTICS
@@ -2180,12 +2180,12 @@ reject	reject	engine	simple_target_specification/@_ident_or_text!insert	GET DIAG
 accept	reject	engine	statement_information_item_name/NUMBER_SYM	GET DIAGNOSTICS utf8mb4 = NUMBER;
 accept	reject	engine	statement_information_item_name/ROW_COUNT_SYM	GET DIAGNOSTICS utf8mb4 = ROW_COUNT;
 reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!insert	GET DIAGNOSTICS utf8mb4 = ROW_COUNT zzz;
-accept	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS utf8mb4 = ROW_FORMAT;
+reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS utf8mb4 = ROW_FORMAT;
 accept	reject	engine	condition_number/signal_allowed_expr	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	condition_number/signal_allowed_expr!truncate	GET DIAGNOSTICS CONDITION
 reject	reject	engine	condition_number/signal_allowed_expr!insert	GET DIAGNOSTICS CONDITION 's' zzz utf8mb4 = CLASS_ORIGIN;
 accept	reject	engine	condition_information/condition_information_item	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLIENT;
+reject	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLIENT;
 accept	reject	engine	condition_information/condition_information_,_condition_information_item	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-1	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN, utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-2	GET DIAGNOSTICS CONDITION 's' utf8mb4 CLASS_ORIGIN, utf8mb4 = CLASS_ORIGIN;
@@ -2193,46 +2193,46 @@ reject	reject	engine	condition_information/condition_information_,_condition_inf
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-4	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN utf8mb4 = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-5	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-6	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 =;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 =
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 =;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 =
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN, utf8mb4 = CLASS_ORIGIN zzz;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLIENT, utf8mb4 = CLASS_ORIGIN;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLIENT, utf8mb4 = CLASS_ORIGIN;
 accept	reject	engine	condition_information_item/simple_target_specification_EQ_condition_information_item_name	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN;
 accept	reject	engine	condition_information_item_name/CLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CLASS_ORIGIN;
 accept	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SUBCLASS_ORIGIN;
 reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SUBCLASS_ORIGIN zzz;
-accept	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SUBDATE;
+reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SUBDATE;
 accept	reject	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_CATALOG;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_CATALOG zzz;
 accept	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_SCHEMA;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_SCHEMA zzz;
-accept	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONTAINS;
+reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONTAINS;
 accept	reject	engine	condition_information_item_name/CONSTRAINT_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_NAME;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CONSTRAINT_NAME zzz;
 accept	reject	engine	condition_information_item_name/CATALOG_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CATALOG_NAME;
 reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CATALOG_NAME zzz;
-accept	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CHAIN;
+reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CHAIN;
 accept	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SCHEMA_NAME;
 reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SCHEMA_NAME zzz;
-accept	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SECOND;
+reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = SECOND;
 accept	reject	engine	condition_information_item_name/TABLE_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = TABLE_NAME;
 reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = TABLE_NAME zzz;
-accept	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = TEMPORARY;
+reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = TEMPORARY;
 accept	reject	engine	condition_information_item_name/COLUMN_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = COLUMN_NAME;
 reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = COLUMN_NAME zzz;
-accept	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = COMMENT;
+reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = COMMENT;
 accept	reject	engine	condition_information_item_name/CURSOR_NAME_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CURSOR_NAME;
 reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = CURSOR_NAME zzz;
-accept	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = DATA;
+reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = DATA;
 accept	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MESSAGE_TEXT;
 reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MESSAGE_TEXT zzz;
-accept	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MICROSECOND;
+reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MICROSECOND;
 accept	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MYSQL_ERRNO;
 reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = MYSQL_ERRNO zzz;
-accept	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = NAME;
+reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = NAME;
 accept	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM	GET DIAGNOSTICS CONDITION 's' utf8mb4 = RETURNED_SQLSTATE;
 reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!insert	GET DIAGNOSTICS CONDITION 's' utf8mb4 = RETURNED_SQLSTATE zzz;
-accept	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = RETURNING;
+reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' utf8mb4 = RETURNING;
 accept	accept	engine	sp_decl_idents/ident	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT; END;
 reject	reject	engine	sp_decl_idents/ident!insert	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 zzz INT; END;
 accept	reject	engine	sp_decl_idents/sp_decl_idents_,_ident	ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4, utf8mb4 INT; END;

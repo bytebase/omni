@@ -142,8 +142,8 @@ reject	reject	engine	verb_clause/get_diagnostics!drop-1	DIAGNOSTICS @a = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-2	GET @a = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-3	GET DIAGNOSTICS = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-4	GET DIAGNOSTICS @a NUMBER;
-accept	reject	engine	verb_clause/get_diagnostics!drop-5	GET DIAGNOSTICS @a =;
-accept	reject	engine	verb_clause/get_diagnostics!truncate	GET DIAGNOSTICS @a =
+reject	reject	engine	verb_clause/get_diagnostics!drop-5	GET DIAGNOSTICS @a =;
+reject	reject	engine	verb_clause/get_diagnostics!truncate	GET DIAGNOSTICS @a =
 reject	reject	engine	verb_clause/get_diagnostics!insert	GET DIAGNOSTICS @a = NUMBER zzz;
 reject	reject	engine	verb_clause/get_diagnostics!swap	GET_FORMAT DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	verb_clause/grant	GRANT a TO a;
@@ -1332,15 +1332,15 @@ reject	reject	engine	sp_cond/sqlstate!drop-2	BEGIN NOT ATOMIC DECLARE a CONDITIO
 reject	reject	engine	sp_cond/sqlstate!truncate	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLSTATE
 reject	reject	engine	sp_cond/sqlstate!insert	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLSTATE 's' zzz; END;
 reject	reject	engine	sp_cond/sqlstate!swap	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLWARNING 's'; END;
-accept	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
+reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-1	RESIGNAL 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-2	RESIGNAL SQLSTATE;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!truncate	RESIGNAL SQLSTATE
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!insert	RESIGNAL SQLSTATE 's' zzz;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!swap	RESIGNAL SQLWARNING 's';
-accept	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
+reject	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
 reject	reject	engine	opt_value/%empty!insert	RESIGNAL SQLSTATE zzz 's';
-accept	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
+reject	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
 reject	reject	engine	opt_value/VALUE_SYM!insert	RESIGNAL SQLSTATE VALUE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM!swap	RESIGNAL SQLSTATE VALUES 's';
 reject	accept	engine	sp_hcond/sp_cond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
@@ -1362,7 +1362,7 @@ accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_informat
 accept	reject	engine	signal_value/ident	RESIGNAL a;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL a zzz;
-accept	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
+reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
 accept	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
@@ -1375,8 +1375,8 @@ reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!insert	RESIGNAL SET CLASS_ORIGIN = 's' zzz;
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!swap	RESIGNAL SETVAL CLASS_ORIGIN = 's';
 accept	accept	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's';
-accept	reject	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-1	RESIGNAL SET = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-2	RESIGNAL SET CLASS_ORIGIN 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-3	RESIGNAL SET CLASS_ORIGIN =, CLASS_ORIGIN = 's';
@@ -1386,7 +1386,7 @@ reject	reject	engine	signal_information_item_list/signal_information_item_list_,
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-7	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =;
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!truncate	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!insert	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's' zzz;
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/literal	RESIGNAL SET CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/variable	RESIGNAL SET CLASS_ORIGIN =@a;
 reject	reject	engine	signal_allowed_expr/variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
@@ -1399,38 +1399,38 @@ reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!tru
 reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!insert	RESIGNAL SET CLASS_ORIGIN zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM	RESIGNAL SET SUBCLASS_ORIGIN = 's';
 reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	RESIGNAL SET SUBCLASS_ORIGIN zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
+reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM	RESIGNAL SET CONSTRAINT_CATALOG = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	RESIGNAL SET CONSTRAINT_CATALOG zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM	RESIGNAL SET CONSTRAINT_SCHEMA = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	RESIGNAL SET CONSTRAINT_SCHEMA zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
+reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM	RESIGNAL SET CONSTRAINT_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM!insert	RESIGNAL SET CONSTRAINT_NAME zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CATALOG_NAME_SYM	RESIGNAL SET CATALOG_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!insert	RESIGNAL SET CATALOG_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
+reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
 accept	accept	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM	RESIGNAL SET SCHEMA_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!insert	RESIGNAL SET SCHEMA_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/TABLE_NAME_SYM	RESIGNAL SET TABLE_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!insert	RESIGNAL SET TABLE_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
+reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
 accept	accept	engine	signal_condition_information_item_name/COLUMN_NAME_SYM	RESIGNAL SET COLUMN_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!insert	RESIGNAL SET COLUMN_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
+reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
 accept	accept	engine	signal_condition_information_item_name/CURSOR_NAME_SYM	RESIGNAL SET CURSOR_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!insert	RESIGNAL SET CURSOR_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET CYCLE = 's';
+reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET CYCLE = 's';
 accept	accept	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM	RESIGNAL SET MESSAGE_TEXT = 's';
 reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!insert	RESIGNAL SET MESSAGE_TEXT zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM	RESIGNAL SET MYSQL_ERRNO = 's';
 reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!insert	RESIGNAL SET MYSQL_ERRNO zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
+reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
 accept	accept	engine	signal_condition_information_item_name/ROW_NUMBER_SYM	RESIGNAL SET ROW_NUMBER = 's';
 reject	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!insert	RESIGNAL SET ROW_NUMBER zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!swap	RESIGNAL SET RTREE = 's';
+reject	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!swap	RESIGNAL SET RTREE = 's';
 accept	accept	engine	resignal_stmt/RESIGNAL_SYM_opt_signal_value_opt_set_signal_information	RESIGNAL;
 accept	accept	engine	get_diagnostics/GET_SYM_which_area_DIAGNOSTICS_SYM_diagnostics_information	GET DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	which_area/%empty	GET DIAGNOSTICS @a = NUMBER;
@@ -1440,14 +1440,14 @@ reject	reject	engine	which_area/CURRENT_SYM!truncate	GET
 reject	reject	engine	which_area/CURRENT_SYM!insert	GET CURRENT zzz DIAGNOSTICS @a = NUMBER;
 reject	reject	engine	which_area/CURRENT_SYM!swap	GET CURRENT_DATE DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	diagnostics_information/statement_information	GET DIAGNOSTICS @a = NUMBER;
-accept	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS @a = NUMERIC;
+reject	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS @a = NUMERIC;
 accept	accept	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-1	GET DIAGNOSTICS 's' @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-2	GET DIAGNOSTICS CONDITION @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-3	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-4	GET DIAGNOSTICS CONDITION 's' @a CLASS_ORIGIN;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' @a =;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' @a =
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' @a =;
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' @a =
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!insert	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN zzz;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!swap	GET DIAGNOSTICS CONNECTION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	statement_information/statement_information_item	GET DIAGNOSTICS @a = NUMBER;
@@ -1458,10 +1458,10 @@ reject	reject	engine	statement_information/statement_information_,_statement_inf
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-4	GET DIAGNOSTICS @a = NUMBER @a = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-5	GET DIAGNOSTICS @a = NUMBER, = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-6	GET DIAGNOSTICS @a = NUMBER, @a NUMBER;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS @a = NUMBER, @a =;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS @a = NUMBER, @a =
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS @a = NUMBER, @a =;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS @a = NUMBER, @a =
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!insert	GET DIAGNOSTICS @a = NUMBER, @a = NUMBER zzz;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS @a = NUMERIC, @a = NUMBER;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS @a = NUMERIC, @a = NUMBER;
 accept	accept	engine	statement_information_item/simple_target_specification_=_statement_information_item_name	GET DIAGNOSTICS @a = NUMBER;
 accept	reject	engine	simple_target_specification/ident_cli	GET DIAGNOSTICS a = NUMBER;
 reject	reject	engine	simple_target_specification/ident_cli!truncate	GET DIAGNOSTICS
@@ -1473,12 +1473,12 @@ reject	reject	engine	simple_target_specification/@_ident_or_text!insert	GET DIAG
 accept	accept	engine	statement_information_item_name/NUMBER_MARIADB_SYM	GET DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	statement_information_item_name/ROW_COUNT_SYM	GET DIAGNOSTICS @a = ROW_COUNT;
 reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!insert	GET DIAGNOSTICS @a = ROW_COUNT zzz;
-accept	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS @a = ROW_FORMAT;
+reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS @a = ROW_FORMAT;
 accept	accept	engine	condition_number/signal_allowed_expr	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 reject	reject	engine	condition_number/signal_allowed_expr!truncate	GET DIAGNOSTICS CONDITION
 reject	reject	engine	condition_number/signal_allowed_expr!insert	GET DIAGNOSTICS CONDITION 's' zzz @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information/condition_information_item	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT;
+reject	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT;
 accept	accept	engine	condition_information/condition_information_,_condition_information_item	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-1	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN, @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-2	GET DIAGNOSTICS CONDITION 's' @a CLASS_ORIGIN, @a = CLASS_ORIGIN;
@@ -1486,49 +1486,49 @@ reject	reject	engine	condition_information/condition_information_,_condition_inf
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-4	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-5	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-6	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!insert	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a = CLASS_ORIGIN zzz;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT, @a = CLASS_ORIGIN;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT, @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item/simple_target_specification_=_condition_information_item_name	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item_name/CLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' @a = SUBCLASS_ORIGIN;
 reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = SUBCLASS_ORIGIN zzz;
-accept	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SUBDATE;
+reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SUBDATE;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_CATALOG;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_CATALOG zzz;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_SCHEMA;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_SCHEMA zzz;
-accept	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CONTAINS;
+reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CONTAINS;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_NAME;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_NAME zzz;
 accept	accept	engine	condition_information_item_name/CATALOG_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CATALOG_NAME;
 reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CATALOG_NAME zzz;
-accept	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CHAIN;
+reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CHAIN;
 accept	accept	engine	condition_information_item_name/SCHEMA_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = SCHEMA_NAME;
 reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = SCHEMA_NAME zzz;
-accept	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SECOND;
+reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SECOND;
 accept	accept	engine	condition_information_item_name/TABLE_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = TABLE_NAME;
 reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = TABLE_NAME zzz;
-accept	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = TEMPORARY;
+reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = TEMPORARY;
 accept	accept	engine	condition_information_item_name/COLUMN_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = COLUMN_NAME;
 reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = COLUMN_NAME zzz;
-accept	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = COMMENT;
+reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = COMMENT;
 accept	accept	engine	condition_information_item_name/CURSOR_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CURSOR_NAME;
 reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CURSOR_NAME zzz;
-accept	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CYCLE;
+reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CYCLE;
 accept	accept	engine	condition_information_item_name/MESSAGE_TEXT_SYM	GET DIAGNOSTICS CONDITION 's' @a = MESSAGE_TEXT;
 reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = MESSAGE_TEXT zzz;
-accept	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = MICROSECOND;
+reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = MICROSECOND;
 accept	accept	engine	condition_information_item_name/MYSQL_ERRNO_SYM	GET DIAGNOSTICS CONDITION 's' @a = MYSQL_ERRNO;
 reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = MYSQL_ERRNO zzz;
-accept	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = NAME;
+reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = NAME;
 accept	accept	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM	GET DIAGNOSTICS CONDITION 's' @a = RETURNED_SQLSTATE;
 reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = RETURNED_SQLSTATE zzz;
-accept	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RETURNING;
+reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RETURNING;
 accept	accept	engine	condition_information_item_name/ROW_NUMBER_SYM	GET DIAGNOSTICS CONDITION 's' @a = ROW_NUMBER;
 reject	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = ROW_NUMBER zzz;
-accept	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RTREE;
+reject	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RTREE;
 reject	reject	engine	sp_decl_ident/IDENT_sys	ALTER TABLE a ADD a a.INT;
 reject	reject	engine	sp_decl_ident/IDENT_sys!drop-1	ALTER TABLE a ADD a.INT;
 reject	reject	engine	sp_decl_ident/IDENT_sys!truncate	ALTER TABLE a ADD a
