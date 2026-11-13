@@ -118,6 +118,12 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 			result.ResultType = dataTypeToResolvedType(fc.JSONValue.Returning)
 		}
 	}
+	if fc.JSONQueryArm {
+		result.JSONQueryClauses = deparse.JSONQueryClauses(fc.JSONQuery)
+		if fc.JSONQuery != nil && fc.JSONQuery.Returning != nil {
+			result.ResultType = dataTypeToResolvedType(fc.JSONQuery.Returning)
+		}
+	}
 	return result, nil
 }
 

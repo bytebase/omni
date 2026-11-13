@@ -152,6 +152,18 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			}
 			return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
 		}
+		// JSON_QUERY answers JSON, but written ASIS and without MULTIVALUE it answers its
+		// RETURNING type, which is how OceanBase stores a multi-valued key
+		// (multiValuedKeyStoredForm).
+		if e.JSONQueryArm {
+			if opts := e.JSONQuery; opts != nil && opts.Asis && !opts.Multivalue {
+				if opts.Returning == nil {
+					return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
+				}
+				return jsonValueIndexType(opts.Returning)
+			}
+			return &ResolvedType{BaseType: BaseTypeJSON}
+		}
 		name := strings.ToLower(e.Name)
 		switch name {
 		case "lower", "upper":
@@ -341,6 +353,16 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
 		}
 	}
+	// JSON_QUERY answers JSON unless it is written ASIS: OceanBase 4.3.5.6 answers 5443 for
+	// KEY ((JSON_QUERY(a,'$.x'))) and for one RETURNING UNSIGNED, before it asks what the
+	// key holds. TestOracle_JSONQueryFunctionalIndex holds this and the 3753 below to it.
+	if call, ok := peelFunctionalIndexParens(expr).(*nodes.FuncCallExpr); ok && call.JSONQueryArm {
+		opts := call.JSONQuery
+		returnsJSON := opts != nil && opts.Returning != nil && strings.EqualFold(opts.Returning.Name, "json")
+		if !returnsJSON && (opts == nil || !opts.Asis) {
+			return &Error{Code: 5443, SQLState: "42000", Message: "invalid data type for return value"}
+		}
+	}
 	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
 	// KEY ((JSON_VALUE(a,'$.x' RETURNING JSON))) and KEY ((CAST(a->'$.x' AS JSON))).
 	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexJSONOrGeometryType(rt) {
@@ -489,6 +511,92 @@ func defaultIndexName(tbl *Table, cols []string, idxCols []*IndexColumn) string 
 		return allocFunctionalIndexName(tbl)
 	}
 	return ""
+}
+
+// multiValuedKeyStoredForm returns, for a key part written as a cast to an array, the
+// JSON_QUERY call OceanBase stores it as, and nil for any other expression. 4.3.5.6 prints
+// KEY ((CAST(j->'$.ids' AS UNSIGNED ARRAY))) back as
+//
+//	json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch)
+//
+// and that text, written as a key, makes the same index. The document is the column and
+// the path the literal of j->'$.ids', j->>'$.ids' and JSON_EXTRACT(j,'$.ids') alike, and
+// a bare column is read at '$'. Any other operand is left as written: the server refuses
+// the ones tried, such as JSON_EXTRACT with two paths.
+// TestOracle_IndexDiffIdempotence holds each form to the engine, in its mv- probes.
+func multiValuedKeyStoredForm(expr nodes.ExprNode) *nodes.FuncCallExpr {
+	cast, ok := peelFunctionalIndexParens(expr).(*nodes.CastExpr)
+	if !ok || !cast.Array || cast.TypeName == nil {
+		return nil
+	}
+	var doc nodes.ExprNode
+	path := "$"
+	switch operand := peelFunctionalIndexParens(cast.Expr).(type) {
+	case *nodes.ColumnRef:
+		doc = operand
+	case *nodes.BinaryExpr:
+		lit, ok := operand.Right.(*nodes.StringLit)
+		if !ok || (operand.Op != nodes.BinOpJsonExtract && operand.Op != nodes.BinOpJsonUnquote) {
+			return nil
+		}
+		doc, path = operand.Left, lit.Value
+	case *nodes.FuncCallExpr:
+		if operand.Schema != "" || !strings.EqualFold(operand.Name, "json_extract") || len(operand.Args) != 2 {
+			return nil
+		}
+		lit, ok := operand.Args[1].(*nodes.StringLit)
+		if !ok {
+			return nil
+		}
+		doc, path = operand.Args[0], lit.Value
+	default:
+		return nil
+	}
+	// The server names the column alone, however the key qualified it.
+	if ref, ok := doc.(*nodes.ColumnRef); ok {
+		doc = &nodes.ColumnRef{Column: ref.Column}
+	}
+	return &nodes.FuncCallExpr{
+		Name:         "JSON_QUERY",
+		HasParens:    true,
+		Args:         []nodes.ExprNode{doc, &nodes.StringLit{Value: path}},
+		JSONQueryArm: true,
+		JSONQuery: &nodes.JSONQueryOptions{
+			Returning:  cast.TypeName,
+			Wrapper:    "WITHOUT ARRAY WRAPPER",
+			Asis:       true,
+			OnError:    "ERROR",
+			OnEmpty:    "NULL",
+			OnMismatch: "NULL",
+		},
+	}
+}
+
+// storedKeyExpr returns a functional key part's expression as OceanBase stores it, which
+// for a multi-valued key is not the text that wrote it.
+func storedKeyExpr(ic *IndexColumn) string {
+	if stored := multiValuedKeyStoredForm(ic.ExprNode); stored != nil {
+		return nodeToSQL(stored)
+	}
+	return ic.Expr
+}
+
+// isMultiValuedIndex reports whether idx has a multi-valued key part, in either spelling:
+// a cast to an array, or the JSON_QUERY ... ASIS the server stores it as.
+func isMultiValuedIndex(idx *Index) bool {
+	for _, ic := range idx.Columns {
+		switch e := peelFunctionalIndexParens(ic.ExprNode).(type) {
+		case *nodes.CastExpr:
+			if e.Array {
+				return true
+			}
+		case *nodes.FuncCallExpr:
+			if e.JSONQueryArm && e.JSONQuery != nil && e.JSONQuery.Asis {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isFunctionalIndex(idx *Index) bool {

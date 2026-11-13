@@ -15,10 +15,9 @@ import (
 //
 // The charsets and collations are real ones, since the server looks a name up.
 //
-// Not in this table, because omni still disagrees, quoted or not: where BINARY stands
-// (OceanBase takes it before the character set and not after), BINARY as a collation,
+// Not in this table, because omni still disagrees, quoted or not: BINARY as a collation,
 // a character set on a national type, and a clause with its name left off, which this
-// reader lets go.
+// reader lets go. Where BINARY stands is typeBinaryCases.
 //
 // Ref: charset_name and collation_name in OceanBase 4.3.5 sql_parser_mysql_mode.y.
 

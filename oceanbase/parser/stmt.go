@@ -523,7 +523,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// VIEW for CREATE DEFINER = u VIEW v AS SELECT 1, and at SQL for CREATE
 		// DEFINER = u SQL SECURITY INVOKER VIEW (or PROCEDURE). See
 		// parseCreateViewStmt.
-		definer, err := p.parseDefinerValue()
+		definer, err := p.parseDefinerValue(true)
 		if err != nil {
 			return nil, err
 		}
@@ -660,7 +660,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		// ALTER DEFINER = user EVENT. A view's DEFINER follows ALGORITHM on
 		// OceanBase: 4.3.5.6 answers 1064 at VIEW for ALTER DEFINER = u VIEW v AS
 		// SELECT 1, and at SQL when SQL SECURITY follows the definer.
-		definer, err := p.parseDefinerValue()
+		definer, err := p.parseDefinerValue(true)
 		if err != nil {
 			return nil, err
 		}
@@ -799,7 +799,16 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 // 1064 for DEFINER root, DEFINER = followed by the object keyword, and
 // DEFINER = CURRENT_USER( (measured 2026-11-06). It takes user@ with no host,
 // as the server does.
-func (p *Parser) parseDefinerValue() (string, error) {
+//
+// program says the DEFINER heads a stored program and not a view. OceanBase reads a
+// function, procedure, trigger or event with another lexer, whose user_variable has an
+// alternative the SQL lexer's lacks: `(@%)` (pl_parser_mysql_mode.l, v4.3.5_CE_BP6, line
+// 55, against sql_parser_mysql_mode.l, line 68). So 4.3.5.6 takes DEFINER = root@%
+// before a stored program, which is how SHOW CREATE TRIGGER prints the definer, and
+// answers 1064 at the % before a view. The % is the whole host and follows its @ at
+// once: root@ %, root@%example and root@%.example.com are 1064s.
+// TestDefinerHostFormsOceanBaseOracle holds each to the engine.
+func (p *Parser) parseDefinerValue(program bool) (string, error) {
 	p.advance() // consume DEFINER
 	if _, err := p.expect('='); err != nil {
 		return "", err
@@ -856,6 +865,9 @@ func (p *Parser) parseDefinerValue() (string, error) {
 				if host, _, err = p.parseIdentifier(); err != nil {
 					return "", err
 				}
+			} else if program && !isCurUser && p.cur.Type == '%' && p.cur.Loc == p.prev.End {
+				host = "%"
+				p.advance()
 			}
 			return user + "@" + host, nil
 		}
