@@ -47,8 +47,9 @@ var (
 	)
 	sysExternalProperties = sysList(sysExternalProperty, sysOptComma)
 
-	// ttl_expr: column_definition_ref '+' INTERVAL INTNUM ttl_unit.
-	sysTTLExpr = sysSeq(sysName, sysOpt(sysTok('.'), sysName, sysOpt(sysTok('.'), sysName)), sysTok('+'), "INTERVAL", sysInt,
+	// ttl_expr: column_definition_ref '+' INTERVAL INTNUM ttl_unit. The column is
+	// kept as it is read, so the catalog needs no second reading of the option.
+	sysTTLExpr = sysSeq(sysTTLColumn, sysTok('+'), "INTERVAL", sysInt,
 		sysAlt("SECOND", "MINUTE", "HOUR", "DAY", "MONTH", "YEAR"))
 	// storage_cache_time_policy_attribute. GRANULARITY is in the rule and is no
 	// keyword of the lexer's.
@@ -109,5 +110,36 @@ func (p *Parser) parseOceanBaseTableOption(start int) (*nodes.TableOption, bool,
 	}
 	value := strings.TrimSpace(p.inputText(p.sys.nameEnd, p.prev.End))
 	value = strings.TrimSpace(strings.TrimPrefix(value, "="))
-	return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: p.sys.action, Value: value}, true, nil
+	return &nodes.TableOption{
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
+		Name:       p.sys.action,
+		Value:      value,
+		TTLColumns: p.sys.ttlColumns,
+	}, true, nil
+}
+
+// sysTTLColumn reads a TTL entry's column_definition_ref, which may be written
+// qualified, and keeps the column itself: the last name of the reference. It gives
+// the name back when what follows does not match, as sysLeaf gives back the tokens.
+var sysTTLColumn sysPat = func(p *Parser, k func() bool) bool {
+	s := p.saveScan()
+	kept := len(p.sys.ttlColumns)
+	// column_definition_ref takes at most three parts, db.table.column.
+	name, _, err := p.parseIdent()
+	for parts := 1; err == nil && parts < 3 && p.cur.Type == '.'; parts++ {
+		p.advance()
+		name, _, err = p.parseIdent()
+	}
+	if err != nil {
+		p.restoreScan(s)
+		p.sysMiss()
+		return false
+	}
+	p.sys.ttlColumns = append(p.sys.ttlColumns, name)
+	if k() {
+		return true
+	}
+	p.sys.ttlColumns = p.sys.ttlColumns[:kept]
+	p.restoreScan(s)
+	return false
 }
