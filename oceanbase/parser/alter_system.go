@@ -223,10 +223,9 @@ var (
 	})
 	// relation_name_or_string: relation_name | STRING_VALUE | ALL.
 	sysNS = sysAlt(sysName, sysStr, "ALL")
-	// int_or_decimal: INTNUM | DECIMAL_VAL. A run of digits too long for an INTNUM
-	// is a DECIMAL_VAL, so an integer of any width is one or the other:
-	// MINVALUE -9223372036854775808 is '-' DECIMAL_VAL.
-	sysNumber = sysAlt(sysTok(tokICONST), sysTok(tokFCONST))
+	// int_or_decimal: INTNUM | DECIMAL_VAL. A run of digits is one or the other at
+	// any width: an INTNUM up to 64 bits, a DECIMAL_VAL past them.
+	sysNumber = sysAlt(sysInt, sysTok(tokFCONST))
 	// text_string: STRING_VALUE | HEX_STRING_VALUE | BIN_STRING_VALUE.
 	sysText = sysAlt(sysStr, sysTok(tokXCONST), sysTok(tokBCONST))
 	// conf_const: a string, a number with or without a minus, a temporal
