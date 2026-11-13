@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/deparse"
@@ -252,6 +253,18 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	idx := tbl.colByName[colKey]
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
 		return errCannotDropColumnFunctionalIndex(cmd.Name)
+	}
+	// OceanBase keeps a table's rows in primary-key order and drops no column of the key
+	// (TestOracle_OceanBaseRefusals), where MySQL rebuilds the key without it.
+	for _, index := range tbl.Indexes {
+		if !index.Primary {
+			continue
+		}
+		for _, ic := range index.Columns {
+			if toLower(ic.Name) == colKey {
+				return &Error{Code: 1235, SQLState: "0A000", Message: "drop rowkey column is not supported"}
+			}
+		}
 	}
 	if len(tbl.Columns) == 1 {
 		return errCantRemoveAllFields()
@@ -508,7 +521,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, uqIdx)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -521,10 +533,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrForeignKey:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
+			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix)
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
-			return errFKDupName(conName)
+			return errFKDupName(tbl.Name)
 		}
 		refDBName := ""
 		refTable := ""
@@ -556,7 +568,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			conName = c.madeUpConstraintName(tbl.Name, madeUpCheckInfix)
 		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
@@ -598,7 +610,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment, visibility, block size and scope.
 		applyIndexOptions(keyIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -640,9 +651,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 			return err
-		}
-		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
-			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 		}
 		spIdx := &Index{
 			Name:      idxName,
@@ -843,7 +851,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			tbl.Collation = defColl
 		}
 	case "collate", "default collate":
-		tbl.Collation = opt.Value
+		tbl.Collation = normalizeCollationName(opt.Value)
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -853,6 +861,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "key_block_size":
 		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 	case "compression":
+		if err := validateCompressor(opt.Value); err != nil {
+			return err
+		}
 		tbl.Compression = opt.Value
 	case "encryption":
 		tbl.Encryption = opt.Value
@@ -968,14 +979,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {
-			col.Charset = "utf8mb3"
+			col.Charset = "utf8mb4"
 		}
 		if colDef.TypeName.Charset != "" {
 			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 			col.CharsetExplicit = true
 		}
 		if colDef.TypeName.Collate != "" {
-			col.Collation = colDef.TypeName.Collate
+			col.Collation = normalizeCollationName(colDef.TypeName.Collate)
 			col.CollationExplicit = true
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
@@ -1058,7 +1069,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		case nodes.ColConstrCollate:
 			if cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {
-					col.Collation = s.Value
+					col.Collation = normalizeCollationName(s.Value)
 					col.CollationExplicit = true
 				}
 			}
@@ -1082,8 +1093,8 @@ func validateDefaultExprForExistingColumn(col *Column, expr nodes.ExprNode) erro
 	if isNullDefault(expr) && !col.Nullable {
 		return errInvalidDefault(col.Name)
 	}
-	if isLiteralDefaultForbiddenType(col.DataType) && isLiteralDefault(expr) {
-		return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(col.Name)}
+	if err := validateDefaultOfType(col.Name, col.DataType, expr); err != nil {
+		return err
 	}
 	return validateTemporalExprForColumn(col.Name, col.DataType, columnTemporalFSP(col), expr, true)
 }
@@ -1332,6 +1343,12 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	if tbl.Partitioning.SubType != "" {
 		return &Error{Code: 1235, SQLState: "42000", Message: "split subpartition is not supported"}
 	}
+	// It reorganizes a table only by its primary key: the table has one, and the
+	// partitioning key is the key's leading columns, in the key's order and with no
+	// expression over them (TestOracle_OceanBaseRefusals).
+	if err := reorganizeNeedsPrimaryKeyPrefix(tbl); err != nil {
+		return err
+	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1432,4 +1449,45 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// reorganizeNeedsPrimaryKeyPrefix refuses REORGANIZE PARTITION as OceanBase does on a table
+// whose primary key does not start with the partitioning key.
+func reorganizeNeedsPrimaryKeyPrefix(tbl *Table) error {
+	var pk *Index
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			pk = idx
+		}
+	}
+	if pk == nil {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "reorganizing table without primary key(s) is not supported"}
+	}
+	key := tbl.Partitioning.Columns
+	if len(key) == 0 && isPlainIdentifier(tbl.Partitioning.Expr) {
+		key = []string{strings.Trim(tbl.Partitioning.Expr, "`")}
+	}
+	matches := len(key) > 0 && len(key) <= len(pk.Columns)
+	for i := 0; matches && i < len(key); i++ {
+		matches = toLower(pk.Columns[i].Name) == toLower(key[i])
+	}
+	if !matches {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "mismatching between primary key prefix and partition key is not supported"}
+	}
+	return nil
+}
+
+// isPlainIdentifier reports whether a partitioning expression is one column and nothing
+// else, backticked or not.
+func isPlainIdentifier(expr string) bool {
+	name := strings.Trim(strings.TrimSpace(expr), "`")
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if r != '_' && r != '$' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }

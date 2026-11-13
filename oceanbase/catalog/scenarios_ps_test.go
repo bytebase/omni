@@ -33,8 +33,7 @@ func TestScenario_PS(t *testing.T) {
 		// OceanBase names the unnamed CHECK after the table and the time,
 		// compared here without the count a tape holds for the time.
 		oracleWant := []string{"t_chk_5", "t_OBCHECK_<n>"}
-		// omni gap: the catalog numbers it t_chk_1, as MySQL does.
-		want := []string{"t_chk_1", "t_chk_5"}
+		want := oracleWant
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -48,7 +47,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.1 oracle CHECK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
-		omniNames := psCheckNames(c, "t")
+		omniNames := asOracleLists(psCheckNames(c, "t"))
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.1 omni CHECK names: got %v, want %v", omniNames, want)
 		}
@@ -67,8 +66,7 @@ func TestScenario_PS(t *testing.T) {
 
 		// OceanBase names the unnamed CHECK after the table and the time.
 		oracleWant := []string{"t_chk_20", "t_OBCHECK_<n>"}
-		// omni gap: the catalog continues MySQL's counter to t_chk_21.
-		want := []string{"t_chk_20", "t_chk_21"}
+		want := oracleWant
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
@@ -82,7 +80,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.2 oracle CHECK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
-		omniNames := psCheckNames(c, "t")
+		omniNames := asOracleLists(psCheckNames(c, "t"))
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.2 omni CHECK names: got %v, want %v", omniNames, want)
 		}
@@ -103,8 +101,7 @@ func TestScenario_PS(t *testing.T) {
 
 		// OceanBase names the unnamed FK after the table and the time.
 		oracleWant := []string{"child_ibfk_5", "child_OBFK_<n>"}
-		// omni gap: the catalog numbers it child_ibfk_1, as MySQL does.
-		want := []string{"child_ibfk_1", "child_ibfk_5"}
+		want := oracleWant
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -119,7 +116,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.3 oracle FK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
-		omniNames := psFKNames(c, "child")
+		omniNames := asOracleLists(psFKNames(c, "child"))
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.3 omni FK names: got %v, want %v", omniNames, want)
 		}
@@ -141,8 +138,7 @@ func TestScenario_PS(t *testing.T) {
 
 		// OceanBase names the unnamed FK after the table and the time.
 		oracleWant := []string{"child_ibfk_20", "child_OBFK_<n>"}
-		// omni gap: the catalog continues MySQL's counter to child_ibfk_21.
-		want := []string{"child_ibfk_20", "child_ibfk_21"}
+		want := oracleWant
 
 		rows := oracleRows(t, mc, `
             SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -157,7 +153,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.4 oracle FK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
-		omniNames := psFKNames(c, "child")
+		omniNames := asOracleLists(psFKNames(c, "child"))
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.4 omni FK names: got %v, want %v", omniNames, want)
 		}
@@ -245,9 +241,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.7 oracle: %v", err)
 		}
 
-		// omni gap: the catalog generates c_ibfk_1 and refuses the table, as
-		// MySQL does.
-
+		// omni: the same, since the name it makes up is no name a user writes.
 		var omniErr error
 		results, parseErr := c.Exec(ddl, nil)
 		if parseErr != nil {
@@ -260,8 +254,8 @@ func TestScenario_PS(t *testing.T) {
 				}
 			}
 		}
-		if omniErr == nil {
-			t.Errorf("PS.7 omni: expected ER_FK_DUP_NAME, got success")
+		if omniErr != nil {
+			t.Errorf("PS.7 omni: %v", omniErr)
 		}
 	})
 

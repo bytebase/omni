@@ -3,15 +3,14 @@ package deparse
 import (
 	"fmt"
 	"reflect"
-	"unicode/utf8"
 
 	ast "github.com/bytebase/omni/oceanbase/ast"
 )
 
-// maxAutoNameChars is the longest auto-generated column name MySQL keeps in a
-// view (NAME_CHAR_LEN, counted in characters): a longer one becomes
-// Name_exp_N.
-const maxAutoNameChars = 64
+// maxAutoNameBytes is the longest auto-generated column name OceanBase keeps in a
+// view, in bytes: a longer one becomes Name_exp_N. MySQL counts the 64 in
+// characters. catalog's TestOracle_OceanBaseViewColumnNames holds it to the engine.
+const maxAutoNameBytes = 64
 
 // sourceAutoName names an unaliased select item from the text it was parsed
 // from, as MySQL does (PTI_expr_with_alias::do_itemize, sql/parse_tree_items.cc):
@@ -44,7 +43,7 @@ func sourceAutoName(source string, expr ast.ExprNode, position int) (string, boo
 	if !ok {
 		return "", false
 	}
-	if utf8.RuneCountInString(name) > maxAutoNameChars {
+	if len(name) > maxAutoNameBytes {
 		return fmt.Sprintf("Name_exp_%d", position), true
 	}
 	return name, true

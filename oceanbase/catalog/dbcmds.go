@@ -78,7 +78,7 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 			db.Charset = normalizeCharsetName(opt.Value)
 			charsetExplicit = true
 		case "collate":
-			db.Collation = opt.Value
+			db.Collation = normalizeCollationName(opt.Value)
 			collationExplicit = true
 		}
 	}

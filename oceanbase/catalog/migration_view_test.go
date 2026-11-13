@@ -83,9 +83,9 @@ CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v1 (p, q) AS SELECT a, b FROM t
 	if len(ops) != 1 {
 		t.Fatalf("want one view op, got %+v", ops)
 	}
+	// ALGORITHM=MERGE and SQL SECURITY INVOKER are not in the plan: OceanBase keeps
+	// neither, so the catalog does not either (TestOracle_OceanBaseViewAttributes).
 	for _, want := range []string{
-		"ALGORITHM=MERGE",
-		"SQL SECURITY INVOKER",
 		"VIEW `vt`.`v1` (`p`,`q`)",
 		"WITH CASCADED CHECK OPTION",
 	} {

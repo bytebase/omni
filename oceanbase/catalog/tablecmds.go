@@ -10,8 +10,6 @@ import (
 	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
-const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
-
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -71,7 +69,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
 		case "collate", "default collate":
-			tbl.Collation = opt.Value
+			tbl.Collation = normalizeCollationName(opt.Value)
 			tblCollationExplicit = true
 		case "comment":
 			tbl.Comment = opt.Value
@@ -82,6 +80,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		case "compression":
+			if err := validateCompressor(opt.Value); err != nil {
+				return err
+			}
 			tbl.Compression = opt.Value
 		case "encryption":
 			tbl.Encryption = opt.Value
@@ -126,33 +127,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	hasPK := false
 	autoIncrementColumn := ""
 
-	// unnamedFKCount counts FKs that received an auto-generated name in this
-	// CREATE TABLE statement. Matches MySQL 8.0's generate_fk_name() counter,
-	// which is initialized to 0 for CREATE TABLE and incremented per unnamed FK,
-	// IGNORING user-named FKs. See sql/sql_table.cc:9252 (create_table_impl
-	// is called with fk_max_generated_name_number = 0) and sql/sql_table.cc:5912
-	// (generate_fk_name uses ++counter).
-	//
-	// Example: CREATE TABLE t (a INT, CONSTRAINT t_ibfk_5 FK, b INT, FK)
-	//   → first unnamed FK gets t_ibfk_1 (not t_ibfk_2 or t_ibfk_6).
-	// This differs from ALTER TABLE ADD FK, where the counter starts at
-	// max(existing) — see altercmds.go.
-	var unnamedFKCount int
-
-	// unnamedCheckCount counts CHECK constraints that received an auto-generated
-	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
-	// at sql/sql_table.cc:19073 (cc_max_generated_number starts at 0, used
-	// via ++cc_max_generated_number). Like the FK counter, this IGNORES
-	// user-named CHECK constraints during CREATE TABLE.
-	//
-	// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
-	//   → unnamed CHECK gets t_chk_1, but t_chk_1 is already taken by user
-	//   → real MySQL errors with ER_CHECK_CONSTRAINT_DUP_NAME
-	//   (see sql/sql_table.cc:19595 check_constraint_dup_name check).
-	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
-	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
-	var unnamedCheckCount int
-
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		if err := validateColumnDefSemantics(colDef); err != nil {
@@ -177,7 +151,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
 				col.DataType = "bigint"
-				col.ColumnType = "bigint unsigned"
+				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "boolean" || typeName == "bool" {
@@ -188,14 +162,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
 			if isNationalStringType(colDef.TypeName.Name) {
-				col.Charset = "utf8mb3"
+				// OceanBase's national character set is utf8mb4, where MySQL's is utf8mb3.
+				col.Charset = "utf8mb4"
 			}
 			if colDef.TypeName.Charset != "" {
 				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 				col.CharsetExplicit = true
 			}
 			if colDef.TypeName.Collate != "" {
-				col.Collation = colDef.TypeName.Collate
+				col.Collation = normalizeCollationName(colDef.TypeName.Collate)
 				col.CollationExplicit = true
 				if col.Charset == "" {
 					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
@@ -297,8 +272,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Add check constraint.
 				conName := cc.Name
 				if conName == "" {
-					unnamedCheckCount++
-					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+					conName = c.madeUpConstraintName(tableName, madeUpCheckInfix)
 				}
 				if checkConstraintNameExists(db, tbl, conName) {
 					return errCheckConstraintDupName(conName)
@@ -323,7 +297,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Collation specified via constraint.
 				if cc.Expr != nil {
 					if s, ok := cc.Expr.(*nodes.StringLit); ok {
-						col.Collation = s.Value
+						col.Collation = normalizeCollationName(s.Value)
 					}
 				}
 			}
@@ -410,7 +384,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
-				return errMultiplePriKey()
+				return errDuplicatedPriKey()
 			}
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 				return err
@@ -471,7 +445,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, uqIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
 				return err
 			}
@@ -487,11 +460,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				unnamedFKCount++
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
+				conName = c.madeUpConstraintName(tableName, madeUpForeignKeyInfix)
 			}
-			if foreignKeyConstraintNameExists(db, tbl, conName) {
-				return errFKDupName(conName)
+			// A name twice in one table is 1215 and a name another table's key has is
+			// 1022, where MySQL answers ER_FK_DUP_NAME (1826) for both.
+			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
+				return errCannotAddForeign()
+			}
+			if foreignKeyConstraintNameExists(db, nil, conName) {
+				return errFKDupName(tableName)
 			}
 			refDB := ""
 			refTable := ""
@@ -517,8 +494,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				unnamedCheckCount++
-				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+				conName = c.madeUpConstraintName(tableName, madeUpCheckInfix)
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
@@ -558,7 +534,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, keyIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
 				return err
 			}
@@ -627,9 +602,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 				return err
 			}
-			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
-				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
-			}
 			spIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -639,20 +611,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
-			if strings.EqualFold(spIdx.IndexType, "BTREE") {
-				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
-			}
 			tbl.Indexes = append(tbl.Indexes, spIdx)
-		}
-	}
-
-	if c.generateGIPK {
-		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
-			return errGIPKColumnNameReserved()
-		}
-		if !hasPK {
-			addGeneratedInvisiblePrimaryKey(tbl)
-			hasPK = true
 		}
 	}
 
@@ -677,47 +636,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	db.Tables[key] = tbl
 	return nil
-}
-
-func errGIPKColumnNameReserved() error {
-	return &Error{
-		Code:     4108,
-		SQLState: "HY000",
-		Message:  "Failed to generate invisible primary key. Column 'my_row_id' already exists.",
-	}
-}
-
-func addGeneratedInvisiblePrimaryKey(tbl *Table) {
-	col := &Column{
-		Position:                     0,
-		Name:                         generatedInvisiblePrimaryKeyColumnName,
-		DataType:                     "bigint",
-		ColumnType:                   "bigint unsigned",
-		Nullable:                     false,
-		AutoIncrement:                true,
-		Invisible:                    true,
-		GeneratedInvisiblePrimaryKey: true,
-	}
-
-	tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	rebuildColByNamePreservePositions(tbl)
-
-	tbl.Indexes = append(tbl.Indexes, &Index{
-		Name:      "PRIMARY",
-		Table:     tbl,
-		Columns:   []*IndexColumn{{Name: generatedInvisiblePrimaryKeyColumnName}},
-		Unique:    true,
-		Primary:   true,
-		IndexType: "",
-		Visible:   true,
-	})
-	tbl.Constraints = append(tbl.Constraints, &Constraint{
-		Name:      "PRIMARY",
-		Type:      ConPrimaryKey,
-		Table:     tbl,
-		Columns:   []string{generatedInvisiblePrimaryKeyColumnName},
-		IndexName: "PRIMARY",
-	})
 }
 
 func rebuildColByNamePreservePositions(tbl *Table) {
@@ -1492,7 +1410,10 @@ func (c *Catalog) validateForeignKeys(db *Database, tbl *Table) error {
 	return nil
 }
 
-// validateSingleFK validates a single FK constraint against its referenced table.
+// validateSingleFK validates a single FK constraint against its referenced table, as
+// OceanBase does (TestOracle_OceanBaseKeyErrors): the table and the columns on both sides
+// are there, the action is not SET DEFAULT, the referenced columns lead an index, and the
+// types match. A generated column, VIRTUAL or STORED, may stand on either side.
 func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) error {
 	// Resolve the referenced table.
 	refDBName := con.RefDatabase
@@ -1514,13 +1435,25 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	if refTbl == nil {
-		return errFKNoRefTable(con.RefTable)
+		return errFKNoRefTable()
+	}
+	for _, colName := range con.Columns {
+		if tbl.GetColumn(colName) == nil {
+			return errFKNoSuchColumn()
+		}
+	}
+	for _, colName := range con.RefColumns {
+		if refTbl.GetColumn(colName) == nil {
+			return errFKNoSuchColumn()
+		}
+	}
+	if strings.EqualFold(con.OnDelete, "SET DEFAULT") || strings.EqualFold(con.OnUpdate, "SET DEFAULT") {
+		return errCannotAddForeign()
 	}
 
-	// Check that referenced columns have an index (PK or UNIQUE or KEY)
-	// that starts with the referenced columns in order.
+	// The referenced columns are the leading columns of an index, in any order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
-		return errFKMissingIndex(con.Name, con.RefTable)
+		return errCannotAddForeign()
 	}
 
 	// Check column type compatibility.
@@ -1536,14 +1469,8 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
 			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
 		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
-		if refCol.Generated != nil && !refCol.Generated.Stored {
-			return errFKCannotUseVirtualColumn(con.RefColumns[i])
-		}
 		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+			return errCannotAddForeign()
 		}
 	}
 
@@ -1553,13 +1480,17 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
 // whose leading columns match the given columns.
 func hasIndexOnColumns(tbl *Table, cols []string) bool {
+	want := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		want[toLower(col)] = true
+	}
 	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) < len(cols) {
+		if len(idx.Columns) < len(want) {
 			continue
 		}
 		match := true
-		for i, col := range cols {
-			if toLower(idx.Columns[i].Name) != toLower(col) {
+		for _, ic := range idx.Columns[:len(want)] {
+			if !want[toLower(ic.Name)] {
 				match = false
 				break
 			}
@@ -1639,15 +1570,29 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 	return result
 }
 
+// validateCompressor refuses a COMPRESSION that names none of OceanBase's compressors
+// (ER_WRONG_ARGUMENTS, 1210), MySQL's 'ZLIB' and 'LZ4' among them, and zlib_1.0, which
+// 4.3.5 lists and does not support (1235). TestOracle_OceanBaseRefusals holds each name
+// to the engine.
+func validateCompressor(value string) error {
+	name := strings.Trim(value, "'\"")
+	switch toLower(name) {
+	case "none", "lz4_1.0", "lz4_1.9.1", "snappy_1.0", "zstd_1.0", "zstd_1.3.8":
+		return nil
+	case "zlib_1.0":
+		return &Error{Code: 1235, SQLState: "0A000", Message: "zlib compressor not supported"}
+	}
+	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
+		Message: fmt.Sprintf("Incorrect arguments to %s", name)}
+}
+
 // allocIndexName generates a unique index name based on the first column,
-// appending _2, _3, etc. on collision.
+// appending _2, _3, etc. on collision. A key over a column named PRIMARY is named
+// PRIMARY on a table without a primary key: OceanBase refuses the name only when it is
+// written (TestScenario_C1, 1.10), where MySQL falls back to PRIMARY_2.
 func allocIndexName(tbl *Table, baseName string) string {
 	candidate := baseName
 	suffix := 2
-	if strings.EqualFold(candidate, "PRIMARY") {
-		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
-		suffix++
-	}
 	for indexNameExists(tbl, candidate) {
 		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
 		suffix++
@@ -1718,45 +1663,6 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 		n = n*10 + int(ch-'0')
 	}
 	return n, n > 0
-}
-
-// coerceInnoDBHashIndex folds a meaningless `USING HASH` on an InnoDB index to the no-explicit-type
-// form (IndexType ""), so a HASH index on InnoDB round-trips empty on both 5.7 and 8.0.
-//
-// It must be called from EVERY path that builds a *secondary* index from a user `USING HASH`, or
-// that path phantom-diffs. Call sites: CREATE TABLE UNIQUE + plain KEY (tablecmds.go), ALTER ADD
-// UNIQUE + plain KEY (altercmds.go), and standalone CREATE [UNIQUE] INDEX (indexcmds.go). The
-// PRIMARY KEY paths are intentionally excluded: they hard-code IndexType "" (MySQL never accepts or
-// echoes a USING clause on a PK, so there is nothing to fold).
-//
-// InnoDB does not implement hash indexes: it silently treats `USING HASH` as BTREE. The SHOW CREATE
-// echo of that meaningless clause is version-, kind-, and engine-divergent (verified on live 5.7.25
-// + 8.0.32, across all of the above authoring paths):
-//   - 8.0 InnoDB DROPS the clause entirely;
-//   - 5.7 InnoDB KEEPS `USING HASH` in the echo;
-//   - `USING BTREE` on InnoDB is echoed verbatim on BOTH versions (BTREE is the real storage), so it
-//     is NOT folded — only HASH is meaningless;
-//   - MEMORY (and other engines where HASH is a real index type) KEEP `USING HASH` on both versions,
-//     so the engine guard below leaves them untouched.
-//
-// Folding HASH → "" (rather than → "BTREE") is what makes both echoes converge: a user's `USING
-// HASH`, 5.7's kept `USING HASH`, and 8.0's dropped clause all load to IndexType "" on InnoDB, which
-// the index differ (canonicalIndexType) and the index generator (formatIndexDefinition) both treat
-// as "no USING clause" — matching the plain no-USING readback on either version. (The earlier
-// HASH → "BTREE" fold matched 5.7's echo but still phantom-diffed against 8.0's dropped clause.)
-func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
-	if isInnoDBEngine(tbl.Engine) && strings.EqualFold(idx.IndexType, "HASH") {
-		idx.IndexType = ""
-	}
-}
-
-// isInnoDBEngine reports whether a table's declared engine is InnoDB, treating an empty (omitted)
-// engine as InnoDB — the MySQL default storage engine. The user form often omits ENGINE while the
-// SHOW CREATE readback always echoes ENGINE=InnoDB, so the HASH fold must apply to both or a `USING
-// HASH` written on an engine-less CREATE TABLE would phantom-diff against its InnoDB readback.
-func isInnoDBEngine(engine string) bool {
-	e := strings.TrimSpace(engine)
-	return e == "" || strings.EqualFold(e, "InnoDB")
 }
 
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
@@ -1942,87 +1848,6 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			}
 		}
 	}
-}
-
-// nextFKGeneratedNumber returns the next available counter for an auto-generated
-// InnoDB FK constraint name of the form "<tableName>_ibfk_<N>".
-//
-// This matches MySQL 8.0's behavior in sql/sql_table.cc:5843
-// (get_fk_max_generated_name_number): it scans existing FK constraints on the
-// table, parses any name that looks like "<tableName>_ibfk_<digits>" as a
-// generated name, and returns max(N)+1 (or 1 if no such names exist).
-//
-// Bytebase omni catalog is case-insensitive on table names (we lowercase the
-// prefix before comparison). MySQL's own comparison is case-sensitive on
-// already-lowered names, so this is equivalent for typical use.
-//
-// As in MySQL, pre-4.0.18-style names ("<tableName>_ibfk_0<digits>") are
-// ignored — we skip anything whose counter substring starts with '0'.
-func nextFKGeneratedNumber(tbl *Table, tableName string) int {
-	prefix := toLower(tableName) + "_ibfk_"
-	max := 0
-	for _, con := range tbl.Constraints {
-		if con.Type != ConForeignKey {
-			continue
-		}
-		name := toLower(con.Name)
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		rest := name[len(prefix):]
-		if rest == "" || rest[0] == '0' {
-			continue
-		}
-		n := 0
-		ok := true
-		for _, ch := range rest {
-			if ch < '0' || ch > '9' {
-				ok = false
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		if !ok {
-			continue
-		}
-		if n > max {
-			max = n
-		}
-	}
-	return max + 1
-}
-
-// nextCheckNumber returns max(existing generated tableName_chk_N) + 1.
-// ALTER TABLE seeds the generated CHECK counter from existing names.
-func nextCheckNumber(tbl *Table) int {
-	prefix := toLower(tbl.Name) + "_chk_"
-	max := 0
-	for _, con := range tbl.Constraints {
-		if con.Type != ConCheck {
-			continue
-		}
-		name := toLower(con.Name)
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		rest := name[len(prefix):]
-		if rest == "" || rest[0] == '0' {
-			continue
-		}
-		n := 0
-		ok := true
-		for _, ch := range rest {
-			if ch < '0' || ch > '9' {
-				ok = false
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		if ok && n > max {
-			max = n
-		}
-	}
-	return max + 1
 }
 
 func isStringType(dt string) bool {
@@ -2337,20 +2162,20 @@ func formatColumnType(dt *nodes.DataType) string {
 	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
 		name = "double"
 	}
-	if name == "varchar" && dt.Length > 65535 {
-		return "mediumtext"
-	}
+	// TEXT(n) and BLOB(n) are the smallest type that holds n, written without it.
 	if name == "text" && dt.Length > 0 {
-		name = promoteTextType(dt.Length)
+		return promoteTextType(dt.Length)
+	}
+	if name == "blob" && dt.Length > 0 {
+		return promoteBlobType(dt.Length)
 	}
 
-	// MySQL type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint unsigned
-	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
+	// Type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint(20) unsigned
 	switch name {
 	case "boolean", "bool":
 		return "tinyint(1)"
 	case "serial":
-		return "bigint unsigned"
+		return "bigint(20) unsigned"
 	}
 
 	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
@@ -2361,27 +2186,17 @@ func formatColumnType(dt *nodes.DataType) string {
 	var buf strings.Builder
 	buf.WriteString(name)
 
-	// Integer display width handling for MySQL 8.0:
-	// - Display width is deprecated and NOT shown by default
-	// - EXCEPTION: When ZEROFILL is used, MySQL 8.0 still shows the display width
-	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
+	// OceanBase keeps an integer's display width, as MySQL 5.7 does and 8.0 does not: the
+	// one written, or the type's own, int(11) and int(10) unsigned. ZEROFILL makes the
+	// column UNSIGNED, so a bare INT ZEROFILL is int(10) unsigned zerofill.
+	// TestOracle_OceanBaseColumnTypes holds every width to the engine.
 	isIntType := isIntegerType(name)
 	if isIntType {
-		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
-			buf.WriteString("(1)")
-		} else if dt.Zerofill {
-			width := dt.Length
-			if width == 0 {
-				// ZEROFILL forces the column UNSIGNED, so a bare INT ZEROFILL takes the
-				// UNSIGNED default width (int → 10), not the signed default (11). MySQL
-				// stores `int(10) unsigned zerofill` for `INT ZEROFILL`. (Passing
-				// dt.Unsigned here was a bug: the zerofill-implies-unsigned promotion has
-				// not yet flipped dt.Unsigned at this point.)
-				width = defaultIntDisplayWidth(name, true)
-			}
-			fmt.Fprintf(&buf, "(%d)", width)
+		width := dt.Length
+		if width == 0 {
+			width = defaultIntDisplayWidth(name, dt.Unsigned || dt.Zerofill)
 		}
-		// Non-zerofill integer types: strip display width (MySQL 8.0 deprecated)
+		fmt.Fprintf(&buf, "(%d)", width)
 	} else if name == "decimal" {
 		if dt.Length == 0 && dt.Scale == 0 {
 			// DECIMAL with no precision → MySQL shows decimal(10,0)
@@ -2394,7 +2209,8 @@ func formatColumnType(dt *nodes.DataType) string {
 		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
 		// Do not emit length.
 	} else if name == "year" {
-		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+		// A YEAR of any width, or of none, is year(4).
+		buf.WriteString("(4)")
 	} else if name == "bit" && dt.Length == 0 {
 		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
@@ -2430,11 +2246,11 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
 		return "double"
 	}
-	if name == "varchar" && dt.Length > 65535 {
-		return "mediumtext"
-	}
 	if name == "text" && dt.Length > 0 {
 		return promoteTextType(dt.Length)
+	}
+	if name == "blob" && dt.Length > 0 {
+		return promoteBlobType(dt.Length)
 	}
 	return name
 }
@@ -2483,16 +2299,44 @@ func isNationalStringType(name string) bool {
 	}
 }
 
+// normalizeCharsetName lower-cases a character set's name. utf8 and utf8mb3 are utf8mb4
+// in OceanBase, which has no three-byte UTF-8 (TestOracle_OceanBaseColumnTypes).
 func normalizeCharsetName(name string) string {
-	if strings.EqualFold(name, "utf8") {
-		return "utf8mb3"
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "utf8" || name == "utf8mb3" {
+		return "utf8mb4"
 	}
-	return strings.ToLower(strings.TrimSpace(name))
+	return name
+}
+
+// normalizeCollationName writes a collation of utf8 or utf8mb3 as utf8mb4's, which is
+// what OceanBase stores: utf8_general_ci is utf8mb4_general_ci.
+func normalizeCollationName(name string) string {
+	for _, prefix := range []string{"utf8_", "utf8mb3_"} {
+		if len(name) > len(prefix) && strings.EqualFold(name[:len(prefix)], prefix) {
+			return "utf8mb4_" + name[len(prefix):]
+		}
+	}
+	return name
 }
 
 func charsetMatchesCollation(charset, collation string) bool {
 	derived := normalizeCharsetName(charsetForCollation(collation))
 	return derived == "" || strings.EqualFold(normalizeCharsetName(charset), derived)
+}
+
+// promoteBlobType is the smallest BLOB type that holds n bytes.
+func promoteBlobType(n int) string {
+	switch {
+	case n <= 255:
+		return "tinyblob"
+	case n <= 65535:
+		return "blob"
+	case n <= 16777215:
+		return "mediumblob"
+	default:
+		return "longblob"
+	}
 }
 
 func promoteTextType(chars int) string {
@@ -2612,20 +2456,19 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	// Copy columns.
 	for i, srcCol := range srcTbl.Columns {
 		col := &Column{
-			Position:                     srcCol.Position,
-			Name:                         srcCol.Name,
-			DataType:                     srcCol.DataType,
-			ColumnType:                   srcCol.ColumnType,
-			Nullable:                     srcCol.Nullable,
-			AutoIncrement:                srcCol.AutoIncrement,
-			Charset:                      srcCol.Charset,
-			Collation:                    srcCol.Collation,
-			Comment:                      srcCol.Comment,
-			OnUpdate:                     srcCol.OnUpdate,
-			OnUpdateKind:                 srcCol.OnUpdateKind,
-			Invisible:                    srcCol.Invisible,
-			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
-			Hidden:                       srcCol.Hidden,
+			Position:      srcCol.Position,
+			Name:          srcCol.Name,
+			DataType:      srcCol.DataType,
+			ColumnType:    srcCol.ColumnType,
+			Nullable:      srcCol.Nullable,
+			AutoIncrement: srcCol.AutoIncrement,
+			Charset:       srcCol.Charset,
+			Collation:     srcCol.Collation,
+			Comment:       srcCol.Comment,
+			OnUpdate:      srcCol.OnUpdate,
+			OnUpdateKind:  srcCol.OnUpdateKind,
+			Invisible:     srcCol.Invisible,
+			Hidden:        srcCol.Hidden,
 			// SRID copied by presence: MySQL's CREATE TABLE ... LIKE preserves the source
 			// column's SRID clause (incl. an explicit `SRID 0`), so the cloned column must
 			// carry both the value and its presence flag, not silently drop to no-SRID.
@@ -2722,6 +2565,8 @@ func refActionToString(action nodes.ReferenceAction) string {
 	case nodes.RefActNoAction:
 		return "NO ACTION"
 	default:
-		return "NO ACTION"
+		// An omitted action reads RESTRICT in OceanBase, in information_schema and in
+		// SHOW CREATE TABLE, where MySQL reads NO ACTION (TestScenario_C21, 21.5).
+		return "RESTRICT"
 	}
 }

@@ -90,16 +90,12 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		// BTREE.
 		assertStringEq(t, "oracle index type of KEY ... USING HASH", got, "HASH")
 
-		// omni gap: the catalog coerces HASH to BTREE, as InnoDB does.
 		idx := c7findIndex(c, "t", "a")
 		if idx == nil {
 			t.Errorf("omni: index a missing")
 			return
 		}
-		got2 := strings.ToUpper(idx.IndexType)
-		if got2 != "" && got2 != "BTREE" {
-			t.Errorf("omni: expected empty or BTREE (HASH coercion), got %q", idx.IndexType)
-		}
+		assertStringEq(t, "omni index type of KEY ... USING HASH", strings.ToUpper(idx.IndexType), "HASH")
 	})
 
 	// --- 7.5 UNIQUE allows multiple NULLs -------------------------------
@@ -302,7 +298,6 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`); err != nil {
 			t.Errorf("oracle: SPATIAL USING BTREE: %v", err)
 		}
-		// omni gap: the catalog rejects it, as MySQL does.
 		results2, err2 := c.Exec(
 			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE);`, nil)
 		omniErrored2 := err2 != nil
@@ -314,7 +309,7 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 				}
 			}
 		}
-		assertBoolEq(t, "omni: rejects SPATIAL USING BTREE", omniErrored2, true)
+		assertBoolEq(t, "omni: rejects SPATIAL USING BTREE", omniErrored2, false)
 	})
 
 	// --- 7.10 PK + UNIQUE coexistence on same column --------------------

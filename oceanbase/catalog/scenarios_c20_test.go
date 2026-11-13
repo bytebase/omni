@@ -288,21 +288,9 @@ func TestScenario_C20(t *testing.T) {
 		// (ER_BLOB_CANT_HAVE_DEFAULT, 1101).
 		oracleRefuses(t, mc, ddl, 1101)
 
-		// omni gap: the catalog takes the expression defaults, as MySQL 8.0
-		// does, and keeps each one.
-		assertIntEq(t, "omni expression defaults error code", omniCode(c, ddl), 0)
-		expressionCols := []string{"tags", "meta", "blob1", "pt", "uuid"}
-		if c20getTable(c, "c20_7") == nil {
-			t.Errorf("omni: c20_7 expected to exist in catalog after DDL accepted")
-		}
-		for _, cname := range expressionCols {
-			col := c20getColumn(t, c, "c20_7", cname)
-			if col == nil {
-				continue
-			}
-			if col.Default == nil || *col.Default == "" {
-				t.Errorf("omni: c20_7.%s Default expected non-nil expression, got nil/empty", cname)
-			}
+		assertIntEq(t, "omni expression defaults error code", omniCode(c, ddl), 1101)
+		if c20getTable(c, "c20_7") != nil {
+			t.Errorf("omni: c20_7 is in the catalog after the DDL was refused")
 		}
 	})
 
