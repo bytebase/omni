@@ -90,7 +90,10 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_PUBLICATION,
 			Object:     &nodes.String{Str: name},
@@ -245,7 +248,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 		p.advance()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}
 	}
 
@@ -266,7 +269,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 	return &nodes.PublicationObjSpec{
 		Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
 		Pubtable:   pt,
-		Loc: nodes.Loc{Start: loc, End: p.prev.End},
+		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 	}
 }
 
@@ -358,7 +361,10 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_SUBSCRIPTION,
 			Object:     &nodes.String{Str: name},
