@@ -11475,11 +11475,14 @@ reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ADD_ROW_ACCE
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ADD_ROW_ACCESS_POLICY_ID_ON_(_ID_(,_~a8313295)!swap	ALTER DYNAMIC TABLE a DROP_FROM_SOURCE_CATALOG ROW ACCESS POLICY a
 reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/(SET_AGGREGATION_POLICY_ID_(ENTITY_KE~be805018)	ALTER DYNAMIC TABLE a UNSET AGGREGATION POLICY
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(SET_AGGREGATION_POLICY_ID_(ENTITY_KE~be805018)!swap	ALTER DYNAMIC TABLE a UNSUPPORTED_DDL_ACTION AGGREGATION POLICY
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)	ALTER DYNAMIC TABLE a UNSET MASKING POLICY
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-1	ALTER DYNAMIC TABLE a MASKING POLICY
-accept	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-3	ALTER DYNAMIC TABLE a UNSET MASKING
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!insert	ALTER DYNAMIC TABLE a UNSET MASKING POLICY zzz
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!swap	ALTER DYNAMIC TABLE a UNSUPPORTED_DDL_ACTION MASKING POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-1	ALTER DYNAMIC TABLE a a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-2	ALTER DYNAMIC TABLE a ALTER UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-3	ALTER DYNAMIC TABLE a ALTER a MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-4	ALTER DYNAMIC TABLE a ALTER a UNSET POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-5	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!insert	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING POLICY zzz
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!swap	ALTER DYNAMIC TABLE a ALWAYS a UNSET MASKING POLICY
 reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201	ALTER DYNAMIC TABLE a ALTER a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-1	ALTER DYNAMIC TABLE a a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-2	ALTER DYNAMIC TABLE a ALTER SET TAG a = 's', a SET TAG a = 's'
@@ -11497,11 +11500,13 @@ reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-14	ALTER DYNAMIC TABLE a ALTER a SET TAG a = 's', a SET TAG a =
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!insert	ALTER DYNAMIC TABLE a ALTER a SET TAG a = 's', a SET TAG a = 's' zzz
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!swap	ALTER DYNAMIC TABLE a ALWAYS a SET TAG a = 's', a SET TAG a = 's'
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)	ALTER DYNAMIC TABLE a UNSET PROJECTION POLICY
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-1	ALTER DYNAMIC TABLE a PROJECTION POLICY
-accept	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-3	ALTER DYNAMIC TABLE a UNSET PROJECTION
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!insert	ALTER DYNAMIC TABLE a UNSET PROJECTION POLICY zzz
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!swap	ALTER DYNAMIC TABLE a UNSUPPORTED_DDL_ACTION PROJECTION POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)	ALTER DYNAMIC TABLE a ALTER a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-1	ALTER DYNAMIC TABLE a a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-2	ALTER DYNAMIC TABLE a ALTER UNSET PROJECTION POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-3	ALTER DYNAMIC TABLE a ALTER a PROJECTION POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-5	ALTER DYNAMIC TABLE a ALTER a UNSET PROJECTION
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!insert	ALTER DYNAMIC TABLE a ALTER a UNSET PROJECTION POLICY zzz
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!swap	ALTER DYNAMIC TABLE a ALWAYS a UNSET PROJECTION POLICY
 reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_TAG_ID_(,_ID)*_,_(COL~23b5e546	ALTER DYNAMIC TABLE a ALTER a UNSET TAG a, a UNSET TAG a
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_TAG_ID_(,_ID)*_,_(COL~23b5e546!drop-1	ALTER DYNAMIC TABLE a a UNSET TAG a, a UNSET TAG a
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_TAG_ID_(,_ID)*_,_(COL~23b5e546!drop-2	ALTER DYNAMIC TABLE a ALTER UNSET TAG a, a UNSET TAG a
@@ -11585,26 +11590,26 @@ accept	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(FORCE)?/%empty	ALTE
 accept	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(FORCE)?/FORCE	ALTER DYNAMIC TABLE a SET AGGREGATION POLICY a FORCE
 accept	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(FORCE)?/FORCE!insert	ALTER DYNAMIC TABLE a SET AGGREGATION POLICY a FORCE zzz
 accept	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(FORCE)?/FORCE!swap	ALTER DYNAMIC TABLE a SET AGGREGATION POLICY a FORECAST
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER DYNAMIC TABLE a a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER DYNAMIC TABLE a ALTER SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER DYNAMIC TABLE a ALTER a MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER DYNAMIC TABLE a ALTER a SET POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER DYNAMIC TABLE a ALTER a SET MASKING a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a zzz
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER DYNAMIC TABLE a ALWAYS a SET MASKING POLICY a
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/UNSET_MASKING_POLICY	ALTER DYNAMIC TABLE a UNSET MASKING POLICY
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER DYNAMIC TABLE a ALTER zzz a SET MASKING POLICY a
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER DYNAMIC TABLE a MODIFY a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER DYNAMIC TABLE a MODIFY zzz a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER DYNAMIC TABLE a MONITOR a SET MASKING POLICY a
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/%empty	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN	ALTER DYNAMIC TABLE a ALTER COLUMN a SET MASKING POLICY a
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER DYNAMIC TABLE a a SET MASKING POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER DYNAMIC TABLE a ALTER SET MASKING POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER DYNAMIC TABLE a ALTER a MASKING POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER DYNAMIC TABLE a ALTER a SET POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER DYNAMIC TABLE a ALTER a SET MASKING a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a zzz
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER DYNAMIC TABLE a ALWAYS a SET MASKING POLICY a
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_MASKING_POLICY	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER DYNAMIC TABLE a ALTER zzz a UNSET MASKING POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER DYNAMIC TABLE a MODIFY a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER DYNAMIC TABLE a MODIFY zzz a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER DYNAMIC TABLE a MONITOR a UNSET MASKING POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/%empty	ALTER DYNAMIC TABLE a ALTER a UNSET MASKING POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN	ALTER DYNAMIC TABLE a ALTER COLUMN a UNSET MASKING POLICY
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN!truncate	ALTER DYNAMIC TABLE a ALTER
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN!insert	ALTER DYNAMIC TABLE a ALTER COLUMN zzz a SET MASKING POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN!swap	ALTER DYNAMIC TABLE a ALTER COLUMNS a SET MASKING POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN!insert	ALTER DYNAMIC TABLE a ALTER COLUMN zzz a UNSET MASKING POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(COLUMN)?/COLUMN!swap	ALTER DYNAMIC TABLE a ALTER COLUMNS a UNSET MASKING POLICY
 reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_ID)*_))?/%empty	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a
 reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a USING(a, a)
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(USING_(_ID_,_ID_(,_ID)*_))?/USING_(_ID_,_ID_(,_ID)*_)!drop-1	ALTER DYNAMIC TABLE a ALTER a SET MASKING POLICY a(a, a)
@@ -11623,15 +11628,15 @@ reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(,_ID_=_STRING
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-3	ALTER DYNAMIC TABLE a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	ALTER DYNAMIC TABLE a SET TAG a = 's', a =
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	ALTER DYNAMIC TABLE a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER DYNAMIC TABLE a a SET PROJECTION POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER DYNAMIC TABLE a ALTER SET PROJECTION POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER DYNAMIC TABLE a ALTER a PROJECTION POLICY a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION a
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY a zzz
-reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER DYNAMIC TABLE a ALWAYS a SET PROJECTION POLICY a
-reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/UNSET_PROJECTION_POLICY	ALTER DYNAMIC TABLE a UNSET PROJECTION POLICY
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER DYNAMIC TABLE a a SET PROJECTION POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER DYNAMIC TABLE a ALTER SET PROJECTION POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER DYNAMIC TABLE a ALTER a PROJECTION POLICY a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION a
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER DYNAMIC TABLE a ALTER a SET PROJECTION POLICY a zzz
+reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER DYNAMIC TABLE a ALWAYS a SET PROJECTION POLICY a
+reject	accept	docs	alterDynamicTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_PROJECTION_POLICY	ALTER DYNAMIC TABLE a ALTER a UNSET PROJECTION POLICY
 accept	accept	docs	alterDynamicTable_dataGovnPolicyTagAction(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*	ALTER DYNAMIC TABLE a SET TAG a = 's'
 reject	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-1	ALTER DYNAMIC TABLE a TAG a = 's'
 accept	undocumented	docs	alterDynamicTable_dataGovnPolicyTagAction(SET_TAG_ID_=_STRING_(,_ID_=_STRING)*~342e96ed)/SET_TAG_ID_=_STRING_(,_ID_=_STRING)*!drop-2	ALTER DYNAMIC TABLE a SET a = 's'
@@ -14579,16 +14584,21 @@ reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/(SET_JOIN_POL
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/(SET_JOIN_POLICY_ID_FORCE?|UNSET_JOIN_POLICY)!insert	ALTER ICEBERG TABLE a UNSET JOIN POLICY zzz
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/(SET_JOIN_POLICY_ID_FORCE?|UNSET_JOIN_POLICY)!swap	ALTER ICEBERG TABLE a UNSUPPORTED_DDL_ACTION JOIN POLICY
 reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(WITH?_MASK~52ab28da	ALTER ICEBERG TABLE a ADD a INT
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)	ALTER ICEBERG TABLE a UNSET MASKING POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-1	ALTER ICEBERG TABLE a MASKING POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-3	ALTER ICEBERG TABLE a UNSET MASKING
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!insert	ALTER ICEBERG TABLE a UNSET MASKING POLICY zzz
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!swap	ALTER ICEBERG TABLE a UNSUPPORTED_DDL_ACTION MASKING POLICY
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)	ALTER ICEBERG TABLE a UNSET PROJECTION POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-1	ALTER ICEBERG TABLE a PROJECTION POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-3	ALTER ICEBERG TABLE a UNSET PROJECTION
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!insert	ALTER ICEBERG TABLE a UNSET PROJECTION POLICY zzz
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!swap	ALTER ICEBERG TABLE a UNSUPPORTED_DDL_ACTION PROJECTION POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)	ALTER ICEBERG TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-1	ALTER ICEBERG TABLE a a UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-2	ALTER ICEBERG TABLE a ALTER UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-3	ALTER ICEBERG TABLE a ALTER a MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-4	ALTER ICEBERG TABLE a ALTER a UNSET POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-5	ALTER ICEBERG TABLE a ALTER a UNSET MASKING
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!insert	ALTER ICEBERG TABLE a ALTER a UNSET MASKING POLICY zzz
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!swap	ALTER ICEBERG TABLE a ALWAYS a UNSET MASKING POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)	ALTER ICEBERG TABLE a ALTER a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-1	ALTER ICEBERG TABLE a a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-2	ALTER ICEBERG TABLE a ALTER UNSET PROJECTION POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-3	ALTER ICEBERG TABLE a ALTER a PROJECTION POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-5	ALTER ICEBERG TABLE a ALTER a UNSET PROJECTION
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!insert	ALTER ICEBERG TABLE a ALTER a UNSET PROJECTION POLICY zzz
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!swap	ALTER ICEBERG TABLE a ALWAYS a UNSET PROJECTION POLICY
 reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201	ALTER ICEBERG TABLE a ALTER a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-1	ALTER ICEBERG TABLE a a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-2	ALTER ICEBERG TABLE a ALTER SET TAG a = 's', a SET TAG a = 's'
@@ -14752,30 +14762,30 @@ reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(WITH?_TAG_(_I
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	ALTER ICEBERG TABLE a ADD a INT TAG(a = 's'
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	ALTER ICEBERG TABLE a ADD a INT TAG(a = 's') zzz
 reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	ALTER ICEBERG TABLE a ADD a INT TAGS(a = 's')
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER ICEBERG TABLE a a SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER ICEBERG TABLE a ALTER SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER ICEBERG TABLE a ALTER a MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER ICEBERG TABLE a ALTER a SET POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER ICEBERG TABLE a ALTER a SET MASKING a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY a zzz
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER ICEBERG TABLE a ALWAYS a SET MASKING POLICY a
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/UNSET_MASKING_POLICY	ALTER ICEBERG TABLE a UNSET MASKING POLICY
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER ICEBERG TABLE a ALTER zzz a SET MASKING POLICY a
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER ICEBERG TABLE a MODIFY a SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER ICEBERG TABLE a MODIFY zzz a SET MASKING POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER ICEBERG TABLE a MONITOR a SET MASKING POLICY a
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER ICEBERG TABLE a a SET PROJECTION POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER ICEBERG TABLE a ALTER SET PROJECTION POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER ICEBERG TABLE a ALTER a PROJECTION POLICY a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER ICEBERG TABLE a ALTER a SET PROJECTION a
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY a zzz
-reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER ICEBERG TABLE a ALWAYS a SET PROJECTION POLICY a
-reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/UNSET_PROJECTION_POLICY	ALTER ICEBERG TABLE a UNSET PROJECTION POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER ICEBERG TABLE a a SET MASKING POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER ICEBERG TABLE a ALTER SET MASKING POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER ICEBERG TABLE a ALTER a MASKING POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER ICEBERG TABLE a ALTER a SET POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER ICEBERG TABLE a ALTER a SET MASKING a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER ICEBERG TABLE a ALTER a SET MASKING POLICY a zzz
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER ICEBERG TABLE a ALWAYS a SET MASKING POLICY a
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_MASKING_POLICY	ALTER ICEBERG TABLE a ALTER a UNSET MASKING POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER ICEBERG TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER ICEBERG TABLE a ALTER zzz a UNSET MASKING POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER ICEBERG TABLE a MODIFY a UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER ICEBERG TABLE a MODIFY zzz a UNSET MASKING POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER ICEBERG TABLE a MONITOR a UNSET MASKING POLICY
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER ICEBERG TABLE a a SET PROJECTION POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER ICEBERG TABLE a ALTER SET PROJECTION POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER ICEBERG TABLE a ALTER a PROJECTION POLICY a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER ICEBERG TABLE a ALTER a SET PROJECTION a
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER ICEBERG TABLE a ALTER a SET PROJECTION POLICY a zzz
+reject	undocumented	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER ICEBERG TABLE a ALWAYS a SET PROJECTION POLICY a
+reject	accept	docs	alterIcebergTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_PROJECTION_POLICY	ALTER ICEBERG TABLE a ALTER a UNSET PROJECTION POLICY
 reject	accept	docs	alterIcebergTable_searchOptimizationAction/(ADD_SEARCH_OPTIMIZATION_(ON_ID_(,_ID~d4868a0e)	ALTER ICEBERG TABLE a ADD SEARCH OPTIMIZATION
 reject	undocumented	docs	alterIcebergTable_searchOptimizationAction/(ADD_SEARCH_OPTIMIZATION_(ON_ID_(,_ID~d4868a0e)!swap	ALTER ICEBERG TABLE a ADDITIONAL_CREATION_BLOCKLIST SEARCH OPTIMIZATION
 reject	accept	docs	alterIcebergTable_searchOptimizationAction(ADD_SEARCH_OPTIMIZATION_(ON_ID_(,_ID~d4868a0e)/ADD_SEARCH_OPTIMIZATION_(ON_ID_(,_ID)*)?	ALTER ICEBERG TABLE a ADD SEARCH OPTIMIZATION
@@ -24119,16 +24129,21 @@ reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/(SET_JOIN_POLICY_ID_
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/(SET_JOIN_POLICY_ID_FORCE?|UNSET_JOIN_POLICY)!insert	ALTER TABLE a UNSET JOIN POLICY zzz
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/(SET_JOIN_POLICY_ID_FORCE?|UNSET_JOIN_POLICY)!swap	ALTER TABLE a UNSUPPORTED_DDL_ACTION JOIN POLICY
 accept	accept	docs	alterTable_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(WITH?_MASK~52ab28da	ALTER TABLE a ADD a INT
-reject	accept	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)	ALTER TABLE a UNSET MASKING POLICY
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-1	ALTER TABLE a MASKING POLICY
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-3	ALTER TABLE a UNSET MASKING
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!insert	ALTER TABLE a UNSET MASKING POLICY zzz
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!swap	ALTER TABLE a UNSUPPORTED_DDL_ACTION MASKING POLICY
-reject	accept	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)	ALTER TABLE a UNSET PROJECTION POLICY
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-1	ALTER TABLE a PROJECTION POLICY
-accept	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-3	ALTER TABLE a UNSET PROJECTION
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!insert	ALTER TABLE a UNSET PROJECTION POLICY zzz
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!swap	ALTER TABLE a UNSUPPORTED_DDL_ACTION PROJECTION POLICY
+accept	accept	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)	ALTER TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-1	ALTER TABLE a a UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-2	ALTER TABLE a ALTER UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-3	ALTER TABLE a ALTER a MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-4	ALTER TABLE a ALTER a UNSET POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-5	ALTER TABLE a ALTER a UNSET MASKING
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!insert	ALTER TABLE a ALTER a UNSET MASKING POLICY zzz
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!swap	ALTER TABLE a ALWAYS a UNSET MASKING POLICY
+reject	accept	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)	ALTER TABLE a ALTER a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-1	ALTER TABLE a a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-2	ALTER TABLE a ALTER UNSET PROJECTION POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-3	ALTER TABLE a ALTER a PROJECTION POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-5	ALTER TABLE a ALTER a UNSET PROJECTION
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!insert	ALTER TABLE a ALTER a UNSET PROJECTION POLICY zzz
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!swap	ALTER TABLE a ALWAYS a UNSET PROJECTION POLICY
 reject	accept	docs	alterTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201	ALTER TABLE a ALTER a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-1	ALTER TABLE a a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-2	ALTER TABLE a ALTER SET TAG a = 's', a SET TAG a = 's'
@@ -24291,30 +24306,30 @@ reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STR
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	ALTER TABLE a ADD a INT TAG(a = 's'
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	ALTER TABLE a ADD a INT TAG(a = 's') zzz
 reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	ALTER TABLE a ADD a INT TAGS(a = 's')
-accept	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER TABLE a a SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER TABLE a ALTER SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER TABLE a ALTER a MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER TABLE a ALTER a SET POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER TABLE a ALTER a SET MASKING a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER TABLE a ALTER a SET MASKING POLICY
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER TABLE a ALTER a SET MASKING POLICY a zzz
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER TABLE a ALWAYS a SET MASKING POLICY a
-reject	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/UNSET_MASKING_POLICY	ALTER TABLE a UNSET MASKING POLICY
-accept	accept	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a SET MASKING POLICY a
-accept	accept	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER TABLE a MODIFY zzz a SET MASKING POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER TABLE a MONITOR a SET MASKING POLICY a
-reject	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER TABLE a ALTER a SET PROJECTION POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER TABLE a a SET PROJECTION POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER TABLE a ALTER SET PROJECTION POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER TABLE a ALTER a PROJECTION POLICY a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER TABLE a ALTER a SET PROJECTION a
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER TABLE a ALTER a SET PROJECTION POLICY
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER TABLE a ALTER a SET PROJECTION POLICY a zzz
-reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER TABLE a ALWAYS a SET PROJECTION POLICY a
-reject	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/UNSET_PROJECTION_POLICY	ALTER TABLE a UNSET PROJECTION POLICY
+accept	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER TABLE a ALTER a SET MASKING POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER TABLE a a SET MASKING POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER TABLE a ALTER SET MASKING POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER TABLE a ALTER a MASKING POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER TABLE a ALTER a SET POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER TABLE a ALTER a SET MASKING a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER TABLE a ALTER a SET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER TABLE a ALTER a SET MASKING POLICY a zzz
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER TABLE a ALWAYS a SET MASKING POLICY a
+accept	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_MASKING_POLICY	ALTER TABLE a ALTER a UNSET MASKING POLICY
+accept	accept	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a UNSET MASKING POLICY
+accept	accept	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER TABLE a MODIFY zzz a UNSET MASKING POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER TABLE a MONITOR a UNSET MASKING POLICY
+reject	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER TABLE a ALTER a SET PROJECTION POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER TABLE a a SET PROJECTION POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER TABLE a ALTER SET PROJECTION POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER TABLE a ALTER a PROJECTION POLICY a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER TABLE a ALTER a SET PROJECTION a
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER TABLE a ALTER a SET PROJECTION POLICY
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER TABLE a ALTER a SET PROJECTION POLICY a zzz
+reject	undocumented	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER TABLE a ALWAYS a SET PROJECTION POLICY a
+reject	accept	docs	alterTable_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_PROJECTION_POLICY	ALTER TABLE a ALTER a UNSET PROJECTION POLICY
 accept	accept	docs	alterTable_extTableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bfe79716)	ALTER TABLE a DROP a
 accept	accept	docs	alterTable_extTableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bfe79716)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_AS_(_EXPR_)	ALTER TABLE a ADD a INT AS(1)
 reject	undocumented	docs	alterTable_extTableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bfe79716)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_AS_(_EXPR_)!drop-1	ALTER TABLE a a INT AS(1)
@@ -26842,16 +26857,21 @@ reject	undocumented	docs	alterView_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(WITH?_MASK~52ab28da!drop-3	ALTER VIEW a ADD a
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(WITH?_MASK~52ab28da!insert	ALTER VIEW a ADD a INT zzz
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(WITH?_MASK~52ab28da!swap	ALTER VIEW a ADDITIONAL_CREATION_BLOCKLIST a INT
-reject	accept	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)	ALTER VIEW a UNSET MASKING POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-1	ALTER VIEW a MASKING POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!drop-3	ALTER VIEW a UNSET MASKING
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!insert	ALTER VIEW a UNSET MASKING POLICY zzz
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)!swap	ALTER VIEW a UNSUPPORTED_DDL_ACTION MASKING POLICY
-reject	accept	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)	ALTER VIEW a UNSET PROJECTION POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-1	ALTER VIEW a PROJECTION POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!drop-3	ALTER VIEW a UNSET PROJECTION
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!insert	ALTER VIEW a UNSET PROJECTION POLICY zzz
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)!swap	ALTER VIEW a UNSUPPORTED_DDL_ACTION PROJECTION POLICY
+accept	accept	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)	ALTER VIEW a ALTER a UNSET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-1	ALTER VIEW a a UNSET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-2	ALTER VIEW a ALTER UNSET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-3	ALTER VIEW a ALTER a MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-4	ALTER VIEW a ALTER a UNSET POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!drop-5	ALTER VIEW a ALTER a UNSET MASKING
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!insert	ALTER VIEW a ALTER a UNSET MASKING POLICY zzz
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)!swap	ALTER VIEW a ALWAYS a UNSET MASKING POLICY
+reject	accept	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)	ALTER VIEW a ALTER a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-1	ALTER VIEW a a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-2	ALTER VIEW a ALTER UNSET PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-3	ALTER VIEW a ALTER a PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!drop-5	ALTER VIEW a ALTER a UNSET PROJECTION
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!insert	ALTER VIEW a ALTER a UNSET PROJECTION POLICY zzz
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction/((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)!swap	ALTER VIEW a ALWAYS a UNSET PROJECTION POLICY
 reject	accept	docs	alterView_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201	ALTER VIEW a ALTER a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-1	ALTER VIEW a a SET TAG a = 's', a SET TAG a = 's'
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction/(ALTER|MODIFY)_(COLUMN)?_ID_SET_TAG_ID_=_STRING_(,_ID_=~f50f0201!drop-2	ALTER VIEW a ALTER SET TAG a = 's', a SET TAG a = 's'
@@ -27022,31 +27042,31 @@ reject	undocumented	docs	alterView_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRI
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!drop-6	ALTER VIEW a ADD a INT TAG(a = 's'
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!insert	ALTER VIEW a ADD a INT TAG(a = 's') zzz
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction(WITH?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_))?/(WITH)?_TAG_(_ID_=_STRING_(,_ID_=_STRING)*_)!swap	ALTER VIEW a ADD a INT TAGS(a = 's')
-accept	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER VIEW a ALTER a SET MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER VIEW a a SET MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER VIEW a ALTER SET MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER VIEW a ALTER a MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER VIEW a ALTER a SET POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER VIEW a ALTER a SET MASKING a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER VIEW a ALTER a SET MASKING POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER VIEW a ALTER a SET MASKING POLICY a zzz
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER VIEW a ALWAYS a SET MASKING POLICY a
-reject	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~c42402f6)/UNSET_MASKING_POLICY	ALTER VIEW a UNSET MASKING POLICY
-accept	accept	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER VIEW a ALTER a SET MASKING POLICY a
+accept	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1	ALTER VIEW a ALTER a SET MASKING POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-1	ALTER VIEW a a SET MASKING POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-2	ALTER VIEW a ALTER SET MASKING POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-3	ALTER VIEW a ALTER a MASKING POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-4	ALTER VIEW a ALTER a SET POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-5	ALTER VIEW a ALTER a SET MASKING a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!drop-6	ALTER VIEW a ALTER a SET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!insert	ALTER VIEW a ALTER a SET MASKING POLICY a zzz
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_MASKING_POLICY_ID_(USIN~fcb96fe1!swap	ALTER VIEW a ALWAYS a SET MASKING POLICY a
+accept	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_MASKIN~633b25b0)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_MASKING_POLICY	ALTER VIEW a ALTER a UNSET MASKING POLICY
+accept	accept	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER	ALTER VIEW a ALTER a UNSET MASKING POLICY
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!truncate	ALTER VIEW a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER VIEW a ALTER zzz a SET MASKING POLICY a
-accept	accept	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER VIEW a MODIFY a SET MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER VIEW a MODIFY zzz a SET MASKING POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER VIEW a MONITOR a SET MASKING POLICY a
-reject	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER VIEW a ALTER a SET PROJECTION POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER VIEW a a SET PROJECTION POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER VIEW a ALTER SET PROJECTION POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER VIEW a ALTER a PROJECTION POLICY a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER VIEW a ALTER a SET PROJECTION a
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER VIEW a ALTER a SET PROJECTION POLICY
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER VIEW a ALTER a SET PROJECTION POLICY a zzz
-reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER VIEW a ALWAYS a SET PROJECTION POLICY a
-reject	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~0f0c716f)/UNSET_PROJECTION_POLICY	ALTER VIEW a UNSET PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/ALTER!insert	ALTER VIEW a ALTER zzz a UNSET MASKING POLICY
+accept	accept	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY	ALTER VIEW a MODIFY a UNSET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!insert	ALTER VIEW a MODIFY zzz a UNSET MASKING POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction(ALTER|MODIFY)/MODIFY!swap	ALTER VIEW a MONITOR a UNSET MASKING POLICY
+reject	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?	ALTER VIEW a ALTER a SET PROJECTION POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-1	ALTER VIEW a a SET PROJECTION POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-2	ALTER VIEW a ALTER SET PROJECTION POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-3	ALTER VIEW a ALTER a PROJECTION POLICY a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-5	ALTER VIEW a ALTER a SET PROJECTION a
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!drop-6	ALTER VIEW a ALTER a SET PROJECTION POLICY
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!insert	ALTER VIEW a ALTER a SET PROJECTION POLICY a zzz
+reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_ID_(FORCE)?!swap	ALTER VIEW a ALWAYS a SET PROJECTION POLICY a
+reject	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~99e6a0d4)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_PROJECTION_POLICY	ALTER VIEW a ALTER a UNSET PROJECTION POLICY
 reject	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_(SUSPEND|RESUME_(IF_~6b56e531	ALTER WAREHOUSE SUSPEND
 reject	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)	ALTER WAREHOUSE a ENABLE
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!drop-1	WAREHOUSE a ENABLE
@@ -48098,27 +48118,28 @@ accept	accept	docs	grantPrivilege_accountObjectPrivileges(APPLYBUDGET|MODIFY|MON
 accept	accept	docs	grantPrivilege_accountObjectPrivileges(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE)/OPERATE	GRANT OPERATE ON USER a TO a
 accept	accept	docs	grantPrivilege_accountObjectPrivileges(,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE))*/%empty	GRANT APPLYBUDGET ON USER a TO a
 accept	accept	docs	grantPrivilege_accountObjectPrivileges(,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE))*/,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE)_(,_(APPLYB~c524c976	GRANT APPLYBUDGET, APPLYBUDGET ON USER a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION	GRANT ADD SEARCH OPTIMIZATION ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-1	GRANT SEARCH OPTIMIZATION ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-2	GRANT ADD OPTIMIZATION ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-3	GRANT ADD SEARCH ON SCHEMA a TO a
-reject	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!truncate	GRANT ADD SEARCH
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!insert	GRANT ADD SEARCH OPTIMIZATION zzz ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!swap	GRANT ADDITIONAL_CREATION_BLOCKLIST SEARCH OPTIMIZATION ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/APPLYBUDGET	GRANT APPLYBUDGET ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)	GRANT CREATE AGENT ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-1	GRANT AGENT ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-2	GRANT CREATE ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!insert	GRANT CREATE AGENT zzz ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!swap	GRANT CREATION AGENT ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/MODIFY	GRANT MODIFY ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/MODIFY!insert	GRANT MODIFY zzz ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/MONITOR	GRANT MONITOR ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/MONITOR!insert	GRANT MONITOR zzz ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/MONITOR!swap	GRANT MONITORS ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges/USAGE_(,_USAGE)*	GRANT USAGE ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/USAGE_(,_USAGE)*!insert	GRANT USAGE zzz ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges/USAGE_(,_USAGE)*!swap	GRANT USE ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges/(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(ADD~f2b81295	GRANT APPLYBUDGET ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION	GRANT ADD SEARCH OPTIMIZATION ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-1	GRANT SEARCH OPTIMIZATION ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-2	GRANT ADD OPTIMIZATION ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-3	GRANT ADD SEARCH ON SCHEMA a TO a
+reject	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!truncate	GRANT ADD SEARCH
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!insert	GRANT ADD SEARCH OPTIMIZATION zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!swap	GRANT ADDITIONAL_CREATION_BLOCKLIST SEARCH OPTIMIZATION ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/APPLYBUDGET	GRANT APPLYBUDGET ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)	GRANT CREATE AGENT ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-1	GRANT AGENT ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-2	GRANT CREATE ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!insert	GRANT CREATE AGENT zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!swap	GRANT CREATION AGENT ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MODIFY	GRANT MODIFY ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MODIFY!insert	GRANT MODIFY zzz ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR	GRANT MONITOR ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR!insert	GRANT MONITOR zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR!swap	GRANT MONITORS ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE	GRANT USAGE ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE!insert	GRANT USAGE zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE!swap	GRANT USE ON SCHEMA a TO a
 accept	accept	docs	grantPrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/AGENT	GRANT CREATE AGENT ON SCHEMA a TO a
 accept	undocumented	docs	grantPrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/AGENT!swap	GRANT CREATE AGENTS ON SCHEMA a TO a
 accept	accept	docs	grantPrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/ALERT	GRANT CREATE ALERT ON SCHEMA a TO a
@@ -48403,12 +48424,12 @@ accept	accept	docs	grantPrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/MATERI
 accept	accept	docs	grantPrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC	GRANT CREATE SEMANTIC VIEW ON SCHEMA a TO a
 accept	undocumented	docs	grantPrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC!insert	GRANT CREATE SEMANTIC zzz VIEW ON SCHEMA a TO a
 accept	undocumented	docs	grantPrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC!swap	GRANT CREATE SENSITIVE VIEW ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/%empty	GRANT USAGE ON SCHEMA a TO a
-accept	accept	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*	GRANT USAGE, USAGE ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-1	GRANT USAGE USAGE ON SCHEMA a TO a
-reject	undocumented	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-2	GRANT USAGE, ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!insert	GRANT USAGE, USAGE zzz ON SCHEMA a TO a
-accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!swap	GRANT USAGE, USE ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/%empty	GRANT APPLYBUDGET ON SCHEMA a TO a
+accept	accept	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7	GRANT APPLYBUDGET, APPLYBUDGET ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!drop-1	GRANT APPLYBUDGET APPLYBUDGET ON SCHEMA a TO a
+reject	undocumented	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!drop-2	GRANT APPLYBUDGET, ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!insert	GRANT APPLYBUDGET, APPLYBUDGET zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!swap	GRANT APPLYBUDGET, APPROVAL ON SCHEMA a TO a
 accept	accept	docs	grantPrivilege_schemaObjectPrivileges/(MODIFY|MONITOR|USAGE)_(,_(MODIFY|MONITOR|USAGE))*	GRANT MODIFY ON TABLE a TO a
 accept	accept	docs	grantPrivilege_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*	GRANT MONITOR ON TABLE a TO a
 accept	undocumented	docs	grantPrivilege_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*!insert	GRANT MONITOR zzz ON TABLE a TO a
@@ -49839,6 +49860,10 @@ accept	accept	docs	grantPrivilegeUser_schemaPrivileges/MONITOR	GRANT MONITOR ON 
 accept	accept	docs	grantPrivilegeUser_schemaPrivileges/USAGE_(,_USAGE)*	GRANT USAGE ON SCHEMA a TO a
 accept	accept	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/%empty	GRANT USAGE ON SCHEMA a TO a
 accept	accept	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*	GRANT USAGE, USAGE ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-1	GRANT USAGE USAGE ON SCHEMA a TO a
+reject	undocumented	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-2	GRANT USAGE, ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!insert	GRANT USAGE, USAGE zzz ON SCHEMA a TO a
+accept	undocumented	docs	grantPrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!swap	GRANT USAGE, USE ON SCHEMA a TO a
 accept	accept	docs	grantPrivilegeUser_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*	GRANT MONITOR ON TABLE a TO a
 accept	accept	docs	grantPrivilegeUser_schemaObjectPrivileges/USAGE_(,_USAGE)*	GRANT USAGE ON TABLE a TO a
 accept	accept	docs	grantPrivilegeUser_schemaObjectPrivileges/MONITOR_,_OPERATE_,_SELECT_(,_SELECT)*	GRANT MONITOR, OPERATE, SELECT ON TABLE a TO a
@@ -51214,27 +51239,28 @@ accept	accept	docs	revokePrivilege_accountObjectPrivileges(APPLYBUDGET|MODIFY|MO
 accept	accept	docs	revokePrivilege_accountObjectPrivileges(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE)/OPERATE	REVOKE OPERATE ON WAREHOUSE a FROM a
 accept	accept	docs	revokePrivilege_accountObjectPrivileges(,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE))*/%empty	REVOKE APPLYBUDGET ON WAREHOUSE a FROM a
 accept	accept	docs	revokePrivilege_accountObjectPrivileges(,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE))*/,_(APPLYBUDGET|MODIFY|MONITOR|USAGE|OPERATE)_(,_(APPLYB~c524c976	REVOKE APPLYBUDGET, APPLYBUDGET ON WAREHOUSE a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION	REVOKE ADD SEARCH OPTIMIZATION ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-1	REVOKE SEARCH OPTIMIZATION ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-2	REVOKE ADD OPTIMIZATION ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!drop-3	REVOKE ADD SEARCH ON SCHEMA a FROM a
-reject	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!truncate	REVOKE ADD SEARCH
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!insert	REVOKE ADD SEARCH OPTIMIZATION zzz ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/ADD_SEARCH_OPTIMIZATION!swap	REVOKE ADDITIONAL_CREATION_BLOCKLIST SEARCH OPTIMIZATION ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/APPLYBUDGET	REVOKE APPLYBUDGET ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)	REVOKE CREATE AGENT ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-1	REVOKE AGENT ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-2	REVOKE CREATE ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!insert	REVOKE CREATE AGENT zzz ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!swap	REVOKE CREATION AGENT ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/MODIFY	REVOKE MODIFY ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/MODIFY!insert	REVOKE MODIFY zzz ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/MONITOR	REVOKE MONITOR ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/MONITOR!insert	REVOKE MONITOR zzz ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/MONITOR!swap	REVOKE MONITORS ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges/USAGE_(,_USAGE)*	REVOKE USAGE ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/USAGE_(,_USAGE)*!insert	REVOKE USAGE zzz ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges/USAGE_(,_USAGE)*!swap	REVOKE USE ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges/(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(ADD~f2b81295	REVOKE APPLYBUDGET ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION	REVOKE ADD SEARCH OPTIMIZATION ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-1	REVOKE SEARCH OPTIMIZATION ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-2	REVOKE ADD OPTIMIZATION ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!drop-3	REVOKE ADD SEARCH ON SCHEMA a FROM a
+reject	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!truncate	REVOKE ADD SEARCH
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!insert	REVOKE ADD SEARCH OPTIMIZATION zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/ADD_SEARCH_OPTIMIZATION!swap	REVOKE ADDITIONAL_CREATION_BLOCKLIST SEARCH OPTIMIZATION ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/APPLYBUDGET	REVOKE APPLYBUDGET ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)	REVOKE CREATE AGENT ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-1	REVOKE AGENT ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!drop-2	REVOKE CREATE ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!insert	REVOKE CREATE AGENT zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/CREATE_(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)!swap	REVOKE CREATION AGENT ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MODIFY	REVOKE MODIFY ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MODIFY!insert	REVOKE MODIFY zzz ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR	REVOKE MONITOR ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR!insert	REVOKE MONITOR zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/MONITOR!swap	REVOKE MONITORS ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE	REVOKE USAGE ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE!insert	REVOKE USAGE zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)/USAGE!swap	REVOKE USE ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/AGENT	REVOKE CREATE AGENT ON SCHEMA a FROM a
 accept	undocumented	docs	revokePrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/AGENT!swap	REVOKE CREATE AGENTS ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilege_schemaPrivileges(AGENT|ALERT|APPLICATION_SERVICE|ARTI~02287b74)/ALERT	REVOKE CREATE ALERT ON SCHEMA a FROM a
@@ -51519,12 +51545,12 @@ accept	accept	docs	revokePrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/MATER
 accept	accept	docs	revokePrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC	REVOKE CREATE SEMANTIC VIEW ON SCHEMA a FROM a
 accept	undocumented	docs	revokePrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC!insert	REVOKE CREATE SEMANTIC zzz VIEW ON SCHEMA a FROM a
 accept	undocumented	docs	revokePrivilege_schemaPrivileges(MATERIALIZED|SEMANTIC)/SEMANTIC!swap	REVOKE CREATE SENSITIVE VIEW ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/%empty	REVOKE USAGE ON SCHEMA a FROM a
-accept	accept	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*	REVOKE USAGE, USAGE ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-1	REVOKE USAGE USAGE ON SCHEMA a FROM a
-reject	undocumented	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-2	REVOKE USAGE, ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!insert	REVOKE USAGE, USAGE zzz ON SCHEMA a FROM a
-accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!swap	REVOKE USAGE, USE ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/%empty	REVOKE APPLYBUDGET ON SCHEMA a FROM a
+accept	accept	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7	REVOKE APPLYBUDGET, APPLYBUDGET ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!drop-1	REVOKE APPLYBUDGET APPLYBUDGET ON SCHEMA a FROM a
+reject	undocumented	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!drop-2	REVOKE APPLYBUDGET, ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!insert	REVOKE APPLYBUDGET, APPLYBUDGET zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilege_schemaPrivileges(,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDG~65cc2b19)*/,_(ADD_SEARCH_OPTIMIZATION|APPLYBUDGET|~b7dafff6)_(,_(A~4295d3c7!swap	REVOKE APPLYBUDGET, APPROVAL ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilege_schemaObjectPrivileges/(MODIFY|MONITOR|USAGE)_(,_(MODIFY|MONITOR|USAGE))*	REVOKE MODIFY ON TABLE a FROM a
 accept	accept	docs	revokePrivilege_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*	REVOKE MONITOR ON TABLE a FROM a
 accept	undocumented	docs	revokePrivilege_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*!insert	REVOKE MONITOR zzz ON TABLE a FROM a
@@ -52970,6 +52996,10 @@ accept	accept	docs	revokePrivilegeUser_schemaPrivileges/MONITOR	REVOKE MONITOR O
 accept	accept	docs	revokePrivilegeUser_schemaPrivileges/USAGE_(,_USAGE)*	REVOKE USAGE ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/%empty	REVOKE USAGE ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*	REVOKE USAGE, USAGE ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-1	REVOKE USAGE USAGE ON SCHEMA a FROM a
+reject	undocumented	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!drop-2	REVOKE USAGE, ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!insert	REVOKE USAGE, USAGE zzz ON SCHEMA a FROM a
+accept	undocumented	docs	revokePrivilegeUser_schemaPrivileges(,_USAGE)*/,_USAGE_(,_USAGE)*!swap	REVOKE USAGE, USE ON SCHEMA a FROM a
 accept	accept	docs	revokePrivilegeUser_schemaObjectPrivileges/(MONITOR|OPERATE)_(,_(MONITOR|OPERATE))*	REVOKE MONITOR ON TABLE a FROM a
 accept	accept	docs	revokePrivilegeUser_schemaObjectPrivileges/USAGE_(,_USAGE)*	REVOKE USAGE ON TABLE a FROM a
 accept	accept	docs	revokePrivilegeUser_schemaObjectPrivileges/MONITOR_,_OPERATE_,_SELECT_(,_SELECT)*	REVOKE MONITOR, OPERATE, SELECT ON TABLE a FROM a
@@ -54421,42 +54451,42 @@ reject	undocumented	docs	showDynamicTables(FROM_STRING)?/FROM_STRING!insert	SHOW
 reject	undocumented	docs	showDynamicTables(FROM_STRING)?/FROM_STRING!swap	SHOW DYNAMIC TABLES LIMIT 1 FROZEN 's'
 reject	accept	docs	showEndpoints/SHOW_ENDPOINTS_IN_SERVICE_ID	SHOW ENDPOINTS IN SERVICE a
 reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_(LIMIT_NUMBER)?	SHOW ENTITIES IN DCM PROJECT a
-reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID	SHOW ENTITIES LIKE a IN DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-1	ENTITIES LIKE a IN DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-2	SHOW LIKE a IN DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-3	SHOW ENTITIES a IN DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-4	SHOW ENTITIES LIKE IN DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-5	SHOW ENTITIES LIKE a DCM PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-6	SHOW ENTITIES LIKE a IN PROJECT a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-7	SHOW ENTITIES LIKE a IN DCM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!drop-8	SHOW ENTITIES LIKE a IN DCM PROJECT
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!insert	SHOW ENTITIES LIKE a IN DCM PROJECT a zzz
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_ID_IN_DCM_PROJECT_ID!swap	SHOW_INITIAL_ROWS ENTITIES LIKE a IN DCM PROJECT a
-reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID	SHOW ENTITIES IN DCM PROJECT a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-1	ENTITIES IN DCM PROJECT a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-2	SHOW IN DCM PROJECT a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-3	SHOW ENTITIES DCM PROJECT a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-4	SHOW ENTITIES IN PROJECT a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-5	SHOW ENTITIES IN DCM a STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-6	SHOW ENTITIES IN DCM PROJECT STARTS WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-7	SHOW ENTITIES IN DCM PROJECT a WITH a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-8	SHOW ENTITIES IN DCM PROJECT a STARTS a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!drop-9	SHOW ENTITIES IN DCM PROJECT a STARTS WITH
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!insert	SHOW ENTITIES IN DCM PROJECT a STARTS WITH a zzz
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_ID!swap	SHOW_INITIAL_ROWS ENTITIES IN DCM PROJECT a STARTS WITH a
-reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-1	ENTITIES IN DCM PROJECT a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-2	SHOW IN DCM PROJECT a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-3	SHOW ENTITIES DCM PROJECT a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-4	SHOW ENTITIES IN PROJECT a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-5	SHOW ENTITIES IN DCM a LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-6	SHOW ENTITIES IN DCM PROJECT LIMIT 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-7	SHOW ENTITIES IN DCM PROJECT a 1 FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-8	SHOW ENTITIES IN DCM PROJECT a LIMIT FROM a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-9	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 a
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!drop-10	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!insert	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM a zzz
-reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_ID!swap	SHOW_INITIAL_ROWS ENTITIES IN DCM PROJECT a LIMIT 1 FROM a
+reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID	SHOW ENTITIES LIKE 's' IN DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-1	ENTITIES LIKE 's' IN DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-2	SHOW LIKE 's' IN DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-3	SHOW ENTITIES 's' IN DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-4	SHOW ENTITIES LIKE IN DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-5	SHOW ENTITIES LIKE 's' DCM PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-6	SHOW ENTITIES LIKE 's' IN PROJECT a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-7	SHOW ENTITIES LIKE 's' IN DCM a
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!drop-8	SHOW ENTITIES LIKE 's' IN DCM PROJECT
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!insert	SHOW ENTITIES LIKE 's' IN DCM PROJECT a zzz
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_LIKE_STRING_IN_DCM_PROJECT_ID!swap	SHOW_INITIAL_ROWS ENTITIES LIKE 's' IN DCM PROJECT a
+reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING	SHOW ENTITIES IN DCM PROJECT a STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-1	ENTITIES IN DCM PROJECT a STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-2	SHOW IN DCM PROJECT a STARTS WITH 's'
+accept	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-3	SHOW ENTITIES DCM PROJECT a STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-4	SHOW ENTITIES IN PROJECT a STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-5	SHOW ENTITIES IN DCM a STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-6	SHOW ENTITIES IN DCM PROJECT STARTS WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-7	SHOW ENTITIES IN DCM PROJECT a WITH 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-8	SHOW ENTITIES IN DCM PROJECT a STARTS 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!drop-9	SHOW ENTITIES IN DCM PROJECT a STARTS WITH
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!insert	SHOW ENTITIES IN DCM PROJECT a STARTS WITH 's' zzz
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_STARTS_WITH_STRING!swap	SHOW_INITIAL_ROWS ENTITIES IN DCM PROJECT a STARTS WITH 's'
+reject	accept	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-1	ENTITIES IN DCM PROJECT a LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-2	SHOW IN DCM PROJECT a LIMIT 1 FROM 's'
+accept	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-3	SHOW ENTITIES DCM PROJECT a LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-4	SHOW ENTITIES IN PROJECT a LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-5	SHOW ENTITIES IN DCM a LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-6	SHOW ENTITIES IN DCM PROJECT LIMIT 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-7	SHOW ENTITIES IN DCM PROJECT a 1 FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-8	SHOW ENTITIES IN DCM PROJECT a LIMIT FROM 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-9	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 's'
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!drop-10	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!insert	SHOW ENTITIES IN DCM PROJECT a LIMIT 1 FROM 's' zzz
+reject	undocumented	docs	showEntitiesInDcmProject/SHOW_ENTITIES_IN_DCM_PROJECT_ID_LIMIT_NUMBER_FROM_STRING!swap	SHOW_INITIAL_ROWS ENTITIES IN DCM PROJECT a LIMIT 1 FROM 's'
 reject	accept	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/%empty	SHOW ENTITIES IN DCM PROJECT a
 reject	accept	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW ENTITIES IN DCM PROJECT a LIMIT 1
 reject	undocumented	docs	showEntitiesInDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW ENTITIES IN DCM PROJECT a 1

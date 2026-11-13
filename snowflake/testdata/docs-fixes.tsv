@@ -67,3 +67,10 @@ show-versions	[ LIKE <pattern> ]	[ LIKE '<pattern>' ]	LIKE takes a quoted patter
 create-semantic-view	 UNIQUE ( <unique_column_name> [ , ... ] )\n [ ... ]	 { UNIQUE ( <unique_column_name> [ , ... ] ) }\n [ ... ]	the [ ... ] repeats the whole UNIQUE ( ... ) clause
 alter-database	EVENT_TABLE = <event_table_name>    |	EVENT_TABLE                         |	UNSET names a property without its value, as the page's parameters say
 alter-stage	externalStageParams (for Amazon S3) ::=\n  URL = '<protocol>://<bucket>[/<path>/]'	externalStageParams (for Amazon S3) ::=\n  [ URL = '<protocol>://<bucket>[/<path>/]' ]	an ALTER may leave the URL as it is and change the credentials or encryption, as the page's examples do
+grant-privilege	schemaPrivileges ::=\n\n    ADD SEARCH OPTIMIZATION	schemaPrivileges ::=\n\n  { ADD SEARCH OPTIMIZATION	the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
+grant-privilege	   | MODIFY | MONITOR | USAGE\n   [ , ... ]	   | MODIFY | MONITOR | USAGE }\n   [ , ... ]	closes the { opened before ADD SEARCH OPTIMIZATION
+revoke-privilege	schemaPrivileges ::=\n\n    ADD SEARCH OPTIMIZATION	schemaPrivileges ::=\n\n  { ADD SEARCH OPTIMIZATION	the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
+revoke-privilege	   | MODIFY | MONITOR | USAGE\n   [ , ... ]	   | MODIFY | MONITOR | USAGE }\n   [ , ... ]	closes the { opened before ADD SEARCH OPTIMIZATION
+show-entities-in-dcm-project	LIKE <pattern>	LIKE '<pattern>'	LIKE takes a quoted string, as the page's parameters and example write it
+show-entities-in-dcm-project	STARTS WITH <prefix>	STARTS WITH '<prefix>'	STARTS WITH takes a quoted string, as the page's parameters and example write it
+show-entities-in-dcm-project	FROM <cursor>	FROM '<cursor>'	FROM takes a quoted string, as the page's parameters and example write it

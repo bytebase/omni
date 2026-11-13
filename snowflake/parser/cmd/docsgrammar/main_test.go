@@ -59,6 +59,9 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"SET [ SECRETS = ( <s> ) | all | none ]", "'SET' ('SECRETS' '=' '(' ID ')' | 'SECRETS' '=' 'all' | 'SECRETS' '=' 'none')"},
 		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
+		// { <target> SET X | UNSET X }: UNSET keeps the target.
+		{"ALTER V <name> { MODIFY COLUMN <col> SET MASKING POLICY <p> | UNSET MASKING POLICY }", "'ALTER' 'V' ID ('MODIFY' 'COLUMN' ID 'SET' 'MASKING' 'POLICY' ID | 'MODIFY' 'COLUMN' ID 'UNSET' 'MASKING' 'POLICY')"},
+		{"ALTER V <name> { SET COMMENT = '<c>' | UNSET COMMENT }", "'ALTER' 'V' ID ('SET' 'COMMENT' '=' STRING | 'UNSET' 'COMMENT')"},
 		// A | inside SQL's parentheses chooses within them.
 		{"[ ENCRYPTION = ( TYPE = 'A' | TYPE = 'B' ) ]", "('ENCRYPTION' '=' '(' ('TYPE' '=' '\\'A\\'' | 'TYPE' '=' '\\'B\\'') ')')?"},
 		{"ALTER T [ ( ] <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ('(' ID 'DROP' 'DEFAULT' ')' | ID 'DROP' 'DEFAULT')"},

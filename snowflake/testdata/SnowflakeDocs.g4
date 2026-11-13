@@ -1196,9 +1196,9 @@ alterDynamicTable_clusteringAction
 alterDynamicTable_dataGovnPolicyTagAction
     : ('ADD' 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')' | 'DROP' 'ROW' 'ACCESS' 'POLICY' ID | 'DROP' 'ROW' 'ACCESS' 'POLICY' ID ',' 'ADD' 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')' | 'DROP' 'ALL' 'ROW' 'ACCESS' 'POLICIES')
     | ('SET' 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'AGGREGATION' 'POLICY')
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'MASKING' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'MASKING' 'POLICY')
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* ',' 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | 'UNSET' 'PROJECTION' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'PROJECTION' 'POLICY')
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)* ',' 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)*
     | ('SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* | 'UNSET' 'TAG' ID (',' ID)*)
     ;
@@ -1423,8 +1423,8 @@ alterIcebergTable_dataGovnPolicyTagAction
     | ('SET' 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'AGGREGATION' 'POLICY')
     | ('SET' 'JOIN' 'POLICY' ID 'FORCE'? | 'UNSET' 'JOIN' 'POLICY')
     | 'ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'MASKING' 'POLICY')
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | 'UNSET' 'PROJECTION' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'MASKING' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'PROJECTION' 'POLICY')
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* ',' 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)* ',' 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)*
     ;
@@ -2246,8 +2246,8 @@ alterTable_dataGovnPolicyTagAction
     | ('SET' 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'AGGREGATION' 'POLICY')
     | ('SET' 'JOIN' 'POLICY' ID 'FORCE'? | 'UNSET' 'JOIN' 'POLICY')
     | 'ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'MASKING' 'POLICY')
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | 'UNSET' 'PROJECTION' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'MASKING' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'PROJECTION' 'POLICY')
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* ',' 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)* ',' 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)*
     ;
@@ -2477,8 +2477,8 @@ alterView_dataGovnPolicyTagAction
     | ('SET' 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'AGGREGATION' 'POLICY')
     | ('SET' 'JOIN' 'POLICY' ID 'FORCE'? | 'UNSET' 'JOIN' 'POLICY')
     | 'ADD' 'COLUMN'? ('IF' 'NOT' 'EXISTS')? ID DATA_TYPE ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | 'UNSET' 'MASKING' 'POLICY')
-    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | 'UNSET' 'PROJECTION' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')? 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'MASKING' 'POLICY')
+    | (('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'PROJECTION' 'POLICY' ID 'FORCE'? | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'PROJECTION' 'POLICY')
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* ',' 'COLUMN'? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | ('ALTER' | 'MODIFY') 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)* ',' 'COLUMN'? ID 'UNSET' 'TAG' ID (',' ID)*
     ;
@@ -4862,6 +4862,8 @@ grantOwnership
 
 // https://docs.snowflake.com/en/sql-reference/sql/grant-privilege
 // fix: TO DATABASE ROLE form: the } after the database privileges ends the choice of grants one line early; dropped
+// fix: the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
+// fix: closes the { opened before ADD SEARCH OPTIMIZATION
 grantPrivilege
     : 'GRANT' ((grantPrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (grantPrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('USER' | 'RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'DATA' 'EXCHANGE' 'LISTING' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME' | 'APPLICATION' 'PACKAGE' | 'APPLICATION') ID | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'TO' 'ROLE'? ID ('WITH' 'GRANT' 'OPTION')?
     | 'GRANT' (('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE'))* 'ON' 'DATABASE' ID | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (grantPrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) | (grantPrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'TO' 'DATABASE' 'ROLE' ID ('WITH' 'GRANT' 'OPTION')?
@@ -4885,12 +4887,7 @@ grantPrivilege_accountObjectPrivileges
     | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 grantPrivilege_schemaPrivileges
-    : 'ADD' 'SEARCH' 'OPTIMIZATION'
-    | 'APPLYBUDGET'
-    | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW')
-    | 'MODIFY'
-    | 'MONITOR'
-    | 'USAGE' (',' 'USAGE')*
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
     ;
 grantPrivilege_schemaObjectPrivileges
     : ('MODIFY' | 'MONITOR' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5152,6 +5149,8 @@ revokeDatabaseRoleShare
 // https://docs.snowflake.com/en/sql-reference/sql/revoke-privilege
 // fix: FROM DATABASE ROLE form: the } after the database privileges ends the choice of grants one line early; dropped
 // fix: FROM DATABASE ROLE form: the database privileges are one choice among the others; a | is missing before the next
+// fix: the trailing [ , ... ] repeats the whole choice of schema privileges, as the usage notes allow several privileges on one object type
+// fix: closes the { opened before ADD SEARCH OPTIMIZATION
 revokePrivilege
     : 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ((revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (revokePrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'DATA' 'EXCHANGE' 'LISTING' | 'INTEGRATION' | 'CONNECTION' | 'FAILOVER' 'GROUP' | 'REPLICATION' 'GROUP' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'ROLE'? ID ('RESTRICT' | 'CASCADE')?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? (('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('CREATE' 'SCHEMA' | 'MODIFY' | 'MONITOR' | 'USAGE'))* 'ON' 'DATABASE' ID | (revokePrivilege_globalPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'ACCOUNT' | (revokePrivilege_accountObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('RESOURCE' 'MONITOR' | 'WAREHOUSE' | 'COMPUTE' 'POOL' | 'DATABASE' | 'INTEGRATION' | 'EXTERNAL' 'VOLUME') ID | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' ('SCHEMA' ID | 'ALL' 'SCHEMAS' 'IN' 'DATABASE' ID) | (revokePrivilege_schemaPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' 'SCHEMAS' 'IN' 'DATABASE' ID | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' (OBJECT_TYPE ID | 'ALL' OBJECT_TYPES 'IN' 'SCHEMA' ID) | (revokePrivilege_schemaObjectPrivileges | 'ALL' 'PRIVILEGES'?) 'ON' 'FUTURE' OBJECT_TYPES 'IN' ('DATABASE' ID | 'SCHEMA' ID)) 'FROM' 'DATABASE' 'ROLE' ID ('RESTRICT' | 'CASCADE')?
@@ -5175,12 +5174,7 @@ revokePrivilege_accountObjectPrivileges
     | ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE') (',' ('APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE' | 'OPERATE'))*
     ;
 revokePrivilege_schemaPrivileges
-    : 'ADD' 'SEARCH' 'OPTIMIZATION'
-    | 'APPLYBUDGET'
-    | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW')
-    | 'MODIFY'
-    | 'MONITOR'
-    | 'USAGE' (',' 'USAGE')*
+    : ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'CREATE' ('AGENT' | 'ALERT' | 'APPLICATION' 'SERVICE' | 'ARTIFACT' 'REPOSITORY' | 'CONTACT' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | ('GIT' | 'IMAGE') 'REPOSITORY' | 'MCP' 'SERVER' | 'MODEL' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'PIPE' | 'PROCEDURE' | ('AGGREGATION' | 'AUTHENTICATION' | 'MAINTENANCE' | 'MASKING' | 'PACKAGES' | 'PASSWORD' | 'PRIVACY' | 'PROJECTION' | 'ROW' 'ACCESS' | 'SESSION' | 'STORAGE' 'LIFECYCLE') 'POLICY' | 'SECRET' | 'SEQUENCE' | 'SERVICE' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STREAM' | 'STREAMLIT' | 'SNOWFLAKE' '.' 'CORE' '.' 'BUDGET' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CLASSIFICATION_PROFILE' | 'SNOWFLAKE' '.' 'DATA_PRIVACY' '.' 'CUSTOM_CLASSIFIER' | 'SNOWFLAKE' '.' 'ML' '.' 'ANOMALY_DETECTION' | 'SNOWFLAKE' '.' 'ML' '.' 'CLASSIFICATION' | 'SNOWFLAKE' '.' 'ML' '.' 'FORECAST' | 'SNOWFLAKE' '.' 'ML' '.' 'TOP_INSIGHTS' | 'SNOWFLAKE' '.' 'ML' '.' 'DOCUMENT_INTELLIGENCE' | (('DYNAMIC' | 'EXTERNAL' | 'HYBRID' | 'ICEBERG' | 'INTERACTIVE' | 'ONLINE' 'FEATURE'))? 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'WORKSPACE' | (('MATERIALIZED' | 'SEMANTIC'))? 'VIEW') | 'MODIFY' | 'MONITOR' | 'USAGE'))*
     ;
 revokePrivilege_schemaObjectPrivileges
     : ('MODIFY' | 'MONITOR' | 'USAGE') (',' ('MODIFY' | 'MONITOR' | 'USAGE'))*
@@ -5615,11 +5609,14 @@ showEndpoints
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-entities-in-dcm-project
+// fix: LIKE takes a quoted string, as the page's parameters and example write it
+// fix: STARTS WITH takes a quoted string, as the page's parameters and example write it
+// fix: FROM takes a quoted string, as the page's parameters and example write it
 showEntitiesInDcmProject
     : 'SHOW' 'ENTITIES' 'IN' 'DCM' 'PROJECT' ID ('LIMIT' NUMBER)?
-    | 'SHOW' 'ENTITIES' 'LIKE' ID 'IN' 'DCM' 'PROJECT' ID
-    | 'SHOW' 'ENTITIES' 'IN' 'DCM' 'PROJECT' ID 'STARTS' 'WITH' ID
-    | 'SHOW' 'ENTITIES' 'IN' 'DCM' 'PROJECT' ID 'LIMIT' NUMBER 'FROM' ID
+    | 'SHOW' 'ENTITIES' 'LIKE' STRING 'IN' 'DCM' 'PROJECT' ID
+    | 'SHOW' 'ENTITIES' 'IN' 'DCM' 'PROJECT' ID 'STARTS' 'WITH' STRING
+    | 'SHOW' 'ENTITIES' 'IN' 'DCM' 'PROJECT' ID 'LIMIT' NUMBER 'FROM' STRING
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-event-routing-table-on-organization

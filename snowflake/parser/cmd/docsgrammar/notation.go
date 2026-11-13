@@ -751,7 +751,41 @@ func resolveGroup(n *node) ([][]*node, error) {
 		}
 		return [][]*node{r}, nil
 	}
-	return resolveEllipses(n.alts)
+	alts, err := resolveEllipses(n.alts)
+	if err != nil || !n.brace {
+		return alts, err
+	}
+	return scopeUnset(alts), nil
+}
+
+// scopeUnset reads { <target> SET X | UNSET X } as setting or unsetting X
+// on the target: an UNSET choice takes what the first choice writes before
+// its SET, as ALTER VIEW's { ALTER | MODIFY } [ COLUMN ] <col> does.
+func scopeUnset(alts [][]*node) [][]*node {
+	if len(alts) < 2 {
+		return alts
+	}
+	k := -1
+	for i, n := range alts[0] {
+		if n.tok != nil && n.tok.kind == nKeyword && (n.tok.text == "SET" || n.tok.text == "UNSET") {
+			if n.tok.text == "SET" {
+				k = i
+			}
+			break
+		}
+	}
+	if k < 1 {
+		return alts
+	}
+	head := alts[0][:k]
+	out := [][]*node{alts[0]}
+	for _, alt := range alts[1:] {
+		if len(alt) > 0 && alt[0].tok != nil && alt[0].tok.kind == nKeyword && alt[0].tok.text == "UNSET" {
+			alt = append(append([]*node(nil), head...), alt...)
+		}
+		out = append(out, alt)
+	}
+	return out
 }
 
 // optionalList reports whether a [ ] group is a list of one or more
