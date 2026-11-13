@@ -161,8 +161,8 @@ func (o *parserOracle) prepareAccepts(t *testing.T, sql string) bool {
 }
 
 // prepareParses asks the oracle whether sql parses, without running it, and reads an
-// error beyond 1064 by where it was raised. The statement is bound to a user variable, so
-// its own quoting stays the server's business. MySQL refuses some text while it parses with the code of the
+// error beyond 1064 by where it was raised. The statement is PREPARE's argument, so its own
+// quoting stays the driver's business, and a verdict is one request. MySQL refuses some text while it parses with the code of the
 // check that refused it, as in CAST(a AS JSON ARRAY)'s 1235.
 // The server reads all of the text before it looks at anything, so a statement refused
 // after parsing answers 1064 once a syntax error follows it as a second statement, and
@@ -174,18 +174,9 @@ func (o *parserOracle) prepareAccepts(t *testing.T, sql string) bool {
 // SHOW PROCEDURE CODE without debugging).
 func (o *parserOracle) prepareParses(t *testing.T, sql string) bool {
 	t.Helper()
-	conn, err := o.db.Conn(o.ctx)
-	if err != nil {
-		t.Fatalf("taking a connection for %q: %v", sql, err)
-	}
-	defer conn.Close()
 	prepare := func(text string) uint16 {
-		if _, err := conn.ExecContext(o.ctx, "SET @omni_db_option = ?", text); err != nil {
-			t.Fatalf("binding %q: %v", text, err)
-		}
-		_, err := conn.ExecContext(o.ctx, "PREPARE omni_db_option_stmt FROM @omni_db_option")
+		_, err := o.db.ExecContext(o.ctx, "PREPARE omni_db_option_stmt FROM ?", text)
 		if err == nil {
-			_, _ = conn.ExecContext(o.ctx, "DEALLOCATE PREPARE omni_db_option_stmt")
 			return 0
 		}
 		var myErr *gomysql.MySQLError
