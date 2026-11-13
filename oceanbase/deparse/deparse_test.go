@@ -1470,3 +1470,16 @@ func TestDeepCastArrayTypeIsLinear(t *testing.T) {
 		t.Errorf("CastArrayType allocated %d bytes for %d bytes of text", allocated, len(got))
 	}
 }
+
+// TestCastArrayOfMapReadsBack: a cast to an ARRAY of MAPs writes the MAP's key and
+// value, so the text parses back to the same types.
+func TestCastArrayOfMapReadsBack(t *testing.T) {
+	got := CastArrayType(&ast.DataType{Name: "ARRAY", ArrayElem: &ast.DataType{
+		Name:      "MAP",
+		MapKey:    &ast.DataType{Name: "INT"},
+		ArrayElem: &ast.DataType{Name: "ARRAY", ArrayElem: &ast.DataType{Name: "VARCHAR", Length: 3}},
+	}})
+	if want := "ARRAY(MAP(INT,ARRAY(VARCHAR(3))))"; got != want {
+		t.Errorf("CastArrayType = %q, want %q", got, want)
+	}
+}

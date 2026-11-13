@@ -2147,26 +2147,38 @@ func CastArrayType(dt *ast.DataType) string {
 
 // castArrayLeaf writes an ARRAY whose element is no ARRAY.
 func castArrayLeaf(dt *ast.DataType) string {
-	element := dt.ArrayElem
-	if element == nil {
+	if dt.ArrayElem == nil {
 		return "ARRAY"
 	}
+	return "ARRAY(" + castArrayElement(dt.ArrayElem) + ")"
+}
+
+// castArrayElement writes the element of an ARRAY, or a MAP's key or value. A
+// MAP writes both, so the text reads back: MAP(INT,VARCHAR(3)).
+func castArrayElement(element *ast.DataType) string {
 	text := strings.ToUpper(element.Name)
 	switch text {
+	case "ARRAY":
+		return CastArrayType(element)
+	case "MAP":
+		if element.MapKey == nil || element.ArrayElem == nil {
+			return text
+		}
+		return "MAP(" + castArrayElement(element.MapKey) + "," + castArrayElement(element.ArrayElem) + ")"
 	case "BOOL", "BOOLEAN":
-		return "ARRAY(TINYINT)"
+		return "TINYINT"
 	case "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT":
 		// An integer keeps no display width, and ZEROFILL shows as the UNSIGNED it implies.
 		if element.Unsigned || element.Zerofill {
 			text += " UNSIGNED"
 		}
-		return "ARRAY(" + text + ")"
+		return text
 	case "FLOAT", "DOUBLE":
 		// Nor does a floating type keep a precision: FLOAT(30) stays FLOAT here.
 		if element.Unsigned {
 			text += " UNSIGNED"
 		}
-		return "ARRAY(" + text + ")"
+		return text
 	}
 	switch {
 	case len(element.EnumValues) > 0:
@@ -2185,7 +2197,7 @@ func castArrayLeaf(dt *ast.DataType) string {
 	if element.Unsigned {
 		text += " UNSIGNED"
 	}
-	return "ARRAY(" + text + ")"
+	return text
 }
 
 func deparseDataType(dt *ast.DataType) string {

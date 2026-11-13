@@ -528,18 +528,8 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			dt.Name = "MAP"
 			p.advance()
 			p.advance()
-			key, err := p.parseDataType()
+			key, value, err := p.parseMapTypes()
 			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(','); err != nil {
-				return nil, err
-			}
-			value, err := p.parseDataType()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
 			dt.MapKey, dt.ArrayElem = key, value
@@ -581,6 +571,29 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt = &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ARRAY", ArrayElem: dt}
 	}
 	return dt, nil
+}
+
+// parseMapTypes parses a MAP's key and value types, after MAP '(', through the
+// closing ')'. A MAP nests in its own types, so each level passes through
+// enterNesting.
+func (p *Parser) parseMapTypes() (key, value *nodes.DataType, err error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, nil, err
+	}
+	defer p.leaveNesting()
+	if key, err = p.parseDataType(); err != nil {
+		return nil, nil, err
+	}
+	if _, err = p.expect(','); err != nil {
+		return nil, nil, err
+	}
+	if value, err = p.parseDataType(); err != nil {
+		return nil, nil, err
+	}
+	if _, err = p.expect(')'); err != nil {
+		return nil, nil, err
+	}
+	return key, value, nil
 }
 
 // parseRoutineDataType reads a type where a routine's parameter, its RETURNS or a DECLARE
