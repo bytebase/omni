@@ -24,6 +24,9 @@ type Grammar struct {
 	unreachable map[string]bool
 	// spaced holds the token texts written with a space on each side.
 	spaced map[string]bool
+	// ruleText gives the text written where a rule stands in another rule's
+	// row, for the rules the token table samples (see Tokens).
+	ruleText map[string]string
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -48,12 +51,20 @@ type symbol struct {
 // every terminal whose declaration does not spell it: literal classes such
 // as identifiers and numbers, and tokens the lexer forms from other text.
 // Every other terminal is sampled by its %token text.
-func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
+//
+// defined names the conditions the grammar is built with, for a file that
+// holds more than one grammar between %ifdef lines (see Conditional). A
+// file with no such line needs none.
+func ReadBison(src string, tokens *Tokens, defined ...string) (*Grammar, error) {
+	src, err := Conditional(src, defined...)
+	if err != nil {
+		return nil, err
+	}
 	decls, gram, err := splitSections(src)
 	if err != nil {
 		return nil, err
 	}
-	g := &Grammar{byName: map[string]*rule{}, termText: map[string]string{}, unreachable: map[string]bool{}, spaced: map[string]bool{}}
+	g := &Grammar{byName: map[string]*rule{}, termText: map[string]string{}, unreachable: map[string]bool{}, spaced: map[string]bool{}, ruleText: map[string]string{}}
 	for name, form := range tokens.forms {
 		switch form {
 		case Spaced:
@@ -71,6 +82,18 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 	if err := g.readRules(lexGrammar(gram)); err != nil {
 		return nil, err
 	}
+	for _, r := range g.rules {
+		form, ok := tokens.forms[r.name]
+		if !ok {
+			continue
+		}
+		switch form {
+		case Spaced, Unreachable, Empty:
+			return nil, fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
+		}
+		g.ruleText[r.name] = form
+		delete(g.termText, r.name)
+	}
 	if g.start == "" {
 		g.start = g.rules[0].name
 	}
@@ -84,18 +107,19 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 }
 
 // splitSections returns the declaration section and the grammar section,
-// the two halves either side of the first "%%". The third section, after
-// the second "%%", is code and is dropped.
+// the two halves either side of the first "%%". A second "%%" ends the
+// grammar section: what follows it is code and is dropped. A grammar with
+// no code after its rules, as MariaDB's sql_yacc.yy, has none.
 func splitSections(src string) (decls, gram string, err error) {
 	first := indexOfLine(src, "%%", 0)
 	if first < 0 {
 		return "", "", fmt.Errorf("no %%%% section marker found")
 	}
+	lines := strings.Split(src, "\n")
 	second := indexOfLine(src, "%%", first+1)
 	if second < 0 {
-		return "", "", fmt.Errorf("only one %%%% section marker found")
+		second = len(lines)
 	}
-	lines := strings.Split(src, "\n")
 	return strings.Join(lines[:first], "\n"), strings.Join(lines[first+1:second], "\n"), nil
 }
 
