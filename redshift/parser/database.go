@@ -299,84 +299,36 @@ func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) (nodes.No
 	}, nil
 }
 
-// parseSetResetClause parses SetResetClause.
-//
-//	SetResetClause:
-//	    SET set_rest
-//	    | VariableResetStmt
+// parseSetResetClause parses SetResetClause: SET set_rest, which takes
+// no LOCAL or SESSION, or RESET reset_rest.
 func (p *Parser) parseSetResetClause() (*nodes.VariableSetStmt, error) {
-	if p.cur.Type == SET {
-		p.advance() // consume SET
-		// shape-III-partial fix: error from parseSetRest was previously discarded,
-		// producing AlterDatabaseSetStmt with nil Setstmt.
-		result, err := p.parseSetRest()
-		if err != nil {
+	var result nodes.Node
+	var err error
+	switch p.cur.Type {
+	case SET:
+		setLoc := p.pos()
+		p.advance()
+		if result, err = p.parseSetRest(); err != nil {
 			return nil, err
 		}
 		if vs, ok := result.(*nodes.VariableSetStmt); ok {
-			return vs, nil
+			vs.Loc = nodes.Loc{Start: setLoc, End: p.prev.End}
+		}
+	case RESET:
+		p.advance()
+		if result, err = p.parseVariableResetStmt(); err != nil {
+			return nil, err
+		}
+	default:
+		if p.collectMode() {
+			p.addTokenCandidate(SET)
+			p.addTokenCandidate(RESET)
+			return nil, errCollecting
 		}
 		return nil, p.syntaxErrorAtCur()
 	}
-	// RESET
-	p.advance() // consume RESET
-	result := p.parseResetRest()
-	if vs, ok := result.(*nodes.VariableSetStmt); ok {
-		return vs, nil
-	}
-	// shape-III-partial fix: parseResetRest returned something not a VariableSetStmt
-	// (e.g. nil). Previously swallowed — emit a syntax error instead.
-	return nil, p.syntaxErrorAtCur()
-}
-
-// parseResetRest parses the rest of a RESET statement (after RESET keyword).
-//
-//	reset_rest:
-//	    generic_reset
-//	    | TIME ZONE
-//	    | TRANSACTION ISOLATION LEVEL
-//	    | SESSION AUTHORIZATION
-func (p *Parser) parseResetRest() nodes.Node {
-	switch p.varNameFormKind() {
-	case TIME:
-		p.advance()
-		p.expect(ZONE)
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_RESET,
-			Name: "timezone",
-		}
-	case TRANSACTION:
-		p.advance()
-		p.expect(ISOLATION)
-		p.expect(LEVEL)
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_RESET,
-			Name: "transaction_isolation",
-		}
-	case SESSION:
-		p.advance()
-		p.expect(AUTHORIZATION)
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_RESET,
-			Name: "session_authorization",
-		}
-	case ALL:
-		p.advance()
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_RESET_ALL,
-		}
-	default:
-		name, err := p.parseVarName()
-		if err != nil {
-			// shape-III-partial fix: invalid/empty var_name after RESET was
-			// previously accepted as an un-named VariableSetStmt.
-			return nil
-		}
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_RESET,
-			Name: name,
-		}
-	}
+	vs, _ := result.(*nodes.VariableSetStmt)
+	return vs, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -411,12 +363,16 @@ func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 
 	// Optional: opt_with '(' drop_option_list ')'
 	var options *nodes.List
-	if p.cur.Type == WITH {
-		p.advance() // consume WITH
-	}
-	if p.cur.Type == '(' {
-		p.advance() // consume '('
-		options = p.parseDropOptionList()
+	if p.cur.Type == WITH || p.cur.Type == '(' {
+		if p.cur.Type == WITH {
+			p.advance() // consume WITH
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if options, err = p.parseDropOptionList(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -435,26 +391,28 @@ func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 //	drop_option_list:
 //	    drop_option
 //	    | drop_option_list ',' drop_option
-func (p *Parser) parseDropOptionList() *nodes.List {
-	first := p.parseDropOption()
-	items := []nodes.Node{first}
-	for p.cur.Type == ',' {
+func (p *Parser) parseDropOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		opt, err := p.parseDropOption()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, opt)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseDropOption())
 	}
-	return &nodes.List{Items: items}
 }
 
 // parseDropOption parses drop_option.
 //
 //	drop_option:
 //	    FORCE
-func (p *Parser) parseDropOption() *nodes.DefElem {
-	if p.cur.Type == FORCE {
-		p.advance()
-		return makeDefElem("force", nil)
+func (p *Parser) parseDropOption() (*nodes.DefElem, error) {
+	if _, err := p.expect(FORCE); err != nil {
+		return nil, err
 	}
-	// Consume whatever token is there (shouldn't happen for valid SQL)
-	p.advance()
-	return makeDefElem("force", nil)
+	return makeDefElem("force", nil), nil
 }

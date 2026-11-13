@@ -365,6 +365,17 @@ func (p *Parser) isSeqOptElemStart() bool {
 	return true
 }
 
+// isSeqOptElemLead reports whether the current token starts a SeqOptElem
+// where nothing else can start with it: after a SeqOptList's first element,
+// and in CREATE SEQUENCE's OptSeqOptList. NO leads there whatever follows
+// it, so NO INHERIT fails at INHERIT, as in gram.y.
+//
+// No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
+// against the whole Keywords table.
+func (p *Parser) isSeqOptElemLead() bool {
+	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //
@@ -453,4 +464,24 @@ var targetEndSet = func() map[int]bool {
 // labels the column and, and SELECT 1 AND true is an expression.
 func (p *Parser) isTargetLabelBeforeEnd() bool {
 	return p.cur.Type != IDENT && p.isBareColLabelStart() && targetEndSet[p.peekNext().Type]
+}
+
+// numericOnlyLeadTokens is the FIRST set of NumericOnly: FCONST,
+// SignedIconst's ICONST, and the sign either takes.
+//
+// Grammar reference: NumericOnly and SignedIconst in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseNumericOnlyRequired
+// in sequence.go, and vice versa.
+var numericOnlyLeadTokens = []int{ICONST, FCONST, '+', '-'}
+
+// isNumericOnlyStart reports whether the current token starts a NumericOnly,
+// as after RESTART, whose number is optional.
+//
+// No PG oracle test: no keyword starts a NumericOnly, and every position
+// with an optional one takes other keywords after it, so
+// TestIsNumericOnlyStartMatchesSlice checks the whole Keywords table.
+func (p *Parser) isNumericOnlyStart() bool {
+	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }

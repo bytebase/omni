@@ -125,3 +125,56 @@ func TestMissingNamesMatchPG(t *testing.T) {
 		{"ALTER SYSTEM SET TO TRUE", false},
 	})
 }
+
+// TestDDLFormsMatchPG pins DDL clauses omni read past where gram.y stops:
+// a required part left out, an option list cut short, a key action given
+// twice, and the forms gram.y's actions refuse (MATCH PARTIAL, a column
+// list on ON UPDATE, an unknown partitioning strategy or row security
+// option, SET CATALOG).
+func TestDDLFormsMatchPG(t *testing.T) {
+	assertSyntaxMatchesPG(t, []syntaxCase{
+		{"CREATE TABLE t (a int", false},
+		{"CREATE TABLE t (a int) INHERITS (p", false},
+		{"CREATE TABLE t (a, ) AS SELECT 1, 2", false},
+		{"CREATE TABLE t (a int REFERENCES p ON UPDATE CASCADE ON UPDATE CASCADE)", false},
+		{"CREATE TABLE t (a int REFERENCES p ON DELETE SET NULL (a) ON UPDATE SET DEFAULT)", true},
+		{"CREATE TABLE t (a int REFERENCES p ON UPDATE SET NULL (a))", false}, // a column list with SET NULL is only supported for ON DELETE actions
+		{"CREATE TABLE t (a int REFERENCES p MATCH PARTIAL)", false},          // MATCH PARTIAL not yet implemented
+		{"CREATE TABLE t (a int) PARTITION BY LIST (a)", true},
+		{"CREATE TABLE t (a int) PARTITION BY foo (a)", false}, // unrecognized partitioning strategy "foo"
+		{"CREATE TABLE t (LIKE p INCLUDING)", false},
+		{"CREATE TABLE t (a int UNIQUE NULLS)", false},
+		{"CREATE TABLE t (a int GENERATED ALWAYS AS IDENTITY ())", false},
+		{"CREATE TABLE t (a int, EXCLUDE USING (a WITH =))", false},
+		{"CREATE TABLE t (a int, UNIQUE (a) USING INDEX TABLESPACE)", false},
+		{"CREATE INDEX ON t (a COLLATE)", false},
+		{"CREATE SEQUENCE s CACHE", false},
+		{"CREATE SEQUENCE s NO", false},
+		{"ALTER SEQUENCE s CACHE 1 NO INHERIT", false},
+		{"ALTER SEQUENCE s RESTART WITH", false},
+		{"ALTER SEQUENCE s RESTART CACHE 1", true},
+		{"ALTER TABLE t ALTER a RESTART WITH", false},
+		{"CREATE FUNCTION f(a int,) RETURNS int AS 'x' LANGUAGE sql", false},
+		{"CREATE FUNCTION f() RETURNS TABLE (a) AS 'x' LANGUAGE sql", false},
+		{"DROP AGGREGATE a", false},
+		{"COMMENT ON AGGREGATE a(ORDER BY int) IS NULL", true},
+		{"COMMENT ON OPERATOR ~(int) IS NULL", false}, // missing argument
+		{"CREATE POLICY p ON t AS foo", false},        // unrecognized row security option "foo"
+		{"CREATE POLICY p ON t AS \"permissive\" FOR SELECT", true},
+		{"CREATE POLICY p ON t FOR", false},
+		{"ALTER POLICY p ON t USING ()", false},
+		{"ALTER ROLE r SET LOCAL x = 1", false},
+		{"ALTER ROLE r IN DATABASE d", false},
+		{"ALTER ROLE ALL IN DATABASE d RESET ALL", true},
+		{"ALTER GROUP g RENAME TO", false},
+		{"DROP DATABASE d WITH", false},
+		{"DROP DATABASE d (FORCE, FORCE)", true},
+		{"DROP DATABASE d (foo)", false},
+		{"SET CATALOG 'x'", false}, // current database cannot be changed
+		{"SET SESSION CHARACTERISTICS AS TRANSACTION", false},
+		{"BEGIN ISOLATION LEVEL", false},
+		{"ALTER DOMAIN d SET DEFAULT", false},
+		{"ALTER TABLE t ALTER a TYPE int USING", false},
+		{"CREATE DOMAIN d int INITIALLY", false},
+	})
+}
