@@ -399,6 +399,18 @@ func (p *Parser) isSeqOptElemLead() bool {
 	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
 
+// isFetchOptionStart reports whether tok starts what follows row_or_rows in
+// limit_clause's FETCH forms: ONLY or WITH TIES.
+func isFetchOptionStart(tok Token) bool {
+	return tok.Type == ONLY || tok.Type == WITH
+}
+
+// isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
+// follow UNBOUNDED or the a_expr in a frame_bound.
+func isFrameDirectionStart(tok Token) bool {
+	return tok.Type == PRECEDING || tok.Type == FOLLOWING
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

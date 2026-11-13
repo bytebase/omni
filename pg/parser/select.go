@@ -884,12 +884,6 @@ func (p *Parser) parseFetchFirstCExpr() (nodes.Node, error) {
 	return n, nil
 }
 
-// isFetchOptionStart reports whether tok starts what follows row_or_rows in
-// limit_clause's FETCH forms: ONLY or WITH TIES.
-func isFetchOptionStart(tok Token) bool {
-	return tok.Type == ONLY || tok.Type == WITH
-}
-
 // parseFetchClause parses the FETCH forms of limit_clause.
 //
 //	FETCH first_or_next select_fetch_first_value row_or_rows ONLY

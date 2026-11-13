@@ -42,3 +42,14 @@ func TestVarNameDotNeedsColId(t *testing.T) {
 		}
 	}
 }
+
+// TestFrameAndFetchLeadPredicates checks isFrameDirectionStart and
+// isFetchOptionStart against the whole Keywords table.
+func TestFrameAndFetchLeadPredicates(t *testing.T) {
+	for _, kw := range Keywords {
+		tok := Token{Type: kw.Token, Str: kw.Name}
+		if got, want := isFrameDirectionStart(tok), kw.Token == PRECEDING || kw.Token == FOLLOWING; got != want {
+			t.Errorf("isFrameDirectionStart(%q) = %v, want %v", kw.Name, got, want)
+		}
+	}
+}

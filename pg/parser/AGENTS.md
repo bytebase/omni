@@ -43,6 +43,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isSeqOptElemLead` | reuses `seqOptElemLeadTokens` | set only (NO leads whatever follows) | Yes — through `TestSeqOptElemLeadTokensMatchPG`, as `seqOptElemLeadTokens` |
 | `isNumericOnlyStart` | `numericOnlyLeadTokens` (4) | set only | No — no keyword starts a NumericOnly; `TestIsNumericOnlyStartMatchesSlice` checks the whole `Keywords` table |
 | `isOptTableQualifiedNameStart`, `isTempStart`, `isDeallocateTargetStart` | TABLE or a ColId; `tempLeadTokens` (2); ALL or a ColId | take a `Token` (the one after the current), for `keywordLeads` | No — each is a category or a short list; `TestKeywordLeadPredicates` checks the whole `Keywords` table |
+| `isFrameDirectionStart`, `isFetchOptionStart` | PRECEDING or FOLLOWING; ONLY or WITH | take a `Token`, for `keywordLeads` after UNBOUNDED and after FETCH's ROW/ROWS | No — two tokens each; `TestFrameAndFetchLeadPredicates` checks the whole `Keywords` table |
 | `isCreateStmtTailStart` | `createStmtTailLeadTokens` (3) | set only | No — `(`, OF and PARTITION start nothing else after CREATE TABLE's name; `TestIsCreateStmtTailStartMatchesSlice` checks the whole `Keywords` table |
 | `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
 

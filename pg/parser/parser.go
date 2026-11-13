@@ -32,6 +32,10 @@ type Parser struct {
 	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+	// funcOnlyAt is 1 + the byte offset of the func_expr_windowless being
+	// parsed, where gram.y takes a function call but no AexprConst, so
+	// func_name(args) 'string' is no typed constant there; 0 outside one.
+	funcOnlyAt int
 	// targetDepth is the depth at which the expression of the target_el being
 	// parsed is complete, where a keyword may be its bare label; 0 outside one.
 	targetDepth int

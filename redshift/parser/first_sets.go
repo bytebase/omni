@@ -398,6 +398,12 @@ func (p *Parser) isSeqOptElemLead() bool {
 	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
 
+// isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
+// follow UNBOUNDED or the a_expr in a frame_bound.
+func isFrameDirectionStart(tok Token) bool {
+	return tok.Type == PRECEDING || tok.Type == FOLLOWING
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

@@ -3196,7 +3196,7 @@ func (p *Parser) parseFuncCall(funcName *nodes.List, loc int, typmodConst bool) 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		if typmodConst && !fc.FuncVariadic && p.cur.Type == SCONST {
+		if typmodConst && !fc.FuncVariadic && p.cur.Type == SCONST && p.funcOnlyAt != loc+1 {
 			return p.typmodConst(fc, loc, orderLoc)
 		}
 	}
@@ -3566,12 +3566,6 @@ func (p *Parser) parseFrameClause(wd *nodes.WindowDef) error {
 // windowingError is the error frame_extent's actions raise, SQLSTATE 42P20.
 func windowingError(msg string, pos int) *ParseError {
 	return &ParseError{Code: "42P20", Message: msg, Position: pos}
-}
-
-// isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
-// follow UNBOUNDED or the a_expr in a frame_bound.
-func isFrameDirectionStart(tok Token) bool {
-	return tok.Type == PRECEDING || tok.Type == FOLLOWING
 }
 
 // parseFrameBound parses a frame_bound and returns its options as a frame
