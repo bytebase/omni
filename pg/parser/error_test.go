@@ -3,7 +3,42 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/pg/ast"
 )
+
+// TestBareKeywordLabels pins what PostgreSQL 17 accepts after a target's
+// expression: a keyword kwlist.h marks BARE_LABEL labels the column, even
+// one that could continue the expression, when the target ends after it.
+// The operands TestParseErrors finds missing are in WHERE, where no label
+// can stand. Each statement here was judged by postgres:17.12-alpine.
+func TestBareKeywordLabels(t *testing.T) {
+	for _, c := range []struct {
+		sql, label string
+	}{
+		{"SELECT 1 ALL", "all"},
+		{"SELECT 1 AND", "and"},
+		{"SELECT 1 OR, 2", "or"},
+		{"SELECT 1 + 2 BETWEEN FROM t", "between"},
+		{"SELECT 'a' COLLATE", "collate"},
+		{"SELECT 1 TABLE", "table"},
+	} {
+		list, err := Parse(c.sql)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", c.sql, err)
+			continue
+		}
+		sel := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.SelectStmt)
+		if got := sel.TargetList.Items[0].(*nodes.ResTarget).Name; got != c.label {
+			t.Errorf("Parse(%q) labels the column %q, want %q", c.sql, got, c.label)
+		}
+	}
+	for _, sql := range []string{"SELECT 1 YEAR", "SELECT 1 OVER", "SELECT 1 AND 2 IN", "SELECT 1 AND ON"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) took it, and PostgreSQL does not", sql)
+		}
+	}
+}
 
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
@@ -51,8 +86,8 @@ func TestParseErrors(t *testing.T) {
 			wantContains: "SQLSTATE 42601",
 		},
 		// Section 1.1: Logical & Comparison Operators — soft-fail nil checks
-		{name: "OR no right operand", sql: "SELECT 1 OR", wantContains: "syntax error", wantPos: -1},
-		{name: "AND no right operand", sql: "SELECT 1 AND", wantContains: "syntax error", wantPos: -1},
+		{name: "OR no right operand", sql: "SELECT 1 WHERE 1 OR", wantContains: "syntax error", wantPos: -1},
+		{name: "AND no right operand", sql: "SELECT 1 WHERE 1 AND", wantContains: "syntax error", wantPos: -1},
 		{name: "less-than no right operand", sql: "SELECT 1 <", wantContains: "syntax error", wantPos: -1},
 		{name: "greater-than no right operand", sql: "SELECT 1 >", wantContains: "syntax error", wantPos: -1},
 		{name: "equals no right operand", sql: "SELECT 1 =", wantContains: "syntax error", wantPos: -1},
@@ -71,18 +106,18 @@ func TestParseErrors(t *testing.T) {
 		{name: "IS DISTINCT FROM no right expr", sql: "SELECT 1 IS DISTINCT FROM", wantContains: "syntax error", wantPos: -1},
 		{name: "IS NOT DISTINCT FROM no right expr", sql: "SELECT 1 IS NOT DISTINCT FROM", wantContains: "syntax error", wantPos: -1},
 		// Section 2.1: BETWEEN / LIKE / ILIKE / SIMILAR TO — soft-fail nil checks
-		{name: "BETWEEN no lower bound", sql: "SELECT 1 BETWEEN", wantContains: "syntax error", wantPos: -1},
+		{name: "BETWEEN no lower bound", sql: "SELECT 1 WHERE 1 BETWEEN", wantContains: "syntax error", wantPos: -1},
 		{name: "BETWEEN AND no upper bound", sql: "SELECT 1 BETWEEN 0 AND", wantContains: "syntax error", wantPos: -1},
 		{name: "NOT BETWEEN no lower bound", sql: "SELECT 1 NOT BETWEEN", wantContains: "syntax error", wantPos: -1},
-		{name: "LIKE no pattern", sql: "SELECT 'a' LIKE", wantContains: "syntax error", wantPos: -1},
+		{name: "LIKE no pattern", sql: "SELECT 1 WHERE 'a' LIKE", wantContains: "syntax error", wantPos: -1},
 		{name: "LIKE ESCAPE no escape char", sql: "SELECT 'a' LIKE 'b' ESCAPE", wantContains: "syntax error", wantPos: -1},
 		{name: "NOT LIKE no pattern", sql: "SELECT 'a' NOT LIKE", wantContains: "syntax error", wantPos: -1},
-		{name: "ILIKE no pattern", sql: "SELECT 'a' ILIKE", wantContains: "syntax error", wantPos: -1},
+		{name: "ILIKE no pattern", sql: "SELECT 1 WHERE 'a' ILIKE", wantContains: "syntax error", wantPos: -1},
 		{name: "ILIKE ESCAPE no escape char", sql: "SELECT 'a' ILIKE 'b' ESCAPE", wantContains: "syntax error", wantPos: -1},
 		{name: "SIMILAR TO no pattern", sql: "SELECT 'a' SIMILAR TO", wantContains: "syntax error", wantPos: -1},
 		{name: "SIMILAR TO ESCAPE no escape char", sql: "SELECT 'a' SIMILAR TO 'b' ESCAPE", wantContains: "syntax error", wantPos: -1},
 		// Section 2.2: COLLATE, TYPECAST & String Functions — soft-fail nil checks
-		{name: "COLLATE no collation name", sql: "SELECT 'a' COLLATE", wantContains: "syntax error", wantPos: -1},
+		{name: "COLLATE no collation name", sql: "SELECT 1 WHERE 'a' COLLATE", wantContains: "syntax error", wantPos: -1},
 		{name: "TYPECAST no type name", sql: "SELECT 1::", wantContains: "syntax error", wantPos: -1},
 		{name: "AT TIME ZONE no timezone expr", sql: "SELECT now() AT TIME ZONE", wantContains: "syntax error", wantPos: -1},
 		{name: "OVERLAY PLACING no replacement", sql: "SELECT OVERLAY('abc' PLACING", wantContains: "syntax error", wantPos: -1},

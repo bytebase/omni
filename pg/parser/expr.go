@@ -57,6 +57,9 @@ func (p *Parser) parseAExprTail(left nodes.Node, loc, minPrec int) (nodes.Node, 
 			p.addInfixCandidates(minPrec)
 			return left, nil
 		}
+		if p.depth == p.targetDepth && p.isTargetLabelBeforeEnd() {
+			break
+		}
 		prec := p.aExprInfixPrec()
 		if prec < minPrec || prec == precNone {
 			break
@@ -498,7 +501,7 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		return xmlExpr, nil
 	case JSON:
 		// IS [NOT] JSON [VALUE|ARRAY|OBJECT|SCALAR] [WITH UNIQUE [KEYS]]
-		return p.parseJsonIsPredicate(left, negated), nil
+		return p.parseJsonIsPredicate(left, negated)
 	case NORMALIZED:
 		// IS [NOT] NORMALIZED (default NFC form)
 		p.advance()
@@ -3574,7 +3577,13 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 		}, nil
 	}
 
+	// The target's expression stops before a keyword that is its bare label
+	// (isTargetLabelBeforeEnd), at the level where the whole expression is
+	// complete: one nesting level below this one.
+	savedTargetDepth := p.targetDepth
+	p.targetDepth = p.depth + 1
 	expr, err := p.parseAExpr(0)
+	p.targetDepth = savedTargetDepth
 	if err != nil {
 		return nil, err
 	}
@@ -3587,7 +3596,7 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Optional alias: AS ColLabel | ColId (without AS)
+	// Optional alias: AS ColLabel | BareColLabel (gram.y: target_el)
 	if p.cur.Type == AS {
 		aliasLoc := p.pos()
 		p.advance()
@@ -3598,9 +3607,9 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 				p.addSelectAliasPosition(aliasLoc)
 			}
 		}
-	} else if p.isColId() && !p.isReservedForClause() {
+	} else if p.bareColLabelHere() {
 		aliasLoc := p.pos()
-		label, err := p.parseColId()
+		label, err := p.parseColLabel()
 		if err == nil {
 			rt.Name = label
 			if p.completing {
@@ -3611,6 +3620,16 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 
 	rt.Loc.End = p.pos()
 	return rt, nil
+}
+
+// bareColLabelHere reports whether a target's label without AS starts at
+// the current token. Completion keeps offering what it offered before: the
+// ColId candidates, since a keyword label is rarely what a user types.
+func (p *Parser) bareColLabelHere() bool {
+	if p.collectMode() {
+		return p.isColId() && !p.isReservedForClause()
+	}
+	return p.isBareColLabelStart()
 }
 
 // isReservedForClause checks if the current token is a keyword that starts a clause

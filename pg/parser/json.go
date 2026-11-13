@@ -334,7 +334,12 @@ func (p *Parser) parseJsonPredicateTypeConstraint() (nodes.JsonValueType, bool) 
 //
 //	json_key_uniqueness_constraint_opt:
 //	    WITH UNIQUE [KEYS] | WITHOUT UNIQUE [KEYS] | /* EMPTY */
-func (p *Parser) parseJsonKeyUniquenessConstraintOpt() bool {
+//
+// WITH starts the clause only before UNIQUE, since WITH may follow the
+// expression (CREATE TABLE AS ... WITH DATA). WITHOUT always starts it:
+// nothing else takes it there, not even a column label (kwlist.h marks it
+// AS_LABEL), so a WITHOUT not followed by UNIQUE is an error at that token.
+func (p *Parser) parseJsonKeyUniquenessConstraintOpt() (bool, error) {
 	if p.cur.Type == WITH {
 		next := p.peekNext()
 		if next.Type == UNIQUE {
@@ -343,21 +348,19 @@ func (p *Parser) parseJsonKeyUniquenessConstraintOpt() bool {
 			if p.cur.Type == KEYS {
 				p.advance()
 			}
-			return true
+			return true, nil
 		}
 	}
 	if p.cur.Type == WITHOUT {
-		next := p.peekNext()
-		if next.Type == UNIQUE {
-			p.advance() // consume WITHOUT
-			p.advance() // consume UNIQUE
-			if p.cur.Type == KEYS {
-				p.advance()
-			}
-			return false
+		p.advance() // consume WITHOUT
+		if _, err := p.expect(UNIQUE); err != nil {
+			return false, err
+		}
+		if p.cur.Type == KEYS {
+			p.advance()
 		}
 	}
-	return false
+	return false, nil
 }
 
 // parseJsonObjectConstructorNullClauseOpt parses NULL ON NULL / ABSENT ON NULL.
@@ -605,7 +608,10 @@ func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 		}
 		exprs := &nodes.List{Items: items}
 		absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
-		uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
+		uniqueKeys, err := p.parseJsonKeyUniquenessConstraintOpt()
+		if err != nil {
+			return nil, err
+		}
 		output, err := p.parseJsonReturningClauseOpt()
 		if err != nil {
 			return nil, err
@@ -641,7 +647,10 @@ func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 		}
 		exprs := &nodes.List{Items: items}
 		absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
-		uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
+		uniqueKeys, err := p.parseJsonKeyUniquenessConstraintOpt()
+		if err != nil {
+			return nil, err
+		}
 		output, err := p.parseJsonReturningClauseOpt()
 		if err != nil {
 			return nil, err
@@ -770,7 +779,10 @@ func (p *Parser) parseJsonParseExpr() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
+	uniqueKeys, err := p.parseJsonKeyUniquenessConstraintOpt()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -977,7 +989,10 @@ func (p *Parser) parseJsonObjectAgg() (nodes.Node, error) {
 		return nil, err
 	}
 	absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
-	uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
+	uniqueKeys, err := p.parseJsonKeyUniquenessConstraintOpt()
+	if err != nil {
+		return nil, err
+	}
 	output, err := p.parseJsonReturningClauseOpt()
 	if err != nil {
 		return nil, err
@@ -1353,9 +1368,12 @@ func (p *Parser) parseJsonTableColumnPathClauseOpt() (*nodes.JsonTablePathSpec, 
 
 // parseJsonIsPredicate parses IS [NOT] JSON [...] for the IS postfix handler.
 // Called from parseIsPostfix when cur is JSON.
-func (p *Parser) parseJsonIsPredicate(left nodes.Node, negated bool) nodes.Node {
+func (p *Parser) parseJsonIsPredicate(left nodes.Node, negated bool) (nodes.Node, error) {
 	itemType, _ := p.parseJsonPredicateTypeConstraint()
-	uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
+	uniqueKeys, err := p.parseJsonKeyUniquenessConstraintOpt()
+	if err != nil {
+		return nil, err
+	}
 	pred := &nodes.JsonIsPredicate{
 		Expr:       left,
 		ItemType:   itemType,
@@ -1367,7 +1385,7 @@ func (p *Parser) parseJsonIsPredicate(left nodes.Node, negated bool) nodes.Node 
 			Boolop: nodes.NOT_EXPR,
 			Args:   &nodes.List{Items: []nodes.Node{pred}},
 			Loc:    nodes.NoLoc(),
-		}
+		}, nil
 	}
-	return pred
+	return pred, nil
 }
