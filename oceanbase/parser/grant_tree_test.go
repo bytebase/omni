@@ -225,3 +225,31 @@ func assertUserStrings(t *testing.T, field string, got, want []string) {
 		}
 	}
 }
+
+// TestGrantCatalogObjectType holds CATALOG to its two readings: the object type
+// before a privilege level, and a name before TO, FROM or a dot.
+func TestGrantCatalogObjectType(t *testing.T) {
+	for _, tc := range []struct{ sql, typ, schema, name string }{
+		{"GRANT SELECT ON CATALOG * TO u", "CATALOG", "", "*"},
+		{"GRANT SELECT ON catalog TO u", "", "", "catalog"},
+		{"GRANT SELECT ON catalog.* TO u", "", "catalog", "*"},
+		{"GRANT SELECT ON catalog.t TO u", "", "catalog", "t"},
+		{"REVOKE SELECT ON catalog.t FROM u", "", "catalog", "t"},
+	} {
+		list, err := Parse(tc.sql)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", tc.sql, err)
+			continue
+		}
+		var on *ast.GrantTarget
+		switch s := list.Items[0].(type) {
+		case *ast.GrantStmt:
+			on = s.On
+		case *ast.RevokeStmt:
+			on = s.On
+		}
+		if on == nil || on.Type != tc.typ || on.Name.Schema != tc.schema || on.Name.Name != tc.name {
+			t.Errorf("Parse(%q).On = %+v, want type %q on %q.%q", tc.sql, on, tc.typ, tc.schema, tc.name)
+		}
+	}
+}

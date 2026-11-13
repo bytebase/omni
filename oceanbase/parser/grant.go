@@ -650,9 +650,9 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 		target.Type = "PROCEDURE"
 		p.advance()
 	default:
-		// CATALOG and SENSITIVE RULE are unreserved, so before TO or FROM
-		// CATALOG is the name the grant is on.
-		if p.isBareWord("CATALOG") && p.peekNext().Type != kwTO && p.peekNext().Type != kwFROM {
+		// CATALOG and SENSITIVE RULE are unreserved, so before TO, FROM or a
+		// dot CATALOG is a name: the table the grant is on, or its database.
+		if next := p.peekNext().Type; p.isBareWord("CATALOG") && next != kwTO && next != kwFROM && next != '.' {
 			target.Type = "CATALOG"
 			p.advance()
 		} else if p.isBareWord("SENSITIVE") && p.nextIsBareWord("RULE") {
