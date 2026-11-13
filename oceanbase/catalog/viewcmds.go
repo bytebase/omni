@@ -61,6 +61,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	aliased := aliasedTargets(stmt.Select)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -68,6 +69,9 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	viewCols := stmt.Columns
 	if !hasExplicit {
 		viewCols = derivedCols
+	}
+	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
+		return errDupColumn(name)
 	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
@@ -177,6 +181,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	aliased := aliasedTargets(stmt.Select)
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
@@ -184,6 +189,9 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	viewCols := stmt.Columns
 	if !hasExplicit {
 		viewCols = derivedCols
+	}
+	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
+		return errDupColumn(name)
 	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
@@ -742,6 +750,51 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
+}
+
+// aliasedTargets returns the items of a view's select list that are written with an alias,
+// read before the resolver gives every other item the name it derives.
+func aliasedTargets(sel *nodes.SelectStmt) map[*nodes.ResTarget]bool {
+	aliased := map[*nodes.ResTarget]bool{}
+	if sel == nil {
+		return aliased
+	}
+	for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
+		if rt, ok := target.(*nodes.ResTarget); ok && rt.Name != "" {
+			aliased[rt] = true
+		}
+	}
+	return aliased
+}
+
+// duplicateViewColumn returns a name two of a view's columns have, whatever its case, which
+// OceanBase refuses as MySQL does (ER_DUP_FIELDNAME, 1060). The names are the view's column
+// list or, without one, the names written in the resolved select list: an alias (aliased)
+// or a column's own name, a column of * among them. A name the engine makes up for an
+// expression is not held against the view: SELECT 1, 1 is taken.
+// TestOracle_OceanBaseRefusals holds each form to the engine.
+func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*nodes.ResTarget]bool) (string, bool) {
+	names := explicit
+	if len(names) == 0 && sel != nil {
+		for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
+			switch t := target.(type) {
+			case *nodes.ResTarget:
+				if _, column := t.Val.(*nodes.ColumnRef); column || aliased[t] {
+					names = append(names, t.Name)
+				}
+			case *nodes.ColumnRef:
+				names = append(names, t.Column)
+			}
+		}
+	}
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		if seen[toLower(name)] {
+			return name, true
+		}
+		seen[toLower(name)] = true
+	}
+	return "", false
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

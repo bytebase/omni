@@ -39,11 +39,11 @@ func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// OceanBase gives a JSON column no default, expression or not (1101).
-	// omni gap: the catalog takes the expression default, as MySQL 8.0 does.
+	// OceanBase gives a JSON column no default, expression or not (1101),
+	// where MySQL 8.0 takes the expression.
 	t.Run("expr_default_json", func(t *testing.T) {
 		containerRefusal(t, ctr, "",
-			"CREATE TABLE t_def_exjson (a JSON DEFAULT (JSON_ARRAY()))", 1101, 0)
+			"CREATE TABLE t_def_exjson (a JSON DEFAULT (JSON_ARRAY()))", 1101, 1101)
 	})
 }
 
@@ -112,11 +112,11 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	defer cleanup()
 
 	// OceanBase keeps a table's rows in primary-key order and does not drop a
-	// column of the key (1235). omni gap: the catalog drops it, as MySQL does.
+	// column of the key (1235), which MySQL drops.
 	t.Run("drop_column_part_of_pk", func(t *testing.T) {
 		containerRefusal(t, ctr,
 			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
-			"ALTER TABLE t_drop_pk DROP COLUMN a", 1235, 0)
+			"ALTER TABLE t_drop_pk DROP COLUMN a", 1235, 1235)
 	})
 
 	// Error tests: operations that should produce errors.
@@ -2169,7 +2169,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 			`ALTER TABLE t_alter_reorgp REORGANIZE PARTITION p1 INTO (
 				PARTITION p1a VALUES LESS THAN (20),
 				PARTITION p1b VALUES LESS THAN (30)
-			)`, 1235, 0)
+			)`, 1235, 1235)
 	})
 
 	// OceanBase's grammar has no COALESCE PARTITION.
@@ -2385,11 +2385,11 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 
 	// 4.4.2: ALTER EVENT. OceanBase does not rename an event that has
 	// started, and one scheduled EVERY 1 HOUR starts when it is created (1235).
-	// omni gap: the catalog renames it, as MySQL does.
+	// MySQL renames it.
 	t.Run("alter_event_rename", func(t *testing.T) {
 		containerRefusal(t, ctr,
 			"CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1",
-			"ALTER EVENT ev_rename_old RENAME TO ev_rename_new", 1235, 0)
+			"ALTER EVENT ev_rename_old RENAME TO ev_rename_new", 1235, 1235)
 	})
 
 	// 4.4.3: DROP EVENT
@@ -2887,8 +2887,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 	defer cleanup()
 
 	// The table of every default form holds a JSON column with an expression
-	// default, which OceanBase refuses (1101).
-	// omni gap: the catalog takes it, as MySQL 8.0 does.
+	// default, which OceanBase refuses (1101) and MySQL 8.0 takes.
 	t.Run("all_defaults", func(t *testing.T) {
 		containerRefusal(t, ctr, "", `CREATE TABLE t_all_defaults (
 			id INT NOT NULL AUTO_INCREMENT,
@@ -2916,7 +2915,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			dt_literal DATETIME DEFAULT '2024-01-01 00:00:00',
 			date_literal DATE DEFAULT '2024-01-01',
 			PRIMARY KEY (id)
-		)`, 1101, 0)
+		)`, 1101, 1101)
 	})
 }
 

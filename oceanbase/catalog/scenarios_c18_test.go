@@ -93,8 +93,7 @@ func TestScenario_C18(t *testing.T) {
 		// refuses MySQL's page-compression names.
 		stmt := "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'"
 		oracleRefuses(t, mc, stmt, 1210)
-		// omni gap: the catalog takes 'ZLIB', as MySQL does.
-		assertIntEq(t, "omni COMPRESSION='ZLIB' error code", omniCode(c, stmt), 0)
+		assertIntEq(t, "omni COMPRESSION='ZLIB' error code", omniCode(c, stmt), 1210)
 	})
 
 	// -----------------------------------------------------------------

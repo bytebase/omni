@@ -10,8 +10,6 @@ import (
 	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
-const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
-
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -82,6 +80,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		case "compression":
+			if err := validateCompressor(opt.Value); err != nil {
+				return err
+			}
 			tbl.Compression = opt.Value
 		case "encryption":
 			tbl.Encryption = opt.Value
@@ -621,16 +622,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
-	if c.generateGIPK {
-		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
-			return errGIPKColumnNameReserved()
-		}
-		if !hasPK {
-			addGeneratedInvisiblePrimaryKey(tbl)
-			hasPK = true
-		}
-	}
-
 	// Validate foreign key constraints (unless foreign_key_checks=0).
 	if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
@@ -652,47 +643,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	db.Tables[key] = tbl
 	return nil
-}
-
-func errGIPKColumnNameReserved() error {
-	return &Error{
-		Code:     4108,
-		SQLState: "HY000",
-		Message:  "Failed to generate invisible primary key. Column 'my_row_id' already exists.",
-	}
-}
-
-func addGeneratedInvisiblePrimaryKey(tbl *Table) {
-	col := &Column{
-		Position:                     0,
-		Name:                         generatedInvisiblePrimaryKeyColumnName,
-		DataType:                     "bigint",
-		ColumnType:                   "bigint unsigned",
-		Nullable:                     false,
-		AutoIncrement:                true,
-		Invisible:                    true,
-		GeneratedInvisiblePrimaryKey: true,
-	}
-
-	tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	rebuildColByNamePreservePositions(tbl)
-
-	tbl.Indexes = append(tbl.Indexes, &Index{
-		Name:      "PRIMARY",
-		Table:     tbl,
-		Columns:   []*IndexColumn{{Name: generatedInvisiblePrimaryKeyColumnName}},
-		Unique:    true,
-		Primary:   true,
-		IndexType: "",
-		Visible:   true,
-	})
-	tbl.Constraints = append(tbl.Constraints, &Constraint{
-		Name:      "PRIMARY",
-		Type:      ConPrimaryKey,
-		Table:     tbl,
-		Columns:   []string{generatedInvisiblePrimaryKeyColumnName},
-		IndexName: "PRIMARY",
-	})
 }
 
 func rebuildColByNamePreservePositions(tbl *Table) {
@@ -1627,6 +1577,22 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 	return result
 }
 
+// validateCompressor refuses a COMPRESSION that names none of OceanBase's compressors
+// (ER_WRONG_ARGUMENTS, 1210), MySQL's 'ZLIB' and 'LZ4' among them, and zlib_1.0, which
+// 4.3.5 lists and does not support (1235). TestOracle_OceanBaseRefusals holds each name
+// to the engine.
+func validateCompressor(value string) error {
+	name := strings.Trim(value, "'\"")
+	switch toLower(name) {
+	case "none", "lz4_1.0", "lz4_1.9.1", "snappy_1.0", "zstd_1.0", "zstd_1.3.8":
+		return nil
+	case "zlib_1.0":
+		return &Error{Code: 1235, SQLState: "0A000", Message: "zlib compressor not supported"}
+	}
+	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
+		Message: fmt.Sprintf("Incorrect arguments to %s", name)}
+}
+
 // allocIndexName generates a unique index name based on the first column,
 // appending _2, _3, etc. on collision. A key over a column named PRIMARY is named
 // PRIMARY on a table without a primary key: OceanBase refuses the name only when it is
@@ -2517,20 +2483,19 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	// Copy columns.
 	for i, srcCol := range srcTbl.Columns {
 		col := &Column{
-			Position:                     srcCol.Position,
-			Name:                         srcCol.Name,
-			DataType:                     srcCol.DataType,
-			ColumnType:                   srcCol.ColumnType,
-			Nullable:                     srcCol.Nullable,
-			AutoIncrement:                srcCol.AutoIncrement,
-			Charset:                      srcCol.Charset,
-			Collation:                    srcCol.Collation,
-			Comment:                      srcCol.Comment,
-			OnUpdate:                     srcCol.OnUpdate,
-			OnUpdateKind:                 srcCol.OnUpdateKind,
-			Invisible:                    srcCol.Invisible,
-			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
-			Hidden:                       srcCol.Hidden,
+			Position:      srcCol.Position,
+			Name:          srcCol.Name,
+			DataType:      srcCol.DataType,
+			ColumnType:    srcCol.ColumnType,
+			Nullable:      srcCol.Nullable,
+			AutoIncrement: srcCol.AutoIncrement,
+			Charset:       srcCol.Charset,
+			Collation:     srcCol.Collation,
+			Comment:       srcCol.Comment,
+			OnUpdate:      srcCol.OnUpdate,
+			OnUpdateKind:  srcCol.OnUpdateKind,
+			Invisible:     srcCol.Invisible,
+			Hidden:        srcCol.Hidden,
 			// SRID copied by presence: MySQL's CREATE TABLE ... LIKE preserves the source
 			// column's SRID clause (incl. an explicit `SRID 0`), so the cloned column must
 			// carry both the value and its presence flag, not silently drop to no-SRID.

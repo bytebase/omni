@@ -1160,7 +1160,6 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 
 	// Two columns of one name: OceanBase refuses the view, as MySQL does
 	// (ER_DUP_FIELDNAME, 1060).
-	// omni gap: the catalog takes it.
 	t.Run("same_name_columns_join", func(t *testing.T) {
 		const view = "CREATE VIEW v_same_name_join AS SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a"
 		oracleRefuses(t, ctr, view, 1060)
@@ -1169,7 +1168,7 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 		cat.SetCurrentDatabase("test")
 		cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 		cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
-		assertIntEq(t, "omni error code", omniCode(cat, view), 0)
+		assertIntEq(t, "omni error code", omniCode(cat, view), 1060)
 	})
 
 	for _, tc := range cases {

@@ -79,9 +79,14 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if !columnDefNullable(colDef) && hasNullDefault(colDef) {
 		return errInvalidDefault(colDef.Name)
 	}
-	if isLiteralDefaultForbiddenType(typeName) {
-		if isLiteralDefault(colDef.DefaultValue) || hasLiteralColumnDefaultConstraint(colDef) {
-			return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(colDef.Name)}
+	if err := validateDefaultOfType(colDef.Name, typeName, colDef.DefaultValue); err != nil {
+		return err
+	}
+	for _, cc := range colDef.Constraints {
+		if cc.Type == nodes.ColConstrDefault {
+			if err := validateDefaultOfType(colDef.Name, typeName, cc.Expr); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -217,15 +222,6 @@ func hasNullDefault(colDef *nodes.ColumnDef) bool {
 	return false
 }
 
-func hasLiteralColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
-	for _, cc := range colDef.Constraints {
-		if cc.Type == nodes.ColConstrDefault && isLiteralDefault(cc.Expr) {
-			return true
-		}
-	}
-	return false
-}
-
 func isLiteralDefault(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {
 	case *nodes.StringLit, *nodes.IntLit, *nodes.FloatLit, *nodes.BitLit, *nodes.BoolLit:
@@ -248,16 +244,24 @@ func isNullDefault(expr nodes.ExprNode) bool {
 	}
 }
 
-func isLiteralDefaultForbiddenType(typeName string) bool {
+// validateDefaultOfType refuses a default on a column of a type that has none in
+// OceanBase: a literal or an expression, anything but NULL. A JSON or spatial column
+// answers ER_BLOB_CANT_HAVE_DEFAULT (1101) and a BLOB or TEXT column ER_INVALID_DEFAULT
+// (1067), where MySQL 8.0 takes an expression on each and answers 1101 for a literal.
+// TestOracle_OceanBaseRefusals holds this to the engine.
+func validateDefaultOfType(colName, typeName string, expr nodes.ExprNode) error {
+	if expr == nil || isNullDefault(expr) {
+		return nil
+	}
 	switch strings.ToLower(typeName) {
 	case "blob", "tinyblob", "mediumblob", "longblob",
-		"text", "tinytext", "mediumtext", "longtext",
-		"json", "geometry", "point", "linestring", "polygon",
+		"text", "tinytext", "mediumtext", "longtext":
+		return errInvalidDefault(colName)
+	case "json", "geometry", "point", "linestring", "polygon",
 		"multipoint", "multilinestring", "multipolygon", "geometrycollection", "geomcollection":
-		return true
-	default:
-		return false
+		return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(colName)}
 	}
+	return nil
 }
 
 func fmtCantHaveDefault(colName string) string {

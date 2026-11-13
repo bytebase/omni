@@ -68,7 +68,6 @@ func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
 		ts3 TIMESTAMP(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
 		dt6 DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 		expr_int INT DEFAULT (FLOOR(RAND()*100)),
-		expr_json JSON DEFAULT (JSON_ARRAY()),
 		expr_varchar VARCHAR(36) DEFAULT (UUID())
 	)`)
 
@@ -80,7 +79,6 @@ func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
 	assertContains(t, got, "`ts3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3)")
 	assertContains(t, got, "`dt6` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
 	assertContains(t, got, "`expr_int` int DEFAULT (floor((rand() * 100)))")
-	assertContains(t, got, "`expr_json` json DEFAULT (json_array())")
 	assertContains(t, got, "`expr_varchar` varchar(36) DEFAULT (uuid())")
 }
 

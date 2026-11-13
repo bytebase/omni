@@ -240,7 +240,8 @@ func TestWalkThrough_3_7_AlterEvent(t *testing.T) {
 
 func TestWalkThrough_3_7_AlterEventRename(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE EVENT old_event ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+	// An event that has not started: OceanBase renames no other (TestOracle_OceanBaseRefusals).
+	wtExec(t, c, "CREATE EVENT old_event ON SCHEDULE EVERY 1 HOUR STARTS CURRENT_TIMESTAMP + INTERVAL 1 DAY DO SELECT 1")
 
 	wtExec(t, c, "ALTER EVENT old_event RENAME TO new_event")
 

@@ -206,8 +206,7 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 }
 
 // autoIncrementColumnName returns the name of the table's AUTO_INCREMENT column (a table has at
-// most one), or "" when there is none. The generated invisible primary key column is never
-// AUTO_INCREMENT, so it is naturally excluded.
+// most one), or "" when there is none.
 func autoIncrementColumnName(tbl *Table) string {
 	for _, col := range tbl.Columns {
 		if col != nil && col.AutoIncrement {
@@ -221,15 +220,11 @@ func autoIncrementColumnName(tbl *Table) string {
 // when the table has no PK. The PK can be expressed via an index (Primary) or a constraint
 // (ConPrimaryKey); the loader uses the index form for `PRIMARY KEY (...)` so that is the
 // primary source, with the constraint form as a fallback. Prefix lengths and DESC are
-// rendered (a PK may carry them); the generated invisible primary key is never emitted (it
-// is engine-synthesized).
+// rendered (a PK may carry them).
 func formatInlinePrimaryKey(tbl *Table) string {
 	for _, idx := range tbl.Indexes {
 		if !idx.Primary {
 			continue
-		}
-		if isGeneratedInvisiblePrimaryKeyIndex(idx) {
-			return ""
 		}
 		cols := make([]string, 0, len(idx.Columns))
 		for _, ic := range idx.Columns {

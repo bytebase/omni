@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/deparse"
@@ -252,6 +253,18 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	idx := tbl.colByName[colKey]
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
 		return errCannotDropColumnFunctionalIndex(cmd.Name)
+	}
+	// OceanBase keeps a table's rows in primary-key order and drops no column of the key
+	// (TestOracle_OceanBaseRefusals), where MySQL rebuilds the key without it.
+	for _, index := range tbl.Indexes {
+		if !index.Primary {
+			continue
+		}
+		for _, ic := range index.Columns {
+			if toLower(ic.Name) == colKey {
+				return &Error{Code: 1235, SQLState: "0A000", Message: "drop rowkey column is not supported"}
+			}
+		}
 	}
 	if len(tbl.Columns) == 1 {
 		return errCantRemoveAllFields()
@@ -853,6 +866,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "key_block_size":
 		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 	case "compression":
+		if err := validateCompressor(opt.Value); err != nil {
+			return err
+		}
 		tbl.Compression = opt.Value
 	case "encryption":
 		tbl.Encryption = opt.Value
@@ -1082,8 +1098,8 @@ func validateDefaultExprForExistingColumn(col *Column, expr nodes.ExprNode) erro
 	if isNullDefault(expr) && !col.Nullable {
 		return errInvalidDefault(col.Name)
 	}
-	if isLiteralDefaultForbiddenType(col.DataType) && isLiteralDefault(expr) {
-		return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(col.Name)}
+	if err := validateDefaultOfType(col.Name, col.DataType, expr); err != nil {
+		return err
 	}
 	return validateTemporalExprForColumn(col.Name, col.DataType, columnTemporalFSP(col), expr, true)
 }
@@ -1332,6 +1348,12 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	if tbl.Partitioning.SubType != "" {
 		return &Error{Code: 1235, SQLState: "42000", Message: "split subpartition is not supported"}
 	}
+	// It reorganizes a table only by its primary key: the table has one, and the
+	// partitioning key is the key's leading columns, in the key's order and with no
+	// expression over them (TestOracle_OceanBaseRefusals).
+	if err := reorganizeNeedsPrimaryKeyPrefix(tbl); err != nil {
+		return err
+	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1432,4 +1454,45 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// reorganizeNeedsPrimaryKeyPrefix refuses REORGANIZE PARTITION as OceanBase does on a table
+// whose primary key does not start with the partitioning key.
+func reorganizeNeedsPrimaryKeyPrefix(tbl *Table) error {
+	var pk *Index
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			pk = idx
+		}
+	}
+	if pk == nil {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "reorganizing table without primary key(s) is not supported"}
+	}
+	key := tbl.Partitioning.Columns
+	if len(key) == 0 && isPlainIdentifier(tbl.Partitioning.Expr) {
+		key = []string{strings.Trim(tbl.Partitioning.Expr, "`")}
+	}
+	matches := len(key) > 0 && len(key) <= len(pk.Columns)
+	for i := 0; matches && i < len(key); i++ {
+		matches = toLower(pk.Columns[i].Name) == toLower(key[i])
+	}
+	if !matches {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "mismatching between primary key prefix and partition key is not supported"}
+	}
+	return nil
+}
+
+// isPlainIdentifier reports whether a partitioning expression is one column and nothing
+// else, backticked or not.
+func isPlainIdentifier(expr string) bool {
+	name := strings.Trim(strings.TrimSpace(expr), "`")
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if r != '_' && r != '$' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }

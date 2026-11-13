@@ -11,8 +11,6 @@ type Catalog struct {
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	generateGIPK     bool // SET sql_generate_invisible_primary_key
-	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
 	session          SessionState
 	madeUpNames      int // names made for constraints written without one (madeUpConstraintName)
 }
@@ -37,8 +35,6 @@ const (
 
 type SessionState struct {
 	ForeignKeyChecks             bool
-	GenerateInvisiblePrimaryKey  bool
-	ShowGIPK                     bool
 	CharsetClient                string
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
@@ -57,8 +53,6 @@ func New() *Catalog {
 		charsetClient:    session.CharsetClient,
 		collationConn:    session.CollationConnection,
 		foreignKeyChecks: session.ForeignKeyChecks,
-		generateGIPK:     session.GenerateInvisiblePrimaryKey,
-		showGIPK:         session.ShowGIPK,
 		session:          session,
 	}
 }
