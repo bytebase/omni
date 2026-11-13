@@ -144,10 +144,10 @@ func TestPartitionMaintenanceModifiersRejected(t *testing.T) {
 // engine itself (container test).
 func TestPartitionMaintenanceModifiersMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	for want, cases := range map[bool][]string{
+	for want, cases := range byVerdict(map[bool][]string{
 		true:  partitionMaintenanceModifiersAccepted,
 		false: partitionMaintenanceModifiersRejected,
-	} {
+	}) {
 		for _, sql := range cases {
 			t.Run(sql, func(t *testing.T) {
 				accepts, err := tc.prepareSyntax(sql)

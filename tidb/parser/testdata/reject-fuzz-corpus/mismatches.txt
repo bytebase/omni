@@ -1,5 +1,0 @@
-# TiDB reject-fuzz over-acceptances (seed=0x7e1dbeef, N=300).
-# omni accepts, TiDB v8.5.5 rejects. Minimised. 0 finding(s).
-# Triage: fix across the forks and pin into compat.tsv as suite:reject-fuzz,
-# or, if intended, move the family<TAB>sql line into known-mismatches.txt.
-
