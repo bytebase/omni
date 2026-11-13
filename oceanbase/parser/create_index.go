@@ -101,6 +101,14 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		stmt.Options = append(stmt.Options, opt)
 	}
 
+	// with_column_group (create_index_stmt, sql_parser_mysql_mode.y, oceanbase
+	// v4.3.5_CE_BP6, line 10287).
+	if group, ok, err := p.parseWithColumnGroup(); err != nil {
+		return nil, err
+	} else if ok {
+		stmt.ColumnGroup = group
+	}
+
 	// No [algorithm_option | lock_option]: MySQL closes CREATE INDEX with them
 	// and OceanBase does not. 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for
 	// ALGORITHM = DEFAULT, ALGORITHM = INPLACE, LOCK = DEFAULT, LOCK = NONE and

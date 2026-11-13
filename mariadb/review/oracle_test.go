@@ -7,13 +7,9 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	"github.com/bytebase/omni/metadata"
@@ -36,54 +32,21 @@ INSERT INTO plain VALUES (1, 1), (2, 2);
 CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
-// mariadbImage is the MariaDB the oracle tests run on.
-const mariadbImage = testcontainer.Image
-
-var mariadbOracle struct {
-	once      sync.Once
-	container testcontainers.Container
-	db        *sql.DB
-	err       error
-}
-
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if walkServer.db != nil {
-		_ = walkServer.db.Close()
-	}
-	if mariadbOracle.container != nil {
-		_ = mariadbOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mariadbOracle.container)
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
-// startMariaDB returns the MariaDB 11.8 the oracle tests of this package
-// ask, started once.
+// startMariaDB returns the test's connection to MariaDB, with no database
+// selected, on a server that holds nothing an earlier test left: a replay of
+// the test's tape, or the pinned server in a recording (see
+// testcontainer.OpenEmptyWith).
 func startMariaDB(t *testing.T) *sql.DB {
 	t.Helper()
-	mariadbOracle.once.Do(func() {
-		ctx := context.Background()
-		c, err := tcmariadb.Run(ctx, mariadbImage, tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
-		if err != nil {
-			mariadbOracle.err = err
-			return
-		}
-		mariadbOracle.container = c
-		dsn, err := c.ConnectionString(ctx, "multiStatements=true")
-		if err != nil {
-			mariadbOracle.err = err
-			return
-		}
-		mariadbOracle.db, mariadbOracle.err = sql.Open("mysql", dsn)
-		if mariadbOracle.err == nil {
-			mariadbOracle.err = mariadbOracle.db.PingContext(ctx)
-		}
-	})
-	if mariadbOracle.err != nil {
-		t.Fatalf("mariadb oracle unavailable: %v", mariadbOracle.err)
-	}
-	return mariadbOracle.db
+	return testcontainer.OpenEmptyWith(t, testcontainer.Options{MultiStatements: true})
 }
 
 // resetOracle recreates the shop database from oracleBase, and an empty
@@ -116,6 +79,9 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 // columns, checks with their expressions, triggers, and partitions; and
 // views.
 //
+// Every read is ordered by the bytes of its names: information_schema
+// compares names without case, so tables a and A tie in a plain ORDER BY.
+//
 // bytebase: backend/plugin/db/mysql/sync.go — SyncDBSchema, which syncs MariaDB too
 func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
@@ -135,7 +101,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	s := &metadata.SchemaMetadata{}
 	tables := make(map[string]*metadata.TableMetadata)
 	var order []string
-	query(`SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME`, func(r *sql.Rows) error {
+	query(`SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' ORDER BY BINARY TABLE_NAME`, func(r *sql.Rows) error {
 		var name, kind string
 		if err := r.Scan(&name, &kind); err != nil {
 			return err
@@ -151,7 +117,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	// A default is synced quoted, and an invisible column, which Bytebase
 	// does not read on MariaDB, as any other.
 	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA, COALESCE(QUOTE(COLUMN_DEFAULT), '')
-		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY BINARY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
 		var tbl, col, gen, extra, def string
 		if err := r.Scan(&tbl, &col, &gen, &extra, &def); err != nil {
 			return err
@@ -173,7 +139,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	})
 	// A key part is its column: MariaDB has no functional key part.
 	indexes := make(map[[2]string]*metadata.IndexMetadata)
-	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
+	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY BINARY TABLE_NAME, BINARY INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
 		var tbl, idx, part string
 		var nonUnique int
 		if err := r.Scan(&tbl, &idx, &nonUnique, &part); err != nil {
@@ -195,7 +161,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	// A foreign key names the table it references without its database.
 	foreignKeys := make(map[[2]string]*metadata.ForeignKeyMetadata)
 	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
-		WHERE TABLE_SCHEMA = 'shop' AND POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		WHERE TABLE_SCHEMA = 'shop' AND POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL ORDER BY BINARY TABLE_NAME, BINARY CONSTRAINT_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
 		var tbl, name, ref, col, refCol string
 		if err := r.Scan(&tbl, &name, &ref, &col, &refCol); err != nil {
 			return err
@@ -215,7 +181,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		return nil
 	})
 	// A check's name is the table's, so CHECK_CONSTRAINTS names its table.
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop'`, func(r *sql.Rows) error {
+	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop' ORDER BY BINARY TABLE_NAME, BINARY CONSTRAINT_NAME`, func(r *sql.Rows) error {
 		var tbl, name, clause string
 		if err := r.Scan(&tbl, &name, &clause); err != nil {
 			return err
@@ -225,7 +191,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'shop'`, func(r *sql.Rows) error {
+	query(`SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'shop' ORDER BY BINARY EVENT_OBJECT_TABLE, BINARY TRIGGER_NAME`, func(r *sql.Rows) error {
 		var tbl, name string
 		if err := r.Scan(&tbl, &name); err != nil {
 			return err
@@ -236,7 +202,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		return nil
 	})
 	query(`SELECT TABLE_NAME, PARTITION_NAME, COALESCE(PARTITION_EXPRESSION, '') FROM information_schema.PARTITIONS
-		WHERE TABLE_SCHEMA = 'shop' AND PARTITION_NAME IS NOT NULL ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION`, func(r *sql.Rows) error {
+		WHERE TABLE_SCHEMA = 'shop' AND PARTITION_NAME IS NOT NULL ORDER BY BINARY TABLE_NAME, PARTITION_ORDINAL_POSITION`, func(r *sql.Rows) error {
 		var tbl, name, expr string
 		if err := r.Scan(&tbl, &name, &expr); err != nil {
 			return err
@@ -538,7 +504,8 @@ func constraintSet(t *testing.T, conn *sql.Conn) map[string]bool {
 			WHERE k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.TABLE_NAME = c.TABLE_NAME AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME),
 			(SELECT ck.CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS ck
 			WHERE ck.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND ck.CONSTRAINT_NAME = c.CONSTRAINT_NAME), '')
-		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop'`)
+		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop'
+		ORDER BY BINARY c.TABLE_NAME, c.CONSTRAINT_TYPE, BINARY c.CONSTRAINT_NAME`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +528,7 @@ func primaryKeyed(t *testing.T, conn *sql.Conn) (keyed, all map[string]bool) {
 	keyed, all = make(map[string]bool), make(map[string]bool)
 	rows, err := conn.QueryContext(ctx, `SELECT t.TABLE_NAME, c.CONSTRAINT_NAME IS NOT NULL FROM information_schema.TABLES t
 		LEFT JOIN information_schema.TABLE_CONSTRAINTS c ON c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.CONSTRAINT_TYPE = 'PRIMARY KEY'
-		WHERE t.TABLE_SCHEMA = 'shop' AND t.TABLE_TYPE = 'BASE TABLE'`)
+		WHERE t.TABLE_SCHEMA = 'shop' AND t.TABLE_TYPE = 'BASE TABLE' ORDER BY BINARY t.TABLE_NAME`)
 	if err != nil {
 		t.Fatal(err)
 	}

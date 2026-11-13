@@ -6,7 +6,7 @@ import "testing"
 // 2026-11-04 and recorded here as that server answered.
 //
 // The rejections are the point of this file. The corpus in
-// testdata/pingcap_parser_corpus.tsv pins the forms pingcap's own parser tests
+// compat.tsv's suite:pingcap-parser rows pins the forms pingcap's own parser tests
 // write, and it is overwhelmingly accept rows: it holds almost none of the
 // shapes a reader of a comma-separated clause list gets wrong -- a clause
 // twice, a clause after the statement should have ended, a clause that belongs

@@ -225,3 +225,47 @@ func assertUserStrings(t *testing.T, field string, got, want []string) {
 		}
 	}
 }
+
+// TestGrantCatalogObjectType holds CATALOG to its two readings: the object type
+// before a privilege level, and a name before TO, FROM or a dot.
+func TestGrantCatalogObjectType(t *testing.T) {
+	for _, tc := range []struct{ sql, typ, schema, name string }{
+		{"GRANT SELECT ON CATALOG * TO u", "CATALOG", "", "*"},
+		{"GRANT SELECT ON catalog TO u", "", "", "catalog"},
+		{"GRANT SELECT ON catalog.* TO u", "", "catalog", "*"},
+		{"GRANT SELECT ON catalog.t TO u", "", "catalog", "t"},
+		{"REVOKE SELECT ON catalog.t FROM u", "", "catalog", "t"},
+	} {
+		list, err := Parse(tc.sql)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", tc.sql, err)
+			continue
+		}
+		var on *ast.GrantTarget
+		switch s := list.Items[0].(type) {
+		case *ast.GrantStmt:
+			on = s.On
+		case *ast.RevokeStmt:
+			on = s.On
+		}
+		if on == nil || on.Type != tc.typ || on.Name.Schema != tc.schema || on.Name.Name != tc.name {
+			t.Errorf("Parse(%q).On = %+v, want type %q on %q.%q", tc.sql, on, tc.typ, tc.schema, tc.name)
+		}
+	}
+}
+
+// TestRoleGrantNames holds a role grant's names to unreserved_keyword_for_role_name:
+// every unreserved keyword but unreserved_keyword_ambiguous_roles, so RESTART names
+// a role and SUPER, a privilege word, and DUAL, a reserved one, do not.
+func TestRoleGrantNames(t *testing.T) {
+	for _, sql := range []string{"GRANT restart TO u", "REVOKE restart FROM u", "GRANT r1, `super` TO u"} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"GRANT super TO u", "GRANT DUAL TO u", "GRANT OPTION TO u", "GRANT select TO u"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) was accepted", sql)
+		}
+	}
+}

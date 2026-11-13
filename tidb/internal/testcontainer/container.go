@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -60,6 +61,27 @@ func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
 	if err := fn(context.Background(), db); err != nil {
 		t.Fatalf("reset TiDB: %v", err)
 	}
+}
+
+// Judge returns a connection to the pinned server itself, outside any tape,
+// for a judge of compat.tsv, which runs only in a recording. Arguments go to
+// the server as bound values, so a statement reaches it byte for byte, invalid
+// UTF-8 included.
+func Judge(t testing.TB) *sql.DB {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	pin, err := enginetest.LoadPin(Pins, "default")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	live(t, pin)
+	cfg := shared.config.Clone()
+	cfg.InterpolateParams = false
+	db := sql.OpenDB(must(mysql.NewConnector(cfg)))
+	t.Cleanup(func() { db.Close() })
+	return db
 }
 
 var shared struct {
@@ -190,7 +212,8 @@ func CheckDigest(ctx context.Context, c testcontainers.Container, digest string)
 }
 
 // Codec renders go-sql-driver's *mysql.MySQLError as "<number> <sqlstate>
-// <message>", with - for a missing SQLSTATE.
+// <message>", with - for a missing SQLSTATE, and … for a timestamp
+// (tsoNumber) and for the preamble of a syntax error (syntaxErrorPreamble).
 type Codec struct{}
 
 func (Codec) EncodeError(err error) (string, bool) {
@@ -202,8 +225,25 @@ func (Codec) EncodeError(err error) (string, bool) {
 	if me.SQLState == [5]byte{} {
 		state = "-"
 	}
-	return fmt.Sprintf("%d %s %s", me.Number, state, me.Message), true
+	message := tsoNumber.ReplaceAllString(me.Message, "$1: …")
+	if rest, ok := strings.CutPrefix(message, syntaxErrorPreamble); ok {
+		message = syntaxErrorShort + rest
+	}
+	return fmt.Sprintf("%d %s %s", me.Number, state, message), true
 }
+
+// Every syntax error of TiDB's parser opens with the same 121 characters, and
+// a parser package's tapes hold tens of thousands, so a tape holds "…" for
+// them: "1064 42000 …line 1 column 8 near "x" ".
+const (
+	syntaxErrorPreamble = "You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use "
+	syntaxErrorShort    = "…"
+)
+
+// tsoNumber matches the timestamps TiDB's oracle hands out, which an error
+// such as "cannot set read timestamp to a future time, readTS: <n>, currentTS:
+// <n>" quotes and which differ on every run. The codec writes … for them.
+var tsoNumber = regexp.MustCompile(`\b(readTS|currentTS): [0-9]+`)
 
 func (Codec) DecodeError(text string) error {
 	f := strings.SplitN(text, " ", 3)
@@ -215,6 +255,9 @@ func (Codec) DecodeError(text string) error {
 		return fmt.Errorf("tape: a MySQL error %q", text)
 	}
 	me := &mysql.MySQLError{Number: uint16(n), Message: f[2]}
+	if rest, ok := strings.CutPrefix(me.Message, syntaxErrorShort); ok {
+		me.Message = syntaxErrorPreamble + rest
+	}
 	if f[1] != "-" {
 		copy(me.SQLState[:], f[1])
 	}

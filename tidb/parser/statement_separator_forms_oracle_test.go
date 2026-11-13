@@ -7,7 +7,6 @@ import "testing"
 // PREPARE, which parses the statement without running it.
 func TestStatementSeparatorFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, cases := range [][]separatorFormCase{separatorFormCases, createTableQueryFormCases} {
 		for _, c := range cases {
 			t.Run(c.sql, func(t *testing.T) {

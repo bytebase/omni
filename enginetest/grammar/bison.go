@@ -24,6 +24,28 @@ type Grammar struct {
 	unreachable map[string]bool
 	// spaced holds the token texts written with a space on each side.
 	spaced map[string]bool
+	// reserved holds the words that never stand for a token class such as an
+	// identifier, only for themselves.
+	reserved map[string]bool
+	// antlr is set for a grammar ReadANTLR read. Its quoted literals are
+	// their own text, never a token's name; they are keywords a swap
+	// near-miss picks among; and an alternative's label is capped, since an
+	// EBNF alternative can list a whole statement's clauses. A bison
+	// grammar keeps the rules it always had, so its rows do not move.
+	antlr bool
+	// fixed holds the ANTLR tokens whose sample is the only text they
+	// match, as a lexer rule spelling a keyword in any case is.
+	fixed map[string]bool
+	// patterned holds the ANTLR tokens whose sample is one text of many a
+	// lexer rule matches, as [A-Z_][A-Z0-9_]* is of identifiers, however
+	// the sample is capitalized.
+	patterned map[string]bool
+	// spellings holds the ANTLR tokens that match a few fixed texts, as a
+	// lexer rule choosing among keywords does: each of its texts.
+	spellings map[string][]string
+	// ruleText gives the text written where a rule stands in another rule's
+	// row, for the rules the token table samples (see Tokens).
+	ruleText map[string]string
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -42,34 +64,45 @@ type symbol struct {
 	// literal is set when the symbol came from a "..." or '.' grammar
 	// literal, whose content is the text to emit, never a token name.
 	literal bool
+	// label is how a row's label writes the symbol, when that is not text:
+	// a rule an ANTLR group was lowered to is written as the group.
+	label string
 }
 
 // ReadBison reads a bison or goyacc grammar. tokens supplies the sample of
 // every terminal whose declaration does not spell it: literal classes such
 // as identifiers and numbers, and tokens the lexer forms from other text.
 // Every other terminal is sampled by its %token text.
-func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
+//
+// defined names the conditions the grammar is built with, for a file that
+// holds more than one grammar between %ifdef lines (see Conditional). A
+// file with no such line needs none.
+func ReadBison(src string, tokens *Tokens, defined ...string) (*Grammar, error) {
+	src, err := Conditional(src, defined...)
+	if err != nil {
+		return nil, err
+	}
 	decls, gram, err := splitSections(src)
 	if err != nil {
 		return nil, err
 	}
-	g := &Grammar{byName: map[string]*rule{}, termText: map[string]string{}, unreachable: map[string]bool{}, spaced: map[string]bool{}}
-	for name, form := range tokens.forms {
-		switch form {
-		case Spaced:
-			g.spaced[name] = true
-		case Unreachable:
-			g.unreachable[name] = true
-		case Empty:
-			g.termText[name] = ""
-		default:
-			g.termText[name] = form
-		}
-	}
+	g := newGrammar(tokens)
 	g.readDeclarations(decls)
 
 	if err := g.readRules(lexGrammar(gram)); err != nil {
 		return nil, err
+	}
+	for _, r := range g.rules {
+		form, ok := tokens.forms[r.name]
+		if !ok {
+			continue
+		}
+		switch form {
+		case Spaced, Unreachable, Empty:
+			return nil, fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
+		}
+		g.ruleText[r.name] = form
+		delete(g.termText, r.name)
 	}
 	if g.start == "" {
 		g.start = g.rules[0].name
@@ -81,6 +114,36 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 		return nil, err
 	}
 	return g, nil
+}
+
+// newGrammar returns an empty grammar holding the token table's forms.
+func newGrammar(tokens *Tokens) *Grammar {
+	g := &Grammar{
+		byName:      map[string]*rule{},
+		termText:    map[string]string{},
+		unreachable: map[string]bool{},
+		spaced:      map[string]bool{},
+		reserved:    map[string]bool{},
+		fixed:       map[string]bool{},
+		patterned:   map[string]bool{},
+		spellings:   map[string][]string{},
+		ruleText:    map[string]string{},
+	}
+	for name, form := range tokens.forms {
+		switch form {
+		case Spaced:
+			g.spaced[name] = true
+		case Unreachable:
+			g.unreachable[name] = true
+		case Reserved:
+			g.reserved[strings.ToUpper(name)] = true
+		case Empty:
+			g.termText[name] = ""
+		default:
+			g.termText[name] = form
+		}
+	}
+	return g
 }
 
 // splitSections returns the declaration section and the grammar section,
@@ -357,6 +420,9 @@ func (g *Grammar) resolveSymbols() error {
 
 // sample returns the text a terminal symbol lexes from.
 func (g *Grammar) sample(sym symbol) string {
+	if sym.literal && g.antlr {
+		return sym.text
+	}
 	if t, ok := g.termText[sym.text]; ok {
 		return t
 	}
