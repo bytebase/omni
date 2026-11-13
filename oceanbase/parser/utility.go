@@ -121,18 +121,33 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 // analyze_statistics_clause, after the table.
 var analyzeStatisticsForms = func() sysPat {
 	size := sysSeq("SIZE", sysAlt("AUTO", "REPEAT", "SKEWONLY", sysNumber)) // size_clause
-	// column_clause: column_name | '(' column_name_list ')'.
-	column := sysAlt(sysName, sysSeq(sysTok('('), sysList(sysName, sysComma), sysTok(')')))
+	// column_clause: column_name | '(' column_name_list ')'. SAMPLE names no
+	// column here: its precedence is below the list's LOWER_PARENS, so bison
+	// ends the list before it and SAMPLE opens the sample clause.
+	columnName := sysLeaf(func(p *Parser) bool {
+		if p.isBareWord("SAMPLE") {
+			return false
+		}
+		_, _, err := p.parseIdent()
+		return err == nil
+	})
+	column := sysAlt(columnName, sysSeq(sysTok('('), sysList(sysName, sysComma), sysTok(')')))
 	// for_columns_item, and for_columns_list, whose items stand side by side or
-	// with a comma between.
-	item := sysAlt(sysSeq(column, sysOpt(size)), size)
+	// with a comma between. A size alone is tried first: SIZE's precedence is
+	// above LOWER_PARENS, so bison reads SIZE 10 as a size_clause, not a column
+	// called size.
+	item := sysAlt(size, sysSeq(column, sysOpt(size)))
+	// use_partition: names, or an external table's column = value pairs.
+	usePartition := sysLeaf(func(p *Parser) bool {
+		return p.parseUsePartition(&nodes.TableRef{}) == nil
+	})
 	forClause := sysOpt(sysAlt(
 		"FOR TABLE",
 		sysSeq("FOR ALL", sysOpt(sysAlt("INDEXED", "HIDDEN")), "COLUMNS", sysOpt(size)),
 		sysSeq("FOR COLUMNS", sysOpt(sysList(item, sysOptComma))),
 	))
 	return sysSeq(
-		sysOpt("PARTITION", sysTok('('), sysNameList, sysTok(')')), // use_partition
+		sysOpt(usePartition),
 		sysAlt(
 			sysForm("COMPUTE", "STATISTICS", forClause),
 			sysForm("ESTIMATE", "STATISTICS", forClause, sysOpt("SAMPLE", sysInt, sysAlt("ROWS", "PERCENTAGE"))),
