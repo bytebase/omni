@@ -1,0 +1,9 @@
+# The grammar this engine's committed answers come from. No Cassandra server
+# judges yet, so default is no image: it is Apache Cassandra's CQL grammar,
+# src/antlr/Cql.g, Parser.g and Lexer.g, at the commit of the release in the
+# source tag. The digest is the SHA-256 of those three files, beside this one
+# byte for byte, read one after the other. Cql.g4, which the rows are
+# generated from and judged by, is converted from them by
+# cassandra/parser/cmd/antlr3to4.
+# columns: role, image, digest, source tag
+default	github.com/apache/cassandra@b5f2a54210d541339c2e7c17a794195cac0e67c2	sha256:7ac166ece5ed44992d37e95c11a26bb7822d26b2274fc93787a2b5842a387aa7	cassandra-5.0.9

@@ -1,0 +1,19 @@
+# Cassandra token forms for generated compat rows: the text written for each
+# token of Cql.g4 that is a class of texts. Keywords (K_*) and punctuation
+# spell themselves and need no row. Each note cites the rule in Lexer.g, as
+# cassandra/testdata/Cql.g4 carries it.
+# A sample of one name, string or number stands for its class when the
+# grammar judge reads a statement; a name sampled in quotes stands for names
+# in those quotes.
+# columns: token, form, note
+IDENT	a	Lexer.g:374 a letter, then letters, digits and _
+QUOTED_NAME	"a"	Lexer.g:281 a double-quoted name; "" is a quote in it
+STRING_LITERAL	'a'	Lexer.g:256 a single-quoted string, or a $$-quoted one
+INTEGER	1	Lexer.g:333 digits with an optional -
+FLOAT	1.5	Lexer.g:353 digits with a fraction or an exponent; the rule's second alternative, an integer, emits INTEGER
+HEXNUMBER	0x1	Lexer.g:378 0x and hex digits
+UUID	01234567-0123-0123-0123-0123456789ab	Lexer.g:382 a UUID in its 8-4-4-4-12 form
+DURATION	1d	Lexer.g:366 a duration: digits and a unit
+cident	a	Parser.g:1449 a column name is written as a name: the rule lists EMPTY_QUOTED_NAME first, and every row naming a column would carry ""
+K_COLUMNFAMILY	TABLE	Lexer.g:94 COLUMNFAMILY | TABLE: rows write TABLE, the current name, and the judge takes either
+K_TABLES	TABLES	Lexer.g:96 COLUMNFAMILIES | TABLES: rows write TABLES, and the judge takes either
