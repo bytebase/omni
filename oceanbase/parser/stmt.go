@@ -220,6 +220,10 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseQueryStatement()
 
 	default:
+		// AUDIT and NOAUDIT are no keywords of this lexer's.
+		if p.isBareWord("AUDIT") || p.isBareWord("NOAUDIT") {
+			return p.parseAuditStmt()
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }

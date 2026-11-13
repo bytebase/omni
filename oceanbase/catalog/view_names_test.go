@@ -107,7 +107,7 @@ var viewNameCases = []struct{ name, sql, want string }{
 	{`b15`, `SELECT * FROM j5 JOIN (SELECT k1, k2 FROM j2) d USING (k2, k1)`,
 		"select `j5`.`k1` AS `k1`,`j5`.`k2` AS `k2`,`j5`.`a` AS `a`,`j5`.`b` AS `b` from (`j5` join (select `j2`.`k1` AS `k1`,`j2`.`k2` AS `k2` from `j2`) `d` on(((`j5`.`k1` = `d`.`k1`) and (`j5`.`k2` = `d`.`k2`))))"},
 	{`b16`, `SELECT * FROM j1 RIGHT JOIN j2 USING (k1) WHERE k1 > 0 ORDER BY k1`,
-		"select `j2`.`k1` AS `k1`,`j2`.`k2` AS `k2`,`j2`.`b` AS `b`,`j1`.`a` AS `a` from (`j2` left join `j1` on((`j2`.`k1` = `j1`.`k1`))) where (`j2`.`k1` > 0) order by `j2`.`k1`"},
+		"select `j2`.`k1` AS `k1`,`j2`.`k2` AS `k2`,`j2`.`b` AS `b`,`j1`.`a` AS `a` from (`j2` left join `j1` on((`j2`.`k1` = `j1`.`k1`))) where (`j2`.`k1` > 0) order by 1"},
 	{`b17`, `SELECT * FROM u JOIN ((q RIGHT JOIN p ON 1=1) JOIN s ON 1=1) USING (k)`,
 		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`p`.`p1` AS `p1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`s`.`s1` AS `s1`,`s`.`s2` AS `s2` from (`u` join ((`p` left join `q` on((1 = 1))) join `s` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
 	{`b18`, `SELECT * FROM (p JOIN r USING (k)) RIGHT JOIN q ON 1=1`,

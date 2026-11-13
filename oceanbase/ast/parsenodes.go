@@ -2050,6 +2050,16 @@ type ObjectDDLStmt struct {
 func (s *ObjectDDLStmt) nodeTag()  {}
 func (s *ObjectDDLStmt) stmtNode() {}
 
+// AuditStmt is OceanBase's AUDIT or NOAUDIT statement. What it audits is
+// parsed and not kept.
+type AuditStmt struct {
+	Loc     Loc
+	NoAudit bool
+}
+
+func (s *AuditStmt) nodeTag()  {}
+func (s *AuditStmt) stmtNode() {}
+
 // KillStmt represents a KILL statement.
 type KillStmt struct {
 	Loc          Loc

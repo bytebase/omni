@@ -472,6 +472,7 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	if stmt.SetOp != ast.SetOpNone {
 		RewriteSelectStmt(stmt.Left)
 		RewriteSelectStmt(stmt.Right)
+		orderByPosition(stmt)
 		return
 	}
 	if stmt.ParenSource != nil {
@@ -479,6 +480,7 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 		for _, item := range stmt.OrderBy {
 			item.Expr = RewriteExpr(item.Expr)
 		}
+		orderByPosition(stmt)
 		return
 	}
 	for i, target := range stmt.TargetList {
@@ -500,4 +502,52 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 	for _, item := range stmt.OrderBy {
 		item.Expr = RewriteExpr(item.Expr)
 	}
+	orderByPosition(stmt)
+}
+
+// orderByPosition writes an ORDER BY item that is one of the query's select items as that
+// item's position, which is how OceanBase stores it: ORDER BY x, for a select item aliased
+// x or for the column a select item is, reads back as order by 1 (catalog's
+// TestOracle_ViewIdempotence, order-by-*). The select items of a set operation, or of a
+// query in parentheses, are those of its leftmost SELECT.
+func orderByPosition(stmt *ast.SelectStmt) {
+	if len(stmt.OrderBy) == 0 {
+		return
+	}
+	leaf := ast.LeftmostQueryLeaf(stmt)
+	if leaf == nil {
+		return
+	}
+	for _, item := range stmt.OrderBy {
+		if pos := selectItemPosition(item.Expr, leaf.TargetList); pos > 0 {
+			item.Expr = &ast.IntLit{Value: int64(pos)}
+		}
+	}
+}
+
+// selectItemPosition returns the 1-based position of the select item an ORDER BY
+// expression names, or 0: a column written with no table that is an item's alias, or the
+// very column an item is.
+func selectItemPosition(expr ast.ExprNode, items []ast.ExprNode) int {
+	ref, ok := expr.(*ast.ColumnRef)
+	if !ok || ref.Star {
+		return 0
+	}
+	if ref.Table == "" && ref.Schema == "" {
+		for i, item := range items {
+			if rt, ok := item.(*ast.ResTarget); ok && rt.Name != "" && strings.EqualFold(rt.Name, ref.Column) {
+				return i + 1
+			}
+		}
+	}
+	for i, item := range items {
+		if rt, ok := item.(*ast.ResTarget); ok {
+			item = rt.Val
+		}
+		if col, ok := item.(*ast.ColumnRef); ok && !col.Star &&
+			strings.EqualFold(col.Column, ref.Column) && strings.EqualFold(col.Table, ref.Table) && strings.EqualFold(col.Schema, ref.Schema) {
+			return i + 1
+		}
+	}
+	return 0
 }

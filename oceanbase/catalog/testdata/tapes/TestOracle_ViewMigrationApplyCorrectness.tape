@@ -2985,6 +2985,229 @@
 : bytes
 | utf8mb4_general_ci
 > exec
+| DROP DATABASE IF EXISTS vgen_to_create_explicit_columns_order_by
+< ok 0 0
+> exec
+| CREATE DATABASE vgen_to_create_explicit_columns_order_by DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vgen_to_create_explicit_columns_order_by
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b VARCHAR(20))
+< ok 0 0
+> exec
+| CREATE VIEW v (p, q) AS SELECT a AS x, b FROM t ORDER BY x, b
+< ok 0 0
+> query
+| SHOW CREATE TABLE vgen_to_create_explicit_columns_order_by.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` varchar(20) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW vgen_to_create_explicit_columns_order_by.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select `vgen_to_create_explicit_columns_order_by`.`t`.`a` AS `p`,`vgen_to_create_explicit_columns_order_by`.`t`.`b` AS `q` from `vgen_to_create_explicit_columns_order_by`.`t` order by 1, 2
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS vgen_from_create_explicit_columns_order_by
+< ok 0 0
+> exec
+| CREATE DATABASE vgen_from_create_explicit_columns_order_by DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vgen_from_create_explicit_columns_order_by
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b VARCHAR(20))
+< ok 0 0
+> query
+| SHOW CREATE TABLE vgen_from_create_explicit_columns_order_by.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` varchar(20) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS vt
+< ok 2 0
+> exec
+| CREATE DATABASE vt DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vt
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b VARCHAR(20))
+< ok 0 0
+> exec
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vt`.`v` AS select `vt`.`t`.`a` AS `p`,`vt`.`t`.`b` AS `q` from `vt`.`t` order by 1,2
+< ok 0 0
+> query
+| SHOW CREATE TABLE vt.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` varchar(20) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW vt.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select `vt`.`t`.`a` AS `p`,`vt`.`t`.`b` AS `q` from `vt`.`t` order by 1, 2
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS vgen_to_create_explicit_columns_order_by_union
+< ok 0 0
+> exec
+| CREATE DATABASE vgen_to_create_explicit_columns_order_by_union DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vgen_to_create_explicit_columns_order_by_union
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v (p) AS SELECT a AS x FROM t UNION SELECT 2 ORDER BY 1
+< ok 0 0
+> query
+| SHOW CREATE TABLE vgen_to_create_explicit_columns_order_by_union.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW vgen_to_create_explicit_columns_order_by_union.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS (select `vgen_to_create_explicit_columns_order_by_union`.`t`.`a` AS `p` from `vgen_to_create_explicit_columns_order_by_union`.`t`) union (select 2 AS `p`) order by 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS vgen_from_create_explicit_columns_order_by_union
+< ok 0 0
+> exec
+| CREATE DATABASE vgen_from_create_explicit_columns_order_by_union DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vgen_from_create_explicit_columns_order_by_union
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> query
+| SHOW CREATE TABLE vgen_from_create_explicit_columns_order_by_union.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS vt
+< ok 2 0
+> exec
+| CREATE DATABASE vt DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE vt
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vt`.`v` AS (select `vt`.`t`.`a` AS `p` from `vt`.`t`) union (select 2 AS `p`) order by 1
+< ok 0 0
+> query
+| SHOW CREATE TABLE vt.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW vt.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS (select `vt`.`t`.`a` AS `p` from `vt`.`t`) union (select 2 AS `p`) order by 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
 | DROP DATABASE IF EXISTS vgen_to_create_tsdiff_view
 < ok 0 0
 > exec

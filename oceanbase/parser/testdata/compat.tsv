@@ -202,7 +202,7 @@ reject	reject	engine	stmt/alter_system_stmt!drop-2	ALTER CHECKPOINT
 reject	reject	engine	stmt/alter_system_stmt!drop-3	ALTER SYSTEM
 reject	reject	engine	stmt/alter_system_stmt!insert	ALTER SYSTEM CHECKPOINT zzz
 reject	reject	engine	stmt/alter_system_stmt!swap	ALWAYS SYSTEM CHECKPOINT
-reject	accept	engine	stmt/audit_stmt	AUDIT CLUSTER
+accept	accept	engine	stmt/audit_stmt	AUDIT CLUSTER
 reject	reject	engine	stmt/audit_stmt!drop-1	CLUSTER
 reject	reject	engine	stmt/audit_stmt!drop-2	AUDIT
 reject	reject	engine	stmt/audit_stmt!insert	AUDIT CLUSTER zzz
@@ -7317,10 +7317,10 @@ reject	reject	engine	create_with_opt_hint/CREATE_HINT_BEGIN_hint_list_with_end!d
 reject	reject	engine	create_with_opt_hint/CREATE_HINT_BEGIN_hint_list_with_end!drop-2	CREATE /*+ DATABASE a
 reject	reject	engine	create_with_opt_hint/CREATE_HINT_BEGIN_hint_list_with_end!truncate	CREATE /*+
 reject	reject	engine	create_with_opt_hint/CREATE_HINT_BEGIN_hint_list_with_end!insert	CREATE /*+ */ zzz DATABASE a
-reject	accept	engine	alter_with_opt_hint/ALTER	AUDIT ALTER
+accept	accept	engine	alter_with_opt_hint/ALTER	AUDIT ALTER
 reject	reject	engine	alter_with_opt_hint/ALTER!insert	AUDIT ALTER zzz
 reject	reject	engine	alter_with_opt_hint/ALTER!swap	AUDIT ALWAYS
-reject	accept	engine	alter_with_opt_hint/ALTER_HINT_BEGIN_hint_list_with_end	AUDIT ALTER /*+ */
+accept	accept	engine	alter_with_opt_hint/ALTER_HINT_BEGIN_hint_list_with_end	AUDIT ALTER /*+ */
 reject	reject	engine	alter_with_opt_hint/ALTER_HINT_BEGIN_hint_list_with_end!drop-1	AUDIT */
 reject	reject	engine	alter_with_opt_hint/ALTER_HINT_BEGIN_hint_list_with_end!drop-2	AUDIT ALTER /*+
 reject	reject	engine	alter_with_opt_hint/ALTER_HINT_BEGIN_hint_list_with_end!insert	AUDIT ALTER /*+ */ zzz
@@ -13428,200 +13428,200 @@ accept	accept	engine	deallocate_or_drop/DROP	DROP PREPARE a
 reject	reject	engine	deallocate_or_drop/DROP!insert	DROP zzz PREPARE a
 reject	reject	engine	deallocate_or_drop/DROP!swap	DUAL PREPARE a
 accept	accept	engine	truncate_table_stmt/TRUNCATE_opt_table_relation_factor	TRUNCATE a
-reject	accept	engine	audit_stmt/audit_or_noaudit_audit_clause	AUDIT CLUSTER
-reject	accept	engine	audit_or_noaudit/AUDIT	AUDIT CLUSTER
+accept	accept	engine	audit_stmt/audit_or_noaudit_audit_clause	AUDIT CLUSTER
+accept	accept	engine	audit_or_noaudit/AUDIT	AUDIT CLUSTER
 reject	reject	engine	audit_or_noaudit/AUDIT!insert	AUDIT zzz CLUSTER
-reject	accept	engine	audit_or_noaudit/NOAUDIT	NOAUDIT CLUSTER
+accept	accept	engine	audit_or_noaudit/NOAUDIT	NOAUDIT CLUSTER
 reject	reject	engine	audit_or_noaudit/NOAUDIT!insert	NOAUDIT zzz CLUSTER
 reject	reject	engine	audit_or_noaudit/NOAUDIT!swap	NOCACHE CLUSTER
-reject	accept	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause	AUDIT CLUSTER ON a
+accept	accept	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause	AUDIT CLUSTER ON a
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause!drop-1	AUDIT ON a
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause!drop-2	AUDIT CLUSTER a
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause!drop-3	AUDIT CLUSTER ON
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause!insert	AUDIT CLUSTER ON a zzz
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_on_clause_op_audit_tail_clause!swap	AUDIT CLUSTER_ID ON a
-reject	accept	engine	audit_clause/audit_operation_clause_op_audit_tail_clause	AUDIT CLUSTER
+accept	accept	engine	audit_clause/audit_operation_clause_op_audit_tail_clause	AUDIT CLUSTER
 reject	reject	engine	audit_clause/audit_operation_clause_op_audit_tail_clause!swap	AUDIT CLUSTER_ID
-reject	accept	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause	AUDIT CLUSTER BY 's'
+accept	accept	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause	AUDIT CLUSTER BY 's'
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause!drop-1	AUDIT BY 's'
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause!drop-2	AUDIT CLUSTER 's'
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause!drop-3	AUDIT CLUSTER BY
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause!insert	AUDIT CLUSTER BY 's' zzz
 reject	reject	engine	audit_clause/audit_operation_clause_auditing_by_user_clause_op_audit_tail_clause!swap	AUDIT CLUSTER_ID BY 's'
-reject	accept	engine	audit_operation_clause/audit_all_shortcut_list	AUDIT CLUSTER
-reject	accept	engine	audit_operation_clause/ALL	AUDIT ALL
+accept	accept	engine	audit_operation_clause/audit_all_shortcut_list	AUDIT CLUSTER
+accept	accept	engine	audit_operation_clause/ALL	AUDIT ALL
 reject	reject	engine	audit_operation_clause/ALL!insert	AUDIT ALL zzz
 reject	reject	engine	audit_operation_clause/ALL!swap	AUDIT ALLOW
-reject	accept	engine	audit_operation_clause/ALL_STATEMENTS	AUDIT ALL STATEMENTS
+accept	accept	engine	audit_operation_clause/ALL_STATEMENTS	AUDIT ALL STATEMENTS
 reject	reject	engine	audit_operation_clause/ALL_STATEMENTS!drop-1	AUDIT STATEMENTS
 reject	reject	engine	audit_operation_clause/ALL_STATEMENTS!insert	AUDIT ALL STATEMENTS zzz
 reject	reject	engine	audit_operation_clause/ALL_STATEMENTS!swap	AUDIT ALLOW STATEMENTS
-reject	accept	engine	audit_all_shortcut_list/audit_all_shortcut	AUDIT CLUSTER
-reject	accept	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut	AUDIT CLUSTER, CLUSTER
+accept	accept	engine	audit_all_shortcut_list/audit_all_shortcut	AUDIT CLUSTER
+accept	accept	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut	AUDIT CLUSTER, CLUSTER
 reject	reject	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut!drop-1	AUDIT, CLUSTER
 reject	reject	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut!drop-2	AUDIT CLUSTER CLUSTER
 reject	reject	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut!drop-3	AUDIT CLUSTER,
 reject	reject	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut!insert	AUDIT CLUSTER, CLUSTER zzz
 reject	reject	engine	audit_all_shortcut_list/audit_all_shortcut_list_,_audit_all_shortcut!swap	AUDIT CLUSTER_ID, CLUSTER
-reject	accept	engine	auditing_on_clause/ON_normal_relation_factor	AUDIT CLUSTER ON a
+accept	accept	engine	auditing_on_clause/ON_normal_relation_factor	AUDIT CLUSTER ON a
 reject	reject	engine	auditing_on_clause/ON_normal_relation_factor!swap	AUDIT CLUSTER ONE a
-reject	accept	engine	auditing_on_clause/ON_DEFAULT	AUDIT CLUSTER ON DEFAULT
+accept	accept	engine	auditing_on_clause/ON_DEFAULT	AUDIT CLUSTER ON DEFAULT
 reject	reject	engine	auditing_on_clause/ON_DEFAULT!drop-1	AUDIT CLUSTER DEFAULT
 reject	reject	engine	auditing_on_clause/ON_DEFAULT!insert	AUDIT CLUSTER ON DEFAULT zzz
 reject	reject	engine	auditing_on_clause/ON_DEFAULT!swap	AUDIT CLUSTER ONE DEFAULT
-reject	accept	engine	audit_user_list/audit_user_with_host_name	AUDIT CLUSTER BY 's'
-reject	accept	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name	AUDIT CLUSTER BY 's', 's'
+accept	accept	engine	audit_user_list/audit_user_with_host_name	AUDIT CLUSTER BY 's'
+accept	accept	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name	AUDIT CLUSTER BY 's', 's'
 reject	reject	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name!drop-1	AUDIT CLUSTER BY, 's'
-reject	accept	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name!drop-2	AUDIT CLUSTER BY 's' 's'
+accept	accept	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name!drop-2	AUDIT CLUSTER BY 's' 's'
 reject	reject	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name!drop-3	AUDIT CLUSTER BY 's',
 reject	reject	engine	audit_user_list/audit_user_list_,_audit_user_with_host_name!insert	AUDIT CLUSTER BY 's', 's' zzz
-reject	accept	engine	audit_user_with_host_name/audit_user_opt_host_name	AUDIT CLUSTER BY 's'
-reject	accept	engine	audit_user/STRING_VALUE	AUDIT CLUSTER BY 's'
-reject	accept	engine	audit_user/NAME_OB	AUDIT CLUSTER BY a
+accept	accept	engine	audit_user_with_host_name/audit_user_opt_host_name	AUDIT CLUSTER BY 's'
+accept	accept	engine	audit_user/STRING_VALUE	AUDIT CLUSTER BY 's'
+accept	accept	engine	audit_user/NAME_OB	AUDIT CLUSTER BY a
 reject	reject	engine	audit_user/NAME_OB!insert	AUDIT CLUSTER BY a zzz
-reject	accept	engine	audit_user/unreserved_keyword_normal	AUDIT CLUSTER BY ACCESS_INFO
+accept	accept	engine	audit_user/unreserved_keyword_normal	AUDIT CLUSTER BY ACCESS_INFO
 reject	reject	engine	audit_user/unreserved_keyword_normal!insert	AUDIT CLUSTER BY ACCESS_INFO zzz
-reject	accept	engine	audit_user/unreserved_keyword_normal!swap	AUDIT CLUSTER BY ACCOUNT
-reject	accept	engine	auditing_by_user_clause/BY_audit_user_list	AUDIT CLUSTER BY 's'
+accept	accept	engine	audit_user/unreserved_keyword_normal!swap	AUDIT CLUSTER BY ACCOUNT
+accept	accept	engine	auditing_by_user_clause/BY_audit_user_list	AUDIT CLUSTER BY 's'
 reject	reject	engine	auditing_by_user_clause/BY_audit_user_list!swap	AUDIT CLUSTER BYTE 's'
-reject	accept	engine	op_audit_tail_clause/%empty	AUDIT CLUSTER
-reject	accept	engine	op_audit_tail_clause/audit_by_session_access_option	AUDIT CLUSTER BY ACCESS
+accept	accept	engine	op_audit_tail_clause/%empty	AUDIT CLUSTER
+accept	accept	engine	op_audit_tail_clause/audit_by_session_access_option	AUDIT CLUSTER BY ACCESS
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option!drop-1	AUDIT CLUSTER ACCESS
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option!insert	AUDIT CLUSTER BY ACCESS zzz
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option!swap	AUDIT CLUSTER BYTE ACCESS
-reject	accept	engine	op_audit_tail_clause/audit_whenever_option	AUDIT CLUSTER WHENEVER SUCCESSFUL
+accept	accept	engine	op_audit_tail_clause/audit_whenever_option	AUDIT CLUSTER WHENEVER SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_whenever_option!drop-1	AUDIT CLUSTER SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_whenever_option!drop-2	AUDIT CLUSTER WHENEVER
 reject	reject	engine	op_audit_tail_clause/audit_whenever_option!insert	AUDIT CLUSTER WHENEVER SUCCESSFUL zzz
 reject	reject	engine	op_audit_tail_clause/audit_whenever_option!swap	AUDIT CLUSTER WHERE SUCCESSFUL
-reject	accept	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option	AUDIT CLUSTER BY ACCESS WHENEVER SUCCESSFUL
+accept	accept	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option	AUDIT CLUSTER BY ACCESS WHENEVER SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!drop-1	AUDIT CLUSTER ACCESS WHENEVER SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!drop-2	AUDIT CLUSTER BY WHENEVER SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!drop-3	AUDIT CLUSTER BY ACCESS SUCCESSFUL
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!drop-4	AUDIT CLUSTER BY ACCESS WHENEVER
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!insert	AUDIT CLUSTER BY ACCESS WHENEVER SUCCESSFUL zzz
 reject	reject	engine	op_audit_tail_clause/audit_by_session_access_option_audit_whenever_option!swap	AUDIT CLUSTER BYTE ACCESS WHENEVER SUCCESSFUL
-reject	accept	engine	audit_by_session_access_option/BY_ACCESS	AUDIT CLUSTER BY ACCESS
-reject	accept	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL	AUDIT CLUSTER WHENEVER NOT SUCCESSFUL
+accept	accept	engine	audit_by_session_access_option/BY_ACCESS	AUDIT CLUSTER BY ACCESS
+accept	accept	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL	AUDIT CLUSTER WHENEVER NOT SUCCESSFUL
 reject	reject	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL!drop-1	AUDIT CLUSTER NOT SUCCESSFUL
 reject	reject	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL!drop-3	AUDIT CLUSTER WHENEVER NOT
 reject	reject	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL!insert	AUDIT CLUSTER WHENEVER NOT SUCCESSFUL zzz
 reject	reject	engine	audit_whenever_option/WHENEVER_NOT_SUCCESSFUL!swap	AUDIT CLUSTER WHERE NOT SUCCESSFUL
-reject	accept	engine	audit_whenever_option/WHENEVER_SUCCESSFUL	AUDIT CLUSTER WHENEVER SUCCESSFUL
-reject	accept	engine	audit_all_shortcut/alter_with_opt_hint_SYSTEM	AUDIT ALTER SYSTEM
+accept	accept	engine	audit_whenever_option/WHENEVER_SUCCESSFUL	AUDIT CLUSTER WHENEVER SUCCESSFUL
+accept	accept	engine	audit_all_shortcut/alter_with_opt_hint_SYSTEM	AUDIT ALTER SYSTEM
 reject	reject	engine	audit_all_shortcut/alter_with_opt_hint_SYSTEM!drop-1	AUDIT SYSTEM
 reject	reject	engine	audit_all_shortcut/alter_with_opt_hint_SYSTEM!insert	AUDIT ALTER SYSTEM zzz
 reject	reject	engine	audit_all_shortcut/alter_with_opt_hint_SYSTEM!swap	AUDIT ALWAYS SYSTEM
-reject	accept	engine	audit_all_shortcut/CLUSTER	AUDIT CLUSTER
-reject	accept	engine	audit_all_shortcut/CONTEXT	AUDIT CONTEXT
+accept	accept	engine	audit_all_shortcut/CLUSTER	AUDIT CLUSTER
+accept	accept	engine	audit_all_shortcut/CONTEXT	AUDIT CONTEXT
 reject	reject	engine	audit_all_shortcut/CONTEXT!insert	AUDIT CONTEXT zzz
 reject	reject	engine	audit_all_shortcut/CONTEXT!swap	AUDIT CONTINUE
-reject	accept	engine	audit_all_shortcut/MATERIALIZED_VIEW	AUDIT MATERIALIZED VIEW
+accept	accept	engine	audit_all_shortcut/MATERIALIZED_VIEW	AUDIT MATERIALIZED VIEW
 reject	reject	engine	audit_all_shortcut/MATERIALIZED_VIEW!drop-2	AUDIT MATERIALIZED
 reject	reject	engine	audit_all_shortcut/MATERIALIZED_VIEW!insert	AUDIT MATERIALIZED VIEW zzz
 reject	reject	engine	audit_all_shortcut/MATERIALIZED_VIEW!swap	AUDIT MAX VIEW
-reject	accept	engine	audit_all_shortcut/NOT_EXISTS	AUDIT NOT EXISTS
+accept	accept	engine	audit_all_shortcut/NOT_EXISTS	AUDIT NOT EXISTS
 reject	reject	engine	audit_all_shortcut/NOT_EXISTS!drop-1	AUDIT EXISTS
 reject	reject	engine	audit_all_shortcut/NOT_EXISTS!drop-2	AUDIT NOT
 reject	reject	engine	audit_all_shortcut/NOT_EXISTS!insert	AUDIT NOT EXISTS zzz
 reject	reject	engine	audit_all_shortcut/NOT_EXISTS!swap	AUDIT NOW EXISTS
-reject	accept	engine	audit_all_shortcut/OUTLINE	AUDIT OUTLINE
+accept	accept	engine	audit_all_shortcut/OUTLINE	AUDIT OUTLINE
 reject	reject	engine	audit_all_shortcut/OUTLINE!insert	AUDIT OUTLINE zzz
 reject	reject	engine	audit_all_shortcut/OUTLINE!swap	AUDIT OVER
-reject	accept	engine	audit_all_shortcut/PROCEDURE	AUDIT PROCEDURE
+accept	accept	engine	audit_all_shortcut/PROCEDURE	AUDIT PROCEDURE
 reject	reject	engine	audit_all_shortcut/PROCEDURE!insert	AUDIT PROCEDURE zzz
 reject	reject	engine	audit_all_shortcut/PROCEDURE!swap	AUDIT PROCESS
-reject	accept	engine	audit_all_shortcut/PROFILE	AUDIT PROFILE
+accept	accept	engine	audit_all_shortcut/PROFILE	AUDIT PROFILE
 reject	reject	engine	audit_all_shortcut/PROFILE!insert	AUDIT PROFILE zzz
 reject	reject	engine	audit_all_shortcut/PROFILE!swap	AUDIT PROFILES
-reject	accept	engine	audit_all_shortcut/SESSION	AUDIT SESSION
+accept	accept	engine	audit_all_shortcut/SESSION	AUDIT SESSION
 reject	reject	engine	audit_all_shortcut/SESSION!insert	AUDIT SESSION zzz
 reject	reject	engine	audit_all_shortcut/SESSION!swap	AUDIT SESSION_USER
-reject	accept	engine	audit_all_shortcut/SYSTEM_AUDIT	AUDIT SYSTEM AUDIT
+accept	accept	engine	audit_all_shortcut/SYSTEM_AUDIT	AUDIT SYSTEM AUDIT
 reject	reject	engine	audit_all_shortcut/SYSTEM_AUDIT!insert	AUDIT SYSTEM AUDIT zzz
 reject	reject	engine	audit_all_shortcut/SYSTEM_AUDIT!swap	AUDIT SYSTEM_USER AUDIT
-reject	accept	engine	audit_all_shortcut/SYSTEM_GRANT	AUDIT SYSTEM GRANT
+accept	accept	engine	audit_all_shortcut/SYSTEM_GRANT	AUDIT SYSTEM GRANT
 reject	reject	engine	audit_all_shortcut/SYSTEM_GRANT!insert	AUDIT SYSTEM GRANT zzz
 reject	reject	engine	audit_all_shortcut/SYSTEM_GRANT!swap	AUDIT SYSTEM_USER GRANT
-reject	accept	engine	audit_all_shortcut/TABLE	AUDIT TABLE
+accept	accept	engine	audit_all_shortcut/TABLE	AUDIT TABLE
 reject	reject	engine	audit_all_shortcut/TABLE!insert	AUDIT TABLE zzz
 reject	reject	engine	audit_all_shortcut/TABLE!swap	AUDIT TABLEGROUP
-reject	accept	engine	audit_all_shortcut/TABLESPACE	AUDIT TABLESPACE
+accept	accept	engine	audit_all_shortcut/TABLESPACE	AUDIT TABLESPACE
 reject	reject	engine	audit_all_shortcut/TABLESPACE!insert	AUDIT TABLESPACE zzz
 reject	reject	engine	audit_all_shortcut/TABLESPACE!swap	AUDIT TABLET
-reject	accept	engine	audit_all_shortcut/TRIGGER	AUDIT TRIGGER
+accept	accept	engine	audit_all_shortcut/TRIGGER	AUDIT TRIGGER
 reject	reject	engine	audit_all_shortcut/TRIGGER!insert	AUDIT TRIGGER zzz
 reject	reject	engine	audit_all_shortcut/TRIGGER!swap	AUDIT TRIGGERS
-reject	accept	engine	audit_all_shortcut/TYPE	AUDIT TYPE
+accept	accept	engine	audit_all_shortcut/TYPE	AUDIT TYPE
 reject	reject	engine	audit_all_shortcut/TYPE!insert	AUDIT TYPE zzz
 reject	reject	engine	audit_all_shortcut/TYPE!swap	AUDIT TYPES
-reject	accept	engine	audit_all_shortcut/USER	AUDIT USER
+accept	accept	engine	audit_all_shortcut/USER	AUDIT USER
 reject	reject	engine	audit_all_shortcut/USER!insert	AUDIT USER zzz
 reject	reject	engine	audit_all_shortcut/USER!swap	AUDIT USER_RESOURCES
-reject	accept	engine	audit_all_shortcut/VIEW	AUDIT VIEW
+accept	accept	engine	audit_all_shortcut/VIEW	AUDIT VIEW
 reject	reject	engine	audit_all_shortcut/VIEW!insert	AUDIT VIEW zzz
 reject	reject	engine	audit_all_shortcut/VIEW!swap	AUDIT VIRTUAL
-reject	accept	engine	audit_all_shortcut/alter_with_opt_hint_TABLE	AUDIT ALTER TABLE
+accept	accept	engine	audit_all_shortcut/alter_with_opt_hint_TABLE	AUDIT ALTER TABLE
 reject	reject	engine	audit_all_shortcut/alter_with_opt_hint_TABLE!insert	AUDIT ALTER TABLE zzz
 reject	reject	engine	audit_all_shortcut/alter_with_opt_hint_TABLE!swap	AUDIT ALWAYS TABLE
-reject	accept	engine	audit_all_shortcut/COMMENT_TABLE	AUDIT COMMENT TABLE
+accept	accept	engine	audit_all_shortcut/COMMENT_TABLE	AUDIT COMMENT TABLE
 reject	reject	engine	audit_all_shortcut/COMMENT_TABLE!insert	AUDIT COMMENT TABLE zzz
 reject	reject	engine	audit_all_shortcut/COMMENT_TABLE!swap	AUDIT COMMIT TABLE
-reject	accept	engine	audit_all_shortcut/DELETE_TABLE	AUDIT DELETE TABLE
+accept	accept	engine	audit_all_shortcut/DELETE_TABLE	AUDIT DELETE TABLE
 reject	reject	engine	audit_all_shortcut/DELETE_TABLE!insert	AUDIT DELETE TABLE zzz
 reject	reject	engine	audit_all_shortcut/DELETE_TABLE!swap	AUDIT DELETE_INSERT TABLE
-reject	accept	engine	audit_all_shortcut/EXECUTE_PROCEDURE	AUDIT EXECUTE PROCEDURE
+accept	accept	engine	audit_all_shortcut/EXECUTE_PROCEDURE	AUDIT EXECUTE PROCEDURE
 reject	reject	engine	audit_all_shortcut/EXECUTE_PROCEDURE!insert	AUDIT EXECUTE PROCEDURE zzz
 reject	reject	engine	audit_all_shortcut/EXECUTE_PROCEDURE!swap	AUDIT EXISTS PROCEDURE
-reject	accept	engine	audit_all_shortcut/GRANT_PROCEDURE	AUDIT GRANT PROCEDURE
+accept	accept	engine	audit_all_shortcut/GRANT_PROCEDURE	AUDIT GRANT PROCEDURE
 reject	reject	engine	audit_all_shortcut/GRANT_PROCEDURE!insert	AUDIT GRANT PROCEDURE zzz
 reject	reject	engine	audit_all_shortcut/GRANT_PROCEDURE!swap	AUDIT GRANTS PROCEDURE
-reject	accept	engine	audit_all_shortcut/GRANT_TABLE	AUDIT GRANT TABLE
+accept	accept	engine	audit_all_shortcut/GRANT_TABLE	AUDIT GRANT TABLE
 reject	reject	engine	audit_all_shortcut/GRANT_TABLE!insert	AUDIT GRANT TABLE zzz
 reject	reject	engine	audit_all_shortcut/GRANT_TABLE!swap	AUDIT GRANTS TABLE
-reject	accept	engine	audit_all_shortcut/GRANT_TYPE	AUDIT GRANT TYPE
+accept	accept	engine	audit_all_shortcut/GRANT_TYPE	AUDIT GRANT TYPE
 reject	reject	engine	audit_all_shortcut/GRANT_TYPE!insert	AUDIT GRANT TYPE zzz
 reject	reject	engine	audit_all_shortcut/GRANT_TYPE!swap	AUDIT GRANTS TYPE
-reject	accept	engine	audit_all_shortcut/INSERT_TABLE	AUDIT INSERT TABLE
+accept	accept	engine	audit_all_shortcut/INSERT_TABLE	AUDIT INSERT TABLE
 reject	reject	engine	audit_all_shortcut/INSERT_TABLE!insert	AUDIT INSERT TABLE zzz
 reject	reject	engine	audit_all_shortcut/INSERT_TABLE!swap	AUDIT INSERT_METHOD TABLE
-reject	accept	engine	audit_all_shortcut/SELECT_TABLE	AUDIT SELECT TABLE
+accept	accept	engine	audit_all_shortcut/SELECT_TABLE	AUDIT SELECT TABLE
 reject	reject	engine	audit_all_shortcut/SELECT_TABLE!insert	AUDIT SELECT TABLE zzz
 reject	reject	engine	audit_all_shortcut/SELECT_TABLE!swap	AUDIT SEMISTRUCT_ENCODING_TYPE TABLE
-reject	accept	engine	audit_all_shortcut/UPDATE_TABLE	AUDIT UPDATE TABLE
+accept	accept	engine	audit_all_shortcut/UPDATE_TABLE	AUDIT UPDATE TABLE
 reject	reject	engine	audit_all_shortcut/UPDATE_TABLE!insert	AUDIT UPDATE TABLE zzz
 reject	reject	engine	audit_all_shortcut/UPDATE_TABLE!swap	AUDIT UPGRADE TABLE
-reject	accept	engine	audit_all_shortcut/alter_with_opt_hint	AUDIT ALTER
-reject	accept	engine	audit_all_shortcut/AUDIT	AUDIT AUDIT
+accept	accept	engine	audit_all_shortcut/alter_with_opt_hint	AUDIT ALTER
+accept	accept	engine	audit_all_shortcut/AUDIT	AUDIT AUDIT
 reject	reject	engine	audit_all_shortcut/AUDIT!insert	AUDIT AUDIT zzz
 reject	reject	engine	audit_all_shortcut/AUDIT!swap	AUDIT AUTHORS
-reject	accept	engine	audit_all_shortcut/COMMENT	AUDIT COMMENT
+accept	accept	engine	audit_all_shortcut/COMMENT	AUDIT COMMENT
 reject	reject	engine	audit_all_shortcut/COMMENT!insert	AUDIT COMMENT zzz
 reject	reject	engine	audit_all_shortcut/COMMENT!swap	AUDIT COMMIT
-reject	accept	engine	audit_all_shortcut/DELETE	AUDIT DELETE
+accept	accept	engine	audit_all_shortcut/DELETE	AUDIT DELETE
 reject	reject	engine	audit_all_shortcut/DELETE!insert	AUDIT DELETE zzz
 reject	reject	engine	audit_all_shortcut/DELETE!swap	AUDIT DELETE_INSERT
-reject	accept	engine	audit_all_shortcut/EXECUTE	AUDIT EXECUTE
+accept	accept	engine	audit_all_shortcut/EXECUTE	AUDIT EXECUTE
 reject	reject	engine	audit_all_shortcut/EXECUTE!insert	AUDIT EXECUTE zzz
-reject	accept	engine	audit_all_shortcut/FLASHBACK	AUDIT FLASHBACK
+accept	accept	engine	audit_all_shortcut/FLASHBACK	AUDIT FLASHBACK
 reject	reject	engine	audit_all_shortcut/FLASHBACK!insert	AUDIT FLASHBACK zzz
 reject	reject	engine	audit_all_shortcut/FLASHBACK!swap	AUDIT FLASHBACK_READ_TX_UNCOMMITTED
-reject	accept	engine	audit_all_shortcut/GRANT	AUDIT GRANT
+accept	accept	engine	audit_all_shortcut/GRANT	AUDIT GRANT
 reject	reject	engine	audit_all_shortcut/GRANT!insert	AUDIT GRANT zzz
 reject	reject	engine	audit_all_shortcut/GRANT!swap	AUDIT GRANTS
-reject	accept	engine	audit_all_shortcut/INDEX	AUDIT INDEX
+accept	accept	engine	audit_all_shortcut/INDEX	AUDIT INDEX
 reject	reject	engine	audit_all_shortcut/INDEX!insert	AUDIT INDEX zzz
 reject	reject	engine	audit_all_shortcut/INDEX!swap	AUDIT INDEXED
-reject	accept	engine	audit_all_shortcut/INSERT	AUDIT INSERT
+accept	accept	engine	audit_all_shortcut/INSERT	AUDIT INSERT
 reject	reject	engine	audit_all_shortcut/INSERT!insert	AUDIT INSERT zzz
 reject	reject	engine	audit_all_shortcut/INSERT!swap	AUDIT INSERT_METHOD
-reject	accept	engine	audit_all_shortcut/RENAME	AUDIT RENAME
+accept	accept	engine	audit_all_shortcut/RENAME	AUDIT RENAME
 reject	reject	engine	audit_all_shortcut/RENAME!insert	AUDIT RENAME zzz
 reject	reject	engine	audit_all_shortcut/RENAME!swap	AUDIT REORGANIZE
-reject	accept	engine	audit_all_shortcut/SELECT	AUDIT SELECT
+accept	accept	engine	audit_all_shortcut/SELECT	AUDIT SELECT
 reject	reject	engine	audit_all_shortcut/SELECT!insert	AUDIT SELECT zzz
 reject	reject	engine	audit_all_shortcut/SELECT!swap	AUDIT SEMISTRUCT_ENCODING_TYPE
-reject	accept	engine	audit_all_shortcut/UPDATE	AUDIT UPDATE
+accept	accept	engine	audit_all_shortcut/UPDATE	AUDIT UPDATE
 reject	reject	engine	audit_all_shortcut/UPDATE!insert	AUDIT UPDATE zzz
 reject	reject	engine	audit_all_shortcut/UPDATE!swap	AUDIT UPGRADE
 accept	accept	engine	rename_table_stmt/RENAME_TABLE_rename_table_actions	RENAME TABLE a TO a

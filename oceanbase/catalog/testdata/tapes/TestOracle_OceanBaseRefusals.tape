@@ -190,6 +190,27 @@
 < error
 | 1101 42000 BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
 
+== TestOracle_OceanBaseRefusals/a_view_that_compares_two_collations_it_cannot default#1
+> exec
+| CREATE VIEW v1 AS SELECT ('a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci) AS n
+< error
+| 1267 HY000 Illegal mix of collations (utf8mb4_bin,EXPLICIT), (utf8mb4_general_ci,EXPLICIT)
+> exec
+| CREATE VIEW v2 AS SELECT IF('a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci, 1, 0) AS n
+< error
+| 1267 HY000 Illegal mix of collations (utf8mb4_bin,EXPLICIT), (utf8mb4_general_ci,EXPLICIT)
+> exec
+| CREATE VIEW v3 AS SELECT CASE WHEN 'a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci THEN 1 ELSE 0 END AS n
+< error
+| 1267 HY000 Illegal mix of collations (utf8mb4_bin,EXPLICIT), (utf8mb4_general_ci,EXPLICIT)
+> exec
+| CREATE VIEW v4 AS SELECT CASE 'a' COLLATE utf8mb4_bin WHEN 'b' COLLATE utf8mb4_general_ci THEN 1 ELSE 0 END AS n
+< error
+| 1267 HY000 Illegal mix of collations (utf8mb4_bin,EXPLICIT), (utf8mb4_general_ci,EXPLICIT)
+> exec
+| CREATE VIEW v5 AS SELECT CASE 'a' COLLATE utf8mb4_bin WHEN 'b' THEN 1 ELSE 0 END AS n
+< ok 0 0
+
 == TestOracle_OceanBaseRefusals/a_view_with_two_columns_of_one_name default#1
 > exec
 | CREATE TABLE t1 (a INT, b INT)
