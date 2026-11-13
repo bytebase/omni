@@ -1,14 +1,14 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
 
 // TestScenario_C16 covers section C16 (Date/time function precision defaults)
 // from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 12 scenarios, each asserted on
-// both MySQL 8.0 container and the omni catalog. Failures in omni assertions
-// are documented in mysql/catalog/scenarios_bug_queue/c16.md (NOT proof failures).
+// both OceanBase and the omni catalog.
 func TestScenario_C16(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -29,6 +29,8 @@ func TestScenario_C16(t *testing.T) {
 		}
 		switch x := v.(type) {
 		case int64:
+			return int(x), true
+		case uint64: // OceanBase's DATETIME_PRECISION is BIGINT UNSIGNED
 			return int(x), true
 		case []byte:
 			var n int
@@ -117,8 +119,7 @@ func TestScenario_C16(t *testing.T) {
 		scenarioReset(t, mc)
 
 		// 0..6 should all work at runtime via SELECT LENGTH(NOW(n)).
-		wantLen := map[int]int{0: 19, 1: 21, 2: 22, 3: 23, 4: 24, 5: 25, 6: 26}
-		for n, want := range wantLen {
+		for n, want := range []int{19, 21, 22, 23, 24, 25, 26} {
 			var got int
 			row := mc.db.QueryRowContext(mc.ctx,
 				`SELECT LENGTH(NOW(`+itoaC16(n)+`))`)
@@ -305,10 +306,12 @@ func TestScenario_C16(t *testing.T) {
 			if strings.ToLower(t6) != "decimal" {
 				t.Errorf("oracle u6 DATA_TYPE: got %q, want decimal", t6)
 			}
-			// NUMERIC_SCALE may be int64 or []byte.
+			// NUMERIC_SCALE may be int64, uint64 or []byte.
 			scale := 0
 			switch x := s6.(type) {
 			case int64:
+				scale = int(x)
+			case uint64:
 				scale = int(x)
 			case []byte:
 				for _, c := range x {
@@ -476,40 +479,46 @@ func TestScenario_C16(t *testing.T) {
 
 	// ---- 16.11 YEAR(N) deprecation — only YEAR(4) accepted ----------------
 	t.Run("16_11_YEAR_normalization", func(t *testing.T) {
-		// YEAR(2), YEAR(3), YEAR(5) → ER_INVALID_YEAR_COLUMN_LENGTH (1818).
+		// OceanBase takes YEAR(2), YEAR(3) and YEAR(5), which MySQL 8.0 refuses
+		// with ER_INVALID_YEAR_COLUMN_LENGTH (1818), and stores each as year(4).
+		// omni gap: the catalog refuses them with 1818, as MySQL does.
 		for _, n := range []string{"2", "3", "5"} {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
 			ddl := `CREATE TABLE t (y YEAR(` + n + `))`
 			oErr, mErr := c16RunExpectError(t, c, ddl)
-			if oErr == nil {
-				t.Errorf("oracle: YEAR(%s) unexpectedly accepted", n)
+			if oErr != nil {
+				t.Errorf("oracle: YEAR(%s): %v", n, oErr)
 			}
-			if mErr == nil {
-				t.Errorf("omni: KNOWN BUG — YEAR(%s) should error (ER_INVALID_YEAR_COLUMN_LENGTH), see mysql/catalog/scenarios_bug_queue/c16.md", n)
+			var columnType string
+			oracleScan(t, mc, `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='y'`, &columnType)
+			assertStringEq(t, "oracle COLUMN_TYPE of YEAR("+n+")", columnType, "year(4)")
+			var ce *Error
+			if !errors.As(mErr, &ce) || ce.Code != 1818 {
+				t.Errorf("omni: YEAR(%s): got %v, want error 1818", n, mErr)
 			}
 		}
 
-		// YEAR(4) normalized to YEAR in SHOW CREATE.
+		// OceanBase keeps the width of YEAR(4) in SHOW CREATE, where MySQL
+		// writes YEAR.
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (y YEAR(4))`)
 		show := strings.ToLower(oracleShow(t, mc, "SHOW CREATE TABLE t"))
-		if !strings.Contains(show, "`y` year") || strings.Contains(show, "year(4)") {
-			t.Errorf("oracle SHOW CREATE: YEAR(4) not normalized: %s", show)
+		if !strings.Contains(show, "`y` year(4)") {
+			t.Errorf("oracle SHOW CREATE: want `y` year(4): %s", show)
 		}
+		// omni gap: the catalog drops the width, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl != nil {
-			if col := tbl.GetColumn("y"); col != nil {
-				omniType := strings.ToLower(col.ColumnType)
-				if omniType == "" {
-					omniType = strings.ToLower(col.DataType)
-				}
-				if strings.Contains(omniType, "year(4)") || strings.Contains(omniType, "year(2)") {
-					t.Errorf("omni: KNOWN BUG — YEAR(4) not normalized: %q", omniType)
-				}
-			}
+		if tbl == nil {
+			t.Fatal("omni: table t missing")
 		}
+		col := tbl.GetColumn("y")
+		if col == nil {
+			t.Fatal("omni: column y missing")
+		}
+		assertStringEq(t, "omni ColumnType of YEAR(4)", strings.ToLower(col.ColumnType), "year")
 	})
 
 	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------

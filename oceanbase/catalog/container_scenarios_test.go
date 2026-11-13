@@ -8,112 +8,57 @@ import (
 	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
+// This file holds the sections of mysql/catalog's container scenarios that
+// assert a fact OceanBase can answer: an error, an object that is or is not
+// there, an information_schema value. The sections that compared MySQL's
+// SHOW CREATE text with the catalog's are in mysql/catalog's copy only; of
+// those, sections 1.7, 1.17, 2.2, 4.1, 4.4 and 6.1 keep here the statements
+// OceanBase refuses.
+
+// containerRefusal runs setup on OceanBase and on a fresh catalog, then holds
+// stmt to the error OceanBase answers and to the catalog's code for it: 0
+// when the catalog runs the statement, which is a gap the caller names.
+func containerRefusal(t *testing.T, ctr *mysqlContainer, setup, stmt string, engine uint16, omni int) {
+	t.Helper()
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	if setup != "" {
+		if err := ctr.execSQL(setup); err != nil {
+			t.Fatalf("container setup: %v", err)
+		}
+		if code := omniCode(c, setup); code != 0 {
+			t.Fatalf("omni setup: error %d", code)
+		}
+	}
+	oracleRefuses(t, ctr, stmt, engine)
+	assertIntEq(t, "omni error code", omniCode(c, stmt), omni)
+}
+
 func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	cases := []struct {
-		name  string
-		sql   string
-		table string
-	}{
-		{"expr_default_json", "CREATE TABLE t_def_exjson (a JSON DEFAULT (JSON_ARRAY()))", "t_def_exjson"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
+	// OceanBase gives a JSON column no default, expression or not (1101).
+	// omni gap: the catalog takes the expression default, as MySQL 8.0 does.
+	t.Run("expr_default_json", func(t *testing.T) {
+		containerRefusal(t, ctr, "",
+			"CREATE TABLE t_def_exjson (a JSON DEFAULT (JSON_ARRAY()))", 1101, 0)
+	})
 }
 
 func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	cases := []struct {
-		name    string
-		setup   string // SQL to run before the main CREATE TABLE (e.g., parent tables)
-		sql     string // The CREATE TABLE with FK to compare
-		table   string // The table to SHOW CREATE TABLE on
-		cleanup string // SQL to clean up after (drop child then parent)
-	}{
-		{
-			"fk_on_delete_set_default",
+	// OceanBase refuses ON DELETE SET DEFAULT with ER_CANNOT_ADD_FOREIGN
+	// (1215). omni gap: the catalog takes it, as MySQL does.
+	t.Run("fk_on_delete_set_default", func(t *testing.T) {
+		containerRefusal(t, ctr,
 			"CREATE TABLE t_parent5 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
 			"CREATE TABLE t_fk5 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent5(id) ON DELETE SET DEFAULT)",
-			"t_fk5",
-			"DROP TABLE IF EXISTS t_fk5; DROP TABLE IF EXISTS t_parent5",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Cleanup from prior runs.
-			ctr.execSQL(tc.cleanup)
-
-			// Setup parent tables.
-			if tc.setup != "" {
-				if err := ctr.execSQL(tc.setup); err != nil {
-					t.Fatalf("container setup: %v", err)
-				}
-			}
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			// Run setup on omni too.
-			if tc.setup != "" {
-				results, err := c.Exec(tc.setup, nil)
-				if err != nil {
-					t.Fatalf("omni setup parse error: %v", err)
-				}
-				for _, r := range results {
-					if r.Error != nil {
-						t.Fatalf("omni setup exec error: %v", r.Error)
-					}
-				}
-			}
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
+			1215, 0)
+	})
 }
 
 func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
@@ -138,14 +83,6 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 		results, _ := c.Exec("CREATE TABLE IF NOT EXISTS t_ine (id INT)", nil)
 		if results[0].Error != nil {
 			t.Fatalf("omni error on IF NOT EXISTS: %v", results[0].Error)
-		}
-
-		// Compare SHOW CREATE TABLE.
-		ctrDDL, _ := ctr.showCreateTable("t_ine")
-		omniDDL := c.ShowCreateTable("test", "t_ine")
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
 		}
 	})
 
@@ -174,58 +111,13 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// DDL-comparison tests: run setup + alter, compare SHOW CREATE TABLE.
-	ddlCases := []struct {
-		name  string
-		setup string
-		alter string
-		table string
-	}{
-		{
-			"drop_column_part_of_pk",
+	// OceanBase keeps a table's rows in primary-key order and does not drop a
+	// column of the key (1235). omni gap: the catalog drops it, as MySQL does.
+	t.Run("drop_column_part_of_pk", func(t *testing.T) {
+		containerRefusal(t, ctr,
 			"CREATE TABLE t_drop_pk (a INT, b INT, PRIMARY KEY (a, b))",
-			"ALTER TABLE t_drop_pk DROP COLUMN a",
-			"t_drop_pk",
-		},
-	}
-
-	for _, tc := range ddlCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Oracle: setup + alter.
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.setup); err != nil {
-				t.Fatalf("container setup: %v", err)
-			}
-			if err := ctr.execSQL(tc.alter); err != nil {
-				t.Fatalf("container alter: %v", err)
-			}
-			ctrDDL, err := ctr.showCreateTable(tc.table)
-			if err != nil {
-				t.Fatalf("container show create: %v", err)
-			}
-
-			// Omni: setup + alter.
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, _ := c.Exec(tc.setup, nil)
-			if results[0].Error != nil {
-				t.Fatalf("omni setup error: %v", results[0].Error)
-			}
-			results, _ = c.Exec(tc.alter, nil)
-			for _, r := range results {
-				if r.Error != nil {
-					t.Fatalf("omni alter error: %v", r.Error)
-				}
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
+			"ALTER TABLE t_drop_pk DROP COLUMN a", 1235, 0)
+	})
 
 	// Error tests: operations that should produce errors.
 	errCases := []struct {
@@ -518,32 +410,47 @@ func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Scenario 2: TRUNCATE resets AUTO_INCREMENT
+	// Scenario 2: TRUNCATE resets AUTO_INCREMENT. OceanBase shows a table's
+	// counter in SHOW CREATE TABLE and nowhere else
+	// (information_schema.TABLES.AUTO_INCREMENT is NULL).
 	t.Run("truncate_resets_auto_increment", func(t *testing.T) {
-		ctr.execSQL("DROP TABLE IF EXISTS t_trunc_ai")
-		if err := ctr.execSQL("CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000"); err != nil {
+		const create = "CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000"
+		if err := ctr.execSQL(create); err != nil {
 			t.Fatalf("container create: %v", err)
 		}
-		// Verify AUTO_INCREMENT is shown before truncate
-		ctrBefore, _ := ctr.showCreateTable("t_trunc_ai")
-		if !strings.Contains(ctrBefore, "AUTO_INCREMENT=") {
-			t.Logf("container before truncate (no AUTO_INCREMENT shown): %s", ctrBefore)
+		before, err := ctr.showCreateTable("t_trunc_ai")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(before, " AUTO_INCREMENT = 1000 ") {
+			t.Errorf("container before truncate: want AUTO_INCREMENT = 1000 in %s", before)
 		}
 		if err := ctr.execSQL("TRUNCATE TABLE t_trunc_ai"); err != nil {
 			t.Fatalf("container truncate: %v", err)
 		}
-		ctrDDL, _ := ctr.showCreateTable("t_trunc_ai")
+		after, err := ctr.showCreateTable("t_trunc_ai")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(after, " AUTO_INCREMENT = 1 ") {
+			t.Errorf("container after truncate: want AUTO_INCREMENT = 1 in %s", after)
+		}
 
+		// omni: the counter is 1000, and unset (0) once the table is truncated.
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000", nil)
+		c.Exec(create, nil)
+		tbl := c.GetDatabase("test").GetTable("t_trunc_ai")
+		if tbl == nil {
+			t.Fatal("omni: table t_trunc_ai missing")
+		}
+		if tbl.AutoIncrement != 1000 {
+			t.Errorf("omni AutoIncrement before truncate: got %d, want 1000", tbl.AutoIncrement)
+		}
 		c.Exec("TRUNCATE TABLE t_trunc_ai", nil)
-		omniDDL := c.ShowCreateTable("test", "t_trunc_ai")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
+		if tbl := c.GetDatabase("test").GetTable("t_trunc_ai"); tbl == nil || tbl.AutoIncrement != 0 {
+			t.Errorf("omni AutoIncrement after truncate: want 0, got %+v", tbl)
 		}
 	})
 
@@ -570,22 +477,17 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Scenario 5: CREATE INDEX IF NOT EXISTS
-	// Note: MySQL 8.0 does NOT support IF NOT EXISTS on CREATE INDEX (syntax error).
-	// Our parser accepts it, and the catalog handles it gracefully (no-op on duplicate).
-	// This is marked [~] partial — omni is more permissive than MySQL 8.0 here.
+	// Scenario 5: CREATE INDEX IF NOT EXISTS. MySQL 8.0 has no such form
+	// (a syntax error there); OceanBase has it, and so does the catalog: on a
+	// duplicate name it is a no-op.
 	t.Run("create_index_if_not_exists", func(t *testing.T) {
-		// Verify MySQL 8.0 rejects this syntax.
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
 		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
 		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
-		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if ctrErr == nil {
-			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		if err := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)"); err != nil {
+			t.Errorf("container: CREATE INDEX IF NOT EXISTS: %v", err)
 		}
-		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
 
-		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
@@ -595,7 +497,6 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		if results[0].Error != nil {
 			t.Errorf("omni: unexpected error for IF NOT EXISTS: %v", results[0].Error)
 		}
-		// This is a known divergence from MySQL 8.0 behavior.
 	})
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061
@@ -1624,7 +1525,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 	})
 
 	t.Run("1068_multiple_primary_key", func(t *testing.T) {
-		// CREATE TABLE with two PRIMARY KEY definitions.
+		// CREATE TABLE with two PRIMARY KEY definitions. MySQL answers
+		// ER_MULTIPLE_PRI_KEY (1068); OceanBase answers 1062, in its own words.
 		ctr.execSQL("DROP TABLE IF EXISTS t_err_multipk")
 
 		ctrErr := ctr.execSQL("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))")
@@ -1632,10 +1534,8 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 			t.Fatal("container: expected error for multiple primary key")
 		}
 		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
-		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
-
-		if ctrCode != 1068 {
-			t.Fatalf("container: expected error code 1068, got %d", ctrCode)
+		if ctrCode != 1062 || ctrState != "23000" || ctrMsg != "Duplicated primary key" {
+			t.Fatalf("container: got %d (%s) %s, want 1062 (23000) Duplicated primary key", ctrCode, ctrState, ctrMsg)
 		}
 
 		// Run on omni.
@@ -1651,17 +1551,9 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
 
-		// Compare error code.
-		if catErr.Code != int(ctrCode) {
-			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
-		}
-		// Compare SQLSTATE.
-		if catErr.SQLState != ctrState {
-			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
-		}
-		// Compare error message format.
-		if catErr.Message != ctrMsg {
-			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
+		// omni gap: the catalog raises MySQL's error.
+		if catErr.Code != 1068 || catErr.SQLState != "42000" || catErr.Message != "Multiple primary key defined" {
+			t.Errorf("omni: got %d (%s) %s, want 1068 (42000) Multiple primary key defined", catErr.Code, catErr.SQLState, catErr.Message)
 		}
 	})
 }
@@ -1772,154 +1664,89 @@ func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 	})
 }
 
+// TestContainer_Section_3_5_FKErrors holds the foreign-key errors. MySQL 8.0
+// names each cause (1824, 1822, 3780); OceanBase answers 1146 for a missing
+// parent and ER_CANNOT_ADD_FOREIGN (1215) for the rest.
+//
+// omni gap: the catalog raises MySQL's errors.
 func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Helper to extract MySQL error code and message from go-sql-driver error.
-	extractMySQLErr := func(err error) (uint16, string, string) {
-		var mysqlErr *mysqldriver.MySQLError
-		if errors.As(err, &mysqlErr) {
-			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
-		}
-		return 0, "", ""
+	cases := []struct {
+		name  string
+		setup string
+		stmt  string
+		// OceanBase's answer.
+		code  uint16
+		state string
+		msg   string
+		// The catalog's.
+		omniCode  int
+		omniState string
+		omniMsg   string
+	}{
+		{
+			name:     "1824_fk_ref_table_not_found",
+			stmt:     "CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))",
+			code:     1146,
+			state:    "42S02",
+			msg:      "Table doesn't exist",
+			omniCode: 1824, omniState: "HY000",
+			omniMsg: "Failed to open the referenced table 't_nonexistent_parent'",
+		},
+		{
+			name:     "1822_fk_missing_index_on_ref_table",
+			setup:    "CREATE TABLE t_fk_parent_nokey (id INT, val INT)",
+			stmt:     "CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))",
+			code:     1215,
+			state:    "HY000",
+			msg:      "Cannot add foreign key constraint",
+			omniCode: 1822, omniState: "HY000",
+			omniMsg: "Failed to add the foreign key constraint. Missing index for constraint 't_fk_child_nokey_ibfk_1' in the referenced table 't_fk_parent_nokey'",
+		},
+		{
+			name:     "3780_fk_column_type_mismatch",
+			setup:    "CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)",
+			stmt:     "CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))",
+			code:     1215,
+			state:    "HY000",
+			msg:      "Cannot add foreign key constraint",
+			omniCode: 3780, omniState: "HY000",
+			omniMsg: "Referencing column 'pid' and referenced column 'id' in foreign key constraint 't_fk_child_mismatch_ibfk_1' are incompatible.",
+		},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			if tc.setup != "" {
+				if err := ctr.execSQL(tc.setup); err != nil {
+					t.Fatalf("container setup: %v", err)
+				}
+				c.Exec(tc.setup, nil)
+			}
 
-	t.Run("1824_fk_ref_table_not_found", func(t *testing.T) {
-		// Try to create a table with FK referencing a nonexistent table.
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_noref")
-		ctr.execSQL("DROP TABLE IF EXISTS t_nonexistent_parent")
+			ctrErr := ctr.execSQL(tc.stmt)
+			var me *mysqldriver.MySQLError
+			if !errors.As(ctrErr, &me) {
+				t.Fatalf("container: got %v, want error %d", ctrErr, tc.code)
+			}
+			if me.Number != tc.code || string(me.SQLState[:]) != tc.state || me.Message != tc.msg {
+				t.Errorf("container: got %d (%s) %s, want %d (%s) %s", me.Number, me.SQLState[:], me.Message, tc.code, tc.state, tc.msg)
+			}
 
-		ctrErr := ctr.execSQL("CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))")
-		if ctrErr == nil {
-			t.Fatal("container: expected error for FK referencing nonexistent table")
-		}
-		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
-		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
-
-		if ctrCode != 1824 {
-			t.Fatalf("container: expected error code 1824, got %d", ctrCode)
-		}
-
-		// Run on omni.
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, _ := c.Exec("CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))", &ExecOptions{ContinueOnError: true})
-		if results[0].Error == nil {
-			t.Fatal("omni: expected error for FK referencing nonexistent table")
-		}
-		catErr, ok := results[0].Error.(*Error)
-		if !ok {
-			t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
-		}
-
-		// Compare error code.
-		if catErr.Code != int(ctrCode) {
-			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
-		}
-		// Compare SQLSTATE.
-		if catErr.SQLState != ctrState {
-			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
-		}
-		// Compare error message format.
-		if catErr.Message != ctrMsg {
-			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
-		}
-	})
-
-	t.Run("1822_fk_missing_index_on_ref_table", func(t *testing.T) {
-		// Create a parent table without a key on the referenced column,
-		// then try to create a child with FK referencing that column.
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
-		ctr.execSQL("CREATE TABLE t_fk_parent_nokey (id INT, val INT)")
-
-		ctrErr := ctr.execSQL("CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))")
-		if ctrErr == nil {
-			t.Fatal("container: expected error for FK referencing column without index")
-		}
-		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
-		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
-
-		if ctrCode != 1822 {
-			t.Fatalf("container: expected error code 1822, got %d", ctrCode)
-		}
-
-		// Run on omni.
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_fk_parent_nokey (id INT, val INT)", nil)
-		results, _ := c.Exec("CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))", &ExecOptions{ContinueOnError: true})
-		if results[0].Error == nil {
-			t.Fatal("omni: expected error for FK referencing column without index")
-		}
-		catErr, ok := results[0].Error.(*Error)
-		if !ok {
-			t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
-		}
-
-		// Compare error code.
-		if catErr.Code != int(ctrCode) {
-			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
-		}
-		// Compare SQLSTATE.
-		if catErr.SQLState != ctrState {
-			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
-		}
-		// Compare error message format.
-		if catErr.Message != ctrMsg {
-			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
-		}
-
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
-	})
-
-	t.Run("3780_fk_column_type_mismatch", func(t *testing.T) {
-		// Create parent with INT PK, then try to create child with VARCHAR FK column.
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
-		ctr.execSQL("CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)")
-
-		ctrErr := ctr.execSQL("CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))")
-		if ctrErr == nil {
-			t.Fatal("container: expected error for FK column type mismatch")
-		}
-		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
-		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
-
-		// Run on omni.
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)", nil)
-		results, _ := c.Exec("CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))", &ExecOptions{ContinueOnError: true})
-		if results[0].Error == nil {
-			t.Fatal("omni: expected error for FK column type mismatch")
-		}
-		catErr, ok := results[0].Error.(*Error)
-		if !ok {
-			t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
-		}
-
-		// Compare error code.
-		if catErr.Code != int(ctrCode) {
-			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
-		}
-		// Compare SQLSTATE.
-		if catErr.SQLState != ctrState {
-			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
-		}
-		// Compare error message format.
-		if catErr.Message != ctrMsg {
-			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
-		}
-
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
-		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
-	})
+			results, _ := c.Exec(tc.stmt, &ExecOptions{ContinueOnError: true})
+			catErr, ok := results[0].Error.(*Error)
+			if !ok {
+				t.Fatalf("omni: expected *Error, got %T: %v", results[0].Error, results[0].Error)
+			}
+			if catErr.Code != tc.omniCode || catErr.SQLState != tc.omniState || catErr.Message != tc.omniMsg {
+				t.Errorf("omni: got %d (%s) %s, want %d (%s) %s", catErr.Code, catErr.SQLState, catErr.Message, tc.omniCode, tc.omniState, tc.omniMsg)
+			}
+		})
+	}
 }
 
 func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
@@ -2328,156 +2155,61 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 	})
 }
 
+// TestContainer_Section_4_1_Partitioning holds the partitioning statements of
+// MySQL 8.0 that OceanBase refuses.
+//
+// omni gap: the catalog runs each of them, as MySQL does.
 func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	cases := []struct {
-		name  string
-		sql   string
-		table string
-	}{
-		{
-			"partition_linear_hash",
-			`CREATE TABLE t_part_linear (
-				id INT NOT NULL
-			) PARTITION BY LINEAR HASH (id) PARTITIONS 4`,
-			"t_part_linear",
-		},
-	}
+	// OceanBase's grammar has no LINEAR partitioning.
+	t.Run("partition_linear_hash", func(t *testing.T) {
+		containerRefusal(t, ctr, "",
+			"CREATE TABLE t_part_linear (id INT NOT NULL) PARTITION BY LINEAR HASH (id) PARTITIONS 4", 1064, 0)
+	})
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, _ := c.Exec(tc.sql, nil)
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
-
+	// REORGANIZE PARTITION is not supported on a table without a primary key.
 	t.Run("alter_reorganize_partition", func(t *testing.T) {
-		ctr.execSQL("DROP TABLE IF EXISTS t_alter_reorgp")
-		setupSQL := `CREATE TABLE t_alter_reorgp (
-			id INT NOT NULL,
-			val INT NOT NULL
-		) PARTITION BY RANGE (val) (
-			PARTITION p0 VALUES LESS THAN (10),
-			PARTITION p1 VALUES LESS THAN (30)
-		)`
-		if err := ctr.execSQL(setupSQL); err != nil {
-			t.Fatalf("container setup: %v", err)
-		}
-		alterSQL := `ALTER TABLE t_alter_reorgp REORGANIZE PARTITION p1 INTO (
-			PARTITION p1a VALUES LESS THAN (20),
-			PARTITION p1b VALUES LESS THAN (30)
-		)`
-		if err := ctr.execSQL(alterSQL); err != nil {
-			t.Fatalf("container alter: %v", err)
-		}
-		ctrDDL, _ := ctr.showCreateTable("t_alter_reorgp")
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec(setupSQL, nil)
-		results, _ := c.Exec(alterSQL, nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_reorgp")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		containerRefusal(t, ctr,
+			`CREATE TABLE t_alter_reorgp (
+				id INT NOT NULL,
+				val INT NOT NULL
+			) PARTITION BY RANGE (val) (
+				PARTITION p0 VALUES LESS THAN (10),
+				PARTITION p1 VALUES LESS THAN (30)
+			)`,
+			`ALTER TABLE t_alter_reorgp REORGANIZE PARTITION p1 INTO (
+				PARTITION p1a VALUES LESS THAN (20),
+				PARTITION p1b VALUES LESS THAN (30)
+			)`, 1235, 0)
 	})
 
+	// OceanBase's grammar has no COALESCE PARTITION.
 	t.Run("alter_coalesce_partition", func(t *testing.T) {
-		ctr.execSQL("DROP TABLE IF EXISTS t_alter_coalp")
-		setupSQL := `CREATE TABLE t_alter_coalp (
-			id INT NOT NULL
-		) PARTITION BY HASH (id) PARTITIONS 4`
-		if err := ctr.execSQL(setupSQL); err != nil {
-			t.Fatalf("container setup: %v", err)
-		}
-		alterSQL := "ALTER TABLE t_alter_coalp COALESCE PARTITION 2"
-		if err := ctr.execSQL(alterSQL); err != nil {
-			t.Fatalf("container alter: %v", err)
-		}
-		ctrDDL, _ := ctr.showCreateTable("t_alter_coalp")
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec(setupSQL, nil)
-		results, _ := c.Exec(alterSQL, nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_coalp")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		containerRefusal(t, ctr,
+			"CREATE TABLE t_alter_coalp (id INT NOT NULL) PARTITION BY HASH (id) PARTITIONS 4",
+			"ALTER TABLE t_alter_coalp COALESCE PARTITION 2", 1064, 0)
 	})
 
+	// OceanBase's EXCHANGE PARTITION ends WITHOUT VALIDATION
+	// (sql_parser_mysql_mode.y: EXCHANGE PARTITION relation_name WITH TABLE
+	// relation_factor WITHOUT VALIDATION). MySQL's form, which may stop at the
+	// table, is a syntax error.
 	t.Run("alter_exchange_partition", func(t *testing.T) {
-		ctr.execSQL("DROP TABLE IF EXISTS t_alter_exchp")
-		ctr.execSQL("DROP TABLE IF EXISTS t_alter_exchp_swap")
-		setupSQL := `CREATE TABLE t_alter_exchp (
-			id INT NOT NULL,
-			val INT NOT NULL
-		) PARTITION BY RANGE (val) (
-			PARTITION p0 VALUES LESS THAN (10),
-			PARTITION p1 VALUES LESS THAN MAXVALUE
-		)`
-		swapSQL := `CREATE TABLE t_alter_exchp_swap (
-			id INT NOT NULL,
-			val INT NOT NULL
-		)`
-		if err := ctr.execSQL(setupSQL); err != nil {
-			t.Fatalf("container setup: %v", err)
-		}
-		if err := ctr.execSQL(swapSQL); err != nil {
-			t.Fatalf("container swap table setup: %v", err)
-		}
-		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap"
-		if err := ctr.execSQL(alterSQL); err != nil {
-			t.Fatalf("container alter: %v", err)
-		}
-		ctrDDL, _ := ctr.showCreateTable("t_alter_exchp")
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec(setupSQL, nil)
-		c.Exec(swapSQL, nil)
-		results, _ := c.Exec(alterSQL, nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateTable("test", "t_alter_exchp")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
-		}
+		containerRefusal(t, ctr,
+			`CREATE TABLE t_alter_exchp (
+				id INT NOT NULL,
+				val INT NOT NULL
+			) PARTITION BY RANGE (val) (
+				PARTITION p0 VALUES LESS THAN (10),
+				PARTITION p1 VALUES LESS THAN MAXVALUE
+			);
+			CREATE TABLE t_alter_exchp_swap (
+				id INT NOT NULL,
+				val INT NOT NULL
+			)`,
+			"ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap", 1064, 0)
 	})
 }
 
@@ -2660,68 +2392,17 @@ func TestContainer_Section_4_3_Triggers(t *testing.T) {
 	})
 }
 
-// normalizeEventDDL normalizes event DDL for comparison by removing
-// auto-generated STARTS timestamps that MySQL adds to EVERY schedules.
-// MySQL always adds "STARTS '<timestamp>'" when EVERY is used without explicit STARTS,
-// but our catalog doesn't have a clock to generate timestamps.
-func normalizeEventDDL(ddl string) string {
-	// Remove STARTS '<timestamp>' from EVERY schedules (auto-generated by MySQL).
-	// Pattern: " STARTS '<datetime>'"
-	s := normalizeWhitespace(ddl)
-	// Remove auto-generated STARTS with timestamp pattern
-	for {
-		idx := strings.Index(s, " STARTS '")
-		if idx < 0 {
-			break
-		}
-		// Find closing quote
-		end := strings.Index(s[idx+9:], "'")
-		if end < 0 {
-			break
-		}
-		s = s[:idx] + s[idx+9+end+1:]
-	}
-	return s
-}
-
 func TestContainer_Section_4_4_Events(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
+	// 4.4.2: ALTER EVENT. OceanBase does not rename an event that has
+	// started, and one scheduled EVERY 1 HOUR starts when it is created (1235).
+	// omni gap: the catalog renames it, as MySQL does.
 	t.Run("alter_event_rename", func(t *testing.T) {
-		ctr.execSQL("DROP EVENT IF EXISTS ev_rename_old")
-		ctr.execSQL("DROP EVENT IF EXISTS ev_rename_new")
-		ctr.execSQLDirect("CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
-		if err := ctr.execSQLDirect("ALTER EVENT ev_rename_old RENAME TO ev_rename_new"); err != nil {
-			t.Fatalf("container ALTER EVENT RENAME: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateEvent("ev_rename_new")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE EVENT: %v", err)
-		}
-		t.Logf("container SHOW CREATE EVENT after RENAME:\n%s", ctrDDL)
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1", nil)
-		results, _ := c.Exec("ALTER EVENT ev_rename_old RENAME TO ev_rename_new", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni ALTER EVENT RENAME error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateEvent("test", "ev_rename_new")
-
-		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
-		}
-
-		// Verify old name is gone
-		oldDDL := c.ShowCreateEvent("test", "ev_rename_old")
-		if oldDDL != "" {
-			t.Errorf("old event name should be gone, but got: %s", oldDDL)
-		}
+		containerRefusal(t, ctr,
+			"CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1",
+			"ALTER EVENT ev_rename_old RENAME TO ev_rename_new", 1235, 0)
 	})
 
 	// 4.4.3: DROP EVENT
@@ -2783,36 +2464,13 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 		}
 	})
 
-	// 4.4.4: SHOW CREATE EVENT output
+	// 4.4.4: SHOW CREATE EVENT. OceanBase has events and no SHOW CREATE EVENT:
+	// the statement is a syntax error, so there is no event text to compare.
+	// omni gap: the parser takes the statement, as MySQL does.
 	t.Run("show_create_event_basic", func(t *testing.T) {
-		ctr.execSQL("DROP EVENT IF EXISTS ev_show_test")
-		createSQL := "CREATE EVENT ev_show_test ON SCHEDULE EVERY 1 HOUR COMMENT 'test event' DO SELECT 1"
-		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("container exec: %v", err)
-		}
-		ctrDDL, err := ctr.showCreateEvent("ev_show_test")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE EVENT: %v", err)
-		}
-		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		results, parseErr := c.Exec(createSQL, nil)
-		if parseErr != nil {
-			t.Fatalf("omni parse error: %v", parseErr)
-		}
-		if results[0].Error != nil {
-			t.Fatalf("omni exec error: %v", results[0].Error)
-		}
-		omniDDL := c.ShowCreateEvent("test", "ev_show_test")
-
-		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
-		}
+		containerRefusal(t, ctr,
+			"CREATE EVENT ev_show_test ON SCHEDULE EVERY 1 HOUR COMMENT 'test event' DO SELECT 1",
+			"SHOW CREATE EVENT ev_show_test", 1064, 0)
 	})
 }
 
@@ -2932,9 +2590,19 @@ func TestContainer_Section_5_1_UseStatement(t *testing.T) {
 		if err := ctr.execSQL("CREATE TABLE t_use_check (id INT PRIMARY KEY)"); err != nil {
 			t.Fatalf("container CREATE TABLE: %v", err)
 		}
-		ctrDDL, err := ctr.showCreateTable("t_use_check")
-		if err != nil {
-			t.Fatalf("container SHOW CREATE TABLE: %v", err)
+		// The unqualified table landed in the database USE selected.
+		var current, schema string
+		if err := ctr.db.QueryRowContext(ctr.ctx, "SELECT DATABASE()").Scan(&current); err != nil {
+			t.Fatal(err)
+		}
+		if current != "use_test_db" {
+			t.Errorf("container DATABASE(): got %q, want use_test_db", current)
+		}
+		if err := ctr.db.QueryRowContext(ctr.ctx, "SELECT TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_NAME = 't_use_check'").Scan(&schema); err != nil {
+			t.Fatal(err)
+		}
+		if schema != "use_test_db" {
+			t.Errorf("container: t_use_check is in %q, want use_test_db", schema)
 		}
 
 		// On omni: same sequence via Exec.
@@ -2953,11 +2621,8 @@ func TestContainer_Section_5_1_UseStatement(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE TABLE error: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("use_test_db", "t_use_check")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-				ctrDDL, omniDDL)
+		if c.GetDatabase("use_test_db").GetTable("t_use_check") == nil {
+			t.Error("omni: t_use_check is not in use_test_db")
 		}
 
 		// Cleanup ctr.
@@ -3017,10 +2682,6 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		if ctrErr != nil {
 			t.Fatalf("container: unexpected error with FK checks off: %v", ctrErr)
 		}
-		ctrDDL, err := ctr.showCreateTable("t_fkoff_child")
-		if err != nil {
-			t.Fatalf("container: SHOW CREATE TABLE: %v", err)
-		}
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -3030,10 +2691,8 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni: unexpected error with FK checks off: %v", results[0].Error)
 		}
-		omniDDL := c.ShowCreateTable("test", "t_fkoff_child")
-
-		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
+		if c.GetDatabase("test").GetTable("t_fkoff_child") == nil {
+			t.Error("omni: t_fkoff_child missing")
 		}
 	})
 
@@ -3141,7 +2800,7 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 }
 
 // TestContainer_Section_5_3_UserRoleManagement verifies that user/role management
-// statements are accepted by both MySQL and omni without error.
+// statements are accepted by both OceanBase and omni without error.
 // These are marked [~] partial because the in-memory catalog does not actually
 // store users, roles, or privileges — it just silently accepts them.
 func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
@@ -3240,13 +2899,11 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	cases := []struct {
-		name  string
-		sql   string
-		table string
-	}{
-		// --- All default value forms (Phase 1.7) integration ---
-		{"all_defaults", `CREATE TABLE t_all_defaults (
+	// The table of every default form holds a JSON column with an expression
+	// default, which OceanBase refuses (1101).
+	// omni gap: the catalog takes it, as MySQL 8.0 does.
+	t.Run("all_defaults", func(t *testing.T) {
+		containerRefusal(t, ctr, "", `CREATE TABLE t_all_defaults (
 			id INT NOT NULL AUTO_INCREMENT,
 			int_def INT DEFAULT 0,
 			int_null INT DEFAULT NULL,
@@ -3272,52 +2929,8 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			dt_literal DATETIME DEFAULT '2024-01-01 00:00:00',
 			date_literal DATE DEFAULT '2024-01-01',
 			PRIMARY KEY (id)
-		)`, "t_all_defaults"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Clean up in proper order (child before parent)
-			if tc.table == "t_all_constraints" {
-				ctr.execSQL("DROP TABLE IF EXISTS t_all_constraints")
-			}
-			if tc.table == "t_parent" {
-				ctr.execSQL("DROP TABLE IF EXISTS t_all_constraints")
-				ctr.execSQL("DROP TABLE IF EXISTS t_parent")
-			}
-			if tc.table != "t_all_constraints" && tc.table != "t_parent" {
-				ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			}
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, err := ctr.showCreateTable(tc.table)
-			if err != nil {
-				t.Fatalf("container showCreateTable: %v", err)
-			}
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			// For constraint tests, need parent table first
-			if tc.table == "t_all_constraints" {
-				c.Exec("CREATE TABLE t_parent (id INT NOT NULL AUTO_INCREMENT, code VARCHAR(10) NOT NULL, PRIMARY KEY (id), UNIQUE KEY uk_code (code))", nil)
-			}
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if len(results) > 0 && results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
+		)`, 1101, 0)
+	})
 }
 
 // TestContainer_Section_6_3_InformationSchemaConsistency verifies that the catalog's
@@ -3325,7 +2938,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 //
 // The omni catalog does not support INFORMATION_SCHEMA SQL queries (SELECT is
 // treated as DML and skipped). Instead, we compare the catalog's Go-level data
-// structures against real MySQL INFORMATION_SCHEMA query results.
+// structures against OceanBase's INFORMATION_SCHEMA query results.
 //
 // All scenarios are marked [~] partial because the catalog lacks an
 // INFORMATION_SCHEMA query engine — users cannot run SELECT ... FROM

@@ -9,7 +9,7 @@ import (
 
 // TestScenario_PS covers section PS of mysql/catalog/SCENARIOS-mysql-implicit-behavior.md
 // — "Path-split behaviors (CREATE vs ALTER)". Each subtest runs the scenario's
-// DDL against both a real MySQL 8.0 container and the omni catalog and asserts
+// DDL against both OceanBase and the omni catalog and asserts
 // both match the expected value. Existing TestBugFix_* tests remain unchanged;
 // these TestScenario_PS tests are the durable dual-assertion versions.
 func TestScenario_PS(t *testing.T) {
@@ -30,6 +30,10 @@ func TestScenario_PS(t *testing.T) {
             CHECK (b < 100)
         )`)
 
+		// OceanBase names the unnamed CHECK after the table and the time,
+		// compared here without the count a tape holds for the time.
+		oracleWant := []string{"t_chk_5", "t_OBCHECK_<n>"}
+		// omni gap: the catalog numbers it t_chk_1, as MySQL does.
 		want := []string{"t_chk_1", "t_chk_5"}
 
 		rows := oracleRows(t, mc, `
@@ -38,10 +42,10 @@ func TestScenario_PS(t *testing.T) {
             ORDER BY CONSTRAINT_NAME`)
 		var oracleNames []string
 		for _, r := range rows {
-			oracleNames = append(oracleNames, asString(r[0]))
+			oracleNames = append(oracleNames, withoutCount(asString(r[0])))
 		}
-		if !slices.Equal(oracleNames, want) {
-			t.Errorf("PS.1 oracle CHECK names: got %v, want %v", oracleNames, want)
+		if !slices.Equal(oracleNames, oracleWant) {
+			t.Errorf("PS.1 oracle CHECK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
 		omniNames := psCheckNames(c, "t")
@@ -61,6 +65,9 @@ func TestScenario_PS(t *testing.T) {
 			`CREATE TABLE t (a INT, b INT, CONSTRAINT t_chk_20 CHECK (a>0))`)
 		runOnBoth(t, mc, c, `ALTER TABLE t ADD CHECK (b>0)`)
 
+		// OceanBase names the unnamed CHECK after the table and the time.
+		oracleWant := []string{"t_chk_20", "t_OBCHECK_<n>"}
+		// omni gap: the catalog continues MySQL's counter to t_chk_21.
 		want := []string{"t_chk_20", "t_chk_21"}
 
 		rows := oracleRows(t, mc, `
@@ -69,10 +76,10 @@ func TestScenario_PS(t *testing.T) {
             ORDER BY CONSTRAINT_NAME`)
 		var oracleNames []string
 		for _, r := range rows {
-			oracleNames = append(oracleNames, asString(r[0]))
+			oracleNames = append(oracleNames, withoutCount(asString(r[0])))
 		}
-		if !slices.Equal(oracleNames, want) {
-			t.Errorf("PS.2 oracle CHECK names: got %v, want %v", oracleNames, want)
+		if !slices.Equal(oracleNames, oracleWant) {
+			t.Errorf("PS.2 oracle CHECK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
 		omniNames := psCheckNames(c, "t")
@@ -94,6 +101,9 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES parent(id)
         )`)
 
+		// OceanBase names the unnamed FK after the table and the time.
+		oracleWant := []string{"child_ibfk_5", "child_OBFK_<n>"}
+		// omni gap: the catalog numbers it child_ibfk_1, as MySQL does.
 		want := []string{"child_ibfk_1", "child_ibfk_5"}
 
 		rows := oracleRows(t, mc, `
@@ -103,10 +113,10 @@ func TestScenario_PS(t *testing.T) {
             ORDER BY CONSTRAINT_NAME`)
 		var oracleNames []string
 		for _, r := range rows {
-			oracleNames = append(oracleNames, asString(r[0]))
+			oracleNames = append(oracleNames, withoutCount(asString(r[0])))
 		}
-		if !slices.Equal(oracleNames, want) {
-			t.Errorf("PS.3 oracle FK names: got %v, want %v", oracleNames, want)
+		if !slices.Equal(oracleNames, oracleWant) {
+			t.Errorf("PS.3 oracle FK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
 		omniNames := psFKNames(c, "child")
@@ -129,6 +139,9 @@ func TestScenario_PS(t *testing.T) {
 		runOnBoth(t, mc, c,
 			`ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)`)
 
+		// OceanBase names the unnamed FK after the table and the time.
+		oracleWant := []string{"child_ibfk_20", "child_OBFK_<n>"}
+		// omni gap: the catalog continues MySQL's counter to child_ibfk_21.
 		want := []string{"child_ibfk_20", "child_ibfk_21"}
 
 		rows := oracleRows(t, mc, `
@@ -138,10 +151,10 @@ func TestScenario_PS(t *testing.T) {
             ORDER BY CONSTRAINT_NAME`)
 		var oracleNames []string
 		for _, r := range rows {
-			oracleNames = append(oracleNames, asString(r[0]))
+			oracleNames = append(oracleNames, withoutCount(asString(r[0])))
 		}
-		if !slices.Equal(oracleNames, want) {
-			t.Errorf("PS.4 oracle FK names: got %v, want %v", oracleNames, want)
+		if !slices.Equal(oracleNames, oracleWant) {
+			t.Errorf("PS.4 oracle FK names: got %v, want %v", oracleNames, oracleWant)
 		}
 
 		omniNames := psFKNames(c, "child")
@@ -225,13 +238,15 @@ func TestScenario_PS(t *testing.T) {
             FOREIGN KEY (b) REFERENCES p(id)
         )`
 
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr == nil {
-			t.Errorf("PS.7 oracle: expected ER_FK_DUP_NAME (1826), got success")
-		} else if !strings.Contains(oracleErr.Error(), "1826") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "duplicate") {
-			t.Errorf("PS.7 oracle: unexpected error text: %v", oracleErr)
+		// MySQL names the unnamed key c_ibfk_1, which the user took, and
+		// answers ER_FK_DUP_NAME (1826). OceanBase's generated name cannot
+		// collide, so the table is created.
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
+			t.Errorf("PS.7 oracle: %v", err)
 		}
+
+		// omni gap: the catalog generates c_ibfk_1 and refuses the table, as
+		// MySQL does.
 
 		var omniErr error
 		results, parseErr := c.Exec(ddl, nil)

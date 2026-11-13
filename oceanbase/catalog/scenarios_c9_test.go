@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C9 covers Section C9 "Generated column defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
-// a real MySQL 8.0 container and the omni catalog, then asserts that both
+// OceanBase and the omni catalog, then asserts that both
 // agree on the effective default for a given generated-column behavior.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
@@ -106,8 +106,8 @@ func TestScenario_C9(t *testing.T) {
 		assertBoolEq(t, "oracle vs omni agreement on FK on STORED gcol",
 			omniAccepted, oracleAccepted)
 
-		// Also verify the VIRTUAL gcol case is rejected by both (this is the
-		// real rule — `ER_FK_CANNOT_USE_VIRTUAL_COLUMN`).
+		// The VIRTUAL gcol case: MySQL rejects it
+		// (ER_FK_CANNOT_USE_VIRTUAL_COLUMN); OceanBase takes it.
 		scenarioReset(t, mc)
 		c2 := scenarioNewCatalog(t)
 		if _, err := mc.db.ExecContext(mc.ctx, parent); err != nil {
@@ -121,10 +121,10 @@ func TestScenario_C9(t *testing.T) {
             b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
             FOREIGN KEY (b) REFERENCES p(id)
         )`
-		_, oracleVirtErr := mc.db.ExecContext(mc.ctx, badVirtual)
-		if oracleVirtErr == nil {
-			t.Errorf("oracle: expected FK-on-VIRTUAL-gcol rejection, got nil error")
+		if _, err := mc.db.ExecContext(mc.ctx, badVirtual); err != nil {
+			t.Errorf("oracle: FK on VIRTUAL gcol: %v", err)
 		}
+		// omni gap: the catalog rejects it, as MySQL does.
 		omniVirtErrored, _ := c9OmniExec(c2, badVirtual+";")
 		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol (child)", omniVirtErrored, true)
 	})

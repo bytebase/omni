@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C4 covers Section C4 "Charset / collation inheritance" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both a
-// real MySQL 8.0 container and the omni catalog, then asserts that both agree
+// OceanBase and the omni catalog, then asserts that both agree
 // on charset/collation resolution.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
@@ -257,16 +257,22 @@ func TestScenario_C4(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (
+		// OceanBase takes BINARY right after the type and refuses it after a
+		// CHARACTER SET, which MySQL takes too.
+		const both = `CREATE TABLE t (
   a CHAR(10) BINARY,
   b VARCHAR(10) CHARACTER SET latin1 BINARY
-) DEFAULT CHARSET=utf8mb4`)
-
+) DEFAULT CHARSET=utf8mb4`
+		oracleRefuses(t, mc, both, 1064)
+		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE t (a CHAR(10) BINARY) DEFAULT CHARSET=utf8mb4`); err != nil {
+			t.Errorf("oracle: CHAR(10) BINARY: %v", err)
+		}
 		assertStringEq(t, "oracle a collation",
 			c4OracleColCollation(t, "t", "a"), "utf8mb4_bin")
-		assertStringEq(t, "oracle b collation",
-			c4OracleColCollation(t, "t", "b"), "latin1_bin")
 
+		// omni gap: the parser takes BINARY after CHARACTER SET as well, as
+		// MySQL does, and gives b latin1_bin.
+		assertIntEq(t, "omni CHARACTER SET latin1 BINARY, error code", omniCode(c, both), 0)
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")
@@ -374,11 +380,13 @@ func TestScenario_C4(t *testing.T) {
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8)`)
 
+		// OceanBase's utf8 is utf8mb4; MySQL's is utf8mb3.
 		assertStringEq(t, "oracle col charset",
-			c4OracleColCharset(t, "t", "c"), "utf8mb3")
+			c4OracleColCharset(t, "t", "c"), "utf8mb4")
 		assertStringEq(t, "oracle col collation",
-			c4OracleColCollation(t, "t", "c"), "utf8mb3_general_ci")
+			c4OracleColCollation(t, "t", "c"), "utf8mb4_general_ci")
 
+		// omni gap: the catalog normalizes utf8 to utf8mb3, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")
@@ -414,13 +422,15 @@ func TestScenario_C4(t *testing.T) {
 		// OceanBase has no NCHAR VARYING, which MySQL has (see oceanbase/parser's
 		// parseDataType).
 
+		// OceanBase's national character set is utf8mb4; MySQL's is utf8mb3.
 		for _, name := range []string{"a", "b", "cc"} {
 			assertStringEq(t, "oracle "+name+" charset",
-				c4OracleColCharset(t, "t", name), "utf8mb3")
+				c4OracleColCharset(t, "t", name), "utf8mb4")
 			assertStringEq(t, "oracle "+name+" collation",
-				c4OracleColCollation(t, "t", name), "utf8mb3_general_ci")
+				c4OracleColCollation(t, "t", name), "utf8mb4_general_ci")
 		}
 
+		// omni gap: utf8mb3 in the catalog, as in MySQL.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Error("omni: table t not found")

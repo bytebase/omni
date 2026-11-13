@@ -6,14 +6,12 @@ import (
 )
 
 // TestScenario_C18 covers Section C18 "SHOW CREATE TABLE elision rules" from
-// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs the
-// scenario's DDL on both the MySQL 8.0 container and the omni catalog, then
-// asserts that omni's ShowCreateTable output matches the oracle on the
-// specific elision rule under test.
-//
-// Critical section: every mismatch here breaks SDL round-trip. Failures are
-// recorded as t.Error (not t.Fatal) so all 15 scenarios run in one pass, and
-// each omni gap is documented in mysql/catalog/scenarios_bug_queue/c18.md.
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md: the rules that hold for
+// OceanBase's SHOW CREATE TABLE as they do for MySQL's (18.1, 18.2, 18.13),
+// and the two table options of that section OceanBase refuses (18.9, 18.12).
+// The other rules are about MySQL's text (ENGINE=, ROW_FORMAT=,
+// KEY_BLOCK_SIZE=, ...), which OceanBase never prints; mysql/catalog's copy
+// of this test holds them.
 func TestScenario_C18(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -85,62 +83,33 @@ func TestScenario_C18(t *testing.T) {
 	})
 
 	// -----------------------------------------------------------------
-	// 18.9 COMPRESSION elision
+	// 18.9 COMPRESSION names OceanBase's own compressors
 	// -----------------------------------------------------------------
 	t.Run("18_9_compression_elision", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, "CREATE TABLE t_nocomp (a INT)")
-		runOnBoth(t, mc, c, "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'")
-
-		mysqlNo := oracleShow(t, mc, "SHOW CREATE TABLE t_nocomp")
-		mysqlYes := oracleShow(t, mc, "SHOW CREATE TABLE t_comp")
-		omniNo := c.ShowCreateTable("testdb", "t_nocomp")
-		omniYes := c.ShowCreateTable("testdb", "t_comp")
-
-		if strings.Contains(mysqlNo, "COMPRESSION=") {
-			t.Errorf("oracle t_nocomp: COMPRESSION should be elided; got %q", mysqlNo)
-		}
-		if !strings.Contains(mysqlYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("oracle t_comp: missing COMPRESSION='ZLIB'; got %q", mysqlYes)
-		}
-		if strings.Contains(omniNo, "COMPRESSION=") {
-			t.Errorf("omni t_nocomp: COMPRESSION should be elided; got %q", omniNo)
-		}
-		if !strings.Contains(omniYes, "COMPRESSION='ZLIB'") {
-			t.Errorf("omni t_comp: missing COMPRESSION='ZLIB'; got %q", omniYes)
-		}
+		// OceanBase compresses every table ('zstd_1.3.8' unless told) and
+		// refuses MySQL's page-compression names.
+		stmt := "CREATE TABLE t_comp (a INT) COMPRESSION='ZLIB'"
+		oracleRefuses(t, mc, stmt, 1210)
+		// omni gap: the catalog takes 'ZLIB', as MySQL does.
+		assertIntEq(t, "omni COMPRESSION='ZLIB' error code", omniCode(c, stmt), 0)
 	})
 
 	// -----------------------------------------------------------------
-	// 18.12 TABLESPACE clause elision
+	// 18.12 TABLESPACE takes no "="
 	// -----------------------------------------------------------------
 	t.Run("18_12_tablespace_elision", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, "CREATE TABLE t_default (a INT)")
-		// Use innodb_system — always available in MySQL 8.0.
-		runOnBoth(t, mc, c, "CREATE TABLE t_gts (a INT) TABLESPACE=innodb_system")
-
-		mysqlNo := oracleShow(t, mc, "SHOW CREATE TABLE t_default")
-		mysqlYes := oracleShow(t, mc, "SHOW CREATE TABLE t_gts")
-		omniNo := c.ShowCreateTable("testdb", "t_default")
-		omniYes := c.ShowCreateTable("testdb", "t_gts")
-
-		if strings.Contains(mysqlNo, "TABLESPACE") {
-			t.Errorf("oracle t_default: TABLESPACE should be elided; got %q", mysqlNo)
-		}
-		if !strings.Contains(mysqlYes, "TABLESPACE") {
-			t.Errorf("oracle t_gts: missing TABLESPACE clause; got %q", mysqlYes)
-		}
-		if strings.Contains(omniNo, "TABLESPACE") {
-			t.Errorf("omni t_default: TABLESPACE should be elided; got %q", omniNo)
-		}
-		if !strings.Contains(omniYes, "TABLESPACE") {
-			t.Errorf("omni t_gts: missing TABLESPACE clause; got %q", omniYes)
-		}
+		// OceanBase's table option is TABLESPACE <name>: MySQL's
+		// TABLESPACE=<name> is a syntax error.
+		stmt := "CREATE TABLE t_gts (a INT) TABLESPACE=innodb_system"
+		oracleRefuses(t, mc, stmt, 1064)
+		// omni gap: the parser takes the "=" form, as MySQL does.
+		assertIntEq(t, "omni TABLESPACE= error code", omniCode(c, stmt), 0)
 	})
 
 	// -----------------------------------------------------------------

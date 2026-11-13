@@ -7,7 +7,7 @@ import (
 
 // TestScenario_C6 covers Section C6 (Partition defaults) of the
 // mysql-implicit-behavior starmap. Each subtest runs DDL against both a real
-// MySQL 8.0 container and the omni catalog and asserts the observable state
+// OceanBase and the omni catalog and asserts the observable state
 // agrees.
 //
 // Uses helpers from scenarios_helpers_test.go and reuses:
@@ -133,14 +133,13 @@ func TestScenario_C6(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4`)
+		// OceanBase has no LINEAR partitioning: the keyword is a syntax error.
+		const ddl = `CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4`
+		oracleRefuses(t, mc, ddl, 1064)
 
-		sc := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(sc, "LINEAR HASH") {
-			t.Errorf("oracle SHOW CREATE: expected LINEAR HASH, got %s", sc)
-		}
-
+		// omni gap: the parser takes LINEAR and the catalog keeps it, as for
+		// MySQL.
+		assertIntEq(t, "omni LINEAR HASH error code", omniCode(c, ddl), 0)
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
 			t.Errorf("omni: table or partitioning missing")
@@ -236,13 +235,17 @@ func TestScenario_C6(t *testing.T) {
 
 		ddl := `CREATE TABLE t (c INT) PARTITION BY LIST(c)
              (PARTITION p0 VALUES IN (1,2), PARTITION pd VALUES IN (DEFAULT))`
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err == nil {
-			t.Fatalf("oracle: expected MySQL to reject LIST DEFAULT partition syntax")
+		// OceanBase has a DEFAULT list partition, which MySQL 8.0 rejects.
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
+			t.Fatalf("oracle: LIST DEFAULT partition: %v", err)
 		}
+		names := oraclePartitionNames(t, mc, "t")
+		assertStringEq(t, "oracle partition names", strings.Join(names, ","), "p0,pd")
 
+		// omni gap: the catalog rejects the syntax, as MySQL does.
 		results, err := c.Exec(ddl, nil)
 		if c6ExecError(results, err) == nil {
-			t.Fatalf("omni: expected rejection for LIST DEFAULT partition syntax")
+			t.Fatalf("omni: LIST DEFAULT partition is now accepted: drop the gap above")
 		}
 	})
 
@@ -421,14 +424,17 @@ func TestScenario_C6(t *testing.T) {
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 6`)
 
+		// OceanBase has no COALESCE PARTITION: the ALTER is a syntax error and
+		// the table keeps its six partitions.
 		coalesce := `ALTER TABLE t COALESCE PARTITION 2`
-		if _, err := mc.db.ExecContext(mc.ctx, coalesce); err != nil {
-			t.Errorf("oracle: ALTER COALESCE PARTITION failed: %v", err)
-		}
+		oracleRefuses(t, mc, coalesce, 1064)
 		names := oraclePartitionNames(t, mc, "t")
+		assertStringEq(t, "oracle partition names after the refused COALESCE",
+			strings.Join(names, ","), "p0,p1,p2,p3,p4,p5")
+
+		// omni gap: the catalog runs the ALTER and drops the tail, as MySQL
+		// does.
 		want := []string{"p0", "p1", "p2", "p3"}
-		assertStringEq(t, "oracle partition names after COALESCE",
-			strings.Join(names, ","), strings.Join(want, ","))
 
 		results, err := c.Exec(coalesce, nil)
 		if err != nil {

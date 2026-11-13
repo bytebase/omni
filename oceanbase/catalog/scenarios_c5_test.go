@@ -28,30 +28,19 @@ func TestScenario_C5(t *testing.T) {
 CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id));`
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: REFERENTIAL_CONSTRAINTS rules.
+		// Oracle: REFERENTIAL_CONSTRAINTS rules. OceanBase reports an omitted
+		// rule as RESTRICT, where MySQL reports NO ACTION.
 		var delRule, updRule, matchOpt string
 		oracleScan(t, mc, `SELECT DELETE_RULE, UPDATE_RULE, MATCH_OPTION
             FROM information_schema.REFERENTIAL_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule, &matchOpt)
-		assertStringEq(t, "oracle DELETE_RULE", delRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle DELETE_RULE", delRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 		assertStringEq(t, "oracle MATCH_OPTION", matchOpt, "NONE")
 
-		// SHOW CREATE TABLE should not contain ON DELETE / ON UPDATE / MATCH.
-		create := oracleShow(t, mc, "SHOW CREATE TABLE c")
-		if strings.Contains(strings.ToUpper(create), "ON DELETE") {
-			t.Errorf("oracle: SHOW CREATE TABLE should omit ON DELETE: %s", create)
-		}
-		if strings.Contains(strings.ToUpper(create), "ON UPDATE") {
-			t.Errorf("oracle: SHOW CREATE TABLE should omit ON UPDATE: %s", create)
-		}
-		if strings.Contains(strings.ToUpper(create), "MATCH") {
-			t.Errorf("oracle: SHOW CREATE TABLE should omit MATCH: %s", create)
-		}
-
 		// omni: FK should have default OnDelete/OnUpdate (empty or NO ACTION /
-		// RESTRICT) and the deparsed table should not render those clauses.
+		// RESTRICT).
 		tbl := c.GetDatabase("testdb").GetTable("c")
 		if tbl == nil {
 			t.Errorf("omni: table c missing")
@@ -67,13 +56,6 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id));`
 		}
 		if !c5IsFKDefault(fk.OnUpdate) {
 			t.Errorf("omni: FK OnUpdate should be default, got %q", fk.OnUpdate)
-		}
-		omniCreate := c5OmniShowCreate(t, c, "c")
-		if strings.Contains(strings.ToUpper(omniCreate), "ON DELETE") {
-			t.Errorf("omni: deparse should omit ON DELETE: %s", omniCreate)
-		}
-		if strings.Contains(strings.ToUpper(omniCreate), "ON UPDATE") {
-			t.Errorf("omni: deparse should omit ON UPDATE: %s", omniCreate)
 		}
 	})
 
@@ -155,15 +137,12 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='c'`,
 			&delRule, &updRule)
 		assertStringEq(t, "oracle DELETE_RULE", delRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updRule, "RESTRICT")
 
-		// SHOW CREATE renders ON DELETE CASCADE only.
+		// SHOW CREATE renders ON DELETE CASCADE.
 		create := oracleShow(t, mc, "SHOW CREATE TABLE c")
 		if !strings.Contains(strings.ToUpper(create), "ON DELETE CASCADE") {
 			t.Errorf("oracle: expected ON DELETE CASCADE, got %s", create)
-		}
-		if strings.Contains(strings.ToUpper(create), "ON UPDATE") {
-			t.Errorf("oracle: expected no ON UPDATE clause, got %s", create)
 		}
 
 		tbl := c.GetDatabase("testdb").GetTable("c")
@@ -186,9 +165,6 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 		if !strings.Contains(strings.ToUpper(omniCreate), "ON DELETE CASCADE") {
 			t.Errorf("omni: deparse missing ON DELETE CASCADE: %s", omniCreate)
 		}
-		if strings.Contains(strings.ToUpper(omniCreate), "ON UPDATE") {
-			t.Errorf("omni: deparse should omit ON UPDATE: %s", omniCreate)
-		}
 	})
 
 	// --- 5.5 FK SET DEFAULT rejected by InnoDB ------------------------------
@@ -207,26 +183,12 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             FOREIGN KEY (a) REFERENCES p(id) ON DELETE SET DEFAULT
         )`
 
-		// MySQL/InnoDB returns an error or warning for SET DEFAULT. Capture
-		// whichever is observed rather than asserting the precise behavior so
-		// the test reflects the real oracle.
-		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		oracleRejected := mysqlErr != nil
+		// OceanBase refuses SET DEFAULT with ER_CANNOT_ADD_FOREIGN (1215);
+		// MySQL takes the table, and InnoDB never performs the action.
+		oracleRefuses(t, mc, bad, 1215)
 
-		results, err := c.Exec(bad+";", nil)
-		omniErrored := err != nil
-		if !omniErrored {
-			for _, r := range results {
-				if r.Error != nil {
-					omniErrored = true
-					break
-				}
-			}
-		}
-
-		// Both should agree.
-		assertBoolEq(t, "omni FK SET DEFAULT matches MySQL rejection",
-			omniErrored, oracleRejected)
+		// omni gap: the catalog takes the table, as MySQL does.
+		assertIntEq(t, "omni FK SET DEFAULT error code", omniCode(c, bad+";"), 0)
 	})
 
 	// --- 5.6 FK column type/size/sign must match parent --------------------
@@ -275,22 +237,14 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
             b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
             FOREIGN KEY (b) REFERENCES p(id)
         )`
-		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
-		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104), got nil")
+		// OceanBase takes a foreign key on a VIRTUAL generated column, which
+		// MySQL refuses with ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104).
+		if _, err := mc.db.ExecContext(mc.ctx, bad); err != nil {
+			t.Errorf("oracle: FK on VIRTUAL gcol: %v", err)
 		}
 
-		results, err := c.Exec(bad+";", nil)
-		omniErrored := err != nil
-		if !omniErrored {
-			for _, r := range results {
-				if r.Error != nil {
-					omniErrored = true
-					break
-				}
-			}
-		}
-		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol", omniErrored, true)
+		// omni gap: the catalog refuses it with 3104, as MySQL does.
+		assertIntEq(t, "omni FK on VIRTUAL gcol error code", omniCode(c, bad+";"), 3104)
 	})
 
 	// --- 5.8 CHECK defaults to ENFORCED ------------------------------------
@@ -346,13 +300,14 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT CHECK (a > 0));
 CREATE TABLE t2 (a INT, CHECK (a > 0));`)
 
-		// Each table should have a single CHECK constraint with auto name.
+		// Each table should have a single CHECK constraint with auto name,
+		// which on OceanBase is <table>_OBCHECK_<microseconds>.
 		rows1 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't1_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't1_OBCHECK_%'`)
 		rows2 := oracleRows(t, mc, `SELECT CONSTRAINT_NAME, CHECK_CLAUSE
             FROM information_schema.CHECK_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't2_chk_%'`)
+            WHERE CONSTRAINT_SCHEMA='testdb' AND CONSTRAINT_NAME LIKE 't2_OBCHECK_%'`)
 		if len(rows1) != 1 {
 			t.Errorf("oracle: expected 1 CHECK on t1, got %d", len(rows1))
 		}

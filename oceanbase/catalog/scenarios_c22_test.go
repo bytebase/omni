@@ -15,16 +15,13 @@ import (
 //  1. omni parses and accepts the ALTER ... ALGORITHM=... / LOCK=... form.
 //  2. omni applies the underlying column/index change to catalog state
 //     identically whether or not an ALGORITHM/LOCK clause is present.
-//  3. MySQL 8.0 actually accepts or rejects the statement as the scenario
-//     claims (oracle sanity check — a regression in MySQL wouldn't be an
-//     omni bug but would invalidate the assertion).
+//  3. OceanBase runs the statement. It takes ALGORITHM and LOCK and enforces
+//     neither, so the combinations MySQL 8.0 refuses (22.6 to 22.8) run
+//     there, as they do in the catalog.
 //
 // Algorithm selection (scenarios 22.1/22.2) is not directly observable from
 // the client side without inspecting internal counters, so those tests only
 // verify that DEFAULT clauses parse and succeed on both sides.
-//
-// Failures in omni assertions are NOT proof failures — they are recorded in
-// mysql/catalog/scenarios_bug_queue/c22.md.
 func TestScenario_C22(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -278,16 +275,13 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("omni: column a type got %q want bigint", col.DataType)
 		}
 
-		// 22.6b: MODIFY + ALGORITHM=INPLACE → MySQL rejects.
-		_, oracleErr := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE")
-		if oracleErr == nil {
-			t.Errorf("oracle: expected error for MODIFY ... ALGORITHM=INPLACE, got nil")
-		} else if !strings.Contains(oracleErr.Error(), "ALGORITHM") &&
-			!strings.Contains(oracleErr.Error(), "not supported") {
-			t.Errorf("oracle: unexpected error form: %v", oracleErr)
+		// 22.6b: MODIFY + ALGORITHM=INPLACE. MySQL rejects it; OceanBase
+		// takes ALGORITHM and LOCK and enforces neither, so it runs.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE"); err != nil {
+			t.Errorf("oracle: MODIFY ... ALGORITHM=INPLACE: %v", err)
 		}
-		// omni must at least parse and (per catalog contract) apply the change.
+		// omni applies the change too.
 		results, err := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;", nil)
 		if err != nil {
 			t.Errorf("omni: parse error on MODIFY + ALGORITHM=INPLACE: %v", err)
@@ -298,15 +292,11 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.6c: MODIFY with a genuine type change + LOCK=NONE → MySQL
-		// rejects. Column `a` is currently bigint (from 22.6a); changing it
-		// to INT UNSIGNED is a real type change, which forces COPY, which is
-		// incompatible with LOCK=NONE. (A no-op MODIFY to the same type is
-		// silently optimized away and would not error.)
-		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
+		// 22.6c: MODIFY with a genuine type change + LOCK=NONE. MySQL
+		// rejects it, since the change forces COPY; OceanBase runs it.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE"); err != nil {
+			t.Errorf("oracle: MODIFY <typechange> ... LOCK=NONE: %v", err)
 		}
 		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
 		if err2 != nil {
@@ -329,18 +319,13 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// PK rebuild + ALGORITHM=INSTANT → MySQL rejects with
-		// ER_ALTER_OPERATION_NOT_SUPPORTED_REASON.
-		_, oracleErr := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT")
-		if oracleErr == nil {
-			t.Errorf("oracle: expected error for PK rebuild ALGORITHM=INSTANT, got nil")
-		} else if !strings.Contains(oracleErr.Error(), "ALGORITHM") &&
-			!strings.Contains(oracleErr.Error(), "not supported") {
-			t.Errorf("oracle: unexpected error form: %v", oracleErr)
+		// PK rebuild + ALGORITHM=INSTANT. MySQL rejects it with
+		// ER_ALTER_OPERATION_NOT_SUPPORTED_REASON; OceanBase rebuilds the key.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT"); err != nil {
+			t.Errorf("oracle: PK rebuild ALGORITHM=INSTANT: %v", err)
 		}
-
-		// omni: parser must accept; catalog applies PK swap regardless.
+		// omni: the catalog applies the PK swap too.
 		results, err := c.Exec(
 			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;", nil)
 		if err != nil {
@@ -363,13 +348,11 @@ func TestScenario_C22(t *testing.T) {
 		runOnBoth(t, mc, c,
 			"CREATE TABLE t1 (id INT PRIMARY KEY, a INT) ENGINE=InnoDB")
 
-		// 22.8a: COPY-only operation + LOCK=NONE → hard error. CHANGE COLUMN
-		// with a real type change forces COPY, and COPY cannot honor
-		// LOCK=NONE.
-		_, oracleErr := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE")
-		if oracleErr == nil {
-			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
+		// 22.8a: COPY-only operation + LOCK=NONE. A hard error in MySQL,
+		// where a type change forces COPY; OceanBase runs it.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE"); err != nil {
+			t.Errorf("oracle 22.8a: COPY op + LOCK=NONE: %v", err)
 		}
 		results, _ := c.Exec(
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
@@ -379,12 +362,12 @@ func TestScenario_C22(t *testing.T) {
 			}
 		}
 
-		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
-		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
-		_, oracleErr2 := mc.db.ExecContext(mc.ctx,
-			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE")
-		if oracleErr2 == nil {
-			t.Errorf("oracle 22.8b: expected error for INSTANT + LOCK=NONE, got nil")
+		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE. A hard error in
+		// MySQL ("Only LOCK=DEFAULT is permitted for operations using
+		// ALGORITHM=INSTANT"); OceanBase adds the column.
+		if _, err := mc.db.ExecContext(mc.ctx,
+			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE"); err != nil {
+			t.Errorf("oracle 22.8b: INSTANT + LOCK=NONE: %v", err)
 		}
 		results2, err2 := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)
@@ -398,7 +381,6 @@ func TestScenario_C22(t *testing.T) {
 		}
 
 		// 22.8c: ADD COLUMN + ALGORITHM=INSTANT (no LOCK) → succeeds.
-		// Note: b may already exist in omni catalog from 22.8b above; use c.
 		runOnBoth(t, mc, c,
 			"ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INSTANT")
 

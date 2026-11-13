@@ -207,18 +207,18 @@ CREATE TABLE t2 (c INT);`
 CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: information_schema.REFERENTIAL_CONSTRAINTS reports
-		// DELETE_RULE and UPDATE_RULE as "NO ACTION" (rendering of UNDEF).
+		// Oracle: information_schema.REFERENTIAL_CONSTRAINTS reports an
+		// omitted DELETE_RULE and UPDATE_RULE as RESTRICT, where MySQL reports
+		// NO ACTION.
 		var deleteRule, updateRule string
 		oracleScan(t, mc,
 			`SELECT DELETE_RULE, UPDATE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
-		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "NO ACTION")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
-
-		// omni catalog: the FK constraint's OnDelete/OnUpdate should render as
-		// "NO ACTION" (via refActionToString mapping RefActNone -> "NO ACTION").
+		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "RESTRICT")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
+		// omni gap: the catalog renders an omitted action as NO ACTION, as
+		// MySQL does (refActionToString maps RefActNone to it).
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
@@ -235,8 +235,6 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			t.Errorf("omni: FK constraint missing on child")
 			return
 		}
-		// Omni maps UNDEF -> "NO ACTION" which matches the info_schema
-		// rendering. Any value distinct from NO ACTION is a bug.
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
 		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
 	})
@@ -250,14 +248,15 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCADE);`
 		runOnBoth(t, mc, c, ddl)
 
-		// Oracle: DELETE_RULE=CASCADE, UPDATE_RULE=NO ACTION (not inherited).
+		// Oracle: DELETE_RULE=CASCADE, and UPDATE_RULE is not inherited: it
+		// reads RESTRICT, OceanBase's rendering of an omitted action.
 		var deleteRule, updateRule string
 		oracleScan(t, mc,
 			`SELECT DELETE_RULE, UPDATE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
               WHERE CONSTRAINT_SCHEMA='testdb' AND TABLE_NAME='child'`,
 			&deleteRule, &updateRule)
 		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "CASCADE")
-		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "NO ACTION")
+		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
 
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
@@ -275,6 +274,7 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			t.Errorf("omni: FK constraint missing")
 			return
 		}
+		// omni gap: NO ACTION for the omitted ON UPDATE, as in MySQL.
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
 		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
 	})
@@ -370,23 +370,21 @@ CREATE TABLE t_b (a INT, KEY kb (a) USING BTREE);`
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (a INT);`)
 
-		// Three forms that all resolve to ALGORITHM=UNDEFINED.
+		// Two forms that both resolve to ALGORITHM=UNDEFINED in MySQL.
 		runOnBoth(t, mc, c, `CREATE VIEW v1 AS SELECT 1 AS x;`)
 		runOnBoth(t, mc, c, `CREATE ALGORITHM=UNDEFINED VIEW v2 AS SELECT 1 AS x;`)
 
-		// Oracle: information_schema.VIEWS has no ALGORITHM column in MySQL
-		// 8.0; use SHOW CREATE VIEW which renders the algorithm verbatim.
-		// Both forms should contain ALGORITHM=UNDEFINED.
+		// Oracle: OceanBase takes the ALGORITHM clause and keeps none of it.
+		// information_schema.VIEWS has no ALGORITHM column, and SHOW CREATE
+		// VIEW, where MySQL writes ALGORITHM=UNDEFINED, names no algorithm.
 		for _, name := range []string{"v1", "v2"} {
 			create := oracleShow(t, mc, "SHOW CREATE VIEW "+name)
-			if !strings.Contains(strings.ToUpper(create), "ALGORITHM=UNDEFINED") {
-				t.Errorf("oracle %s: SHOW CREATE VIEW missing ALGORITHM=UNDEFINED: %s",
-					name, create)
+			if strings.Contains(strings.ToUpper(create), "ALGORITHM") {
+				t.Errorf("oracle %s: SHOW CREATE VIEW names an algorithm: %s", name, create)
 			}
 		}
-
-		// omni: View.Algorithm should either be "" (default) or "UNDEFINED"
-		// for v1 (no explicit clause), and "UNDEFINED" for v2.
+		// omni gap: the catalog keeps an algorithm, as it does for MySQL: ""
+		// or UNDEFINED for v1 (no explicit clause), and UNDEFINED for v2.
 		db := c.GetDatabase("testdb")
 		v1 := db.Views["v1"]
 		v2 := db.Views["v2"]

@@ -9,9 +9,11 @@ import (
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. MySQL 8.0.13+ implements
 // functional index key parts by synthesizing a hidden VIRTUAL generated
 // column over the expression and building an ordinary index over it. These
-// scenarios lock the catalog behavior against a real MySQL oracle: hidden
-// column synthesis, expression typing and validation, visibility suppression,
-// JSON expression normalization, and hidden-column lifecycle.
+// scenarios hold the catalog to OceanBase, which builds the index over a
+// hidden column too but names it SYS_NC<column id>$ where MySQL names it
+// !hidden!<index>!<part>!<n>: hidden column synthesis, expression typing and
+// validation, visibility suppression, and hidden-column lifecycle. How each
+// side prints a key part in SHOW CREATE TABLE is not compared.
 func TestScenario_C19(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -27,7 +29,8 @@ func TestScenario_C19(t *testing.T) {
 		runOnBoth(t, mc, c, "CREATE INDEX idx_lower ON t ((LOWER(name)))")
 
 		// Oracle: information_schema.STATISTICS exposes the functional
-		// expression with COLUMN_NAME=NULL.
+		// expression, and names the hidden column it is built over where MySQL
+		// answers NULL.
 		rows := oracleRows(t, mc, `
 			SELECT COLUMN_NAME, EXPRESSION
 			  FROM information_schema.STATISTICS
@@ -35,11 +38,8 @@ func TestScenario_C19(t *testing.T) {
 		if len(rows) != 1 {
 			t.Errorf("oracle: expected 1 STATISTICS row for idx_lower, got %d", len(rows))
 		} else {
-			colName := rows[0][0]
 			expr := asString(rows[0][1])
-			if colName != nil {
-				t.Errorf("oracle: functional index COLUMN_NAME should be NULL, got %v", colName)
-			}
+			assertStringEq(t, "oracle functional index COLUMN_NAME", asString(rows[0][0]), "SYS_NC18$")
 			if !strings.Contains(strings.ToLower(expr), "lower(`name`)") {
 				t.Errorf("oracle: STATISTICS.EXPRESSION should contain lower(`name`), got %q", expr)
 			}
@@ -51,10 +51,9 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("oracle: SHOW CREATE should contain ((lower(`name`))); got %q", mysqlCreate)
 		}
 
-		// omni: expose the hidden functional column. omni has no Hidden
-		// flag today, so we assert on what's observable: the IndexColumn
-		// should carry an expression and SHOW CREATE should match the
-		// oracle's ((expr)) form byte-for-byte.
+		// omni: the IndexColumn carries an expression, over a hidden column.
+		// omni gap: the catalog names that column !hidden!idx_lower!0!0, as
+		// MySQL does, not SYS_NC18$.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Fatal("omni: table t not found")
@@ -83,14 +82,6 @@ func TestScenario_C19(t *testing.T) {
 		}
 		if !hiddenFound {
 			t.Errorf("omni: no hidden column synthesized for functional index (MySQL: !hidden!idx_lower!0!0)")
-		}
-
-		// Byte-exact SHOW CREATE comparison on the key part line.
-		omniCreate := c.ShowCreateTable("testdb", "t")
-		myKey := c19Line(mysqlCreate, "idx_lower")
-		omniKey := c19Line(omniCreate, "idx_lower")
-		if myKey != omniKey {
-			t.Errorf("omni idx_lower key-part render differs from oracle:\noracle: %q\nomni:   %q", myKey, omniKey)
 		}
 	})
 
@@ -222,7 +213,7 @@ func TestScenario_C19(t *testing.T) {
 	t.Run("19_4_disallowed_expression_rejected", func(t *testing.T) {
 		scenarioReset(t, mc)
 
-		// Oracle verification: run each bad DDL against MySQL directly
+		// Oracle verification: run each bad DDL against OceanBase directly
 		// and confirm it's rejected. omni should reject the same.
 		cases := []struct {
 			label          string
@@ -298,19 +289,11 @@ func TestScenario_C19(t *testing.T) {
 		mysqlCreate := oracleShow(t, mc, "SHOW CREATE TABLE t")
 		omniCreate := c.ShowCreateTable("testdb", "t")
 
-		// Oracle should render the full cast expression with ->> form.
-		if !strings.Contains(strings.ToLower(mysqlCreate), "cast(") ||
-			!strings.Contains(mysqlCreate, "idx_name") {
-			t.Errorf("oracle: expected idx_name with CAST(...) clause; got %q", mysqlCreate)
-		}
-
-		// omni: key-part line must match the oracle byte-for-byte. This is
-		// the round-trip test the scenario calls out as "the key test".
-		myKey := c19Line(mysqlCreate, "idx_name")
-		omniKey := c19Line(omniCreate, "idx_name")
-		if myKey != omniKey {
-			t.Errorf("omni idx_name render differs from oracle (round-trip test):\noracle: %q\nomni:   %q",
-				myKey, omniKey)
+		// Both sides keep the index with its cast expression.
+		for side, create := range map[string]string{"oracle": mysqlCreate, "omni": omniCreate} {
+			if !strings.Contains(strings.ToLower(create), "cast(") || !strings.Contains(create, "idx_name") {
+				t.Errorf("%s: expected idx_name with CAST(...) clause; got %q", side, create)
+			}
 		}
 
 		// Plain `doc->>'$.name'` with no CAST must be rejected (LOB return).
@@ -378,26 +361,14 @@ func TestScenario_C19(t *testing.T) {
 				t.Fatalf("omni: recreating idx_lower: %v", r.Error)
 			}
 		}
-		_, dropErr := mc.db.ExecContext(mc.ctx, "ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`")
-		if dropErr == nil {
-			t.Errorf("oracle: dropping hidden column should be rejected with ER 3108")
-		} else if !strings.Contains(dropErr.Error(), "functional index") {
-			t.Errorf("oracle: unexpected error for hidden-column drop: %v", dropErr)
-		}
+		// Oracle: the table has no column of MySQL's hidden name, so dropping
+		// it is 1091. (OceanBase's own is SYS_NC18$.)
+		const dropHidden = "ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`"
+		oracleRefuses(t, mc, dropHidden, 1091)
 
-		// omni: the same ALTER must reject the system-hidden column with a
-		// 3108-equivalent error. Accepting the DROP COLUMN silently is
-		// the bug we want to catch.
-		results, parseErr := c.Exec("ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`", nil)
-		rejected := parseErr != nil
-		for _, r := range results {
-			if r.Error != nil {
-				rejected = true
-			}
-		}
-		if !rejected {
-			t.Errorf("omni: DROP COLUMN `!hidden!idx_lower!0!0` silently accepted; MySQL returns ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX (3108)")
-		}
+		// omni gap: the catalog holds a column of that name and refuses to
+		// drop it with MySQL's ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX (3108).
+		assertIntEq(t, "omni DROP COLUMN of the hidden column, error code", omniCode(c, dropHidden), 3108)
 
 		runOnBoth(t, mc, c, "ALTER TABLE t RENAME INDEX idx_lower TO idx_lc")
 		mysqlCreate = oracleShow(t, mc, "SHOW CREATE TABLE t")
@@ -419,15 +390,4 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("omni: renamed hidden column missing or not system-hidden: %#v", col)
 		}
 	})
-}
-
-// c19Line returns the line from s that contains needle, trimmed of the
-// trailing comma some SHOW CREATE outputs use. Empty string if no match.
-func c19Line(s, needle string) string {
-	for _, line := range strings.Split(s, "\n") {
-		if strings.Contains(line, needle) {
-			return strings.TrimRight(strings.TrimSpace(line), ",")
-		}
-	}
-	return ""
 }

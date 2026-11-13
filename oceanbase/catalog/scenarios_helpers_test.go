@@ -1,38 +1,85 @@
 package catalog
 
 import (
+	"errors"
+	"regexp"
 	"strings"
 	"testing"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
-// starmap scenario tests. Section workers in BATCHES 1-7 build on these helpers
-// to run dual-assertion scenarios against both a real MySQL 8.0 container and
-// the omni catalog.
+// scenario tests. The scenarios are MySQL's
+// (mysql/catalog/SCENARIOS-mysql-implicit-behavior.md); here each one runs on
+// OceanBase and on the omni catalog, and asserts OceanBase's answer. Where
+// the catalog still answers as MySQL does, the subtest asserts that beside
+// it under a comment that starts "omni gap:".
 //
 // NOTE: asString is already defined in catalog_spotcheck_test.go and is reused
 // here as-is; do not redeclare it.
 
-// scenarioContainer wraps startContainer for naming consistency with the
-// scenario helpers. The caller must defer the cleanup func.
-//
-// IMPORTANT: pins the underlying *sql.DB pool to a single connection. Many
-// scenario tests rely on connection-scoped state (USE testdb, SET SESSION
-// explicit_defaults_for_timestamp=0, SET SESSION sql_mode to empty, etc.) that
-// only affects the current MySQL session. Without pinning, subsequent
-// queries may execute on a different pool connection and silently run
-// against the wrong schema or session settings, producing nondeterministic
-// oracle results. (Codex BATCH 4 review P1/P2.)
+// scenarioContainer is startContainer under the scenario tests' name for it.
+// The scenarios rely on connection-scoped state (USE testdb, SET SESSION
+// sql_mode), which holds because a tape's stream is one connection.
 func scenarioContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	mc, cleanup := startContainer(t)
-	mc.db.SetMaxOpenConns(1)
-	mc.db.SetMaxIdleConns(1)
-	return mc, cleanup
+	return startContainer(t)
 }
 
-// scenarioReset drops and recreates the shared testdb database on the MySQL
-// container and selects it. It uses t.Error rather than t.Fatal so that the
+// oracleRefuses runs stmt on OceanBase and reports unless it answers the
+// error numbered code.
+func oracleRefuses(t *testing.T, mc *mysqlContainer, stmt string, code uint16) {
+	t.Helper()
+	_, err := mc.db.ExecContext(mc.ctx, stmt)
+	var me *mysqldriver.MySQLError
+	switch {
+	case err == nil:
+		t.Errorf("oracle: %q ran, want error %d", stmt, code)
+	case !errors.As(err, &me):
+		t.Errorf("oracle: %q: %v", stmt, err)
+	case me.Number != code:
+		t.Errorf("oracle: %q: got %v, want error %d", stmt, err, code)
+	}
+}
+
+// omniCode runs ddl on the catalog and returns the code of its first error:
+// 0 when every statement runs, and -1 for an error with no code, such as a
+// parse error.
+func omniCode(c *Catalog, ddl string) int {
+	results, err := c.Exec(ddl, nil)
+	if err == nil {
+		for _, r := range results {
+			if r.Error != nil {
+				err = r.Error
+				break
+			}
+		}
+	}
+	if err == nil {
+		return 0
+	}
+	var ce *Error
+	if errors.As(err, &ce) {
+		return ce.Code
+	}
+	return -1
+}
+
+// madeUpCount is the count a tape holds where OceanBase wrote the time into
+// a name it made up: child_OBFK_0000000000000003 for the third such name a
+// test reads (testcontainer.Codec.StandIn).
+var madeUpCount = regexp.MustCompile(`(_OB(?:FK|CHECK)_)\d{16}`)
+
+// withoutCount writes <n> for that count. Which made-up name a test happened
+// to read third says nothing of the engine, so a test compares the name
+// without it: child_OBFK_<n>.
+func withoutCount(name string) string {
+	return madeUpCount.ReplaceAllString(name, "${1}<n>")
+}
+
+// scenarioReset drops and recreates the shared testdb database on OceanBase
+// and selects it. It uses t.Error rather than t.Fatal so that the
 // calling test can continue and report additional diffs within one run.
 func scenarioReset(t *testing.T, mc *mysqlContainer) {
 	t.Helper()
@@ -66,8 +113,8 @@ func scenarioNewCatalog(t *testing.T) *Catalog {
 	return c
 }
 
-// runOnBoth executes a (possibly multi-statement) DDL string on both the
-// MySQL container and the omni catalog. Errors on either side are reported
+// runOnBoth executes a (possibly multi-statement) DDL string on both
+// OceanBase and the omni catalog. Errors on either side are reported
 // via t.Error so that the calling test can continue comparing remaining
 // scenario state. Statements are split respecting quotes; individual
 // statements are executed one at a time on the container side.
@@ -76,7 +123,7 @@ func runOnBoth(t *testing.T, mc *mysqlContainer, c *Catalog, ddl string) {
 
 	for _, stmt := range splitStmts(ddl) {
 		if _, err := mc.db.ExecContext(mc.ctx, stmt); err != nil {
-			t.Errorf("mysql container DDL failed: %q: %v", stmt, err)
+			t.Errorf("oracle DDL failed: %q: %v", stmt, err)
 		}
 	}
 
@@ -93,7 +140,7 @@ func runOnBoth(t *testing.T, mc *mysqlContainer, c *Catalog, ddl string) {
 }
 
 // oracleScan runs a single-row information_schema (or other) query against
-// the MySQL container and scans into dests. Uses t.Error on failure so the
+// OceanBase and scans into dests. Uses t.Error on failure so the
 // test can continue.
 func oracleScan(t *testing.T, mc *mysqlContainer, query string, dests ...any) {
 	t.Helper()
@@ -103,7 +150,7 @@ func oracleScan(t *testing.T, mc *mysqlContainer, query string, dests ...any) {
 	}
 }
 
-// oracleRows runs a multi-row query against the MySQL container and returns
+// oracleRows runs a multi-row query against OceanBase and returns
 // the rows as a [][]any, converting []byte values to string for readability.
 // Uses t.Error on failure and returns nil.
 func oracleRows(t *testing.T, mc *mysqlContainer, query string) [][]any {
@@ -145,8 +192,8 @@ func oracleRows(t *testing.T, mc *mysqlContainer, query string) [][]any {
 	return out
 }
 
-// oracleShow runs a SHOW CREATE TABLE / VIEW / ... statement against the
-// container and returns the second column (the CREATE statement text).
+// oracleShow runs a SHOW CREATE TABLE / VIEW / ... statement against
+// OceanBase and returns the second column (the CREATE statement text).
 // The first column (name) and any trailing columns are discarded. Uses
 // t.Error on failure and returns the empty string.
 //

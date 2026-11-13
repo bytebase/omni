@@ -6,10 +6,12 @@ import (
 	"testing"
 )
 
-// These tests verify that the behaviors described in
-// docs/plans/2026-04-13-mysql-implicit-behaviors-catalog.md
-// match real MySQL 8.0 observable behavior. They run against a
-// testcontainers MySQL container and do NOT involve omni's catalog.
+// These spot checks ask OceanBase what
+// docs/plans/2026-04-13-mysql-implicit-behaviors-catalog.md says of MySQL
+// 8.0. Where OceanBase answers as MySQL does the check is MySQL's; where it
+// does not, the check holds OceanBase's answer and says what MySQL's is. They
+// do NOT involve omni's catalog: TestScenario_* hold the catalog to the same
+// answers.
 
 // spotCheckQuery runs DDL (possibly multi-statement) then returns the
 // rows of the given query. Fatals on any error.
@@ -130,38 +132,15 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rowsB {
 			namesB = append(namesB, asString(row[0]))
 		}
-		has5 := false
-		has6 := false
-		for _, n := range namesB {
-			if n == "child2_ibfk_5" {
-				has5 = true
-			}
-			if n == "child2_ibfk_6" {
-				has6 = true
-			}
+		// OceanBase keeps no ibfk counter on either path: it names an unnamed
+		// key <table>_OBFK_<microseconds>, compared here without the count a
+		// tape holds for the time (withoutCount). MySQL
+		// answers child2_ibfk_6 here (max+1) and child_ibfk_1 in phase A.
+		if got, want := withoutCount(strings.Join(namesB, " ")), "child2_ibfk_5 child2_OBFK_<n>"; got != want {
+			t.Errorf("C1.1 (phase B, ALTER TABLE): got [%s], want [%s]", got, want)
 		}
-		if !has5 || !has6 || len(namesB) != 2 {
-			t.Errorf("CATALOG MISMATCH C1.1 (phase B, ALTER TABLE max+1): expected [child2_ibfk_5, child2_ibfk_6], got %v", namesB)
-		} else {
-			t.Logf("OK C1.1 phase B verified (ALTER TABLE honors max+1): %v", namesB)
-		}
-
-		// Report phase A as observation (may differ from phase B if CREATE uses count-based).
-		if len(namesA) == 2 {
-			hasA5, hasA6 := false, false
-			for _, n := range namesA {
-				if n == "child_ibfk_5" {
-					hasA5 = true
-				}
-				if n == "child_ibfk_6" {
-					hasA6 = true
-				}
-			}
-			if hasA5 && hasA6 {
-				t.Logf("OK C1.1 phase A: CREATE TABLE also follows max+1: %v", namesA)
-			} else {
-				t.Logf("NOTE C1.1 phase A: CREATE TABLE does NOT follow max+1 (catalog may need clarification): %v", namesA)
-			}
+		if got, want := withoutCount(strings.Join(namesA, " ")), "child_ibfk_5 child_OBFK_<n>"; got != want {
+			t.Errorf("C1.1 (phase A, CREATE TABLE): got [%s], want [%s]", got, want)
 		}
 	})
 
@@ -304,9 +283,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 
 	// ---------------------------------------------------------------
 	// C5.1: FK ON DELETE default. Catalog claims parser default is
-	// FK_OPTION_RESTRICT. However, information_schema.REFERENTIAL_CONSTRAINTS
-	// famously reports 'NO ACTION' for both RESTRICT and unspecified, and
-	// SHOW CREATE TABLE elides the clause entirely. Verify both views.
+	// FK_OPTION_RESTRICT, which MySQL's
+	// information_schema.REFERENTIAL_CONSTRAINTS reports as 'NO ACTION'.
+	// OceanBase reports RESTRICT.
 	// ---------------------------------------------------------------
 	t.Run("C5_1_fk_on_delete_default", func(t *testing.T) {
 		reset(t)
@@ -325,26 +304,14 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 		del := asString(rows[0][0])
 		upd := asString(rows[0][1])
-		// Real MySQL 8.0 reports "NO ACTION" in info_schema for unspecified.
-		if del != "NO ACTION" || upd != "NO ACTION" {
-			t.Errorf("CATALOG OBS C5.1: REFERENTIAL_CONSTRAINTS reports DELETE=%q UPDATE=%q (catalog says parser default is FK_OPTION_RESTRICT; confirm whether the catalog means semantic behavior vs reporting)", del, upd)
-		} else {
-			t.Logf("OK C5.1 observed: info_schema reports DELETE=%q UPDATE=%q (semantically equivalent to RESTRICT)", del, upd)
-		}
-		// Also verify SHOW CREATE TABLE elides ON DELETE clause (standard behavior).
-		stmt, err := mc.showCreateTable("c5")
-		if err != nil {
-			t.Fatalf("show create: %v", err)
-		}
-		if strings.Contains(strings.ToUpper(stmt), "ON DELETE") {
-			t.Errorf("unexpected ON DELETE clause in SHOW CREATE TABLE: %s", stmt)
-		} else {
-			t.Logf("OK C5.1 SHOW CREATE elides ON DELETE clause: %s", stmt)
+		if del != "RESTRICT" || upd != "RESTRICT" {
+			t.Errorf("C5.1: REFERENTIAL_CONSTRAINTS reports DELETE=%q UPDATE=%q, want RESTRICT for both", del, upd)
 		}
 	})
 
 	// ---------------------------------------------------------------
-	// C10.2: View SQL SECURITY defaults to DEFINER.
+	// C10.2: View SQL SECURITY defaults to DEFINER in MySQL. OceanBase keeps
+	// no SQL SECURITY for a view and reports NONE.
 	// ---------------------------------------------------------------
 	t.Run("C10_2_view_security_definer", func(t *testing.T) {
 		reset(t)
@@ -359,10 +326,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			t.Fatalf("expected 1 row, got %d", len(rows))
 		}
 		sec := asString(rows[0][0])
-		if sec != "DEFINER" {
-			t.Errorf("CATALOG MISMATCH C10.2: expected SECURITY_TYPE=DEFINER, got %q", sec)
-		} else {
-			t.Logf("OK C10.2 verified: SECURITY_TYPE=%q", sec)
+		if sec != "NONE" {
+			t.Errorf("C10.2: expected SECURITY_TYPE=NONE, got %q", sec)
 		}
 	})
 
@@ -405,6 +370,7 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	// PS1 (CREATE): CHECK constraint counter — CREATE uses FRESH counter.
 	// Catalog claim: unnamed CHECK constraints in CREATE are numbered
 	// 1, 2, 3, ... starting from 0 regardless of user-named CCs.
+	// OceanBase numbers none: <table>_OBCHECK_<microseconds>.
 	// ---------------------------------------------------------------
 	t.Run("PS1_CheckCounter_CREATE_fresh", func(t *testing.T) {
 		reset(t)
@@ -424,20 +390,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rows {
 			names = append(names, asString(row[0]))
 		}
-		t.Logf("PS1 CREATE observed: %v", names)
-		has1, has5 := false, false
-		for _, n := range names {
-			if n == "tchk_chk_1" {
-				has1 = true
-			}
-			if n == "tchk_chk_5" {
-				has5 = true
-			}
-		}
-		if !has1 || !has5 || len(names) != 2 {
-			t.Errorf("CATALOG MISMATCH PS1 CREATE: expected [tchk_chk_1, tchk_chk_5], got %v", names)
-		} else {
-			t.Logf("OK PS1 CREATE verified (fresh counter from 0): %v", names)
+		if got, want := withoutCount(strings.Join(names, " ")), "tchk_chk_5 tchk_OBCHECK_<n>"; got != want {
+			t.Errorf("PS1 CREATE: got [%s], want [%s]", got, want)
 		}
 	})
 
@@ -510,8 +464,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	})
 
 	// ---------------------------------------------------------------
-	// PS7: FK name collision — first unnamed FK wants t_ibfk_1, collides
-	// with user-named t_ibfk_1 → ER_FK_DUP_NAME.
+	// PS7: FK name collision — in MySQL the first unnamed FK wants
+	// t_ibfk_1, collides with user-named t_ibfk_1 → ER_FK_DUP_NAME.
+	// OceanBase's generated name cannot collide: the table is created.
 	// ---------------------------------------------------------------
 	t.Run("PS7_FKNameCollision", func(t *testing.T) {
 		reset(t)
@@ -526,31 +481,26 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 				FOREIGN KEY (b) REFERENCES p7(id)
 			)
 		`)
-		if err == nil {
-			rows := spotCheckQuery(t, mc, ``, `
-				SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-				WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps7' AND CONSTRAINT_TYPE='FOREIGN KEY'
-				ORDER BY CONSTRAINT_NAME
-			`)
-			var names []string
-			for _, row := range rows {
-				names = append(names, asString(row[0]))
-			}
-			t.Errorf("CATALOG MISMATCH PS7: expected ER_FK_DUP_NAME, got success with FKs %v", names)
-			return
+		if err != nil {
+			t.Fatalf("PS7: %v", err)
 		}
-		msg := err.Error()
-		t.Logf("PS7 error observed: %v", msg)
-		// ER_FK_DUP_NAME = 1826
-		if !strings.Contains(msg, "1826") && !strings.Contains(strings.ToLower(msg), "duplicate") {
-			t.Errorf("PS7 UNEXPECTED ERROR: expected ER_FK_DUP_NAME (1826), got: %v", msg)
-		} else {
-			t.Logf("OK PS7 verified: collision rejected")
+		rows := spotCheckQuery(t, mc, ``, `
+			SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='tps7' AND CONSTRAINT_TYPE='FOREIGN KEY'
+			ORDER BY CONSTRAINT_NAME
+		`)
+		var names []string
+		for _, row := range rows {
+			names = append(names, asString(row[0]))
+		}
+		if got, want := withoutCount(strings.Join(names, " ")), "tps7_ibfk_1 tps7_OBFK_<n>"; got != want {
+			t.Errorf("PS7: got FKs [%s], want [%s]", got, want)
 		}
 	})
 
 	// ---------------------------------------------------------------
-	// C1.3: Check constraint name format = {table}_chk_N
+	// C1.3: Check constraint name format = {table}_chk_N in MySQL, and
+	// {table}_OBCHECK_{microseconds} in OceanBase.
 	// (Also verified as part of PS1 CREATE above; explicit here.)
 	// ---------------------------------------------------------------
 	t.Run("C1_3_CheckConstraintName", func(t *testing.T) {
@@ -566,11 +516,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		for _, row := range rows {
 			names = append(names, asString(row[0]))
 		}
-		want := []string{"cc_chk_1", "cc_chk_2"}
-		if len(names) != 2 || names[0] != want[0] || names[1] != want[1] {
-			t.Errorf("CATALOG MISMATCH C1.3: expected %v, got %v", want, names)
-		} else {
-			t.Logf("OK C1.3 verified: %v", names)
+		if got, want := withoutCount(strings.Join(names, " ")), "cc_OBCHECK_<n> cc_OBCHECK_<n>"; got != want {
+			t.Errorf("C1.3: got [%s], want [%s]", got, want)
 		}
 	})
 
@@ -695,18 +642,17 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 				t.Logf("OK C18.1 verified: per-column CHARACTER SET elided (column line: %q)", rest)
 			}
 		}
-		// C18.5: DEFAULT CHARSET=latin1 SHOULD be present (user explicitly specified).
-		if !strings.Contains(up, "DEFAULT CHARSET=LATIN1") && !strings.Contains(up, "CHARSET=LATIN1") {
-			t.Errorf("CATALOG MISMATCH C18.5 (explicit): expected DEFAULT CHARSET=latin1 to be shown, got: %s", scStmt)
-		} else {
-			t.Logf("OK C18.5 (explicit) verified: DEFAULT CHARSET=latin1 shown")
+		// C18.5: the table's charset SHOULD be present (user explicitly
+		// specified), as OceanBase spells it.
+		if !strings.Contains(up, "DEFAULT CHARSET = LATIN1") {
+			t.Errorf("C18.5 (explicit): expected DEFAULT CHARSET = latin1 to be shown, got: %s", scStmt)
 		}
 	})
 
 	// ---------------------------------------------------------------
 	// C18.5 (implicit): CREATE TABLE without charset → SHOW CREATE
-	// may still include DEFAULT CHARSET clause inherited from DB.
-	// Real MySQL: it DOES show DEFAULT CHARSET even when inherited.
+	// still includes the DEFAULT CHARSET clause inherited from the DB, in
+	// OceanBase as in MySQL.
 	// ---------------------------------------------------------------
 	t.Run("C18_5_DefaultCharset_implicit", func(t *testing.T) {
 		reset(t)
@@ -717,9 +663,9 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if err != nil {
 			t.Fatalf("show create: %v", err)
 		}
-		up := strings.ToUpper(stmt)
-		has := strings.Contains(up, "DEFAULT CHARSET=") || strings.Contains(up, "CHARSET=")
-		t.Logf("C18.5 (implicit) observation: DEFAULT CHARSET present=%v; stmt=%s", has, stmt)
+		if !strings.Contains(stmt, "DEFAULT CHARSET = utf8mb4") {
+			t.Errorf("C18.5 (implicit): expected DEFAULT CHARSET = utf8mb4 to be shown, got: %s", stmt)
+		}
 	})
 
 	// ---------------------------------------------------------------
@@ -818,7 +764,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 	})
 
 	// ---------------------------------------------------------------
-	// C7.2: FK creates implicit backing index on child FK columns.
+	// C7.2: FK creates implicit backing index on child FK columns in MySQL.
+	// OceanBase builds none.
 	// ---------------------------------------------------------------
 	t.Run("C7_2_FK_backing_index", func(t *testing.T) {
 		reset(t)
@@ -830,10 +777,8 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 			WHERE TABLE_SCHEMA='sc' AND TABLE_NAME='cfk'
 			ORDER BY INDEX_NAME, SEQ_IN_INDEX
 		`)
-		if len(rows) == 0 {
-			t.Errorf("CATALOG MISMATCH C7.2: expected at least 1 backing index, got 0")
-		} else {
-			t.Logf("OK C7.2 verified: %d index row(s) on cfk: %v", len(rows), rows)
+		if len(rows) != 0 {
+			t.Errorf("C7.2: expected no index on cfk, got %d index row(s): %v", len(rows), rows)
 		}
 	})
 
@@ -868,11 +813,10 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		if len(rows) != 1 {
 			t.Fatalf("expected 1 row, got %d", len(rows))
 		}
+		// MySQL spells it Dynamic.
 		rf := asString(rows[0][0])
-		if rf != "Dynamic" && rf != "Compact" {
-			t.Errorf("CATALOG MISMATCH C8.2: expected Dynamic or Compact, got %q", rf)
-		} else {
-			t.Logf("OK C8.2 verified: ROW_FORMAT=%s", rf)
+		if rf != "DYNAMIC" {
+			t.Errorf("C8.2: expected DYNAMIC, got %q", rf)
 		}
 	})
 
@@ -928,16 +872,14 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		} else {
 			t.Logf("OK C10.3 verified: DEFINER=%s", definer)
 		}
-		// C10.1: SHOW CREATE VIEW for ALGORITHM
+		// C10.1: SHOW CREATE VIEW for ALGORITHM. MySQL writes
+		// ALGORITHM=UNDEFINED; OceanBase keeps no algorithm and writes none.
 		stmt, err := mc.showCreateView("v10")
 		if err != nil {
 			t.Fatalf("show create view: %v", err)
 		}
-		up := strings.ToUpper(stmt)
-		if !strings.Contains(up, "ALGORITHM=UNDEFINED") {
-			t.Errorf("CATALOG MISMATCH C10.1: expected ALGORITHM=UNDEFINED in SHOW CREATE VIEW, got: %s", stmt)
-		} else {
-			t.Logf("OK C10.1 verified: ALGORITHM=UNDEFINED")
+		if strings.Contains(strings.ToUpper(stmt), "ALGORITHM") {
+			t.Errorf("C10.1: expected no ALGORITHM in SHOW CREATE VIEW, got: %s", stmt)
 		}
 	})
 

@@ -7,11 +7,13 @@ import (
 
 // TestScenario_C2 runs the "Type normalization" section of
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md (section C2). Each subtest executes a
-// DDL against both a real MySQL 8.0 container and the omni catalog, then
-// asserts that both agree on the expected normalized type rendering.
+// DDL against both OceanBase and the omni catalog, then asserts the
+// normalized type each reports.
 //
-// Per the worker protocol, failed omni assertions are NOT test infrastructure
-// failures — they are tracked as discovered bugs in mysql/catalog/scenarios_bug_queue/c2.md.
+// OceanBase reports to clients as MySQL 5.7: it keeps an integer's display
+// width (int(11), bigint(20)) and YEAR's (year(4)), and its national
+// character types are utf8mb4. The catalog normalizes as MySQL 8.0 does, and
+// the subtests that show it name the gap.
 // The test uses t.Error (not t.Fatal) so every scenario reports all its
 // diffs in a single run.
 func TestScenario_C2(t *testing.T) {
@@ -102,7 +104,7 @@ func TestScenario_C2(t *testing.T) {
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INTEGER)`)
 
 		assertStringEq(t, "oracle DATA_TYPE", oracleDataType(t, "c"), "int")
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(11)")
 
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni DataType", strings.ToLower(col.DataType), "int")
@@ -166,8 +168,9 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c INT(11))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "int(11)")
 
+		// omni gap: the catalog strips the display width, as MySQL 8.0 does.
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "int")
 		}
@@ -192,7 +195,7 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c SERIAL)`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "bigint unsigned")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "bigint(20) unsigned")
 		var nullable, extra string
 		oracleScan(t, mc,
 			`SELECT IS_NULLABLE, EXTRA FROM information_schema.COLUMNS
@@ -201,6 +204,7 @@ func TestScenario_C2(t *testing.T) {
 		assertStringEq(t, "oracle IS_NULLABLE", nullable, "NO")
 		assertStringEq(t, "oracle EXTRA", strings.ToLower(extra), "auto_increment")
 
+		// omni gap: no display width in the catalog's ColumnType.
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "bigint unsigned")
 			assertBoolEq(t, "omni Nullable", col.Nullable, false)
@@ -339,9 +343,10 @@ func TestScenario_C2(t *testing.T) {
 
 		assertStringEq(t, "oracle a COLUMN_TYPE", oracleColumnType(t, "a"), "char(10)")
 		assertStringEq(t, "oracle b COLUMN_TYPE", oracleColumnType(t, "b"), "char(10)")
-		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb3")
-		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb3")
+		assertStringEq(t, "oracle a CHARSET", oracleCharset(t, "a"), "utf8mb4")
+		assertStringEq(t, "oracle b CHARSET", oracleCharset(t, "b"), "utf8mb4")
 
+		// omni gap: the catalog gives national types utf8mb3, as MySQL does.
 		if col := omniCol(t, c, "a"); col != nil {
 			assertStringEq(t, "omni a ColumnType", strings.ToLower(col.ColumnType), "char(10)")
 			assertStringEq(t, "omni a Charset", strings.ToLower(col.Charset), "utf8mb3")
@@ -352,7 +357,7 @@ func TestScenario_C2(t *testing.T) {
 		}
 	})
 
-	// 2.18 NVARCHAR family → VARCHAR utf8mb3
+	// 2.18 NVARCHAR family → VARCHAR
 	t.Run("2_18_NVARCHAR_family", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -367,8 +372,9 @@ func TestScenario_C2(t *testing.T) {
 
 		for _, name := range []string{"a", "b", "cc", "d"} {
 			assertStringEq(t, "oracle "+name+" COLUMN_TYPE", oracleColumnType(t, name), "varchar(10)")
-			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb3")
+			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb4")
 
+			// omni gap: utf8mb3 in the catalog, as in MySQL.
 			if col := omniCol(t, c, name); col != nil {
 				assertStringEq(t, "omni "+name+" ColumnType", strings.ToLower(col.ColumnType), "varchar(10)")
 				assertStringEq(t, "omni "+name+" Charset", strings.ToLower(col.Charset), "utf8mb3")
@@ -486,8 +492,9 @@ func TestScenario_C2(t *testing.T) {
 		c := scenarioNewCatalog(t)
 		runOnBoth(t, mc, c, `CREATE TABLE t (c YEAR(4))`)
 
-		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year")
+		assertStringEq(t, "oracle COLUMN_TYPE", oracleColumnType(t, "c"), "year(4)")
 
+		// omni gap: the catalog drops YEAR's width, as MySQL 8.0 does.
 		if col := omniCol(t, c, "c"); col != nil {
 			assertStringEq(t, "omni ColumnType", strings.ToLower(col.ColumnType), "year")
 		}
@@ -530,14 +537,12 @@ func TestScenario_C2(t *testing.T) {
 			`SELECT DATA_TYPE FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='c'`,
 			&gotType)
+		// OceanBase keeps the column a VARCHAR, where MySQL promotes it to
+		// MEDIUMTEXT in non-strict mode.
 		gotType = strings.ToLower(gotType)
-		if gotType != "mediumtext" && gotType != "text" {
-			t.Errorf("oracle: expected mediumtext or text, got %q", gotType)
-		}
+		assertStringEq(t, "oracle DATA_TYPE", gotType, "varchar")
 
-		// omni side — we document the current behavior rather than asserting
-		// a specific outcome, since omni's byte-length → text promotion is
-		// a known gap (scenario 2.25 is pending-verify).
+		// omni gap: the catalog promotes it to a text type, as MySQL does.
 		results, err := c.Exec(`CREATE TABLE t (c VARCHAR(65536));`, nil)
 		omniErr := err != nil
 		if !omniErr {
@@ -559,7 +564,7 @@ func TestScenario_C2(t *testing.T) {
 		} else {
 			// omni raised an error — acceptable only if we were in strict mode,
 			// but since omni has no session state, this is a diff vs oracle.
-			t.Errorf("omni: raised error for VARCHAR(65536) but oracle (non-strict) accepted it as %s", gotType)
+			t.Errorf("omni: raised error for VARCHAR(65536), which OceanBase takes as %s", gotType)
 		}
 	})
 
