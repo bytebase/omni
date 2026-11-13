@@ -44,7 +44,7 @@ reject@0	reject@0	engine	stmt/AlterDefaultPrivilegesStmt!drop-1	DEFAULT PRIVILEG
 reject@6	reject@6	engine	stmt/AlterDefaultPrivilegesStmt!drop-2	ALTER PRIVILEGES GRANT SELECT ON TABLES TO a
 reject@14	reject@14	engine	stmt/AlterDefaultPrivilegesStmt!drop-3	ALTER DEFAULT GRANT SELECT ON TABLES TO a
 reject@25	reject@25	engine	stmt/AlterDefaultPrivilegesStmt!drop-4	ALTER DEFAULT PRIVILEGES SELECT ON TABLES TO a
-accept	reject@31	engine	stmt/AlterDefaultPrivilegesStmt!drop-5	ALTER DEFAULT PRIVILEGES GRANT ON TABLES TO a
+reject@31	reject@31	engine	stmt/AlterDefaultPrivilegesStmt!drop-5	ALTER DEFAULT PRIVILEGES GRANT ON TABLES TO a
 reject@38	reject@38	engine	stmt/AlterDefaultPrivilegesStmt!drop-6	ALTER DEFAULT PRIVILEGES GRANT SELECT TABLES TO a
 accept	reject@41	engine	stmt/AlterDefaultPrivilegesStmt!drop-7	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TO a
 reject@48	reject@48	engine	stmt/AlterDefaultPrivilegesStmt!drop-8	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES a
@@ -735,7 +735,7 @@ reject@8	reject@8	engine	stmt/FetchStmt!insert	FETCH a zzz
 reject@0	reject@0	engine	stmt/FetchStmt!swap	FILTER a
 accept	accept	engine	stmt/GrantStmt	GRANT SELECT ON a TO a
 reject@7	reject@7	engine	stmt/GrantStmt!drop-1	SELECT ON a TO a
-accept	reject@6	engine	stmt/GrantStmt!drop-2	GRANT ON a TO a
+reject@6	reject@6	engine	stmt/GrantStmt!drop-2	GRANT ON a TO a
 reject@13	reject@13	engine	stmt/GrantStmt!drop-3	GRANT SELECT a TO a
 reject@16	reject@16	engine	stmt/GrantStmt!drop-4	GRANT SELECT ON TO a
 reject@18	reject@18	engine	stmt/GrantStmt!drop-5	GRANT SELECT ON a a
@@ -744,7 +744,7 @@ reject@23	reject@23	engine	stmt/GrantStmt!insert	GRANT SELECT ON a TO a zzz
 reject@0	reject@0	engine	stmt/GrantStmt!swap	GRANTED SELECT ON a TO a
 accept	accept	engine	stmt/GrantRoleStmt	GRANT SELECT TO a
 reject@7	reject@7	engine	stmt/GrantRoleStmt!drop-1	SELECT TO a
-accept	reject@6	engine	stmt/GrantRoleStmt!drop-2	GRANT TO a
+reject@6	reject@6	engine	stmt/GrantRoleStmt!drop-2	GRANT TO a
 reject@13	reject@13	engine	stmt/GrantRoleStmt!drop-3	GRANT SELECT a
 reject@15	reject@15	engine	stmt/GrantRoleStmt!drop-4	GRANT SELECT TO
 reject@18	reject@18	engine	stmt/GrantRoleStmt!insert	GRANT SELECT TO a zzz
@@ -870,7 +870,7 @@ reject@30	reject@30	engine	stmt/RenameStmt!insert	ALTER COLLATION a RENAME TO a 
 reject@0	reject@0	engine	stmt/RenameStmt!swap	ALWAYS COLLATION a RENAME TO a
 accept	accept	engine	stmt/RevokeStmt	REVOKE SELECT ON a FROM a
 reject@7	reject@7	engine	stmt/RevokeStmt!drop-1	SELECT ON a FROM a
-accept	reject@7	engine	stmt/RevokeStmt!drop-2	REVOKE ON a FROM a
+reject@7	reject@7	engine	stmt/RevokeStmt!drop-2	REVOKE ON a FROM a
 reject@14	reject@14	engine	stmt/RevokeStmt!drop-3	REVOKE SELECT a FROM a
 reject@17	reject@17	engine	stmt/RevokeStmt!drop-4	REVOKE SELECT ON FROM a
 reject@19	reject@19	engine	stmt/RevokeStmt!drop-5	REVOKE SELECT ON a a
@@ -878,7 +878,7 @@ reject@23	reject@23	engine	stmt/RevokeStmt!drop-6	REVOKE SELECT ON a FROM
 reject@26	reject@26	engine	stmt/RevokeStmt!insert	REVOKE SELECT ON a FROM a zzz
 reject@0	reject@0	engine	stmt/RevokeStmt!swap	RIGHT SELECT ON a FROM a
 accept	accept	engine	stmt/RevokeRoleStmt	REVOKE SELECT FROM a
-accept	reject@7	engine	stmt/RevokeRoleStmt!drop-2	REVOKE FROM a
+reject@7	reject@7	engine	stmt/RevokeRoleStmt!drop-2	REVOKE FROM a
 reject@14	reject@14	engine	stmt/RevokeRoleStmt!drop-3	REVOKE SELECT a
 reject@18	reject@18	engine	stmt/RevokeRoleStmt!drop-4	REVOKE SELECT FROM
 reject@21	reject@21	engine	stmt/RevokeRoleStmt!insert	REVOKE SELECT FROM a zzz
@@ -1193,7 +1193,7 @@ reject@73	reject@73	engine	schema_stmt/CreateTrigStmt!insert	CREATE SCHEMA a CRE
 reject@16	reject@16	engine	schema_stmt/CreateTrigStmt!swap	CREATE SCHEMA a CROSS TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
 accept	accept	engine	schema_stmt/GrantStmt	CREATE SCHEMA a GRANT SELECT ON a TO a
 reject@16	reject@16	engine	schema_stmt/GrantStmt!drop-1	CREATE SCHEMA a SELECT ON a TO a
-accept	reject@22	engine	schema_stmt/GrantStmt!drop-2	CREATE SCHEMA a GRANT ON a TO a
+reject@22	reject@22	engine	schema_stmt/GrantStmt!drop-2	CREATE SCHEMA a GRANT ON a TO a
 reject@29	reject@29	engine	schema_stmt/GrantStmt!drop-3	CREATE SCHEMA a GRANT SELECT a TO a
 reject@32	reject@32	engine	schema_stmt/GrantStmt!drop-4	CREATE SCHEMA a GRANT SELECT ON TO a
 reject@34	reject@34	engine	schema_stmt/GrantStmt!drop-5	CREATE SCHEMA a GRANT SELECT ON a a
@@ -3235,13 +3235,13 @@ reject@15	reject@15	engine	NumericOnly/-_FCONST!insert	SET a TO - 1.5 zzz
 accept	accept	engine	NumericOnly/SignedIconst	SET a TO 1
 reject@11	reject@11	engine	NumericOnly/SignedIconst!insert	SET a TO 1 zzz
 accept	accept	engine	NumericOnly_list/NumericOnly	GRANT SELECT ON LARGE OBJECT 1.5 TO a
-accept	reject@29	engine	NumericOnly_list/NumericOnly!drop-1	GRANT SELECT ON LARGE OBJECT TO a
+reject@29	reject@29	engine	NumericOnly_list/NumericOnly!drop-1	GRANT SELECT ON LARGE OBJECT TO a
 reject@28	reject@28	engine	NumericOnly_list/NumericOnly!truncate	GRANT SELECT ON LARGE OBJECT
 reject@33	reject@33	engine	NumericOnly_list/NumericOnly!insert	GRANT SELECT ON LARGE OBJECT 1.5 zzz TO a
 accept	accept	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly	GRANT SELECT ON LARGE OBJECT 1.5, 1.5 TO a
-accept	reject@28	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!drop-1	GRANT SELECT ON LARGE OBJECT, 1.5 TO a
+reject@28	reject@28	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!drop-1	GRANT SELECT ON LARGE OBJECT, 1.5 TO a
 reject@33	reject@33	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!drop-2	GRANT SELECT ON LARGE OBJECT 1.5 1.5 TO a
-accept	reject@34	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!drop-3	GRANT SELECT ON LARGE OBJECT 1.5, TO a
+reject@34	reject@34	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!drop-3	GRANT SELECT ON LARGE OBJECT 1.5, TO a
 reject@33	reject@33	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!truncate	GRANT SELECT ON LARGE OBJECT 1.5,
 reject@38	reject@38	engine	NumericOnly_list/NumericOnly_list_,_NumericOnly!insert	GRANT SELECT ON LARGE OBJECT 1.5, 1.5 zzz TO a
 accept	accept	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name	CREATE LANGUAGE a
@@ -4996,7 +4996,7 @@ reject@13	reject@13	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_priv
 reject@14	reject@14	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-2	REVOKE OPTION FOR SELECT ON a FROM a
 reject@13	reject@13	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-3	REVOKE GRANT FOR SELECT ON a FROM a
 reject@20	reject@20	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-4	REVOKE GRANT OPTION SELECT ON a FROM a
-accept	reject@24	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-5	REVOKE GRANT OPTION FOR ON a FROM a
+reject@24	reject@24	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-5	REVOKE GRANT OPTION FOR ON a FROM a
 reject@31	reject@31	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-6	REVOKE GRANT OPTION FOR SELECT a FROM a
 reject@34	reject@34	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE GRANT OPTION FOR SELECT ON FROM a
 reject@36	reject@36	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-8	REVOKE GRANT OPTION FOR SELECT ON a a
@@ -5012,24 +5012,24 @@ reject@10	reject@10	engine	privileges/ALL!insert	GRANT ALL zzz ON a TO a
 accept	accept	engine	privileges/ALL!swap	GRANT ALSO ON a TO a
 accept	accept	engine	privileges/ALL_PRIVILEGES	GRANT ALL PRIVILEGES ON a TO a
 accept	accept	engine	privileges/ALL_PRIVILEGES!drop-1	GRANT PRIVILEGES ON a TO a
-accept	reject@9	engine	privileges/ALL_PRIVILEGES!truncate	GRANT ALL
+reject@9	reject@9	engine	privileges/ALL_PRIVILEGES!truncate	GRANT ALL
 reject@21	reject@21	engine	privileges/ALL_PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON a TO a
 reject@11	reject@11	engine	privileges/ALL_PRIVILEGES!swap	GRANT ALSO PRIVILEGES ON a TO a
-reject@9	accept	engine	privileges/ALL_(_columnList_)	GRANT ALL(a) ON a TO a
+accept	accept	engine	privileges/ALL_(_columnList_)	GRANT ALL(a) ON a TO a
 reject@5	reject@5	engine	privileges/ALL_(_columnList_)!drop-1	GRANT(a) ON a TO a
 reject@10	reject@10	engine	privileges/ALL_(_columnList_)!drop-2	GRANT ALL a) ON a TO a
-reject@9	reject@10	engine	privileges/ALL_(_columnList_)!drop-3	GRANT ALL() ON a TO a
-reject@9	reject@12	engine	privileges/ALL_(_columnList_)!drop-4	GRANT ALL(a ON a TO a
-reject@9	reject@11	engine	privileges/ALL_(_columnList_)!truncate	GRANT ALL(a
-reject@9	reject@13	engine	privileges/ALL_(_columnList_)!insert	GRANT ALL(a) zzz ON a TO a
+reject@10	reject@10	engine	privileges/ALL_(_columnList_)!drop-3	GRANT ALL() ON a TO a
+reject@12	reject@12	engine	privileges/ALL_(_columnList_)!drop-4	GRANT ALL(a ON a TO a
+reject@11	reject@11	engine	privileges/ALL_(_columnList_)!truncate	GRANT ALL(a
+reject@13	reject@13	engine	privileges/ALL_(_columnList_)!insert	GRANT ALL(a) zzz ON a TO a
 accept	accept	engine	privileges/ALL_(_columnList_)!swap	GRANT ALSO(a) ON a TO a
-reject@20	accept	engine	privileges/ALL_PRIVILEGES_(_columnList_)	GRANT ALL PRIVILEGES(a) ON a TO a
+accept	accept	engine	privileges/ALL_PRIVILEGES_(_columnList_)	GRANT ALL PRIVILEGES(a) ON a TO a
 accept	accept	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-1	GRANT PRIVILEGES(a) ON a TO a
 reject@21	reject@21	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-3	GRANT ALL PRIVILEGES a) ON a TO a
-reject@20	reject@21	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-4	GRANT ALL PRIVILEGES() ON a TO a
-reject@20	reject@23	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-5	GRANT ALL PRIVILEGES(a ON a TO a
-reject@20	reject@22	engine	privileges/ALL_PRIVILEGES_(_columnList_)!truncate	GRANT ALL PRIVILEGES(a
-reject@20	reject@24	engine	privileges/ALL_PRIVILEGES_(_columnList_)!insert	GRANT ALL PRIVILEGES(a) zzz ON a TO a
+reject@21	reject@21	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-4	GRANT ALL PRIVILEGES() ON a TO a
+reject@23	reject@23	engine	privileges/ALL_PRIVILEGES_(_columnList_)!drop-5	GRANT ALL PRIVILEGES(a ON a TO a
+reject@22	reject@22	engine	privileges/ALL_PRIVILEGES_(_columnList_)!truncate	GRANT ALL PRIVILEGES(a
+reject@24	reject@24	engine	privileges/ALL_PRIVILEGES_(_columnList_)!insert	GRANT ALL PRIVILEGES(a) zzz ON a TO a
 reject@11	reject@11	engine	privileges/ALL_PRIVILEGES_(_columnList_)!swap	GRANT ALSO PRIVILEGES(a) ON a TO a
 accept	accept	engine	privilege_list/privilege	GRANT SELECT TO a
 reject@13	reject@13	engine	privilege_list/privilege!insert	GRANT SELECT zzz TO a
@@ -5048,30 +5048,30 @@ accept	accept	engine	privilege/REFERENCES_opt_column_list!swap	GRANT REFERENCING
 accept	accept	engine	privilege/CREATE_opt_column_list	GRANT CREATE TO a
 reject@13	reject@13	engine	privilege/CREATE_opt_column_list!insert	GRANT CREATE zzz TO a
 reject@6	reject@6	engine	privilege/CREATE_opt_column_list!swap	GRANT CROSS TO a
-reject@12	accept	engine	privilege/ALTER_SYSTEM_P	GRANT ALTER SYSTEM TO a
+accept	accept	engine	privilege/ALTER_SYSTEM_P	GRANT ALTER SYSTEM TO a
 accept	accept	engine	privilege/ALTER_SYSTEM_P!drop-1	GRANT SYSTEM TO a
 accept	accept	engine	privilege/ALTER_SYSTEM_P!drop-2	GRANT ALTER TO a
 reject@11	reject@11	engine	privilege/ALTER_SYSTEM_P!truncate	GRANT ALTER
-reject@12	reject@19	engine	privilege/ALTER_SYSTEM_P!insert	GRANT ALTER SYSTEM zzz TO a
+reject@19	reject@19	engine	privilege/ALTER_SYSTEM_P!insert	GRANT ALTER SYSTEM zzz TO a
 reject@13	reject@13	engine	privilege/ALTER_SYSTEM_P!swap	GRANT ALWAYS SYSTEM TO a
 accept	accept	engine	privilege/ColId_opt_column_list	GRANT a TO a
 reject@8	reject@8	engine	privilege/ColId_opt_column_list!insert	GRANT a zzz TO a
-reject@26	accept	engine	parameter_name_list/parameter_name	GRANT SELECT ON PARAMETER a TO a
+accept	accept	engine	parameter_name_list/parameter_name	GRANT SELECT ON PARAMETER a TO a
 accept	accept	engine	parameter_name_list/parameter_name!drop-1	GRANT SELECT ON PARAMETER TO a
 reject@25	reject@25	engine	parameter_name_list/parameter_name!truncate	GRANT SELECT ON PARAMETER
-reject@26	reject@28	engine	parameter_name_list/parameter_name!insert	GRANT SELECT ON PARAMETER a zzz TO a
-reject@26	accept	engine	parameter_name_list/parameter_name_list_,_parameter_name	GRANT SELECT ON PARAMETER a, a TO a
+reject@28	reject@28	engine	parameter_name_list/parameter_name!insert	GRANT SELECT ON PARAMETER a zzz TO a
+accept	accept	engine	parameter_name_list/parameter_name_list_,_parameter_name	GRANT SELECT ON PARAMETER a, a TO a
 accept	accept	engine	parameter_name_list/parameter_name_list_,_parameter_name!drop-1	GRANT SELECT ON PARAMETER, a TO a
-reject@26	reject@28	engine	parameter_name_list/parameter_name_list_,_parameter_name!drop-2	GRANT SELECT ON PARAMETER a a TO a
-reject@26	reject@29	engine	parameter_name_list/parameter_name_list_,_parameter_name!drop-3	GRANT SELECT ON PARAMETER a, TO a
-reject@26	reject@28	engine	parameter_name_list/parameter_name_list_,_parameter_name!truncate	GRANT SELECT ON PARAMETER a,
-reject@26	reject@31	engine	parameter_name_list/parameter_name_list_,_parameter_name!insert	GRANT SELECT ON PARAMETER a, a zzz TO a
-reject@26	accept	engine	parameter_name/ColId	GRANT SELECT ON PARAMETER a TO a
-reject@26	accept	engine	parameter_name/parameter_name_._ColId	GRANT SELECT ON PARAMETER a.a TO a
+reject@28	reject@28	engine	parameter_name_list/parameter_name_list_,_parameter_name!drop-2	GRANT SELECT ON PARAMETER a a TO a
+reject@29	reject@29	engine	parameter_name_list/parameter_name_list_,_parameter_name!drop-3	GRANT SELECT ON PARAMETER a, TO a
+reject@28	reject@28	engine	parameter_name_list/parameter_name_list_,_parameter_name!truncate	GRANT SELECT ON PARAMETER a,
+reject@31	reject@31	engine	parameter_name_list/parameter_name_list_,_parameter_name!insert	GRANT SELECT ON PARAMETER a, a zzz TO a
+accept	accept	engine	parameter_name/ColId	GRANT SELECT ON PARAMETER a TO a
+accept	accept	engine	parameter_name/parameter_name_._ColId	GRANT SELECT ON PARAMETER a.a TO a
 accept	accept	engine	parameter_name/parameter_name_._ColId!drop-1	GRANT SELECT ON PARAMETER.a TO a
-reject@26	reject@28	engine	parameter_name/parameter_name_._ColId!drop-3	GRANT SELECT ON PARAMETER a.TO a
-reject@26	reject@28	engine	parameter_name/parameter_name_._ColId!truncate	GRANT SELECT ON PARAMETER a.
-reject@26	reject@30	engine	parameter_name/parameter_name_._ColId!insert	GRANT SELECT ON PARAMETER a.a zzz TO a
+reject@28	reject@28	engine	parameter_name/parameter_name_._ColId!drop-3	GRANT SELECT ON PARAMETER a.TO a
+reject@28	reject@28	engine	parameter_name/parameter_name_._ColId!truncate	GRANT SELECT ON PARAMETER a.
+reject@30	reject@30	engine	parameter_name/parameter_name_._ColId!insert	GRANT SELECT ON PARAMETER a.a zzz TO a
 accept	accept	engine	privilege_target/qualified_name_list	GRANT SELECT ON a TO a
 reject@15	reject@15	engine	privilege_target/qualified_name_list!truncate	GRANT SELECT ON
 reject@18	reject@18	engine	privilege_target/qualified_name_list!insert	GRANT SELECT ON a zzz TO a
@@ -5081,114 +5081,114 @@ reject@21	reject@21	engine	privilege_target/TABLE_qualified_name_list!truncate	G
 reject@24	reject@24	engine	privilege_target/TABLE_qualified_name_list!insert	GRANT SELECT ON TABLE a zzz TO a
 reject@23	reject@23	engine	privilege_target/TABLE_qualified_name_list!swap	GRANT SELECT ON TABLES a TO a
 accept	accept	engine	privilege_target/SEQUENCE_qualified_name_list	GRANT SELECT ON SEQUENCE a TO a
-reject@25	accept	engine	privilege_target/SEQUENCE_qualified_name_list!drop-2	GRANT SELECT ON SEQUENCE TO a
+accept	accept	engine	privilege_target/SEQUENCE_qualified_name_list!drop-2	GRANT SELECT ON SEQUENCE TO a
 reject@24	reject@24	engine	privilege_target/SEQUENCE_qualified_name_list!truncate	GRANT SELECT ON SEQUENCE
 reject@27	reject@27	engine	privilege_target/SEQUENCE_qualified_name_list!insert	GRANT SELECT ON SEQUENCE a zzz TO a
 reject@26	reject@26	engine	privilege_target/SEQUENCE_qualified_name_list!swap	GRANT SELECT ON SEQUENCES a TO a
 accept	accept	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list	GRANT SELECT ON FOREIGN DATA WRAPPER a TO a
 reject@21	reject@21	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-1	GRANT SELECT ON DATA WRAPPER a TO a
-reject@32	reject@24	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-2	GRANT SELECT ON FOREIGN WRAPPER a TO a
-accept	reject@29	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-3	GRANT SELECT ON FOREIGN DATA a TO a
+reject@24	reject@24	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-2	GRANT SELECT ON FOREIGN WRAPPER a TO a
+reject@29	reject@29	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-3	GRANT SELECT ON FOREIGN DATA a TO a
 reject@37	reject@37	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!drop-4	GRANT SELECT ON FOREIGN DATA WRAPPER TO a
 reject@36	reject@36	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!truncate	GRANT SELECT ON FOREIGN DATA WRAPPER
 reject@39	reject@39	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!insert	GRANT SELECT ON FOREIGN DATA WRAPPER a zzz TO a
 reject@23	reject@23	engine	privilege_target/FOREIGN_DATA_P_WRAPPER_name_list!swap	GRANT SELECT ON FORMAT DATA WRAPPER a TO a
 accept	accept	engine	privilege_target/FOREIGN_SERVER_name_list	GRANT SELECT ON FOREIGN SERVER a TO a
 reject@23	reject@23	engine	privilege_target/FOREIGN_SERVER_name_list!drop-1	GRANT SELECT ON SERVER a TO a
-accept	reject@24	engine	privilege_target/FOREIGN_SERVER_name_list!drop-2	GRANT SELECT ON FOREIGN a TO a
+reject@24	reject@24	engine	privilege_target/FOREIGN_SERVER_name_list!drop-2	GRANT SELECT ON FOREIGN a TO a
 reject@31	reject@31	engine	privilege_target/FOREIGN_SERVER_name_list!drop-3	GRANT SELECT ON FOREIGN SERVER TO a
 reject@30	reject@30	engine	privilege_target/FOREIGN_SERVER_name_list!truncate	GRANT SELECT ON FOREIGN SERVER
 reject@33	reject@33	engine	privilege_target/FOREIGN_SERVER_name_list!insert	GRANT SELECT ON FOREIGN SERVER a zzz TO a
 reject@23	reject@23	engine	privilege_target/FOREIGN_SERVER_name_list!swap	GRANT SELECT ON FORMAT SERVER a TO a
 accept	accept	engine	privilege_target/FUNCTION_function_with_argtypes_list	GRANT SELECT ON FUNCTION AUTHORIZATION TO a
 reject@16	reject@16	engine	privilege_target/FUNCTION_function_with_argtypes_list!drop-1	GRANT SELECT ON AUTHORIZATION TO a
-reject@25	accept	engine	privilege_target/FUNCTION_function_with_argtypes_list!drop-2	GRANT SELECT ON FUNCTION TO a
+accept	accept	engine	privilege_target/FUNCTION_function_with_argtypes_list!drop-2	GRANT SELECT ON FUNCTION TO a
 reject@24	reject@24	engine	privilege_target/FUNCTION_function_with_argtypes_list!truncate	GRANT SELECT ON FUNCTION
 reject@39	reject@39	engine	privilege_target/FUNCTION_function_with_argtypes_list!insert	GRANT SELECT ON FUNCTION AUTHORIZATION zzz TO a
 reject@26	reject@26	engine	privilege_target/FUNCTION_function_with_argtypes_list!swap	GRANT SELECT ON FUNCTIONS AUTHORIZATION TO a
 accept	accept	engine	privilege_target/PROCEDURE_function_with_argtypes_list	GRANT SELECT ON PROCEDURE AUTHORIZATION TO a
-reject@26	accept	engine	privilege_target/PROCEDURE_function_with_argtypes_list!drop-2	GRANT SELECT ON PROCEDURE TO a
+accept	accept	engine	privilege_target/PROCEDURE_function_with_argtypes_list!drop-2	GRANT SELECT ON PROCEDURE TO a
 reject@25	reject@25	engine	privilege_target/PROCEDURE_function_with_argtypes_list!truncate	GRANT SELECT ON PROCEDURE
 reject@40	reject@40	engine	privilege_target/PROCEDURE_function_with_argtypes_list!insert	GRANT SELECT ON PROCEDURE AUTHORIZATION zzz TO a
 reject@27	reject@27	engine	privilege_target/PROCEDURE_function_with_argtypes_list!swap	GRANT SELECT ON PROCEDURES AUTHORIZATION TO a
 accept	accept	engine	privilege_target/ROUTINE_function_with_argtypes_list	GRANT SELECT ON ROUTINE AUTHORIZATION TO a
-reject@24	accept	engine	privilege_target/ROUTINE_function_with_argtypes_list!drop-2	GRANT SELECT ON ROUTINE TO a
+accept	accept	engine	privilege_target/ROUTINE_function_with_argtypes_list!drop-2	GRANT SELECT ON ROUTINE TO a
 reject@23	reject@23	engine	privilege_target/ROUTINE_function_with_argtypes_list!truncate	GRANT SELECT ON ROUTINE
 reject@38	reject@38	engine	privilege_target/ROUTINE_function_with_argtypes_list!insert	GRANT SELECT ON ROUTINE AUTHORIZATION zzz TO a
 reject@25	reject@25	engine	privilege_target/ROUTINE_function_with_argtypes_list!swap	GRANT SELECT ON ROUTINES AUTHORIZATION TO a
 accept	accept	engine	privilege_target/DATABASE_name_list	GRANT SELECT ON DATABASE a TO a
-reject@25	accept	engine	privilege_target/DATABASE_name_list!drop-2	GRANT SELECT ON DATABASE TO a
+accept	accept	engine	privilege_target/DATABASE_name_list!drop-2	GRANT SELECT ON DATABASE TO a
 reject@24	reject@24	engine	privilege_target/DATABASE_name_list!truncate	GRANT SELECT ON DATABASE
 reject@27	reject@27	engine	privilege_target/DATABASE_name_list!insert	GRANT SELECT ON DATABASE a zzz TO a
 reject@20	reject@20	engine	privilege_target/DATABASE_name_list!swap	GRANT SELECT ON DAY a TO a
 accept	accept	engine	privilege_target/DOMAIN_P_any_name_list	GRANT SELECT ON DOMAIN a TO a
-reject@23	accept	engine	privilege_target/DOMAIN_P_any_name_list!drop-2	GRANT SELECT ON DOMAIN TO a
+accept	accept	engine	privilege_target/DOMAIN_P_any_name_list!drop-2	GRANT SELECT ON DOMAIN TO a
 reject@22	reject@22	engine	privilege_target/DOMAIN_P_any_name_list!truncate	GRANT SELECT ON DOMAIN
 reject@25	reject@25	engine	privilege_target/DOMAIN_P_any_name_list!insert	GRANT SELECT ON DOMAIN a zzz TO a
 reject@23	reject@23	engine	privilege_target/DOMAIN_P_any_name_list!swap	GRANT SELECT ON DOUBLE a TO a
 accept	accept	engine	privilege_target/LANGUAGE_name_list	GRANT SELECT ON LANGUAGE a TO a
-reject@25	accept	engine	privilege_target/LANGUAGE_name_list!drop-2	GRANT SELECT ON LANGUAGE TO a
+accept	accept	engine	privilege_target/LANGUAGE_name_list!drop-2	GRANT SELECT ON LANGUAGE TO a
 reject@24	reject@24	engine	privilege_target/LANGUAGE_name_list!truncate	GRANT SELECT ON LANGUAGE
 reject@27	reject@27	engine	privilege_target/LANGUAGE_name_list!insert	GRANT SELECT ON LANGUAGE a zzz TO a
 reject@22	reject@22	engine	privilege_target/LANGUAGE_name_list!swap	GRANT SELECT ON LARGE a TO a
 accept	accept	engine	privilege_target/LARGE_P_OBJECT_P_NumericOnly_list	GRANT SELECT ON LARGE OBJECT 1.5 TO a
 reject@23	reject@23	engine	privilege_target/LARGE_P_OBJECT_P_NumericOnly_list!drop-1	GRANT SELECT ON OBJECT 1.5 TO a
-accept	reject@22	engine	privilege_target/LARGE_P_OBJECT_P_NumericOnly_list!drop-2	GRANT SELECT ON LARGE 1.5 TO a
+reject@22	reject@22	engine	privilege_target/LARGE_P_OBJECT_P_NumericOnly_list!drop-2	GRANT SELECT ON LARGE 1.5 TO a
 reject@21	reject@21	engine	privilege_target/LARGE_P_OBJECT_P_NumericOnly_list!swap	GRANT SELECT ON LAST OBJECT 1.5 TO a
-reject@26	accept	engine	privilege_target/PARAMETER_parameter_name_list	GRANT SELECT ON PARAMETER a TO a
+accept	accept	engine	privilege_target/PARAMETER_parameter_name_list	GRANT SELECT ON PARAMETER a TO a
 reject@23	reject@23	engine	privilege_target/PARAMETER_parameter_name_list!swap	GRANT SELECT ON PARSER a TO a
 accept	accept	engine	privilege_target/SCHEMA_name_list	GRANT SELECT ON SCHEMA a TO a
-reject@23	accept	engine	privilege_target/SCHEMA_name_list!drop-2	GRANT SELECT ON SCHEMA TO a
+accept	accept	engine	privilege_target/SCHEMA_name_list!drop-2	GRANT SELECT ON SCHEMA TO a
 reject@22	reject@22	engine	privilege_target/SCHEMA_name_list!truncate	GRANT SELECT ON SCHEMA
 reject@25	reject@25	engine	privilege_target/SCHEMA_name_list!insert	GRANT SELECT ON SCHEMA a zzz TO a
 reject@24	reject@24	engine	privilege_target/SCHEMA_name_list!swap	GRANT SELECT ON SCHEMAS a TO a
 accept	accept	engine	privilege_target/TABLESPACE_name_list	GRANT SELECT ON TABLESPACE a TO a
-reject@27	accept	engine	privilege_target/TABLESPACE_name_list!drop-2	GRANT SELECT ON TABLESPACE TO a
+accept	accept	engine	privilege_target/TABLESPACE_name_list!drop-2	GRANT SELECT ON TABLESPACE TO a
 reject@26	reject@26	engine	privilege_target/TABLESPACE_name_list!truncate	GRANT SELECT ON TABLESPACE
 reject@29	reject@29	engine	privilege_target/TABLESPACE_name_list!insert	GRANT SELECT ON TABLESPACE a zzz TO a
 reject@23	reject@23	engine	privilege_target/TABLESPACE_name_list!swap	GRANT SELECT ON TARGET a TO a
 accept	accept	engine	privilege_target/TYPE_P_any_name_list	GRANT SELECT ON TYPE a TO a
-reject@21	accept	engine	privilege_target/TYPE_P_any_name_list!drop-2	GRANT SELECT ON TYPE TO a
+accept	accept	engine	privilege_target/TYPE_P_any_name_list!drop-2	GRANT SELECT ON TYPE TO a
 reject@20	reject@20	engine	privilege_target/TYPE_P_any_name_list!truncate	GRANT SELECT ON TYPE
 reject@23	reject@23	engine	privilege_target/TYPE_P_any_name_list!insert	GRANT SELECT ON TYPE a zzz TO a
 reject@22	reject@22	engine	privilege_target/TYPE_P_any_name_list!swap	GRANT SELECT ON TYPES a TO a
 accept	accept	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list	GRANT SELECT ON ALL TABLES IN SCHEMA a TO a
 reject@23	reject@23	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-1	GRANT SELECT ON TABLES IN SCHEMA a TO a
-accept	reject@20	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-2	GRANT SELECT ON ALL IN SCHEMA a TO a
-accept	reject@27	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL TABLES SCHEMA a TO a
-accept	reject@30	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL TABLES IN a TO a
+reject@20	reject@20	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-2	GRANT SELECT ON ALL IN SCHEMA a TO a
+reject@27	reject@27	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL TABLES SCHEMA a TO a
+reject@30	reject@30	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL TABLES IN a TO a
 reject@37	reject@37	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!drop-5	GRANT SELECT ON ALL TABLES IN SCHEMA TO a
 reject@36	reject@36	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!truncate	GRANT SELECT ON ALL TABLES IN SCHEMA
 reject@39	reject@39	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!insert	GRANT SELECT ON ALL TABLES IN SCHEMA a zzz TO a
 reject@21	reject@21	engine	privilege_target/ALL_TABLES_IN_P_SCHEMA_name_list!swap	GRANT SELECT ON ALSO TABLES IN SCHEMA a TO a
 accept	accept	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list	GRANT SELECT ON ALL SEQUENCES IN SCHEMA a TO a
 reject@26	reject@26	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-1	GRANT SELECT ON SEQUENCES IN SCHEMA a TO a
-accept	reject@30	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL SEQUENCES SCHEMA a TO a
-accept	reject@33	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL SEQUENCES IN a TO a
+reject@30	reject@30	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL SEQUENCES SCHEMA a TO a
+reject@33	reject@33	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL SEQUENCES IN a TO a
 reject@40	reject@40	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!drop-5	GRANT SELECT ON ALL SEQUENCES IN SCHEMA TO a
 reject@39	reject@39	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!truncate	GRANT SELECT ON ALL SEQUENCES IN SCHEMA
 reject@42	reject@42	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!insert	GRANT SELECT ON ALL SEQUENCES IN SCHEMA a zzz TO a
 reject@21	reject@21	engine	privilege_target/ALL_SEQUENCES_IN_P_SCHEMA_name_list!swap	GRANT SELECT ON ALSO SEQUENCES IN SCHEMA a TO a
 accept	accept	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list	GRANT SELECT ON ALL FUNCTIONS IN SCHEMA a TO a
 reject@26	reject@26	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-1	GRANT SELECT ON FUNCTIONS IN SCHEMA a TO a
-accept	reject@30	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL FUNCTIONS SCHEMA a TO a
-accept	reject@33	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL FUNCTIONS IN a TO a
+reject@30	reject@30	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL FUNCTIONS SCHEMA a TO a
+reject@33	reject@33	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL FUNCTIONS IN a TO a
 reject@40	reject@40	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!drop-5	GRANT SELECT ON ALL FUNCTIONS IN SCHEMA TO a
 reject@39	reject@39	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!truncate	GRANT SELECT ON ALL FUNCTIONS IN SCHEMA
 reject@42	reject@42	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!insert	GRANT SELECT ON ALL FUNCTIONS IN SCHEMA a zzz TO a
 reject@21	reject@21	engine	privilege_target/ALL_FUNCTIONS_IN_P_SCHEMA_name_list!swap	GRANT SELECT ON ALSO FUNCTIONS IN SCHEMA a TO a
 accept	accept	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list	GRANT SELECT ON ALL PROCEDURES IN SCHEMA a TO a
 reject@27	reject@27	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-1	GRANT SELECT ON PROCEDURES IN SCHEMA a TO a
-accept	reject@31	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL PROCEDURES SCHEMA a TO a
-accept	reject@34	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL PROCEDURES IN a TO a
+reject@31	reject@31	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL PROCEDURES SCHEMA a TO a
+reject@34	reject@34	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL PROCEDURES IN a TO a
 reject@41	reject@41	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!drop-5	GRANT SELECT ON ALL PROCEDURES IN SCHEMA TO a
 reject@40	reject@40	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!truncate	GRANT SELECT ON ALL PROCEDURES IN SCHEMA
 reject@43	reject@43	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!insert	GRANT SELECT ON ALL PROCEDURES IN SCHEMA a zzz TO a
 reject@21	reject@21	engine	privilege_target/ALL_PROCEDURES_IN_P_SCHEMA_name_list!swap	GRANT SELECT ON ALSO PROCEDURES IN SCHEMA a TO a
 accept	accept	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list	GRANT SELECT ON ALL ROUTINES IN SCHEMA a TO a
 reject@25	reject@25	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-1	GRANT SELECT ON ROUTINES IN SCHEMA a TO a
-accept	reject@29	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL ROUTINES SCHEMA a TO a
-accept	reject@32	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL ROUTINES IN a TO a
+reject@29	reject@29	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-3	GRANT SELECT ON ALL ROUTINES SCHEMA a TO a
+reject@32	reject@32	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-4	GRANT SELECT ON ALL ROUTINES IN a TO a
 reject@39	reject@39	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!drop-5	GRANT SELECT ON ALL ROUTINES IN SCHEMA TO a
 reject@38	reject@38	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!truncate	GRANT SELECT ON ALL ROUTINES IN SCHEMA
 reject@41	reject@41	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!insert	GRANT SELECT ON ALL ROUTINES IN SCHEMA a zzz TO a
@@ -5207,20 +5207,20 @@ reject@30	reject@30	engine	grantee/GROUP_P_RoleSpec!swap	GRANT SELECT ON a TO GR
 accept	accept	engine	opt_grant_grant_option/WITH_GRANT_OPTION	GRANT SELECT ON a TO a WITH GRANT OPTION
 reject@23	reject@23	engine	opt_grant_grant_option/WITH_GRANT_OPTION!drop-1	GRANT SELECT ON a TO a GRANT OPTION
 reject@23	reject@28	engine	opt_grant_grant_option/WITH_GRANT_OPTION!drop-2	GRANT SELECT ON a TO a WITH OPTION
-accept	reject@33	engine	opt_grant_grant_option/WITH_GRANT_OPTION!drop-3	GRANT SELECT ON a TO a WITH GRANT
+reject@33	reject@33	engine	opt_grant_grant_option/WITH_GRANT_OPTION!drop-3	GRANT SELECT ON a TO a WITH GRANT
 reject@41	reject@41	engine	opt_grant_grant_option/WITH_GRANT_OPTION!insert	GRANT SELECT ON a TO a WITH GRANT OPTION zzz
 reject@23	reject@23	engine	opt_grant_grant_option/WITH_GRANT_OPTION!swap	GRANT SELECT ON a TO a WITHIN GRANT OPTION
 accept	accept	engine	opt_grant_grant_option/%empty	GRANT SELECT ON a TO a
 accept	accept	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_opt_granted_by	GRANT SELECT TO a
-reject@23	accept	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by	GRANT SELECT TO a WITH a OPTION
+accept	accept	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by	GRANT SELECT TO a WITH a OPTION
 reject@7	reject@7	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-1	SELECT TO a WITH a OPTION
-reject@16	reject@6	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-2	GRANT TO a WITH a OPTION
+reject@6	reject@6	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-2	GRANT TO a WITH a OPTION
 reject@13	reject@13	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-3	GRANT SELECT a WITH a OPTION
 reject@16	reject@16	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-4	GRANT SELECT TO WITH a OPTION
 reject@18	reject@18	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-5	GRANT SELECT TO a a OPTION
-reject@23	reject@29	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-6	GRANT SELECT TO a WITH OPTION
-reject@23	reject@24	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-7	GRANT SELECT TO a WITH a
-reject@23	reject@32	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!insert	GRANT SELECT TO a WITH a OPTION zzz
+reject@29	reject@29	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-6	GRANT SELECT TO a WITH OPTION
+reject@24	reject@24	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-7	GRANT SELECT TO a WITH a
+reject@32	reject@32	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!insert	GRANT SELECT TO a WITH a OPTION zzz
 reject@0	reject@0	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!swap	GRANTED SELECT TO a WITH a OPTION
 accept	accept	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior	REVOKE SELECT FROM a
 accept	accept	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior	REVOKE a OPTION FOR SELECT FROM a
@@ -5228,29 +5228,29 @@ reject@0	reject@0	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_F
 reject@14	reject@14	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-2	REVOKE OPTION FOR SELECT FROM a
 reject@9	reject@9	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-3	REVOKE a FOR SELECT FROM a
 reject@16	reject@16	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-4	REVOKE a OPTION SELECT FROM a
-accept	reject@20	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-5	REVOKE a OPTION FOR FROM a
+reject@20	reject@20	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-5	REVOKE a OPTION FOR FROM a
 reject@27	reject@27	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-6	REVOKE a OPTION FOR SELECT a
 reject@31	reject@31	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE a OPTION FOR SELECT FROM
 reject@34	reject@34	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!insert	REVOKE a OPTION FOR SELECT FROM a zzz
 reject@0	reject@0	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!swap	RIGHT a OPTION FOR SELECT FROM a
-reject@23	accept	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt	GRANT SELECT TO a WITH a OPTION, a OPTION
-reject@23	reject@29	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-1	GRANT SELECT TO a WITH OPTION, a OPTION
-reject@23	reject@24	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-2	GRANT SELECT TO a WITH a, a OPTION
-reject@23	reject@32	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-3	GRANT SELECT TO a WITH a OPTION a OPTION
-reject@23	reject@39	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-4	GRANT SELECT TO a WITH a OPTION, OPTION
-reject@23	reject@34	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-5	GRANT SELECT TO a WITH a OPTION, a
-reject@23	reject@42	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!insert	GRANT SELECT TO a WITH a OPTION, a OPTION zzz
-reject@23	reject@25	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!swap	GRANT SELECT TO a WITH a OPTIONS, a OPTION
-reject@23	accept	engine	grant_role_opt_list/grant_role_opt	GRANT SELECT TO a WITH a OPTION
-reject@23	reject@25	engine	grant_role_opt_list/grant_role_opt!swap	GRANT SELECT TO a WITH a OPTIONS
-reject@23	accept	engine	grant_role_opt/ColLabel_grant_role_opt_value	GRANT SELECT TO a WITH a OPTION
-reject@23	accept	engine	grant_role_opt_value/OPTION	GRANT SELECT TO a WITH a OPTION
-reject@23	accept	engine	grant_role_opt_value/TRUE_P	GRANT SELECT TO a WITH a TRUE
-reject@23	reject@30	engine	grant_role_opt_value/TRUE_P!insert	GRANT SELECT TO a WITH a TRUE zzz
-reject@23	reject@25	engine	grant_role_opt_value/TRUE_P!swap	GRANT SELECT TO a WITH a TRUNCATE
-reject@23	accept	engine	grant_role_opt_value/FALSE_P	GRANT SELECT TO a WITH a FALSE
-reject@23	reject@31	engine	grant_role_opt_value/FALSE_P!insert	GRANT SELECT TO a WITH a FALSE zzz
-reject@23	reject@25	engine	grant_role_opt_value/FALSE_P!swap	GRANT SELECT TO a WITH a FAMILY
+accept	accept	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt	GRANT SELECT TO a WITH a OPTION, a OPTION
+reject@29	reject@29	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-1	GRANT SELECT TO a WITH OPTION, a OPTION
+reject@24	reject@24	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-2	GRANT SELECT TO a WITH a, a OPTION
+reject@32	reject@32	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-3	GRANT SELECT TO a WITH a OPTION a OPTION
+reject@39	reject@39	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-4	GRANT SELECT TO a WITH a OPTION, OPTION
+reject@34	reject@34	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-5	GRANT SELECT TO a WITH a OPTION, a
+reject@42	reject@42	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!insert	GRANT SELECT TO a WITH a OPTION, a OPTION zzz
+reject@25	reject@25	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!swap	GRANT SELECT TO a WITH a OPTIONS, a OPTION
+accept	accept	engine	grant_role_opt_list/grant_role_opt	GRANT SELECT TO a WITH a OPTION
+reject@25	reject@25	engine	grant_role_opt_list/grant_role_opt!swap	GRANT SELECT TO a WITH a OPTIONS
+accept	accept	engine	grant_role_opt/ColLabel_grant_role_opt_value	GRANT SELECT TO a WITH a OPTION
+accept	accept	engine	grant_role_opt_value/OPTION	GRANT SELECT TO a WITH a OPTION
+accept	accept	engine	grant_role_opt_value/TRUE_P	GRANT SELECT TO a WITH a TRUE
+reject@30	reject@30	engine	grant_role_opt_value/TRUE_P!insert	GRANT SELECT TO a WITH a TRUE zzz
+reject@25	reject@25	engine	grant_role_opt_value/TRUE_P!swap	GRANT SELECT TO a WITH a TRUNCATE
+accept	accept	engine	grant_role_opt_value/FALSE_P	GRANT SELECT TO a WITH a FALSE
+reject@31	reject@31	engine	grant_role_opt_value/FALSE_P!insert	GRANT SELECT TO a WITH a FALSE zzz
+reject@25	reject@25	engine	grant_role_opt_value/FALSE_P!swap	GRANT SELECT TO a WITH a FAMILY
 accept	accept	engine	opt_granted_by/GRANTED_BY_RoleSpec	GRANT SELECT TO a GRANTED BY a
 reject@18	reject@18	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-1	GRANT SELECT TO a BY a
 reject@26	reject@26	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-2	GRANT SELECT TO a GRANTED a
@@ -5286,7 +5286,7 @@ accept	accept	engine	DefACLAction/GRANT_privileges_ON_defacl_privilege_target_TO
 reject@25	reject@25	engine	DefACLAction/GRANT_privileges_ON_defacl_privilege_target_TO_grantee_list_opt_grant_grant_option!swap	ALTER DEFAULT PRIVILEGES GRANTED SELECT ON TABLES TO a
 accept	accept	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a
 reject@25	reject@25	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-1	ALTER DEFAULT PRIVILEGES SELECT ON TABLES FROM a
-accept	reject@32	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-2	ALTER DEFAULT PRIVILEGES REVOKE ON TABLES FROM a
+reject@32	reject@32	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-2	ALTER DEFAULT PRIVILEGES REVOKE ON TABLES FROM a
 reject@39	reject@39	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-3	ALTER DEFAULT PRIVILEGES REVOKE SELECT TABLES FROM a
 accept	reject@42	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-4	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON FROM a
 reject@49	reject@49	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-5	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES a
@@ -5298,7 +5298,7 @@ reject@38	reject@38	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_de
 reject@39	reject@39	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-2	ALTER DEFAULT PRIVILEGES REVOKE OPTION FOR SELECT ON TABLES FROM a
 reject@38	reject@38	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-3	ALTER DEFAULT PRIVILEGES REVOKE GRANT FOR SELECT ON TABLES FROM a
 reject@45	reject@45	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-4	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION SELECT ON TABLES FROM a
-accept	reject@49	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-5	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR ON TABLES FROM a
+reject@49	reject@49	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-5	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR ON TABLES FROM a
 reject@56	reject@56	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-6	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT TABLES FROM a
 accept	reject@59	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-7	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON FROM a
 reject@66	reject@66	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-8	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES a

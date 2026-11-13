@@ -6,56 +6,35 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
+// parseGrantStmt parses GRANT after its keyword.
+//
+//	GrantStmt: GRANT privileges ON privilege_target TO grantee_list
+//	           opt_grant_grant_option opt_granted_by
+//	GrantRoleStmt: GRANT privilege_list TO role_list opt_granted_by
+//	             | GRANT privilege_list TO role_list WITH grant_role_opt_list opt_granted_by
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of GRANT keyword
-	switch p.cur.Type {
-	case ALL:
-		p.advance()
-		if p.cur.Type == PRIVILEGES {
-			p.advance()
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, true, nil)
-		}
-		if p.cur.Type == ',' || p.cur.Type == TO {
-			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
-			for p.cur.Type == ',' {
-				p.advance()
-				name, _ := p.parseColId()
-				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
-			}
-			return p.finishGrantRole(loc, true, roles)
-		}
-		return nil, nil
-	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
-		CREATE, TEMPORARY, TEMP, EXECUTE:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, false, privs)
-		}
-		return p.finishGrantRole(loc, true, privs)
-	default:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, false, privs)
-		}
-		return p.finishGrantRole(loc, true, privs)
+	privs, all, err := p.parsePrivilegesOrAll()
+	if err != nil {
+		return nil, err
 	}
+	if all || p.cur.Type == ON {
+		if _, err := p.expect(ON); err != nil {
+			return nil, err
+		}
+		return p.finishGrantOnObject(loc, privs)
+	}
+	return p.finishGrantRole(loc, true, privs)
 }
 
+// parseRevokeStmt parses REVOKE after its keyword.
+//
+//	RevokeStmt: REVOKE privileges ON privilege_target FROM grantee_list opt_granted_by opt_drop_behavior
+//	          | REVOKE GRANT OPTION FOR privileges ON privilege_target FROM grantee_list opt_granted_by opt_drop_behavior
+//	RevokeRoleStmt: REVOKE privilege_list FROM role_list opt_granted_by opt_drop_behavior
+//	              | REVOKE ColId OPTION FOR privilege_list FROM role_list opt_granted_by opt_drop_behavior
 func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of REVOKE keyword
-	grantOptionFor := false
-	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
 	if p.cur.Type == GRANT {
 		p.advance()
 		if _, err := p.expect(OPTION); err != nil {
@@ -64,70 +43,43 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		if _, err := p.expect(FOR); err != nil {
 			return nil, err
 		}
-		grantOptionFor = true
-	} else if p.isColId() && p.peekNext().Type == OPTION {
-		// PG's grammar allows any ColId before OPTION FOR in REVOKE role:
-		//   REVOKE ColId OPTION FOR privilege_list FROM role_list
-		// ADMIN/INHERIT/SET are the meaningful names; PG parses any ColId
-		// and defers validation to semantic time.
-		roleOptionName = strings.ToLower(p.cur.Str)
-		p.advance() // ColId
-		if _, err := p.expect(OPTION); err != nil {
+		privs, _, err := p.parsePrivilegesOrAll()
+		if err != nil {
 			return nil, err
 		}
+		if _, err := p.expect(ON); err != nil {
+			return nil, err
+		}
+		return p.finishRevokeOnObject(loc, true, privs)
+	}
+	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
+	if p.isColId() && p.peekNext().Type == OPTION {
+		roleOptionName = strings.ToLower(p.cur.Str)
+		p.advance() // ColId
+		p.advance() // OPTION
 		if _, err := p.expect(FOR); err != nil {
 			return nil, err
 		}
-	}
-	switch p.cur.Type {
-	case ALL:
-		p.advance()
-		if p.cur.Type == PRIVILEGES {
-			p.advance()
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, nil)
-		}
-		if p.cur.Type == ',' || p.cur.Type == FROM {
-			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
-			for p.cur.Type == ',' {
-				p.advance()
-				name, _ := p.parseColId()
-				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
-			}
-			return p.finishRevokeRole(loc, roles, roleOptionName)
-		}
-		return nil, nil
-	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
-		CREATE, TEMPORARY, TEMP, EXECUTE:
 		privs, err := p.parsePrivilegeList()
 		if err != nil {
 			return nil, err
 		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
-		}
-		return p.finishRevokeRole(loc, privs, roleOptionName)
-	default:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
-		}
 		return p.finishRevokeRole(loc, privs, roleOptionName)
 	}
+	privs, all, err := p.parsePrivilegesOrAll()
+	if err != nil {
+		return nil, err
+	}
+	if all || p.cur.Type == ON {
+		if _, err := p.expect(ON); err != nil {
+			return nil, err
+		}
+		return p.finishRevokeOnObject(loc, false, privs)
+	}
+	return p.finishRevokeRole(loc, privs, "")
 }
 
-func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) (nodes.Node, error) {
-	var privileges *nodes.List
-	if !allPrivs {
-		privileges = privs
-	}
+func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, error) {
 	targtype, objtype, objects, err := p.parseGrantTarget()
 	if err != nil {
 		return nil, err
@@ -139,12 +91,19 @@ func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) 
 	if err != nil {
 		return nil, err
 	}
-	grantOption := p.parseOptGrantGrantOption()
+	grantOption, err := p.parseOptGrantGrantOption()
+	if err != nil {
+		return nil, err
+	}
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Targtype: targtype, Objtype: objtype,
-		Objects: objects, Privileges: privileges, Grantees: grantees,
-		GrantOption: grantOption,
-		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
+		Objects: objects, Privileges: privs, Grantees: grantees,
+		GrantOption: grantOption, Grantor: grantor,
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -160,11 +119,15 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes
 	if err != nil {
 		return nil, err
 	}
+	grantor, err := p.parseOptGrantedBy()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 	return &nodes.GrantStmt{
 		IsGrant: false, Targtype: targtype, Objtype: objtype,
 		Objects: objects, Privileges: privs, Grantees: grantees,
-		GrantOption: grantOptionFor, Behavior: nodes.DropBehavior(behavior),
+		GrantOption: grantOptionFor, Grantor: grantor, Behavior: nodes.DropBehavior(behavior),
 		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
@@ -216,7 +179,23 @@ func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, roleOptionName str
 	}, nil
 }
 
+// parseGrantTarget parses privilege_target.
+//
+// Its object type keywords are unreserved, so each can also start the
+// qualified_name_list of tables: GRANT SELECT ON sequence TO a names a
+// table called sequence. gram.y reads the keyword as a name when the token
+// after it can only follow a name.
 func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *nodes.List, error) {
+	if !p.collectMode() && p.cur.Type != IDENT && p.isColId() {
+		switch p.peekNext().Type {
+		case TO, FROM, ',', '.':
+			list, err := p.parseGrantObjectAnyNameList()
+			if err != nil {
+				return 0, 0, nil, err
+			}
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, nil
+		}
+	}
 	switch p.cur.Type {
 	case TABLE:
 		p.advance()
@@ -276,8 +255,21 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names), nil
 	case LARGE_P:
 		p.advance()
-		p.expect(OBJECT_P)
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, p.parseNumericOnlyList(), nil
+		if _, err := p.expect(OBJECT_P); err != nil {
+			return 0, 0, nil, err
+		}
+		list, err := p.parseNumericOnlyList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, list, nil
+	case PARAMETER:
+		p.advance()
+		list, err := p.parseParameterNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_PARAMETER_ACL, list, nil
 	case SCHEMA:
 		p.advance()
 		names, err := p.parseNameList()
@@ -303,14 +295,18 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		p.advance()
 		if p.cur.Type == DATA_P {
 			p.advance()
-			p.expect(WRAPPER)
+			if _, err := p.expect(WRAPPER); err != nil {
+				return 0, 0, nil, err
+			}
 			names, err := p.parseNameList()
 			if err != nil {
 				return 0, 0, nil, err
 			}
 			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names), nil
 		}
-		p.expect(SERVER)
+		if _, err := p.expect(SERVER); err != nil {
+			return 0, 0, nil, err
+		}
 		names, err := p.parseNameList()
 		if err != nil {
 			return 0, 0, nil, err
@@ -336,10 +332,22 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 			p.advance()
 			objType = nodes.OBJECT_ROUTINE
 		default:
-			objType = nodes.OBJECT_TABLE
+			if p.collectMode() {
+				p.addTokenCandidate(TABLES)
+				p.addTokenCandidate(SEQUENCES)
+				p.addTokenCandidate(FUNCTIONS)
+				p.addTokenCandidate(PROCEDURES)
+				p.addTokenCandidate(ROUTINES)
+				return 0, 0, nil, errCollecting
+			}
+			return 0, 0, nil, p.syntaxErrorAtCur()
 		}
-		p.expect(IN_P)
-		p.expect(SCHEMA)
+		if _, err := p.expect(IN_P); err != nil {
+			return 0, 0, nil, err
+		}
+		if _, err := p.expect(SCHEMA); err != nil {
+			return 0, 0, nil, err
+		}
 		if p.collectMode() {
 			p.addRuleCandidate("qualified_name")
 			return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, nil, nil
@@ -379,21 +387,48 @@ func (p *Parser) parseGrantObjectAnyNameList() (*nodes.List, error) {
 	return result, nil
 }
 
-func (p *Parser) parseNumericOnlyList() *nodes.List {
-	val := p.parseNumericOnly()
-	if val == nil {
-		return nil
-	}
-	result := &nodes.List{Items: []nodes.Node{val}}
-	for p.cur.Type == ',' {
-		p.advance()
-		val = p.parseNumericOnly()
-		if val == nil {
-			break
+func (p *Parser) parseNumericOnlyList() (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		switch p.cur.Type {
+		case '+', '-', ICONST, FCONST:
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		result.Items = append(result.Items, val)
+		result.Items = append(result.Items, p.parseNumericOnly())
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance()
 	}
-	return result
+}
+
+// parseParameterNameList parses the configuration parameters of GRANT ON
+// PARAMETER, each given as one string, as gram.y joins it.
+//
+//	parameter_name_list: parameter_name | parameter_name_list ',' parameter_name
+//	parameter_name: ColId | parameter_name '.' ColId
+func (p *Parser) parseParameterNameList() (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		for p.cur.Type == '.' {
+			p.advance()
+			part, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
+			name += "." + part
+		}
+		result.Items = append(result.Items, &nodes.String{Str: name})
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance()
+	}
 }
 
 func (p *Parser) parseGrantFunctionWithArgtypesList() (*nodes.List, error) {
@@ -482,85 +517,86 @@ func (p *Parser) parseGrantFuncArg() (nodes.Node, error) {
 	return arg.ArgType, nil
 }
 
+// parsePrivileges parses privileges, ALL alone giving a nil list.
 func (p *Parser) parsePrivileges() (*nodes.List, error) {
-	if p.cur.Type == ALL {
-		p.advance()
-		if p.cur.Type == PRIVILEGES {
-			p.advance()
-		}
-		return nil, nil
-	}
-	return p.parsePrivilegeList()
+	privs, _, err := p.parsePrivilegesOrAll()
+	return privs, err
 }
 
-func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
-	priv, err := p.parsePrivilege()
-	if err != nil {
-		return nil, err
+// parsePrivilegesOrAll parses privileges and reports whether it began with ALL.
+//
+//	privileges: privilege_list
+//	          | ALL | ALL PRIVILEGES
+//	          | ALL '(' columnList ')' | ALL PRIVILEGES '(' columnList ')'
+func (p *Parser) parsePrivilegesOrAll() (*nodes.List, bool, error) {
+	if p.cur.Type != ALL {
+		privs, err := p.parsePrivilegeList()
+		return privs, false, err
 	}
-	if priv == nil {
-		return nil, nil
-	}
-	result := &nodes.List{Items: []nodes.Node{priv}}
-	for p.cur.Type == ',' {
+	loc := p.pos()
+	p.advance()
+	if p.cur.Type == PRIVILEGES {
 		p.advance()
-		priv, err = p.parsePrivilege()
+	}
+	if p.cur.Type != '(' {
+		return nil, true, nil
+	}
+	p.advance()
+	cols, err := p.parseColumnList()
+	if err != nil {
+		return nil, true, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, true, err
+	}
+	all := &nodes.AccessPriv{Cols: cols, Loc: nodes.Loc{Start: loc, End: p.prev.End}}
+	return &nodes.List{Items: []nodes.Node{all}}, true, nil
+}
+
+// parsePrivilegeList parses privilege_list: privilege | privilege_list ',' privilege
+func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		priv, err := p.parsePrivilege()
 		if err != nil {
 			return nil, err
 		}
-		// privilege_list: privilege | privilege_list ',' privilege
-		if priv == nil {
-			if p.collectMode() {
-				break
-			}
-			return nil, p.syntaxErrorAtCur()
-		}
 		result.Items = append(result.Items, priv)
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance()
 	}
-	return result, nil
 }
 
+// parsePrivilege parses privilege.
+//
+//	privilege: SELECT opt_column_list | REFERENCES opt_column_list
+//	         | CREATE opt_column_list | ALTER SYSTEM_P | ColId opt_column_list
 func (p *Parser) parsePrivilege() (*nodes.AccessPriv, error) {
 	loc := p.pos()
 	var privName string
 	switch p.cur.Type {
-	case SELECT:
-		privName = "select"
+	case SELECT, REFERENCES, CREATE:
+		privName = strings.ToLower(p.cur.Str)
 		p.advance()
-	case INSERT:
-		privName = "insert"
+	case ALTER:
+		// ALTER is unreserved: alone it is a ColId, the name of a role.
+		if p.peekNext().Type != SYSTEM_P {
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
+			privName = name
+			break
+		}
 		p.advance()
-	case UPDATE:
-		privName = "update"
 		p.advance()
-	case DELETE_P:
-		privName = "delete"
-		p.advance()
-	case TRUNCATE:
-		privName = "truncate"
-		p.advance()
-	case REFERENCES:
-		privName = "references"
-		p.advance()
-	case TRIGGER:
-		privName = "trigger"
-		p.advance()
-	case CREATE:
-		privName = "create"
-		p.advance()
-	case TEMPORARY:
-		privName = "temporary"
-		p.advance()
-	case TEMP:
-		privName = "temp"
-		p.advance()
-	case EXECUTE:
-		privName = "execute"
-		p.advance()
+		return &nodes.AccessPriv{PrivName: "alter system", Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	default:
 		name, err := p.parseColId()
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		privName = name
 	}
@@ -602,17 +638,16 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 	return p.parseRoleSpec()
 }
 
-func (p *Parser) parseOptGrantGrantOption() bool {
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == GRANT {
-			p.advance()
-			p.advance()
-			p.expect(OPTION)
-			return true
-		}
+func (p *Parser) parseOptGrantGrantOption() (bool, error) {
+	if p.cur.Type != WITH || p.peekNext().Type != GRANT {
+		return false, nil
 	}
-	return false
+	p.advance()
+	p.advance()
+	if _, err := p.expect(OPTION); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (p *Parser) parseOptGrantedBy() (*nodes.RoleSpec, error) {
@@ -626,64 +661,40 @@ func (p *Parser) parseOptGrantedBy() (*nodes.RoleSpec, error) {
 	return nil, nil
 }
 
+// parseGrantRoleOptList parses the options after WITH in GrantRoleStmt.
+//
+//	grant_role_opt_list: grant_role_opt | grant_role_opt_list ',' grant_role_opt
+//	grant_role_opt: ColLabel grant_role_opt_value
+//	grant_role_opt_value: OPTION | TRUE_P | FALSE_P
+//
+// Any label parses; the server names the unknown one when it runs.
 func (p *Parser) parseGrantRoleOptList() (*nodes.List, error) {
-	// PG grammar: opt_granted_by's sibling here is
-	//   WITH grant_role_opt_list
-	//   where grant_role_opt_list is a comma-separated list of grant_role_opt.
-	// A single WITH introduces the whole list; entries are comma-separated.
-	// Once WITH (or a ',') has been consumed, a valid grant_role_opt is
-	// required — silently accepting a trailing comma or an unrecognized
-	// option would make the parser permissive where PG rejects.
 	if p.cur.Type != WITH {
 		return nil, nil
 	}
 	p.advance() // consume WITH
-	first := p.parseGrantRoleOptValue()
-	if first == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	items := []nodes.Node{first}
-	for p.cur.Type == ',' {
-		p.advance()
-		next := p.parseGrantRoleOptValue()
-		if next == nil {
+	result := &nodes.List{}
+	for {
+		name, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
+		}
+		var val bool
+		switch p.cur.Type {
+		case OPTION, TRUE_P:
+			val = true
+		case FALSE_P:
+			val = false
+		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		items = append(items, next)
+		p.advance()
+		result.Items = append(result.Items, makeDefElem(name, &nodes.Boolean{Boolval: val}))
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}, nil
-}
-
-func (p *Parser) parseGrantRoleOptValue() *nodes.DefElem {
-	var name string
-	switch p.cur.Type {
-	case ADMIN:
-		name = "admin"
-		p.advance()
-	case INHERIT:
-		name = "inherit"
-		p.advance()
-	case SET:
-		name = "set"
-		p.advance()
-	default:
-		return nil
-	}
-	var val nodes.Node
-	switch p.cur.Type {
-	case OPTION:
-		p.advance()
-		val = &nodes.Boolean{Boolval: true}
-	case TRUE_P:
-		p.advance()
-		val = &nodes.Boolean{Boolval: true}
-	case FALSE_P:
-		p.advance()
-		val = &nodes.Boolean{Boolval: false}
-	default:
-		val = &nodes.Boolean{Boolval: true}
-	}
-	return makeDefElem(name, val)
 }
 
 func (p *Parser) parseCreateRoleStmt() (nodes.Node, error) {
