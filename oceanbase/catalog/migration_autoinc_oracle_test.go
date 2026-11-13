@@ -252,7 +252,8 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 				dbName := "aig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, dbName, probe.toDDL, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				diff := DiffWithNormalizer(cat, cat, n)
 				plan := GenerateMigrationWithNormalizer(cat, cat, diff, n)

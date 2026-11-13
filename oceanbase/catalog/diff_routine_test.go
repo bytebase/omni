@@ -101,7 +101,8 @@ func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, 
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] exec failed: %q: %v", o.name, s, err)
+			o.refusal = fmt.Errorf("%q: %w", s, err)
 			return nil, "", false
 		}
 	}
@@ -143,7 +144,8 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 				db := routineProbeDB + "_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, rb, ok := o.loadRoutineReadback(t, db, probe.create, probe.kind, probe.name)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 
 				// Idempotence spine: the stored form self-diffs empty.

@@ -1282,13 +1282,18 @@ func (n *Normalizer) CanonicalEngine(table *Table) string {
 // attribute is real schema and is compared separately.
 func (n *Normalizer) IgnoreTableAutoIncrement() bool { return true }
 
-// IgnoreRowFormat reports whether the table's ROW_FORMAT should be excluded from the
-// diff. The default ROW_FORMAT is environment-dependent (innodb_default_row_format) and
-// not reliably reconstructible from DDL, so it is ignored unless the user explicitly set
-// a non-default value (entry row-format-default-omitted; flag row-format-default-source).
+// IgnoreRowFormat reports whether the table's ROW_FORMAT is the one OceanBase gives a
+// table that declares none, which a diff must not read as a declaration. OceanBase
+// stores DYNAMIC for a table written with no ROW_FORMAT, with DEFAULT or with DYNAMIC,
+// and prints `ROW_FORMAT = DYNAMIC` on all three, so the three are one stored form.
+// COMPACT, REDUNDANT, COMPRESSED and CONDENSED are stored as written and are
+// significant. TestOracle_OceanBaseRowFormat holds each of these to the engine.
 func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
-	rf := strings.ToUpper(strings.TrimSpace(table.RowFormat))
-	return rf == "" || rf == "DEFAULT"
+	switch strings.ToUpper(strings.TrimSpace(table.RowFormat)) {
+	case "", "DEFAULT", "DYNAMIC":
+		return true
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

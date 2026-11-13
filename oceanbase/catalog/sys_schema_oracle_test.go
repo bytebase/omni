@@ -101,7 +101,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 	// performance_schema objects, so every generated body is parsed and
 	// validated by the live engine exactly as rendered.
 	const scratch = "tudsdl_sysdf"
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}

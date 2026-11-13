@@ -120,7 +120,7 @@ func routineMigrationProbes() []routineMigrationProbe {
 // and the chosen path (ALTER vs DROP+CREATE) matches the probe's expectation.
 func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range routineMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
@@ -149,11 +149,13 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 	toCat, ok := loadSide(p.toDDL)
 	if !ok {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+		return
 	}
 	fromCat, ok := loadSide(p.fromDDL)
 	if !ok {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+		return
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -175,7 +177,7 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 
 	// Apply the plan to a real database in `from` state, on ONE dedicated connection.
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -191,7 +193,8 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 
@@ -261,8 +264,8 @@ func classifyRoutineOps(ops []MigrationOp) (alter, create, drop int) {
 // (loaded from real engine readbacks) self-diffs empty and yields an empty plan — the realistic
 // release-path idempotence check across the whole routine set, not just single forms.
 func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
@@ -280,7 +283,8 @@ func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+					o.refused(t, err, "setup failed: %q", s)
+					return
 				}
 			}
 

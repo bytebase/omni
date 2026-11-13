@@ -202,8 +202,8 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 // This guards against the index node fighting the FK node (duplicate-key-name on ADD, errno 1553
 // on DROP). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
@@ -219,7 +219,8 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					o.refused(t, err, "setup: %q", s)
+					return nil
 				}
 			}
 			var b strings.Builder

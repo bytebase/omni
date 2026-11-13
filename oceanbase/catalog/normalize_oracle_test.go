@@ -31,7 +31,35 @@ type oracleConn struct {
 	db      *sql.DB
 	version Version
 	name    string
+	// refusal is the engine's answer to the statement a helper last gave up on. A
+	// helper that returns "no stored form" keeps it here, and refused reads it.
+	refusal error
 }
+
+// An oracleSession is the connection a probe keeps for all its statements, so that a
+// USE holds from one to the next.
+type oracleSession interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	Close() error
+}
+
+// session returns the connection a probe runs all its statements on. The MySQL oracle
+// pins one from its pool. A tape's stream is one connection already, and pinning it
+// would leave nothing for a helper that asks o.db: that helper would wait forever, with
+// the server idle. So on OceanBase the session is the pool itself, and closing it does
+// nothing.
+func (o *oracleConn) session(ctx context.Context) (oracleSession, error) {
+	if o.name == "oceanbase" {
+		return poolSession{o.db}, nil
+	}
+	return o.db.Conn(ctx)
+}
+
+type poolSession struct{ *sql.DB }
+
+func (poolSession) Close() error { return nil }
 
 func dsnOr(env, def string) string {
 	if v := os.Getenv(env); v != "" {
@@ -88,9 +116,10 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			// An input the engine rejects is not a
-			// canonicalizer failure; the caller decides whether that is expected.
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			// An input the engine rejects is not a canonicalizer failure; the caller
+			// ends the probe with refused, which decides whether that was expected.
+			t.Logf("[%s] exec failed: %q: %v", o.name, s, err)
+			o.refusal = fmt.Errorf("%q: %w", s, err)
 			return "", false
 		}
 	}
@@ -98,6 +127,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 	row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", dbName, table))
 	if err := row.Scan(&name, &ddl); err != nil {
 		t.Logf("[%s] SHOW CREATE failed: %v", o.name, err)
+		o.refusal = fmt.Errorf("SHOW CREATE TABLE %s.%s: %w", dbName, table, err)
 		return "", false
 	}
 	return ddl, true
@@ -138,7 +168,8 @@ func assertPhantomFree(t *testing.T, o *oracleConn, dbName, inputDDL, table, col
 	t.Helper()
 	readback, ok := o.showCreate(t, dbName, inputDDL, table)
 	if !ok {
-		t.Skipf("[%s] could not obtain readback for %s.%s", o.name, table, column)
+		o.refused(t, nil, "could not obtain readback for %s.%s", table, column)
+		return
 	}
 	// The readback is a CREATE TABLE we can reload through the same loader.
 	readbackCreate := normalizeReadbackForLoad(readback)
@@ -346,8 +377,8 @@ func TestOracle_PhantomDiffElimination(t *testing.T) {
 // a phantom one). Each asserts two real, different MySQL schemas produce different keys,
 // loaded through the real engine's SHOW CREATE so the catalog state is authentic.
 func TestOracle_MissedDiffGuards(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 
@@ -359,7 +390,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			rbA, okA := o.showCreate(t, "mdg_a", ddlA, "t")
 			rbB, okB := o.showCreate(t, "mdg_b", ddlB, "t")
 			if !okA || !okB {
-				t.Skip("could not obtain readbacks")
+				o.refused(t, nil, "could not obtain readbacks")
+				return
 			}
 			tA, cA := loadColumn(t, sc, rbA, "t", "a")
 			tB, cB := loadColumn(t, sc, rbB, "t", "a")
@@ -379,7 +411,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (b VARCHAR(10) BINARY, p VARCHAR(10)) DEFAULT CHARSET=utf8mb4"
 			rb, ok := o.showCreate(t, "mdg_bin", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				o.refused(t, nil, "could not obtain readback")
+				return
 			}
 			tbl, bCol := loadColumn(t, sc, rb, "t", "b")
 			_, pCol := loadColumn(t, sc, rb, "t", "p")
@@ -397,7 +430,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (n YEAR DEFAULT 0, s YEAR DEFAULT '0')"
 			rb, ok := o.showCreate(t, "mdg_year0", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				o.refused(t, nil, "could not obtain readback")
+				return
 			}
 			tbl, nCol := loadColumn(t, sc, rb, "t", "n")
 			_, sCol := loadColumn(t, sc, rb, "t", "s")

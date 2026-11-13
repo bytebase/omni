@@ -3,8 +3,12 @@ package catalog
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -12,44 +16,102 @@ import (
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
-// The OceanBase oracle for this package. The TestOracle_* family answers for the
-// behavior this engine inherits from MySQL, against live 8.0; this file is
-// the one that answers for OceanBase itself.
-// oceanBaseOracle opens the test's connection to OceanBase: a replay of its
-// tape, or the pinned server in a recording (testcontainer.Open). The pool
-// holds one connection, so the database showCreate selects with USE stays
-// selected.
+// The OceanBase oracle for this package: every TestOracle_* that has moved off the
+// MySQL container asks it. The ones that have not moved still call connectOracle.
 //
-// The version is MySQL80, the only one, and the probes below measure that it fits:
-// every probe either canonicalizes empty or disagrees only in the ROW_FORMAT echo.
-// 4.3.5 does report a 5.7 version string, and does print 5.7-style widths, but the
-// stored form it prints is the one MySQL80's normalizer reproduces: 8.0 strips widths
-// from both sides. This test is what holds that, and a wrong normalizer shows up here
-// as a non-empty diff rather than as a phantom change in a user's release.
+// oceanBaseOracle opens the test's connection to OceanBase: a replay of its tape, or the
+// pinned server in a recording (testcontainer.OpenWith). The pool holds one connection,
+// so a database selected with USE stays selected, and nothing needs db.Conn to pin one:
+// a helper that asks the pool while its caller holds that connection waits forever.
+//
+// The version is MySQL80, the only one, and the probes measure that it fits. 4.3.5 does
+// report a 5.7 version string, and does print 5.7-style widths, but the stored form it
+// prints is the one MySQL80's normalizer reproduces: 8.0 strips widths from both sides.
+// A wrong normalizer shows up as a non-empty diff rather than as a phantom change in a
+// user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
-	return &oracleConn{db: testcontainer.Open(t), version: MySQL80, name: "oceanbase"}
+	o := &oracleConn{
+		db:      testcontainer.OpenWith(t, testcontainer.Options{MultiStatements: true}),
+		version: MySQL80,
+		name:    "oceanbase",
+	}
+	top := t.Name()
+	t.Cleanup(func() {
+		// A run of chosen subtests leaves the others' entries unvisited.
+		if t.Failed() || strings.Contains(testRunFlag(), "/") {
+			return
+		}
+		for _, name := range slices.Sorted(maps.Keys(obRefused)) {
+			if _, seen := obRefusedSeen.Load(name); !seen && strings.HasPrefix(name, top+"/") {
+				t.Errorf("obRefused lists %s (%s), but the probe did not end in that refusal: remove the entry", name, obRefused[name].what)
+			}
+		}
+	})
+	return o
 }
 
-// obUnsupportedForms are the probe ids OceanBase itself will not accept, with the
-// construct it rejects. The engine answers 1064 for each, so it stores no form to
-// compare; any other probe failing to apply means the oracle stopped answering.
+func testRunFlag() string {
+	if f := flag.Lookup("test.run"); f != nil {
+		return f.Value.String()
+	}
+	return ""
+}
+
+// A refusal is how OceanBase answers a form it will not take.
+type refusal struct {
+	errno uint16
+	what  string // the construct, for the log
+}
+
+// obRefused lists the probes whose form OceanBase refuses, by subtest name. The probes
+// were written for MySQL; where OceanBase will not take one, the engine stores nothing
+// to compare and the probe ends there. refused holds every entry to the engine in both
+// directions: a refusal that is not listed fails its test, and so does a listed probe
+// that no longer ends in its refusal.
 //
-// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-30.
-var obUnsupportedForms = map[string]string{
-	"binary-modifier-utf8mb4":  "the BINARY column modifier",
-	"adjacent-literal-default": "adjacent string literals in DEFAULT",
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6.
+var obRefused = map[string]refusal{
+	"TestOracle_DiffIdempotence/oceanbase/binary-modifier-after-charset":               {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_DiffIdempotence/oceanbase/adjacent-literal-default-double-quoted":      {1064, `a double-quoted literal with a neighbour, "x" 'y', in DEFAULT`},
+	"TestOracle_MigrationIdempotence/oceanbase/binary-modifier-after-charset":          {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_MigrationIdempotence/oceanbase/adjacent-literal-default-double-quoted": {1064, `a double-quoted literal with a neighbour, "x" 'y', in DEFAULT`},
+	"TestOracle_PartitionChangeDetected/oceanbase/toggle-linear":                       {1064, "LINEAR KEY partitioning"},
 }
 
-// obEchoedRowFormat is the ROW_FORMAT OceanBase stores for a table whose DDL declares
-// none. MySQL echoes ROW_FORMAT only when the user declared a non-DEFAULT value, and
-// rowFormatChanged rests on that: the undeclared user side canonicalizes to "" while
-// the readback's DYNAMIC is significant, so on OceanBase every table whose DDL omits
-// ROW_FORMAT phantom-diffs MODIFY. Normalizing the echo away needs an engine axis the
-// version-keyed Normalizer does not have, so this test records the disagreement exactly
-// rather than skipping over it: notRowFormatEcho tolerates that one shape and fails on
-// anything else. Adding the axis empties these diffs and makes the tolerance unreachable.
-const obEchoedRowFormat = "DYNAMIC"
+var obRefusedSeen sync.Map
+
+// refused ends a probe whose statement the engine would not take. err is the engine's
+// answer, or nil when the helper that gave up kept it in o.refusal. On OceanBase the
+// probe passes only if obRefused records this subtest with the error number the engine
+// answered; anything else fails. The caller returns after it.
+//
+// On the MySQL oracle, which the tests that have not moved still ask, it skips, as
+// those tests always have.
+func (o *oracleConn) refused(t *testing.T, err error, format string, args ...any) {
+	t.Helper()
+	if err == nil {
+		err = o.refusal
+	}
+	o.refusal = nil
+	why := fmt.Sprintf(format, args...)
+	if o.name != "oceanbase" {
+		t.Skipf("[%s] %s: %v", o.name, why, err)
+	}
+	var myErr *gomysql.MySQLError
+	if !errors.As(err, &myErr) {
+		t.Fatalf("%s, and not because OceanBase refused a statement: %v", why, err)
+	}
+	want, ok := obRefused[t.Name()]
+	if !ok {
+		t.Fatalf("%s: OceanBase answers %v. obRefused does not record that for %s: name the construct there, or fix the probe", why, err, t.Name())
+	}
+	if want.errno != myErr.Number {
+		t.Fatalf("%s: OceanBase answers %v, but obRefused records %d (%s)", why, err, want.errno, want.what)
+	}
+	obRefusedSeen.Store(t.Name(), true)
+	t.Logf("OceanBase does not take %s (%d), so it stores no form to compare", want.what, myErr.Number)
+}
 
 // storeAndRead applies createSQL to OceanBase and returns the form it stores. Unlike
 // oracleConn.showCreate it keeps the error, so the caller can tell a form the engine
@@ -71,30 +133,6 @@ func storeAndRead(ctx context.Context, o *oracleConn, dbName, createSQL, table s
 		return "", fmt.Errorf("show create %s: %w", table, err)
 	}
 	return ddl, nil
-}
-
-// TestOracle_OceanBaseCanonicalization applies each representative form to a live
-// OceanBase, reads the stored form back, and requires the catalog's user form and that
-// stored form to canonicalize equal — TestOracle_DiffIdempotence's property, answered by
-// the engine Bytebase runs instead of by MySQL standing in for it.
-//
-// Nothing here is skipped. A form OceanBase rejects must be named in obUnsupportedForms,
-// and a non-empty diff must be the obEchoedRowFormat disagreement alone; every other
-// failure, a stored form that will not parse included, fails the test.
-func TestOracle_OceanBaseCanonicalization(t *testing.T) {
-	o := oceanBaseOracle(t)
-	ctx := context.Background()
-	for _, probe := range diffIdempotenceProbes() {
-		t.Run(probe.id, func(t *testing.T) {
-			dbName := "ob_" + strings.ReplaceAll(probe.id, "-", "_")
-			readback, err := storeAndRead(ctx, o, dbName, probe.create, probe.table)
-			if err != nil {
-				requireFormOceanBaseRejects(t, probe.id, err)
-				return
-			}
-			assertDiffEmptyOrRowFormatEcho(t, o, readback, probe.create, probe.table)
-		})
-	}
 }
 
 // TestOracle_OceanBaseIndexScopeEcho pins that the index scope OceanBase echoes does not
@@ -132,9 +170,8 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 			d := DiffWithNormalizer(userCat, storedCat, n)
 			_, _ = userTbl, storedTbl
 			// Only the index half is asserted here. A partitioned table also differs at
-			// the partition level on this engine, and every table differs by the
-			// obEchoedRowFormat gap, both recorded elsewhere; this probe exists to catch
-			// the scope echo reading as a change.
+			// the partition level on this engine, which is recorded elsewhere; this probe
+			// exists to catch the scope echo reading as a change.
 			for _, te := range d.Tables {
 				for _, ie := range te.Indexes {
 					t.Errorf("index %s reported %s, so the echoed scope read as a change\n  user:   %s\n  stored: %s",
@@ -153,163 +190,83 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 	}
 }
 
-// requireFormOceanBaseRejects accepts the one apply failure this test tolerates: the
-// engine answering 1064 for a form obUnsupportedForms names. A different error means the
-// oracle is broken, and an unlisted probe means the dialect moved and nobody said so.
-func requireFormOceanBaseRejects(t *testing.T, id string, err error) {
-	t.Helper()
-	var myErr *gomysql.MySQLError
-	if !errors.As(err, &myErr) || myErr.Number != 1064 {
-		t.Fatalf("applying %s failed for a reason other than OceanBase rejecting the form: %v", id, err)
-	}
-	why, ok := obUnsupportedForms[id]
-	if !ok {
-		t.Fatalf("OceanBase rejects %s, which is not recorded as unsupported: name the construct in obUnsupportedForms or fix the probe: %v", id, err)
-	}
-	t.Logf("OceanBase does not accept %s (%s), so it stores no form to compare", id, why)
-}
-
-// assertDiffEmptyOrRowFormatEcho is assertDiffEmptyAgainstReadback over a stored form the
-// caller already read back, with the obEchoedRowFormat tolerance. Both self-diffs must
-// still be empty, and user against stored must be empty or that echo alone in each
-// direction, since Drop and Add are direction-sensitive.
-func assertDiffEmptyOrRowFormatEcho(t *testing.T, o *oracleConn, readback, userDDL, table string) {
+// assertDiffEmptyAgainstStored takes a form and what the engine stored for it, and
+// requires the two to canonicalize equal: each self-diffs empty, and user against stored
+// is empty in both directions, since Drop and Add are direction-sensitive.
+func assertDiffEmptyAgainstStored(t *testing.T, o *oracleConn, readback, userDDL, table string) {
 	t.Helper()
 	sc := serverCharsetFor(o.version)
 	n := NormalizerFor(o.version)
-	userCat, userTbl := loadOneTable(t, sc, userDDL, table)
-	storedCat, storedTbl := loadOneTable(t, sc, readback, table)
+	userCat, _ := loadOneTable(t, sc, userDDL, table)
+	storedCat, _ := loadOneTable(t, sc, readback, table)
 
 	if d := DiffWithNormalizer(storedCat, storedCat, n); !d.IsEmpty() {
-		t.Errorf("IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
-			table, strings.TrimSpace(readback), describeDiff(d))
+		t.Errorf("[%s] IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(readback), describeDiff(d))
 	}
 	if d := DiffWithNormalizer(userCat, userCat, n); !d.IsEmpty() {
-		t.Errorf("self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
-			table, strings.TrimSpace(userDDL), describeDiff(d))
+		t.Errorf("[%s] self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(userDDL), describeDiff(d))
 	}
-	for _, dir := range []struct {
-		name     string
-		from, to *Catalog
-	}{
-		{"user vs stored", userCat, storedCat},
-		{"stored vs user", storedCat, userCat},
-	} {
-		d := DiffWithNormalizer(dir.from, dir.to, n)
-		if d.IsEmpty() {
-			continue
-		}
-		if why := notRowFormatEcho(d, userTbl, storedTbl, table, n); why != "" {
-			t.Errorf("CANONICALIZATION (%s) for %s: %s\n  user:   %s\n  stored: %s\n  diff: %s",
-				dir.name, table, why, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
-		}
+	// The headline property: user form vs engine-stored form must collapse to empty.
+	if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] CANONICALIZATION: user form vs stored form not empty for %s:\n  user:   %s\n  stored: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
+	}
+	if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s:\n  diff: %s",
+			o.name, table, describeDiff(d))
 	}
 }
 
-// notRowFormatEcho reports why a non-empty diff is more than the obEchoedRowFormat
-// disagreement, or "" when it is exactly that. It requires the diff to carry nothing but
-// one MODIFY on this table with no sub-object entry, and requires every table option
-// tableOptionsChanged compares except ROW_FORMAT to agree — so a column, index,
-// constraint, partition, engine, charset, collation or comment phantom fails here instead
-// of passing as the known gap. The two sides are named by role, not by diff direction,
-// because only "the user declared none and the engine echoed DYNAMIC" is tolerated: a
-// readback that echoed some other format disagrees with the user's own declaration and is
-// a real difference.
-func notRowFormatEcho(d *SchemaDiff, userTbl, storedTbl *Table, table string, n *Normalizer) string {
-	switch {
-	case len(d.Views) > 0 || len(d.Functions) > 0 || len(d.Procedures) > 0 || len(d.Triggers) > 0 || len(d.Events) > 0:
-		return "the diff reaches objects other than the table"
-	case len(d.Tables) != 1:
-		return fmt.Sprintf("the diff names %d tables, not 1", len(d.Tables))
-	}
-	e := d.Tables[0]
-	switch {
-	case e.Action != DiffModify:
-		return fmt.Sprintf("the table is %s, not MODIFY", e.Action)
-	case !strings.EqualFold(e.Name, table):
-		return fmt.Sprintf("the diff names table %q, not %q", e.Name, table)
-	case len(e.Columns) > 0 || len(e.Indexes) > 0 || len(e.Constraints) > 0 || len(e.ForeignKeys) > 0 || len(e.Checks) > 0 || e.PartitionChanged:
-		return "the table differs in a column, index, constraint or partition, not only in its options"
-	case n.CanonicalEngine(userTbl) != n.CanonicalEngine(storedTbl):
-		return fmt.Sprintf("the storage engines disagree: %q vs %q", n.CanonicalEngine(userTbl), n.CanonicalEngine(storedTbl))
-	case foldCharset(userTbl.Charset) != foldCharset(storedTbl.Charset):
-		return fmt.Sprintf("the charsets disagree: %q vs %q", userTbl.Charset, storedTbl.Charset)
-	case n.effectiveTableCollation(userTbl) != n.effectiveTableCollation(storedTbl):
-		return fmt.Sprintf("the collations disagree: %q vs %q", n.effectiveTableCollation(userTbl), n.effectiveTableCollation(storedTbl))
-	case n.CanonicalComment(userTbl.Comment) != n.CanonicalComment(storedTbl.Comment):
-		return fmt.Sprintf("the comments disagree: %q vs %q", userTbl.Comment, storedTbl.Comment)
-	case !n.IgnoreRowFormat(userTbl) || !strings.EqualFold(storedTbl.RowFormat, obEchoedRowFormat):
-		return fmt.Sprintf("the ROW_FORMAT disagreement is %q against %q, not an undeclared form against the echoed %s",
-			userTbl.RowFormat, storedTbl.RowFormat, obEchoedRowFormat)
-	}
-	return ""
+// rowFormats is what OceanBase stores for each ROW_FORMAT a table is written with.
+// IgnoreRowFormat rests on the first three: DYNAMIC is what a table that declares
+// nothing stores, so a readback's DYNAMIC is not a declaration.
+var rowFormats = []struct{ written, stored string }{
+	{"", "DYNAMIC"},
+	{"DEFAULT", "DYNAMIC"},
+	{"DYNAMIC", "DYNAMIC"},
+	{"COMPACT", "COMPACT"},
+	{"REDUNDANT", "REDUNDANT"},
+	{"COMPRESSED", "COMPRESSED"},
+	{"CONDENSED", "CONDENSED"},
 }
 
-// TestNotRowFormatEcho pins what the obEchoedRowFormat tolerance will and will not
-// excuse. notRowFormatEcho is a pure verdict over a diff and the two table forms, so this
-// needs no engine — and without it the tolerance above is only as narrow as it looks.
-func TestNotRowFormatEcho(t *testing.T) {
-	const table = "t"
-	undeclared := &Table{Name: table, Charset: "utf8mb4"}
-	echoed := &Table{Name: table, Charset: "utf8mb4", RowFormat: obEchoedRowFormat}
-	modify := func(mutate func(*TableDiffEntry)) *SchemaDiff {
-		e := TableDiffEntry{Action: DiffModify, Name: table}
-		if mutate != nil {
-			mutate(&e)
+// TestOracle_OceanBaseRowFormat holds rowFormats to the engine, and requires each
+// written form to canonicalize equal to what the engine stores for it. Before
+// IgnoreRowFormat knew DYNAMIC, every table of every schema differed from its own
+// readback by one MODIFY.
+//
+// The second half is the way back: a table that drops its ROW_FORMAT is altered with
+// ROW_FORMAT=DEFAULT, and that has to store what a table declaring none stores.
+func TestOracle_OceanBaseRowFormat(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx := context.Background()
+	for _, rf := range rowFormats {
+		name, create := "unstated", "CREATE TABLE t (id INT PRIMARY KEY)"
+		if rf.written != "" {
+			name, create = rf.written, create+" ROW_FORMAT="+rf.written
 		}
-		return &SchemaDiff{Tables: []TableDiffEntry{e}}
-	}
-
-	tests := []struct {
-		name         string
-		diff         *SchemaDiff
-		user, stored *Table
-		tolerated    bool
-	}{
-		{"the echo itself", modify(nil), undeclared, echoed, true},
-		{"ROW_FORMAT=DEFAULT is undeclared too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "DEFAULT"}, echoed, true},
-		{"a column also differs", modify(func(e *TableDiffEntry) {
-			e.Columns = []ColumnDiffEntry{{Action: DiffModify, Name: "a"}}
-		}), undeclared, echoed, false},
-		{"an index also differs", modify(func(e *TableDiffEntry) {
-			e.Indexes = []IndexDiffEntry{{Action: DiffAdd, Name: "ia"}}
-		}), undeclared, echoed, false},
-		{"a constraint also differs", modify(func(e *TableDiffEntry) {
-			e.Constraints = []ConstraintDiffEntry{{Action: DiffAdd, Name: "pk"}}
-		}), undeclared, echoed, false},
-		{"the partitioning also differs", modify(func(e *TableDiffEntry) {
-			e.PartitionChanged = true
-		}), undeclared, echoed, false},
-		// The collations are held equal because the collation check behind the charset
-		// one would otherwise catch any differing charset by itself.
-		{"the charsets differ while the collations agree", modify(nil),
-			&Table{Name: table, Charset: "latin1", Collation: "utf8mb4_bin"},
-			&Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin", RowFormat: obEchoedRowFormat}, false},
-		{"the collations differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin"}, echoed, false},
-		{"the engines differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Engine: "MyISAM"}, echoed, false},
-		{"the comments differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Comment: "mine"}, echoed, false},
-		{"the user declared a format too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, echoed, false},
-		{"the engine echoed another format", modify(nil), undeclared, &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, false},
-		{"the table is dropped, not modified", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffDrop, Name: table}},
-		}, undeclared, echoed, false},
-		{"the diff names another table", modify(func(e *TableDiffEntry) { e.Name = "other" }), undeclared, echoed, false},
-		{"two tables differ", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}, {Action: DiffModify, Name: "u"}},
-		}, undeclared, echoed, false},
-		{"a view also differs", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}},
-			Views:  []ViewDiffEntry{{Action: DiffAdd, Name: "v"}},
-		}, undeclared, echoed, false},
-	}
-
-	n := NormalizerFor(MySQL80)
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			why := notRowFormatEcho(tc.diff, tc.user, tc.stored, table, n)
-			if tolerated := why == ""; tolerated != tc.tolerated {
-				t.Fatalf("tolerated = %v, want %v (verdict %q)", tolerated, tc.tolerated, why)
+		t.Run(name, func(t *testing.T) {
+			readback, err := storeAndRead(ctx, o, "obrf_"+strings.ToLower(name), create, "t")
+			if err != nil {
+				t.Fatal(err)
 			}
+			if !strings.Contains(readback, " ROW_FORMAT = "+rf.stored+" ") {
+				t.Errorf("recorded ROW_FORMAT = %s, but the engine stored\n%s", rf.stored, readback)
+			}
+			assertDiffEmptyAgainstStored(t, o, readback, create, "t")
+		})
+	}
+	n := NormalizerFor(o.version)
+	for _, from := range []string{"COMPACT", "COMPRESSED"} {
+		t.Run("from "+from+" back to unstated", func(t *testing.T) {
+			assertApplyCorrect(t, o, n, migrationProbe{
+				id:      "rowformat-reset-" + strings.ToLower(from),
+				table:   "t",
+				fromDDL: "CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=" + from,
+				toDDL:   "CREATE TABLE t (id INT PRIMARY KEY)",
+			})
 		})
 	}
 }

@@ -148,7 +148,8 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					o.refused(t, err, "setup: %q", s)
+					return nil
 				}
 			}
 			var sb strings.Builder
@@ -187,8 +188,8 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 // readbacks of BOTH tables. This is the multi-table analog of the idempotence probe — the
 // single-table harness cannot resolve the FK's referenced table.
 func TestOracle_IndexDiffFKImplicit(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
@@ -214,7 +215,8 @@ func TestOracle_IndexDiffFKImplicit(t *testing.T) {
 				}
 				for _, s := range stmts {
 					if _, err := o.db.ExecContext(ctx, s); err != nil {
-						t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+						o.refused(t, err, "setup failed: %q", s)
+						return
 					}
 				}
 				// Read both tables back and reload as a single schema.

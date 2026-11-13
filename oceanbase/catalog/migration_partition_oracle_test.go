@@ -60,7 +60,7 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 
 	// One pinned connection for ALL of this probe's statements (readbacks + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -75,7 +75,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 			createSQL,
 		} {
 			if _, err := conn.ExecContext(ctx, s); err != nil {
-				t.Logf("[%s] %s readback setup failed (may be expected): %q: %v", o.name, p.id, s, err)
+				t.Logf("[%s] %s readback setup failed: %q: %v", o.name, p.id, s, err)
+				o.refusal = fmt.Errorf("%q: %w", s, err)
 				return "", false
 			}
 		}
@@ -97,7 +98,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	if tableInTo {
 		rb, ok := readbackVia("pto_"+slug, p.toDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+			return
 		}
 		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -106,7 +108,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	if tableInFrom {
 		rb, ok := readbackVia("pfrom_"+slug, p.fromDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+			return
 		}
 		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -127,7 +130,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -295,7 +299,8 @@ func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 				slug := strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, "pgen_idem_"+slug, probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				diff := DiffWithNormalizer(cat, cat, n)
 				plan := GenerateMigrationWithNormalizer(cat, cat, diff, n)

@@ -85,7 +85,7 @@ func TestOracle_CheckDiffIdempotence(t *testing.T) {
 // (from, to) check changes on 8.0 (loaded from real engine readbacks): an added, dropped, modified
 // (expression change), and enforced-state-flipped check each produce the expected CheckDiffEntry.
 func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
-	o := connectOracle(t, MySQL80)
+	o := oceanBaseOracle(t)
 	n := NormalizerFor(MySQL80)
 	sc := serverCharsetFor(MySQL80)
 
@@ -118,7 +118,8 @@ func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
 			rbFrom, ok1 := o.showCreate(t, "chk_nf", tc.fromDDL, "t")
 			rbTo, ok2 := o.showCreate(t, "chk_nt", tc.toDDL, "t")
 			if !ok1 || !ok2 {
-				t.Skipf("[8.0] could not obtain readbacks")
+				o.refused(t, nil, "could not obtain readbacks")
+				return
 			}
 			fromCat, _ := loadOneTable(t, sc, rbFrom, "t")
 			toCat, _ := loadOneTable(t, sc, rbTo, "t")

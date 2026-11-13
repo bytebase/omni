@@ -196,7 +196,7 @@
 > exec
 | CREATE TABLE `pa_vecnew_5f91ffa1`.`t` (
 |   `v` vector(3) NOT NULL
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | CREATE VECTOR INDEX `i` ON `pa_vecnew_5f91ffa1`.`t` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64)

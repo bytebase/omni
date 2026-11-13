@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -348,10 +347,10 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 // applyViewSchema drops + recreates dbName with the box's server charset and applies every setup
 // statement on a single dedicated connection (database/sql pools connections, so USE must share
 // the connection with the following statements). Returns the connection (caller closes) or skips.
-func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (*sql.Conn, bool) {
+func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (oracleSession, bool) {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -377,7 +376,7 @@ func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string
 // to `logicalDB`, so both the `from` and `to` catalogs (and the apply database) share one database
 // name and the generated DDL qualifies objects under it. Views are dumped in the given order
 // (dependency order); LoadSDL re-sorts anyway.
-func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views []string) (string, bool) {
+func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn oracleSession, physDB, logicalDB string, tables, views []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	var b strings.Builder
@@ -445,13 +444,15 @@ func TestOracle_ViewIdempotence(t *testing.T) {
 				dbName := "videm_" + strings.ReplaceAll(probe.id, "-", "_")
 				conn, ok := o.applyViewSchema(t, dbName, probe.setup)
 				if !ok {
-					t.Skipf("[%s] could not apply schema for %s", o.name, probe.id)
+					o.refused(t, nil, "could not apply schema for %s", probe.id)
+					return
 				}
 				defer func() { _ = conn.Close() }()
 
 				storedSDL, ok := o.dumpViewSchemaSDL(t, conn, dbName, dbName, probe.tables, probe.views)
 				if !ok {
-					t.Skipf("[%s] could not dump readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not dump readback for %s", probe.id)
+					return
 				}
 				userSDL := userFormSDL(o, dbName, probe.setup)
 
@@ -645,7 +646,7 @@ func viewMigrationProbes() []viewMigrationProbe {
 // readback of the full schema).
 func TestOracle_ViewMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range viewMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
@@ -669,13 +670,15 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	// Build the `to` catalog from the engine's readback of the `to` schema, re-homed to `vt`.
 	toCat := loadSchemaFromEngine(t, o, "vgen_to_"+slug, applyDB, p.to, p.tables, p.views)
 	if toCat == nil {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+		return
 	}
 	// Build the `from` catalog likewise (its objects determine the readback set).
 	fromTables, fromViews := schemaObjectNames(p.from)
 	fromCat := loadSchemaFromEngine(t, o, "vgen_from_"+slug, applyDB, p.from, fromTables, fromViews)
 	if fromCat == nil {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+		return
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -684,7 +687,7 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	// Build a real database in state `from` (wrapped in `vt`, the database both catalogs load
 	// under via dumpViewSchemaSDL/userFormSDL → matches the plan's `vt`.`obj` qualification).
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -698,7 +701,8 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	setup = append(setup, p.from...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 

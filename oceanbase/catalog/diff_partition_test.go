@@ -165,7 +165,7 @@ func partitionChangeCases() []partitionChangeCase {
 // idempotence proof.
 func TestOracle_PartitionChangeDetected(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, tc := range partitionChangeCases() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, tc.id), func(t *testing.T) {
@@ -173,7 +173,8 @@ func TestOracle_PartitionChangeDetected(t *testing.T) {
 				fromCat, _, _, ok1 := o.catalogFromReadback(t, "pc_from_"+slug, tc.fromDDL, tc.table)
 				toCat, _, _, ok2 := o.catalogFromReadback(t, "pc_to_"+slug, tc.toDDL, tc.table)
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks for %s", o.name, tc.id)
+					o.refused(t, nil, "could not obtain readbacks for %s", tc.id)
+					return
 				}
 				d := DiffWithNormalizer(fromCat, toCat, n)
 				te := findTable(d, tc.table)

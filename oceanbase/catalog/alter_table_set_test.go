@@ -68,7 +68,7 @@ func TestAlterTableSetAppliesOptions(t *testing.T) {
 
 // TestOracle_OceanBaseAlterTableSet applies each of alterTableSetScenarios on
 // OceanBase, reads the table back, and requires the catalog's result and the readback
-// to canonicalize equal, but for the obEchoedRowFormat gap. A SET of
+// to canonicalize equal. A SET of
 // DYNAMIC_PARTITION_POLICY, which the catalog does not model, must still execute in the
 // catalog and leave a readback it can load.
 //
@@ -90,7 +90,7 @@ func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 			if err := o.db.QueryRowContext(ctx, "SHOW CREATE TABLE "+dbName+".t").Scan(new(string), &readback); err != nil {
 				t.Fatal(err)
 			}
-			assertDiffEmptyOrRowFormatEcho(t, o, readback, alterTableSetBase+";\n"+alter+";", "t")
+			assertDiffEmptyAgainstStored(t, o, readback, alterTableSetBase+";\n"+alter+";", "t")
 		})
 	}
 	t.Run("dynamic partition policy", func(t *testing.T) {

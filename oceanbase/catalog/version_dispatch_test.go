@@ -250,12 +250,13 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 	const userTarget = "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(50)) DEFAULT CHARSET=utf8mb4"
 
 	for _, v := range oracleVersions() {
-		o := connectOracle(t, v)
+		o := oceanBaseOracle(t)
 		t.Run(o.name, func(t *testing.T) {
 			// (1) engine's authentic stored form of the bare-charset target.
 			readback, ok := o.showCreate(t, "vd_bare", userTarget, "t")
 			if !ok {
-				t.Skipf("[%s] no readback for bare-charset target", o.name)
+				o.refused(t, nil, "no readback for bare-charset target")
+				return
 			}
 			n := NormalizerFor(v)
 			sc := serverCharsetFor(v)
@@ -287,7 +288,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			planSQL := plan.SQL()
 
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
+			conn, err := o.session(ctx)
 			if err != nil {
 				t.Fatalf("[%s] conn: %v", o.name, err)
 			}
@@ -301,7 +302,8 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			}
 			for _, s := range setup {
 				if _, err := conn.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed: %q: %v", o.name, s, err)
+					o.refused(t, err, "setup failed: %q", s)
+					return
 				}
 			}
 			for _, op := range plan.Ops {

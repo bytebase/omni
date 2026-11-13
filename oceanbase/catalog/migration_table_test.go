@@ -80,7 +80,7 @@ func autoIncFKProbes() []struct {
 // back equal to its stored form.
 func TestOracle_AutoIncFKImplicitApply(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, p := range autoIncFKProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
@@ -96,7 +96,7 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 	sc := serverCharsetFor(o.version)
 	ctx := context.Background()
 
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -112,13 +112,15 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 		childDDL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s `to` setup failed: %q: %v", o.name, id, s, err)
+			o.refused(t, err, "%s `to` setup failed: %q", id, s)
+			return
 		}
 	}
 	readback := func(tbl string) string {
 		var name, ddl string
 		if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", applyDB, tbl)).Scan(&name, &ddl); err != nil {
-			t.Skipf("[%s] %s SHOW CREATE %s failed: %v", o.name, id, tbl, err)
+			o.refused(t, err, "%s SHOW CREATE %s failed", id, tbl)
+			return ""
 		}
 		return ddl
 	}
@@ -141,7 +143,8 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 		"USE " + applyDB,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s apply db reset failed: %v", o.name, id, err)
+			o.refused(t, err, "%s apply db reset failed", id)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -166,7 +169,7 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 // only by a non-PK key applies cleanly on a real engine and reads back equal to `to`.
 func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, p := range autoIncSupportProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
@@ -186,7 +189,7 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 	sc := serverCharsetFor(o.version)
 	ctx := context.Background()
 
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -200,12 +203,14 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 		p.createSQL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s `to` readback setup failed: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "%s `to` readback setup failed: %q", p.id, s)
+			return
 		}
 	}
 	var name, rb string
 	if err := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE rto_%s.%s", slug, p.table)).Scan(&name, &rb); err != nil {
-		t.Skipf("[%s] %s SHOW CREATE failed: %v", o.name, p.id, err)
+		o.refused(t, err, "%s SHOW CREATE failed", p.id)
+		return
 	}
 
 	applyDB := "ai_" + slug
@@ -221,7 +226,8 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 		"USE " + applyDB,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] %s apply db setup failed: %v", o.name, p.id, err)
+			o.refused(t, err, "%s apply db setup failed", p.id)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -250,8 +256,8 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 // round-trip empty: the stored form self-diffs empty and the user form vs the stored form diffs
 // empty (no phantom diff introduced by the inlined key).
 func TestOracle_AutoIncSupportingKeyIdempotence(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, p := range autoIncSupportProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
 				db := "aidem_" + strings.ReplaceAll(p.id, "-", "_")

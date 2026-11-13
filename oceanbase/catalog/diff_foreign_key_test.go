@@ -184,7 +184,8 @@ func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					o.refused(t, err, "setup: %q", s)
+					return
 				}
 			}
 			// Stored form: read both tables back (the qualifier is stripped).
@@ -237,7 +238,8 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+			o.refused(t, err, "setup failed: %q", s)
+			return nil
 		}
 	}
 	var b strings.Builder

@@ -154,29 +154,43 @@ func TestDiff_RowFormatDefaultIgnored(t *testing.T) {
 	}
 }
 
-// A genuine non-default ROW_FORMAT change MUST be detected. Regression for the review
-// finding that ROW_FORMAT was not compared at all. Oracle-grounded: SHOW CREATE echoes
-// ROW_FORMAT=X iff the user explicitly declared a non-DEFAULT value, so an explicit
-// format vs an unspecified side is a real declared-option change (the user adds/removes a
-// recorded create-option) — not an environment artifact.
+// A change to or from a format OceanBase stores as written MUST be detected. DYNAMIC is
+// what a table that declares none stores, so COMPRESSED against DYNAMIC and COMPRESSED
+// against an unstated format are the same real change.
 func TestDiff_RowFormatExplicitChange(t *testing.T) {
 	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED;")
 	to := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=DYNAMIC;")
 	if e := findTable(d_(from, to), "t"); e == nil || e.Action != DiffModify {
 		t.Errorf("explicit ROW_FORMAT change (COMPRESSED->DYNAMIC) must diff, got %+v", d_(from, to).Tables)
 	}
-	// Explicit non-default format vs unspecified IS a real change (declared-option
-	// added/removed). The oracle confirms a bare table reads back with no ROW_FORMAT clause.
 	bare := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY);")
 	if e := findTable(d_(from, bare), "t"); e == nil || e.Action != DiffModify {
 		t.Errorf("explicit COMPRESSED vs unspecified must diff (declared option removed), got %+v", d_(from, bare).Tables)
 	}
+	compact := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPACT;")
+	if e := findTable(d_(from, compact), "t"); e == nil || e.Action != DiffModify {
+		t.Errorf("COMPRESSED vs COMPACT must diff, got %+v", d_(from, compact).Tables)
+	}
 }
 
-// ROW_FORMAT=DEFAULT and an unspecified ROW_FORMAT must NOT diff: the oracle confirms
-// MySQL strips ROW_FORMAT=DEFAULT (a DEFAULT-declared table reads back with no clause), so
-// IgnoreRowFormat treats both as "" and they canonicalize equal. This is the idempotence
-// guard for the ignorable case.
+// The DYNAMIC OceanBase prints on every table that declares no ROW_FORMAT must not diff
+// against the unstated form: that phantom MODIFY sat on every table of every release.
+func TestDiff_RowFormatDynamicIsTheUnstatedForm(t *testing.T) {
+	bare := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY);")
+	for _, written := range []string{"DYNAMIC", "dynamic", "DEFAULT"} {
+		stored := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT = "+written+";")
+		if d := Diff(bare, stored); !d.IsEmpty() {
+			t.Errorf("unstated vs ROW_FORMAT=%s must not diff, got %+v", written, d.Tables)
+		}
+		if d := Diff(stored, bare); !d.IsEmpty() {
+			t.Errorf("ROW_FORMAT=%s vs unstated must not diff (reverse), got %+v", written, d.Tables)
+		}
+	}
+}
+
+// ROW_FORMAT=DEFAULT and an unspecified ROW_FORMAT must NOT diff: OceanBase stores the
+// same DYNAMIC for both, so IgnoreRowFormat treats both as "" and they canonicalize
+// equal. This is the idempotence guard for the ignorable case.
 func TestDiff_RowFormatDefaultVsBareEmpty(t *testing.T) {
 	withDefault := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=DEFAULT;")
 	bare := loadCat(t, dbDDL+"CREATE TABLE t (id INT PRIMARY KEY);")

@@ -486,23 +486,21 @@ func TestIgnoreInDiff_AutoIncrementCounter(t *testing.T) {
 }
 
 func TestIgnoreInDiff_RowFormatDefault(t *testing.T) {
-	// ROW_FORMAT is ignored when it is empty/the environment default; a user-set value
-	// is not ignored. (flag row-format-default-source: exclude unless explicitly set)
+	// OceanBase stores DYNAMIC for a table written with no ROW_FORMAT, with DEFAULT or
+	// with DYNAMIC, so none of the three is a declaration; every other format is.
+	// TestOracle_OceanBaseRowFormat asks the engine.
 	n := NormalizerFor(MySQL80)
-	if !n.IgnoreRowFormat(&Table{RowFormat: ""}) {
-		t.Fatal("default (empty) ROW_FORMAT must be ignored")
+	for _, rf := range []string{"", "DEFAULT", "DYNAMIC", "dynamic", " Dynamic "} {
+		if !n.IgnoreRowFormat(&Table{RowFormat: rf}) {
+			t.Errorf("ROW_FORMAT %q is what an undeclared table stores, and must be ignored", rf)
+		}
 	}
-	if !n.IgnoreRowFormat(&Table{RowFormat: "DEFAULT"}) {
-		t.Fatal("ROW_FORMAT=DEFAULT must be ignored")
-	}
-	if n.IgnoreRowFormat(&Table{RowFormat: "DYNAMIC"}) {
-		t.Fatal("explicit ROW_FORMAT=DYNAMIC must NOT be ignored")
+	for _, rf := range []string{"COMPACT", "REDUNDANT", "COMPRESSED", "CONDENSED", "compressed"} {
+		if n.IgnoreRowFormat(&Table{RowFormat: rf}) {
+			t.Errorf("ROW_FORMAT %q is stored as written, and must not be ignored", rf)
+		}
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Comments — content comparison, decoded. (entry comment-escaping)
-// ---------------------------------------------------------------------------
 
 func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 	n := NormalizerFor(MySQL80)

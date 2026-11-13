@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -151,7 +150,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
 	// Build a real database in state `from` on ONE dedicated connection (USE must stick).
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -166,7 +165,8 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, fc.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", fc.id, s)
+			return
 		}
 	}
 
@@ -201,7 +201,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 // loadResultChildSchema reads the parent `p` back from the live apply db and combines it with the
 // already-read result child DDL into a single-catalog schema (wrapped in the logical db), so the
 // result catalog has the same parent+child shape as `to` and FK references resolve on both sides.
-func loadResultChildSchema(t *testing.T, o *oracleConn, conn *sql.Conn, logicalDB, sc, childDDL string) *Catalog {
+func loadResultChildSchema(t *testing.T, o *oracleConn, conn oracleSession, logicalDB, sc, childDDL string) *Catalog {
 	t.Helper()
 	ctx := context.Background()
 	var nm, parentDDL string
@@ -336,7 +336,7 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -350,7 +350,8 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	setup = append(setup, splitSemiStatements(mc.fromSQL)...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` for %s: %q: %v", o.name, mc.id, s, err)
+			o.refused(t, err, "could not set up `from` for %s: %q", mc.id, s)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -399,7 +400,8 @@ func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaS
 	setup = append(setup, splitSemiStatements(schemaSQL)...)
 	for _, s := range setup {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+			o.refused(t, err, "setup failed: %q", s)
+			return nil
 		}
 	}
 	// Discover the base tables in deterministic order.
