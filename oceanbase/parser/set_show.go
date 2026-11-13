@@ -1818,13 +1818,15 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 // output modes are modifiers rather than format names -- EXPLAIN BASIC and
 // EXPLAIN OUTLINE parse, FORMAT = BASIC does not.
 var explainFormatNames = map[string]bool{
-	"TRADITIONAL": true,
-	"JSON":        true,
+	"TRADITIONAL":         true,
+	"JSON":                true,
+	"OBJECT_NAME_DISPLAY": true,
 }
 
 // parseExplainFormatName parses the name after EXPLAIN's FORMAT =. Only the
-// bare TRADITIONAL and JSON reach it, and a backquoted name does not: a
-// backquoted identifier is no keyword in OceanBase's grammar either.
+// bare TRADITIONAL, JSON and OBJECT_NAME_DISPLAY reach it (format_name), and a
+// backquoted name does not: a backquoted identifier is no keyword in
+// OceanBase's grammar either.
 func (p *Parser) parseExplainFormatName() (string, error) {
 	if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
 		if name := strings.ToUpper(p.cur.Str); explainFormatNames[name] && !p.backtickQuotedAt(p.cur.Loc) {
@@ -1835,107 +1837,107 @@ func (p *Parser) parseExplainFormatName() (string, error) {
 		return "", p.syntaxErrorAtCur()
 	}
 	return "", &ParseError{
-		Message:  "expected TRADITIONAL or JSON as the EXPLAIN format name",
+		Message:  "expected TRADITIONAL, JSON or OBJECT_NAME_DISPLAY as the EXPLAIN format name",
 		Position: p.cur.Loc,
 	}
 }
 
-// parseExplainStmt parses an EXPLAIN, DESCRIBE or DESC statement.
+// explainTypeWords are the plan types an EXPLAIN may open with, one at most.
+var explainTypeWords = []string{"BASIC", "OUTLINE", "EXTENDED", "EXTENDED_NOADDR", "PLANREGRESS", "PARTITIONS"}
+
+// explainDisplayWords are the two displays that may follow the type, or stand alone.
+var explainDisplayWords = []string{"PRETTY", "PRETTY_COLOR"}
+
+// curBareWordOf returns which of words the current token is, unquoted, in upper case.
+func (p *Parser) curBareWordOf(words []string) (string, bool) {
+	for _, w := range words {
+		if p.isBareWord(w) {
+			return w, true
+		}
+	}
+	return "", false
+}
+
+// parseExplainStmt parses an EXPLAIN, DESCRIBE or DESC statement. The three
+// words are one (explain_or_desc), in every form:
 //
-// Ref: https://en.oceanbase.com/docs/common-oceanbase-database-10000000002017657
-// (EXPLAIN); measured against 5.7.25-OceanBase_CE-v4.3.5.6.
+//	explain_or_desc relation_factor [STRING_VALUE | column_name]
+//	explain_or_desc [type] [PRETTY | PRETTY_COLOR] explainable_stmt
+//	explain_or_desc SET STATEMENT_ID = literal explainable_stmt
+//	explain_or_desc INTO relation_name [SET STATEMENT_ID = literal] explainable_stmt
+//	explain_or_desc FORMAT = {TRADITIONAL | JSON | OBJECT_NAME_DISPLAY} explainable_stmt
 //
-//	{EXPLAIN | DESCRIBE | DESC} tbl_name [col_name | wild]
-//	{EXPLAIN | DESCRIBE | DESC} [EXTENDED | PARTITIONS | FORMAT = format] explainable_stmt
-//	format: {TRADITIONAL | JSON}
-//	explainable_stmt: {SELECT | VALUES | DELETE | INSERT | REPLACE | UPDATE}
+//	type:             BASIC | OUTLINE | EXTENDED | EXTENDED_NOADDR | PLANREGRESS | PARTITIONS
+//	explainable_stmt: select_stmt | delete_stmt | insert_stmt | update_stmt
+//
+// Ref: explain_stmt in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line
+// 15735); TestExplainFormsOceanBaseOracle holds the forms to the pinned server.
 //
 // The modifier list is OceanBase's, and it is neither MySQL 8.0's nor the one
-// this parser inherited. EXTENDED and PARTITIONS are still here, as they are in
-// MySQL 5.7, whose protocol version this server reports, while MySQL 8.0.46 and
-// TiDB each answer 1064 for both. They are one choice rather than a list:
-// EXPLAIN EXTENDED PARTITIONS, EXPLAIN EXTENDED FORMAT = TRADITIONAL and
-// EXPLAIN FORMAT = TRADITIONAL EXTENDED are each a 1064.
+// this parser inherited. A type and FORMAT do not combine, and neither do two
+// types: EXPLAIN EXTENDED PARTITIONS SELECT 1, EXPLAIN EXTENDED FORMAT =
+// TRADITIONAL SELECT 1 and EXPLAIN FORMAT = TRADITIONAL EXTENDED SELECT 1 are
+// each a 1064. There is no EXPLAIN ANALYZE and no FOR CONNECTION, no DDL is
+// explainable, and TABLE is no statement here.
 //
-// There is no EXPLAIN ANALYZE -- EXPLAIN ANALYZE SELECT 1 is a 1064, where
-// MySQL and TiDB both take it -- and no FOR CONNECTION, so EXPLAIN FOR
-// CONNECTION 1 is a 1064 too. Neither is any DDL explainable, and TABLE is no
-// statement here: EXPLAIN TABLE t and EXPLAIN ALTER TABLE t ADD INDEX (a) are
-// both syntax errors. A modifier rules the table form out, so
-// FORMAT = TRADITIONAL t is a 1064.
-//
-// OceanBase has two further modifiers this parser does not read yet, EXPLAIN
-// BASIC and EXPLAIN OUTLINE; both parse on the server and are recorded as
-// pending in the OceanBase grammar inventory.
-//
-// DESC and DESCRIBE read only the table form here. OceanBase takes them as full
-// EXPLAIN synonyms -- DESC FORMAT = TRADITIONAL SELECT 1 parses -- which is a
-// gap this file records rather than closes.
+// Every modifier word but SET and INTO is unreserved, so each is a table name
+// too: EXPLAIN EXTENDED t describes a table called `extended`. The token after
+// the word settles which it is, as the engine's one token of lookahead does: a
+// type is a type before a display word or a statement, a display word before a
+// statement, FORMAT before '='. So EXPLAIN basic pretty is a 1064, the parser
+// having taken both as modifiers, where EXPLAIN pretty basic describes a column.
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
-	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
 	p.advance() // consume EXPLAIN, DESCRIBE, or DESC
 
 	stmt := &nodes.ExplainStmt{Loc: nodes.Loc{Start: start}}
 
-	if isDescribe {
-		// Completion: after DESCRIBE/DESC, offer table_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("table_ref")
-			return nil, &ParseError{Message: "collecting"}
+	// modified says a modifier was read, which rules the table form out.
+	modified := false
+	switch {
+	case p.cur.Type == kwSET:
+		if err := p.parseExplainStatementID(stmt); err != nil {
+			return nil, err
 		}
-		// DESCRIBE tbl_name [col_name | wild]
-		ref, err := p.parseRelationFactor()
+		modified = true
+	case p.cur.Type == kwINTO:
+		p.advance()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
-		// Wrap as a ShowStmt for DESCRIBE (which is equivalent to SHOW COLUMNS FROM tbl)
-		showStmt := &nodes.ShowStmt{
-			Loc:  nodes.Loc{Start: start},
-			Type: "COLUMNS",
-			From: ref,
+		stmt.Into = name
+		if p.cur.Type == kwSET {
+			if err := p.parseExplainStatementID(stmt); err != nil {
+				return nil, err
+			}
 		}
-		if err := p.parseExplainColumn(showStmt); err != nil {
-			return nil, err
-		}
-		showStmt.Loc.End = p.prev.End
-		stmt.Stmt = showStmt
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
-
-	// One modifier at most: EXTENDED, PARTITIONS or FORMAT = format.
-	//
-	// EXTENDED and PARTITIONS are not reserved, so each is also a table name:
-	// EXPLAIN EXTENDED t reads as the table form, describing a table called
-	// `extended`, and parses on the server. One token of lookahead settles
-	// which arm the word starts, as the engine's own grammar does.
-	hasFormat := false
-	switch p.cur.Type {
-	case kwEXTENDED:
-		if !p.explainModifierAhead() {
-			break
-		}
-		stmt.Extended = true
-		p.advance()
-	case kwPARTITIONS:
-		if !p.explainModifierAhead() {
-			break
-		}
-		stmt.Partitions = true
-		p.advance()
-	case kwFORMAT:
-		hasFormat = true
+		modified = true
+	case p.cur.Type == kwFORMAT && p.peekNext().Type == '=':
 		p.advance() // consume FORMAT
-		if _, err := p.expect('='); err != nil {
-			return nil, err
-		}
+		p.advance() // consume =
 		name, err := p.parseExplainFormatName()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Format = name
+		modified = true
+	default:
+		if word, ok := p.curBareWordOf(explainTypeWords); ok && p.explainModifierAhead(true) {
+			p.advance()
+			stmt.Type = word
+			stmt.Extended = word == "EXTENDED"
+			stmt.Partitions = word == "PARTITIONS"
+			modified = true
+			if display, ok := p.curBareWordOf(explainDisplayWords); ok {
+				p.advance()
+				stmt.Display = display
+			}
+		} else if word, ok := p.curBareWordOf(explainDisplayWords); ok && p.explainModifierAhead(false) {
+			p.advance()
+			stmt.Display = word
+			modified = true
+		}
 	}
 
 	// Completion: after EXPLAIN [options], offer explainable statement keywords.
@@ -1947,11 +1949,10 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		} {
 			p.addTokenCandidate(t)
 		}
-		if !hasFormat {
+		if stmt.Format == "" && stmt.Into == "" && stmt.StatementID == nil {
 			// The table form is still reachable: EXPLAIN t is as valid as
-			// EXPLAIN SELECT, and a cursor right after EXTENDED or
-			// PARTITIONS is the one place that word could still be the
-			// table's name. Only a FORMAT rules the form out.
+			// EXPLAIN SELECT, and a cursor right after a type or display word
+			// is the one place that word could still be the table's name.
 			p.addRuleCandidate("table_ref")
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -1993,11 +1994,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		}
 		stmt.Stmt = rep
 	default:
-		// EXPLAIN tbl_name [col_name | wild], which no modifier stands in
-		// front of.
-		// hasFormat rather than Format != "": the name may be an empty
-		// string, and FORMAT = '' is a modifier all the same.
-		if stmt.Extended || stmt.Partitions || hasFormat {
+		// explain_or_desc relation_factor [STRING_VALUE | column_name], which no
+		// modifier stands in front of.
+		if modified {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ref, err := p.parseRelationFactor()
@@ -2020,6 +2019,24 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	return stmt, nil
 }
 
+// parseExplainStatementID reads SET STATEMENT_ID = literal at SET.
+func (p *Parser) parseExplainStatementID(stmt *nodes.ExplainStmt) error {
+	p.advance() // consume SET
+	if !p.isBareWord("STATEMENT_ID") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect('='); err != nil {
+		return err
+	}
+	id, err := p.parseLiteralOnly()
+	if err != nil {
+		return err
+	}
+	stmt.StatementID = id
+	return nil
+}
+
 // startsExplainableStmt reports whether a token can begin the statement
 // EXPLAIN explains. It tells EXPLAIN's one-token-lookahead arms apart: the
 // word after EXTENDED or PARTITIONS decides whether that word was a modifier
@@ -2032,9 +2049,10 @@ func startsExplainableStmt(tokenType int) bool {
 	return false
 }
 
-// explainModifierAhead reports whether EXTENDED or PARTITIONS at the current
+// explainModifierAhead reports whether the type or display word at the current
 // token is the modifier rather than the table name of the table form, which
-// what follows it decides.
+// the token after it decides: a statement makes it a modifier, and so does a
+// display word after a type (displayMayFollow).
 //
 // Completion asks from the other side. With the cursor right after the word,
 // as in "EXPLAIN EXTENDED |", nothing follows it yet: strict parsing reads the
@@ -2042,9 +2060,12 @@ func startsExplainableStmt(tokenType int) bool {
 // while the caller is about to type the statement the modifier takes. So a
 // cursor there picks the modifier, and the candidates that arm collects name
 // the table form too.
-func (p *Parser) explainModifierAhead() bool {
+func (p *Parser) explainModifierAhead(displayMayFollow bool) bool {
 	next := p.peekNext()
 	if startsExplainableStmt(next.Type) {
+		return true
+	}
+	if displayMayFollow && p.nextIsBareWord(explainDisplayWords...) {
 		return true
 	}
 	return p.completing && next.Loc >= p.cursorOff
