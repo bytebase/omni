@@ -20,10 +20,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if err != nil {
 		return err
 	}
+	// The query is analyzed once: here when the body is checked, below otherwise.
+	var analyzedQuery *Query
+	analyzed := false
 	if checkBody {
-		if err := c.resolveQueryFirst(stmt.Select); err != nil {
+		q, err := c.resolveQueryFirst(stmt.Select)
+		if err != nil {
 			return err
 		}
+		analyzedQuery, analyzed = q, true
 	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
@@ -56,8 +61,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 
 	// Analyze the view body for semantic IR (used by lineage, SDL diff).
 	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
+	if stmt.Select != nil && !analyzed {
 		q, err := c.AnalyzeSelectStmt(stmt.Select)
 		if err == nil {
 			analyzedQuery = q
@@ -143,7 +147,8 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err != nil {
 		return err
 	}
-	if err := c.resolveQueryFirst(stmt.Select); err != nil {
+	analyzedQuery, err := c.resolveQueryFirst(stmt.Select)
+	if err != nil {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
@@ -169,15 +174,8 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		definer = "`root`@`%`"
 	}
 
-	// Analyze the view body for semantic IR (used by lineage, SDL diff).
-	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
-		q, err := c.AnalyzeSelectStmt(stmt.Select)
-		if err == nil {
-			analyzedQuery = q
-		}
-	}
+	// analyzedQuery, the semantic IR (used by lineage, SDL diff), was read above,
+	// before deparseViewSelect mutates the AST.
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
@@ -1195,15 +1193,19 @@ func showCreateView(v *View) string {
 // SELECT zz FROM a, with a a table, answers 1054 (TestOracle_OceanBaseQueryFirst).
 //
 // The analyzer's other errors are left alone, as createView has always left them:
-// it does not yet read every query OceanBase takes.
-func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt) error {
+// it does not yet read every query OceanBase takes. The analyzed query is returned,
+// or nil when analysis did not finish, so the caller need not analyze it again.
+func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt) (*Query, error) {
 	if sel == nil {
-		return nil
+		return nil, nil
 	}
-	_, err := c.AnalyzeSelectStmt(sel)
+	q, err := c.AnalyzeSelectStmt(sel)
 	var refusal *Error
 	if errors.As(err, &refusal) && (refusal.Code == ErrNoSuchTable || refusal.Code == ErrNoSuchColumn) {
-		return refusal
+		return nil, refusal
 	}
-	return nil
+	if err != nil {
+		return nil, nil
+	}
+	return q, nil
 }
