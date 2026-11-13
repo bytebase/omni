@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -192,18 +194,18 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 		p.advance() // consume CONDITION
 		stmt.StatementInfo = false
 
-		// condition_number
-		condNum, err := p.parseExpr()
+		// condition_arg: INTNUM, a user variable, a string, TRUE or FALSE, or a
+		// column_name (a local variable). Not an expression: CONDITION 1 + 1 is a
+		// 1064, and so is CONDITION ?, which the rule's action refuses outside
+		// PL's own parse.
+		condNum, err := p.parseDiagnosticsConditionArg()
 		if err != nil {
 			return nil, err
-		}
-		if !p.collectMode() && condNum == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.ConditionNumber = condNum
 
 		// condition_information_item [, condition_information_item] ...
-		items, err := p.parseDiagnosticsItems()
+		items, err := p.parseDiagnosticsItems(conditionInformationItems)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +213,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 	} else {
 		// statement_information_item [, statement_information_item] ...
 		stmt.StatementInfo = true
-		items, err := p.parseDiagnosticsItems()
+		items, err := p.parseDiagnosticsItems(statementInformationItems)
 		if err != nil {
 			return nil, err
 		}
@@ -318,10 +320,10 @@ func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 }
 
 // parseDiagnosticsItems parses target = item_name [, target = item_name] ...
-func (p *Parser) parseDiagnosticsItems() ([]*nodes.DiagnosticsItem, error) {
+func (p *Parser) parseDiagnosticsItems(names map[string]bool) ([]*nodes.DiagnosticsItem, error) {
 	var items []*nodes.DiagnosticsItem
 	for {
-		item, err := p.parseDiagnosticsItem()
+		item, err := p.parseDiagnosticsItem(names)
 		if err != nil {
 			return nil, err
 		}
@@ -334,8 +336,40 @@ func (p *Parser) parseDiagnosticsItems() ([]*nodes.DiagnosticsItem, error) {
 	return items, nil
 }
 
-// parseDiagnosticsItem parses a single diagnostics item (target = item_name).
-func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
+// statementInformationItems is statement_information_item_name, and
+// conditionInformationItems condition_information_item_name
+// (sql_parser_mysql_mode.y, oceanbase v4.3.5_CE_BP6): an item names one of
+// these words and nothing else.
+var (
+	statementInformationItems = map[string]bool{"NUMBER": true, "ROW_COUNT": true}
+	conditionInformationItems = map[string]bool{
+		"CLASS_ORIGIN": true, "SUBCLASS_ORIGIN": true, "RETURNED_SQLSTATE": true, "MESSAGE_TEXT": true,
+		"MYSQL_ERRNO": true, "CONSTRAINT_CATALOG": true, "CONSTRAINT_SCHEMA": true, "CONSTRAINT_NAME": true,
+		"CATALOG_NAME": true, "SCHEMA_NAME": true, "TABLE_NAME": true, "COLUMN_NAME": true, "CURSOR_NAME": true,
+	}
+)
+
+// parseDiagnosticsConditionArg parses condition_arg after CONDITION.
+func (p *Parser) parseDiagnosticsConditionArg() (nodes.ExprNode, error) {
+	switch {
+	case p.cur.Type == tokICONST, p.cur.Type == tokSCONST, p.cur.Type == kwTRUE, p.cur.Type == kwFALSE:
+		return p.parsePrimaryExpr()
+	case p.isVariableRef():
+		return p.parseVariableRef()
+	case p.isIdentToken():
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}, nil
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
+// parseDiagnosticsItem parses a single diagnostics item, target = item_name,
+// where item_name is one of names.
+func (p *Parser) parseDiagnosticsItem(names map[string]bool) (*nodes.DiagnosticsItem, error) {
 	start := p.pos()
 
 	// target: user_variable (@var) | local_variable (identifier) | param
@@ -369,15 +403,10 @@ func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
 
 	// item_name (identifier-like keyword: NUMBER, ROW_COUNT, MESSAGE_TEXT, etc.)
 	// These are typically plain identifiers; some may overlap with keywords.
-	var name string
-	if p.cur.Type == tokIDENT {
-		name = p.cur.Str
-		p.advance()
-	} else {
-		// Accept any keyword token as name (e.g. NUMBER might not be a keyword)
-		name = p.cur.Str
-		p.advance()
+	if (p.cur.Type != tokIDENT && p.cur.Type < 700) || p.backtickQuotedAt(p.cur.Loc) || !names[strings.ToUpper(p.cur.Str)] {
+		return nil, p.syntaxErrorAtCur()
 	}
+	name := p.advance().Str
 
 	return &nodes.DiagnosticsItem{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},

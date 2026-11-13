@@ -305,3 +305,8 @@ func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
 }
+
+// errNotPartitioned is 1505: a partition command on a table with no partitions.
+func errNotPartitioned() error {
+	return &Error{Code: 1505, SQLState: "HY000", Message: "Partition management on a not partitioned table is not possible"}
+}

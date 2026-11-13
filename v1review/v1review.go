@@ -45,6 +45,8 @@ const (
 	NameIsKeyword Code = "name-is-keyword"
 	// NameCaseMismatch: a name is not in the configured letter case.
 	NameCaseMismatch Code = "name-case-mismatch"
+	// NameUnqualified: an object is named without its schema.
+	NameUnqualified Code = "name-unqualified"
 )
 
 // Finding is one violation a rule function reports, in statement order.
