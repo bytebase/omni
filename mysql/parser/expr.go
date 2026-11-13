@@ -3001,65 +3001,106 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 	return expr, nil
 }
 
-// odbcTemporalValid reports whether v is kind's canonical text with each field
-// in range: YYYY-MM-DD; a TIME [-]H:MM:SS[.fraction] up to 838 hours; or a date
-// and a clock time HH:MM:SS[.fraction] joined by a space.
+// odbcTemporalValid reports whether v reads as kind the way the server's
+// str_to_datetime and str_to_time mostly do, fields in range:
+//   - a date: digits alone (YYMMDD or YYYYMMDD), or three numbers split by
+//     punctuation, month and day one or two digits (`2020-1-1`, `2020/01/01`);
+//   - a TIME: [-]H:M[:S][.fraction], hours up to 838, or digits alone (HHMMSS);
+//   - a TIMESTAMP: digits alone (YYYYMMDDhhmmss or YYMMDDhhmmss), or a date, a
+//     space or T, and a clock time of two or three numbers, hours up to 23.
+//
+// A rarer spelling the server also takes keeps the string, which writes back
+// as the same value; a string that is no temporal value never becomes one.
 func odbcTemporalValid(kind, v string) bool {
-	date := func(d string) bool {
-		if len(d) != 10 || d[4] != '-' || d[7] != '-' {
-			return false
+	v = strings.TrimSpace(v)
+	fields := func(part string, seps string) ([]int, []int, bool) {
+		var vals, widths []int
+		cur, w := 0, 0
+		for i := 0; i < len(part); i++ {
+			c := part[i]
+			switch {
+			case c >= '0' && c <= '9':
+				cur, w = cur*10+int(c-'0'), w+1
+				if w > 4 {
+					return nil, nil, false
+				}
+			case w > 0 && strings.IndexByte(seps, c) >= 0:
+				vals, widths = append(vals, cur), append(widths, w)
+				cur, w = 0, 0
+			default:
+				return nil, nil, false
+			}
 		}
-		y, ok1 := atoiDigits(d[:4])
-		m, ok2 := atoiDigits(d[5:7])
-		day, ok3 := atoiDigits(d[8:])
-		if !ok1 || !ok2 || !ok3 || m < 1 || m > 12 || day < 1 {
+		if w == 0 {
+			return nil, nil, false
+		}
+		return append(vals, cur), append(widths, w), true
+	}
+	digits := func(s string) bool { _, ok := atoiDigits(s); return ok }
+	num := func(s string) int { n, _ := atoiDigits(s); return n }
+	dateOK := func(y, m, d int) bool {
+		if m < 1 || m > 12 || d < 1 {
 			return false
 		}
 		days := [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}[m]
 		if m == 2 && y%4 == 0 && (y%100 != 0 || y%400 == 0) {
 			days = 29
 		}
-		return day <= days
+		return d <= days
 	}
-	clock := func(t string) bool {
-		if i := strings.IndexByte(t, '.'); i >= 0 {
-			if _, ok := atoiDigits(t[i+1:]); !ok || len(t)-i-1 > 6 {
-				return false
+	date := func(d string) bool {
+		if digits(d) {
+			switch len(d) {
+			case 6:
+				return dateOK(2000+num(d[:2]), num(d[2:4]), num(d[4:]))
+			case 8:
+				return dateOK(num(d[:4]), num(d[4:6]), num(d[6:]))
 			}
-			t = t[:i]
-		}
-		if len(t) != 8 || t[2] != ':' || t[5] != ':' {
 			return false
 		}
-		h, ok1 := atoiDigits(t[:2])
-		mi, ok2 := atoiDigits(t[3:5])
-		sec, ok3 := atoiDigits(t[6:])
-		return ok1 && ok2 && ok3 && h <= 23 && mi <= 59 && sec <= 59
+		f, w, ok := fields(d, "-/.:_")
+		return ok && len(f) == 3 && w[1] <= 2 && w[2] <= 2 && dateOK(f[0], f[1], f[2])
+	}
+	frac := func(t string) (string, bool) {
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			if !digits(t[i+1:]) {
+				return "", false
+			}
+			return t[:i], true
+		}
+		return t, true
+	}
+	clock := func(t string, maxHour int) bool {
+		t, ok := frac(t)
+		if !ok {
+			return false
+		}
+		f, w, ok := fields(t, ":")
+		if !ok || len(f) < 2 || len(f) > 3 || w[1] > 2 || (len(f) == 3 && w[2] > 2) {
+			return false
+		}
+		sec := 0
+		if len(f) == 3 {
+			sec = f[2]
+		}
+		return f[0] <= maxHour && f[1] <= 59 && sec <= 59
 	}
 	switch kind {
 	case "DATE":
 		return date(v)
 	case "TIME":
-		// A TIME is an interval: a sign and hours up to 838.
 		t := strings.TrimPrefix(v, "-")
-		frac := ""
-		if i := strings.IndexByte(t, '.'); i >= 0 {
-			t, frac = t[:i], t[i+1:]
-			if _, ok := atoiDigits(frac); !ok || len(frac) > 6 {
-				return false
-			}
+		if d, ok := frac(t); ok && digits(d) && len(d) == 6 {
+			return num(d[:2]) <= 23 && num(d[2:4]) <= 59 && num(d[4:]) <= 59
 		}
-		parts := strings.Split(t, ":")
-		if len(parts) != 3 || len(parts[1]) != 2 || len(parts[2]) != 2 || len(parts[0]) == 0 || len(parts[0]) > 3 {
-			return false
-		}
-		h, ok1 := atoiDigits(parts[0])
-		mi, ok2 := atoiDigits(parts[1])
-		sec, ok3 := atoiDigits(parts[2])
-		return ok1 && ok2 && ok3 && h <= 838 && mi <= 59 && sec <= 59
+		return clock(t, 838)
 	default:
-		d, t, ok := strings.Cut(v, " ")
-		return ok && date(d) && clock(t)
+		if digits(v) && (len(v) == 12 || len(v) == 14) {
+			d, t := v[:len(v)-6], v[len(v)-6:]
+			return date(d) && num(t[:2]) <= 23 && num(t[2:4]) <= 59 && num(t[4:]) <= 59
+		}
+		i := strings.IndexAny(v, " T")
+		return i > 0 && date(v[:i]) && clock(strings.TrimSpace(v[i+1:]), 23)
 	}
 }
 
