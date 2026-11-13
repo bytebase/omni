@@ -323,66 +323,76 @@ func sdlRefs(stmt nodes.Node, currentDB string) []objectKey {
 // approximating the shadow set is safe because a stray edge to a non-existent
 // object is simply ignored by extractSDLDeps.
 func selectTableRefs(sel *nodes.SelectStmt) []*nodes.TableRef {
-	if sel == nil {
-		return nil
-	}
-	cteNames := make(map[string]bool)
-	collectTopLevelCTENames(sel, cteNames)
-
 	var refs []*nodes.TableRef
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if cte, ok := n.(*nodes.CommonTableExpr); ok {
-			// A CTE's body stands outside its own name unless the WITH is
-			// RECURSIVE: in WITH a AS (SELECT b FROM a), the a inside is the real
-			// table, and missing that edge let a view load before the view it
-			// reads (TestSDLViewReadThroughSameNamedCTE).
-			refs = append(refs, cteBodyTableRefs(cte, cteNames)...)
-			return false
-		}
-		if tr, ok := n.(*nodes.TableRef); ok {
-			// Only unqualified references can match a CTE name; a schema-qualified
-			// reference always denotes a real object.
-			if tr.Schema == "" && cteNames[toLower(tr.Name)] {
-				return true
-			}
-			refs = append(refs, tr)
-		}
-		return true
-	})
+	collectQueryTableRefs(sel, nil, &refs)
 	return refs
 }
 
-// cteBodyTableRefs returns the real objects a CTE's body reads. outer is the names
-// in scope around it; the CTE's own name is one of them only when it is recursive.
-func cteBodyTableRefs(cte *nodes.CommonTableExpr, outer map[string]bool) []*nodes.TableRef {
-	if cte == nil || cte.Select == nil {
-		return nil
+// collectQueryTableRefs appends the real objects sel reads. outer is the CTE names
+// in scope around it. A WITH's own names come into scope one at a time, as
+// analyzeCTEs brings them: a body sees the CTEs declared before it, and its own
+// name only when the WITH is RECURSIVE. Masking a name a body does not yet have
+// loses a dependency, and an SDL load then runs a view before the view it reads.
+func collectQueryTableRefs(sel *nodes.SelectStmt, outer map[string]bool, refs *[]*nodes.TableRef) {
+	if sel == nil {
+		return
 	}
-	visible := make(map[string]bool, len(outer))
+	var ctes []*nodes.CommonTableExpr
+	collectTopLevelCTEs(sel, &ctes)
+
+	visible := make(map[string]bool, len(outer)+len(ctes))
 	for name := range outer {
 		visible[name] = true
 	}
-	if !cte.Recursive {
-		delete(visible, toLower(cte.Name))
-	}
-	inner := make(map[string]bool, len(visible))
-	for name := range visible {
-		inner[name] = true
-	}
-	collectTopLevelCTENames(cte.Select, inner)
-
-	var refs []*nodes.TableRef
-	nodes.Inspect(cte.Select, func(n nodes.Node) bool {
-		if nested, ok := n.(*nodes.CommonTableExpr); ok {
-			refs = append(refs, cteBodyTableRefs(nested, inner)...)
-			return false
+	for _, cte := range ctes {
+		body := make(map[string]bool, len(visible)+1)
+		for name := range visible {
+			body[name] = true
 		}
-		if tr, ok := n.(*nodes.TableRef); ok && !(tr.Schema == "" && inner[toLower(tr.Name)]) {
-			refs = append(refs, tr)
+		if cte.Recursive {
+			body[toLower(cte.Name)] = true
+		}
+		collectQueryTableRefs(cte.Select, body, refs)
+		visible[toLower(cte.Name)] = true
+	}
+
+	// The query itself, which sees every name its WITH declares. A CTE body was
+	// read above, and a subquery with a WITH of its own is read with this scope.
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		switch node := n.(type) {
+		case *nodes.CommonTableExpr:
+			return false
+		case *nodes.SelectStmt:
+			if node != sel && len(node.CTEs) > 0 {
+				collectQueryTableRefs(node, visible, refs)
+				return false
+			}
+		case *nodes.TableRef:
+			// Only unqualified references can match a CTE name; a schema-qualified
+			// reference always denotes a real object.
+			if node.Schema == "" && visible[toLower(node.Name)] {
+				return true
+			}
+			*refs = append(*refs, node)
 		}
 		return true
 	})
-	return refs
+}
+
+// collectTopLevelCTEs gathers the CTEs declared in the top-level scope of a query,
+// in the order they are written, as collectTopLevelCTENames gathers their names.
+func collectTopLevelCTEs(sel *nodes.SelectStmt, out *[]*nodes.CommonTableExpr) {
+	if sel == nil {
+		return
+	}
+	for _, cte := range sel.CTEs {
+		if cte != nil && cte.Name != "" {
+			*out = append(*out, cte)
+		}
+	}
+	collectTopLevelCTEs(sel.Left, out)
+	collectTopLevelCTEs(sel.Right, out)
+	collectTopLevelCTEs(sel.ParenSource, out)
 }
 
 // collectTopLevelCTENames adds the CTE names declared in the top-level scope of a

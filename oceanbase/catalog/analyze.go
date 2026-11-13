@@ -1174,12 +1174,18 @@ func selectDerivesNames(sel *nodes.SelectStmt) bool {
 			}
 			expr = rt.Val
 		}
+		parenthesized := false
 		for {
 			p, ok := expr.(*nodes.ParenExpr)
 			if !ok {
 				break
 			}
-			expr = p.Expr
+			expr, parenthesized = p.Expr, true
+		}
+		if parenthesized {
+			// The engine names the item by its text, parentheses and all, where
+			// deriveColumnName reads through them: SELECT (1) is named (1).
+			return true
 		}
 		switch e := expr.(type) {
 		case *nodes.ColumnRef, *nodes.StarExpr, *nodes.StringLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:

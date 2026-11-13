@@ -30,6 +30,10 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS WITH c AS (SELECT b+1 FROM a), e AS (SELECT * FROM c) SELECT `b+1` FROM e", 0},
 		{"CREATE VIEW v AS SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1`", 0},
 		{"CREATE VIEW v AS SELECT b FROM a UNION ALL SELECT b FROM a ORDER BY zz", 1054},
+		{"CREATE VIEW v AS SELECT d.`0004` FROM (SELECT 0004) d", 0},
+		{"CREATE VIEW v AS SELECT d.`(1)` FROM (SELECT (1)) d", 0},
+		{"CREATE VIEW v AS SELECT d.`zz` FROM (SELECT 4) d", 1054},
+		{"CREATE VIEW v AS WITH RECURSIVE r AS (SELECT 1+1 UNION ALL SELECT 3 FROM r WHERE 0) SELECT `1+1` FROM r", 0},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
 		if err != nil {
