@@ -1057,6 +1057,13 @@ func (p *Parser) isSelectTerminator() bool {
 
 // parseTableReferenceList parses a comma-separated list of table references (with joins).
 func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
+	return p.parseTableRefList(true)
+}
+
+// parseTableRefList reads a comma-separated table reference list. escaped says
+// whether an element may be ODBC's `{ident table_ref}`: derived_table_list's
+// esc_table_ref takes it, a parenthesized nested list's table_ref does not.
+func (p *Parser) parseTableRefList(escaped bool) ([]nodes.TableExpr, error) {
 	var refs []nodes.TableExpr
 
 	for {
@@ -1068,7 +1075,13 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseEscTableReference()
+		var ref nodes.TableExpr
+		var err error
+		if escaped {
+			ref, err = p.parseEscTableReference()
+		} else {
+			ref, err = p.parseTableReference()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1704,8 +1717,9 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			return sub, nil
 		}
 
-		// Parenthesized table references use MySQL nested-join semantics.
-		refs, err := p.parseTableReferenceList()
+		// Parenthesized table references use MySQL nested-join semantics. They
+		// are table_refs, which take no ODBC escape.
+		refs, err := p.parseTableRefList(false)
 		if err != nil {
 			return nil, err
 		}

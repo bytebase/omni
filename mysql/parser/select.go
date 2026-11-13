@@ -1198,7 +1198,13 @@ func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {
 
 // parseTableReference parses a table reference (table_factor with optional joins).
 func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
-	left, err := p.parseTableFactor()
+	var left nodes.TableExpr
+	var err error
+	if p.cur.Type == '{' {
+		left, err = p.parseODBCTableReference()
+	} else {
+		left, err = p.parseTableFactor()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1722,24 +1728,6 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// { OJ table_reference }, ODBC's outer join escape: the reference itself.
-	//
-	// Ref: table_reference's `'{' OJ_SYM esc_table_reference '}'` in MySQL 8.0
-	// sql/sql_yacc.yy.
-	if p.cur.Type == '{' {
-		p.advance() // consume '{'
-		if _, err := p.expect(kwOJ); err != nil {
-			return nil, err
-		}
-		ref, err := p.parseTableReference()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect('}'); err != nil {
-			return nil, err
-		}
-		return ref, nil
-	}
 	// LATERAL (SELECT ...) — LATERAL derived table
 	if p.cur.Type == kwLATERAL {
 		latStart := p.pos()
@@ -2992,4 +2980,28 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 
 	hint.Loc.End = p.prev.End
 	return hint, nil
+}
+
+// parseODBCTableReference reads `{ OJ esc_table_reference }`, ODBC's outer join
+// escape, which is the reference itself. It is a table_reference and no
+// table_factor, so it does not stand where a factor must (the right of a
+// NATURAL JOIN), and esc_table_reference holds no bare escape of its own.
+//
+// Ref: table_reference and esc_table_reference in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseODBCTableReference() (nodes.TableExpr, error) {
+	p.advance() // consume '{'
+	if _, err := p.expect(kwOJ); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == '{' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	ref, err := p.parseTableReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	return ref, nil
 }
