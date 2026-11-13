@@ -33,6 +33,9 @@ type Grammar struct {
 	// EBNF alternative can list a whole statement's clauses. A bison
 	// grammar keeps the rules it always had, so its rows do not move.
 	antlr bool
+	// fixed holds the ANTLR tokens whose sample is the only text they
+	// match, as a lexer rule spelling a keyword in any case is.
+	fixed map[string]bool
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -91,6 +94,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		unreachable: map[string]bool{},
 		spaced:      map[string]bool{},
 		reserved:    map[string]bool{},
+		fixed:       map[string]bool{},
 	}
 	for name, form := range tokens.forms {
 		switch form {

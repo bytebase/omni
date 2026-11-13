@@ -44,8 +44,11 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 		if _, ok := g.termText[name]; ok || g.unreachable[name] || p.fragments[name] {
 			continue
 		}
-		if text, ok := p.lexerSample(name, map[string]bool{}); ok {
+		if text, fixed, ok := p.lexerSample(name, map[string]bool{}); ok {
 			g.termText[name] = text
+			if fixed {
+				g.fixed[name] = true
+			}
 		}
 	}
 	g.start = g.rules[0].name
@@ -205,6 +208,7 @@ type lexElem struct {
 	literal string    // a '...' literal
 	ref     string    // a lexer rule
 	set     string    // a [...] set: its first character
+	oneChar bool      // the set holds one character, or one letter in both cases
 	group   []lexAlt  // a parenthesised group
 	op      byte      // 0, '?', '*' or '+'
 	opaque  bool      // ~x or the . wildcard: no single text
@@ -218,9 +222,9 @@ type antlrParser struct {
 	lexer map[string][]lexAlt
 	// fragments holds the lexer rules that are parts of tokens, not tokens.
 	fragments map[string]bool
-	// helpers counts, per rule, the lowered groups already named, so a
+	// helpers maps, per rule, each lowered group's name to its structure:
 	// group written twice in one rule shares its rule.
-	helpers map[string]bool
+	helpers map[string]string
 }
 
 func (p *antlrParser) peek() (atok, bool) {
@@ -343,7 +347,7 @@ func (p *antlrParser) rule() error {
 			p.g.rules = append(p.g.rules, r)
 			p.g.byName[name] = r
 		}
-		p.helpers = map[string]bool{}
+		p.helpers = map[string]string{}
 		for _, alt := range alts {
 			r.alts = append(r.alts, p.lower(name, alt))
 		}
@@ -512,12 +516,23 @@ func (p *antlrParser) helper(owner string, e element) symbol {
 		}
 		text = inner
 	}
+	// The same group written twice in one rule shares its rule. Two groups
+	// whose labels read alike, ('A_B')? and ('A' 'B')?, do not: the later
+	// one is numbered.
+	structure := string(e.op) + groupStructure(body)
 	name := owner + text
-	sym := symbol{text: name, nonterm: true, label: text}
-	if p.helpers[name] {
+	for n := 2; ; n++ {
+		seen, ok := p.helpers[name]
+		if !ok || seen == structure {
+			break
+		}
+		name = fmt.Sprintf("%s%s#%d", owner, text, n)
+	}
+	sym := symbol{text: name, nonterm: true, label: strings.TrimPrefix(name, owner)}
+	if _, ok := p.helpers[name]; ok {
 		return sym
 	}
-	p.helpers[name] = true
+	p.helpers[name] = structure
 	h := &rule{name: name}
 	// Added before its alternatives are lowered, so a group nested in it is
 	// listed after it, as the grammar writes them.
@@ -577,6 +592,31 @@ func groupText(alts [][]element) string {
 	return strings.Join(parts, "|")
 }
 
+// groupStructure writes a group so that two groups differ in it exactly
+// when they differ: a literal quoted, separators no symbol holds.
+func groupStructure(alts [][]element) string {
+	var b strings.Builder
+	for i, alt := range alts {
+		if i > 0 {
+			b.WriteString("\x00|")
+		}
+		for _, e := range alt {
+			switch {
+			case e.group != nil:
+				b.WriteString("\x00(" + groupStructure(e.group) + "\x00)")
+			case e.sym.literal:
+				b.WriteString("\x00'" + e.sym.text)
+			default:
+				b.WriteString("\x00 " + e.sym.text)
+			}
+			if e.op != 0 {
+				b.WriteByte(e.op)
+			}
+		}
+	}
+	return b.String()
+}
+
 func labelText(s string) string {
 	return strings.NewReplacer(" ", "_", "\t", "_", "\n", "_", ":", "COLON", "/", "SLASH").Replace(s)
 }
@@ -630,6 +670,7 @@ func (p *antlrParser) lexAlts() ([]lexAlt, error) {
 			case t.kind == aArg:
 				p.i++
 				e.set = firstOfSet(t.text)
+				e.oneChar = oneCharSet(t.text)
 				e.opaque = e.set == ""
 			case t.kind == aPunct && t.text == "~":
 				p.i++
@@ -725,51 +766,75 @@ func firstOfSet(set string) string {
 // be told without running the lexer: each literal, set and range at its
 // first character, an optional or repeated part left out, the first
 // alternative that has a text. A rule that needs ~ or . has none.
-func (p *antlrParser) lexerSample(name string, visiting map[string]bool) (string, bool) {
+//
+// fixed reports whether the rule matches only that text, as a keyword
+// does ('select', or S E L E C T through case-insensitive fragments), not a
+// class of texts, as an identifier does.
+func (p *antlrParser) lexerSample(name string, visiting map[string]bool) (text string, fixed, ok bool) {
 	alts, ok := p.lexer[name]
 	if !ok || visiting[name] {
-		return "", false
+		return "", false, false
 	}
 	visiting[name] = true
 	defer delete(visiting, name)
 	return p.altsSample(alts, visiting)
 }
 
-func (p *antlrParser) altsSample(alts []lexAlt, visiting map[string]bool) (string, bool) {
+func (p *antlrParser) altsSample(alts []lexAlt, visiting map[string]bool) (string, bool, bool) {
 	for _, alt := range alts {
-		if s, ok := p.altSample(alt, visiting); ok {
-			return s, true
+		if s, fixed, ok := p.altSample(alt, visiting); ok {
+			return s, fixed && len(alts) == 1, true
 		}
 	}
-	return "", false
+	return "", false, false
 }
 
-func (p *antlrParser) altSample(alt lexAlt, visiting map[string]bool) (string, bool) {
+func (p *antlrParser) altSample(alt lexAlt, visiting map[string]bool) (string, bool, bool) {
 	var b strings.Builder
+	fixed := true
 	for _, e := range alt {
+		if e.op != 0 {
+			fixed = false
+		}
 		if e.op == '?' || e.op == '*' {
 			continue
 		}
 		var s string
-		var ok bool
+		ok, one := true, true
 		switch {
 		case e.opaque:
-			return "", false
+			return "", false, false
 		case e.ranged[0] != "":
-			s, ok = e.ranged[0], true
+			s, one = e.ranged[0], e.ranged[0] == e.ranged[1]
 		case e.set != "":
-			s, ok = e.set, true
+			s, one = e.set, e.oneChar
 		case e.ref != "":
-			s, ok = p.lexerSample(e.ref, visiting)
+			s, one, ok = p.lexerSample(e.ref, visiting)
 		case e.group != nil:
-			s, ok = p.altsSample(e.group, visiting)
+			s, one, ok = p.altsSample(e.group, visiting)
 		default:
-			s, ok = e.literal, true
+			s = e.literal
 		}
 		if !ok {
-			return "", false
+			return "", false, false
 		}
+		fixed = fixed && one
 		b.WriteString(s)
 	}
-	return b.String(), true
+	return b.String(), fixed, true
+}
+
+// oneCharSet reports whether a [...] set holds one character, or one
+// letter in both cases.
+func oneCharSet(set string) bool {
+	r := []rune(set)
+	switch {
+	case len(r) == 1:
+		return true
+	case len(r) == 2 && r[0] == '\\':
+		return true
+	case len(r) == 2:
+		return r[0] != r[1] && unicode.ToUpper(r[0]) == unicode.ToUpper(r[1])
+	}
+	return false
 }
