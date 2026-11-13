@@ -49,6 +49,9 @@ func placeholderClass(name string) string {
 	case strings.HasSuffix(n, "password"):
 		// ADMIN_PASSWORD = '<user_password>': a password is a string.
 		return tString
+	case n == "arg":
+		// CALL p( [ <arg_name> => ] <arg> ): an argument is an expression.
+		return tExpr
 	case n == "body":
 		// A policy's -> <body> is a SQL expression.
 		return tExpr
@@ -344,7 +347,7 @@ const constraintProperties = "[ [ NOT ] ENFORCED ] [ [ NOT ] DEFERRABLE ] [ INIT
 var templateValue = regexp.MustCompile(`=> <value>`)
 
 // listName is the name of a list of settings, which a fragment holds.
-var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
+var listName = regexp.MustCompile(`(parameters|params|options|properties|privileges)$`)
 
 // missingBar finds the typo many SHOW pages share: the IN list's
 // <schema_name> line has no | before the APPLICATION lines after it.

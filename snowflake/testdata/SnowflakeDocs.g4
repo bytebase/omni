@@ -1296,10 +1296,11 @@ alterExternalVolume_cloudProviderParams
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-failover-group
+// fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
 alterFailoverGroup
     : 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
-    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' OBJECT_TYPE (',' OBJECT_TYPE)* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
-    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' OBJECT_TYPE)* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
+    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
+    | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'REPLICATION_SCHEDULE' '=' STRING
     | 'ALTER' 'FAILOVER' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE')
@@ -1875,10 +1876,11 @@ alterProjectionPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-replication-group
+// fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
 alterReplicationGroup
     : 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
-    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' OBJECT_TYPE (',' OBJECT_TYPE)* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
-    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' OBJECT_TYPE)* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
+    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' ('OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_DATABASES' '=' ID (',' ID)* ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)* ('ALLOWED_SHARES' '=' ID (',' ID)*)? | 'ALLOWED_SHARES' '=' ID (',' ID)*)
+    | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'OBJECT_TYPES' '=' 'INTEGRATIONS' (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* 'ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'REPLICATION_SCHEDULE' '=' STRING
     | 'ALTER' 'REPLICATION' 'GROUP' ('IF' 'EXISTS')? ID 'SET' 'ERROR_INTEGRATION' '=' ID
@@ -2543,7 +2545,7 @@ begin
 
 // https://docs.snowflake.com/en/sql-reference/sql/call
 call
-    : 'CALL' ID '(' ((ID '=>')? ID (',' (ID '=>')? ID)*)? ')' ('INTO' ':' ID)?
+    : 'CALL' ID '(' ((ID '=>')? EXPR (',' (ID '=>')? EXPR)*)? ')' ('INTO' ':' ID)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/call-with
@@ -2625,7 +2627,7 @@ call
 //     AS '<procedure_definition>'
 //     [ , <cte_nameN> [ ( <cte_column_list> ) ] AS ( SELECT ...  ) ]
 callWith
-    : 'CALL' ID '(' ((ID '=>')? ID (',' (ID '=>')? ID)*)? ')' ('INTO' ':' ID)?
+    : 'CALL' ID '(' ((ID '=>')? EXPR (',' (ID '=>')? EXPR)*)? ')' ('INTO' ':' ID)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/comment
@@ -3045,8 +3047,9 @@ createExternalTable_formatTypeOptions
 //     [ COMMENT = '<string_literal>' ]
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-failover-group
+// fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
 createFailoverGroup
-    : 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' OBJECT_TYPE (',' OBJECT_TYPE)* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
+    : 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'LISTINGS' | 'NETWORK' 'POLICIES' | 'PROFILES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('OPTIMIZED_REFRESH' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
     | 'CREATE' 'FAILOVER' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'AS' 'REPLICA' 'OF' ID '.' ID '.' ID
     ;
 
@@ -3510,8 +3513,9 @@ createProvisionedThroughput
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-replication-group
+// fix: OBJECT_TYPES takes the replication object types the parameters list, not any object type
 createReplicationGroup
-    : 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' OBJECT_TYPE (',' OBJECT_TYPE)* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
+    : 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'OBJECT_TYPES' '=' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES') (',' ('ACCOUNT' 'PARAMETERS' | 'DATABASES' | 'EXTERNAL' 'VOLUMES' | 'INTEGRATIONS' | 'NETWORK' 'POLICIES' | 'RESOURCE' 'MONITORS' | 'ROLES' | 'SHARES' | 'USERS' | 'WAREHOUSES'))* ('ALLOWED_DATABASES' '=' ID (',' ID)*)? ('ALLOWED_EXTERNAL_VOLUMES' '=' ID (',' ID)*)? ('ALLOWED_SHARES' '=' ID (',' ID)*)? ('ALLOWED_INTEGRATION_TYPES' '=' ID (',' ID)*)? 'ALLOWED_ACCOUNTS' '=' ID '.' ID (',' ID '.' ID)* ('IGNORE' 'EDITION' 'CHECK')? ('REPLICATION_SCHEDULE' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('ERROR_INTEGRATION' '=' ID)?
     | 'CREATE' 'REPLICATION' 'GROUP' ('IF' 'NOT' 'EXISTS')? ID 'AS' 'REPLICA' 'OF' ID '.' ID '.' ID
     ;
 
@@ -4884,8 +4888,9 @@ executeNotebook
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-notebook-project
+// fix: notebook.ipynb is an example; the main file is a path to fill in, as the parameters say
 executeNotebookProject
-    : 'EXECUTE' 'NOTEBOOK' 'PROJECT' ID '.' ID '.' ID 'MAIN_FILE' '=' '\'notebook.ipynb\'' 'COMPUTE_POOL' '=' STRING 'QUERY_WAREHOUSE' '=' STRING 'RUNTIME' '=' STRING ('ARGUMENTS' '=' STRING)? ('REQUIREMENTS_FILE' '=' STRING)? ('ARTIFACT_REPOSITORIES' '=' '(' ID (',' ID)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' ID '.' ID '.' ID (',' ID '.' ID '.' ID)* ')')?
+    : 'EXECUTE' 'NOTEBOOK' 'PROJECT' ID '.' ID '.' ID 'MAIN_FILE' '=' STRING 'COMPUTE_POOL' '=' STRING 'QUERY_WAREHOUSE' '=' STRING 'RUNTIME' '=' STRING ('ARGUMENTS' '=' STRING)? ('REQUIREMENTS_FILE' '=' STRING)? ('ARTIFACT_REPOSITORIES' '=' '(' ID (',' ID)* ')')? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('SECRETS' '=' '(' ID '.' ID '.' ID (',' ID '.' ID '.' ID)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-code-bundle
@@ -4931,10 +4936,18 @@ grantApplicationRole
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/grant-caller
+// fix: the privileges are each object type's, listed on Access control privileges rather than here; {object_privileges} leaves the forms unconverted
+// not converted (form): undefined fragment "object_privileges": the page does not define it
+//   GRANT CALLER {object_privileges} [ , {object_privileges} ... ]
+//     ON <object_type> <object_name>
+//     TO { ROLE | DATABASE ROLE | APPLICATION } <grantee_name>
+// not converted (form): undefined fragment "object_privileges": the page does not define it
+//   GRANT INHERITED CALLER {object_privileges} [ , {object_privileges} ... ]
+//     ON ALL <object_type_plural>
+//     IN { ACCOUNT | DATABASE <db_name> | SCHEMA <schema_name> | APPLICATION <app_name> | APPLICATION PACKAGE <app_pkg_name> }
+//     TO { ROLE | DATABASE ROLE | APPLICATION } <grantee_name>
 grantCaller
-    : 'GRANT' 'CALLER' ID (',' ID)* 'ON' OBJECT_TYPE ID 'TO' ('ROLE' | 'DATABASE' 'ROLE' | 'APPLICATION') ID
-    | 'GRANT' 'ALL' 'CALLER' 'PRIVILEGES' 'ON' OBJECT_TYPE ID 'TO' ('ROLE' | 'DATABASE' 'ROLE' | 'APPLICATION') ID
-    | 'GRANT' 'INHERITED' 'CALLER' ID (',' ID)* 'ON' 'ALL' OBJECT_TYPES 'IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' ID | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID) 'TO' ('ROLE' | 'DATABASE' 'ROLE' | 'APPLICATION') ID
+    : 'GRANT' 'ALL' 'CALLER' 'PRIVILEGES' 'ON' OBJECT_TYPE ID 'TO' ('ROLE' | 'DATABASE' 'ROLE' | 'APPLICATION') ID
     | 'GRANT' 'ALL' 'INHERITED' 'CALLER' 'PRIVILEGES' 'ON' 'ALL' OBJECT_TYPES 'IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' ID | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID) 'TO' ('ROLE' | 'DATABASE' 'ROLE' | 'APPLICATION') ID
     ;
 
@@ -5216,10 +5229,18 @@ revokeApplicationRole
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/revoke-caller
+// fix: the privileges are each object type's, listed on Access control privileges rather than here; {object_privileges} leaves the forms unconverted
+// not converted (form): undefined fragment "object_privileges": the page does not define it
+//   REVOKE CALLER {object_privileges} [ , {object_privileges} ... ]
+//     ON <object_type> <object_name>
+//     FROM { ROLE | DATABASE ROLE } <grantee_name>
+// not converted (form): undefined fragment "object_privileges": the page does not define it
+//   REVOKE INHERITED CALLER {object_privileges} [ , {object_privileges} ... ]
+//     ON ALL <object_type_plural>
+//     IN { ACCOUNT | DATABASE <db_name> | SCHEMA <schema_name> | APPLICATION <app_name> | APPLICATION PACKAGE <app_pkg_name> }
+//     FROM { ROLE | DATABASE ROLE } <grantee_name>
 revokeCaller
-    : 'REVOKE' 'CALLER' ID (',' ID)* 'ON' OBJECT_TYPE ID 'FROM' ('ROLE' | 'DATABASE' 'ROLE') ID
-    | 'REVOKE' 'ALL' 'CALLER' 'PRIVILEGES' 'ON' OBJECT_TYPE ID 'FROM' ('ROLE' | 'DATABASE' 'ROLE') ID
-    | 'REVOKE' 'INHERITED' 'CALLER' ID (',' ID)* 'ON' 'ALL' OBJECT_TYPES 'IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' ID | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID) 'FROM' ('ROLE' | 'DATABASE' 'ROLE') ID
+    : 'REVOKE' 'ALL' 'CALLER' 'PRIVILEGES' 'ON' OBJECT_TYPE ID 'FROM' ('ROLE' | 'DATABASE' 'ROLE') ID
     | 'REVOKE' 'ALL' 'INHERITED' 'CALLER' 'PRIVILEGES' 'ON' 'ALL' OBJECT_TYPES 'IN' ('ACCOUNT' | 'DATABASE' ID | 'SCHEMA' ID | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID) 'FROM' ('ROLE' | 'DATABASE' 'ROLE') ID
     ;
 
