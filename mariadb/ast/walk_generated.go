@@ -121,6 +121,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.Persistent {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *Assignment:
 		if n.Column != nil {
 			Walk(v, n.Column)

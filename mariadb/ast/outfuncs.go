@@ -1899,6 +1899,23 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 	if n.UsingData != "" {
 		fmt.Fprintf(sb, " :using_data \"%s\"", n.UsingData)
 	}
+	for _, ps := range n.Persistent {
+		fmt.Fprintf(sb, " :persistent {table %d", ps.TableIndex)
+		if ps.All {
+			sb.WriteString(" all")
+		}
+		if ps.ColumnsAll {
+			sb.WriteString(" columns all")
+		} else if ps.Columns != nil {
+			fmt.Fprintf(sb, " columns (%s)", strings.Join(ps.Columns, ", "))
+		}
+		if ps.IndexesAll {
+			sb.WriteString(" indexes all")
+		} else if ps.Indexes != nil {
+			fmt.Fprintf(sb, " indexes (%s)", strings.Join(ps.Indexes, ", "))
+		}
+		sb.WriteString("}")
+	}
 	sb.WriteString("}")
 }
 
@@ -1923,6 +1940,9 @@ func writeOptimizeTableStmt(sb *strings.Builder, n *OptimizeTableStmt) {
 func writeCheckTableStmt(sb *strings.Builder, n *CheckTableStmt) {
 	sb.WriteString("{CHECK_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.View {
+		sb.WriteString(" :view true")
+	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables ")
 		for i, t := range n.Tables {
@@ -1961,6 +1981,15 @@ func writeRepairTableStmt(sb *strings.Builder, n *RepairTableStmt) {
 	}
 	if n.UseFrm {
 		sb.WriteString(" :use_frm true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.View {
+		sb.WriteString(" :view true")
+	}
+	if n.ViewOption != "" {
+		fmt.Fprintf(sb, " :view_option %s", n.ViewOption)
 	}
 	sb.WriteString("}")
 }
