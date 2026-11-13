@@ -43,6 +43,10 @@ type Suite struct {
 	// Tokens the engine's tokens.tsv. The generated rows of Path must be
 	// what they generate.
 	Grammar, Tokens string
+	// Lexer is the lexer grammar an ANTLR parser grammar takes its tokens
+	// from (options { tokenVocab = ...; }), where the vendor publishes the
+	// two apart, as PartiQL's PartiQLTokens.g4 is. It is read with Grammar.
+	Lexer string
 	// Defined names the conditions Grammar is built with, where one file
 	// holds more than one grammar between %ifdef lines, as MariaDB's does
 	// (grammar.Conditional).
@@ -117,7 +121,7 @@ func check(t testing.TB, s Suite) {
 	if s.Grammar != "" {
 		var generated []grammar.Row
 		var uncovered []string
-		g, generated, uncovered, err = generate(s.Grammar, s.Tokens, s.Defined)
+		g, generated, uncovered, err = generate(s.Grammar, s.Lexer, s.Tokens, s.Defined)
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
@@ -255,8 +259,9 @@ func check(t testing.TB, s Suite) {
 }
 
 // generate reads the grammar, by its extension, and returns its rows.
-// defined is for a bison grammar's %ifdef conditions.
-func generate(grammarPath, tokensPath string, defined []string) (*grammar.Grammar, []grammar.Row, []string, error) {
+// lexerPath is an ANTLR parser grammar's lexer grammar, where it has one
+// apart, and defined a bison grammar's %ifdef conditions.
+func generate(grammarPath, lexerPath, tokensPath string, defined []string) (*grammar.Grammar, []grammar.Row, []string, error) {
 	tokens, err := grammar.ReadTokens(tokensPath)
 	if err != nil {
 		return nil, nil, nil, err
@@ -270,7 +275,17 @@ func generate(grammarPath, tokensPath string, defined []string) (*grammar.Gramma
 		if len(defined) > 0 {
 			return nil, nil, nil, fmt.Errorf("%s: Defined names %%ifdef conditions, which only a bison grammar has", grammarPath)
 		}
+		if lexerPath != "" {
+			// Parser rules first: the first of them is the start symbol.
+			lexer, err := os.ReadFile(lexerPath)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			src = append(append(src, '\n'), lexer...)
+		}
 		g, err = grammar.ReadANTLR(string(src), tokens)
+	} else if lexerPath != "" {
+		return nil, nil, nil, fmt.Errorf("%s: Lexer names an ANTLR lexer grammar, and %s is not an ANTLR grammar", lexerPath, grammarPath)
 	} else {
 		g, err = grammar.ReadBison(string(src), tokens, defined...)
 	}

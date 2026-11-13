@@ -205,3 +205,35 @@ func TestVendorFilesAreThePinned(t *testing.T) {
 		t.Errorf("an edited vendor file passed: %q %q", rec.errors, rec.fatal)
 	}
 }
+
+// TestParserAndLexerGrammarsAreReadTogether pins Suite.Lexer: a parser
+// grammar published apart from its lexer grammar is read with it, since the
+// parser grammar alone does not spell its tokens.
+func TestParserAndLexerGrammarsAreReadTogether(t *testing.T) {
+	record(t)
+	s := grammarSuite(t, "", map[string]string{"DROP a": Accept})
+	dir := filepath.Dir(s.Path)
+	s.Lexer = filepath.Join(dir, "Tokens.g4")
+	write(t, s.Grammar, "parser grammar P;\noptions { tokenVocab = Tokens; }\nstmt : DROP TABLE? NAME ;\n")
+	write(t, s.Lexer, "lexer grammar Tokens;\nDROP : 'DROP' ;\nTABLE : 'TABLE' ;\nNAME : [a-z]+ ;\n")
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	got := read(t, s.Path)
+	for _, want := range []string{
+		"accept\taccept\tgrammar\tstmt(TABLE)?/%empty\tDROP a\n",
+		// The lexer grammar spells TABLE, and the swap picks among its keywords.
+		"reject\taccept\tgrammar\tstmt(TABLE)?/TABLE\tDROP TABLE a\n",
+		"reject\treject\tgrammar\tstmt(TABLE)?/TABLE!swap\tDROP DROP a\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the recording lacks %q:\n%s", want, got)
+		}
+	}
+
+	s.Grammar = filepath.Join(dir, "g.y")
+	write(t, s.Grammar, tinyGrammar)
+	if rec := run(t, s); !strings.Contains(rec.fatal, "is not an ANTLR grammar") {
+		t.Errorf("a bison grammar with a Lexer: %q %q", rec.errors, rec.fatal)
+	}
+}
