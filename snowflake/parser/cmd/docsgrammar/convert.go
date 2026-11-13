@@ -21,6 +21,7 @@ const (
 	tPosition    = "POSITION"
 	tObjectType  = "OBJECT_TYPE"
 	tObjectTypes = "OBJECT_TYPES"
+	tFile        = "FILE"
 )
 
 var (
@@ -315,7 +316,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 		if u.def != "" {
 			continue
 		}
-		alts, err := c.form(unitText(u.lines))
+		alts, err := c.statement(unitText(u.lines))
 		if err != nil {
 			pg.failed = append(pg.failed, failure{what: "form", text: unitText(u.lines), reason: err.Error()})
 			continue
@@ -494,8 +495,80 @@ func (c *converter) definition(lines []codeLine) ([]string, error) {
 	return c.form(strings.Join(code, "\n"))
 }
 
+// errScope marks a statement form with a | outside any bracket whose
+// scope the docs do not show.
+var errScope = errors.New("a | outside brackets, whose scope the docs do not show")
+
+// statement converts a statement form. A | outside brackets is how the
+// docs write a choice of what follows the object's name, or of the last
+// word when the choices are single words:
+//
+//	ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND
+//	ALTER INTEGRATION <name> UNSET ENABLED | COMMENT
+//
+// so an alternative that does not start with the statement's first word
+// takes the first one's words before the choice.
+func (c *converter) statement(text string) ([]string, error) {
+	return c.convert(text, true)
+}
+
 // form converts notation to ANTLR alternatives.
 func (c *converter) form(text string) ([]string, error) {
+	return c.convert(text, false)
+}
+
+// scopeChoices gives each statement alternative that does not start with
+// the statement's first word the first alternative's words through the
+// object's name.
+func scopeChoices(tree [][]*node) ([][]*node, error) {
+	if len(tree) < 2 || len(tree[0]) == 0 || tree[0][0].tok == nil || tree[0][0].tok.kind != nKeyword {
+		return tree, nil
+	}
+	head := tree[0]
+	verb := head[0].tok.text
+	name := -1
+	for i, n := range head {
+		if isName(n) {
+			name = i
+			break
+		}
+	}
+	// The choice starts after the name, or is the head's last word when
+	// each other choice is one word and the head has more after the name.
+	from := name + 1
+	words := true
+	for _, alt := range tree[1:] {
+		if len(alt) != 1 || alt[0].tok == nil || alt[0].tok.kind != nKeyword {
+			words = false
+		}
+	}
+	if words && name >= 0 && len(head)-name-1 > 1 {
+		from = len(head) - 1
+	}
+	out := [][]*node{head}
+	for _, alt := range tree[1:] {
+		if len(alt) > 0 && alt[0].tok != nil && alt[0].tok.text == verb {
+			out = append(out, alt)
+			continue
+		}
+		if name < 0 || name == len(head)-1 {
+			return nil, errScope
+		}
+		out = append(out, append(append([]*node(nil), head[:from]...), alt...))
+	}
+	return out, nil
+}
+
+// isName reports whether a node is a value, such as an object's <name>,
+// or an optional one.
+func isName(n *node) bool {
+	if n.tok != nil {
+		return n.tok.kind == nPlaceholder || n.tok.kind == nTerminal
+	}
+	return n.op == '?' && len(n.alts) == 1 && len(n.alts[0]) == 1 && isName(n.alts[0][0])
+}
+
+func (c *converter) convert(text string, statement bool) ([]string, error) {
 	toks, err := lexNotation(text)
 	if err != nil {
 		return nil, err
@@ -513,6 +586,11 @@ func (c *converter) form(text string) ([]string, error) {
 	tree, err = resolveEllipses(tree)
 	if err != nil {
 		return nil, err
+	}
+	if statement {
+		if tree, err = scopeChoices(tree); err != nil {
+			return nil, err
+		}
 	}
 	var alts []string
 	for _, seq := range tree {
@@ -620,7 +698,7 @@ func writeG4(pin string, pages []pageGrammar) string {
 // lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
-// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, DATA_TYPE, STAGE,
+// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, DATA_TYPE, STAGE, FILE,
 // POSITION, OBJECT_TYPE and OBJECT_TYPES are the values the docs write as
 // <placeholders>; tokens.tsv samples them. A form a page writes with ...
 // for text it leaves out, or with a word it never defines, is not converted
@@ -680,7 +758,7 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 // classes lists the token classes a grammar uses, for the report.
 func classes(g4 string) []string {
 	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes} {
+	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes, tFile} {
 		if containsWord(g4, c) {
 			out = append(out, c)
 		}

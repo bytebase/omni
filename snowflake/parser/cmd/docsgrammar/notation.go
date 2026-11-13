@@ -51,6 +51,15 @@ func lexNotation(s string) ([]ntok, error) {
 		switch {
 		case unicode.IsSpace(c):
 			i++
+		case strings.HasPrefix(rest, "file://"):
+			// A local file, file://<path>/<file>: one token to its end, as
+			// a stage location is, so no space is written inside it.
+			j := i
+			for j < n && !unicode.IsSpace(rs[j]) && !strings.ContainsRune(",)}|;", rs[j]) {
+				j++
+			}
+			out = append(out, ntok{nTerminal, tFile})
+			i = j
 		case strings.HasPrefix(rest, "--"):
 			for i < n && rs[i] != '\n' {
 				i++
@@ -380,9 +389,17 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 		}
 		switch {
 		case len(out) >= 2 && isComma(out[len(out)-1]) && !isComma(out[len(out)-2]) && !isEllipsis(out[len(out)-2]):
-			// X , ...
-			x := out[len(out)-2]
-			out = append(out[:len(out)-1], repeatAfterComma(x))
+			// X , ..., or E , E , ... where the docs spell a list element
+			// twice, as <col> AS <alias>, <col> AS <alias>, ... does: a list
+			// of E. Without a second spelling, X is the one node before.
+			body := out[:len(out)-1]
+			if k := repeatedElement(body); k > 0 {
+				e := &node{alts: [][]*node{append([]*node(nil), body[len(body)-k:]...)}, brace: true}
+				out = append(append([]*node(nil), body[:len(body)-2*k-1]...), e, repeatAfterComma(e))
+				break
+			}
+			x := body[len(body)-1]
+			out = append(body, repeatAfterComma(x))
 		case len(out) >= 1 && !isComma(out[len(out)-1]) && isRepeatable(out[len(out)-1]):
 			// X ...
 			out[len(out)-1] = repeat(out[len(out)-1], '+')
@@ -425,6 +442,36 @@ func resolveGroup(n *node) ([][]*node, error) {
 
 // isRepeatable reports whether X ... can repeat X: a value or a group, not
 // punctuation or a keyword, which ... after reads as text left out.
+// repeatedElement returns the length of the list element seq ends with
+// when the docs spell it twice, E , E, the longest such E, or 0.
+func repeatedElement(seq []*node) int {
+	n := len(seq)
+	for k := (n - 1) / 2; k >= 1; k-- {
+		if isComma(seq[n-k-1]) && nodesText(seq[n-2*k-1:n-k-1]) == nodesText(seq[n-k:]) {
+			return k
+		}
+	}
+	return 0
+}
+
+// nodesText writes nodes so that two runs are equal in it exactly when
+// they are written alike.
+func nodesText(ns []*node) string {
+	var b strings.Builder
+	for _, n := range ns {
+		if n.tok != nil {
+			fmt.Fprintf(&b, "\x00%d:%s", n.tok.kind, n.tok.text)
+			continue
+		}
+		fmt.Fprintf(&b, "\x00%c%v(", n.op, n.brace)
+		for _, alt := range n.alts {
+			b.WriteString(nodesText(alt) + "|")
+		}
+		b.WriteString(")")
+	}
+	return b.String()
+}
+
 func isRepeatable(n *node) bool {
 	if n.tok == nil {
 		return true

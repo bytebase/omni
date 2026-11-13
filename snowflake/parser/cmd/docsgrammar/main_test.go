@@ -25,7 +25,10 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"UNSET TAG <tag_name> [ , <tag_name> ... ]", "'UNSET' 'TAG' ID (',' ID)*"},
 		{"( <col_name> [ , ... ] )", "'(' ID (',' ID)* ')'"},
 		{"( <expr> [ , <expr> , ... ] )", "'(' EXPR (',' EXPR)* ')'"},
-		{"( <col_name>, <col_name>, ... )", "'(' ID ',' ID (',' ID)* ')'"},
+		// A list element the docs spell twice is the element, however long.
+		{"( <col_name>, <col_name>, ... )", "'(' ID (',' ID)* ')'"},
+		{"RENAME ( <col_name> AS <col_alias>, <col_name> AS <col_alias>, ... )", "'RENAME' '(' ID 'AS' ID (',' ID 'AS' ID)* ')'"},
+		{"PUT file://<path_to_file>/<filename> @<stage>", "'PUT' FILE STAGE"},
 		{"{ matchedClause | notMatchedClause } [ ... ]", ""}, // fragments: see TestFragments
 		{"COMMENT = '<string_literal>'", "'COMMENT' '=' STRING"},
 		{"TYPE = 'SNOWPARK-OPTIMIZED'", "'TYPE' '=' '\\'SNOWPARK-OPTIMIZED\\''"},
@@ -57,6 +60,32 @@ func TestSetSetsAtLeastOne(t *testing.T) {
 		if got := form(t, in); got != want {
 			t.Errorf("%s\n got %s\nwant %s", in, got, want)
 		}
+	}
+}
+
+// TestBareChoicesChooseWhatFollowsTheName pins a | outside brackets in a
+// statement form: a choice of what follows the object's name, not of
+// whole statements.
+func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
+	c := &converter{page: "p", defs: map[string]bool{}}
+	alts, err := c.statement("ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'RESUME' | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'SUSPEND'"
+	if got := strings.Join(alts, " | "); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	alts, err = c.statement("ALTER INTEGRATION <name> UNSET ENABLED | COMMENT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "'ALTER' 'INTEGRATION' ID 'UNSET' 'ENABLED' | 'ALTER' 'INTEGRATION' ID 'UNSET' 'COMMENT'"
+	if got := strings.Join(alts, " | "); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	if _, err := c.statement("SHOW TASKS | SUSPEND"); err != errScope {
+		t.Errorf("a choice with no name to scope it: got %v, want errScope", err)
 	}
 }
 

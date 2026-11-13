@@ -6,6 +6,7 @@
 #   https://docs.snowflake.com/en/sql-reference/data-types-text#string-constants
 #   https://docs.snowflake.com/en/sql-reference/data-types-numeric#numeric-constants
 #   https://docs.snowflake.com/en/sql-reference/reserved-keywords
+#   https://docs.snowflake.com/en/sql-reference/sql/put (file://)
 # A sample of one name, string or number stands for its class when the docs
 # judge reads a statement; a keyword or a sample of several tokens stands for
 # itself. (reserved) marks a word the docs judge never reads as a name.
@@ -20,6 +21,7 @@ STAGE	@a	@<stage>: a named stage
 POSITION	$1	$<col_position>: a column of a staged file by its position
 OBJECT_TYPE	TABLE	<object_type> in GRANT and SHOW GRANTS: an object type keyword
 OBJECT_TYPES	TABLES	<object_type_plural>: the plural of one
+FILE	file://a/a	file://<path>/<file>: a local file or directory in PUT and GET, written without quotes
 
 # Reserved keywords: those the page marks reserved by ANSI or by Snowflake.
 # The ones it reserves only in a context (a SHOW's IN, a column in a scalar
