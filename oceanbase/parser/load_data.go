@@ -130,7 +130,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

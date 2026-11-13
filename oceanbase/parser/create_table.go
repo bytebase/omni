@@ -44,7 +44,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	}
 
 	// Table name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		likeRef, err := p.parseTableRef()
+		likeRef, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		if next.Type == kwLIKE {
 			p.advance() // consume '('
 			p.advance() // consume LIKE
-			likeRef, err := p.parseTableRef()
+			likeRef, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
@@ -658,7 +658,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 		Type: nodes.ColConstrReferences,
 	}
 
-	ref, err := p.parseTableRef()
+	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
@@ -928,7 +928,7 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 				p.addRuleCandidate("table_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}

@@ -256,6 +256,7 @@ const (
 	ATSecondaryLoad
 	ATSecondaryUnload
 	ATPartitionBy
+	ATDropTablegroup // DROP TABLEGROUP: the table leaves its table group
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
