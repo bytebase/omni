@@ -1749,6 +1749,266 @@
 : bytes
 | utf8mb4_general_ci
 > exec
+| DROP DATABASE IF EXISTS videm_in_subquery
+< ok 0 0
+> exec
+| CREATE DATABASE videm_in_subquery DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_in_subquery
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT (1 IN (SELECT max(a) FROM t)) AS x, (1 NOT IN (SELECT max(a) FROM t)) AS y
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_in_subquery.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_in_subquery.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select (1 = any (select max(`videm_in_subquery`.`t`.`a`) from `videm_in_subquery`.`t`)) AS `x`,(1 <> all (select max(`videm_in_subquery`.`t`.`a`) from `videm_in_subquery`.`t`)) AS `y`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS videm_in_subquery_where
+< ok 0 0
+> exec
+| CREATE DATABASE videm_in_subquery_where DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_in_subquery_where
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE TABLE u (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT a FROM t WHERE a IN (SELECT a FROM u) AND a NOT IN (SELECT a + 1 FROM u)
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_in_subquery_where.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE videm_in_subquery_where.u
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| u
+: bytes
+| CREATE TABLE `u` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_in_subquery_where.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select `videm_in_subquery_where`.`t`.`a` AS `a` from `videm_in_subquery_where`.`t` where (`videm_in_subquery_where`.`t`.`a` = any (select `videm_in_subquery_where`.`u`.`a` from `videm_in_subquery_where`.`u`)) and (`videm_in_subquery_where`.`t`.`a` <> all (select (`videm_in_subquery_where`.`u`.`a` + 1) from `videm_in_subquery_where`.`u`))
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS videm_union_chain
+< ok 0 0
+> exec
+| CREATE DATABASE videm_union_chain DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_union_chain
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE TABLE u (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT a FROM t UNION SELECT a FROM u UNION ALL SELECT 1
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_union_chain.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE videm_union_chain.u
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| u
+: bytes
+| CREATE TABLE `u` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_union_chain.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS ((select `videm_union_chain`.`t`.`a` AS `a` from `videm_union_chain`.`t`) union (select `videm_union_chain`.`u`.`a` AS `a` from `videm_union_chain`.`u`)) union  all (select 1 AS `1`)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS videm_explicit_columns_union
+< ok 0 0
+> exec
+| CREATE DATABASE videm_explicit_columns_union DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_explicit_columns_union
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE TABLE u (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v (p) AS SELECT a FROM t UNION SELECT a FROM u
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_explicit_columns_union.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE videm_explicit_columns_union.u
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| u
+: bytes
+| CREATE TABLE `u` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_explicit_columns_union.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS (select `videm_explicit_columns_union`.`t`.`a` AS `p` from `videm_explicit_columns_union`.`t`) union (select `videm_explicit_columns_union`.`u`.`a` AS `p` from `videm_explicit_columns_union`.`u`)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS videm_explicit_columns_expr
+< ok 0 0
+> exec
+| CREATE DATABASE videm_explicit_columns_expr DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_explicit_columns_expr
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| CREATE VIEW v (p, q) AS SELECT a, a + 1 FROM t
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_explicit_columns_expr.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_explicit_columns_expr.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select `videm_explicit_columns_expr`.`t`.`a` AS `p`,(`videm_explicit_columns_expr`.`t`.`a` + 1) AS `q` from `videm_explicit_columns_expr`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
 | DROP DATABASE IF EXISTS videm_paren_exists_depth2
 < ok 0 0
 > exec

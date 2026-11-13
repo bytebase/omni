@@ -455,8 +455,9 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 	}
 }
 
-// writeSetOperation formats a set operation (UNION, INTERSECT, EXCEPT).
-// MySQL 8.0 format: select ... union [all] select ... (flat, no parens around sub-selects)
+// writeSetOperation formats a set operation (UNION, INTERSECT, EXCEPT) as OceanBase
+// stores it, each SELECT it joins in parentheses: (select ...) union [all] (select ...)
+// (catalog's TestOracle_ViewIdempotence, union and union-chain).
 // The WITH clause, held on the set-operation root, comes before the whole set
 // operation. suppressAlias omits the operands' select-item aliases, as for a
 // set operation inside a subquery expression: (select 1 union select 2).
@@ -466,7 +467,7 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 		b.WriteString(" ")
 	}
 
-	writeSelectStmt(b, stmt.Left, suppressAlias)
+	writeSetOperand(b, stmt.Left, suppressAlias)
 
 	var op string
 	switch stmt.SetOp {
@@ -493,7 +494,7 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 	b.WriteString(" ")
 	b.WriteString(op)
 	b.WriteString(" ")
-	writeSelectStmt(b, stmt.Right, suppressAlias)
+	writeSetOperand(b, stmt.Right, suppressAlias)
 
 	// ORDER BY clause (applies to the entire set operation)
 	if len(stmt.OrderBy) > 0 {
@@ -517,29 +518,31 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 	writeQueryTail(b, stmt)
 }
 
+// writeSetOperand writes one side of a set operation in parentheses, a SELECT or a set
+// operation alike: ((select ...) union (select ...)) union all (select ...). A side
+// written in parentheses of its own has them already.
+func writeSetOperand(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
+	if stmt == nil || stmt.ParenSource != nil {
+		writeSelectStmt(b, stmt, suppressAlias)
+		return
+	}
+	b.WriteString("(")
+	writeSelectStmt(b, stmt, suppressAlias)
+	b.WriteString(")")
+}
+
 func deparseCTEs(ctes []*ast.CommonTableExpr) string {
 	var b strings.Builder
 	writeCTEs(&b, ctes)
 	return b.String()
 }
 
-// writeCTEs formats a WITH clause (one or more CTEs).
-// MySQL 8.0 format: with [recursive] `name` [(`col`, ...)] as (select ...) [, ...]
+// writeCTEs formats a WITH clause (one or more CTEs):
+// with recursive `name` [(`col`, ...)] as (select ...) [, ...]
+// OceanBase stores every WITH clause as WITH RECURSIVE, written so or not (catalog's
+// TestOracle_ViewIdempotence, cte).
 func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
-	b.WriteString("with ")
-
-	// Check if any CTE is recursive (the flag is per-CTE in the AST
-	// but WITH RECURSIVE applies to the whole clause in SQL)
-	recursive := false
-	for _, cte := range ctes {
-		if cte.Recursive {
-			recursive = true
-			break
-		}
-	}
-	if recursive {
-		b.WriteString("recursive ")
-	}
+	b.WriteString("with recursive ")
 
 	for i, cte := range ctes {
 		if i > 0 {
@@ -2601,15 +2604,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		writeTrimDirectional(b, "both", n.Args)
 		return
 	case "TRIM_FROM":
-		// TRIM(remstr FROM str) without a direction keyword — the engine
-		// stores this form verbatim, not as comma arguments
-		// (oracle 8.0.32 + 5.7.25: trim(' x' from 'axa')).
+		// TRIM(remstr FROM str) without a direction keyword is stored with the one
+		// it means, trim(both 'x' from s) (catalog's TestOracle_ViewIdempotence,
+		// trim-keyword-forms).
 		if len(n.Args) == 2 {
-			b.WriteString("trim(")
-			writeExpr(b, n.Args[0])
-			b.WriteString(" from ")
-			writeExpr(b, n.Args[1])
-			b.WriteString(")")
+			writeTrimDirectional(b, "both", n.Args)
 			return
 		}
 	case "GET_FORMAT":

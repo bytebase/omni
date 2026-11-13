@@ -11,10 +11,14 @@ import (
 var queryTailLocFree = regexp.MustCompile(` :loc -?[0-9]+`)
 
 // queryTail prints the locking clauses and INTOs of a query expression, leaving out
-// the select lists, where a deparse adds its aliases.
+// the select lists, where a deparse adds its aliases, and the parentheses a deparse
+// writes around each side of a set operation, where they hold no clause of their own.
 func queryTail(s *ast.SelectStmt) string {
 	if s == nil {
 		return ""
+	}
+	if p := s.ParenSource; p != nil && s.ForUpdate == nil && s.Into == nil && len(s.OrderBy) == 0 && s.Limit == nil {
+		return queryTail(p)
 	}
 	out := ""
 	if s.ForUpdate != nil {
@@ -47,8 +51,8 @@ func TestDeparseKeepsQueryTail(t *testing.T) {
 		// A set operation.
 		{"(SELECT 1) UNION (SELECT 2) FOR UPDATE", "(select 1 AS `1`) union (select 2 AS `2`) for update"},
 		{"(SELECT 1) UNION (SELECT 2) INTO @x", "(select 1 AS `1`) union (select 2 AS `2`) into @`x`"},
-		{"VALUES ROW(1) UNION VALUES ROW(2) INTO @x", "values row(1) union values row(2) into @`x`"},
-		{"VALUES ROW(1) UNION VALUES ROW(2) FOR UPDATE", "values row(1) union values row(2) for update"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) INTO @x", "(values row(1)) union (values row(2)) into @`x`"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) FOR UPDATE", "(values row(1)) union (values row(2)) for update"},
 		// A SELECT.
 		{"SELECT 1 INTO @x", "select 1 AS `1` into @`x`"},
 		{"SELECT a FROM t FOR UPDATE INTO @x", "select `a` AS `a` from `t` for update into @`x`"},
@@ -65,13 +69,13 @@ func TestDeparseKeepsQueryTail(t *testing.T) {
 		},
 		{"VALUES ROW(1) INTO OUTFILE 'it''s'", "values row(1) into outfile 'it\\'s'"},
 		// The clauses after a set operation's last operand keep their written order.
-		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 FOR UPDATE", "values row(1) union values row(2) order by 1 for update"},
-		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "values row(1) union values row(2) order by 1 limit 1 for update into @`x`"},
-		{"SELECT 1 UNION SELECT 2 ORDER BY 1 FOR UPDATE", "select 1 AS `1` union select 2 AS `2` order by 1 for update"},
-		{"SELECT 1 UNION SELECT 2 ORDER BY 1 INTO @x", "select 1 AS `1` union select 2 AS `2` order by 1 into @`x`"},
-		{"SELECT 1 UNION (SELECT 2 FOR UPDATE)", "select 1 AS `1` union (select 2 AS `2` for update)"},
-		{"VALUES ROW(1) UNION VALUES ROW(2) INTERSECT VALUES ROW(3) ORDER BY 1 FOR UPDATE", "values row(1) union values row(2) intersect values row(3) order by 1 for update"},
-		{"SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "select 1 AS `1` union select 2 AS `2` intersect select 3 AS `3` order by 1 limit 1 for update into @`x`"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 FOR UPDATE", "(values row(1)) union (values row(2)) order by 1 for update"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "(values row(1)) union (values row(2)) order by 1 limit 1 for update into @`x`"},
+		{"SELECT 1 UNION SELECT 2 ORDER BY 1 FOR UPDATE", "(select 1 AS `1`) union (select 2 AS `2`) order by 1 for update"},
+		{"SELECT 1 UNION SELECT 2 ORDER BY 1 INTO @x", "(select 1 AS `1`) union (select 2 AS `2`) order by 1 into @`x`"},
+		{"SELECT 1 UNION (SELECT 2 FOR UPDATE)", "(select 1 AS `1`) union (select 2 AS `2` for update)"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) INTERSECT VALUES ROW(3) ORDER BY 1 FOR UPDATE", "(values row(1)) union ((values row(2)) intersect (values row(3))) order by 1 for update"},
+		{"SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "(select 1 AS `1`) union ((select 2 AS `2`) intersect (select 3 AS `3`)) order by 1 limit 1 for update into @`x`"},
 		// An empty string is an option: it turns a default off.
 		{
 			"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY '' ESCAPED BY '' LINES TERMINATED BY ''",

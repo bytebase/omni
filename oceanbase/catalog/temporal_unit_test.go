@@ -76,7 +76,9 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 		{"trim-both", "select trim(both 'x' from 'xax') AS `x`"},
 		{"trim-leading", "select trim(leading 'x' from 'xax') AS `x`"},
 		{"trim-trailing", "select trim(trailing 'x' from 'xax') AS `x`"},
-		{"trim-remstr-from", "select trim(' x' from 'axa') AS `x`"},
+		// OceanBase stores TRIM(remstr FROM str) with the BOTH it means, so the form
+		// written without it is not a stored form.
+		{"trim-remstr-from", "select trim(both ' x' from 'axa') AS `x`"},
 		{"trim-plain", "select trim(' a ') AS `x`"},
 		// SUBSTRING: engine stores the comma form under the substr name.
 		{"substr-comma", "select substr('abcd',2,2) AS `x`"},
