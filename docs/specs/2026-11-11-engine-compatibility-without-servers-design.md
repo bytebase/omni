@@ -813,17 +813,17 @@ alterWarehouse
 ```
 
 - **Placeholders are read by name** into twelve token classes, sampled in `tokens.tsv`: `<name>` is `ID`, `'<x>'` is `STRING`, `<num>` is `NUMBER`, `<expr>` is `EXPR`, `<query>` is `QUERY`, `<copy_statement>` is `COPY_STATEMENT`, a stage location is `STAGE`, a `file://` path is `FILE`.
-- **Docs are prose.** 113 places, mostly typos and brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. The converter's own readings include: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing; in `{ <target> SET X | UNSET X }` the `UNSET` keeps the target; choices whose last line is a lone `[ , ... ]` are a list of the whole choice; a `|` outside brackets chooses what follows the object's name (`ALTER TASK <name> RESUME | SUSPEND`). And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
+- **Docs are prose.** 114 places, mostly typos and brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. The converter's own readings include: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing; in `{ <target> SET X | UNSET X }` the `UNSET` keeps the target; choices whose last line is a lone `[ , ... ]` are a list of the whole choice; a `|` outside brackets chooses what follows the object's name (`ALTER TASK <name> RESUME | SUSPEND`). And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
 - **49 forms are not converted,** listed in the `.g4` under their page: 34 write `...` for text they leave out (`SELECT * ILIKE ... REPLACE ...`, or a last line of `...` after `CLONE <source>`), 10 name a fragment their page does not define (`{oauth_parameters}`, GRANT CALLER's privileges) or are examples (`emp_id`), 2 hold Markdown, 1 has a bracket out of place, and CREATE and ALTER INTEGRATION write `<integration_type>` for the keyword each type's own page gives.
 
-The docs judged the 59,565 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
+The docs judged the 59,590 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
 
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
-| One per alternative | 16,065 | 10,077 | 5,988 | 0 |
-| Near-misses | 43,500 | 536 | 162 | 42,802 |
+| One per alternative | 16,074 | 10,077 | 5,997 | 0 |
+| Near-misses | 43,516 | 537 | 162 | 42,817 |
 
-- **6,150 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 309 of the 758 commands (104 `ALTER`, 82 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (330), `ALTER ICEBERG TABLE` (94), `ALTER DATABASE` (77), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
+- **6,159 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 309 of the 758 commands (104 `ALTER`, 82 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (330), `ALTER ICEBERG TABLE` (94), `ALTER DATABASE` (77), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
 - **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a file format's options are one list whatever its `TYPE`, since the converter does not tie each `-- If TYPE = CSV` section to its type; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
 - **Size.** The file is 9.3 MB. The undocumented near-misses are 6.9 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 2.4 MB.
 

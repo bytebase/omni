@@ -916,17 +916,15 @@ reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!drop-10	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!insert	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS zzz
 reject	undocumented	docs	statement/alterOrganizationUnsetEventRoutingTable!swap	ALWAYS ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
-reject	accept	docs	statement/alterOrganizationUser	ALTER ORGANIZATION USER a SET EMAIL = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-1	ORGANIZATION USER a SET EMAIL = 's'
-accept	accept	docs	statement/alterOrganizationUser!drop-2	ALTER USER a SET EMAIL = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-3	ALTER ORGANIZATION a SET EMAIL = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-4	ALTER ORGANIZATION USER SET EMAIL = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-5	ALTER ORGANIZATION USER a EMAIL = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-6	ALTER ORGANIZATION USER a SET = 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-7	ALTER ORGANIZATION USER a SET EMAIL 's'
-reject	undocumented	docs	statement/alterOrganizationUser!drop-8	ALTER ORGANIZATION USER a SET EMAIL =
-reject	undocumented	docs	statement/alterOrganizationUser!insert	ALTER ORGANIZATION USER a SET EMAIL = 's' zzz
-reject	undocumented	docs	statement/alterOrganizationUser!swap	ALWAYS ORGANIZATION USER a SET EMAIL = 's'
+reject	accept	docs	statement/alterOrganizationUser	ALTER ORGANIZATION USER a UNSET EMAIL
+reject	undocumented	docs	statement/alterOrganizationUser!drop-1	ORGANIZATION USER a UNSET EMAIL
+accept	accept	docs	statement/alterOrganizationUser!drop-2	ALTER USER a UNSET EMAIL
+reject	undocumented	docs	statement/alterOrganizationUser!drop-3	ALTER ORGANIZATION a UNSET EMAIL
+reject	undocumented	docs	statement/alterOrganizationUser!drop-4	ALTER ORGANIZATION USER UNSET EMAIL
+reject	undocumented	docs	statement/alterOrganizationUser!drop-5	ALTER ORGANIZATION USER a EMAIL
+reject	undocumented	docs	statement/alterOrganizationUser!drop-6	ALTER ORGANIZATION USER a UNSET
+reject	undocumented	docs	statement/alterOrganizationUser!insert	ALTER ORGANIZATION USER a UNSET EMAIL zzz
+reject	undocumented	docs	statement/alterOrganizationUser!swap	ALWAYS ORGANIZATION USER a UNSET EMAIL
 reject	accept	docs	statement/alterOrganizationUserGroup	ALTER ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	statement/alterOrganizationUserGroup!drop-1	ORGANIZATION USER GROUP a ADD ORGANIZATION USERS a
 reject	undocumented	docs	statement/alterOrganizationUserGroup!drop-2	ALTER USER GROUP a ADD ORGANIZATION USERS a
@@ -17344,16 +17342,17 @@ reject	undocumented	docs	alterOrganizationProfile(IF_NOT_EXISTS)?/IF_NOT_EXISTS!
 reject	accept	docs	alterOrganizationSetEventRoutingTable/ALTER_ORGANIZATION_SET_EVENT_ROUTING_TABLE_ID_FOR_ALL_A~2d159b71	ALTER ORGANIZATION SET EVENT ROUTING TABLE a FOR ALL APPLICATION LISTINGS
 reject	accept	docs	alterOrganizationUnsetEventRoutingTable/ALTER_ORGANIZATION_UNSET_EVENT_ROUTING_TABLE_FOR_ALL_AP~b2db7ba4	ALTER ORGANIZATION UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS
 reject	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c	ALTER ORGANIZATION USER a SET EMAIL = 's'
-reject	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6	ALTER ORGANIZATION USER a UNSET EMAIL = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-1	ORGANIZATION USER a UNSET EMAIL = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-2	ALTER USER a UNSET EMAIL = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-3	ALTER ORGANIZATION a UNSET EMAIL = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-4	ALTER ORGANIZATION USER UNSET EMAIL = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-6	ALTER ORGANIZATION USER a UNSET = 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-7	ALTER ORGANIZATION USER a UNSET EMAIL 's'
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!drop-8	ALTER ORGANIZATION USER a UNSET EMAIL =
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!insert	ALTER ORGANIZATION USER a UNSET EMAIL = 's' zzz
-reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_alterOrganizationUser_~eb1226c6!swap	ALWAYS ORGANIZATION USER a UNSET EMAIL = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-1	ORGANIZATION USER a SET EMAIL = 's'
+accept	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-2	ALTER USER a SET EMAIL = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-3	ALTER ORGANIZATION a SET EMAIL = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-4	ALTER ORGANIZATION USER SET EMAIL = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-5	ALTER ORGANIZATION USER a EMAIL = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-6	ALTER ORGANIZATION USER a SET = 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-7	ALTER ORGANIZATION USER a SET EMAIL 's'
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!drop-8	ALTER ORGANIZATION USER a SET EMAIL =
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!insert	ALTER ORGANIZATION USER a SET EMAIL = 's' zzz
+reject	undocumented	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_(IF_EXISTS)?_ID_SET_alterOrgani~f710519c!swap	ALWAYS ORGANIZATION USER a SET EMAIL = 's'
+reject	accept	docs	alterOrganizationUser/ALTER_ORGANIZATION_USER_ID_UNSET_(EMAIL|DISPLAY_NAME|FI~53d09480	ALTER ORGANIZATION USER a UNSET EMAIL
 reject	accept	docs	alterOrganizationUser(IF_EXISTS)?/%empty	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/%empty!insert	ALTER ORGANIZATION USER zzz a SET EMAIL = 's'
 reject	accept	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS	ALTER ORGANIZATION USER IF EXISTS a SET EMAIL = 's'
@@ -17362,6 +17361,32 @@ reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!drop-2	ALTE
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ORGANIZATION USER IF
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!insert	ALTER ORGANIZATION USER IF EXISTS zzz a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser(IF_EXISTS)?/IF_EXISTS!swap	ALTER ORGANIZATION USER IGNORE EXISTS a SET EMAIL = 's'
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/EMAIL	ALTER ORGANIZATION USER a UNSET EMAIL
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/EMAIL!swap	ALTER ORGANIZATION USER a UNSET EMAIL_DISTRIBUTION_LIST
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME	ALTER ORGANIZATION USER a UNSET DISPLAY_NAME
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME!insert	ALTER ORGANIZATION USER a UNSET DISPLAY_NAME zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/DISPLAY_NAME!swap	ALTER ORGANIZATION USER a UNSET DISTINCT
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME	ALTER ORGANIZATION USER a UNSET FIRST_NAME
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME!insert	ALTER ORGANIZATION USER a UNSET FIRST_NAME zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/FIRST_NAME!swap	ALTER ORGANIZATION USER a UNSET FLAT
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME	ALTER ORGANIZATION USER a UNSET MIDDLE_NAME
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME!insert	ALTER ORGANIZATION USER a UNSET MIDDLE_NAME zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/MIDDLE_NAME!swap	ALTER ORGANIZATION USER a UNSET MINIMUM_VERSION
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME	ALTER ORGANIZATION USER a UNSET LAST_NAME
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME!insert	ALTER ORGANIZATION USER a UNSET LAST_NAME zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/LAST_NAME!swap	ALTER ORGANIZATION USER a UNSET LAST_QUERY_ID
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE	ALTER ORGANIZATION USER a UNSET TYPE
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE!insert	ALTER ORGANIZATION USER a UNSET TYPE zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/TYPE!swap	ALTER ORGANIZATION USER a UNSET TYPES
+reject	accept	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT	ALTER ORGANIZATION USER a UNSET COMMENT
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT!insert	ALTER ORGANIZATION USER a UNSET COMMENT zzz
+reject	undocumented	docs	alterOrganizationUser(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)/COMMENT!swap	ALTER ORGANIZATION USER a UNSET COMMENTS
+reject	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/%empty	ALTER ORGANIZATION USER a UNSET EMAIL
+reject	accept	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL
+reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!drop-1	ALTER ORGANIZATION USER a UNSET EMAIL EMAIL
+reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!drop-2	ALTER ORGANIZATION USER a UNSET EMAIL,
+reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!insert	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL zzz
+reject	undocumented	docs	alterOrganizationUser(,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MID~9a8d19f7)*/,_(EMAIL|DISPLAY_NAME|FIRST_NAME|MIDDLE~c9a528e1)_(,_(E~3a183635!swap	ALTER ORGANIZATION USER a UNSET EMAIL, EMAIL_DISTRIBUTION_LIST
 reject	accept	docs	alterOrganizationUser_objectProperties/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+	ALTER ORGANIZATION USER a SET EMAIL = 's'
 reject	undocumented	docs	alterOrganizationUser_objectProperties/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+!swap	ALTER ORGANIZATION USER a SET EMAIL_DISTRIBUTION_LIST = 's'
 reject	accept	docs	alterOrganizationUser_objectProperties(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)+/(EMAIL_=_STRING|DISPLAY_NAME_=_STRING~89fc60db)	ALTER ORGANIZATION USER a SET EMAIL = 's'

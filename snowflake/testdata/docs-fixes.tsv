@@ -118,3 +118,4 @@ alter-failover-group	<object_type>	{ ACCOUNT PARAMETERS | DATABASES | EXTERNAL V
 grant-caller	<object_privilege>	{object_privileges}	the privileges are each object type's, listed on Access control privileges rather than here; {object_privileges} leaves the forms unconverted
 revoke-caller	<object_privilege>	{object_privileges}	the privileges are each object type's, listed on Access control privileges rather than here; {object_privileges} leaves the forms unconverted
 execute-notebook-project	MAIN_FILE = 'notebook.ipynb'	MAIN_FILE = '<main_file>'	notebook.ipynb is an example; the main file is a path to fill in, as the parameters say
+alter-organization-user	UNSET [ objectProperties ]	UNSET { EMAIL | DISPLAY_NAME | FIRST_NAME | MIDDLE_NAME | LAST_NAME | TYPE | COMMENT } [ , ... ]	UNSET names the objectProperties without their values, as the example UNSET TYPE does

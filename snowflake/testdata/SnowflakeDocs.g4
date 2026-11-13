@@ -1785,9 +1785,10 @@ alterOrganizationUnsetEventRoutingTable
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user
+// fix: UNSET names the objectProperties without their values, as the example UNSET TYPE does
 alterOrganizationUser
     : 'ALTER' 'ORGANIZATION' 'USER' ('IF' 'EXISTS')? ID 'SET' alterOrganizationUser_objectProperties
-    | 'ALTER' 'ORGANIZATION' 'USER' ID 'UNSET' alterOrganizationUser_objectProperties
+    | 'ALTER' 'ORGANIZATION' 'USER' ID 'UNSET' ('EMAIL' | 'DISPLAY_NAME' | 'FIRST_NAME' | 'MIDDLE_NAME' | 'LAST_NAME' | 'TYPE' | 'COMMENT') (',' ('EMAIL' | 'DISPLAY_NAME' | 'FIRST_NAME' | 'MIDDLE_NAME' | 'LAST_NAME' | 'TYPE' | 'COMMENT'))*
     ;
 alterOrganizationUser_objectProperties
     : ('EMAIL' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE') | 'COMMENT' '=' STRING)+
