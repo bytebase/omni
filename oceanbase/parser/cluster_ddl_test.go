@@ -31,9 +31,9 @@ func TestClusterDDL(t *testing.T) {
 			t.Errorf("Parse(%q): %v", tc.sql, err)
 			continue
 		}
-		stmt, ok := list.Items[0].(*nodes.ClusterDDLStmt)
+		stmt, ok := list.Items[0].(*nodes.ObjectDDLStmt)
 		if len(list.Items) != 1 || !ok {
-			t.Errorf("Parse(%q) = %T, want one *ast.ClusterDDLStmt", tc.sql, list.Items[0])
+			t.Errorf("Parse(%q) = %T, want one *ast.ObjectDDLStmt", tc.sql, list.Items[0])
 			continue
 		}
 		if stmt.Action != tc.action || stmt.Name != tc.name {

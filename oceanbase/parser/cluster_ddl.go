@@ -7,7 +7,7 @@ import (
 // OceanBase's cluster objects: tenants, resource units and resource pools.
 // Their statements are a name and a list of `WORD [=] value` options, so they
 // are written as alter_system.go writes ALTER SYSTEM: a table of forms, one
-// per alternative, over the same matchers. Each parses into a ClusterDDLStmt
+// per alternative, over the same matchers. Each parses into a ObjectDDLStmt
 // that names the statement and its object.
 //
 // Ref: create_tenant_stmt, clone_tenant_stmt, create_standby_tenant_stmt, alter_tenant_stmt,
@@ -136,7 +136,7 @@ func (p *Parser) parseClusterDDL(start int, verb string) (nodes.Node, bool, erro
 	if err != nil {
 		return nil, true, err
 	}
-	return &nodes.ClusterDDLStmt{
+	return &nodes.ObjectDDLStmt{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Action: verb + " " + object,
 		Name:   p.sys.name,
