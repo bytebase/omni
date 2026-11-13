@@ -22,7 +22,7 @@ func ColumnDisallowChange(stmts []ast.Node) []v1review.Finding {
 		}
 		for _, cmd := range n.Commands {
 			if cmd != nil && cmd.Type == ast.ATChangeColumn {
-				findings = append(findings, statementFinding(v1review.ColumnChanged, cmd.Name, n.Loc))
+				findings = append(findings, wholeStatementFinding(v1review.ColumnChanged, cmd.Name, n.Loc))
 			}
 		}
 	}

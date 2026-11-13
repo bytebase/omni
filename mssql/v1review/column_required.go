@@ -80,19 +80,6 @@ func ColumnRequired(stmts []ast.Node, required []string) []v1review.Finding {
 	return findings
 }
 
-// tableRefText is a table reference as written, database.schema.name with
-// absent parts left out.
-func tableRefText(ref *ast.TableRef) string {
-	result := ref.Object
-	if ref.Schema != "" {
-		result = ref.Schema + "." + result
-	}
-	if ref.Database != "" {
-		result = ref.Database + "." + result
-	}
-	return result
-}
-
 // listOf returns the items of list that are of type T, nil for a nil list.
 func listOf[T ast.Node](list *ast.List) []T {
 	if list == nil {

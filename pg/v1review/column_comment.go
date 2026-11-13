@@ -103,11 +103,3 @@ func (a columnAnchor) finding(code v1review.Code, table, name string) v1review.F
 	start, end := span(a.loc)
 	return v1review.Finding{Code: code, Name: name, Table: table, Start: start, End: end, Statement: a.statement}
 }
-
-// stringValue returns a String node's text, "" for any other node.
-func stringValue(n ast.Node) string {
-	if s, ok := n.(*ast.String); ok {
-		return s.Str
-	}
-	return ""
-}

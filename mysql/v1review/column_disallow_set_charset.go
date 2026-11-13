@@ -28,7 +28,7 @@ func ColumnDisallowSetCharset(stmts []ast.Node) []v1review.Finding {
 		case "", "binary":
 			return
 		}
-		finding := statementFinding(v1review.ColumnCharsetSet, col.Name, loc)
+		finding := wholeStatementFinding(v1review.ColumnCharsetSet, col.Name, loc)
 		finding.Value = col.TypeName.Charset
 		findings = append(findings, finding)
 	}

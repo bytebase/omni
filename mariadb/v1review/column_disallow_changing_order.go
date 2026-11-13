@@ -27,7 +27,7 @@ func ColumnDisallowChangingOrder(stmts []ast.Node) []v1review.Finding {
 				continue
 			}
 			if cmd.First || cmd.After != "" {
-				findings = append(findings, statementFinding(v1review.ColumnOrderChanged, cmd.Name, n.Loc))
+				findings = append(findings, wholeStatementFinding(v1review.ColumnOrderChanged, cmd.Name, n.Loc))
 			}
 		}
 	}

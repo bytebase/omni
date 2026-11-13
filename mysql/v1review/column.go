@@ -174,10 +174,10 @@ func modifiedColumns(cmd *ast.AlterTableCmd) []*ast.ColumnDef {
 	return nil
 }
 
-// statementFinding returns a finding anchored at a whole statement, for a
+// wholeStatementFinding returns a finding anchored at a whole statement, for a
 // rule whose V1 advisor printed the statement and placed its advice at the
 // statement's first line; the caller keeps that computation.
-func statementFinding(code v1review.Code, name string, loc ast.Loc) v1review.Finding {
+func wholeStatementFinding(code v1review.Code, name string, loc ast.Loc) v1review.Finding {
 	start, end := span(loc)
 	return v1review.Finding{Code: code, Name: name, Start: start, End: end}
 }
