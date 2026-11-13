@@ -20,7 +20,7 @@ import (
 // allow's entries are compared in lower case.
 //
 // Name is the column, Table the table's name without its database
-// qualifier, and Type the type as judged. Ported from Bytebase's V1 rule
+// qualifier, and Value the type as judged. Ported from Bytebase's V1 rule
 // INDEX_PRIMARY_KEY_TYPE_ALLOWLIST.
 func IndexPrimaryKeyTypeAllowlist(stmts []ast.Node, allow []string, schema v1review.Schema) ([]v1review.Finding, error) {
 	allowed := make(map[string]bool, len(allow))

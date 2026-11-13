@@ -2,6 +2,7 @@ package v1review
 
 import (
 	"slices"
+	"strconv"
 
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/v1review"
@@ -26,7 +27,7 @@ import (
 // final does not hold it. When the script marks any table and final has no
 // snapshot the function returns v1review.ErrSchemaMissing.
 //
-// Table is the name as written and Count the table's indexes. A finding
+// Table is the name as written and Value the number of the table's indexes. A finding
 // lies in the last statement that marked its table and anchors that whole
 // statement; findings are in the order of those statements. The V1 advisor
 // ordered them by line, leaving the order of two on one line to chance.
@@ -67,12 +68,12 @@ func IndexTotalNumberLimit(stmts []ast.Node, limit int, final v1review.Schema) (
 	slices.SortFunc(marks, func(a, b mark) int { return a.statement - b.statement })
 	var findings []v1review.Finding
 	for _, m := range marks {
-		table := final.Table("", m.table)
-		if table == nil || len(table.GetIndexes()) <= limit {
+		indexes, found := final.TableIndexes("", m.table)
+		if !found || len(indexes) <= limit {
 			continue
 		}
 		start, end := span(m.loc)
-		findings = append(findings, v1review.Finding{Code: v1review.IndexCountExceeded, Table: m.table, Count: len(table.GetIndexes()), Statement: m.statement, Start: start, End: end})
+		findings = append(findings, v1review.Finding{Code: v1review.IndexCountExceeded, Table: m.table, Value: strconv.Itoa(len(indexes)), Statement: m.statement, Start: start, End: end})
 	}
 	return findings, nil
 }

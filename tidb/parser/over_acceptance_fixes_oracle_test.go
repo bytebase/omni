@@ -9,7 +9,6 @@ import "testing"
 // valid are both pinned.
 func TestOverAcceptanceFixes(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range []string{
 		// A. function-name keyword immediately before `(` is a function, not a
 		// table name; a space before the paren, or a quoted name, is a table.
@@ -38,7 +37,7 @@ func TestOverAcceptanceFixes(t *testing.T) {
 		"select 1e-400",
 		"select 1.5e10",
 	} {
-		tidbAccepts, _, err := tc.syntaxVerdict(t, sql, "<over-acceptance test>")
+		tidbAccepts, err := tc.prepareSyntax(sql)
 		if err != nil {
 			t.Fatalf("no verdict for %q: %v", sql, err)
 		}

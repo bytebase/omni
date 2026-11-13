@@ -1,8 +1,11 @@
 package grammar
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // A Row is one generated statement and the label it is known by: the rule
@@ -89,7 +92,7 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 	for _, r := range g.rules {
 		cxN := cx[r.name]
 		for _, alt := range r.alts {
-			label := altLabel(r.name, alt)
+			label := g.altLabel(r.name, alt)
 			if used[label]++; used[label] > 1 {
 				// Two alternatives with the same symbols differ only in a
 				// %prec or an action; number the later ones.
@@ -107,16 +110,45 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 }
 
 // altLabel names an alternative by its rule and its symbols as the grammar
-// writes them, a literal by its content, and %empty for no symbols.
-func altLabel(rule string, alt []symbol) string {
+// writes them, a literal by its content, and %empty for no symbols. Where
+// the grammar caps labels, a longer list of symbols is cut and ends in a
+// hash of the whole.
+func (g *Grammar) altLabel(rule string, alt []symbol) string {
 	if len(alt) == 0 {
 		return rule + "/%empty"
 	}
 	parts := make([]string, len(alt))
 	for i, sym := range alt {
 		parts[i] = sym.text
+		if sym.label != "" {
+			parts[i] = sym.label
+		}
 	}
-	return rule + "/" + strings.Join(parts, "_")
+	return rule + "/" + capLabel(strings.Join(parts, "_"), g.labelCap())
+}
+
+// labelCap is the longest an alternative's symbols may be in its label, or
+// 0 for no limit.
+func (g *Grammar) labelCap() int {
+	if g.antlr {
+		return maxAltLabel
+	}
+	return 0
+}
+
+// capLabel cuts text longer than max (0 for no limit) and ends it in ~ and
+// eight hex digits of the whole text's SHA-256, so the label stays as
+// stable as the text.
+func capLabel(text string, max int) string {
+	if max == 0 || len(text) <= max {
+		return text
+	}
+	sum := sha256.Sum256([]byte(text))
+	cut := text[:max-9]
+	for !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut + "~" + hex.EncodeToString(sum[:4])
 }
 
 // needsUnreachable reports whether an alternative names a token the lexer
@@ -166,7 +198,8 @@ func (g *Grammar) altTokens(alt []symbol, sd map[string]deriv) ([]string, bool) 
 // shortestDerivations computes, for every nonterminal, the shortest string
 // it derives. Among equally short alternatives it takes the one the grammar
 // lists first, which is its plainest form: a name before a keyword that may
-// stand for one, the first data type before the rest.
+// stand for one, the first data type before the rest. A rule the token
+// table samples derives that text, as one token.
 func (g *Grammar) shortestDerivations() map[string]deriv {
 	// Costs first: relax each rule to the cheapest of its alternatives until
 	// none improves. The cost of a shortest derivation is unique; which
@@ -191,9 +224,15 @@ func (g *Grammar) shortestDerivations() map[string]deriv {
 		}
 		return total, true
 	}
+	for name := range g.ruleText {
+		cost[name], known[name] = 1, true
+	}
 	for changed := true; changed; {
 		changed = false
 		for _, r := range g.rules {
+			if _, sampled := g.ruleText[r.name]; sampled {
+				continue
+			}
 			for _, alt := range r.alts {
 				if c, ok := altCost(alt); ok && (!known[r.name] || c < cost[r.name]) {
 					cost[r.name], known[r.name] = c, true
@@ -216,6 +255,10 @@ func (g *Grammar) shortestDerivations() map[string]deriv {
 	expand = func(name string) ([]string, bool) {
 		if d := sd[name]; d.ok {
 			return d.toks, true
+		}
+		if text, sampled := g.ruleText[name]; sampled {
+			sd[name] = deriv{cost: 1, toks: []string{text}, ok: true}
+			return sd[name].toks, true
 		}
 		if !known[name] || expanding[name] {
 			return nil, false

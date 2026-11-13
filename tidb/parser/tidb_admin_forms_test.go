@@ -837,7 +837,7 @@ func TestTiDBAdminForms(t *testing.T) {
 			_, err := Parse(c.sql)
 			if accepts := err == nil; accepts != c.accept {
 				t.Errorf("omni %ss %q, TiDB %s %ss it (err=%v)",
-					verdictName(accepts), c.sql, tidbCorpusVersion, verdictName(c.accept), err)
+					verdictName(accepts), c.sql, tidbRelease, verdictName(c.accept), err)
 			}
 		})
 	}
@@ -845,7 +845,7 @@ func TestTiDBAdminForms(t *testing.T) {
 		t.Run(c.sql, func(t *testing.T) {
 			if _, err := Parse(c.sql); err == nil {
 				t.Errorf("omni accepts %q, which TiDB %s refuses while parsing with %d",
-					c.sql, tidbCorpusVersion, c.code)
+					c.sql, tidbRelease, c.code)
 			}
 		})
 	}

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"maps"
+	"slices"
 	"testing"
 )
 
@@ -153,7 +155,7 @@ var functionArmsNotCovered = map[string]bool{"values": true}
 // judgeKeywordFunctionNames sweeps every keyword the lexer has against the engine.
 func judgeKeywordFunctionNames(t *testing.T, accepts func(sql string) bool) {
 	t.Helper()
-	for word := range keywords {
+	for _, word := range slices.Sorted(maps.Keys(keywords)) {
 		var engine, omni bool
 		for _, shape := range functionNameShapes {
 			sql := "SELECT " + word + shape
@@ -173,19 +175,14 @@ func judgeKeywordFunctionNames(t *testing.T, accepts func(sql string) bool) {
 
 func TestRequiredFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, c := range requiredFormCases {
+	for _, c := range requiredFormCases {
 		t.Run(c.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = requiredFormCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, c.sql, previous)
+			accepts, err := tc.prepareSyntax(c.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != c.accept {
-				t.Errorf("TiDB %s accepts=%v, the record says %v for %q", tidbCorpusVersion, accepts, c.accept, c.sql)
+				t.Errorf("TiDB %s accepts=%v, the record says %v for %q", tidbRelease, accepts, c.accept, c.sql)
 			}
 		})
 	}
@@ -193,9 +190,8 @@ func TestRequiredFormsOracle(t *testing.T) {
 
 func TestKeywordFunctionNamesOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	judgeKeywordFunctionNames(t, func(sql string) bool {
-		accepts, _, err := tc.syntaxVerdict(t, sql, "<sweep>")
+		accepts, err := tc.prepareSyntax(sql)
 		if err != nil {
 			t.Fatalf("no verdict for %q: %v", sql, err)
 		}

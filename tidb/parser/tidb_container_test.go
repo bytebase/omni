@@ -4,349 +4,134 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"sync"
+	"iter"
+	"os"
 	"testing"
-	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/enginetest/compat"
+	"github.com/bytebase/omni/enginetest/tape"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 )
 
+// tidbRelease is the TiDB release the package's tapes and compat.tsv were
+// recorded on, as tidb/testdata/pins.tsv pins it. Messages name it.
+const tidbRelease = "v8.5.5"
+
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
+func TestMain(m *testing.M) {
+	code := tape.Main(m)
+	testcontainer.Terminate()
+	os.Exit(code)
+}
+
+// tidbContainer is a test's connection to TiDB: a replay of its tape, or the
+// pinned server in a recording (testcontainer.Open). The pool holds one
+// connection, at session defaults with the database test selected, so USE and
+// PREPARE hold across statements.
 type tidbContainer struct {
 	db  *sql.DB
 	ctx context.Context
-
-	// container is kept so a run that loses the server can rebuild it. The
-	// harness is used from sequential tests, so nothing guards these fields.
-	container testcontainers.Container
 }
-
-// tidbImage is the TiDB release every oracle test in this package is recorded
-// against. Changing it means rerunning those tests and reading the drift.
-const tidbImage = "pingcap/tidb:v8.5.5"
-
-var (
-	tidbOnce    sync.Once
-	tidbInst    *tidbContainer
-	tidbInitErr error
-)
 
 func startTiDB(t testing.TB) *tidbContainer {
 	t.Helper()
-
-	tidbOnce.Do(func() {
-		ctx := context.Background()
-
-		container, err := runTiDBContainer(ctx)
-		if err != nil {
-			tidbInitErr = err
-			return
-		}
-
-		db, err := dialTiDB(ctx, container, newContainerReady)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbInitErr = err
-			return
-		}
-
-		tidbInst = &tidbContainer{db: db, ctx: ctx, container: container}
-	})
-
-	if tidbInitErr != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the container gate into a green no-op.
-		t.Fatalf("TiDB container required in CI but not available: %v", tidbInitErr)
-	}
-	return tidbInst
+	return &tidbContainer{db: testcontainer.Open(t), ctx: context.Background()}
 }
 
-// runTiDBContainer starts the pinned TiDB image.
-func runTiDBContainer(ctx context.Context) (testcontainers.Container, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        tidbImage,
-		ExposedPorts: []string{"4000/tcp"},
-		WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-	}
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start TiDB container: %w", err)
-	}
-	return container, nil
-}
-
-// newContainerReady is how long a freshly started container gets to answer:
-// the port starts listening a moment before the server accepts connections,
-// and on a busy host that gap is seconds.
-const newContainerReady = 90 * time.Second
-
-// runningServerReady is how long an existing server gets. A reconnect expects
-// it to be up already, so failing fast here is what makes a caller fall
-// through to a restart instead of waiting out a server that has exited.
-const runningServerReady = 5 * time.Second
-
-// dialTiDB opens a pool on the container's mapped port and waits up to ready
-// for the server to answer.
-func dialTiDB(ctx context.Context, container testcontainers.Container, ready time.Duration) (*sql.DB, error) {
-	host, err := container.Host(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get host: %w", err)
-	}
-	port, err := container.MappedPort(ctx, "4000")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get port: %w", err)
-	}
-	connStr := fmt.Sprintf("root@tcp(%s:%s)/test?multiStatements=true", host, port.Port())
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
-	}
-	if err := pingTiDBUntilReady(ctx, db, ready); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to ping TiDB: %w", err)
-	}
-	return db, nil
-}
-
-// lost reports whether the harness has no server left to ask. restart clears
-// the pool and the container before rebuilding either, so a restart that
-// failed leaves the harness here, and a caller that kept going would
-// dereference a nil pool rather than collect another no-verdict error.
-func (tc *tidbContainer) lost() bool {
-	return tc.db == nil
-}
-
-// reconnect replaces the connection pool. A statement can drop the connection
-// it ran on without taking the server with it -- `kill CONNECTION_ID()` does
-// exactly that -- and until the pool is rebuilt every later statement comes
-// back as a connection error, which is no verdict at all.
-func (tc *tidbContainer) reconnect() error {
-	if tc.container == nil {
-		return errors.New("no container to reconnect to: an earlier restart could not start one")
-	}
-	if tc.db != nil {
-		tc.db.Close()
-		tc.db = nil
-	}
-	db, err := dialTiDB(tc.ctx, tc.container, runningServerReady)
-	if err != nil {
-		return err
-	}
-	tc.db = db
-	return nil
-}
-
-// restart replaces the container. A statement can stop the server outright --
-// `shutdown` does, and succeeds -- and no reconnect reaches a process that has
-// exited. Every database an earlier test created goes with the old container,
-// but a restart only runs once the server is already gone, so that state was
-// lost either way.
-func (tc *tidbContainer) restart() error {
-	if tc.db != nil {
-		tc.db.Close()
-		tc.db = nil
-	}
-	if tc.container != nil {
-		_ = testcontainers.TerminateContainer(tc.container)
-		tc.container = nil
-	}
-	container, err := runTiDBContainer(tc.ctx)
-	if err != nil {
-		return err
-	}
-	tc.container = container
-	db, err := dialTiDB(tc.ctx, container, newContainerReady)
-	if err != nil {
-		return err
-	}
-	tc.db = db
-	return nil
-}
-
-// canExecute checks whether TiDB accepts the SQL syntax.
+// canExecute runs the statement and returns the server's error.
 func (tc *tidbContainer) canExecute(sqlStr string) error {
 	_, err := tc.db.ExecContext(tc.ctx, sqlStr)
 	return err
 }
 
-func TestTiDBContainerOracle(t *testing.T) {
-	tc := startTiDB(t)
-
-	// Create a test database for isolation.
-	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS omni_test")
-	tc.db.ExecContext(tc.ctx, "USE omni_test")
-	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS omni_test")
-
-	tests := []struct {
-		name      string
-		sql       string
-		wantParse bool   // should our parser accept?
-		checkTiDB bool   // also check TiDB execution? (false = parse-only)
-		setup     string // optional setup SQL (run before test SQL)
-		cleanup   string // optional cleanup SQL (run after test SQL)
-	}{
-		// AUTO_RANDOM
-		{
-			name:      "auto_random basic",
-			sql:       "CREATE TABLE t_ar1 (id BIGINT AUTO_RANDOM PRIMARY KEY)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_ar1",
-		},
-		{
-			name:      "auto_random shard bits",
-			sql:       "CREATE TABLE t_ar2 (id BIGINT AUTO_RANDOM(5) PRIMARY KEY)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_ar2",
-		},
-		{
-			name:      "auto_random shard+range",
-			sql:       "CREATE TABLE t_ar3 (id BIGINT AUTO_RANDOM(5, 64) PRIMARY KEY)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_ar3",
-		},
-
-		// CLUSTERED / NONCLUSTERED
-		{
-			name:      "clustered pk",
-			sql:       "CREATE TABLE t_cl1 (id INT, PRIMARY KEY (id) CLUSTERED)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_cl1",
-		},
-		{
-			name:      "nonclustered pk",
-			sql:       "CREATE TABLE t_cl2 (id INT, PRIMARY KEY (id) NONCLUSTERED)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_cl2",
-		},
-
-		// Table options
-		{
-			name:      "shard_row_id_bits",
-			sql:       "CREATE TABLE t_opt1 (id INT) SHARD_ROW_ID_BITS = 4",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_opt1",
-		},
-		{
-			name:      "auto_id_cache",
-			sql:       "CREATE TABLE t_opt2 (id INT) AUTO_ID_CACHE = 100",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_opt2",
-		},
-		{
-			name:      "pre_split_regions",
-			sql:       "CREATE TABLE t_opt3 (id INT) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 3",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_opt3",
-		},
-
-		// TTL
-		{
-			name:      "ttl create",
-			sql:       "CREATE TABLE t_ttl1 (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR TTL_ENABLE = 'ON'",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_ttl1",
-		},
-		{
-			name:      "remove ttl",
-			sql:       "ALTER TABLE t_ttl_rm REMOVE TTL",
-			wantParse: true, checkTiDB: true,
-			setup:   "CREATE TABLE IF NOT EXISTS t_ttl_rm (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR TTL_ENABLE = 'ON'",
-			cleanup: "DROP TABLE IF EXISTS t_ttl_rm",
-		},
-
-		// PLACEMENT POLICY (table and database)
-		{
-			name:      "placement policy table",
-			sql:       "CREATE TABLE t_pp1 (id INT) PLACEMENT POLICY = 'default'",
-			wantParse: true, checkTiDB: false,
-			cleanup: "DROP TABLE IF EXISTS t_pp1",
-		},
-		{
-			name:      "placement policy database",
-			sql:       "CREATE DATABASE IF NOT EXISTS d_pp1 PLACEMENT POLICY = 'default'",
-			wantParse: true, checkTiDB: false,
-			cleanup: "DROP DATABASE IF EXISTS d_pp1",
-		},
-
-		// SET TIFLASH REPLICA
-		{
-			name:      "set tiflash replica",
-			sql:       "ALTER TABLE t_tf SET TIFLASH REPLICA 0",
-			wantParse: true, checkTiDB: true,
-			setup:   "CREATE TABLE IF NOT EXISTS t_tf (id INT PRIMARY KEY)",
-			cleanup: "DROP TABLE IF EXISTS t_tf",
-		},
-
-		// TiDB comments
-		{
-			name:      "tidb comment basic",
-			sql:       "CREATE TABLE t_cmt1 (id BIGINT /*T! AUTO_RANDOM */ PRIMARY KEY)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_cmt1",
-		},
-		{
-			name:      "tidb comment feature",
-			sql:       "CREATE TABLE t_cmt2 (id BIGINT /*T![auto_rand] AUTO_RANDOM */ PRIMARY KEY)",
-			wantParse: true, checkTiDB: true,
-			cleanup: "DROP TABLE IF EXISTS t_cmt2",
-		},
+// prepareSyntax reports whether TiDB accepts the statement's syntax, without
+// running it: PREPARE parses the text and stops there. A non-nil error means
+// the server gave no verdict at all: anything that is not a server error.
+//
+// ER_PARSE_ERROR (1064) is the parser's rejection, and it is not the only one: a
+// grammar action refuses text its productions read, with the code it chooses, while
+// the parse is still running. CreateIndexStmt's answers 1149 for a VECTOR INDEX over
+// a plain column, whether or not the table exists. Other errors come after the parse:
+// 1295 for a statement the prepared-statement protocol does not carry, 1146 for a
+// table that does not exist. The code alone cannot tell the two apart (1105 is both),
+// so the verdict asks the server which it was: see prepareVerdict.
+//
+// The statement is the one argument of one request, which the connection
+// inlines as an escaped literal, and a PREPARE under the same name replaces the
+// one before it, so each verdict is one exchange on the tape (two when it
+// needs the probe).
+func (tc *tidbContainer) prepareSyntax(stmt string) (bool, error) {
+	prepare := func(text string) error {
+		_, err := tc.db.ExecContext(tc.ctx, "PREPARE omni_stmt FROM ?", text)
+		return err
 	}
+	return prepareVerdict(prepare(stmt), func() error { return prepare(stmt + compat.ProbeTail) })
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup
-			if tt.setup != "" {
-				if _, err := tc.db.ExecContext(tc.ctx, tt.setup); err != nil {
-					t.Fatalf("setup failed: %v", err)
-				}
+// prepareVerdict reads PREPARE's answer through compat.PrepareVerdict, which
+// says how the probe tells a grammar action's refusal from an error raised after
+// the parse.
+func prepareVerdict(err error, probe func() error) (bool, error) {
+	return compat.PrepareVerdict(err, mysqlErrorCode, probe)
+}
+
+// mysqlErrorCode returns the server's error number, and false for an error the
+// server did not send.
+func mysqlErrorCode(err error) (uint16, bool) {
+	var myErr *gomysql.MySQLError
+	if !errors.As(err, &myErr) {
+		return 0, false
+	}
+	return myErr.Number, true
+}
+
+// byVerdict ranges over m's accepted cases, then its rejected ones, so what a
+// test sends does not depend on map order.
+func byVerdict[T any](m map[bool]T) iter.Seq2[bool, T] {
+	return func(yield func(bool, T) bool) {
+		for _, want := range []bool{true, false} {
+			if v, ok := m[want]; ok && !yield(want, v) {
+				return
 			}
-
-			// Test our parser.
-			_, parseErr := Parse(tt.sql)
-			parserAccepts := parseErr == nil
-
-			if parserAccepts != tt.wantParse {
-				t.Errorf("parser: got accepts=%v, want %v (err=%v)", parserAccepts, tt.wantParse, parseErr)
-			}
-
-			// Test real TiDB.
-			if tt.checkTiDB {
-				tidbErr := tc.canExecute(tt.sql)
-				tidbAccepts := tidbErr == nil
-
-				if parserAccepts != tidbAccepts {
-					t.Errorf("MISMATCH: parser accepts=%v, TiDB accepts=%v (tidb err=%v, parse err=%v)",
-						parserAccepts, tidbAccepts, tidbErr, parseErr)
-				}
-			}
-
-			// Cleanup
-			if tt.cleanup != "" {
-				tc.db.ExecContext(tc.ctx, tt.cleanup)
-			}
-		})
+		}
 	}
 }
 
-// pingTiDBUntilReady retries the first ping until ready elapses. TiDB's port
-// starts listening a moment before the server accepts connections, so a single
-// ping right after wait.ForListeningPort can fail with "invalid connection" on
-// a busy host.
-func pingTiDBUntilReady(ctx context.Context, db *sql.DB, ready time.Duration) error {
-	deadline := time.Now().Add(ready)
-	for {
-		err := db.PingContext(ctx)
-		if err == nil {
-			return nil
+func verdictName(accepts bool) string {
+	if accepts {
+		return "accept"
+	}
+	return "reject"
+}
+
+// TestSyntaxProbeControls holds the probe to statements whose answer is known from
+// the grammar and the server's own order of work. Each pair differs in nothing but
+// the shape a grammar action looks at, on a table that does not exist.
+func TestSyntaxProbeControls(t *testing.T) {
+	tc := startTiDB(t)
+	for _, c := range []struct {
+		stmt string
+		want bool
+	}{
+		{"CREATE VECTOR INDEX i ON nosuch (a)", false},  // 1149, CreateIndexStmt's action
+		{"CREATE VECTOR INDEX i ON nosuch ((a))", true}, // 1146
+		{"SELECT nosuch", true},                         // 1054
+		{"SELECT 1 FROM nosuch -- a comment", true},     // 1146, and the tail survives the comment
+		{"CREATE TABLE t (a VECTOR(16384))", true},      // 1105, from the DDL, not the parser
+		{"SELECT @@nosuch", true},                       // 1193, a name it looks up
+		{"SELEKT 1", false},                             // 1064
+		{"SELECT DISTINCT ALL * FROM nosuch", false},    // 1221, the action on SelectStmtOpts
+		{"ALTER TABLE t ALGORITHM = nosuch", false},     // 1800
+	} {
+		accepts, err := tc.prepareSyntax(c.stmt)
+		if err != nil {
+			t.Fatalf("no verdict for %q: %v", c.stmt, err)
 		}
-		if time.Now().After(deadline) {
-			return err
+		if accepts != c.want {
+			t.Errorf("%q: accepts=%v, want %v", c.stmt, accepts, c.want)
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }

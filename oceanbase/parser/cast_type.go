@@ -145,6 +145,12 @@ func (p *Parser) parseCastArrayElement() (*nodes.DataType, error) {
 			end = p.cur.Loc + 1
 		}
 		element = &nodes.DataType{Loc: nodes.Loc{Start: start, End: end}, Name: "ARRAY", ArrayElem: inner}
+		// data_type '[' ']' applies to a nested ARRAY too: ARRAY(ARRAY(INT)[]).
+		for !p.castShiftHalf && p.cur.Type == '[' && p.peekNext().Type == ']' {
+			p.advance()
+			p.advance()
+			element = &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ARRAY", ArrayElem: element}
+		}
 	} else {
 		var err error
 		if element, err = p.parseDataType(); err != nil {

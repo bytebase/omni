@@ -21,7 +21,7 @@ import (
 // storage engine. The type is compared with allow's
 // entries as they are, so an entry in another letter case allows nothing.
 //
-// Type holds the index's type; Name and Table are empty. A CREATE TABLE
+// Value holds the index's type; Name and Table are empty. A CREATE TABLE
 // finding anchors the index definition; every other finding anchors the
 // whole statement. Findings are in statement order. Ported from Bytebase's
 // V1 rule INDEX_TYPE_ALLOW_LIST.
@@ -56,7 +56,7 @@ func IndexTypeAllowList(stmts []ast.Node, allow []string) []v1review.Finding {
 			return
 		}
 		start, end := span(key.loc)
-		findings = append(findings, v1review.Finding{Code: v1review.IndexTypeNotAllowed, Type: indexType, Start: start, End: end})
+		findings = append(findings, v1review.Finding{Code: v1review.IndexTypeNotAllowed, Value: indexType, Start: start, End: end})
 	})
 	return findings
 }

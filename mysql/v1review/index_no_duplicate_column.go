@@ -19,7 +19,7 @@ import (
 // earlier one, held in Other.
 //
 // Name is the key's name as parsed, the empty name when it has none, and
-// Table the table's name without its database qualifier. Type is the kind
+// Table the table's name without its database qualifier. Value is the kind
 // of key: a CREATE INDEX is KeyIndex or KeyUniqueIndex, a UNIQUE definition
 // KeyUnique. The AST does not keep a name written after PRIMARY KEY, so that
 // key's Name is empty unless CONSTRAINT names it; the V1 advisor then read a
@@ -38,7 +38,7 @@ func IndexNoDuplicateColumn(stmts []ast.Node) []v1review.Finding {
 		for _, column := range key.columns {
 			if seen[column] {
 				start, end := span(key.loc)
-				findings = append(findings, v1review.Finding{Code: v1review.IndexColumnDuplicated, Name: key.name, Table: key.table, Other: column, Type: key.kind, Start: start, End: end})
+				findings = append(findings, v1review.Finding{Code: v1review.IndexColumnDuplicated, Name: key.name, Table: key.table, Other: column, Value: key.kind, Start: start, End: end})
 				return
 			}
 			seen[column] = true

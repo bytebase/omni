@@ -35,7 +35,7 @@ type statementFinding struct {
 func scriptFindings(sqls []string, got []v1review.Finding) []statementFinding {
 	var findings []statementFinding
 	for _, f := range got {
-		findings = append(findings, statementFinding{f.Code, f.Table, f.Name, f.Type, f.Statement, sqls[f.Statement][f.Start:f.End]})
+		findings = append(findings, statementFinding{f.Code, f.Table, f.Name, f.Value, f.Statement, sqls[f.Statement][f.Start:f.End]})
 	}
 	return findings
 }

@@ -232,7 +232,7 @@ func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
 			name: "every DROP",
-			sql:  "DROP TABLE IF EXISTS t, p;\nDROP VIEW v;\nDROP DATABASE d;\nDROP INDEX idx_n ON t;\nDROP PROCEDURE pr;\nDROP FUNCTION f;\nDROP TRIGGER tr;\nDROP EVENT e;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, DROP INDEX idx_n, DROP PARTITION p0;",
+			sql:  "DROP TABLE IF EXISTS t, p;\nDROP VIEW v;\nDROP DATABASE d;\nDROP INDEX idx_n ON t;\nDROP PROCEDURE pr;\nDROP FUNCTION f;\nDROP TRIGGER tr;\nDROP EVENT e;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, DROP INDEX idx_n, DROP PARTITION p0;\nALTER TABLE t DROP SUBPARTITION s0, s1;",
 			want: []finding{
 				{0, "DROP TABLE IF EXISTS t, p", "Drops tables `t` and `p`.", []int{0}},
 				{1, "DROP VIEW v", "Drops view `v`.", []int{0}},
@@ -246,6 +246,20 @@ func TestDisallowDropObject(t *testing.T) {
 				{9, "DROP COLUMN n", "Drops column `n` of `t`.", []int{0}},
 				{9, "DROP INDEX idx_n", "Drops index `idx_n` of `t`.", []int{0}},
 				{9, "DROP PARTITION p0", "Drops partition `p0` of `t`.", []int{0}},
+				{10, "DROP SUBPARTITION s0, s1", "Drops subpartitions `s0` and `s1` of `t`.", []int{0}},
+			},
+		},
+		{
+			name: "OceanBase's own objects",
+			sql:  "DROP TENANT IF EXISTS t1 FORCE;\nDROP TABLEGROUP tg;\nDROP SEQUENCE d.s;\nDROP FORMAT OUTLINE o;\nDROP SNAPSHOT sn FOR TENANT t1;\nDROP CONCURRENT_LIMITING_RULE r;\nDROP SENSITIVE RULE sr;",
+			want: []finding{
+				{0, "DROP TENANT IF EXISTS t1 FORCE", "Drops tenant `t1`.", []int{0}},
+				{1, "DROP TABLEGROUP tg", "Drops tablegroup `tg`.", []int{0}},
+				{2, "DROP SEQUENCE d.s", "Drops sequence `d.s`.", []int{0}},
+				{3, "DROP FORMAT OUTLINE o", "Drops outline `o`.", []int{0}},
+				{4, "DROP SNAPSHOT sn FOR TENANT t1", "Drops snapshot `sn`.", []int{0}},
+				{5, "DROP CONCURRENT_LIMITING_RULE r", "Drops concurrent limiting rule `r`.", []int{0}},
+				{6, "DROP SENSITIVE RULE sr", "Drops sensitive rule `sr`.", []int{0}},
 			},
 		},
 		{
@@ -269,11 +283,12 @@ func TestDisallowTruncate(t *testing.T) {
 	runCases(t, review.DisallowTruncate, []ruleCase{
 		{
 			name: "TRUNCATE and TRUNCATE PARTITION",
-			sql:  "TRUNCATE TABLE t;\nALTER TABLE t TRUNCATE PARTITION p0, p1;\nALTER TABLE t TRUNCATE PARTITION ALL;",
+			sql:  "TRUNCATE TABLE t;\nALTER TABLE t TRUNCATE PARTITION p0, p1;\nALTER TABLE t TRUNCATE PARTITION ALL;\nALTER TABLE t TRUNCATE SUBPARTITION s0;",
 			want: []finding{
 				{0, "TRUNCATE TABLE t", "Truncates `t`.", []int{0}},
 				{1, "TRUNCATE PARTITION p0, p1", "Truncates partitions `p0` and `p1` of `t`.", []int{0}},
 				{2, "TRUNCATE PARTITION ALL", "Truncates all partitions of `t`.", []int{0}},
+				{3, "TRUNCATE SUBPARTITION s0", "Truncates subpartition `s0` of `t`.", []int{0}},
 			},
 		},
 	})

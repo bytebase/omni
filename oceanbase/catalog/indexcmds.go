@@ -31,6 +31,19 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 	}
 
+	kind := keyPlain
+	switch {
+	case stmt.Fulltext:
+		kind = keyFulltext
+	case stmt.Spatial:
+		kind = keySpatial
+	case stmt.Vector:
+		kind = keyVector
+	}
+	if err := checkKeyParts(tbl, createIndexColumns(stmt), kind, stmt.Options); err != nil {
+		return err
+	}
+
 	if err := validateStoringColumns(tbl, stmt.Options); err != nil {
 		return err
 	}
@@ -47,23 +60,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return errDupKeyName(stmt.IndexName)
 	}
 
-	// Build index columns from AST columns.
-	idxCols := make([]*IndexColumn, 0, len(stmt.Columns))
-	for _, ic := range stmt.Columns {
-		col := &IndexColumn{
-			Length:     ic.Length,
-			Descending: ic.Desc,
-		}
-		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
-			col.Name = cr.Column
-		} else {
-			col.Expr = nodeToSQL(ic.Expr)
-			col.ExprNode = ic.Expr
-		}
-		idxCols = append(idxCols, col)
-	}
+	idxCols := createIndexColumns(stmt)
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
 		return err
+	}
+	if !stmt.Vector {
+		if err := checkIndexOptions(stmt.Options, true); err != nil {
+			return err
+		}
 	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
@@ -181,4 +185,23 @@ func constraintOfIndex(con *Constraint, key string) bool {
 		return toLower(con.IndexName) == key || toLower(con.Name) == key
 	}
 	return false
+}
+
+// createIndexColumns builds a CREATE INDEX's key parts.
+func createIndexColumns(stmt *nodes.CreateIndexStmt) []*IndexColumn {
+	idxCols := make([]*IndexColumn, 0, len(stmt.Columns))
+	for _, ic := range stmt.Columns {
+		col := &IndexColumn{
+			Length:     ic.Length,
+			Descending: ic.Desc,
+		}
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
+			col.Name = cr.Column
+		} else {
+			col.Expr = nodeToSQL(ic.Expr)
+			col.ExprNode = ic.Expr
+		}
+		idxCols = append(idxCols, col)
+	}
+	return idxCols
 }

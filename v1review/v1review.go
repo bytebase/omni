@@ -78,26 +78,22 @@ type Finding struct {
 	// the statement's and the caller keeps that computation. Both 0 means
 	// the AST kept no range.
 	Start, End int
-	// Statement is the index, among the statements the rule function was
-	// given, of the statement the finding lies in, the one Start and End
-	// are offsets into. A rule function whose caller passes it the whole
-	// script sets it: one that carries what one statement did to the next,
-	// or one that reads its snapshot once for the script. The others leave
-	// it 0.
+	// Statement is the index, in the statements the rule function was
+	// given, of the statement Start and End are offsets into. Rules that
+	// judge statements together, where a finding can belong to any of them,
+	// set it; for every other rule it is 0 and the caller passes one
+	// statement at a time.
 	Statement int
+	// Value is a fact the V1 advisor printed besides the name, as text: a
+	// column's type, a length, a count. Rules that set it document what it
+	// holds.
+	Value string
 	// Other is a second name the advice prints beside Name: the column an
-	// index lists twice, say. The rule function names what it holds.
+	// index lists twice, say. Rules that set it document what it holds.
 	Other string
-	// Type is a type the V1 advisor printed: the judged column's data type
-	// as that advisor wrote it, an index's type, or the kind of key an
-	// index is, one of the Key constants.
-	Type string
 	// Schema is the schema Table is in, as the V1 advisor printed it. Rules
 	// whose advice does not name a schema leave it empty.
 	Schema string
-	// Count is the number the advice says it found, such as how many
-	// indexes a table has.
-	Count int
 }
 
 // NamingConfig configures a naming rule; Bytebase builds it from the V1

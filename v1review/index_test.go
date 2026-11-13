@@ -6,7 +6,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 )
 
-func tableSchema(objectCaseSensitive bool) Schema {
+func indexTableSchema(objectCaseSensitive bool) Schema {
 	column := func(name, columnType string) *metadata.ColumnMetadata {
 		return &metadata.ColumnMetadata{Name: name, Type: columnType}
 	}
@@ -16,23 +16,23 @@ func tableSchema(objectCaseSensitive bool) Schema {
 			{
 				Name: "public",
 				Tables: []*metadata.TableMetadata{
-					{Name: "Book", Comment: "book", Columns: []*metadata.ColumnMetadata{column("id", "int"), column("ID", "bigint"), column("Title", "text")},
+					{Name: "Book", Indexes: []*metadata.IndexMetadata{{Name: "book"}}, Columns: []*metadata.ColumnMetadata{column("id", "int"), column("ID", "bigint"), column("Title", "text")},
 						Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Subpartitions: []*metadata.TablePartitionMetadata{{Name: "sp0"}}}}},
-					{Name: "dup", Comment: "first", Partitions: []*metadata.TablePartitionMetadata{{Name: "pd"}}},
-					{Name: "dup", Comment: "second"},
-					{Name: "author", Comment: "author", Partitions: []*metadata.TablePartitionMetadata{{Name: "Book"}, {Name: "pd"}}},
+					{Name: "dup", Indexes: []*metadata.IndexMetadata{{Name: "first"}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "pd"}}},
+					{Name: "dup", Indexes: []*metadata.IndexMetadata{{Name: "second"}}},
+					{Name: "author", Indexes: []*metadata.IndexMetadata{{Name: "author"}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "Book"}, {Name: "pd"}}},
 				},
 			},
 		}},
 	}
 }
 
-func TestSchemaTable(t *testing.T) {
+func TestSchemaTableIndexes(t *testing.T) {
 	for _, tt := range []struct {
 		name          string
 		caseSensitive bool
 		table         string
-		want          string // the found table's comment, "" when none
+		want          string // the found table's one index name, "" when none
 	}{
 		{name: "exact", caseSensitive: true, table: "Book", want: "book"},
 		{name: "case sensitive misses", caseSensitive: true, table: "book"},
@@ -47,13 +47,17 @@ func TestSchemaTable(t *testing.T) {
 		{name: "missing", caseSensitive: true, table: "nope"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tableSchema(tt.caseSensitive).Table("public", tt.table)
-			if got.GetComment() != tt.want || (got == nil) != (tt.want == "") {
-				t.Errorf("Table(%q) = %q, want %q", tt.table, got.GetComment(), tt.want)
+			indexes, found := indexTableSchema(tt.caseSensitive).TableIndexes("public", tt.table)
+			got := ""
+			if len(indexes) > 0 {
+				got = indexes[0].GetName()
+			}
+			if got != tt.want || found != (tt.want != "") {
+				t.Errorf("TableIndexes(%q) = %q, %v, want %q", tt.table, got, found, tt.want)
 			}
 		})
 	}
-	if got := (Schema{}).Table("public", "Book"); got != nil {
+	if got, found := (Schema{}).TableIndexes("public", "Book"); got != nil || found {
 		t.Errorf("an empty schema found %v", got)
 	}
 }
@@ -72,7 +76,7 @@ func TestSchemaTableColumn(t *testing.T) {
 		{name: "missing table", table: "nope", column: "id"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tableSchema(true).TableColumn("public", tt.table, tt.column, tt.columnCaseSensitive)
+			got := indexTableSchema(true).TableColumn("public", tt.table, tt.column, tt.columnCaseSensitive)
 			if got.GetType() != tt.want {
 				t.Errorf("TableColumn(%q, %q) = %q, want %q", tt.table, tt.column, got.GetType(), tt.want)
 			}

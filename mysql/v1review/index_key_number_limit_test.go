@@ -40,7 +40,7 @@ func parseEach(t *testing.T, sqls []string) []ast.Node {
 func indexFindings(sqls []string, got []v1review.Finding) []indexFinding {
 	var findings []indexFinding
 	for _, f := range got {
-		findings = append(findings, indexFinding{f.Code, f.Table, f.Name, f.Other, f.Type, sqls[f.Statement][f.Start:f.End]})
+		findings = append(findings, indexFinding{f.Code, f.Table, f.Name, f.Other, f.Value, sqls[f.Statement][f.Start:f.End]})
 	}
 	return findings
 }

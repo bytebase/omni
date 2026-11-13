@@ -59,7 +59,7 @@ func judgeKeyColumns(stmts []ast.Node, schema v1review.Schema, rule keyColumnRul
 			return
 		}
 		start, end := span(loc)
-		findings = append(findings, v1review.Finding{Code: rule.code, Name: column, Table: table, Type: columnType, Statement: statement, Start: start, End: end})
+		findings = append(findings, v1review.Finding{Code: rule.code, Name: column, Table: table, Value: columnType, Statement: statement, Start: start, End: end})
 	}
 	define := func(statement int, loc ast.Loc, table string, column *ast.ColumnDef) {
 		if column == nil || column.TypeName == nil {

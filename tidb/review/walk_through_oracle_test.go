@@ -3,23 +3,23 @@ package review
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"maps"
 	"math/rand"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
+	"github.com/bytebase/omni/tidb/internal/testcontainer"
 	"github.com/bytebase/omni/tidb/parser"
 )
 
@@ -151,7 +151,7 @@ var walkCases = []walkCase{
 	{name: "names outside ASCII", setup: "CREATE TABLE kel (`\u212a` int, a int);\nCREATE TABLE `t\u212a` (a int);", change: "ALTER TABLE kel DROP COLUMN k;\nALTER TABLE kel DROP COLUMN zz;\nDROP TABLE tk;\nCREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;"},
 	{name: "a string outside ASCII is no name", change: "CREATE TABLE y (a varchar(10)) COMMENT '中文';\nCREATE TABLE y (a int);\nINSERT INTO y VALUES ('é');\nINSERT INTO nosuch VALUES ('é');", complete: true},
 	// Every assignment of foreign_key_checks reaches the session's checks,
-	// GLOBAL too, in order; resetWalk sets the global back.
+	// GLOBAL too, in order; emptyTiDB sets the global back.
 	{name: "SET foreign_key_checks in any scope", change: "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@global.foreign_key_checks = 0;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0;\nCREATE TABLE z5 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	// A later assignment has a scope of its own, and the words ON and OFF are the
 	// values 1 and 0, bare or quoted.
@@ -172,70 +172,23 @@ var walkCases = []walkCase{
 	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
 }
 
-// startWalkTiDB returns the package's TiDB, started once and shared with
-// the other oracle tests, in its shipped setting: lower_case_table_names
-// is 2 and cannot change.
-func startWalkTiDB(t *testing.T) *sql.DB {
-	t.Helper()
-	db := startTiDB(t)
-	var lctn int
-	if err := db.QueryRowContext(context.Background(), "SELECT @@lower_case_table_names").Scan(&lctn); err != nil {
-		t.Fatal(err)
-	}
-	if lctn != 2 {
-		t.Fatalf("lower_case_table_names = %d, want 2", lctn)
-	}
-	return db
-}
-
-// startSweepTiDB returns a TiDB of the image for the sweep: the package's
-// for its own image, else one started for the test, which it ends.
-func startSweepTiDB(t *testing.T, image string, shard int) *sql.DB {
-	t.Helper()
-	if image == tidbImage && shard == 0 {
-		return startWalkTiDB(t)
-	}
-	c, db, err := runTiDB(context.Background(), image)
-	t.Cleanup(func() {
-		if db != nil {
-			_ = db.Close()
-		}
-		if c != nil {
-			_ = testcontainers.TerminateContainer(c)
-		}
-	})
-	if err != nil {
-		t.Fatalf("tidb %s unavailable: %v", image, err)
-	}
-	return db
-}
-
-// session opens a session of its own, which the cleanup closes rather
-// than returns to the pool: a pooled session keeps the temporary tables
-// of the change before it.
-func session(t testing.TB, db *sql.DB) *sql.Conn {
-	t.Helper()
-	conn, err := db.Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-		_ = conn.Close()
-	})
-	return conn
-}
+// The walk's tests replay their tapes (testdata/tapes) and start no server.
+// A recording asks the pinned one:
+//
+//	OMNI_RECORD=1 go test ./tidb/review/ -run '^TestWalkThrough(Against|Sweep)TiDB$'
+//
+// A case takes three connections, each a stream of its tape: one sets shop up
+// and closes, so its temporary tables and session settings end before the
+// change; one syncs the target and then lists the server's objects around
+// every statement; and the change runs on the third, as Bytebase runs it.
+// What they send follows from the case and the server's answers alone, never
+// from what the walk reports, so a change to the walk replays.
 
 func TestWalkThroughAgainstTiDB(t *testing.T) {
-	db := startWalkTiDB(t)
 	var found, rejected int
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
-			resetWalk(t, db, walkBase+tt.setup)
-			if tt.checksOff {
-				checksOff(t, db)
-			}
-			f, r := judgeWalk(t, db, tt.change, tt.complete)
+			f, r := judgeTiDB(t, walkBase, tt, false)
 			found += f
 			rejected += r
 		})
@@ -243,60 +196,115 @@ func TestWalkThroughAgainstTiDB(t *testing.T) {
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
-// checksOff turns tidb_enable_check_constraint off, as TiDB ships it, for
-// the rest of the test; the cleanup turns it on again for the package's
-// other tests.
-func checksOff(t *testing.T, db *sql.DB) {
-	t.Helper()
-	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = OFF"); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if _, err := db.ExecContext(context.Background(), "SET GLOBAL tidb_enable_check_constraint = ON"); err != nil {
-			t.Error(err)
-		}
-	})
-}
-
 // systemDatabases are the databases TiDB keeps for itself.
 const systemDatabases = "('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')"
 
-// resetWalk drops every user database and recreates shop from base.
-func resetWalk(t *testing.T, db *sql.DB, base string) {
+// emptyTiDB leaves the pinned server holding no database a test made, an
+// empty test, the global foreign_key_checks on, and CHECK constraints
+// enforced, which TiDB otherwise parses and drops. It runs in a recording
+// only, outside the tape (testcontainer.Reset), so a tape starts from the
+// same server whatever ran before it.
+func emptyTiDB(t testing.TB) {
 	t.Helper()
-	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE LOWER(SCHEMA_NAME) NOT IN "+systemDatabases)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var names []string
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			t.Fatal(err)
+	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			return err
 		}
-		names = append(names, n)
-	}
-	rows.Close()
-	conn := session(t, db)
-	// A change may set the global foreign_key_checks, which a new session
-	// starts from.
-	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0"}
-	for _, n := range names {
-		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
-	}
-	stmts = append(stmts, "SET foreign_key_checks = 1", "CREATE DATABASE shop", "USE shop")
+		defer conn.Close()
+		rows, err := conn.QueryContext(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE LOWER(SCHEMA_NAME) NOT IN "+systemDatabases)
+		if err != nil {
+			return err
+		}
+		var names []string
+		for rows.Next() {
+			var n string
+			if err := rows.Scan(&n); err != nil {
+				rows.Close()
+				return err
+			}
+			names = append(names, n)
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		// A table of one database may reference another's.
+		stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET GLOBAL tidb_enable_check_constraint = ON", "SET foreign_key_checks = 0"}
+		for _, n := range names {
+			stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
+		}
+		stmts = append(stmts, "CREATE DATABASE test")
+		for _, q := range stmts {
+			if _, err := conn.ExecContext(ctx, q); err != nil {
+				return fmt.Errorf("%s: %w", q, err)
+			}
+		}
+		return nil
+	})
+}
+
+// mustExec runs statements on db and fails the test at the first one the server
+// refuses.
+func mustExec(t testing.TB, db *sql.DB, stmts ...string) {
+	t.Helper()
 	for _, q := range stmts {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
+		if _, err := db.ExecContext(context.Background(), q); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 	}
-	for _, q := range splitWalk(base) {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatalf("base %s: %v", q, err)
+}
+
+// judgeTiDB sets shop up from base on an empty server, syncs it, and runs the
+// change on a session of its own with shop selected, as Bytebase runs it,
+// holding the walk to it (walktest.Judge). With lenient, a setup statement
+// the server refuses is passed over: a sweep's base is random.
+func judgeTiDB(t *testing.T, base string, c walkCase, lenient bool) (found, rejected int) {
+	t.Helper()
+	ctx := context.Background()
+	emptyTiDB(t)
+
+	setup := testcontainer.Open(t)
+	mustExec(t, setup, "CREATE DATABASE shop", "USE shop")
+	mustExec(t, setup, splitWalk(base)...)
+	for _, q := range splitWalk(c.setup) {
+		_, err := setup.ExecContext(ctx, q)
+		var me *gomysql.MySQLError
+		if err != nil && !(lenient && errors.As(err, &me)) {
+			t.Fatalf("setup %s: %v", q, err)
 		}
 	}
+	// The change's session starts from the global foreign_key_checks, which a
+	// sweep's base may have turned off.
+	mustExec(t, setup, "SET GLOBAL foreign_key_checks = 1")
+	if c.checksOff {
+		// TiDB's own default, for the rest of the case. emptyTiDB turns the
+		// checks on again before the next.
+		mustExec(t, setup, "SET GLOBAL tidb_enable_check_constraint = OFF")
+	}
+	// The setup's temporary tables and session settings end with its session.
+	if err := setup.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog := testcontainer.Open(t)
+	mustExec(t, catalog, "SET SESSION group_concat_max_len = 16777216")
+	schema := walkSync(t, catalog)
+
+	// The session checks foreign keys, as the target says, whatever global
+	// a sweep's base left for it to start from.
+	session := testcontainer.Open(t)
+	mustExec(t, session, "USE shop", "SET foreign_key_checks = 1")
+	e := &tidbEngine{
+		session: session,
+		catalog: catalog,
+		target: review.Target{
+			Schema: schema,
+			// TiDB's lower_case_table_names is 2, and fixed.
+			LowerCaseTableNames: 2,
+			ForeignKeyChecks:    review.SwitchOn,
+		},
+	}
+	return walktest.Judge(t, e, c.change, c.complete)
 }
 
 // splitWalk splits a change into its statements, each with its ';' so
@@ -314,42 +322,15 @@ func splitWalk(sql string) []string {
 	return out
 }
 
-// judgeWalk runs the change on a fresh connection with shop selected, as
-// Bytebase runs it, and holds the walk to it (walktest.Judge). The target
-// is the database as the admin connection syncs it before the change.
-func judgeWalk(t *testing.T, db *sql.DB, change string, complete bool) (found, rejected int) {
-	t.Helper()
-	ctx := context.Background()
-	conn := session(t, db)
-	if _, err := conn.ExecContext(ctx, "USE shop"); err != nil {
-		t.Fatal(err)
-	}
-	// The change may set the global foreign_key_checks; the server's other
-	// tests start from it.
-	t.Cleanup(func() {
-		if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
-			t.Error(err)
-		}
-	})
-	e := &tidbEngine{
-		conn: conn,
-		db:   db,
-		target: review.Target{
-			Schema:              walkSync(t, db),
-			LowerCaseTableNames: 2,
-			ForeignKeyChecks:    review.SwitchOn,
-		},
-	}
-	return walktest.Judge(t, e, change, complete)
-}
-
-// tidbEngine is the oracle's TiDB side of one change. TiDB commits DDL as
-// it runs, so a rejected statement leaves the database as it was only
-// through its own atomicity, which Digest checks.
+// tidbEngine is TiDB's side of one change (walktest.Lister). TiDB commits
+// DDL as it runs, so a rejected statement leaves the database as it was only
+// through its own atomicity, which the list taken before and after it shows.
 type tidbEngine struct {
-	conn   *sql.Conn
-	db     *sql.DB
-	target review.Target
+	// session is the change's session, and catalog the connection that
+	// lists the server's objects.
+	session *sql.DB
+	catalog *sql.DB
+	target  review.Target
 	// reported is the statement of the finding Report returned last, which
 	// walktest passes to Codes next.
 	reported string
@@ -365,7 +346,7 @@ func (e *tidbEngine) Statements(change string) []string { return splitWalk(chang
 
 func (e *tidbEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
 	t.Helper()
-	if _, err := e.conn.ExecContext(context.Background(), stmt); err != nil {
+	if _, err := e.session.ExecContext(context.Background(), stmt); err != nil {
 		var me *gomysql.MySQLError
 		if !errors.As(err, &me) {
 			t.Fatalf("%s: %v", stmt, err)
@@ -524,137 +505,147 @@ func (e *tidbEngine) Codes(message string) []string {
 	return nil
 }
 
-// Holds checks each fact the violation claims against information_schema.
-// A claim about the text holds by itself; a temporary table is read with
-// SHOW CREATE TABLE, which information_schema does not list.
-func (e *tidbEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool, string) {
-	t.Helper()
-	for _, c := range walktest.Claims(v) {
-		if c.Fact == walk.Unknown {
-			continue
-		}
-		present, kind := e.exists(t, c.Key)
-		switch {
-		case present != (c.Fact == walk.Present):
-			return false, fmt.Sprintf("%s %q in %q is present: %v", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), present)
-		case present && c.Kind != "" && c.Key.Space == spaceRelation && kind != c.Kind:
-			return false, fmt.Sprintf("relation %s is %s, not %s", c.Key.Name, kind, c.Kind)
-		}
-	}
-	return true, ""
-}
+// tidbInventory lists every object a change may make in a user database,
+// one to a line: its space, database, table, name, and kind, separated by
+// tabs. A database's line holds its name alone. A session's local temporary
+// tables are in no information_schema view, its own included, so Inventory
+// looks for them by name (temporaryCandidates).
+const tidbInventory = `SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
+UNION ALL SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE), TABLE_SCHEMA FROM information_schema.TABLES
+UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ''), TABLE_SCHEMA FROM information_schema.COLUMNS
+UNION ALL SELECT DISTINCT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ''), TABLE_SCHEMA FROM information_schema.STATISTICS
+UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
+) o WHERE LOWER(o.db) NOT IN ` + systemDatabases
 
-// exists reads whether the key's object exists, and a relation's kind.
-// Database and table names compare folded, as lower_case_table_names 2
-// does.
-func (e *tidbEngine) exists(t testing.TB, k walk.Key) (bool, string) {
+// Inventory lists the server's objects with tidbInventory, and the session's
+// temporary tables of the names the change creates.
+func (e *tidbEngine) Inventory(t testing.TB, change string) []walktest.Object {
 	t.Helper()
 	ctx := context.Background()
-	names := walk.Names(k.Parent)
-	// eq compares a stored name to a key as the space folds it.
-	eq := func(column string, folds bool) string {
-		if folds {
-			return "LOWER(" + column + ") = BINARY ?"
-		}
-		return "BINARY " + column + " = BINARY ?"
+	var n int
+	var lines sql.NullString
+	if err := e.catalog.QueryRowContext(ctx, tidbInventory).Scan(&n, &lines); err != nil {
+		t.Fatalf("list the server's objects: %v", err)
 	}
-	name := strings.TrimPrefix(k.Name, nonASCII)
-	nameFolds := !strings.HasPrefix(k.Name, nonASCII)
-	unmark := func(s string) string { return strings.TrimPrefix(s, nonASCII) }
-	count := func(q string, args ...any) bool {
-		t.Helper()
-		var n int
-		if err := e.db.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
-			t.Fatalf("%s: %v", q, err)
+	var objects []walktest.Object
+	var databases []string
+	for line := range strings.SplitSeq(lines.String, "\n") {
+		if line == "" {
+			continue
 		}
-		return n > 0
+		n--
+		f := strings.Split(line, "\t")
+		if len(f) != 5 {
+			t.Fatalf("an object's line is %q, want its space, database, table, name, and kind", line)
+		}
+		space, db, table, name, kind := f[0], f[1], f[2], f[3], f[4]
+		switch space {
+		case spaceDatabase:
+			databases = append(databases, db)
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceDatabase, Name: db}})
+		case spaceRelation:
+			switch kind {
+			case "BASE TABLE":
+				kind = relTable
+			case "VIEW":
+				kind = relView
+			case "SEQUENCE":
+				kind = relSequence
+			default:
+				kind = strings.ToLower(kind)
+			}
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceRelation, Parent: walk.Path(db), Name: name}, Kind: kind})
+		case spaceColumn, spaceIndex, spaceTableForeignKey:
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: space, Parent: walk.Path(db, table), Name: name}})
+		default:
+			t.Fatalf("an object of the unknown space %q: %q", space, line)
+		}
 	}
-	switch k.Space {
-	case spaceDatabase:
-		return count("SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE "+eq("SCHEMA_NAME", nameFolds), name), ""
-	case spaceTemporary:
-		var tbl, ddl string
-		err := e.conn.QueryRowContext(ctx, "SHOW CREATE TABLE `"+unmark(names[0])+"`.`"+name+"`").Scan(&tbl, &ddl)
-		return err == nil && strings.HasPrefix(ddl, "CREATE TEMPORARY TABLE"), ""
-	case spaceRelation:
-		var kind string
-		err := e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE "+eq("TABLE_SCHEMA", true)+" AND "+eq("TABLE_NAME", nameFolds), unmark(names[0]), name).Scan(&kind)
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, ""
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		switch kind {
-		case "VIEW":
-			return true, relView
-		case "SEQUENCE":
-			return true, relSequence
-		}
-		return true, relTable
-	case spaceColumn, spaceIndex, spaceTableForeignKey:
-		table, schema, column := "information_schema.COLUMNS", "TABLE_SCHEMA", "COLUMN_NAME"
-		switch k.Space {
-		case spaceIndex:
-			table, column = "information_schema.STATISTICS", "INDEX_NAME"
-		case spaceTableForeignKey:
-			table, schema, column = "information_schema.REFERENTIAL_CONSTRAINTS", "CONSTRAINT_SCHEMA", "CONSTRAINT_NAME"
-		}
-		return count("SELECT COUNT(*) FROM "+table+" WHERE "+eq(schema, true)+" AND "+eq("TABLE_NAME", true)+" AND "+eq(column, nameFolds), unmark(names[0]), unmark(names[1]), name), ""
+	if n != 0 {
+		t.Fatalf("the server listed %d more objects than it wrote, so the list is cut short: raise group_concat_max_len", n)
 	}
-	t.Fatalf("unknown space %s", k.Space)
-	return false, ""
+	// A temporary table shadows a table of its name, and SHOW CREATE TABLE
+	// shows the temporary one.
+	for _, db := range databases {
+		for _, name := range temporaryCandidates(change) {
+			if table, ok := e.temporary(t, db, name); ok {
+				objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceTemporary, Parent: walk.Path(db), Name: table}})
+			}
+		}
+	}
+	return objects
 }
 
-// Digest reads every user database's objects, so a rejected statement
-// that changed one fails the case.
-func (e *tidbEngine) Digest(t testing.TB) string {
+// temporary reports whether the session holds a temporary table of the name
+// in db, and its name as stored. SHOW CREATE TABLE of a view or a sequence
+// answers other columns, and of nothing an error.
+func (e *tidbEngine) temporary(t testing.TB, db, name string) (string, bool) {
 	t.Helper()
-	var b strings.Builder
-	read := func(q string, args ...any) []string {
-		rows, err := e.db.QueryContext(context.Background(), q, args...)
-		if err != nil {
-			t.Fatalf("%s: %v", q, err)
+	q := "SHOW CREATE TABLE " + quoteName(db) + "." + quoteName(name)
+	rows, err := e.session.QueryContext(context.Background(), q)
+	var me *gomysql.MySQLError
+	if errors.As(err, &me) {
+		return "", false
+	}
+	if err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	values := make([]sql.NullString, len(columns))
+	into := make([]any, len(values))
+	for i := range values {
+		into[i] = &values[i]
+	}
+	if !rows.Next() {
+		t.Fatalf("%s: no row: %v", q, rows.Err())
+	}
+	if err := rows.Scan(into...); err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	if columns[0] != "Table" || !strings.HasPrefix(values[1].String, "CREATE TEMPORARY TABLE") {
+		return "", false
+	}
+	return values[0].String, true
+}
+
+// createTemporary matches the name a CREATE TEMPORARY TABLE creates,
+// unqualified or after its database.
+var createTemporary = regexp.MustCompile("(?i)\\bCREATE\\s+TEMPORARY\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?((?:`[^`]+`|\\w+)(?:\\.(?:`[^`]+`|\\w+))?)")
+
+// temporaryCandidates returns the names of the temporary tables a change
+// creates, without their database and folded, sorted. Inventory looks for
+// each in every database, so it needs no USE the change makes.
+func temporaryCandidates(change string) []string {
+	seen := map[string]bool{}
+	for _, m := range createTemporary.FindAllStringSubmatch(change, -1) {
+		parts := strings.Split(m[1], ".")
+		name := strings.ToLower(strings.Trim(parts[len(parts)-1], "`"))
+		seen[name] = true
+	}
+	return slices.Sorted(maps.Keys(seen))
+}
+
+func quoteName(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }
+
+// Same compares a key the walk claims to a stored one. The walk folds an
+// ASCII name and marks one outside ASCII (nameKey): a marked name compares as
+// written, and every other as TiDB folds it, lower_case_table_names 2
+// included.
+func (e *tidbEngine) Same(claimed, stored walk.Key) bool {
+	if claimed.Space != stored.Space {
+		return false
+	}
+	return slices.EqualFunc(append(walk.Names(claimed.Parent), claimed.Name), append(walk.Names(stored.Parent), stored.Name), func(c, s string) bool {
+		if name, marked := strings.CutPrefix(c, nonASCII); marked {
+			return name == s
 		}
-		defer rows.Close()
-		cols, _ := rows.Columns()
-		vals := make([]sql.NullString, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		var first []string
-		for rows.Next() {
-			if err := rows.Scan(ptrs...); err != nil {
-				t.Fatal(err)
-			}
-			first = append(first, vals[0].String)
-			for _, v := range vals {
-				b.WriteString(v.String)
-				b.WriteByte(0)
-			}
-			b.WriteByte('\n')
-		}
-		return first
-	}
-	dbs := read("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE LOWER(SCHEMA_NAME) NOT IN " + systemDatabases + " ORDER BY 1")
-	if len(dbs) == 0 {
-		return b.String()
-	}
-	in := "(?" + strings.Repeat(", ?", len(dbs)-1) + ")"
-	args := make([]any, len(dbs))
-	for i, d := range dbs {
-		args[i] = d
-	}
-	for _, q := range []string{
-		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3, 4",
-		"SELECT CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-	} {
-		read(q, args...)
-	}
-	return b.String()
+		return c == strings.ToLower(s)
+	})
 }
 
 // walkSync reads shop as Bytebase's TiDB sync does, query for query, in
@@ -789,56 +780,37 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	return &metadata.DatabaseSchemaMetadata{Name: "shop", Schemas: []*metadata.SchemaMetadata{s}}
 }
 
+// The sweep's size and seed. They are fixed because the sweep's tape holds
+// these changes: to sweep others, change them and record.
+const (
+	tidbSweepN    = 40
+	tidbSweepSeed = 20261026
+)
+
 // TestWalkThroughSweepTiDB runs random changes over a small pool of names
-// that collide often, case included. Precision must hold on every one;
-// recall is logged. WALK_SWEEP_N sets the number of changes,
-// WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the TiDB image; the
-// package's TiDB serves its own image.
+// that collide often, case included, each on a random base. Precision must
+// hold on every one; recall is logged.
 //
 // A change ends its judging at a statement TiDB rejects after changing the
 // database (walktest.PartialRejecter). The templates leave out two ADD
 // FOREIGN KEY of one name in one ALTER, which leave TiDB retrying the
 // job's rollback without end.
 func TestWalkThroughSweepTiDB(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261026, tidbImage)
-	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
+	changes := walktest.SweepChanges(tidbSweepN, tidbSweepSeed, func(rng *rand.Rand) (string, string) {
 		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
 	})
-	shards := walktest.Shards(n)
-	for shard := range shards {
-		t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
-			t.Parallel()
-			db := startSweepTiDB(t, image, shard)
-			var found, rejected int
-			for i := shard; i < len(changes); i += shards {
-				base, change := changes[i].Base, changes[i].Change
-				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-					resetWalk(t, db, "")
-					conn := session(t, db)
-					if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
-						t.Fatal(err)
-					}
-					// The base's temporary tables end with its session, before the sync.
-					for _, q := range splitWalk(base) {
-						_, _ = conn.ExecContext(context.Background(), q)
-					}
-					_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-					// The base may have set the global foreign_key_checks the
-					// change's session starts from.
-					if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
-						t.Fatal(err)
-					}
-					f, r := judgeWalk(t, db, change, false)
-					found += f
-					rejected += r
-					if t.Failed() {
-						t.Logf("base:\n%s\nchange:\n%s", base, change)
-					}
-				})
+	var found, rejected int
+	for i, c := range changes {
+		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+			f, r := judgeTiDB(t, "", walkCase{setup: c.Base, change: c.Change}, true)
+			found += f
+			rejected += r
+			if t.Failed() {
+				t.Logf("base:\n%s\nchange:\n%s", c.Base, c.Change)
 			}
-			t.Logf("shard %d of seed %d: found %d of the %d statements the server rejects", shard, seed, found, rejected)
 		})
 	}
+	t.Logf("seed %d: found %d of the %d statements the server rejects", tidbSweepSeed, found, rejected)
 }
 
 func walkSweepChange(rng *rand.Rand, n int) string {

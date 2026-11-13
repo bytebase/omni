@@ -22,7 +22,7 @@ import (
 // not reported.
 //
 // Name is the column, Table the table's name without its database
-// qualifier, and Type the type as judged. Ported from Bytebase's V1 rule
+// qualifier, and Value the type as judged. Ported from Bytebase's V1 rule
 // INDEX_TYPE_NO_BLOB.
 func IndexTypeNoBlob(stmts []ast.Node, schema v1review.Schema) ([]v1review.Finding, error) {
 	return judgeKeyColumns(stmts, schema, keyColumnRule{

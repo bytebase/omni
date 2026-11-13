@@ -23,7 +23,7 @@ import (
 // `bigint unsigned` do not pass.
 //
 // Name is the column, Table the table's name without its database
-// qualifier, and Type the type as judged. Ported from Bytebase's V1 rule
+// qualifier, and Value the type as judged. Ported from Bytebase's V1 rule
 // INDEX_PK_TYPE_LIMIT.
 func IndexPKTypeLimit(stmts []ast.Node, schema v1review.Schema) ([]v1review.Finding, error) {
 	return judgeKeyColumns(stmts, schema, keyColumnRule{
