@@ -65,7 +65,7 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		p.addRuleCandidate("table_ref")
 		return nil, &ParseError{Message: "collecting"}
 	}
-	tbl, err := p.parseTableRef()
+	tbl, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}

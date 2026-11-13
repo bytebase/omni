@@ -890,6 +890,14 @@ const (
 	kwAUTO_INCREMENT_MODE
 	kwDYNAMIC_PARTITION_POLICY
 	kwTEMPLATE
+
+	// OceanBase's reserved words that are no MySQL keyword: each is in the lexer's keyword
+	// table (non_reserved_keywords_mysql_mode.c) and in neither unreserved_keyword nor
+	// mysql_reserved_keyword (sql_parser_mysql_mode.y), so none is a name anywhere.
+	kwNO_PARALLEL
+	kwNO_REWRITE
+	kwREAD_CONSISTENCY
+	kwTABLEGROUP
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1710,6 +1718,10 @@ var keywords = map[string]int{
 	"week":                                   kwWEEK,
 	"weight_string":                          kwWEIGHT_STRING,
 	"zone":                                   kwZONE,
+	"no_parallel":                            kwNO_PARALLEL,
+	"no_rewrite":                             kwNO_REWRITE,
+	"read_consistency":                       kwREAD_CONSISTENCY,
+	"tablegroup":                             kwTABLEGROUP,
 }
 
 // Token represents a lexical token.
