@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"strconv"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -18,20 +16,10 @@ import (
 // not a server error is no verdict, and comes back as an error rather than passing
 // a case that expects either answer.
 //
-// The statement travels as a bound parameter and through one held connection,
-// because the variable that carries it lives on the connection that set it.
+// The statement is PREPARE's argument, so a verdict is one request.
 func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error) {
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer func() { _ = conn.Close() }()
-	if _, err := conn.ExecContext(ctx, "SET @omni_sweep = ?", stmt); err != nil {
-		return false, err
-	}
-	_, err = conn.ExecContext(ctx, "PREPARE omni_sweep_stmt FROM @omni_sweep")
+	_, err := db.ExecContext(ctx, "PREPARE omni_sweep_stmt FROM ?", stmt)
 	if err == nil {
-		_, _ = conn.ExecContext(ctx, "DEALLOCATE PREPARE omni_sweep_stmt")
 		return true, nil
 	}
 	var myErr *gomysql.MySQLError
@@ -126,24 +114,26 @@ func sweepExpr(r *rand.Rand, depth int) string {
 	return atoms[r.Intn(len(atoms))]
 }
 
+// The operator sweep's size and seed.
+const (
+	operatorSweepN    = 1000
+	operatorSweepSeed = 1
+)
+
 // TestOperatorSweepMatchesEngine asks the engine two questions about random
 // expressions. Does it parse them, compared with Parse? And for those it does, does
 // `(expr) <=> (exprShape(tree))` hold? The second is what a verdict corpus cannot do:
 // the engine evaluates the text as written and the grouping this parser gave it, so a
 // wrong tree shows as a wrong value with no evaluator or expected tree written here.
 //
-// OPERATOR_SWEEP_N and OPERATOR_SWEEP_SEED size and seed it; a failure names the seed.
+// Its size and seed are constants, because its tape holds these expressions: to
+// sweep others, change them and record. It compares the engine with omni's tree,
+// so a parser change that moves a tree is recorded too.
 func TestOperatorSweepMatchesEngine(t *testing.T) {
 	o := startParserOracle(t)
 	db := o.db
 	ctx := o.ctx
-	n, seed := 1000, int64(1)
-	if v, err := strconv.Atoi(os.Getenv("OPERATOR_SWEEP_N")); err == nil {
-		n = v
-	}
-	if v, err := strconv.ParseInt(os.Getenv("OPERATOR_SWEEP_SEED"), 10, 64); err == nil {
-		seed = v
-	}
+	n, seed := operatorSweepN, int64(operatorSweepSeed)
 	r := rand.New(rand.NewSource(seed))
 	var compared int
 	for i := 0; i < n; i++ {
