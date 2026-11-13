@@ -286,9 +286,9 @@ func TestWalkThrough_3_3_ForeignKeyConstraint(t *testing.T) {
 	}
 }
 
-// --- FOREIGN KEY implicit backing index ---
+// --- FOREIGN KEY makes no index ---
 
-func TestWalkThrough_3_3_ForeignKeyBackingIndex(t *testing.T) {
+func TestWalkThrough_3_3_ForeignKeyMakesNoIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
 	wtExec(t, c, "CREATE TABLE child (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_pid FOREIGN KEY (pid) REFERENCES parent(id))")
@@ -297,24 +297,11 @@ func TestWalkThrough_3_3_ForeignKeyBackingIndex(t *testing.T) {
 		t.Fatal("table child not found")
 	}
 
-	// FK should create an implicit backing index.
-	found := false
+	// OceanBase makes no index for a foreign key, where MySQL adds one.
 	for _, idx := range tbl.Indexes {
-		if idx.Primary {
-			continue
+		if !idx.Primary {
+			t.Errorf("index %s on a table that declares none", idx.Name)
 		}
-		for _, col := range idx.Columns {
-			if col.Name == "pid" {
-				found = true
-				break
-			}
-		}
-		if found {
-			break
-		}
-	}
-	if !found {
-		t.Error("expected implicit backing index for FK on column pid")
 	}
 }
 

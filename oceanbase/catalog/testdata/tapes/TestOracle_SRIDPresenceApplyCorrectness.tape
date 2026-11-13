@@ -389,9 +389,97 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_add_column_with_srid_zero_6a9e5080`.`t` ADD COLUMN `g` geometry NOT NULL /*!80003 SRID 0 */
-< error
-| 1138 22004 Invalid use of NULL value
+| ALTER TABLE `pa_add_column_with_srid_zero_6a9e5080`.`t` ADD COLUMN `g` geometry /*!80003 SRID 0 */
+< ok 0 0
+> exec
+| ALTER TABLE `pa_add_column_with_srid_zero_6a9e5080`.`t` MODIFY COLUMN `g` geometry NOT NULL /*!80003 SRID 0 */
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_add_column_with_srid_zero_6a9e5080.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `g` geometry NOT NULL /*!80003 SRID 0 */,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_not_null_keeping_srid_e3eec894_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_not_null_keeping_srid_e3eec894_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_not_null_keeping_srid_e3eec894_to
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0 COMMENT 'c')
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_not_null_keeping_srid_e3eec894_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `g` geometry NOT NULL /*!80003 SRID 0 */ COMMENT 'c',
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_not_null_keeping_srid_e3eec894
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_not_null_keeping_srid_e3eec894 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_not_null_keeping_srid_e3eec894
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_not_null_keeping_srid_e3eec894.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `g` geometry NOT NULL /*!80003 SRID 0 */,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `pa_modify_not_null_keeping_srid_e3eec894`.`t` MODIFY COLUMN `g` geometry /*!80003 SRID 0 */ COMMENT 'c'
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_not_null_keeping_srid_e3eec894`.`t` MODIFY COLUMN `g` geometry NOT NULL /*!80003 SRID 0 */ COMMENT 'c'
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_not_null_keeping_srid_e3eec894.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `g` geometry NOT NULL /*!80003 SRID 0 */ COMMENT 'c',
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS pa_create_srid_zero_spatial_index_8aee60fd_to
 < ok 0 0

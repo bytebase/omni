@@ -119,70 +119,54 @@ func TestDiffIndex_NoPhantomOnReorder(t *testing.T) {
 	}
 }
 
-// TestDiffIndex_FKImplicitExcluded asserts the headline FK-implicit rule structurally, without a
-// live engine: a table whose only index is the one synthesized to back a foreign key reports NO
-// index diff against the same table, and the index is absent from the diff-able set. (The loader
-// synthesizes the backing index via ensureFKBackingIndex, so it is present in tbl.Indexes — the
-// differ must still exclude it.)
-func TestDiffIndex_FKImplicitExcluded(t *testing.T) {
-	sdl := dbDDL + "CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n" +
-		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));"
-	cat := loadCat(t, sdl)
-
-	// Self-diff is empty (no phantom on the FK backing index).
-	if d := Diff(cat, cat); !d.IsEmpty() {
-		t.Fatalf("self-diff with FK backing index must be empty, got: %s", describeDiff(d))
-	}
-
-	// The backing index `fk` exists in the model but is excluded from the diff-able set.
-	var child *Table
-	for _, db := range cat.Databases() {
-		if tt := db.GetTable("c"); tt != nil {
-			child = tt
+// TestDiffIndex_NoIndexBehindAForeignKey asserts that the loader gives a foreign key no
+// index, named or not: OceanBase makes none, where MySQL adds one when no index serves the
+// key. TestOracle_OceanBaseForeignKeyIndex asks the engine.
+func TestDiffIndex_NoIndexBehindAForeignKey(t *testing.T) {
+	cat := loadCat(t, dbDDL+"CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"+
+		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id), FOREIGN KEY (pid) REFERENCES p(id));")
+	for _, idx := range mustGetTable(t, cat, "c").Indexes {
+		if !idx.Primary {
+			t.Errorf("table c declares no index and has %s", idx.Name)
 		}
 	}
-	if child == nil {
-		t.Fatal("table c not loaded")
-	}
-	if findIndex(child, "fk") == nil {
-		t.Fatal("precondition: loader should have synthesized backing index `fk`")
-	}
-	if _, present := diffableIndexMap(child, nil)["fk"]; present {
-		t.Errorf("FK-implicit backing index `fk` must be excluded from the diff-able set")
+	if d := Diff(cat, cat); !d.IsEmpty() {
+		t.Errorf("self-diff must be empty, got: %s", describeDiff(d))
 	}
 }
 
-// TestDiffIndex_RicherIndexOnFKColumnsKept asserts the boundary of FK-implicit detection: an
-// index that covers the FK columns but is STRUCTURALLY RICHER than a synthesized backing index
-// stays user-managed and diff-able. Two forms:
-//   - a UNIQUE index on the FK columns (MySQL reuses it to back the FK, but it is genuinely the
-//     user's unique constraint, not a plain backing index);
-//   - a WIDER composite index whose left prefix covers the FK columns (its column count differs
-//     from the FK's, so it is not a backing-index shape).
-//
-// A PLAIN index whose columns exactly equal the FK columns is, by contrast, byte-for-byte what
-// ensureFKBackingIndex would synthesize and is treated as FK-implicit (the FK node owns it) —
-// proven empty against the real engine in TestOracle_IndexDiffFKImplicit/fk-explicit-covering.
-func TestDiffIndex_RicherIndexOnFKColumnsKept(t *testing.T) {
-	t.Run("unique-on-fk-columns", func(t *testing.T) {
-		sdl := dbDDL + "CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n" +
-			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, UNIQUE KEY uq_pid (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));"
-		cat := loadCat(t, sdl)
-		child := mustGetTable(t, cat, "c")
-		if _, present := diffableIndexMap(child, nil)["uq_pid"]; !present {
-			t.Errorf("UNIQUE index on FK columns must remain diff-able (not a plain backing-index shape)")
-		}
-	})
-
-	t.Run("wider-composite-covering-fk", func(t *testing.T) {
-		sdl := dbDDL + "CREATE TABLE p (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b));\n" +
-			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, z INT, KEY wide (x,y,z), CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b));"
-		cat := loadCat(t, sdl)
-		child := mustGetTable(t, cat, "c")
-		if _, present := diffableIndexMap(child, nil)["wide"]; !present {
-			t.Errorf("wider composite index covering the FK by left-prefix must remain diff-able")
-		}
-	})
+// TestDiffIndex_IndexOverAForeignKeyIsTheUsers asserts that an index over a foreign key's
+// columns is diffed like any other, whatever its name: none of them is the foreign key's
+// own, so each one written is added and each one left out is dropped, and dropping the
+// foreign key leaves it.
+func TestDiffIndex_IndexOverAForeignKeyIsTheUsers(t *testing.T) {
+	const parent = "CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"
+	bare := loadCat(t, dbDDL+parent+"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));")
+	// The names MySQL gives the index it adds (the constraint's, the column's, the
+	// column's with a number), and one of the user's.
+	for _, name := range []string{"fk", "pid", "pid_2", "my_idx"} {
+		t.Run(name, func(t *testing.T) {
+			indexed := loadCat(t, dbDDL+parent+"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY "+name+" (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));")
+			for _, tc := range []struct {
+				from, to *Catalog
+				want     DiffAction
+			}{{bare, indexed, DiffAdd}, {indexed, bare, DiffDrop}} {
+				te := findTable(Diff(tc.from, tc.to), "c")
+				if te == nil || len(te.Indexes) != 1 || te.Indexes[0].Action != tc.want || te.Indexes[0].Name != name {
+					t.Errorf("want one %v of index %s, got %s", tc.want, name, describeDiff(Diff(tc.from, tc.to)))
+				}
+				if te != nil && len(te.ForeignKeys) != 0 {
+					t.Errorf("the foreign key did not change, got %s", describeDiff(Diff(tc.from, tc.to)))
+				}
+			}
+			// Dropping the foreign key leaves the index.
+			alone := loadCat(t, dbDDL+parent+"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY "+name+" (pid));")
+			te := findTable(Diff(indexed, alone), "c")
+			if te == nil || len(te.Indexes) != 0 || len(te.ForeignKeys) != 1 || te.ForeignKeys[0].Action != DiffDrop {
+				t.Errorf("want the foreign key dropped and no index change, got %s", describeDiff(Diff(indexed, alone)))
+			}
+		})
+	}
 }
 
 // mustGetTable returns the named table from a catalog or fails the test.
@@ -195,120 +179,6 @@ func mustGetTable(t testing.TB, cat *Catalog, name string) *Table {
 	}
 	t.Fatalf("table %s not loaded", name)
 	return nil
-}
-
-// TestDiffIndex_FKDroppedExplicitIndexKept asserts the asymmetric-exclusion firewall: when a
-// foreign key is dropped but the plain user index that backed it is KEPT, the index must NOT be
-// reported as added (it exists on both sides). Without the cross-side exclusion check, the index
-// would be excluded on the FK side (from) but present on the no-FK side (to), producing a phantom
-// ADD that fails on apply with errno 1061 (duplicate key name).
-func TestDiffIndex_FKDroppedExplicitIndexKept(t *testing.T) {
-	from := loadCat(t, dbDDL+"CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"+
-		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));")
-	to := loadCat(t, dbDDL+"CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"+
-		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid));")
-	d := Diff(from, to)
-	if te := findTable(d, "c"); te != nil {
-		for _, ie := range te.Indexes {
-			t.Errorf("no index change expected on c (my_idx kept), got %s %s", ie.Action, ie.Name)
-		}
-	}
-	// And the reverse (FK added, index already present): must not DROP my_idx.
-	dRev := Diff(to, from)
-	if te := findTable(dRev, "c"); te != nil {
-		for _, ie := range te.Indexes {
-			t.Errorf("no index change expected on c (FK added, my_idx already present), got %s %s", ie.Action, ie.Name)
-		}
-	}
-}
-
-// TestDiffIndex_ExplicitlyNamedIndexBackingFKEmitted asserts that a user index named DIFFERENTLY
-// from the FK's auto-backing name (constraint name / first column) is NOT treated as FK-implicit:
-// the user deliberately named it, so it must be diff-able and emitted (otherwise, when the FK is
-// added, the FK node would auto-create a differently-named backing index and the user's chosen
-// name would be lost). The pure-implicit FK (no explicit KEY) still emits nothing.
-func TestDiffIndex_ExplicitlyNamedIndexBackingFKEmitted(t *testing.T) {
-	// User explicitly names the backing index `idx_pid` (≠ constraint `fk_c_p`, ≠ column `pid`).
-	from := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\nCREATE TABLE c (pid INT);")
-	to := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\n"+
-		"CREATE TABLE c (pid INT, KEY idx_pid (pid), CONSTRAINT fk_c_p FOREIGN KEY (pid) REFERENCES p(id));")
-	d := Diff(from, to)
-	te := findTable(d, "c")
-	if te == nil || findIndexDiff(te, "idx_pid") == nil || findIndexDiff(te, "idx_pid").Action != DiffAdd {
-		t.Fatalf("expected ADD of user-named index idx_pid, got %s", describeDiff(d))
-	}
-
-	// The user index `idx_pid` is diff-able even with the FK present (it is not the auto name).
-	toChild := mustGetTable(t, to, "c")
-	if _, present := diffableIndexMap(toChild, nil)["idx_pid"]; !present {
-		t.Errorf("user-named idx_pid must remain diff-able alongside the FK")
-	}
-
-	// Counter-check: an index named like the auto-backing name (the column `pid`) IS excluded.
-	toAuto := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\n"+
-		"CREATE TABLE c (pid INT, KEY pid (pid), CONSTRAINT fk_c_p FOREIGN KEY (pid) REFERENCES p(id));")
-	if _, present := diffableIndexMap(mustGetTable(t, toAuto, "c"), nil)["pid"]; present {
-		t.Errorf("index named `pid` (the auto-backing name) must be excluded as FK-implicit")
-	}
-}
-
-// TestDiffIndex_FKImplicitNameCollision asserts that an unnamed FK whose backing-index name was
-// suffixed by allocIndexName on collision (here `pid_2`, because the user wrote `KEY pid (a)`) is
-// still detected as FK-implicit and excluded — structural detection does not depend on the
-// synthesized name. The unrelated user index `KEY pid (a)` stays diff-able.
-func TestDiffIndex_FKImplicitNameCollision(t *testing.T) {
-	sdl := dbDDL + "CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n" +
-		"CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id));"
-	cat := loadCat(t, sdl)
-	var child *Table
-	for _, db := range cat.Databases() {
-		if tt := db.GetTable("c"); tt != nil {
-			child = tt
-		}
-	}
-	if child == nil {
-		t.Fatal("table c not loaded")
-	}
-	// Precondition: the loader synthesized the FK backing index as `pid_2` (collided with the
-	// user's `KEY pid (a)`).
-	if findIndex(child, "pid_2") == nil {
-		t.Fatal("precondition: expected synthesized backing index `pid_2`")
-	}
-	dm := diffableIndexMap(child, nil)
-	if _, present := dm["pid_2"]; present {
-		t.Errorf("FK-implicit backing index `pid_2` must be excluded despite the collision-suffixed name")
-	}
-	if _, present := dm["pid"]; !present {
-		t.Errorf("unrelated user index `KEY pid (a)` must remain diff-able")
-	}
-	if d := Diff(cat, cat); !d.IsEmpty() {
-		t.Errorf("self-diff must be empty, got: %s", describeDiff(d))
-	}
-}
-
-// TestDiffIndex_FKImplicitUserNamedConstraint asserts that an FK whose user-chosen constraint name
-// happens to match the auto-generated `<table>_ibfk_N` shape still has its backing index detected
-// and excluded — structural detection does not misclassify based on the constraint name.
-func TestDiffIndex_FKImplicitUserNamedConstraint(t *testing.T) {
-	sdl := dbDDL + "CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n" +
-		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id));"
-	cat := loadCat(t, sdl)
-	var child *Table
-	for _, db := range cat.Databases() {
-		if tt := db.GetTable("c"); tt != nil {
-			child = tt
-		}
-	}
-	if child == nil {
-		t.Fatal("table c not loaded")
-	}
-	dm := diffableIndexMap(child, nil)
-	if _, present := dm["c_ibfk_1"]; present {
-		t.Errorf("FK backing index `c_ibfk_1` must be excluded even though the FK name matches the auto shape")
-	}
-	if d := Diff(cat, cat); !d.IsEmpty() {
-		t.Errorf("self-diff must be empty, got: %s", describeDiff(d))
-	}
 }
 
 // TestCanonicalIndex_WhatOceanBaseDoesNotStore asserts what canonicalIndex leaves out because

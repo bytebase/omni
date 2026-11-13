@@ -6,21 +6,19 @@ import (
 	"strings"
 )
 
-// MySQL SDL generate — indexes (the full index/key surface).
+// SDL generate — indexes (the full index/key surface).
 //
-// This is the MySQL analog of PG's generateIndexDDL (pg/catalog/migration_index.go). It turns
-// the index diff (TableDiffEntry.Indexes, populated by diff_index.go) into ALTER TABLE ...
-// ADD/DROP index DDL. MySQL folds index changes into ALTER TABLE rather than standalone
-// CREATE/DROP INDEX statements, and an index cannot be altered in place, so a modified index is
-// a DROP followed by an ADD.
+// It turns the index diff (TableDiffEntry.Indexes, populated by diff_index.go) into ALTER
+// TABLE ... ADD/DROP index DDL. An index is not altered in place, so a modified index is a
+// DROP followed by an ADD, but for its visibility (ALTER INDEX) and for the primary key,
+// which is replaced in one statement (primaryKeyModifyOp).
 //
 // Two table cases produce index ADDs:
 //   - DiffModify: the per-index diff drives ADD / DROP / (DROP+ADD for MODIFY).
-//   - DiffAdd: a freshly created table. generate-core's formatCreateTable renders only columns
-//     and the inline PRIMARY KEY (migration_table.go) — it does NOT inline secondary/UNIQUE/
-//     FULLTEXT/SPATIAL indexes — so every non-PK, non-FK-implicit index on a new table is added
-//     here via ALTER TABLE ... ADD. The PK is already inline (skip it); FK-implicit-backing
-//     indexes are owned by the FK node (skip them, same exclusion as the diff).
+//   - DiffAdd: a freshly created table. formatCreateTable renders only columns and the inline
+//     PRIMARY KEY (migration_table.go), so every other index of a new table is added here via
+//     ALTER TABLE ... ADD. That holds for the key of an AUTO_INCREMENT column too: OceanBase
+//     lets the column stand without one, where MySQL wants it in the CREATE TABLE.
 //
 // DiffDrop tables emit nothing: DROP TABLE removes their indexes wholesale.
 //
@@ -29,10 +27,9 @@ import (
 // changes use ADD/DROP PRIMARY KEY; every other index uses ADD ... KEY / DROP INDEX.
 //
 // Ordering: index ADDs run in PhaseMain at priorityIndex (after the table CREATE and column
-// ALTERs, before deferred FKs in PhasePost — so a FK added in the same plan reuses an index this
-// node created rather than auto-creating a duplicate). Index DROPs run in PhasePre (before
-// PhaseMain), so a drop-then-add of the same index name never collides. sortMigrationOps
-// re-imposes the global phase/priority/name order.
+// ALTERs, before deferred FKs in PhasePost). Index DROPs run in PhasePre (before PhaseMain),
+// so a drop-then-add of the same index name never collides. sortMigrationOps re-imposes the
+// global phase/priority/name order.
 func generateIndexDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
 
@@ -49,9 +46,10 @@ func generateIndexDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migratio
 	}
 
 	sort.SliceStable(ops, func(i, j int) bool {
-		if ops[i].Type != ops[j].Type {
-			// Drops ahead of adds locally (also enforced by phase) for readability.
-			return indexOpRank(ops[i].Type) < indexOpRank(ops[j].Type)
+		// Drops ahead of adds, as the phases have them, then by name. Ops that tie keep the
+		// order they were made in: an ADD and the ALTER INDEX that hides what it added.
+		if ri, rj := indexOpRank(ops[i].Type), indexOpRank(ops[j].Type); ri != rj {
+			return ri < rj
 		}
 		return ops[i].sortName < ops[j].sortName
 	})
@@ -59,27 +57,17 @@ func generateIndexDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migratio
 	return ops
 }
 
-// addIndexOpsForNewTable emits ADD ops for every user-managed non-PK index on a freshly created
-// table (the PK is rendered inline by formatCreateTable; FK-implicit-backing indexes are the FK
-// node's). It uses the diff-able index set so the GIPK and FK-implicit indexes are excluded
-// exactly as in diffIndexes.
+// addIndexOpsForNewTable emits ADD ops for every non-PK index of a freshly created table (the
+// PK is rendered inline by formatCreateTable).
 func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
 	}
 	table := tableIdent(entry.To)
-	// The AUTO_INCREMENT column's supporting key is rendered inline by formatCreateTable (MySQL
-	// requires the AUTO_INCREMENT column to be a key at CREATE time, errno 1075). Skip that same
-	// index here so it is not also added by an ALTER (errno 1061, duplicate key name). The inline
-	// decision is the single shared predicate autoIncSupportingIndex (migration_table.go).
-	inlined := autoIncSupportingIndex(entry.To)
 	var ops []MigrationOp
 	for _, idx := range orderedDiffableIndexes(entry.To) {
 		if idx.Primary {
 			continue // inline in CREATE TABLE
-		}
-		if inlined != nil && idx == inlined {
-			continue // inline in CREATE TABLE (AUTO_INCREMENT supporting key)
 		}
 		ops = append(ops, addIndexOps(entry, table, idx, n)...)
 	}
@@ -87,14 +75,19 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 }
 
 // indexOpsForModifiedTable emits ADD / DROP / (DROP+ADD) ops from the per-index diff of a
-// modified table.
+// modified table, and a DROP and an ADD for an index the diff leaves alone that holds a
+// column the plan drops and adds again (recreatedColumns): DROP COLUMN takes the column
+// out of the index's key or its STORING, or the index with it.
 func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
-	if entry.To == nil || len(entry.Indexes) == 0 {
+	if entry.To == nil {
 		return nil
 	}
 	table := tableIdent(entry.To)
+	recreated := recreatedColumns(entry, n)
+	inDiff := make(map[string]bool, len(entry.Indexes))
 	var ops []MigrationOp
 	for _, ie := range entry.Indexes {
+		inDiff[toLower(ie.Name)] = true
 		switch ie.Action {
 		case DiffAdd:
 			if ie.To == nil {
@@ -110,16 +103,13 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			if ie.From == nil || ie.To == nil {
 				continue
 			}
-			// The PRIMARY KEY interacts with column changes, so it needs special ordering — see
-			// primaryKeyModifyOps. A secondary index is independent: DROP then ADD (the drop in
-			// PhasePre always precedes the PhaseMain add, freeing the name for re-creation).
 			if ie.To.Primary || ie.From.Primary {
-				ops = append(ops, primaryKeyModifyOps(entry, table, ie.To, n)...)
+				ops = append(ops, primaryKeyModifyOp(entry, table, ie.To, n))
 				continue
 			}
 			// An index that differs only in being visible keeps its data: ALTER INDEX says
 			// so, where DROP and ADD would build it again.
-			if onlyVisibilityDiffers(ie.From, ie.To, n) {
+			if onlyVisibilityDiffers(ie.From, ie.To, n) && !indexReadsAny(ie.From, recreated) {
 				ops = append(ops, alterIndexVisibilityOp(entry, table, ie.To))
 				continue
 			}
@@ -127,7 +117,45 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			ops = append(ops, addIndexOps(entry, table, ie.To, n)...)
 		}
 	}
+	if len(recreated) > 0 && entry.From != nil {
+		kept := diffableIndexMap(entry.To)
+		for _, idx := range orderedDiffableIndexes(entry.From) {
+			to := kept[toLower(idx.Name)]
+			if inDiff[toLower(idx.Name)] || to == nil || idx.Primary || !indexReadsAny(idx, recreated) {
+				continue
+			}
+			ops = append(ops, dropIndexOp(entry, table, idx))
+			ops = append(ops, addIndexOps(entry, table, to, n)...)
+		}
+	}
 	return ops
+}
+
+// indexReadsAny reports whether idx holds one of the columns: as a key part, named or, for
+// an expression part, found in its text, or as a column it stores. DROP COLUMN takes a
+// stored column out of the index's STORING as it takes a key part out of the key.
+func indexReadsAny(idx *Index, columns map[string]bool) bool {
+	if len(columns) == 0 {
+		return false
+	}
+	for _, name := range idx.Storing {
+		if columns[toLower(name)] {
+			return true
+		}
+	}
+	for _, ic := range idx.Columns {
+		if columns[toLower(ic.Name)] {
+			return true
+		}
+		if ic.Expr != "" {
+			for name := range columns {
+				if strings.Contains(toLower(ic.Expr), name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // addIndexOps is addIndexOp, followed for an invisible index by the statement that hides
@@ -144,8 +172,7 @@ func addIndexOps(entry *TableDiffEntry, table string, idx *Index, n *Normalizer)
 }
 
 // alterIndexVisibilityOp builds the ALTER TABLE ... ALTER INDEX that makes idx as visible as
-// it says. It sorts with the index's ADD and after it, and is a statement of its own: it
-// carries no alterClause, so it never folds into the ALTER TABLE that adds the index.
+// it says. It sorts with the index's ADD and after it.
 func alterIndexVisibilityOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 	visibility := "VISIBLE"
 	if !idx.Visible {
@@ -191,14 +218,11 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		Phase:        PhaseMain,
 		Priority:     priorityIndex,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
-		alterClause:  clause,
-		addsIndex:    idx,
 	}
 }
 
 // addVectorIndexOp builds the CREATE VECTOR INDEX a vector index needs, because OceanBase 4.3.5.6
-// has no ALTER TABLE form of it: ADD VECTOR KEY is refused. The op is a statement of its own, so
-// it carries no alterClause and never folds into an ALTER TABLE.
+// has no ALTER TABLE form of it: ADD VECTOR KEY is refused.
 func addVectorIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 	return MigrationOp{
 		Type:         OpAddIndex,
@@ -209,7 +233,6 @@ func addVectorIndexOp(entry *TableDiffEntry, table string, idx *Index) Migration
 		Phase:        PhaseMain,
 		Priority:     priorityIndex,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
-		addsIndex:    idx,
 	}
 }
 
@@ -233,156 +256,44 @@ func formatCreateVectorIndex(table string, idx *Index) string {
 	return b.String()
 }
 
-// priorityPrimaryKeyDrop orders a standalone DROP PRIMARY KEY within PhasePre BEFORE column drops
-// AND column NOT NULL→NULL demotions. When a PK change also drops a column that was a member of
-// the OLD PK, or demotes a removed PK member to nullable, the PK must be gone first: a PhasePre
-// DROP COLUMN of a PK member auto-removes the PK (then a later DROP PRIMARY KEY fails errno 1091),
-// and MySQL rejects making a still-PK column nullable (errno 1171). Dropping the PK first frees
-// both. It sits just below the index-drop priority so the PK is the very first thing released.
-const priorityPrimaryKeyDrop = priorityIndexDrop - 1
-
-// primaryKeyModifyOps renders a PRIMARY KEY change, choosing between two correct shapes because a
-// PK change interleaves with the column generator's ops (which this node does not control):
+// primaryKeyModifyOp renders a changed primary key as one statement, ALTER TABLE ... DROP
+// PRIMARY KEY, ADD PRIMARY KEY (...), in PhaseMain at priorityIndex: after the column adds
+// and modifies, so the new key's columns are there and NOT NULL.
 //
-//   - COMBINED, one statement `ALTER TABLE ... DROP PRIMARY KEY, ADD PRIMARY KEY (...)` in
-//     PhaseMain. This is required when an AUTO_INCREMENT column is a member of the new PK: a
-//     standalone DROP PRIMARY KEY would leave that column momentarily unkeyed, which MySQL rejects
-//     (errno 1075). The combined statement has no unkeyed window. It is only valid, though, when no
-//     OLD-PK-member column is being dropped in the same diff — a PhasePre DROP COLUMN of a PK
-//     member auto-removes the PK before this PhaseMain statement runs, so its DROP PRIMARY KEY half
-//     would fail (errno 1091).
-//   - SPLIT: a standalone DROP PRIMARY KEY in PhasePre (at priorityPrimaryKeyDrop, before column
-//     drops and NOT NULL demotions) plus an ADD PRIMARY KEY in PhaseMain (at priorityIndex, after
-//     the column generator's adds/modifies at priorityColumn, so the new PK's columns are already
-//     present and NOT NULL). This is correct whenever a PK member is dropped or demoted, and for
-//     all non-AUTO_INCREMENT PK changes.
+// One statement, because OceanBase refuses the DROP alone where it takes the pair: on a
+// table a foreign key references, and on one whose foreign key is over the key's own
+// columns (4714 for both). It is also the one pair of clauses OceanBase takes together
+// where a third makes it refuse (1235, Multiple complex DDLs about primary in single
+// stmt), so the statement holds nothing else.
 //
-// The two cases are disjoint in practice: an AUTO_INCREMENT column must stay keyed, so it is never
-// the dropped PK member; the combined form is chosen only when AUTO_INCREMENT keys the new PK and
-// no PK-member column drop forces the split. `to` always carries the PRIMARY index for a PK
-// change (the diff keys it by the PRIMARY name), so DROP PRIMARY KEY is unconditional.
-//
-// The two AUTO_INCREMENT corner cases this function used to flag as unhandled — relocating the
-// auto column OUT of the PK onto a new secondary key, and keeping it in the PK while a different
-// old-PK member is demoted to nullable — are resolved by the AUTO_INCREMENT grouping pass
-// (mergeAutoIncrementKeyOps, migration_autoinc.go), which folds the split path's DROP PRIMARY
-// KEY, the covering key ADD, and any demoting MODIFY into one statement after this generator
-// runs. This function only picks the combined-vs-split shape; the pass owns the cross-op
-// statement grouping.
-func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Normalizer) []MigrationOp {
-	if canCombinePrimaryKeyModify(entry, to) {
-		clause := "DROP PRIMARY KEY, ADD " + formatIndexDefinition(to, n)
-		return []MigrationOp{{
-			Type:         OpAddIndex,
-			Database:     entry.Database,
-			ObjectName:   entry.Name,
-			ParentObject: entry.Name,
-			SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
-			Phase:        PhaseMain,
-			Priority:     priorityIndex,
-			sortName:     indexSortName(entry.Database, entry.Name, to.Name),
-			alterClause:  clause,
-			addsIndex:    to,
-			dropsIndex:   primaryIndexKey,
-		}}
-	}
-	dropPK := MigrationOp{
-		Type:         OpDropIndex,
+// What the old key forbids while it stands waits for this statement: dropping one of its
+// columns and making one nullable (columnsThatWait). A key the plan drops outright is a
+// DROP PRIMARY KEY in PhasePre (dropIndexOp), ahead of the column drops.
+// TestOracle_OceanBaseAlterTableClauses holds each of these to the engine.
+func primaryKeyModifyOp(entry *TableDiffEntry, table string, to *Index, n *Normalizer) MigrationOp {
+	return MigrationOp{
+		Type:         OpAddIndex,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
-		SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", table),
-		Phase:        PhasePre,
-		Priority:     priorityPrimaryKeyDrop,
+		SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY, ADD %s", table, formatIndexDefinition(to, n)),
+		Phase:        PhaseMain,
+		Priority:     priorityIndex,
 		sortName:     indexSortName(entry.Database, entry.Name, to.Name),
-		alterClause:  "DROP PRIMARY KEY",
-		dropsIndex:   primaryIndexKey,
 	}
-	addPK := addIndexOp(entry, table, to, n)
-	return []MigrationOp{dropPK, addPK}
 }
 
-// canCombinePrimaryKeyModify reports whether a PK change may be emitted as a single combined
-// DROP+ADD statement. Two conditions must hold:
-//   - the new PK must include an AUTO_INCREMENT column (the reason the combined form is needed — to
-//     avoid an unkeyed AUTO_INCREMENT window, errno 1075); and
-//   - no column that was a member of the OLD PK may be DROPPED or DEMOTED TO NULLABLE in this diff.
-//     Such a column change runs before the combined PhaseMain statement (a DROP COLUMN in PhasePre,
-//     a MODIFY ... NULL at priorityColumn=20 < priorityIndex=30) while the old PK still holds the
-//     column, so the combined statement's DROP PRIMARY KEY half would fail — errno 1091 (the column
-//     drop already auto-removed the PK) or errno 1171 (a still-PK column cannot be made nullable).
-//
-// Otherwise the split form (DROP PK early in PhasePre, ADD PK late in PhaseMain) is used, which
-// releases the PK before those column changes run.
-func canCombinePrimaryKeyModify(entry *TableDiffEntry, to *Index) bool {
-	if !newPrimaryKeyHasAutoIncrement(entry.To, to) {
-		return false
-	}
-	return !oldPrimaryKeyMemberDroppedOrDemoted(entry)
-}
-
-// newPrimaryKeyHasAutoIncrement reports whether any column of the new PK is AUTO_INCREMENT.
-func newPrimaryKeyHasAutoIncrement(tbl *Table, pk *Index) bool {
-	if tbl == nil || pk == nil {
-		return false
-	}
-	for _, ic := range pk.Columns {
-		if col := tbl.GetColumn(ic.Name); col != nil && col.AutoIncrement {
-			return true
-		}
-	}
-	return false
-}
-
-// oldPrimaryKeyMemberDroppedOrDemoted reports whether any column that was a member of the OLD
-// PRIMARY KEY is, in this diff, either dropped or demoted to nullable — the cases that force the
-// split form because they conflict with the old PK still being present when an earlier-phase column
-// op runs (a DROP COLUMN auto-removes the PK → errno 1091; a MODIFY ... NULL on a still-PK column →
-// errno 1171). A column that merely leaves the PK but stays NOT NULL (and is not dropped) is fine
-// for the combined form.
-func oldPrimaryKeyMemberDroppedOrDemoted(entry *TableDiffEntry) bool {
-	if entry.From == nil {
-		return false
-	}
-	oldPKCols := make(map[string]bool)
-	for _, idx := range entry.From.Indexes {
-		if idx != nil && idx.Primary {
-			for _, ic := range idx.Columns {
-				oldPKCols[toLower(ic.Name)] = true
-			}
-			break
-		}
-	}
-	if len(oldPKCols) == 0 {
-		return false
-	}
-	for _, ce := range entry.Columns {
-		if !oldPKCols[toLower(ce.Name)] {
-			continue
-		}
-		if ce.Action == DiffDrop {
-			return true
-		}
-		// A modify that makes the old-PK-member column nullable (it is no longer PK-forced NOT NULL
-		// in `to`) conflicts with the still-present old PK if emitted before the combined statement.
-		if ce.Action == DiffModify && ce.To != nil && ce.To.Nullable {
-			return true
-		}
-	}
-	return false
-}
-
-// priorityIndexDrop orders an index DROP within PhasePre BEFORE any column DROP. MySQL's
-// ALTER TABLE ... DROP COLUMN auto-removes an index that the dropped column leaves empty (a
-// single-column index, or the last remaining column of a composite one), after which an
-// explicit DROP INDEX for that index fails with errno 1091 ("Can't DROP 'k'; check that
-// column/key exists"). Because the migration plan is applied one statement at a time, the index
-// DROP must precede the column DROP. Column drops run at priorityColumn-1 (generated) /
-// priorityColumn (plain) within PhasePre, and table drops at priorityTable=10; this sits below
-// the column-drop range and above the table-drop, so the order is:
+// priorityIndexDrop orders an index DROP within PhasePre BEFORE any column DROP. A DROP COLUMN
+// removes an index that the dropped column leaves empty (a single-column index, or the last
+// remaining column of a composite one), after which an explicit DROP INDEX for that index
+// fails with errno 1091 ("Can't DROP 'k'; check that column/key exists"). Because the
+// migration plan is applied one statement at a time, the index DROP must precede the column
+// DROP. Column drops run at priorityColumn-1 (generated) / priorityColumn (plain) within
+// PhasePre, and table drops at priorityTable=10; this sits below the column-drop range and
+// above the table-drop, so the order is:
 // table-drop (10) < index-drop (15) < generated-col-drop (19) < plain-col-drop (20).
-// Dropping an index whose columns are NOT being dropped is harmless to sequence first (it is
-// independent), so always ordering index drops ahead of column drops is safe and simple.
+// A dropped primary key is among the index drops, which is what lets its columns be
+// dropped after it: OceanBase refuses to drop a column the key holds (1235).
 const priorityIndexDrop = priorityColumn - 5
 
 // dropIndexOp builds an ALTER TABLE ... DROP op. A PRIMARY KEY uses DROP PRIMARY KEY (it has no
@@ -390,13 +301,9 @@ const priorityIndexDrop = priorityColumn - 5
 // priorityIndexDrop so all index drops precede any add AND precede column drops (see
 // priorityIndexDrop), and so a dropped index name is free for re-creation in the same plan.
 func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
-	var clause string
-	drops := toLower(idx.Name)
+	clause := "DROP INDEX " + migrationQuoteIdent(idx.Name)
 	if idx.Primary {
 		clause = "DROP PRIMARY KEY"
-		drops = primaryIndexKey
-	} else {
-		clause = "DROP INDEX " + migrationQuoteIdent(idx.Name)
 	}
 	return MigrationOp{
 		Type:         OpDropIndex,
@@ -407,8 +314,6 @@ func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 		Phase:        PhasePre,
 		Priority:     priorityIndexDrop,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
-		alterClause:  clause,
-		dropsIndex:   drops,
 	}
 }
 
@@ -509,13 +414,11 @@ func formatIndexOptions(idx *Index) string {
 	return b.String()
 }
 
-// orderedDiffableIndexes returns a table's diff-able indexes (GIPK + FK-implicit excluded, the
-// same set diffIndexes uses) in a deterministic order: by lower-cased name. Determinism keeps a
-// new table's ADD INDEX sequence stable across runs. This is a single-table (new-table) context
-// with no other side, so FK-implicit indexes are excluded unconditionally (nil other-side set) —
-// the FK node adds the backing index for a newly created table's foreign keys.
+// orderedDiffableIndexes returns a table's diff-able indexes (the same set diffIndexes uses) in
+// a deterministic order: by lower-cased name. Determinism keeps a new table's ADD INDEX sequence
+// stable across runs.
 func orderedDiffableIndexes(t *Table) []*Index {
-	m := diffableIndexMap(t, nil)
+	m := diffableIndexMap(t)
 	out := make([]*Index, 0, len(m))
 	for _, idx := range m {
 		out = append(out, idx)

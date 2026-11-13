@@ -9,25 +9,22 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Oracle proof for the AUTO_INCREMENT-supporting-key inlining in formatCreateTable (the errno-1075
-// fix), against OceanBase. MySQL rejects CREATE TABLE for an
-// AUTO_INCREMENT column that is not the first column of a key ("there can be only one auto column
-// and it must be defined as a key", errno 1075). When the only backing key is a non-PK index,
-// generate-core previously rendered the CREATE without that key, so the statement failed on apply.
+// Apply probes for a new table whose AUTO_INCREMENT column is keyed by an index that is not
+// the primary key, on OceanBase. MySQL refuses to create such a table without the key (1075),
+// which is what the cases were written for; OceanBase lets the column stand without one
+// (TestOracle_OceanBaseAlterTableClauses), so the plan is the CREATE TABLE and then the key.
 //
-// Two properties per case, on every supported version:
-//   - APPLY-CORRECTNESS: the full generated plan (CREATE TABLE + any follow-up index ADDs) applies
-//     to a real database and the result reads back equal to `to` — proving the CREATE is accepted
-//     (the supporting key is inline) AND that the inlined key is NOT also re-added by the index
-//     node (which would fail errno 1061, duplicate key name).
+// Two properties per case:
+//   - APPLY-CORRECTNESS: the full generated plan (CREATE TABLE + the follow-up index ADDs)
+//     applies to a real database and the result reads back equal to `to`.
 //   - IDEMPOTENCE: the stored form self-diffs empty and the user form vs the stored form diffs
-//     empty (no phantom diff from the inlined key).
+//     empty.
 //
 // The apply is SELF-CONTAINED (its own per-probe database via loadOnePartTable), like the partition
 // oracle test, so it does not contend on the shared `diffdb`. It reuses oceanBaseOracle / NormalizerFor
 // / serverCharsetFor from the shared harness.
 
-// autoIncProbe is a single CREATE-TABLE form whose AUTO_INCREMENT column is backed only by a non-PK
+// autoIncProbe is a single CREATE-TABLE form whose AUTO_INCREMENT column is keyed only by a non-PK
 // key; the generated plan must apply cleanly and round-trip empty.
 type autoIncProbe struct {
 	id        string
@@ -37,8 +34,7 @@ type autoIncProbe struct {
 
 func autoIncSupportProbes() []autoIncProbe {
 	return []autoIncProbe{
-		// The headline case: AUTO_INCREMENT on a single-column NON-PK UNIQUE key (errno 1075 without
-		// the inline key).
+		// The headline case: AUTO_INCREMENT on a single-column NON-PK UNIQUE key.
 		{"autoinc-nonpk-unique", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, name VARCHAR(20), UNIQUE KEY uk (id)) ENGINE=InnoDB"},
 		// AUTO_INCREMENT first in a COMPOSITE unique key (valid: it is the leading column).
@@ -47,21 +43,21 @@ func autoIncSupportProbes() []autoIncProbe {
 		// AUTO_INCREMENT backed only by a PLAIN (non-unique) secondary key.
 		{"autoinc-plain-key", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT, KEY k (id)) ENGINE=InnoDB"},
-		// AUTO_INCREMENT backed by a non-PK unique while the table ALSO has a separate PRIMARY KEY on
-		// another column (the PK does not cover the auto column, so the unique key must be inline).
+		// AUTO_INCREMENT keyed by a non-PK unique while the table ALSO has a separate PRIMARY KEY on
+		// another column.
 		{"autoinc-unique-with-other-pk", "t",
 			"CREATE TABLE t (pk INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (pk), UNIQUE KEY uk (id)) ENGINE=InnoDB"},
 		// REGRESSION GUARD: AUTO_INCREMENT AS the PRIMARY KEY — the common case must keep rendering
-		// the PK inline (and NOT additionally inline a supporting key).
+		// the PK inline.
 		{"autoinc-primary-key-guard", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=InnoDB"},
 	}
 }
 
-// autoIncFKProbes covers the AUTO_INCREMENT column whose ONLY first-column key is the index MySQL
-// auto-creates for a FOREIGN KEY on it. The CREATE TABLE must inline that backing key (else errno
-// 1075), and the deferred FK must reuse it (no duplicate-index / errno-1061). The referenced parent
-// table is created in the same plan, so these are full multi-table apply cases.
+// autoIncFKProbes covers the AUTO_INCREMENT column whose only key, on MySQL, is the index MySQL
+// adds for a FOREIGN KEY on it. On OceanBase the column has no key and the foreign key no
+// index: the plan is the table and then the foreign key. The referenced parent table is created
+// in the same plan, so these are full multi-table apply cases.
 func autoIncFKProbes() []struct {
 	id, parentDDL, childDDL, table string
 } {
@@ -147,11 +143,8 @@ func assertAutoIncFKApply(t testing.TB, o *oracleConn, n *Normalizer, id, parent
 			return
 		}
 	}
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 	// Reload the applied child and diff against `to`.
 	resultSQL := fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n%s;\n%s;", applyDB, sc, applyDB, readback("p"), readback(childTable))
@@ -181,8 +174,7 @@ func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
 
 // assertAutoIncApply builds `to` from the engine's own readback, generates the plan from empty→to,
 // applies it to a fresh per-probe database, and asserts the apply succeeds and the result diffs
-// empty against `to` (both directions). A failure here is either errno 1075 (supporting key not
-// inline) or errno 1061 (inlined key also re-added by the index node).
+// empty against `to` (both directions).
 func assertAutoIncApply(t testing.TB, o *oracleConn, n *Normalizer, p autoIncProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
@@ -230,11 +222,8 @@ func assertAutoIncApply(t testing.TB, o *oracleConn, n *Normalizer, p autoIncPro
 			return
 		}
 	}
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, p.id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 
 	var rname, resultRB string

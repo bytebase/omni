@@ -1001,3 +1001,81 @@
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_c` (`c`, `a`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS aig_idem_aig_ai_migrate_to_earlier_name
+< ok 0 0
+> exec
+| CREATE DATABASE aig_idem_aig_ai_migrate_to_earlier_name
+< ok 1 0
+> exec
+| USE aig_idem_aig_ai_migrate_to_earlier_name
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, UNIQUE KEY uk_a (a), UNIQUE KEY uk_b (b))
+< ok 0 0
+> query
+| SHOW CREATE TABLE aig_idem_aig_ai_migrate_to_earlier_name.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) NOT NULL,
+|   UNIQUE KEY `uk_a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `uk_b` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS aig_idem_aig_pk_ai_member_hands_on_and_drops
+< ok 0 0
+> exec
+| CREATE DATABASE aig_idem_aig_pk_ai_member_hands_on_and_drops
+< ok 1 0
+> exec
+| USE aig_idem_aig_pk_ai_member_hands_on_and_drops
+< ok 0 0
+> exec
+| CREATE TABLE t (b INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (b))
+< ok 0 0
+> query
+| SHOW CREATE TABLE aig_idem_aig_pk_ai_member_hands_on_and_drops.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS aig_idem_aig_pk_ai_member_hands_on_and_nulls
+< ok 0 0
+> exec
+| CREATE DATABASE aig_idem_aig_pk_ai_member_hands_on_and_nulls
+< ok 1 0
+> exec
+| USE aig_idem_aig_pk_ai_member_hands_on_and_nulls
+< ok 0 0
+> exec
+| CREATE TABLE t (c INT, b INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (b))
+< ok 0 0
+> query
+| SHOW CREATE TABLE aig_idem_aig_pk_ai_member_hands_on_and_nulls.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `c` int(11) DEFAULT NULL,
+|   `b` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0

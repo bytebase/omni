@@ -169,11 +169,8 @@ func assertOrderingApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p or
 			return
 		}
 	}
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, p.id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 
 	// Read the applied schema back and assert it canonicalizes equal to `to`, both directions.

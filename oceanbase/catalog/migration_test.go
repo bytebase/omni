@@ -388,13 +388,57 @@ func TestMigration_GeneratedStorageFlipIsDropAdd(t *testing.T) {
 	}
 }
 
-// A generation EXPRESSION change with the SAME storage mode is a normal MODIFY (not DROP+ADD).
-func TestMigration_GeneratedExprChangeIsModify(t *testing.T) {
-	from := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED);"
-	to := dbDDL + "CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED);"
-	op := onlyOp(t, planFor(t, from, to, NormalizerFor(MySQL80)))
-	if op.Type != OpModifyColumn {
-		t.Fatalf("generation-expr change (same storage) must be MODIFY, got %s:\n%s", op.Type, op.SQL)
+// A generated column whose expression changes is dropped and added again: OceanBase answers
+// 1235 to the MODIFY MySQL takes. An index over the column goes with the DROP COLUMN and is
+// added again, and when the column cannot be dropped, the plan keeps the MODIFY and warns.
+// TestOracle_OceanBaseAlterTableClauses asks the engine.
+func TestMigration_GeneratedExprChange(t *testing.T) {
+	const cols = "CREATE TABLE t (id INT PRIMARY KEY, a INT, "
+	for _, tc := range []struct {
+		name     string
+		from, to string
+		want     []string
+		warned   bool
+	}{
+		{"alone",
+			cols + "g INT GENERATED ALWAYS AS (a+1) STORED);", cols + "g INT GENERATED ALWAYS AS (a+2) STORED);",
+			[]string{
+				"ALTER TABLE `app`.`t` DROP COLUMN `g`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED",
+			}, false},
+		{"under an index the diff leaves alone",
+			cols + "g INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY kg (g), KEY ka (a));", cols + "g INT GENERATED ALWAYS AS (a+2) VIRTUAL, KEY kg (g), KEY ka (a));",
+			[]string{
+				"ALTER TABLE `app`.`t` DROP INDEX `kg`",
+				"ALTER TABLE `app`.`t` DROP COLUMN `g`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) VIRTUAL",
+				"ALTER TABLE `app`.`t` ADD KEY `kg` (`g`)",
+			}, false},
+		{"stored by an index the diff leaves alone",
+			cols + "g INT GENERATED ALWAYS AS (a+1) STORED, KEY k (a) STORING (g));", cols + "g INT GENERATED ALWAYS AS (a+2) STORED, KEY k (a) STORING (g));",
+			[]string{
+				"ALTER TABLE `app`.`t` DROP INDEX `k`",
+				"ALTER TABLE `app`.`t` DROP COLUMN `g`",
+				"ALTER TABLE `app`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED",
+				"ALTER TABLE `app`.`t` ADD KEY `k` (`a`) STORING (`g`)",
+			}, false},
+		{"read by a CHECK",
+			cols + "g INT GENERATED ALWAYS AS (a+1) STORED, CONSTRAINT c CHECK (g > 0));", cols + "g INT GENERATED ALWAYS AS (a+2) STORED, CONSTRAINT c CHECK (g > 0));",
+			[]string{"ALTER TABLE `app`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS ((`a` + 2)) STORED"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := planFor(t, dbDDL+tc.from, dbDDL+tc.to, NormalizerFor(MySQL80))
+			var got []string
+			for _, op := range plan.Ops {
+				got = append(got, op.SQL)
+			}
+			if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+				t.Errorf("plan:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(tc.want, "\n"))
+			}
+			if plan.HasWarnings() != tc.warned {
+				t.Errorf("plan warns: %v, want %v", plan.HasWarnings(), tc.warned)
+			}
+		})
 	}
 }
 

@@ -273,14 +273,13 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 			}
 		}
 
-		// The FK-backing index IS still copied (it's a regular KEY on the source)
+		// Nor is an index: the source has none for its foreign key.
 		ddl := c.ShowCreateTable("testdb", "dst")
 		if strings.Contains(ddl, "FOREIGN KEY") {
 			t.Errorf("expected no FOREIGN KEY in dst DDL:\n%s", ddl)
 		}
-		// The backing index for the FK should still be present
-		if !strings.Contains(ddl, "KEY `fk_parent`") {
-			t.Errorf("expected FK-backing index to be copied:\n%s", ddl)
+		if strings.Contains(ddl, "KEY `fk_parent`") {
+			t.Errorf("dst has an index for a foreign key it does not have:\n%s", ddl)
 		}
 	})
 

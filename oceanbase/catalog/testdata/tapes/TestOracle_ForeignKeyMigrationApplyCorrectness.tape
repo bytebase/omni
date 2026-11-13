@@ -737,10 +737,37 @@
 > exec
 | ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `fk`
 < ok 0 0
-> exec
-| ALTER TABLE `fkapply`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkapply_t_drop_fk_keep_user_index
 < ok 0 0
@@ -967,10 +994,37 @@
 > exec
 | ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `c_OBFK_0000000000000002`
 < ok 0 0
-> exec
-| ALTER TABLE `fkapply`.`c` DROP INDEX `c_OBFK_0000000000000002`
-< error
-| 1091 42000 Can't DROP 'c_OBFK_0000000000000002'; check that column/key exists
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkapply_t_drop_fk_two_covering_indexes
 < ok 0 0
@@ -1469,9 +1523,41 @@
 | ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `fk`
 < ok 0 0
 > exec
-| ALTER TABLE `fkapply`.`c` DROP INDEX `fk`
-< error
-| 1091 42000 Can't DROP 'fk'; check that column/key exists
+| ALTER TABLE `fkapply`.`c` ADD CONSTRAINT `fk` FOREIGN KEY (`y`) REFERENCES `fkapply`.`p` (`b`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `x` int(11) DEFAULT NULL,
+|   `y` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`y`) REFERENCES `fkapply`.`p`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS fkapply_t_self_referential
 < ok 0 0
@@ -1716,6 +1802,678 @@
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `fkb` FOREIGN KEY (`pb`) REFERENCES `fkapply`.`p`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
 |   CONSTRAINT `fka` FOREIGN KEY (`pa`) REFERENCES `fkapply`.`p`(`a`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply_t_drop_last_index_under_fk
+< ok 0 0
+> exec
+| CREATE DATABASE fkapply_t_drop_last_index_under_fk DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply_t_drop_last_index_under_fk
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_last_index_under_fk.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_last_index_under_fk.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply_t_drop_last_index_under_fk`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply
+< ok 4 0
+> exec
+| CREATE DATABASE fkapply DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `my_idx` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `fk`
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP INDEX `my_idx`
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` ADD CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p` (`id`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply_t_replace_last_index_under_fk
+< ok 0 0
+> exec
+| CREATE DATABASE fkapply_t_replace_last_index_under_fk DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply_t_replace_last_index_under_fk
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, UNIQUE KEY a2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply_t_replace_last_index_under_fk.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply_t_replace_last_index_under_fk.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply_t_replace_last_index_under_fk`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a2` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply
+< ok 4 0
+> exec
+| CREATE DATABASE fkapply DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `a1` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `fk`
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP INDEX `a1`
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` ADD UNIQUE KEY `a2` (`pid`) LOCAL
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` ADD CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p` (`id`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a2` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply_t_drop_one_of_two_indexes_under_fk
+< ok 0 0
+> exec
+| CREATE DATABASE fkapply_t_drop_one_of_two_indexes_under_fk DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply_t_drop_one_of_two_indexes_under_fk
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_one_of_two_indexes_under_fk.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_one_of_two_indexes_under_fk.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply_t_drop_one_of_two_indexes_under_fk`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `a1` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply
+< ok 5 0
+> exec
+| CREATE DATABASE fkapply DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), KEY a2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `a1` (`pid`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a2` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP INDEX `a2`
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `id` int(11) NOT NULL,
+|   `pid` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `a1` (`pid`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply_t_drop_primary_key_under_fk
+< ok 0 0
+> exec
+| CREATE DATABASE fkapply_t_drop_primary_key_under_fk DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply_t_drop_primary_key_under_fk
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_primary_key_under_fk.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply_t_drop_primary_key_under_fk.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply_t_drop_primary_key_under_fk`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply
+< ok 5 0
+> exec
+| CREATE DATABASE fkapply DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`pid`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP FOREIGN KEY `fk`
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP PRIMARY KEY
+< ok 0 0
+> exec
+| ALTER TABLE `fkapply`.`c` ADD CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p` (`id`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply_t_replace_primary_key_under_fk
+< ok 0 0
+> exec
+| CREATE DATABASE fkapply_t_replace_primary_key_under_fk DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply_t_replace_primary_key_under_fk
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (x), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply_t_replace_primary_key_under_fk.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply_t_replace_primary_key_under_fk.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`x`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply_t_replace_primary_key_under_fk`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS fkapply
+< ok 4 0
+> exec
+| CREATE DATABASE fkapply DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE fkapply
+< ok 0 0
+> exec
+| CREATE TABLE p (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL, UNIQUE KEY ua (a), UNIQUE KEY ub (b))
+< ok 0 0
+> exec
+| CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.p
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| p
+: bytes
+| CREATE TABLE `p` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `ua` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   UNIQUE KEY `ub` (`b`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`pid`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `fkapply`.`c` DROP PRIMARY KEY, ADD PRIMARY KEY (`x`)
+< ok 0 0
+> query
+| SHOW CREATE TABLE fkapply.c
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| c
+: bytes
+| CREATE TABLE `c` (
+|   `pid` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`x`),
+|   CONSTRAINT `fk` FOREIGN KEY (`pid`) REFERENCES `fkapply`.`p`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE fkapply.p
