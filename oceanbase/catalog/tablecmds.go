@@ -69,7 +69,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
 		case "collate", "default collate":
-			tbl.Collation = opt.Value
+			tbl.Collation = normalizeCollationName(opt.Value)
 			tblCollationExplicit = true
 		case "comment":
 			tbl.Comment = opt.Value
@@ -151,7 +151,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
 				col.DataType = "bigint"
-				col.ColumnType = "bigint unsigned"
+				col.ColumnType = "bigint(20) unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "boolean" || typeName == "bool" {
@@ -162,14 +162,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
 			if isNationalStringType(colDef.TypeName.Name) {
-				col.Charset = "utf8mb3"
+				// OceanBase's national character set is utf8mb4, where MySQL's is utf8mb3.
+				col.Charset = "utf8mb4"
 			}
 			if colDef.TypeName.Charset != "" {
 				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 				col.CharsetExplicit = true
 			}
 			if colDef.TypeName.Collate != "" {
-				col.Collation = colDef.TypeName.Collate
+				col.Collation = normalizeCollationName(colDef.TypeName.Collate)
 				col.CollationExplicit = true
 				if col.Charset == "" {
 					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
@@ -296,7 +297,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Collation specified via constraint.
 				if cc.Expr != nil {
 					if s, ok := cc.Expr.(*nodes.StringLit); ok {
-						col.Collation = s.Value
+						col.Collation = normalizeCollationName(s.Value)
 					}
 				}
 			}
@@ -444,7 +445,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, uqIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
 				return err
 			}
@@ -534,7 +534,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
-			coerceInnoDBHashIndex(tbl, keyIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
 				return err
 			}
@@ -603,9 +602,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 				return err
 			}
-			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
-				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
-			}
 			spIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -615,9 +611,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
-			if strings.EqualFold(spIdx.IndexType, "BTREE") {
-				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
-			}
 			tbl.Indexes = append(tbl.Indexes, spIdx)
 		}
 	}
@@ -1672,45 +1665,6 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 	return n, n > 0
 }
 
-// coerceInnoDBHashIndex folds a meaningless `USING HASH` on an InnoDB index to the no-explicit-type
-// form (IndexType ""), so a HASH index on InnoDB round-trips empty on both 5.7 and 8.0.
-//
-// It must be called from EVERY path that builds a *secondary* index from a user `USING HASH`, or
-// that path phantom-diffs. Call sites: CREATE TABLE UNIQUE + plain KEY (tablecmds.go), ALTER ADD
-// UNIQUE + plain KEY (altercmds.go), and standalone CREATE [UNIQUE] INDEX (indexcmds.go). The
-// PRIMARY KEY paths are intentionally excluded: they hard-code IndexType "" (MySQL never accepts or
-// echoes a USING clause on a PK, so there is nothing to fold).
-//
-// InnoDB does not implement hash indexes: it silently treats `USING HASH` as BTREE. The SHOW CREATE
-// echo of that meaningless clause is version-, kind-, and engine-divergent (verified on live 5.7.25
-// + 8.0.32, across all of the above authoring paths):
-//   - 8.0 InnoDB DROPS the clause entirely;
-//   - 5.7 InnoDB KEEPS `USING HASH` in the echo;
-//   - `USING BTREE` on InnoDB is echoed verbatim on BOTH versions (BTREE is the real storage), so it
-//     is NOT folded — only HASH is meaningless;
-//   - MEMORY (and other engines where HASH is a real index type) KEEP `USING HASH` on both versions,
-//     so the engine guard below leaves them untouched.
-//
-// Folding HASH → "" (rather than → "BTREE") is what makes both echoes converge: a user's `USING
-// HASH`, 5.7's kept `USING HASH`, and 8.0's dropped clause all load to IndexType "" on InnoDB, which
-// the index differ (canonicalIndexType) and the index generator (formatIndexDefinition) both treat
-// as "no USING clause" — matching the plain no-USING readback on either version. (The earlier
-// HASH → "BTREE" fold matched 5.7's echo but still phantom-diffed against 8.0's dropped clause.)
-func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
-	if isInnoDBEngine(tbl.Engine) && strings.EqualFold(idx.IndexType, "HASH") {
-		idx.IndexType = ""
-	}
-}
-
-// isInnoDBEngine reports whether a table's declared engine is InnoDB, treating an empty (omitted)
-// engine as InnoDB — the MySQL default storage engine. The user form often omits ENGINE while the
-// SHOW CREATE readback always echoes ENGINE=InnoDB, so the HASH fold must apply to both or a `USING
-// HASH` written on an engine-less CREATE TABLE would phantom-diff against its InnoDB readback.
-func isInnoDBEngine(engine string) bool {
-	e := strings.TrimSpace(engine)
-	return e == "" || strings.EqualFold(e, "InnoDB")
-}
-
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
 	key := toLower(name)
 	for _, con := range tbl.Constraints {
@@ -2208,20 +2162,20 @@ func formatColumnType(dt *nodes.DataType) string {
 	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
 		name = "double"
 	}
-	if name == "varchar" && dt.Length > 65535 {
-		return "mediumtext"
-	}
+	// TEXT(n) and BLOB(n) are the smallest type that holds n, written without it.
 	if name == "text" && dt.Length > 0 {
-		name = promoteTextType(dt.Length)
+		return promoteTextType(dt.Length)
+	}
+	if name == "blob" && dt.Length > 0 {
+		return promoteBlobType(dt.Length)
 	}
 
-	// MySQL type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint unsigned
-	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
+	// Type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint(20) unsigned
 	switch name {
 	case "boolean", "bool":
 		return "tinyint(1)"
 	case "serial":
-		return "bigint unsigned"
+		return "bigint(20) unsigned"
 	}
 
 	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
@@ -2232,27 +2186,17 @@ func formatColumnType(dt *nodes.DataType) string {
 	var buf strings.Builder
 	buf.WriteString(name)
 
-	// Integer display width handling for MySQL 8.0:
-	// - Display width is deprecated and NOT shown by default
-	// - EXCEPTION: When ZEROFILL is used, MySQL 8.0 still shows the display width
-	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
+	// OceanBase keeps an integer's display width, as MySQL 5.7 does and 8.0 does not: the
+	// one written, or the type's own, int(11) and int(10) unsigned. ZEROFILL makes the
+	// column UNSIGNED, so a bare INT ZEROFILL is int(10) unsigned zerofill.
+	// TestOracle_OceanBaseColumnTypes holds every width to the engine.
 	isIntType := isIntegerType(name)
 	if isIntType {
-		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
-			buf.WriteString("(1)")
-		} else if dt.Zerofill {
-			width := dt.Length
-			if width == 0 {
-				// ZEROFILL forces the column UNSIGNED, so a bare INT ZEROFILL takes the
-				// UNSIGNED default width (int → 10), not the signed default (11). MySQL
-				// stores `int(10) unsigned zerofill` for `INT ZEROFILL`. (Passing
-				// dt.Unsigned here was a bug: the zerofill-implies-unsigned promotion has
-				// not yet flipped dt.Unsigned at this point.)
-				width = defaultIntDisplayWidth(name, true)
-			}
-			fmt.Fprintf(&buf, "(%d)", width)
+		width := dt.Length
+		if width == 0 {
+			width = defaultIntDisplayWidth(name, dt.Unsigned || dt.Zerofill)
 		}
-		// Non-zerofill integer types: strip display width (MySQL 8.0 deprecated)
+		fmt.Fprintf(&buf, "(%d)", width)
 	} else if name == "decimal" {
 		if dt.Length == 0 && dt.Scale == 0 {
 			// DECIMAL with no precision → MySQL shows decimal(10,0)
@@ -2265,7 +2209,8 @@ func formatColumnType(dt *nodes.DataType) string {
 		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
 		// Do not emit length.
 	} else if name == "year" {
-		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+		// A YEAR of any width, or of none, is year(4).
+		buf.WriteString("(4)")
 	} else if name == "bit" && dt.Length == 0 {
 		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
@@ -2301,11 +2246,11 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
 		return "double"
 	}
-	if name == "varchar" && dt.Length > 65535 {
-		return "mediumtext"
-	}
 	if name == "text" && dt.Length > 0 {
 		return promoteTextType(dt.Length)
+	}
+	if name == "blob" && dt.Length > 0 {
+		return promoteBlobType(dt.Length)
 	}
 	return name
 }
@@ -2354,16 +2299,44 @@ func isNationalStringType(name string) bool {
 	}
 }
 
+// normalizeCharsetName lower-cases a character set's name. utf8 and utf8mb3 are utf8mb4
+// in OceanBase, which has no three-byte UTF-8 (TestOracle_OceanBaseColumnTypes).
 func normalizeCharsetName(name string) string {
-	if strings.EqualFold(name, "utf8") {
-		return "utf8mb3"
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "utf8" || name == "utf8mb3" {
+		return "utf8mb4"
 	}
-	return strings.ToLower(strings.TrimSpace(name))
+	return name
+}
+
+// normalizeCollationName writes a collation of utf8 or utf8mb3 as utf8mb4's, which is
+// what OceanBase stores: utf8_general_ci is utf8mb4_general_ci.
+func normalizeCollationName(name string) string {
+	for _, prefix := range []string{"utf8_", "utf8mb3_"} {
+		if len(name) > len(prefix) && strings.EqualFold(name[:len(prefix)], prefix) {
+			return "utf8mb4_" + name[len(prefix):]
+		}
+	}
+	return name
 }
 
 func charsetMatchesCollation(charset, collation string) bool {
 	derived := normalizeCharsetName(charsetForCollation(collation))
 	return derived == "" || strings.EqualFold(normalizeCharsetName(charset), derived)
+}
+
+// promoteBlobType is the smallest BLOB type that holds n bytes.
+func promoteBlobType(n int) string {
+	switch {
+	case n <= 255:
+		return "tinyblob"
+	case n <= 65535:
+		return "blob"
+	case n <= 16777215:
+		return "mediumblob"
+	default:
+		return "longblob"
+	}
 }
 
 func promoteTextType(chars int) string {

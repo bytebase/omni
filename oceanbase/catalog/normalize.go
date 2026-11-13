@@ -78,22 +78,14 @@ func NormalizerFor(v Version) *Normalizer {
 // equal regardless of which version's surface spelling each side carried.
 // (entry utf8-utf8mb3-alias)
 func foldCharset(cs string) string {
-	cs = strings.ToLower(strings.TrimSpace(cs))
-	if cs == "utf8" {
-		return "utf8mb3"
-	}
-	return cs
+	return normalizeCharsetName(cs)
 }
 
 // foldCollation maps a collation name to a version-independent identity. It rewrites a
 // utf8_* collation prefix to utf8mb3_* to match foldCharset, so utf8_general_ci (5.7)
 // and utf8mb3_general_ci (8.0) — the same collation — compare equal.
 func foldCollation(coll string) string {
-	coll = strings.ToLower(strings.TrimSpace(coll))
-	if strings.HasPrefix(coll, "utf8_") {
-		return "utf8mb3_" + coll[len("utf8_"):]
-	}
-	return coll
+	return normalizeCollationName(strings.ToLower(strings.TrimSpace(coll)))
 }
 
 // defaultCollationFor returns the default collation for a charset, already folded:

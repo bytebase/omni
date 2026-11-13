@@ -521,7 +521,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, uqIdx)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -611,7 +610,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment, visibility, block size and scope.
 		applyIndexOptions(keyIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -653,9 +651,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 			return err
-		}
-		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
-			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 		}
 		spIdx := &Index{
 			Name:      idxName,
@@ -856,7 +851,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			tbl.Collation = defColl
 		}
 	case "collate", "default collate":
-		tbl.Collation = opt.Value
+		tbl.Collation = normalizeCollationName(opt.Value)
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -984,14 +979,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {
-			col.Charset = "utf8mb3"
+			col.Charset = "utf8mb4"
 		}
 		if colDef.TypeName.Charset != "" {
 			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 			col.CharsetExplicit = true
 		}
 		if colDef.TypeName.Collate != "" {
-			col.Collation = colDef.TypeName.Collate
+			col.Collation = normalizeCollationName(colDef.TypeName.Collate)
 			col.CollationExplicit = true
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
@@ -1074,7 +1069,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		case nodes.ColConstrCollate:
 			if cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {
-					col.Collation = s.Value
+					col.Collation = normalizeCollationName(s.Value)
 					col.CollationExplicit = true
 				}
 			}

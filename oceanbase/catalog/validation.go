@@ -43,9 +43,11 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 		if colDef.TypeName.Length > 6 {
 			return errTooBigPrecision(colDef.TypeName.Length, typeName)
 		}
-	case "year":
-		if colDef.TypeName.Length != 0 && colDef.TypeName.Length != 4 {
-			return errInvalidYearColumnLength()
+	case "char":
+		// OceanBase's CHAR holds 256 characters and its VARCHAR 262144, with no
+		// promotion to a TEXT type (TestOracle_OceanBaseColumnTypes).
+		if colDef.TypeName.Length > 256 {
+			return errTooBigFieldLength(colDef.Name, 256)
 		}
 	case "decimal", "numeric", "dec", "fixed":
 		if colDef.TypeName.Length > 65 {
@@ -60,6 +62,9 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	case "varchar":
 		if colDef.TypeName.Length == 0 {
 			return &Error{Code: 1064, SQLState: "42000", Message: "VARCHAR requires a length"}
+		}
+		if colDef.TypeName.Length > 262144 {
+			return errTooBigFieldLength(colDef.Name, 262144)
 		}
 	}
 	if colDef.Generated != nil && (colDef.DefaultValue != nil || hasColumnDefaultConstraint(colDef)) {

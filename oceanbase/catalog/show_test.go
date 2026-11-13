@@ -16,7 +16,7 @@ func TestShowCreateTableBasic(t *testing.T) {
 
 	got := c.ShowCreateTable("testdb", "t1")
 	assertContains(t, got, "CREATE TABLE `t1`")
-	assertContains(t, got, "`id` int NOT NULL AUTO_INCREMENT")
+	assertContains(t, got, "`id` int(11) NOT NULL AUTO_INCREMENT")
 	assertContains(t, got, "`name` varchar(100) DEFAULT 'test'")
 	assertContains(t, got, "PRIMARY KEY (`id`)")
 	assertContains(t, got, "KEY `idx_name` (`name`)")
@@ -55,7 +55,7 @@ func TestShowCreateTableDefaults(t *testing.T) {
 	// String default.
 	assertContains(t, got, "`str_default` varchar(50) DEFAULT 'hello'")
 	// Numeric default — MySQL 8.0 quotes it.
-	assertContains(t, got, "`num_default` int DEFAULT '42'")
+	assertContains(t, got, "`num_default` int(11) DEFAULT '42'")
 }
 
 func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
@@ -78,7 +78,7 @@ func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
 	assertContains(t, got, "`bits` bit(8) DEFAULT b'1111'")
 	assertContains(t, got, "`ts3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3)")
 	assertContains(t, got, "`dt6` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
-	assertContains(t, got, "`expr_int` int DEFAULT (floor((rand() * 100)))")
+	assertContains(t, got, "`expr_int` int(11) DEFAULT (floor((rand() * 100)))")
 	assertContains(t, got, "`expr_varchar` varchar(36) DEFAULT (uuid())")
 }
 
@@ -176,7 +176,7 @@ func TestShowCreateTableNotNullNoDefault(t *testing.T) {
 
 	got := c.ShowCreateTable("testdb", "t6")
 	// NOT NULL columns without a default should NOT show DEFAULT NULL.
-	assertContains(t, got, "`id` int NOT NULL")
+	assertContains(t, got, "`id` int(11) NOT NULL")
 	assertContains(t, got, "`name` varchar(100) NOT NULL")
 	assertNotContains(t, got, "DEFAULT NULL")
 }
@@ -201,7 +201,7 @@ func TestShowCreateTableAutoIncrementColumn(t *testing.T) {
 	)`)
 
 	got := c.ShowCreateTable("testdb", "t8")
-	assertContains(t, got, "`id` bigint unsigned NOT NULL AUTO_INCREMENT")
+	assertContains(t, got, "`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT")
 }
 
 func assertContains(t *testing.T, s, substr string) {

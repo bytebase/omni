@@ -171,9 +171,9 @@ func errTooBigPrecision(precision int, typ string) error {
 		Message: fmt.Sprintf("Too big precision %d specified for '%s'. Maximum is 6.", precision, typ)}
 }
 
-func errInvalidYearColumnLength() error {
-	return &Error{Code: ErrInvalidYearColumnLength, SQLState: sqlState(ErrInvalidYearColumnLength),
-		Message: "Invalid YEAR column length"}
+func errTooBigFieldLength(column string, max int) error {
+	return &Error{Code: 1074, SQLState: "42000",
+		Message: fmt.Sprintf("Column length too big for column '%s' (max = %d)", column, max)}
 }
 
 func errNoSuchColumn(name, context string) error {

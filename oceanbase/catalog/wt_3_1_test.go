@@ -246,12 +246,12 @@ func TestWalkThrough_3_1_UnsignedModifier(t *testing.T) {
 		t.Fatal("table not found")
 	}
 	colA := tbl.GetColumn("a")
-	if colA.ColumnType != "int unsigned" {
-		t.Errorf("column a: expected ColumnType 'int unsigned', got %q", colA.ColumnType)
+	if colA.ColumnType != "int(10) unsigned" {
+		t.Errorf("column a: expected ColumnType 'int(10) unsigned', got %q", colA.ColumnType)
 	}
 	colB := tbl.GetColumn("b")
-	if colB.ColumnType != "bigint unsigned" {
-		t.Errorf("column b: expected ColumnType 'bigint unsigned', got %q", colB.ColumnType)
+	if colB.ColumnType != "bigint(20) unsigned" {
+		t.Errorf("column b: expected ColumnType 'bigint(20) unsigned', got %q", colB.ColumnType)
 	}
 }
 
