@@ -13,6 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
@@ -257,7 +258,7 @@ func quoteAccount(user, host string) string {
 }
 
 func TestMain(m *testing.M) {
-	code := m.Run()
+	code := tape.Main(m)
 	sharedMySQL.Lock()
 	if sharedMySQL.db != nil {
 		_ = sharedMySQL.db.Close()

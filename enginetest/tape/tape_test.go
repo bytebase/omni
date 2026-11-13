@@ -283,6 +283,45 @@ func TestRecordingFailsOnANondeterministicAnswer(t *testing.T) {
 	}
 }
 
+// A codec may come to spell an error another way. A tape in the old spelling
+// still replays, and recording its test again is not a different answer.
+func TestACodecsOldSpellingIsTheSameAnswer(t *testing.T) {
+	srv, _ := harness(t)
+	bad := func(t testing.TB) []string {
+		_, err := Open(t, srv, "default").Exec("BAD")
+		return []string{fmt.Sprint(err)}
+	}
+	record(t)
+	want, errs := run(t, "TestFake", bad)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	path := filepath.Join(dir, "TestFake.tape")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := strings.Replace(string(b), "| 1064 near", "| error 1064 near", 1)
+	if old == string(b) {
+		t.Fatalf("the tape holds no error to respell:\n%s", b)
+	}
+	if err := os.WriteFile(path, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	resetRegistry()
+	if _, errs := run(t, "TestFake", bad); len(errs) > 0 {
+		t.Errorf("recording over the old spelling: %q", errs)
+	}
+	if err := os.WriteFile(path, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	if got, errs := run(t, "TestFake", bad); len(errs) > 0 || got[0] != want[0] {
+		t.Errorf("replaying the old spelling: %q %q, want %q", got, errs, want)
+	}
+}
+
 func TestPreparedStatementsAreRefused(t *testing.T) {
 	srv, _ := harness(t)
 	record(t)
@@ -484,6 +523,93 @@ func TestLeftovers(t *testing.T) {
 	}
 }
 
+// A request's text or argument over 64 KB is kept as a digest: the tape stays
+// small, and a replay still tells one big statement from another.
+func TestBigRequestsAreKeptAsDigests(t *testing.T) {
+	srv, _ := harness(t)
+	big := "SELECT 0" + strings.Repeat(" OR 1", 20000)
+	send := func(stmt string) func(t testing.TB) []string {
+		return func(t testing.TB) []string {
+			db := Open(t, srv, "default")
+			_, err1 := db.Exec(stmt)
+			_, err2 := db.Exec("SET @v = ?", stmt)
+			return []string{fmt.Sprint(err1, err2)}
+		}
+	}
+	record(t)
+	if _, errs := run(t, "TestFake", send(big)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b) > 1000 || strings.Count(string(b), "|# sha256:") != 2 || !strings.Contains(string(b), fmt.Sprintf(" %d\n", len(big))) {
+		t.Errorf("the tape is %d bytes:\n%.600s", len(b), b)
+	}
+
+	replay(t)
+	if log, errs := run(t, "TestFake", send(big)); len(errs) > 0 || log[0] != "<nil> <nil>" {
+		t.Errorf("replay: %q %q", log, errs)
+	}
+	resetRegistry()
+	other := strings.Replace(big, "OR 1", "OR 2", 1)
+	if _, errs := run(t, "TestFake", send(other)); len(errs) == 0 || !strings.Contains(errs[0], "no recorded answer for exec <sha256:") {
+		t.Errorf("another statement of the same size replayed: %q", errs)
+	}
+}
+
+// A request that repeats the text of the one before it writes ^ for it, and
+// reads back whole. A tape written before the mark existed reads the same.
+func TestRepeatedRequestTextIsWrittenOnce(t *testing.T) {
+	prepare := func(arg string) exchange {
+		return exchange{request{kind: "exec", text: "PREPARE s FROM ?", args: []value{{kind: "string", text: arg}}}, answer{kind: "ok", affected: "0", lastID: "0"}}
+	}
+	f := &tapeFile{pins: map[string]string{}, streams: []*stream{
+		{name: "a", exchanges: []exchange{prepare("SELECT 1"), prepare("SELECT 2"), {request{kind: "query", text: "PREPARE s FROM ?"}, answer{kind: "badconn"}}, prepare("SELECT 3")}},
+		{name: "b", exchanges: []exchange{prepare("SELECT 4")}},
+	}}
+	text := f.encode()
+	want := "\n== a\n> exec\n| PREPARE s FROM ?\n: string\n| SELECT 1\n< ok 0 0\n> exec ^\n: string\n| SELECT 2\n< ok 0 0\n" +
+		"> query\n| PREPARE s FROM ?\n< badconn\n> exec\n| PREPARE s FROM ?\n: string\n| SELECT 3\n< ok 0 0\n" +
+		"\n== b\n> exec\n| PREPARE s FROM ?\n: string\n| SELECT 4\n< ok 0 0\n"
+	if text != want {
+		t.Fatalf("encoded:\n%s\nwant:\n%s", text, want)
+	}
+	back, err := parse("x.tape", text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.streams[0].exchanges[1].req.text; got != "PREPARE s FROM ?" {
+		t.Errorf("the second request reads back with text %q", got)
+	}
+	whole := strings.Replace(text, "> exec ^\n", "> exec\n| PREPARE s FROM ?\n", 1)
+	old, err := parse("old.tape", whole)
+	if err != nil || old.encode() != text {
+		t.Errorf("a tape with every text written out reads differently: %v", err)
+	}
+}
+
+// Two requests often differ only in an argument, so the failure names it.
+func TestReplayNamesTheArgumentThatDiffers(t *testing.T) {
+	srv, _ := harness(t)
+	prepare := func(stmt string) func(t testing.TB) []string {
+		return func(t testing.TB) []string {
+			_, _ = Open(t, srv, "default").Exec("PREPARE s FROM ?", stmt)
+			return nil
+		}
+	}
+	record(t)
+	if _, errs := run(t, "TestFake", prepare("SELECT 1")); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", prepare("SELECT 2"))
+	if len(errs) != 1 || !strings.Contains(errs[0], `no recorded answer for exec "PREPARE s FROM ?" string "SELECT 2"`) || !strings.Contains(errs[0], `the tape holds exec "PREPARE s FROM ?" string "SELECT 1" there`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -494,6 +620,9 @@ func TestParseRejects(t *testing.T) {
 		{"a short row", "== s\n> query\n| x\n< result\n< column \"a\" \"INT\"\n< row\n", "want a value"},
 		{"a stream twice", "== s\n== s\n", "appears twice"},
 		{"a stray line", "== s\nhello\n", "unexpected line"},
+		{"a ditto with nothing before it", "== s\n> exec ^\n< ok 0 0\n", "no exec before it"},
+		{"a ditto of another kind", "== s\n> query\n| x\n< badconn\n> exec ^\n< ok 0 0\n", "no exec before it"},
+		{"a digest in an answer", "== s\n> query\n| x\n< result\n< column \"a\" \"TEXT\"\n< row\n: bytes\n|# sha256:ab 70000\n", "answers are kept whole"},
 	} {
 		if _, err := parse("x.tape", c.tape); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: got %v, want %q", c.name, err, c.want)
@@ -505,9 +634,10 @@ func TestFormatRoundTrips(t *testing.T) {
 	f := &tapeFile{pins: map[string]string{"default": "default a b c", "lower": "lower d e f"}, streams: []*stream{{
 		name: "TestX/sub name default#1",
 		exchanges: []exchange{
-			{request{kind: "query", text: "", args: []value{{"string", ""}, {"float64", "1.5"}, {"bool", "true"}, {"time", "2026-11-12T00:00:00Z"}}},
-				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{"bytes", "\n"}}, {{"bytes", "\x00\xff"}}, {{"string", "| q"}}}}, {}}}},
+			{request{kind: "query", text: "", args: []value{{kind: "string", text: ""}, {kind: "float64", text: "1.5"}, {kind: "bool", text: "true"}, {kind: "time", text: "2026-11-12T00:00:00Z"}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}}}, {}}}},
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
+			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
 		},
 	}}}
@@ -617,6 +747,8 @@ func (fakeCodec) EncodeError(err error) (string, bool) {
 }
 
 func (fakeCodec) DecodeError(text string) error {
+	// An older spelling the codec still reads.
+	text = strings.TrimPrefix(text, "error ")
 	code, msg, _ := strings.Cut(text, " ")
 	n, err := strconv.Atoi(code)
 	if err != nil {

@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +33,8 @@ func TestOracle_ConstraintOfIndexSurvivesOtherNames(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	for name, script := range constraintOfIndexScripts {
+	for _, name := range slices.Sorted(maps.Keys(constraintOfIndexScripts)) {
+		script := constraintOfIndexScripts[name]
 		t.Run(name, func(t *testing.T) {
 			for _, stmt := range []string{"DROP DATABASE IF EXISTS zz_coi", "CREATE DATABASE zz_coi", "USE zz_coi"} {
 				if _, err := o.db.ExecContext(ctx, stmt); err != nil {

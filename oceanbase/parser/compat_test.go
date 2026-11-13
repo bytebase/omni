@@ -47,17 +47,16 @@ func omniVerdict(sql string) string {
 // pinned image and release.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
-	if pin.Image != testcontainer.OceanBaseImage {
-		t.Fatalf("pins.tsv pins %s, but this package starts %s", pin.Image, testcontainer.OceanBaseImage)
-	}
 	ctx := context.Background()
 	dsn, err := testcontainer.OceanBase.DSN(ctx)
 	if err != nil {
 		t.Fatalf("OceanBase: %v", err)
 	}
-	if err := testcontainer.OceanBase.CheckDigest(ctx, pin.Digest); err != nil {
+	if err := testcontainer.OceanBase.CheckPin(ctx, pin); err != nil {
 		t.Fatalf("%v", err)
 	}
+	// The judge asks the server itself: its answers go to compat.tsv, not to
+	// a tape.
 	db, err := testcontainer.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
@@ -66,13 +65,6 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	// PREPARE reads a user variable, which lives on the connection that set it.
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	var version string
-	if err := db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
-		t.Fatalf("read the OceanBase version: %v", err)
-	}
-	if version != testcontainer.OceanBaseVersion {
-		t.Fatalf("the server reports %q, want %q", version, testcontainer.OceanBaseVersion)
-	}
 	j := &compatJudgeOceanBase{t: t, ctx: ctx, db: db}
 	// The verdict tells the two kinds of 1064 apart by their message (see
 	// oceanBaseErrorCode), so a release that words them otherwise must fail

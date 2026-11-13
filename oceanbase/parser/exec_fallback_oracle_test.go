@@ -46,16 +46,7 @@ func TestExecFallback_OceanBase(t *testing.T) {
 // premise against a live OceanBase 4.3.5: in a script, each statement is read
 // again on its own.
 func TestExecFallbackScript_OceanBase(t *testing.T) {
-	oceanBaseOracle(t)
-	dsn, err := testcontainer.OceanBase.DSN(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	db, err := testcontainer.OpenOceanBase(dsn + "?multiStatements=true")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := testcontainer.OpenWith(t, testcontainer.Options{MultiStatements: true})
 	ctx := context.Background()
 	for _, c := range []struct{ sql, want string }{
 		{"select 1 /*! + 1 */; select 1 /*! from */", "[[2]] [[1]]"},

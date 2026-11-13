@@ -1,0 +1,36 @@
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+
+== TestExecCommentNestingSplit_OceanBase default#1
+> exec
+| DROP DATABASE IF EXISTS exec_nest
+< ok 0 0
+> exec
+| CREATE DATABASE exec_nest
+< ok 1 0
+> exec
+| USE exec_nest
+< ok 0 0
+> exec
+| CREATE TABLE t1 (id INT)
+< ok 0 0
+> exec
+| CREATE TABLE t2 (id INT)
+< ok 0 0
+> exec
+| INSERT INTO t1 VALUES (1) /*! , (2) /*! , (3) */ ; DROP TABLE t2; -- */
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM t1
+< result
+< column "COUNT(*)" "BIGINT"
+< row
+: int64 3
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 't2'
+< result
+< column "COUNT(*)" "BIGINT"
+< row
+: int64 0
+> exec
+| DROP DATABASE IF EXISTS exec_nest
+< ok 1 0

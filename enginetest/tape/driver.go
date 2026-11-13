@@ -81,12 +81,25 @@ func (s *session) reproduces() {
 		if s.got[i].req.render() != s.want[i].req.render() {
 			return
 		}
-		if was, now := s.want[i].ans.render(), s.got[i].ans.render(); was != now {
+		if was, now := s.spelledNow(s.want[i].ans).render(), s.got[i].ans.render(); was != now {
 			s.t.Errorf("stream %q: the engine answered request %d (%s) differently than the committed tape. Make the test's requests deterministic, or pin what varies.\nwas:\n%snow:\n%s",
 				s.name, i+1, s.got[i].req.describe(), was, now)
 			return
 		}
 	}
+}
+
+// spelledNow returns a committed answer as the codec writes it today, so a
+// codec that changes how it spells an error does not make every tape that
+// holds one look like a different answer.
+func (s *session) spelledNow(a answer) answer {
+	if a.kind != "error" {
+		return a
+	}
+	if text, ok := s.codec.EncodeError(s.codec.DecodeError(a.err)); ok {
+		a.err = text
+	}
+	return a
 }
 
 // errorAnswer turns an error the live server returned into an answer. An
@@ -198,7 +211,8 @@ func (c *conn) ResetSession(ctx context.Context) error {
 }
 
 func newRequest(kind, text string, args []driver.NamedValue) (request, error) {
-	r := request{kind: kind, text: text}
+	r := request{kind: kind}
+	r.text, r.sum = digested(text)
 	for _, a := range args {
 		if a.Name != "" {
 			return r, fmt.Errorf("tape: named argument %q; use positional arguments", a.Name)
@@ -206,6 +220,9 @@ func newRequest(kind, text string, args []driver.NamedValue) (request, error) {
 		v, err := fromDriver(a.Value)
 		if err != nil {
 			return r, fmt.Errorf("tape: argument %d: %w", a.Ordinal, err)
+		}
+		if v.kind == "bytes" || v.kind == "string" {
+			v.text, v.sum = digested(v.text)
 		}
 		r.args = append(r.args, v)
 	}

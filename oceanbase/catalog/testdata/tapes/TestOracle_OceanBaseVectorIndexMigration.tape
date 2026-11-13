@@ -1,0 +1,292 @@
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+
+== TestOracle_OceanBaseVectorIndexMigration default#1
+> exec
+| DROP DATABASE IF EXISTS pa_vecadd_52cf1a64_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecadd_52cf1a64_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecadd_52cf1a64_to
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecadd_52cf1a64_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecadd_52cf1a64_from
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecadd_52cf1a64_from DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecadd_52cf1a64_from
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecadd_52cf1a64_from.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecadd_52cf1a64
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecadd_52cf1a64 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecadd_52cf1a64
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL)
+< ok 0 0
+> exec
+| CREATE VECTOR INDEX `i` ON `pa_vecadd_52cf1a64`.`t` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecadd_52cf1a64.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecchange_3d57874d_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecchange_3d57874d_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecchange_3d57874d_to
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=cosine, type=hnsw, m=8))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecchange_3d57874d_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=COSINE, TYPE=HNSW, M=8, LIB=VSAG, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecchange_3d57874d_from
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecchange_3d57874d_from DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecchange_3d57874d_from
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecchange_3d57874d_from.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecchange_3d57874d
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecchange_3d57874d DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecchange_3d57874d
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_vecchange_3d57874d`.`t` DROP INDEX `i`
+< ok 0 0
+> exec
+| CREATE VECTOR INDEX `i` ON `pa_vecchange_3d57874d`.`t` (`v`) WITH (DISTANCE=COSINE, TYPE=HNSW, M=8, LIB=VSAG, EF_CONSTRUCTION=200, EF_SEARCH=64)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecchange_3d57874d.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=COSINE, TYPE=HNSW, M=8, LIB=VSAG, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecnew_5f91ffa1_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecnew_5f91ffa1_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecnew_5f91ffa1_to
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecnew_5f91ffa1_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecnew_5f91ffa1
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecnew_5f91ffa1 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecnew_5f91ffa1
+< ok 0 0
+> exec
+| CREATE TABLE `pa_vecnew_5f91ffa1`.`t` (
+|   `v` vector(3) NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+< ok 0 0
+> exec
+| CREATE VECTOR INDEX `i` ON `pa_vecnew_5f91ffa1`.`t` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecnew_5f91ffa1.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecdrop_3d5ed65c_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecdrop_3d5ed65c_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecdrop_3d5ed65c_to
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecdrop_3d5ed65c_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecdrop_3d5ed65c_from
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecdrop_3d5ed65c_from DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecdrop_3d5ed65c_from
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecdrop_3d5ed65c_from.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL,
+|   VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_vecdrop_3d5ed65c
+< ok 0 0
+> exec
+| CREATE DATABASE pa_vecdrop_3d5ed65c DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_vecdrop_3d5ed65c
+< ok 0 0
+> exec
+| CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_vecdrop_3d5ed65c`.`t` DROP INDEX `i`
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_vecdrop_3d5ed65c.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `v` VECTOR(3) NOT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0

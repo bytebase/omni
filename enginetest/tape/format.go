@@ -1,7 +1,9 @@
 package tape
 
 import (
+	"crypto/sha256"
 	"database/sql/driver"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
@@ -40,6 +42,14 @@ import (
 // "> commit", "> rollback". An answer is "< ok", "< ok <rows affected>
 // <last insert id>", "< error" with the codec's text, "< badconn", or one
 // "< result" per result set with its columns and rows.
+//
+// A request's text, or a text argument, of more than 64 KB is written as
+// "|# sha256:<hex> <bytes>" and not in full: a replay only compares it, and
+// a statement that size says nothing to a reader. Answers are always whole.
+//
+// A request whose text is that of the request before it in its stream is
+// written "> exec ^" with no text: a sweep sends one PREPARE with ten
+// thousand arguments.
 
 type exchange struct {
 	req request
@@ -49,6 +59,7 @@ type exchange struct {
 type request struct {
 	kind string // exec, query, begin, commit, rollback
 	text string
+	sum  string // in place of a text over digestOver: its digest
 	args []value
 }
 
@@ -72,9 +83,25 @@ type resultSet struct {
 type column struct{ name, typ string }
 
 // A value is a driver.Value as text: null, int64, float64, bool, time,
-// bytes or string.
+// bytes or string. A request's argument over digestOver holds sum, its
+// digest, in place of text.
 type value struct {
 	kind, text string
+	sum        string
+}
+
+// digestOver is the size above which a request's text and its text
+// arguments are kept as a digest.
+const digestOver = 64 << 10
+
+// digested returns s as a tape holds it in a request: itself, or its digest
+// when it is over digestOver.
+func digested(s string) (text, sum string) {
+	if len(s) <= digestOver {
+		return s, ""
+	}
+	h := sha256.Sum256([]byte(s))
+	return "", fmt.Sprintf("sha256:%s %d", hex.EncodeToString(h[:]), len(s))
 }
 
 type stream struct {
@@ -106,22 +133,25 @@ func fromDriver(v driver.Value) (value, error) {
 	case nil:
 		return value{kind: "null"}, nil
 	case int64:
-		return value{"int64", strconv.FormatInt(v, 10)}, nil
+		return value{kind: "int64", text: strconv.FormatInt(v, 10)}, nil
 	case float64:
-		return value{"float64", strconv.FormatFloat(v, 'g', -1, 64)}, nil
+		return value{kind: "float64", text: strconv.FormatFloat(v, 'g', -1, 64)}, nil
 	case bool:
-		return value{"bool", strconv.FormatBool(v)}, nil
+		return value{kind: "bool", text: strconv.FormatBool(v)}, nil
 	case time.Time:
-		return value{"time", v.Format(time.RFC3339Nano)}, nil
+		return value{kind: "time", text: v.Format(time.RFC3339Nano)}, nil
 	case []byte:
-		return value{"bytes", string(v)}, nil
+		return value{kind: "bytes", text: string(v)}, nil
 	case string:
-		return value{"string", v}, nil
+		return value{kind: "string", text: v}, nil
 	}
 	return value{}, fmt.Errorf("a %T value, which a tape does not hold", v)
 }
 
 func (v value) driver() (driver.Value, error) {
+	if v.sum != "" {
+		return nil, fmt.Errorf("a value kept as a digest")
+	}
 	switch v.kind {
 	case "null":
 		return nil, nil
@@ -155,22 +185,44 @@ func (f *tapeFile) encode() string {
 	}
 	for _, s := range f.streams {
 		b.WriteString("\n" + streamPrefix + s.name + "\n")
-		for _, e := range s.exchanges {
-			writeRequest(&b, e.req)
+		var prev *request
+		for i := range s.exchanges {
+			e := &s.exchanges[i]
+			writeRequest(&b, e.req, prev)
 			writeAnswer(&b, e.ans)
+			prev = &e.req
 		}
 	}
 	return b.String()
 }
 
-func writeRequest(b *strings.Builder, r request) {
-	b.WriteString("> " + r.kind + "\n")
-	if r.kind == "exec" || r.kind == "query" {
-		writeText(b, r.text)
-		for _, a := range r.args {
-			writeValue(b, a)
-		}
+// sameText is the mark a request writes for a text it shares with the
+// request before it.
+const sameText = " ^"
+
+// writeRequest writes r. prev is the request before it in its stream, or nil.
+func writeRequest(b *strings.Builder, r request, prev *request) {
+	if r.kind != "exec" && r.kind != "query" {
+		b.WriteString("> " + r.kind + "\n")
+		return
 	}
+	if prev != nil && prev.kind == r.kind && prev.text == r.text && prev.sum == r.sum {
+		b.WriteString("> " + r.kind + sameText + "\n")
+	} else {
+		b.WriteString("> " + r.kind + "\n")
+		writeTextOrSum(b, r.text, r.sum)
+	}
+	for _, a := range r.args {
+		writeValue(b, a)
+	}
+}
+
+func writeTextOrSum(b *strings.Builder, text, sum string) {
+	if sum != "" {
+		b.WriteString("|# " + sum + "\n")
+		return
+	}
+	writeText(b, text)
 }
 
 func writeAnswer(b *strings.Builder, a answer) {
@@ -206,7 +258,7 @@ func writeValue(b *strings.Builder, v value) {
 	switch v.kind {
 	case "bytes", "string":
 		b.WriteString(": " + v.kind + "\n")
-		writeText(b, v.text)
+		writeTextOrSum(b, v.text, v.sum)
 	case "null":
 		b.WriteString(": null\n")
 	default:
@@ -251,7 +303,7 @@ func (a answer) render() string {
 
 func (r request) render() string {
 	var b strings.Builder
-	writeRequest(&b, r)
+	writeRequest(&b, r, nil)
 	return b.String()
 }
 
@@ -260,13 +312,19 @@ func (r request) describe() string {
 	if r.kind != "exec" && r.kind != "query" {
 		return r.kind
 	}
-	text := r.text
-	if len(text) > 200 {
-		text = text[:200] + "..."
+	short := func(text, sum string, n int) string {
+		if sum != "" {
+			return "<" + sum + ">"
+		}
+		if len(text) > n {
+			text = text[:n] + "..."
+		}
+		return strconv.Quote(text)
 	}
-	s := r.kind + " " + strconv.Quote(text)
-	if len(r.args) > 0 {
-		s += fmt.Sprintf(" with %d arguments", len(r.args))
+	s := r.kind + " " + short(r.text, r.sum, 200)
+	for _, a := range r.args {
+		// Two requests often differ only here: PREPARE x FROM ?, SET @v = ?.
+		s += " " + a.kind + " " + short(a.text, a.sum, 80)
 	}
 	return s
 }
@@ -304,7 +362,11 @@ func parse(name, data string) (*tapeFile, error) {
 			if cur == nil {
 				return nil, p.errorf("a request before any stream")
 			}
-			e, err := p.exchange()
+			var prev *request
+			if n := len(cur.exchanges); n > 0 {
+				prev = &cur.exchanges[n-1].req
+			}
+			e, err := p.exchange(prev)
 			if err != nil {
 				return nil, err
 			}
@@ -333,27 +395,42 @@ func (p *parser) peek() string {
 	return ""
 }
 
-func (p *parser) exchange() (exchange, error) {
+// exchange reads one request and its answer. prev is the request before it
+// in its stream, whose text a "^" stands for.
+func (p *parser) exchange(prev *request) (exchange, error) {
 	var e exchange
-	e.req.kind = strings.TrimPrefix(p.peek(), "> ")
-	p.i++
+	kind, same := strings.CutSuffix(strings.TrimPrefix(p.peek(), "> "), sameText)
+	e.req.kind = kind
 	switch e.req.kind {
 	case "exec", "query":
-		text, err := p.text()
-		if err != nil {
-			return e, err
+		if same {
+			if prev == nil || prev.kind != kind {
+				return e, p.errorf("^ with no %s before it to take the text from", kind)
+			}
+			p.i++
+			e.req.text, e.req.sum = prev.text, prev.sum
+		} else {
+			p.i++
+			text, sum, err := p.textOrSum()
+			if err != nil {
+				return e, err
+			}
+			e.req.text, e.req.sum = text, sum
 		}
-		e.req.text = text
 		for strings.HasPrefix(p.peek(), ": ") {
-			v, err := p.value()
+			v, err := p.value(true)
 			if err != nil {
 				return e, err
 			}
 			e.req.args = append(e.req.args, v)
 		}
 	case "begin", "commit", "rollback":
+		if same {
+			return e, p.errorf("^ after %s, which has no text", kind)
+		}
+		p.i++
 	default:
-		return e, p.errorf("unknown request %q", e.req.kind)
+		return e, p.errorf("unknown request %q", strings.TrimPrefix(p.peek(), "> "))
 	}
 	a, err := p.answer()
 	e.ans = a
@@ -396,7 +473,7 @@ func (p *parser) answer() (answer, error) {
 				p.i++
 				row := make([]value, len(s.cols))
 				for j := range row {
-					v, err := p.value()
+					v, err := p.value(false)
 					if err != nil {
 						return a, err
 					}
@@ -427,7 +504,8 @@ func (p *parser) column() (column, error) {
 	return column{n, t}, nil
 }
 
-func (p *parser) value() (value, error) {
+// value reads one value. Only a request's argument may be a digest.
+func (p *parser) value(argument bool) (value, error) {
 	line := p.peek()
 	if !strings.HasPrefix(line, ": ") {
 		return value{}, p.errorf("want a value, got %q", line)
@@ -437,8 +515,11 @@ func (p *parser) value() (value, error) {
 	v := value{kind: kind, text: text}
 	switch kind {
 	case "bytes", "string":
-		t, err := p.text()
-		v.text = t
+		t, sum, err := p.textOrSum()
+		if err == nil && sum != "" && !argument {
+			err = p.errorf("an answer's value is a digest: answers are kept whole")
+		}
+		v.text, v.sum = t, sum
 		return v, err
 	case "null":
 		return v, nil
@@ -449,6 +530,17 @@ func (p *parser) value() (value, error) {
 		return v, nil
 	}
 	return v, p.errorf("unknown value kind %q", kind)
+}
+
+// textOrSum reads a request's text or text argument: a "|# " digest line,
+// or a text.
+func (p *parser) textOrSum() (text, sum string, err error) {
+	if line := p.peek(); strings.HasPrefix(line, "|# ") {
+		p.i++
+		return "", strings.TrimPrefix(line, "|# "), nil
+	}
+	text, err = p.text()
+	return text, "", err
 }
 
 // text reads one text: a single "|q " line, or one or more "|" lines.

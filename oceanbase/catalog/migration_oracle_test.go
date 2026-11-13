@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,18 +30,6 @@ import (
 // The harness reuses connectOracle / showCreate / serverCharsetFor / loadOneTable
 // from the diff + normalize oracle tests. It falls back to a shared testcontainer
 // when the local engine is unreachable (oracle_fallback_test.go).
-
-// readbackTable returns the SHOW CREATE TABLE for a table in an existing database.
-func (o *oracleConn) readbackTable(t *testing.T, dbName, table string) (string, bool) {
-	t.Helper()
-	var name, ddl string
-	row := o.db.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE TABLE %s.%s", dbName, table))
-	if err := row.Scan(&name, &ddl); err != nil {
-		t.Logf("[%s] SHOW CREATE %s.%s failed: %v", o.name, dbName, table, err)
-		return "", false
-	}
-	return ddl, true
-}
 
 // catalogFromReadback applies createSQL in a throwaway db, reads back the table's SHOW
 // CREATE, and loads it into a catalog (wrapped with the box's server charset so table-charset
@@ -379,7 +366,10 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	resultCat, _ := loadOnePartTable(t, applyDB, sc, resultRB, p.table)
 
 	if d := DiffWithNormalizer(resultCat, toCat, n); !d.IsEmpty() {
-		toRB, _ := o.readbackTable(t, applyDB+"_to", p.table)
+		// Asked on conn, which holds the pool's one connection: o.db would wait for it
+		// forever.
+		var toName, toRB string
+		_ = conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s_to.%s", applyDB, p.table)).Scan(&toName, &toRB)
 		t.Errorf("[%s] APPLY-CORRECTNESS FAILED for %s: result != to\n  plan:\n%s\n  result: %s\n  want:   %s\n  diff: %s",
 			o.name, p.id, plan.SQL(), strings.TrimSpace(resultRB), strings.TrimSpace(toRB), describeDiff(d))
 	}
@@ -389,16 +379,14 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	}
 }
 
-// applyDBName builds a per-probe, identifier-safe apply-database name for the shared apply harness
-// so each probe (and each suite that reuses assertApplyCorrect) is isolated instead of contending
-// on one fixed `diffdb`. It combines the slugged probe id with a short hash of (process pid +
-// full test name): the test name (t.Name()) carries the suite path
-// (e.g. TestOracle_IndexMigrationApplyCorrectness/8.0/...) so two probes sharing an id across suites
-// get distinct databases within a process, and the pid salts the hash so two CONCURRENT `go test`
-// processes targeting the same engine never compute the same DROP/CREATE DATABASE name (the
-// remaining cross-process race the fixed `diffdb` had). The result stays well under MySQL's 64-char
-// identifier limit even with the harness's `_to` / `_from` throwaway suffixes appended. The `pa_`
-// prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
+// applyDBName builds a per-probe, identifier-safe apply-database name for the shared apply
+// harness, so each probe (and each suite that reuses assertApplyCorrect) has databases of its
+// own. It combines the slugged probe id with a short hash of the full test name: t.Name()
+// carries the suite path, so two probes sharing an id across suites get distinct databases.
+// Nothing else goes into the name, because it is part of every request the probe sends and a
+// tape replays only the requests it recorded. The result stays well under the 64-character
+// identifier limit even with the harness's `_to` / `_from` throwaway suffixes appended. The
+// `pa_` prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
 func applyDBName(t *testing.T, probeID string) string {
 	t.Helper()
 	slug := strings.ReplaceAll(probeID, "-", "_")
@@ -406,7 +394,7 @@ func applyDBName(t *testing.T, probeID string) string {
 		slug = slug[:40]
 	}
 	h := fnv.New32a()
-	_, _ = fmt.Fprintf(h, "%d:%s", os.Getpid(), t.Name())
+	_, _ = h.Write([]byte(t.Name()))
 	return "pa_" + slug + "_" + strconv.FormatUint(uint64(h.Sum32()), 16)
 }
 

@@ -1,0 +1,491 @@
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+
+== TestOracle_OceanBaseAlterTableSet default#1
+> exec
+| DROP DATABASE IF EXISTS obset_0
+< ok 0 0
+> exec
+| CREATE DATABASE obset_0
+< ok 1 0
+> exec
+| USE obset_0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_0.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET COMMENT 'x'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_0.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'x'
+> exec
+| DROP DATABASE IF EXISTS obset_0
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_1
+< ok 0 0
+> exec
+| CREATE DATABASE obset_1
+< ok 1 0
+> exec
+| USE obset_1
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_1.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET COMMENT = 'y'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_1.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'y'
+> exec
+| DROP DATABASE IF EXISTS obset_1
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_2
+< ok 0 0
+> exec
+| CREATE DATABASE obset_2
+< ok 1 0
+> exec
+| USE obset_2
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_2.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET PCTFREE = 6 COMMENT 'z'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_2.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 6 COMMENT = 'z'
+> exec
+| DROP DATABASE IF EXISTS obset_2
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_3
+< ok 0 0
+> exec
+| CREATE DATABASE obset_3
+< ok 1 0
+> exec
+| USE obset_3
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_3.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET PCTFREE = 7, COMMENT 'w'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_3.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 7 COMMENT = 'w'
+> exec
+| DROP DATABASE IF EXISTS obset_3
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_4
+< ok 0 0
+> exec
+| CREATE DATABASE obset_4
+< ok 1 0
+> exec
+| USE obset_4
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_4.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET PCTFREE = 8, SET COMMENT 'v'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_4.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 8 COMMENT = 'v'
+> exec
+| DROP DATABASE IF EXISTS obset_4
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_5
+< ok 0 0
+> exec
+| CREATE DATABASE obset_5
+< ok 1 0
+> exec
+| USE obset_5
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_5.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t PCTFREE = 9 COMMENT 'u'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_5.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 9 COMMENT = 'u'
+> exec
+| DROP DATABASE IF EXISTS obset_5
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_6
+< ok 0 0
+> exec
+| CREATE DATABASE obset_6
+< ok 1 0
+> exec
+| USE obset_6
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_6.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET DEFAULT CHARACTER SET = gbk COLLATE gbk_bin
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_6.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = gbk COLLATE = gbk_bin ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS obset_6
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_7
+< ok 0 0
+> exec
+| CREATE DATABASE obset_7
+< ok 1 0
+> exec
+| USE obset_7
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_7.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET ROW_FORMAT = COMPRESSED
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_7.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPRESSED COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS obset_7
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_8
+< ok 0 0
+> exec
+| CREATE DATABASE obset_8
+< ok 1 0
+> exec
+| USE obset_8
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_8.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET ENGINE = InnoDB ROW_FORMAT = COMPACT
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_8.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPACT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS obset_8
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_9
+< ok 0 0
+> exec
+| CREATE DATABASE obset_9
+< ok 1 0
+> exec
+| USE obset_9
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT PRIMARY KEY)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_9.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE t SET COMMENT 'one', SET COMMENT 'two'
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_9.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'two'
+> exec
+| DROP DATABASE IF EXISTS obset_9
+< ok 1 0
+> exec
+| DROP DATABASE IF EXISTS obset_dp
+< ok 0 0
+> exec
+| CREATE DATABASE obset_dp
+< ok 1 0
+> exec
+| USE obset_dp
+< ok 0 0
+> exec
+| CREATE TABLE t (a DATETIME NOT NULL, PRIMARY KEY (a)) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE, TIME_UNIT = 'DAY', PRECREATE_TIME = '3day') PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2026-01-01'))
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_dp.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` datetime NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE, TIME_UNIT = 'DAY', PRECREATE_TIME = '3DAY', EXPIRE_TIME = '-1', TIME_ZONE = 'DEFAULT', BIGINT_PRECISION = 'NONE')
+|  partition by range columns(`a`)
+| (partition `p0` values less than ('2026-01-01 00:00:00'))
+> exec
+| ALTER TABLE t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)
+< ok 0 0
+> query
+| SHOW CREATE TABLE obset_dp.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` datetime NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 DYNAMIC_PARTITION_POLICY = (ENABLE = FALSE, TIME_UNIT = 'DAY', PRECREATE_TIME = '3DAY', EXPIRE_TIME = '-1', TIME_ZONE = 'DEFAULT', BIGINT_PRECISION = 'NONE')
+|  partition by range columns(`a`)
+| (partition `p0` values less than ('2026-01-01 00:00:00'))
+> exec
+| DROP DATABASE IF EXISTS obset_dp
+< ok 1 0
