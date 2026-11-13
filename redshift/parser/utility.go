@@ -251,10 +251,16 @@ func (p *Parser) parseReassignOwnedStmt() (nodes.Node, error) {
 	if _, err := p.expect(BY); err != nil {
 		return nil, err
 	}
-	roles := p.parseRoleList()
+	roles, err := p.parseRoleList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	newrole := p.parseRoleSpec()
+	newrole, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ReassignOwnedStmt{Roles: roles, Newrole: newrole, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }

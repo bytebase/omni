@@ -36,7 +36,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 		options, err := p.parseRedshiftSchemaQuota()
 		if err != nil {
 			return nil, err
@@ -59,7 +63,11 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
-		stmt.Authrole = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Authrole = rs
 	}
 
 	options, err := p.parseRedshiftSchemaQuota()
@@ -351,7 +359,11 @@ func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	var owner *nodes.RoleSpec
 	if p.cur.Type == OWNER {
 		p.advance()
-		owner = p.parseRoleSpec()
+		rs, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
+		owner = rs
 	}
 
 	if _, err := p.expect(LOCATION); err != nil {
