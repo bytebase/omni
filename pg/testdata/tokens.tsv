@@ -6,7 +6,9 @@
 # https://www.postgresql.org/docs/17/sql-syntax-lexical.html.
 # A token has one form here. The other forms scan.l reads (dollar quoting, E'' and
 # U&'' strings, quoted and U&"" identifiers, the numeric forms, nested comments)
-# are the suite:lexer rows of pg/parser/testdata/compat.tsv.
+# are the suite:lexer rows of pg/parser/testdata/compat.tsv, and the psql
+# metacommands pg/parser reads as comments (lexer.go, internal/metacmd) are its
+# suite:psql rows.
 # (unreachable) is a token the lexer never hands the grammar of a statement, so the
 # alternatives that need it get no generated row.
 # columns: token, form, note
