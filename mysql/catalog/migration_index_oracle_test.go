@@ -219,7 +219,7 @@ func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup: %q: %v", o.name, s, err)
 				}
 			}
 			var b strings.Builder

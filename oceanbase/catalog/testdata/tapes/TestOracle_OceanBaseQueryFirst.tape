@@ -1,0 +1,160 @@
+-- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+
+== TestOracle_OceanBaseQueryFirst/before_the_name default#1
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT)
+< ok 0 0
+> exec
+| CREATE VIEW a AS SELECT 1
+< error
+| 1050 42S01 Table 'a' already exists
+> exec
+| CREATE VIEW a AS SELECT zz FROM a
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW a AS SELECT * FROM zz
+< error
+| 1146 42S02 Table 'omni_t_oceanbase_catalog_query_first_00.zz' doesn't exist
+> exec
+| CREATE OR REPLACE VIEW a AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| CREATE TABLE a AS SELECT zz FROM a
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE TABLE IF NOT EXISTS a AS SELECT zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE TABLE IF NOT EXISTS a AS SELECT 1
+< ok 0 0
+> exec
+| ALTER VIEW zz AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| ALTER VIEW zz AS SELECT * FROM qq
+< error
+| 1146 42S02 Table 'omni_t_oceanbase_catalog_query_first_00.qq' doesn't exist
+
+== TestOracle_OceanBaseQueryFirst/names_in_the_query default#1
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT)
+< ok 0 0
+> exec
+| CREATE VIEW v1 AS SELECT b FROM a ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v2 AS SELECT b FROM a GROUP BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'group statement'
+> exec
+| CREATE VIEW v3 AS SELECT (SELECT zz) FROM a
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW v4 AS SELECT b AS q FROM a ORDER BY q
+< ok 0 0
+> exec
+| CREATE VIEW v5 AS SELECT b + 1 AS q, count(*) AS n FROM a GROUP BY q HAVING n > 0
+< ok 0 0
+> exec
+| CREATE VIEW v6 AS (SELECT b AS q FROM a) ORDER BY q
+< ok 0 0
+> exec
+| CREATE VIEW v7 AS SELECT b AS q FROM a WHERE q > 0
+< error
+| 1054 42S22 Unknown column 'q' in 'where clause'
+> exec
+| CREATE VIEW v8 AS SELECT b AS q FROM a ORDER BY (SELECT q)
+< ok 0 0
+> exec
+| CREATE VIEW v9 AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0
+< ok 0 0
+> exec
+| CREATE VIEW v10 AS SELECT b AS q FROM a ORDER BY (SELECT zz)
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0
+< error
+| 1054 42S22 Unknown column 'q' in 'field list'
+> exec
+| CREATE VIEW v12 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x
+< ok 0 0
+> exec
+| CREATE VIEW v13 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)
+< ok 0 0
+> exec
+| CREATE VIEW v14 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v15 AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
+> exec
+| CREATE VIEW v16 AS (SELECT b+1 FROM a) ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW v17 AS (SELECT count(*) FROM a) ORDER BY `count(*)`
+< ok 0 0
+> exec
+| CREATE VIEW v18 AS (SELECT b FROM a) ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v19 AS WITH RECURSIVE c AS (SELECT 1 AS x), r AS (SELECT x FROM c UNION ALL SELECT x+1 FROM r WHERE x < 3) SELECT * FROM r
+< ok 0 0
+> exec
+| CREATE VIEW v20 AS SELECT d.`b+1` FROM (SELECT * FROM (SELECT b+1 FROM a) s) d
+< ok 0 0
+> exec
+| CREATE VIEW v21 AS SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW v22 AS SELECT b FROM a UNION ALL SELECT b FROM a ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v23 AS SELECT x.column_0 FROM (VALUES ROW(1)) x
+< ok 0 0
+> exec
+| CREATE VIEW v24 AS VALUES ROW(1) ORDER BY column_0
+< ok 0 0
+> exec
+| CREATE VIEW v25 AS SELECT 2 AS q, b FROM a ORDER BY q
+< ok 0 0
+> exec
+| CREATE VIEW v26 AS SELECT d.`(1)` FROM (SELECT (1)) d
+< ok 0 0
+> exec
+| CREATE VIEW w1 AS SELECT (1)
+< ok 0 0
+> exec
+| CREATE VIEW w2 AS SELECT w1.`(1)` FROM w1
+< ok 0 0
+> exec
+| CREATE VIEW w3 AS SELECT b AS q FROM a
+< ok 0 0
+> exec
+| CREATE VIEW w4 AS SELECT w3.zz FROM w3
+< error
+| 1054 42S22 Unknown column 'w3.zz' in 'field list'
+> exec
+| CREATE VIEW w5 AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r
+< ok 0 0
+> exec
+| CREATE VIEW w6 AS SELECT b+1 FROM a ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW w7 AS SELECT count(*) FROM a ORDER BY `count(*)`
+< ok 0 0
+> exec
+| CREATE VIEW w8 AS SELECT b+1 FROM a WHERE zz = 1
+< error
+| 1054 42S22 Unknown column 'zz' in 'where clause'

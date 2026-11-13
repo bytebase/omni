@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -255,7 +256,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			// (1) engine's authentic stored form of the bare-charset target.
 			readback, ok := o.showCreate(t, "vd_bare", userTarget, "t")
 			if !ok {
-				t.Skipf("[%s] no readback for bare-charset target", o.name)
+				t.Fatalf("[%s] no readback for bare-charset target", o.name)
 			}
 			n := NormalizerFor(v)
 			sc := serverCharsetFor(v)
@@ -287,11 +288,8 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			planSQL := plan.SQL()
 
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
-			if err != nil {
-				t.Fatalf("[%s] conn: %v", o.name, err)
-			}
-			defer func() { _ = conn.Close() }()
+			// A connection of its own: the test's other one stays free for the helpers.
+			conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 			const applyDB = "vdb" // loadTableVersioned wraps in database `vdb`
 			setup := []string{
 				"DROP DATABASE IF EXISTS " + applyDB,
@@ -301,7 +299,7 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 			}
 			for _, s := range setup {
 				if _, err := conn.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed: %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup failed: %q: %v", o.name, s, err)
 				}
 			}
 			for _, op := range plan.Ops {

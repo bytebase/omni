@@ -3,21 +3,19 @@ package review
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"github.com/bytebase/omni/mysql/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
@@ -138,113 +136,50 @@ var walkCases = []walkCase{
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
 }
 
-// walkServer is one MySQL configuration the oracle runs on.
+// walkServer is one MySQL configuration the oracle runs on: a role of
+// mysql/testdata/pins.tsv, and its lower_case_table_names.
 type walkServer struct {
-	image string
-	lctn  int
-	// shard is which of a sweep's shards the server is for, so each gets
-	// one of its own.
-	shard int
+	role string
+	lctn int
 }
 
-// walkDB is one configuration's server, started on the first ask. The
-// once is per configuration rather than over the map, so a sweep's shards
-// start their servers at once: a server takes about ten seconds to come
-// up, and a lock held across the start would add that per shard.
-type walkDB struct {
-	once sync.Once
-	db   *sql.DB
-	err  error
-}
+var (
+	walkDefault = walkServer{role: testcontainer.Default}
+	walkFolded  = walkServer{role: testcontainer.Folded, lctn: 1}
+	walk84      = walkServer{role: testcontainer.MySQL84}
+)
 
-var walkServers = struct {
-	mu         sync.Mutex
-	dbs        map[walkServer]*walkDB
-	containers []testcontainers.Container
-}{dbs: make(map[walkServer]*walkDB)}
-
-// startWalkMySQL returns a server of the configuration, started once.
-func startWalkMySQL(t *testing.T, s walkServer) *sql.DB {
-	t.Helper()
-	walkServers.mu.Lock()
-	e, ok := walkServers.dbs[s]
-	if !ok {
-		e = &walkDB{}
-		walkServers.dbs[s] = e
-	}
-	walkServers.mu.Unlock()
-	e.once.Do(func() { e.db, e.err = openWalkMySQL(s) })
-	if e.err != nil {
-		t.Fatalf("mysql %v unavailable: %v", s, e.err)
-	}
-	return e.db
-}
-
-// openWalkMySQL starts a server of the configuration and connects to it.
-func openWalkMySQL(s walkServer) (*sql.DB, error) {
-	ctx := context.Background()
-	opts := []testcontainers.ContainerCustomizer{tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test")}
-	if s.lctn != 0 {
-		opts = append(opts, testcontainers.WithCmdArgs("--lower-case-table-names="+strconv.Itoa(s.lctn)))
-	}
-	c, err := tcmysql.Run(ctx, s.image, opts...)
-	if err != nil {
-		return nil, err
-	}
-	walkServers.mu.Lock()
-	walkServers.containers = append(walkServers.containers, c)
-	walkServers.mu.Unlock()
-	dsn, err := c.ConnectionString(ctx, "multiStatements=true")
-	if err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err := db.PingContext(ctx); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-// session opens a session of its own, which the cleanup closes rather
-// than returns to the pool: a pooled session keeps the temporary tables
-// of the change before it.
-func session(t testing.TB, db *sql.DB) *sql.Conn {
-	t.Helper()
-	conn, err := db.Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-		_ = conn.Close()
-	})
-	return conn
-}
+// The oracle replays its tapes (testdata/tapes) and starts no server. A
+// recording asks the pinned ones:
+//
+//	OMNI_RECORD=1 go test ./mysql/review/ -run '^TestWalkThrough' -timeout 30m
+//
+// A case takes three connections, each a stream of its tape: one sets the
+// database up and closes, so its temporary tables and session settings end
+// before the change; one syncs the target and then lists the server's objects
+// around every statement; and the change runs on the third, as Bytebase runs
+// it. What they send follows from the case and the server's answers alone,
+// never from what the walk reports, so a change to the walk replays.
 
 func TestWalkThroughAgainstMySQL(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0"})
+	runWalkCases(t, walkDefault)
 }
 
 // TestWalkThroughAgainstMySQLFolded runs the cases with lower_case_table_names=1,
 // where table and database names fold.
 func TestWalkThroughAgainstMySQLFolded(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.0", lctn: 1})
+	runWalkCases(t, walkFolded)
 }
 
 func TestWalkThroughAgainstMySQL84(t *testing.T) {
-	runWalkCases(t, walkServer{image: "mysql:8.4"})
+	runWalkCases(t, walk84)
 }
 
 func runWalkCases(t *testing.T, s walkServer) {
-	db := startWalkMySQL(t, s)
 	var found, rejected int
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
-			resetWalk(t, db, walkBase+tt.setup)
-			f, r := judgeWalk(t, db, s, tt.change, tt.complete)
+			f, r := judgeWalk(t, s, walkBase+tt.setup, tt.change, tt.complete, false)
 			found += f
 			rejected += r
 		})
@@ -252,57 +187,13 @@ func runWalkCases(t *testing.T, s walkServer) {
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
-// resetWalk drops every user database and recreates shop from base.
-func resetWalk(t *testing.T, db *sql.DB, base string) {
+// mustExec runs statements on db and fails the test at the first one the server
+// refuses.
+func mustExec(t testing.TB, db *sql.DB, stmts ...string) {
 	t.Helper()
-	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var names []string
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		names = append(names, n)
-	}
-	rows.Close()
-	var udfs []string
-	rows, err = db.QueryContext(ctx, "SELECT name FROM mysql.func")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		udfs = append(udfs, n)
-	}
-	rows.Close()
-	conn := session(t, db)
-	// A change may set the global foreign_key_checks; the server goes back
-	// to its default.
-	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0", "SET GLOBAL show_gipk_in_create_table_and_information_schema = ON"}
-	for _, n := range names {
-		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
-	}
-	// A loadable function is the server's, not a database's; with every
-	// database gone, DROP FUNCTION drops it.
-	for _, n := range udfs {
-		stmts = append(stmts, "DROP FUNCTION `"+strings.ReplaceAll(n, "`", "``")+"`")
-	}
-	stmts = append(stmts, "SET foreign_key_checks = 1", "CREATE DATABASE shop", "USE shop")
 	for _, q := range stmts {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
+		if _, err := db.ExecContext(context.Background(), q); err != nil {
 			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	for _, q := range splitWalk(base) {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatalf("base %s: %v", q, err)
 		}
 	}
 }
@@ -322,27 +213,42 @@ func splitWalk(sql string) []string {
 	return out
 }
 
-// judgeWalk runs the change on a fresh connection with shop selected, as
-// Bytebase runs it, and holds the walk to it (walktest.Judge). The target
-// is the database as the admin connection syncs it before the change.
-func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete bool) (found, rejected int) {
+// judgeWalk empties the server, sets shop up from base, syncs it, and runs
+// the change on a session of its own with shop selected, as Bytebase runs it,
+// holding the walk to it (walktest.Judge). With lenient, a base statement the
+// server refuses is passed over: a sweep's base is random.
+func judgeWalk(t *testing.T, s walkServer, base, change string, complete, lenient bool) (found, rejected int) {
 	t.Helper()
 	ctx := context.Background()
-	conn := session(t, db)
-	// The session checks foreign keys, as the target says. One the pool
-	// opened while a change had the global foreign_key_checks off starts
-	// with them off.
-	for _, q := range []string{"USE shop", "SET foreign_key_checks = 1"} {
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatal(err)
+	setup := testcontainer.OpenEmptyWith(t, testcontainer.Options{Role: s.role})
+	mustExec(t, setup, "CREATE DATABASE shop", "USE shop")
+	for _, q := range splitWalk(base) {
+		if _, err := setup.ExecContext(ctx, q); err != nil {
+			var me *gomysql.MySQLError
+			if !lenient || !errors.As(err, &me) {
+				t.Fatalf("base %s: %v", q, err)
+			}
 		}
 	}
+	// The setup's temporary tables and session settings end with its session.
+	if err := setup.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog := testcontainer.OpenRoot(t, testcontainer.Options{Role: s.role})
+	mustExec(t, catalog, "SET SESSION group_concat_max_len = 16777216")
+	schema := walkSync(t, catalog)
+
+	// The session checks foreign keys, as the target says: one opened while
+	// a change had the global foreign_key_checks off starts with them off.
+	session := testcontainer.OpenRoot(t, testcontainer.Options{Role: s.role})
+	mustExec(t, session, "USE shop", "SET foreign_key_checks = 1")
 	e := &mysqlEngine{
-		conn: conn,
-		db:   db,
-		fold: s.lctn != 0,
+		session: session,
+		catalog: catalog,
+		fold:    s.lctn != 0,
 		target: review.Target{
-			Schema:              walkSync(t, db),
+			Schema:              schema,
 			LowerCaseTableNames: s.lctn,
 			ForeignKeyChecks:    review.SwitchOn,
 		},
@@ -350,14 +256,17 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete b
 	return walktest.Judge(t, e, change, complete)
 }
 
-// mysqlEngine is the oracle's MySQL side of one change. MySQL commits DDL
-// as it runs, so a rejected statement leaves the database as it was only
-// through its own atomicity, which Digest checks.
+// mysqlEngine is the oracle's MySQL side of one change (walktest.Lister).
+// MySQL commits DDL as it runs, so a rejected statement leaves the database
+// as it was only through its own atomicity, which the list taken before and
+// after it shows.
 type mysqlEngine struct {
-	conn   *sql.Conn
-	db     *sql.DB
-	fold   bool
-	target review.Target
+	// session is the change's session, and catalog the connection that
+	// lists the server's objects.
+	session *sql.DB
+	catalog *sql.DB
+	fold    bool
+	target  review.Target
 	// reported is the statement of the finding Report returned last, which
 	// walktest passes to Codes next.
 	reported string
@@ -367,7 +276,7 @@ func (e *mysqlEngine) Statements(change string) []string { return splitWalk(chan
 
 // exec runs one statement on the change's session.
 func (e *mysqlEngine) exec(stmt string) error {
-	_, err := e.conn.ExecContext(context.Background(), stmt)
+	_, err := e.session.ExecContext(context.Background(), stmt)
 	return err
 }
 
@@ -544,152 +453,191 @@ func (e *mysqlEngine) Codes(message string) []string {
 	return codes
 }
 
-// Holds checks each fact the violation claims against information_schema.
-// A claim about the text holds by itself; a temporary table is read with
-// SHOW CREATE TABLE, which information_schema does not list.
-func (e *mysqlEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool, string) {
-	t.Helper()
-	for _, c := range walktest.Claims(v) {
-		if c.Fact == walk.Unknown {
-			continue
-		}
-		present, kind := e.exists(t, c.Key)
-		switch {
-		case present != (c.Fact == walk.Present):
-			return false, fmt.Sprintf("%s %q in %q is present: %v", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), present)
-		case present && c.Kind != "" && c.Key.Space == spaceRelation && kind != c.Kind:
-			return false, fmt.Sprintf("relation %s is %s, not %s", c.Key.Name, kind, c.Kind)
-		}
-	}
-	return true, ""
-}
+// walkSystem lists the databases a MySQL server starts with.
+const walkSystem = "'mysql', 'information_schema', 'performance_schema', 'sys'"
 
-// exists reads whether the key's object exists, and a relation's kind.
-func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
+// walkInventory lists every object a change may make in a user database, one
+// to a line: its space, database, table, name, and kind, separated by tabs.
+// A temporary table is in no information_schema view: Inventory looks for one
+// on the change's session (temporaryNames).
+const walkInventory = `SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
+UNION ALL SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE), TABLE_SCHEMA FROM information_schema.TABLES
+UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ''), TABLE_SCHEMA FROM information_schema.COLUMNS
+UNION ALL SELECT DISTINCT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ''), TABLE_SCHEMA FROM information_schema.STATISTICS
+UNION ALL SELECT CONCAT_WS('\t', 'foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
+UNION ALL SELECT CONCAT_WS('\t', 'trigger', TRIGGER_SCHEMA, '', TRIGGER_NAME, ''), TRIGGER_SCHEMA FROM information_schema.TRIGGERS
+UNION ALL SELECT CONCAT_WS('\t', LOWER(ROUTINE_TYPE), ROUTINE_SCHEMA, '', ROUTINE_NAME, ''), ROUTINE_SCHEMA FROM information_schema.ROUTINES
+UNION ALL SELECT CONCAT_WS('\t', 'event', EVENT_SCHEMA, '', EVENT_NAME, ''), EVENT_SCHEMA FROM information_schema.EVENTS
+) o WHERE o.db NOT IN (` + walkSystem + `)`
+
+// Inventory lists the server's objects with walkInventory, and the session's
+// temporary tables among the names the change writes after TEMPORARY TABLE.
+// MySQL cannot list a session's temporary tables, so each such name is asked
+// for on the change's session itself, in every database the list holds and in
+// the one the change names: SHOW CREATE TABLE answers a temporary one with
+// CREATE TEMPORARY TABLE.
+func (e *mysqlEngine) Inventory(t testing.TB, change string) []walktest.Object {
 	t.Helper()
 	ctx := context.Background()
-	names := walk.Names(k.Parent)
-	// eq compares a stored name to a key as the space folds it.
-	eq := func(column string, folds bool) string {
-		if folds {
-			return "LOWER(" + column + ") = BINARY ?"
-		}
-		return "BINARY " + column + " = BINARY ?"
+	var n int
+	var lines sql.NullString
+	if err := e.catalog.QueryRowContext(ctx, walkInventory).Scan(&n, &lines); err != nil {
+		t.Fatalf("list the server's objects: %v", err)
 	}
-	name := strings.TrimPrefix(k.Name, nonASCII)
-	nameFolds := !strings.HasPrefix(k.Name, nonASCII)
-	tableFolds := e.fold
-	unmark := func(s string) string { return strings.TrimPrefix(s, nonASCII) }
-	count := func(q string, args ...any) bool {
-		t.Helper()
-		var n int
-		if err := e.db.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
-			t.Fatalf("%s: %v", q, err)
+	var objects []walktest.Object
+	var databases []string
+	for line := range strings.SplitSeq(lines.String, "\n") {
+		if line == "" {
+			continue
 		}
-		return n > 0
+		n--
+		f := strings.Split(line, "\t")
+		if len(f) != 5 {
+			t.Fatalf("an object's line is %q, want its space, database, table, name, and kind", line)
+		}
+		space, db, table, name, kind := f[0], f[1], f[2], f[3], f[4]
+		switch space {
+		case spaceDatabase:
+			databases = append(databases, db)
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceDatabase, Name: db}})
+		case spaceRelation:
+			if kind == "VIEW" {
+				kind = relView
+			} else {
+				kind = relTable
+			}
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceRelation, Parent: walk.Path(db), Name: name}, Kind: kind})
+		case spaceColumn, spaceIndex:
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: space, Parent: walk.Path(db, table), Name: name}})
+		case spaceForeignKey:
+			// A foreign key has two keys: in its database, and on its table.
+			objects = append(objects,
+				walktest.Object{Key: walk.Key{Space: spaceForeignKey, Parent: walk.Path(db), Name: name}},
+				walktest.Object{Key: walk.Key{Space: spaceTableForeignKey, Parent: walk.Path(db, table), Name: name}})
+		case spaceTrigger, spaceProcedure, spaceFunction, spaceEvent:
+			objects = append(objects, walktest.Object{Key: walk.Key{Space: space, Parent: walk.Path(db), Name: name}})
+		default:
+			t.Fatalf("an object of the unknown space %q: %q", space, line)
+		}
 	}
-	switch k.Space {
-	case spaceDatabase:
-		return count("SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE "+eq("SCHEMA_NAME", tableFolds && nameFolds), name), ""
-	case spaceTemporary:
-		var tbl, ddl string
-		err := e.conn.QueryRowContext(ctx, "SHOW CREATE TABLE `"+unmark(names[0])+"`.`"+name+"`").Scan(&tbl, &ddl)
-		return err == nil && strings.HasPrefix(ddl, "CREATE TEMPORARY TABLE"), ""
-	case spaceRelation:
-		var kind string
-		err := e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE "+eq("TABLE_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds && nameFolds), unmark(names[0]), name).Scan(&kind)
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, ""
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		if kind == "VIEW" {
-			return true, relView
-		}
-		return true, relTable
-	case spaceColumn, spaceIndex, spaceTableForeignKey:
-		table, column := "information_schema.COLUMNS", "COLUMN_NAME"
-		switch k.Space {
-		case spaceIndex:
-			table, column = "information_schema.STATISTICS", "INDEX_NAME"
-		case spaceTableForeignKey:
-			table, column = "information_schema.REFERENTIAL_CONSTRAINTS", "CONSTRAINT_NAME"
-			return count("SELECT COUNT(*) FROM "+table+" WHERE "+eq("CONSTRAINT_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds)+" AND "+eq(column, nameFolds), unmark(names[0]), unmark(names[1]), name), ""
-		}
-		return count("SELECT COUNT(*) FROM "+table+" WHERE "+eq("TABLE_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds)+" AND "+eq(column, nameFolds), unmark(names[0]), unmark(names[1]), name), ""
+	if n != 0 {
+		t.Fatalf("the server listed %d more objects than it wrote, so the list is cut short: raise group_concat_max_len", n)
 	}
-	where := map[string]string{
-		spaceForeignKey: "information_schema.REFERENTIAL_CONSTRAINTS WHERE " + eq("CONSTRAINT_SCHEMA", tableFolds) + " AND " + eq("CONSTRAINT_NAME", nameFolds),
-		spaceTrigger:    "information_schema.TRIGGERS WHERE " + eq("TRIGGER_SCHEMA", tableFolds) + " AND " + eq("TRIGGER_NAME", nameFolds),
-		spaceProcedure:  "information_schema.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE' AND " + eq("ROUTINE_SCHEMA", tableFolds) + " AND " + eq("ROUTINE_NAME", nameFolds),
-		spaceFunction:   "information_schema.ROUTINES WHERE ROUTINE_TYPE = 'FUNCTION' AND " + eq("ROUTINE_SCHEMA", tableFolds) + " AND " + eq("ROUTINE_NAME", nameFolds),
-		spaceEvent:      "information_schema.EVENTS WHERE " + eq("EVENT_SCHEMA", tableFolds) + " AND " + eq("EVENT_NAME", nameFolds),
-	}[k.Space]
-	if where == "" {
-		t.Fatalf("unknown space %s", k.Space)
+	for _, c := range temporaryNames(change, databases) {
+		table, ddl, err := showCreate(ctx, e.session, c[0], c[1])
+		var me *gomysql.MySQLError
+		switch {
+		case err == nil:
+			if strings.HasPrefix(ddl, "CREATE TEMPORARY TABLE") {
+				objects = append(objects, walktest.Object{Key: walk.Key{Space: spaceTemporary, Parent: walk.Path(c[0]), Name: table}})
+			}
+		case errors.As(err, &me):
+			// 1146 for a missing table, 1049 for a missing database.
+		default:
+			t.Fatalf("look for temporary table %s.%s: %v", c[0], c[1], err)
+		}
 	}
-	return count("SELECT COUNT(*) FROM "+where, unmark(names[0]), name), ""
+	return objects
 }
 
-// Digest reads every user database's objects, so a rejected statement
-// that changed one fails the case. Each query names the databases, which
-// keeps information_schema from reading the system ones.
-func (e *mysqlEngine) Digest(t testing.TB) string {
-	t.Helper()
-	var b strings.Builder
-	read := func(q string, args ...any) []string {
-		rows, err := e.db.QueryContext(context.Background(), q, args...)
-		if err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-		defer rows.Close()
-		cols, _ := rows.Columns()
-		var first []string
-		for rows.Next() {
-			vals := make([]sql.NullString, len(cols))
-			ptrs := make([]any, len(cols))
-			for i := range vals {
-				ptrs[i] = &vals[i]
+// showCreate reads SHOW CREATE TABLE's name and text. A view answers four
+// columns, a table two; the name and the text come first in either.
+func showCreate(ctx context.Context, db *sql.DB, database, name string) (string, string, error) {
+	rows, err := db.QueryContext(ctx, "SHOW CREATE TABLE "+quoteName(database)+"."+quoteName(name))
+	if err != nil {
+		return "", "", err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return "", "", err
+	}
+	values := make([]sql.NullString, len(columns))
+	into := make([]any, len(values))
+	for i := range values {
+		into[i] = &values[i]
+	}
+	if !rows.Next() || len(values) < 2 {
+		return "", "", fmt.Errorf("SHOW CREATE TABLE %s.%s: no text", database, name)
+	}
+	if err := rows.Scan(into...); err != nil {
+		return "", "", err
+	}
+	return values[0].String, values[1].String, rows.Close()
+}
+
+// temporaryName matches what a change writes after TEMPORARY TABLE: a list of
+// names, each perhaps qualified, quoted or not.
+var temporaryName = regexp.MustCompile("(?i)\\bTEMPORARY\\s+TABLES?\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?((?:(?:`[^`]+`|[\\w$\\x{80}-\\x{10FFFF}]+)(?:\\s*\\.\\s*(?:`[^`]+`|[\\w$\\x{80}-\\x{10FFFF}]+))?\\s*,\\s*)*(?:`[^`]+`|[\\w$\\x{80}-\\x{10FFFF}]+)(?:\\s*\\.\\s*(?:`[^`]+`|[\\w$\\x{80}-\\x{10FFFF}]+))?)")
+
+// temporaryNames returns the database and name of each table the change may
+// make or drop as a temporary one, in order and once each: a qualified name in
+// its database, an unqualified one in each of databases and in each database
+// the change names.
+func temporaryNames(change string, databases []string) [][2]string {
+	var qualified, bare [][2]string
+	dbs := slices.Clone(databases)
+	for _, m := range temporaryName.FindAllStringSubmatch(change, -1) {
+		for item := range strings.SplitSeq(m[1], ",") {
+			parts := strings.Split(item, ".")
+			for i := range parts {
+				parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "`")
 			}
-			if err := rows.Scan(ptrs...); err != nil {
-				t.Fatalf("%s: %v", q, err)
+			if len(parts) == 2 {
+				qualified = append(qualified, [2]string{parts[0], parts[1]})
+				dbs = append(dbs, parts[0])
+			} else {
+				bare = append(bare, [2]string{"", parts[0]})
 			}
-			first = append(first, vals[0].String)
-			for _, v := range vals {
-				b.WriteString(v.String)
-				b.WriteByte(0)
+		}
+	}
+	slices.Sort(dbs)
+	dbs = slices.Compact(dbs)
+	out := qualified
+	for _, b := range bare {
+		for _, d := range dbs {
+			out = append(out, [2]string{d, b[1]})
+		}
+	}
+	slices.SortFunc(out, func(a, b [2]string) int { return strings.Compare(a[0]+"\x00"+a[1], b[0]+"\x00"+b[1]) })
+	return slices.Compact(out)
+}
+
+func quoteName(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") + "`" }
+
+// Same compares a key the walk claims to a stored one as MySQL folds names:
+// databases and tables fold only under lower_case_table_names 1, columns,
+// indexes, foreign keys, triggers, routines and events always. A name the walk
+// marks as holding a byte outside ASCII is compared byte for byte.
+func (e *mysqlEngine) Same(claimed, stored walk.Key) bool {
+	if claimed.Space != stored.Space {
+		return false
+	}
+	c := append(walk.Names(claimed.Parent), claimed.Name)
+	s := append(walk.Names(stored.Parent), stored.Name)
+	if len(c) != len(s) {
+		return false
+	}
+	for i := range c {
+		folds := e.fold
+		if i == len(c)-1 {
+			switch claimed.Space {
+			case spaceDatabase, spaceRelation, spaceTemporary:
+			default:
+				folds = true
 			}
-			b.WriteByte('\n')
 		}
-		if err := rows.Err(); err != nil {
-			t.Fatalf("%s: %v", q, err)
+		name, marked := strings.CutPrefix(c[i], nonASCII)
+		if marked || !folds {
+			if name != s[i] {
+				return false
+			}
+		} else if !strings.EqualFold(name, s[i]) {
+			return false
 		}
-		return first
 	}
-	system := "'mysql', 'information_schema', 'performance_schema', 'sys'"
-	dbs := read("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN (" + system + ") ORDER BY 1")
-	if len(dbs) == 0 {
-		return b.String()
-	}
-	in := "(?" + strings.Repeat(", ?", len(dbs)-1) + ")"
-	args := make([]any, len(dbs))
-	for i, d := range dbs {
-		args[i] = d
-	}
-	queries := []string{
-		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3, 4",
-		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-	}
-	queries = append(queries, "SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN "+in+" ORDER BY 1, 2")
-	for _, q := range queries {
-		read(q, args...)
-	}
-	return b.String()
+	return true
 }
 
 // walkSync reads shop into the metadata Bytebase's MySQL sync produces for
@@ -720,17 +668,17 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 			add(kind, name)
 		}
 	}
-	query("SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'shop'", func(kind, name string) {
+	query("SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'shop' ORDER BY ROUTINE_TYPE, ROUTINE_NAME", func(kind, name string) {
 		if kind == "PROCEDURE" {
 			s.Procedures = append(s.Procedures, &metadata.ProcedureMetadata{Name: name})
 		} else {
 			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: name})
 		}
 	})
-	query("SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'shop'", func(_, name string) {
+	query("SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'shop' ORDER BY EVENT_NAME", func(_, name string) {
 		s.Events = append(s.Events, &metadata.EventMetadata{Name: name})
 	})
-	query("SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE'", func(name, engine string) {
+	query("SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME", func(name, engine string) {
 		for _, t := range s.Tables {
 			if t.Name == name {
 				t.Engine = engine
@@ -740,51 +688,34 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	return out
 }
 
+// The sweep's size and seed. They are fixed because the sweep's tape holds
+// these changes: to sweep others, change them and record.
+const (
+	walkSweepN    = 40
+	walkSweepSeed = 20261023
+)
+
 // TestWalkThroughSweepMySQL runs random changes over a small pool of names
-// that collide often, case included. Precision must hold on every one;
-// recall is logged. WALK_SWEEP_N sets the number of changes,
-// WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the MySQL image.
+// that collide often, case included, on mysql:8.0.46 with each
+// lower_case_table_names. Precision must hold on every one; recall is logged.
 func TestWalkThroughSweepMySQL(t *testing.T) {
-	n, seed, image := walktest.SweepParams(t, 40, 20261023, "mysql:8.0")
-	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
+	changes := walktest.SweepChanges(walkSweepN, walkSweepSeed, func(rng *rand.Rand) (string, string) {
 		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
 	})
-	shards := walktest.Shards(n)
-	// The two settings run at once, each on its own server, and each deals
-	// its changes over shards servers of its own.
-	for _, lctn := range []int{0, 1} {
-		t.Run(fmt.Sprintf("lctn%d", lctn), func(t *testing.T) {
-			t.Parallel()
-			for shard := range shards {
-				t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
-					t.Parallel()
-					s := walkServer{image: image, lctn: lctn, shard: shard}
-					db := startWalkMySQL(t, s)
-					var found, rejected int
-					for i := shard; i < len(changes); i += shards {
-						base, change := changes[i].Base, changes[i].Change
-						t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-							resetWalk(t, db, "")
-							conn := session(t, db)
-							if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
-								t.Fatal(err)
-							}
-							// The base's temporary tables end with its session, before the sync.
-							for _, q := range splitWalk(base) {
-								_, _ = conn.ExecContext(context.Background(), q)
-							}
-							_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-							f, r := judgeWalk(t, db, s, change, false)
-							found += f
-							rejected += r
-							if t.Failed() {
-								t.Logf("base:\n%s\nchange:\n%s", base, change)
-							}
-						})
+	for _, s := range []walkServer{walkDefault, walkFolded} {
+		t.Run(fmt.Sprintf("lctn%d", s.lctn), func(t *testing.T) {
+			var found, rejected int
+			for i, c := range changes {
+				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+					f, r := judgeWalk(t, s, c.Base, c.Change, false, true)
+					found += f
+					rejected += r
+					if t.Failed() {
+						t.Logf("base:\n%s\nchange:\n%s", c.Base, c.Change)
 					}
-					t.Logf("%s lctn=%d shard=%d seed %d: found %d of the %d statements the server rejects", image, lctn, shard, seed, found, rejected)
 				})
 			}
+			t.Logf("lctn=%d seed %d: found %d of the %d statements the server rejects", s.lctn, walkSweepSeed, found, rejected)
 		})
 	}
 }

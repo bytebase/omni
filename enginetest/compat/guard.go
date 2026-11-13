@@ -6,8 +6,11 @@ import "fmt"
 // the change may not do. A test run sees only the file it has; these rules
 // need the file it replaced.
 //
-//   - An omni cell changes only from ?, or to its row's expected verdict:
-//     a regression is never committed as omni's new verdict.
+//   - An omni cell that held its row's expected verdict keeps it: a
+//     regression is never committed as omni's new verdict. A cell that
+//     differed may change to anything, since a fix can move a row from one
+//     gap to another (a rejection at another byte), and the test holds the
+//     cell to what omni says.
 //   - An expected cell (and its source) changes only from ?, or when the
 //     file was recorded at a new pin: the judge's answers are not edited to
 //     pass. A grammar or docs cell may move whenever its grammar or its
@@ -33,9 +36,9 @@ func Guard(before, after *File) []string {
 		if !ok {
 			continue
 		}
-		if r.Omni != o.Omni && o.Omni != Unjudged && r.Omni != r.Expected && r.Expected != Undocumented {
-			problems = append(problems, fmt.Sprintf("%s: omni changed from %s to %s, which is not the expected %s: a regression, not a closed gap\n    %s",
-				r.Rule, o.Omni, r.Omni, r.Expected, r.Statement))
+		if r.Omni != o.Omni && o.Omni == o.Expected && o.Omni != Unjudged && r.Omni != r.Expected && r.Expected != Undocumented {
+			problems = append(problems, fmt.Sprintf("%s: omni changed from %s, the expected verdict, to %s: a regression\n    %s",
+				r.Rule, o.Omni, r.Omni, r.Statement))
 		}
 		rejudged := recognized(o.Source) && recognized(r.Source)
 		if (r.Expected != o.Expected || r.Source != o.Source) && o.Expected != Unjudged && !repinned && !rejudged {

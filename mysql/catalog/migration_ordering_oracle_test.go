@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -138,11 +139,11 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 	fromTables, fromViews, fromFunctions := orderingObjectNames(p.from)
 	toCat := loadOrderingSchemaFromEngine(t, o, toDB, applyDB, p.to, p.tables, p.views, p.functions)
 	if toCat == nil {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `to` readback for %s", o.name, p.id)
 	}
 	fromCat := loadOrderingSchemaFromEngine(t, o, fromDB, applyDB, p.from, fromTables, fromViews, fromFunctions)
 	if fromCat == nil {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `from` readback for %s", o.name, p.id)
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -150,11 +151,8 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 
 	// Build a real database in `from` state and apply the plan statement-by-statement, in emitted
 	// order, on one connection. A mis-ordered plan fails HERE (Error 1305 for the CREATE probes).
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := append([]string{
 		"DROP DATABASE IF EXISTS " + applyDB,
@@ -163,7 +161,7 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 	}, p.from...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
 		}
 	}
 	for _, op := range plan.Ops {
@@ -202,7 +200,7 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 }
 
 // assertOrderingObjectsGone asserts the views/functions dropped by the plan no longer exist.
-func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, applyDB string, p orderingProbe, fromViews, fromFunctions []string) {
+func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.DB, applyDB string, p orderingProbe, fromViews, fromFunctions []string) {
 	t.Helper()
 	ctx := context.Background()
 	inTo := func(names []string, n string) bool {
@@ -241,7 +239,7 @@ func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, appl
 // as-is — no rewrite is needed because SHOW CREATE FUNCTION returns an unqualified name and a
 // verbatim-stored body (the probes never db-qualify), live-verified on both versions, unlike
 // SHOW CREATE VIEW whose stored body IS db-qualified.
-func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views, functions []string) (string, bool) {
+func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.DB, physDB, logicalDB string, tables, views, functions []string) (string, bool) {
 	t.Helper()
 	sdl, ok := o.dumpViewSchemaSDL(t, conn, physDB, logicalDB, tables, views)
 	if !ok {

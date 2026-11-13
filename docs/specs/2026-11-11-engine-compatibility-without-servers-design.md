@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 has begun: `mysql/parser` (70 tests), `mysql/validate` and three tests of `mysql/catalog` replay tapes (80 tapes, 6.9 MB, 63,496 requests) and start no server. MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). Cosmos DB has step 1, judged by its grammar with no server: 450 rows from `sql.g4` at `3.64.0`, 431 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server), and `tidb/catalog/testdata/simulate.tsv` on one fixture: 1,724 rows, recorded in 83 seconds at 0.05 seconds a row, 1,151 agreeing (Appendix A). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,732 agreeing once #872 to #884 land (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,842 agreeing once the catalog fixes of Appendix A land (§3). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Its step 2 is done: `mysql/parser`, `mysql/validate`, `mysql/catalog` and `mysql/review` replay tapes (269 tapes, 16.8 MB) and start no server, and `mysql/catalog/testdata/simulate.tsv` holds one fixture: 1,648 rows, recorded in 45 seconds, 1,047 agreeing (Appendix A). MariaDB has step 1: 12,960 rows from `sql_yacc.yy` at `mariadb-11.8.8`, judged on the pinned server in 20 seconds, 12,082 agreeing (Appendix A). Its step 2 is done: `mariadb/parser`, `mariadb/validate`, `mariadb/catalog` and `mariadb/review` replay tapes (310 tapes, 16 MB), nothing under `mariadb/` starts a server outside a recording or holds a `t.Skip`, and `mariadb/catalog/testdata/simulate.tsv` holds one fixture: 1,452 rows, recorded in under three minutes at 0.1 seconds a row, 986 agreeing (Appendix A). Cosmos DB has step 1, judged by its grammar with no server: 450 rows from `sql.g4` at `3.64.0`, 431 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -107,7 +107,8 @@ func omniVerdict(sql string) string {
 | --- | --- |
 | Equals the `omni` cell | Pass. The row is an agreement or a known gap. |
 | Differs from the cell, equals `expected` | Fail: a gap closed. Rerun with `-update-compat` to commit it. |
-| Differs from both | Fail: a regression. |
+| Differs from both, and the cell was a gap | Fail: a known gap is now another one, as a rejection at another byte is. `-update-compat` commits it too. |
+| Differs from the cell, which equalled `expected` | Fail: a regression. |
 | The row is `?` | Fail: not judged yet. |
 
 Recording both columns is what makes this work. Thousands of known gaps pass quietly, and the one statement a change breaks fails by name:
@@ -155,7 +156,7 @@ Each engine with a server has one function that reads the server's answer as a v
 | Engines | Verdict from |
 | --- | --- |
 | mysql, mariadb, tidb, oceanbase | `PREPARE`, read by TiDB's `prepareVerdict` |
-| pg, redshift | SQLSTATE `42601` from the `SELECT 1/0` probe |
+| pg, redshift | The `SELECT 1/0` probe, read by `compat.RawParseVerdict`: the server parses the whole text first, so any error but the probe's own division by zero is the parser's, at the position it reports |
 | mssql | `SET PARSEONLY ON` |
 | oracle | `DBMS_SQL.PARSE` |
 | trino, doris, starrocks, googlesql | The engine's error name or message |
@@ -440,7 +441,7 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | Risk | Guard |
 | --- | --- |
 | A change breaks a row omni handled | The row checker fails (§2.1). |
-| A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
+| A regression is committed as the new `omni` | CI fails if an `omni` cell that equalled its row's `expected` changes. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
 | A `grammar` or `docs` cell is written by hand | `TestCompatibility` asks the recognizer again on every run. |
 | A vendored grammar is edited | Its SHA-256 is the pin's digest (§2.3). |
@@ -674,6 +675,25 @@ After step 0 the engines are independent. Order:
 - **1,123 disagreements,** untriaged. omni rejects 399 statements MySQL takes; 286 are `DO`, and 257 of those are one gap, an alias after a `DO` item (`DO a + a b`), which `select_item_list` allows. The rest are expressions: `MATCH ... AGAINST`, `CAST(... AT TIME ZONE ...)`, `WEIGHT_STRING`'s four arguments, `ST_COLLECT(DISTINCT ...)`, `{ident expr}`.
 - **omni accepts 724 statements MySQL refuses:** replication (`CHANGE MASTER` and `CHANGE REPLICATION`, 129; `START`, 45), `ALTER INSTANCE` (56), `GET DIAGNOSTICS` (53), `ALTER EVENT` (49), `ALTER SERVER` (41), `ALTER USER` (26), `RESIGNAL` (19). Many are refused by a grammar action, not by a rule: `GET DIAGNOSTICS` outside a routine, `COMMIT` in a function, `ALTER EVENT` with no clause.
 - **Names are `utf8mb4`,** a character set, since MySQL looks one up while it parses. 114 rows still answered a lookup (71 a system variable, 40 a collation, 3 a keyword written as a character set), which reads as accepted; 29 are near-misses whose break the lookup may hide. Written `a`, 34 more near-misses hid behind `CHARSET a`.
+
+**MySQL, moved.** Every test of `mysql/` that asked a server replays (2026-11-13): `mysql/parser` 70 tapes, 6.8 MB; `mysql/validate` one; `mysql/catalog` 182, 4.6 MB, 27,353 requests, recorded in 140 to 200 seconds and replayed in 8; `mysql/review` 7, 5.3 MB, 21,135 requests, recorded in four minutes and replayed in 2. Two recordings on fresh servers left the same tapes, and every package passes with `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` pointing nowhere.
+
+- **Every session's clock is pinned** at 2026-01-01 by the live connector, below the tape: a trigger's `Created`, an event's implicit `STARTS` and a table's `CREATE_TIME` are the session's time, and differed between recordings.
+- **The review walk is a `walktest.Lister`** on three pinned roles: `default`, `lctn1` (the same image initialized with `lower_case_table_names=1`, fixed at initialization, so a role of its own) and `mysql84` (`mysql:8.4.13`). MySQL lists no session's temporary tables, so `Inventory` asks the change's own session `SHOW CREATE TABLE` for each name the change writes after `TEMPORARY TABLE`, in each database. The walk finds 158 of the 184 statements MySQL rejects in the cases at 0 and on 8.4, 161 of 187 at 1, and 398 of 592 and 389 of 588 in the sweep of 40 changes, with no false finding.
+- **151 skips are gone,** and none is left in `mysql/`. Two fired: a view the catalog now prints as MySQL does, whose case asserts it again, and a view MySQL refuses (two columns named `a`, 1060), recorded with the catalog's acceptance as an `omni gap` that fails when either side moves. The rest never fired, a setup or readback the pinned server always gives or a gap since closed, and each is a failure now.
+- **Map iteration** sent requests in five tests, and a database name was salted with the process id; both are fixed.
+
+**MySQL, `simulate.tsv`.** Recorded 2026-11-13 on the pinned server: the 412 table, index and view statements MySQL accepts in `compat.tsv`, on the four namings of `one_table`. A statement names everything `utf8mb4`, as `tokens.tsv` writes an identifier, so the fixtures name `utf8mb4`. 1,648 rows in 45 seconds; the tape is 0.7 MB, 4,103 requests, and two recordings left the same two files.
+
+| Fixture | Rows | MySQL takes | Agree | Only MySQL takes | Only omni takes | Both take, another schema | Both refuse, another code |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `one_table@missing` | 412 | 6 | 319 | 4 | 28 | 1 | 60 |
+| `one_table@table` | 412 | 191 | 218 | 2 | 105 | 11 | 76 |
+| `one_table@column` | 412 | 104 | 253 | 0 | 49 | 8 | 102 |
+| `one_table@index` | 412 | 108 | 257 | 0 | 48 | 8 | 99 |
+| All | 1,648 | 409 | 1,047 | 6 | 230 | 28 | 337 |
+
+- **601 rows disagree,** untriaged. Of the 230 omni takes, MySQL refuses most as a partition change on a table with none (1505, 81), an unknown column (1054, 68) and a key on a missing column (1072, 44). Where both refuse, omni answers without a code on 87 rows and 1051, 1146 or 1060 on most of the rest.
 
 **OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 

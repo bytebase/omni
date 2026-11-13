@@ -171,7 +171,7 @@ func TestOracle_PartitionChangeDetected(t *testing.T) {
 				fromCat, _, _, ok1 := o.catalogFromReadback(t, "pc_from_"+slug, tc.fromDDL, tc.table)
 				toCat, _, _, ok2 := o.catalogFromReadback(t, "pc_to_"+slug, tc.toDDL, tc.table)
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks for %s", o.name, tc.id)
+					t.Fatalf("[%s] could not obtain readbacks for %s", o.name, tc.id)
 				}
 				d := DiffWithNormalizer(fromCat, toCat, n)
 				te := findTable(d, tc.table)

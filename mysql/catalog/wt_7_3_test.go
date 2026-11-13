@@ -138,12 +138,12 @@ func TestWalkThrough_7_3_KeyEmptyColumns(t *testing.T) {
 		val INT NOT NULL
 	) PARTITION BY KEY () PARTITIONS 4`, nil)
 	if err != nil {
-		t.Skipf("[~] partial: parser does not support KEY () with empty column list: %v", err)
+		t.Fatalf("parser does not support KEY () with empty column list: %v", err)
 		return
 	}
 	for _, r := range results {
 		if r.Error != nil {
-			t.Skipf("[~] partial: catalog error for KEY (): %v", r.Error)
+			t.Fatalf("catalog error for KEY (): %v", r.Error)
 			return
 		}
 	}
