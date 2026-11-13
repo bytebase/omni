@@ -23,6 +23,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkSomeColumnVisible(stmt); err != nil {
 		return err
 	}
+	if err := checkKeyOptions(stmt.Constraints); err != nil {
+		return err
+	}
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
@@ -513,6 +516,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return checkConstraintNameExists(db, tbl, name)
 				})
 			}
+			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+				return err
+			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)
 			}
@@ -578,6 +584,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(ftIdx, con.IndexOptions)
+			if err := checkIndexOptions(con.IndexOptions, false); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrVector:
