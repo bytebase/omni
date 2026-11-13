@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,151 agreeing (§3, Appendix A). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,151 agreeing (§3, Appendix A). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). MySQL has step 1: 12,282 rows of `sql_yacc.yy` at `mysql-8.0.46`, judged on `mysql:8.0.46` in 13 seconds, 11,159 agreeing (Appendix A). Snowflake has step 1, judged by its docs: 761 command pages converted to a `.g4`, 58,577 rows, and 9,593 of the 15,769 alternatives agree (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -439,7 +439,7 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | A change breaks a row omni handled | The row checker fails (§2.1). |
 | A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
-| A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
+| A `grammar` or `docs` cell is written by hand | `TestCompatibility` asks the recognizer again on every row, needing no server. |
 | Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
 | A regression hides in a pin bump | CI fails a pin-bump PR that changes non-test code. |
 | A test sends something unrecorded, or stops sending what was recorded | Replay fails (§4.3). |
@@ -609,7 +609,7 @@ After step 0 the engines are independent. Order:
 - **The grammar alone** agreed with the engine on 90% of statements. Most of the rest is the lexer (531 malformed hints, which live in comments) and 124 `yyerror` checks in C actions. Token rows and overrides (§2.2, §2.3) exist for these.
 - **Replay** took about 1 second per package, against 147 seconds (catalog) and about 300 seconds (review) live.
 
-**Snowflake.** A prototype converted the Syntax blocks of 77 docs pages to a `.g4` and generated 1,557 statements, of which omni accepts 64%. The blocks are near-BNF and map directly:
+**Snowflake, converted.** `snowflake/parser/cmd/docsgrammar` read the Syntax sections of the 779 pages the command index lists on 2026-11-13 and wrote `snowflake/testdata/SnowflakeDocs.g4`: 765 pages have syntax, 761 give a rule, with 1,552 statement forms and 151 fragment rules. The blocks are near-BNF and map directly:
 
 ```text
 ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
@@ -617,10 +617,24 @@ ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }
 
 ```antlr
 // https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse
-alterWarehouse : ALTER WAREHOUSE (IF EXISTS)? name? (SUSPEND | RESUME (IF SUSPENDED)?) ;
+alterWarehouse
+    : 'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID? ('SUSPEND' | 'RESUME' ('IF' 'SUSPENDED')?)
 ```
 
-Docs are prose, so some blocks need hand fixes: malformed syntax, undefined fragments. Each fix is made in the `.g4`, with a comment citing its page.
+- **Placeholders are read by name** into ten token classes, sampled in `tokens.tsv`: `<name>` is `ID`, `'<x>'` is `STRING`, `<num>` is `NUMBER`, `<expr>` is `EXPR`, `<query>` is `QUERY`, a stage location is `STAGE`.
+- **Docs are prose.** 17 typos, mostly brackets that do not close, are corrected in `snowflake/testdata/docs-fixes.tsv`, each with its page. Four readings are the converter's: `SET` or `UNSET` followed only by optional parts sets at least one; a definition with one `NAME = value` per line is any number of them; variants between `--` comments are a choice; a `|` left before `}` adds nothing. And 16 `SHOW` pages leave out the `|` after `<schema_name>` in their `IN` list, which the converter puts back.
+- **35 forms are not converted,** listed in the `.g4` under their page: 29 write `...` for text they leave out (`SELECT * ILIKE ... REPLACE ...`), 3 name a fragment their page does not define, 2 hold Markdown, 1 has a bracket out of place.
+
+The docs judged the 58,577 rows in about a minute, and a replay asks the recognizer again in 8 seconds:
+
+| Statements | Total | Agree | Only docs accept | Undocumented |
+| --- | --- | --- | --- | --- |
+| One per alternative | 15,769 | 9,593 | 6,176 | 0 |
+| Near-misses | 42,808 | 551 | 283 | 41,974 |
+
+- **6,459 disagreements,** all one way, since docs never reject. Omni rejects the shortest documented form of 319 of the 761 commands (106 `ALTER`, 84 `CREATE`, 64 `DROP`, 35 `SHOW`), mostly objects it does not know. By rows, the largest are `CREATE ICEBERG TABLE` and its catalog variants (328), `ALTER ICEBERG TABLE` (108), `ALTER DATABASE` (78), `ALTER POSTGRES INSTANCE` (67) and `ALTER SCHEMA` (66). The prototype's 64% is 61% here.
+- **What the docs cannot decide:** an `EXPR` is a constant and a `QUERY` is `SELECT 1`, since the command pages hold no expression or query grammar; a `DATA_TYPE` is `INT`; a class takes any token of its kind, so a value the engine restricts is not checked; a form whose every part is optional (`ALTER STAGE a SET`, `CREATE ICEBERG TABLE a`) is accepted, as written; and clause order is the docs', where Snowflake often takes any.
+- **Size.** The file is 9.2 MB. The undocumented near-misses are 7.1 MB of it and decide nothing; generating only the near-misses the docs derive would leave about 2.1 MB.
 
 ## Appendix B. Rule changes
 

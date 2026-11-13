@@ -20,7 +20,7 @@ The initial helper-layout change preserves database versions, startup behavior, 
 | `partiql` | No local database oracle | Add DynamoDB Local for its supported PartiQL subset. |
 | `pg` | `postgres:17-alpine`; review also checks `postgres:18-alpine` | Consolidate on the selected PostgreSQL 18 patch and investigate version drift. |
 | `redshift` | PostgreSQL `17-alpine` baseline; explicit Redshift reference checks | Temporary PostgreSQL substitute is accepted; align its version with `pg` when upgrading. |
-| `snowflake` | No local native database oracle | A native test account or suitable licensed emulator is needed. |
+| `snowflake` | No server. `snowflake/parser` replays `compat.tsv`, judged by the docs: `snowflake/testdata/SnowflakeDocs.g4`, converted from the command reference by `snowflake/parser/cmd/docsgrammar` | The 6,459 `compat.tsv` rows the docs accept and omni rejects. A dedicated scratch account (`SNOWFLAKE_COMPAT_DSN`) would let a recording ask the engine instead. |
 | `starrocks` | `starrocks/allin1-ubuntu:3.4.10` | Upgrade the native baseline after checking dialect drift. |
 | `tidb` | `pingcap/tidb:v8.5.5` | Keep TiDB native. Catalog parity reached and the quarantine removed in #803; the differential tests run by default. It does not run against MySQL. `tidb/catalog` replays tapes and starts no server. |
 | `trino` | `trinodb/trino:482` | Shared helper: `trino/internal/testcontainer`. |

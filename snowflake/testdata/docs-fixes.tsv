@@ -1,0 +1,24 @@
+# Hand corrections of Snowflake's Syntax blocks, applied by
+# snowflake/parser/cmd/docsgrammar before it converts a page: the docs are
+# prose, and some blocks do not read as notation as written. Each row is the
+# page, the text as the page writes it (every occurrence is replaced), what
+# the grammar reads instead, and why. \n and \t stand for a newline and a tab.
+# The converter fails on a row whose text the page no longer holds.
+# columns: page, text, replacement, reason
+alter-table	FOREIGN KEY } ( <col_name> [ , ... ] )\n                        }\n	FOREIGN KEY } ( <col_name> [ , ... ] )\n	constraintAction: a } after ALTER | MODIFY's constraint list closes no bracket; dropped
+alter-dynamic-table	|\n  { ALTER | MODIFY } [ COLUMN ] <col1_name> UNSET TAG	|\n  { { ALTER | MODIFY } [ COLUMN ] <col1_name> UNSET TAG	dataGovnPolicyTagAction: the UNSET TAG variant ends in } but opens no {; added
+alter-stage	[ STORAGE_INTEGRATION = <integration_name> } ]	[ STORAGE_INTEGRATION = <integration_name> ]	externalStageParams (for Google Cloud Storage): a } inside [ STORAGE_INTEGRATION = ... ] closes no bracket; dropped
+alter-schema	[ OBJECT_VISIBILITY = PRIVILEGED } ]	[ OBJECT_VISIBILITY = PRIVILEGED ]	a } inside [ OBJECT_VISIBILITY = PRIVILEGED ] closes no bracket; dropped
+grant-privilege	{ CREATE SCHEMA | MODIFY | MONITOR | USAGE } [ , ... ] } ON DATABASE	{ CREATE SCHEMA | MODIFY | MONITOR | USAGE } [ , ... ] ON DATABASE	TO DATABASE ROLE form: the } after the database privileges ends the choice of grants one line early; dropped
+revoke-privilege	{ CREATE SCHEMA | MODIFY | MONITOR | USAGE } [ , ... ] } ON DATABASE	{ CREATE SCHEMA | MODIFY | MONITOR | USAGE } [ , ... ] ON DATABASE	FROM DATABASE ROLE form: the } after the database privileges ends the choice of grants one line early; dropped
+alter-task	'XSMALL | SMALL\n    | MEDIUM | LARGE | XLARGE | XXLARGE'	'<size>'	SERVERLESS_TASK_MIN/MAX_STATEMENT_SIZE: the choice of sizes is written inside the quotes; read as a string
+copy-into-table	RETURN_<n>_ROWS	RETURN_10_ROWS	VALIDATION_MODE: RETURN_<n>_ROWS holds its number inside the keyword; written for n = 10
+show-snapshot-policies	[ LIMIT <rows> [ FROM '<name_string>' ]	[ LIMIT <rows> [ FROM '<name_string>' ] ]	[ LIMIT ... is not closed; closed
+show-snapshot-sets	[ LIMIT <rows> [ FROM '<name_string>' ]	[ LIMIT <rows> [ FROM '<name_string>' ] ]	[ LIMIT ... is not closed; closed
+show-streamlits	[ LIMIT <rows> [ FROM '<name_string>' ]	[ LIMIT <rows> [ FROM '<name_string>' ] ]	[ LIMIT ... is not closed; closed
+grant-privilege-application	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> }\n	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> } }\n	ON { <object_type> ... is not closed; closed
+grant-privilege-application-role	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> }\n	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> } }\n	ON { <object_type> ... is not closed; closed
+revoke-privilege-application	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> }\n	ALL <object_type_plural> IN { DATABASE <db_name> | SCHEMA <schema_name> } }\n	ON { <object_type> ... is not closed; closed
+show-workspaces	                       <schema_name>\n                     }	                       <schema_name>\n                     } ]	[ IN { ... } is not closed; closed
+create-task	'{ XSMALL | SMALL\n      | MEDIUM | LARGE | XLARGE | XXLARGE }'	'<size>'	SERVERLESS_TASK_MIN/MAX_STATEMENT_SIZE: the choice of sizes is written inside the quotes; read as a string
+get	'<regex_pattern>''	'<regex_pattern>'	PATTERN's string has a quote too many; dropped

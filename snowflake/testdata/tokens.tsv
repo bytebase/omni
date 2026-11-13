@@ -1,0 +1,89 @@
+# Snowflake token forms for generated compat rows: the text written for each
+# value SnowflakeDocs.g4 names by class, where the docs write a <placeholder>.
+# Keywords and punctuation are literals in the grammar and need no row.
+# Sources, read 2026-11-13:
+#   https://docs.snowflake.com/en/sql-reference/identifiers-syntax
+#   https://docs.snowflake.com/en/sql-reference/data-types-text#string-constants
+#   https://docs.snowflake.com/en/sql-reference/data-types-numeric#numeric-constants
+#   https://docs.snowflake.com/en/sql-reference/reserved-keywords
+# A sample of one name, string or number stands for its class when the docs
+# judge reads a statement; a keyword or a sample of several tokens stands for
+# itself. (reserved) marks a word the docs judge never reads as a name.
+# columns: token, form, note
+ID	a	unquoted identifier: a letter or _, then letters, digits, _ and $; a "double-quoted" one is a name too
+STRING	's'	single-quoted string constant; a $$dollar-quoted$$ one is a string too
+NUMBER	1	numeric constant: [+-][digits][.digits][e[+-]digits]
+EXPR	1	an expression; the command pages give no expression grammar, so a constant
+QUERY	SELECT 1	a query; the command pages give no query grammar beyond SELECT's list
+DATA_TYPE	INT	a data type; INT is a synonym of NUMBER(38,0)
+STAGE	@a	@<stage>: a named stage
+POSITION	$1	$<col_position>: a column of a staged file by its position
+OBJECT_TYPE	TABLE	<object_type> in GRANT and SHOW GRANTS: an object type keyword
+OBJECT_TYPES	TABLES	<object_type_plural>: the plural of one
+
+# Reserved keywords: those the page marks reserved by ANSI or by Snowflake.
+# The ones it reserves only in a context (a SHOW's IN, a column in a scalar
+# expression, a table in FROM) are not listed, since the docs judge has no
+# context to apply them in.
+ALL	(reserved)	Reserved by ANSI.
+ALTER	(reserved)	Reserved by ANSI.
+AND	(reserved)	Reserved by ANSI.
+ANY	(reserved)	Reserved by ANSI.
+AS	(reserved)	Reserved by ANSI.
+BETWEEN	(reserved)	Reserved by ANSI.
+BY	(reserved)	Reserved by ANSI.
+CHECK	(reserved)	Reserved by ANSI.
+COLUMN	(reserved)	Reserved by ANSI.
+CONNECT	(reserved)	Reserved by ANSI.
+CREATE	(reserved)	Reserved by ANSI.
+CURRENT	(reserved)	Reserved by ANSI.
+DELETE	(reserved)	Reserved by ANSI.
+DISTINCT	(reserved)	Reserved by ANSI.
+DROP	(reserved)	Reserved by ANSI.
+ELSE	(reserved)	Reserved by ANSI.
+EXISTS	(reserved)	Reserved by ANSI.
+FOLLOWING	(reserved)	Reserved by ANSI.
+FOR	(reserved)	Reserved by ANSI.
+FROM	(reserved)	Reserved by ANSI.
+GRANT	(reserved)	Reserved by ANSI.
+GROUP	(reserved)	Reserved by ANSI.
+HAVING	(reserved)	Reserved by ANSI.
+ILIKE	(reserved)	Reserved by Snowflake.
+IN	(reserved)	Reserved by ANSI.
+INCREMENT	(reserved)	Reserved by Snowflake and others.
+INSERT	(reserved)	Reserved by ANSI.
+INTERSECT	(reserved)	Reserved by ANSI.
+INTO	(reserved)	Reserved by ANSI.
+IS	(reserved)	Reserved by ANSI.
+LIKE	(reserved)	Reserved by ANSI.
+MINUS	(reserved)	Reserved by Snowflake and others.
+NOT	(reserved)	Reserved by ANSI.
+NULL	(reserved)	Reserved by ANSI.
+OF	(reserved)	Reserved by ANSI.
+ON	(reserved)	Reserved by ANSI.
+OR	(reserved)	Reserved by ANSI.
+ORDER	(reserved)	Reserved by ANSI.
+QUALIFY	(reserved)	Reserved by Snowflake.
+REGEXP	(reserved)	Reserved by Snowflake.
+REVOKE	(reserved)	Reserved by ANSI.
+RLIKE	(reserved)	Reserved by Snowflake.
+ROW	(reserved)	Reserved by ANSI.
+ROWS	(reserved)	Reserved by ANSI.
+SAMPLE	(reserved)	Reserved by ANSI.
+SELECT	(reserved)	Reserved by ANSI.
+SET	(reserved)	Reserved by ANSI.
+SOME	(reserved)	Reserved by Snowflake.
+START	(reserved)	Reserved by ANSI.
+TABLE	(reserved)	Reserved by ANSI.
+TABLESAMPLE	(reserved)	Reserved by ANSI.
+THEN	(reserved)	Reserved by ANSI.
+TO	(reserved)	Reserved by ANSI.
+TRIGGER	(reserved)	Reserved by ANSI.
+UNION	(reserved)	Reserved by ANSI.
+UNIQUE	(reserved)	Reserved by ANSI.
+UPDATE	(reserved)	Reserved by ANSI.
+VALUES	(reserved)	Reserved by ANSI.
+WHENEVER	(reserved)	Reserved by ANSI.
+WHERE	(reserved)	Reserved by ANSI.
+WINDOW	(reserved)	Reserved by ANSI.
+WITH	(reserved)	Reserved by ANSI.
