@@ -4392,7 +4392,7 @@ reject	reject	engine	constraint_definition/CHECK_(_expr_)!insert	ALTER TABLE a A
 reject	reject	engine	constraint_definition/CHECK_(_expr_)!swap	ALTER TABLE a ADD CHECKPOINT(a)
 accept	accept	engine	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
 reject	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!drop-1	ALTER TABLE a ADD a TINYINT ALWAYS AS(a)
-accept	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!drop-2	ALTER TABLE a ADD a TINYINT GENERATED AS(a)
+reject	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!drop-2	ALTER TABLE a ADD a TINYINT GENERATED AS(a)
 reject	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!truncate	ALTER TABLE a ADD a TINYINT GENERATED
 reject	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!insert	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS zzz AS(a)
 reject	reject	engine	opt_generated_keyname/GENERATED_opt_generated_option_list!swap	ALTER TABLE a ADD a TINYINT GEOMCOLLECTION ALWAYS AS(a)
@@ -4436,7 +4436,7 @@ reject	reject	engine	generated_column_attribute/constraint_definition!drop-4	ALT
 reject	reject	engine	generated_column_attribute/constraint_definition!insert	ALTER TABLE a ADD a TINYINT AS(a) CHECK(a) zzz
 reject	reject	engine	generated_column_attribute/constraint_definition!swap	ALTER TABLE a ADD a TINYINT AS(a) CHECKPOINT(a)
 accept	accept	engine	generated_column_attribute/SRID_INTNUM	ALTER TABLE a ADD a TINYINT AS(a) SRID 1
-accept	reject	engine	generated_column_attribute/SRID_INTNUM!drop-2	ALTER TABLE a ADD a TINYINT AS(a) SRID
+reject	reject	engine	generated_column_attribute/SRID_INTNUM!drop-2	ALTER TABLE a ADD a TINYINT AS(a) SRID
 reject	reject	engine	generated_column_attribute/SRID_INTNUM!insert	ALTER TABLE a ADD a TINYINT AS(a) SRID 1 zzz
 reject	reject	engine	generated_column_attribute/SRID_INTNUM!swap	ALTER TABLE a ADD a TINYINT AS(a) SSL 1
 accept	accept	engine	generated_column_attribute/VISIBLE	ALTER TABLE a ADD a TINYINT AS(a) VISIBLE
@@ -5026,7 +5026,7 @@ reject	reject	engine	column_attribute/opt_column_default_value_list!drop-1	ALTER
 reject	reject	engine	column_attribute/opt_column_default_value_list!drop-2	ALTER TABLE a ADD a TINYINT DEFAULT
 reject	reject	engine	column_attribute/opt_column_default_value_list!insert	ALTER TABLE a ADD a TINYINT DEFAULT CURRENT_TIMESTAMP zzz
 reject	reject	engine	column_attribute/opt_column_default_value_list!swap	ALTER TABLE a ADD a TINYINT DEFAULT_AUTH CURRENT_TIMESTAMP
-reject	accept	engine	column_attribute/ORIG_DEFAULT_now_or_signed_literal	ALTER TABLE a ADD a TINYINT ORIG_DEFAULT CURRENT_TIMESTAMP
+accept	accept	engine	column_attribute/ORIG_DEFAULT_now_or_signed_literal	ALTER TABLE a ADD a TINYINT ORIG_DEFAULT CURRENT_TIMESTAMP
 reject	reject	engine	column_attribute/ORIG_DEFAULT_now_or_signed_literal!drop-2	ALTER TABLE a ADD a TINYINT ORIG_DEFAULT
 reject	reject	engine	column_attribute/ORIG_DEFAULT_now_or_signed_literal!insert	ALTER TABLE a ADD a TINYINT ORIG_DEFAULT CURRENT_TIMESTAMP zzz
 reject	reject	engine	column_attribute/ORIG_DEFAULT_now_or_signed_literal!swap	ALTER TABLE a ADD a TINYINT OUT CURRENT_TIMESTAMP
@@ -5065,7 +5065,7 @@ reject	reject	engine	column_attribute/constraint_definition!drop-4	ALTER TABLE a
 reject	reject	engine	column_attribute/constraint_definition!insert	ALTER TABLE a ADD a TINYINT CHECK(a) zzz
 reject	reject	engine	column_attribute/constraint_definition!swap	ALTER TABLE a ADD a TINYINT CHECKPOINT(a)
 accept	accept	engine	column_attribute/SRID_INTNUM	ALTER TABLE a ADD a TINYINT SRID 1
-accept	reject	engine	column_attribute/SRID_INTNUM!drop-2	ALTER TABLE a ADD a TINYINT SRID
+reject	reject	engine	column_attribute/SRID_INTNUM!drop-2	ALTER TABLE a ADD a TINYINT SRID
 reject	reject	engine	column_attribute/SRID_INTNUM!insert	ALTER TABLE a ADD a TINYINT SRID 1 zzz
 reject	reject	engine	column_attribute/SRID_INTNUM!swap	ALTER TABLE a ADD a TINYINT SSL 1
 accept	accept	engine	column_attribute/COLLATE_collation_name	ALTER TABLE a ADD a TINYINT COLLATE a
@@ -5073,17 +5073,17 @@ reject	reject	engine	column_attribute/COLLATE_collation_name!drop-1	ALTER TABLE 
 reject	reject	engine	column_attribute/COLLATE_collation_name!drop-2	ALTER TABLE a ADD a TINYINT COLLATE
 reject	reject	engine	column_attribute/COLLATE_collation_name!insert	ALTER TABLE a ADD a TINYINT COLLATE a zzz
 reject	reject	engine	column_attribute/COLLATE_collation_name!swap	ALTER TABLE a ADD a TINYINT COLLATION a
-reject	accept	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)	ALTER TABLE a ADD a TINYINT SKIP_INDEX()
+accept	accept	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)	ALTER TABLE a ADD a TINYINT SKIP_INDEX()
 reject	reject	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)!drop-2	ALTER TABLE a ADD a TINYINT SKIP_INDEX)
 reject	reject	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)!drop-3	ALTER TABLE a ADD a TINYINT SKIP_INDEX(
 reject	reject	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)!insert	ALTER TABLE a ADD a TINYINT SKIP_INDEX() zzz
 reject	reject	engine	column_attribute/SKIP_INDEX_(_opt_skip_index_type_list_)!swap	ALTER TABLE a ADD a TINYINT SLAVE()
-reject	accept	engine	column_attribute/lob_chunk_size	ALTER TABLE a ADD a TINYINT CHUNK 1
+accept	accept	engine	column_attribute/lob_chunk_size	ALTER TABLE a ADD a TINYINT CHUNK 1
 reject	reject	engine	column_attribute/lob_chunk_size!drop-2	ALTER TABLE a ADD a TINYINT CHUNK
 reject	reject	engine	column_attribute/lob_chunk_size!insert	ALTER TABLE a ADD a TINYINT CHUNK 1 zzz
 reject	reject	engine	column_attribute/lob_chunk_size!swap	ALTER TABLE a ADD a TINYINT CIPHER 1
 accept	accept	engine	column_attribute/COLUMN_FORMAT_DEFAULT	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT DEFAULT
-accept	reject	engine	column_attribute/COLUMN_FORMAT_DEFAULT!drop-2	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT
+reject	reject	engine	column_attribute/COLUMN_FORMAT_DEFAULT!drop-2	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT
 reject	reject	engine	column_attribute/COLUMN_FORMAT_DEFAULT!insert	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT DEFAULT zzz
 reject	reject	engine	column_attribute/COLUMN_FORMAT_DEFAULT!swap	ALTER TABLE a ADD a TINYINT COLUMN_INDEX_TYPE DEFAULT
 accept	accept	engine	column_attribute/COLUMN_FORMAT_FIXED	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT FIXED
@@ -5094,8 +5094,8 @@ accept	accept	engine	column_attribute/COLUMN_FORMAT_DYNAMIC	ALTER TABLE a ADD a 
 reject	reject	engine	column_attribute/COLUMN_FORMAT_DYNAMIC!drop-1	ALTER TABLE a ADD a TINYINT DYNAMIC
 reject	reject	engine	column_attribute/COLUMN_FORMAT_DYNAMIC!insert	ALTER TABLE a ADD a TINYINT COLUMN_FORMAT DYNAMIC zzz
 reject	reject	engine	column_attribute/COLUMN_FORMAT_DYNAMIC!swap	ALTER TABLE a ADD a TINYINT COLUMN_INDEX_TYPE DYNAMIC
-reject	accept	engine	column_attribute/STORAGE_DEFAULT	ALTER TABLE a ADD a TINYINT STORAGE DEFAULT
-accept	reject	engine	column_attribute/STORAGE_DEFAULT!drop-2	ALTER TABLE a ADD a TINYINT STORAGE
+accept	accept	engine	column_attribute/STORAGE_DEFAULT	ALTER TABLE a ADD a TINYINT STORAGE DEFAULT
+reject	reject	engine	column_attribute/STORAGE_DEFAULT!drop-2	ALTER TABLE a ADD a TINYINT STORAGE
 reject	reject	engine	column_attribute/STORAGE_DEFAULT!insert	ALTER TABLE a ADD a TINYINT STORAGE DEFAULT zzz
 reject	reject	engine	column_attribute/STORAGE_DEFAULT!swap	ALTER TABLE a ADD a TINYINT STORAGE_CACHE_POLICY DEFAULT
 accept	accept	engine	column_attribute/STORAGE_DISK	ALTER TABLE a ADD a TINYINT STORAGE DISK
@@ -5128,7 +5128,7 @@ reject	reject	engine	opt_column_default_value/DEFAULT_(_expr_)!drop-4	ALTER TABL
 reject	reject	engine	opt_column_default_value/DEFAULT_(_expr_)!insert	ALTER TABLE a ADD a TINYINT DEFAULT(a) zzz
 reject	reject	engine	opt_column_default_value/DEFAULT_(_expr_)!swap	ALTER TABLE a ADD a TINYINT DEFAULT_AUTH(a)
 accept	accept	engine	now_or_signed_literal/cur_timestamp_func	ALTER TABLE a ADD a TINYINT DEFAULT CURRENT_TIMESTAMP
-accept	reject	engine	now_or_signed_literal/cur_timestamp_func!swap	ALTER TABLE a ADD a TINYINT DEFAULT CURRENT_USER
+reject	reject	engine	now_or_signed_literal/cur_timestamp_func!swap	ALTER TABLE a ADD a TINYINT DEFAULT CURRENT_USER
 accept	accept	engine	now_or_signed_literal/signed_literal	ALTER TABLE a ADD a TINYINT DEFAULT 's'
 reject	reject	engine	now_or_signed_literal/signed_literal!insert	ALTER TABLE a ADD a TINYINT DEFAULT 's' zzz
 accept	accept	engine	signed_literal/literal	ALTER TABLE a ADD a TINYINT DEFAULT 's'
@@ -17633,22 +17633,22 @@ reject	reject	engine	json_on_response/DEFAULT_signed_literal!drop-2	SELECT JSON_
 reject	reject	engine	json_on_response/DEFAULT_signed_literal!truncate	SELECT JSON_VALUE(a, 's' DEFAULT
 reject	reject	engine	json_on_response/DEFAULT_signed_literal!insert	SELECT JSON_VALUE(a, 's' DEFAULT 's' zzz ON EMPTY)
 reject	reject	engine	json_on_response/DEFAULT_signed_literal!swap	SELECT JSON_VALUE(a, 's' DEFAULT_AUTH 's' ON EMPTY)
-reject	accept	engine	opt_skip_index_type_list/%empty	ALTER TABLE a ADD a TINYINT SKIP_INDEX()
+accept	accept	engine	opt_skip_index_type_list/%empty	ALTER TABLE a ADD a TINYINT SKIP_INDEX()
 reject	reject	engine	opt_skip_index_type_list/%empty!insert	ALTER TABLE a ADD a TINYINT SKIP_INDEX(zzz)
-reject	accept	engine	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
+accept	accept	engine	opt_skip_index_type_list/skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
 reject	reject	engine	opt_skip_index_type_list/skip_index_type!insert	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX zzz)
 reject	reject	engine	opt_skip_index_type_list/skip_index_type!swap	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_NGRAM_SIZE)
-reject	accept	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
+accept	accept	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX)
 reject	reject	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type!drop-2	ALTER TABLE a ADD a TINYINT SKIP_INDEX(,)
 reject	reject	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type!truncate	ALTER TABLE a ADD a TINYINT SKIP_INDEX(,
 reject	reject	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type!insert	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_MAX zzz)
 reject	reject	engine	opt_skip_index_type_list/opt_skip_index_type_list_,_skip_index_type!swap	ALTER TABLE a ADD a TINYINT SKIP_INDEX(, MIN_NGRAM_SIZE)
-reject	accept	engine	skip_index_type/MIN_MAX	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
-reject	accept	engine	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
+accept	accept	engine	skip_index_type/MIN_MAX	ALTER TABLE a ADD a TINYINT SKIP_INDEX(MIN_MAX)
+accept	accept	engine	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 reject	reject	engine	skip_index_type/SUM!insert	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM zzz)
 reject	reject	engine	skip_index_type/SUM!swap	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM_OPNSIZE)
-reject	accept	engine	lob_chunk_size/CHUNK_INTNUM	ALTER TABLE a ADD a TINYINT CHUNK 1
-reject	accept	engine	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
+accept	accept	engine	lob_chunk_size/CHUNK_INTNUM	ALTER TABLE a ADD a TINYINT CHUNK 1
+accept	accept	engine	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
 reject	reject	engine	lob_chunk_size/CHUNK_STRING_VALUE!insert	ALTER TABLE a ADD a TINYINT CHUNK 's' zzz
 reject	reject	engine	lob_chunk_size/CHUNK_STRING_VALUE!swap	ALTER TABLE a ADD a TINYINT CIPHER 's'
 accept	accept	engine	lob_storage_parameter/lob_chunk_size	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
