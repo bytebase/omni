@@ -43,9 +43,9 @@ reject	undocumented	docs	statement/alterAlert!swap	ALWAYS ALERT a RESUME
 accept	accept	docs	statement/alterApiIntegration	ALTER INTEGRATION a UNSET API_KEY
 reject	undocumented	docs	statement/alterApiIntegration!drop-1	INTEGRATION a UNSET API_KEY
 reject	undocumented	docs	statement/alterApiIntegration!drop-2	ALTER a UNSET API_KEY
-reject	accept	docs	statement/alterApiIntegration!drop-3	ALTER INTEGRATION UNSET API_KEY
-reject	accept	docs	statement/alterApiIntegration!drop-4	ALTER INTEGRATION a API_KEY
-reject	accept	docs	statement/alterApiIntegration!drop-5	ALTER INTEGRATION a UNSET
+reject	undocumented	docs	statement/alterApiIntegration!drop-3	ALTER INTEGRATION UNSET API_KEY
+reject	undocumented	docs	statement/alterApiIntegration!drop-4	ALTER INTEGRATION a API_KEY
+reject	undocumented	docs	statement/alterApiIntegration!drop-5	ALTER INTEGRATION a UNSET
 accept	undocumented	docs	statement/alterApiIntegration!insert	ALTER INTEGRATION a UNSET API_KEY zzz
 reject	undocumented	docs	statement/alterApiIntegration!swap	ALWAYS INTEGRATION a UNSET API_KEY
 reject	accept	docs	statement/alterApplication	ALTER APPLICATION a UPGRADE
@@ -661,12 +661,6 @@ reject	undocumented	docs	statement/alterIngressPolicy!drop-5	ALTER INGRESS POLIC
 reject	undocumented	docs	statement/alterIngressPolicy!drop-6	ALTER INGRESS POLICY a AS
 reject	undocumented	docs	statement/alterIngressPolicy!insert	ALTER INGRESS POLICY a AS 's' zzz
 reject	undocumented	docs	statement/alterIngressPolicy!swap	ALWAYS INGRESS POLICY a AS 's'
-reject	accept	docs	statement/alterIntegration	ALTER INTEGRATION a a
-reject	undocumented	docs	statement/alterIntegration!drop-1	INTEGRATION a a
-reject	undocumented	docs	statement/alterIntegration!drop-2	ALTER a a
-reject	undocumented	docs	statement/alterIntegration!drop-3	ALTER INTEGRATION a
-reject	undocumented	docs	statement/alterIntegration!insert	ALTER INTEGRATION a a zzz
-reject	undocumented	docs	statement/alterIntegration!swap	ALWAYS INTEGRATION a a
 reject	accept	docs	statement/alterJoinPolicy	ALTER JOIN POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterJoinPolicy!drop-1	JOIN POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterJoinPolicy!drop-3	ALTER JOIN a UNSET COMMENT
@@ -793,15 +787,15 @@ reject	undocumented	docs	statement/alterNotebook!swap	ALWAYS NOTEBOOK a RENAME T
 accept	accept	docs	statement/alterNotificationIntegrationEmail	ALTER INTEGRATION a UNSET ENABLED
 reject	undocumented	docs	statement/alterNotificationIntegrationEmail!drop-1	INTEGRATION a UNSET ENABLED
 reject	undocumented	docs	statement/alterNotificationIntegrationEmail!drop-2	ALTER a UNSET ENABLED
-reject	accept	docs	statement/alterNotificationIntegrationEmail!drop-3	ALTER INTEGRATION UNSET ENABLED
-reject	accept	docs	statement/alterNotificationIntegrationEmail!drop-4	ALTER INTEGRATION a ENABLED
+reject	undocumented	docs	statement/alterNotificationIntegrationEmail!drop-3	ALTER INTEGRATION UNSET ENABLED
+reject	undocumented	docs	statement/alterNotificationIntegrationEmail!drop-4	ALTER INTEGRATION a ENABLED
 accept	undocumented	docs	statement/alterNotificationIntegrationEmail!insert	ALTER INTEGRATION a UNSET ENABLED zzz
 reject	undocumented	docs	statement/alterNotificationIntegrationEmail!swap	ALWAYS INTEGRATION a UNSET ENABLED
 accept	accept	docs	statement/alterNotificationIntegrationQueueInboundAzure	ALTER INTEGRATION a UNSET COMMENT
 reject	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-1	INTEGRATION a UNSET COMMENT
 reject	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-2	ALTER a UNSET COMMENT
-reject	accept	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-3	ALTER INTEGRATION UNSET COMMENT
-reject	accept	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-4	ALTER INTEGRATION a COMMENT
+reject	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-3	ALTER INTEGRATION UNSET COMMENT
+reject	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!drop-4	ALTER INTEGRATION a COMMENT
 accept	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!insert	ALTER INTEGRATION a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterNotificationIntegrationQueueInboundAzure!swap	ALWAYS INTEGRATION a UNSET COMMENT
 accept	accept	docs	statement/alterNotificationIntegrationQueueInboundGcp	ALTER INTEGRATION a UNSET COMMENT
@@ -1063,6 +1057,7 @@ accept	accept	docs	statement/alterSecurityIntegration	ALTER INTEGRATION a SET a
 reject	undocumented	docs	statement/alterSecurityIntegration!drop-1	INTEGRATION a SET a
 reject	undocumented	docs	statement/alterSecurityIntegration!drop-2	ALTER a SET a
 reject	undocumented	docs	statement/alterSecurityIntegration!drop-3	ALTER INTEGRATION SET a
+reject	undocumented	docs	statement/alterSecurityIntegration!drop-4	ALTER INTEGRATION a a
 reject	undocumented	docs	statement/alterSecurityIntegration!drop-5	ALTER INTEGRATION a SET
 accept	undocumented	docs	statement/alterSecurityIntegration!insert	ALTER INTEGRATION a SET a zzz
 reject	undocumented	docs	statement/alterSecurityIntegration!swap	ALWAYS INTEGRATION a SET a
@@ -1082,14 +1077,15 @@ accept	accept	docs	statement/alterSecurityIntegrationOauthExternal	ALTER INTEGRA
 reject	accept	docs	statement/alterSecurityIntegrationOauthSnowflake	ALTER INTEGRATION a REFRESH OAUTH_CLIENT_SECRET
 reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-1	INTEGRATION a REFRESH OAUTH_CLIENT_SECRET
 reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-2	ALTER a REFRESH OAUTH_CLIENT_SECRET
-reject	accept	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-3	ALTER INTEGRATION REFRESH OAUTH_CLIENT_SECRET
-reject	accept	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-4	ALTER INTEGRATION a OAUTH_CLIENT_SECRET
+reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-3	ALTER INTEGRATION REFRESH OAUTH_CLIENT_SECRET
+reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!drop-4	ALTER INTEGRATION a OAUTH_CLIENT_SECRET
 reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!insert	ALTER INTEGRATION a REFRESH OAUTH_CLIENT_SECRET zzz
 reject	undocumented	docs	statement/alterSecurityIntegrationOauthSnowflake!swap	ALWAYS INTEGRATION a REFRESH OAUTH_CLIENT_SECRET
 accept	accept	docs	statement/alterSecurityIntegrationOidc	ALTER INTEGRATION a UNSET TAG a
 reject	accept	docs	statement/alterSecurityIntegrationSaml2	ALTER INTEGRATION a REFRESH
 reject	undocumented	docs	statement/alterSecurityIntegrationSaml2!drop-1	INTEGRATION a REFRESH
 reject	undocumented	docs	statement/alterSecurityIntegrationSaml2!drop-3	ALTER INTEGRATION REFRESH
+reject	undocumented	docs	statement/alterSecurityIntegrationSaml2!drop-4	ALTER INTEGRATION a
 reject	undocumented	docs	statement/alterSecurityIntegrationSaml2!insert	ALTER INTEGRATION a REFRESH zzz
 reject	undocumented	docs	statement/alterSecurityIntegrationSaml2!swap	ALWAYS INTEGRATION a REFRESH
 accept	accept	docs	statement/alterSecurityIntegrationScim	ALTER INTEGRATION a UNSET TAG a
@@ -15103,11 +15099,6 @@ reject	undocumented	docs	alterIngressPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER I
 reject	undocumented	docs	alterIngressPolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER INGRESS POLICY IF
 reject	undocumented	docs	alterIngressPolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER INGRESS POLICY IF EXISTS zzz a AS 's'
 reject	undocumented	docs	alterIngressPolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER INGRESS POLICY IGNORE EXISTS a AS 's'
-reject	accept	docs	alterIntegration/ALTER_(ID)?_INTEGRATION_ID_ID	ALTER INTEGRATION a a
-reject	accept	docs	alterIntegration(ID)?/%empty	ALTER INTEGRATION a a
-reject	accept	docs	alterIntegration(ID)?/%empty!insert	ALTER zzz INTEGRATION a a
-reject	accept	docs	alterIntegration(ID)?/ID	ALTER a INTEGRATION a a
-reject	undocumented	docs	alterIntegration(ID)?/ID!insert	ALTER a zzz INTEGRATION a a
 reject	accept	docs	alterJoinPolicy/ALTER_JOIN_POLICY_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER JOIN POLICY a RENAME TO a
 reject	undocumented	docs	alterJoinPolicy/ALTER_JOIN_POLICY_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-1	JOIN POLICY a RENAME TO a
 reject	undocumented	docs	alterJoinPolicy/ALTER_JOIN_POLICY_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-3	ALTER JOIN a RENAME TO a
@@ -16036,22 +16027,22 @@ accept	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEG
 accept	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185	ALTER INTEGRATION a UNSET ALLOWED_RECIPIENTS
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-1	INTEGRATION a UNSET ALLOWED_RECIPIENTS
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-2	ALTER a UNSET ALLOWED_RECIPIENTS
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-3	ALTER INTEGRATION UNSET ALLOWED_RECIPIENTS
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-4	ALTER INTEGRATION a ALLOWED_RECIPIENTS
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-3	ALTER INTEGRATION UNSET ALLOWED_RECIPIENTS
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!drop-4	ALTER INTEGRATION a ALLOWED_RECIPIENTS
 accept	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!insert	ALTER INTEGRATION a UNSET ALLOWED_RECIPIENTS zzz
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~6cf83185!swap	ALWAYS INTEGRATION a UNSET ALLOWED_RECIPIENTS
 accept	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea	ALTER INTEGRATION a UNSET DEFAULT_RECIPIENTS
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-1	INTEGRATION a UNSET DEFAULT_RECIPIENTS
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-2	ALTER a UNSET DEFAULT_RECIPIENTS
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-3	ALTER INTEGRATION UNSET DEFAULT_RECIPIENTS
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-4	ALTER INTEGRATION a DEFAULT_RECIPIENTS
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-3	ALTER INTEGRATION UNSET DEFAULT_RECIPIENTS
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!drop-4	ALTER INTEGRATION a DEFAULT_RECIPIENTS
 accept	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!insert	ALTER INTEGRATION a UNSET DEFAULT_RECIPIENTS zzz
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4cfab6ea!swap	ALWAYS INTEGRATION a UNSET DEFAULT_RECIPIENTS
 accept	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e	ALTER INTEGRATION a UNSET DEFAULT_SUBJECT
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-1	INTEGRATION a UNSET DEFAULT_SUBJECT
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-2	ALTER a UNSET DEFAULT_SUBJECT
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-3	ALTER INTEGRATION UNSET DEFAULT_SUBJECT
-reject	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-4	ALTER INTEGRATION a DEFAULT_SUBJECT
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-3	ALTER INTEGRATION UNSET DEFAULT_SUBJECT
+reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!drop-4	ALTER INTEGRATION a DEFAULT_SUBJECT
 accept	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!insert	ALTER INTEGRATION a UNSET DEFAULT_SUBJECT zzz
 reject	undocumented	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET~4872483e!swap	ALWAYS INTEGRATION a UNSET DEFAULT_SUBJECT
 accept	accept	docs	alterNotificationIntegrationEmail/ALTER_(NOTIFICATION)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_COMMENT	ALTER INTEGRATION a UNSET COMMENT
@@ -19443,7 +19434,7 @@ accept	accept	docs	alterSecret(SECRET_STRING_=_STRING_(COMMENT_=_ST~a8797c20)/CO
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_SET_ID	ALTER INTEGRATION a SET a
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID	ALTER INTEGRATION a UNSET a
 reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!drop-1	INTEGRATION a UNSET a
-reject	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!drop-3	ALTER INTEGRATION UNSET a
+reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!drop-3	ALTER INTEGRATION UNSET a
 accept	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!insert	ALTER INTEGRATION a UNSET a zzz
 reject	undocumented	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_(IF_EXISTS)?_ID_UNSET_ID!swap	ALWAYS INTEGRATION a UNSET a
 accept	accept	docs	alterSecurityIntegration/ALTER_(SECURITY)?_INTEGRATION_ID_SET_TAG_ID_=_STRING_(,~d60bb335	ALTER INTEGRATION a SET TAG a = 's'
@@ -20613,10 +20604,10 @@ reject	accept	docs	alterSecurityIntegrationSaml2/ALTER_(SECURITY)?_INTEGRATION_I
 accept	accept	docs	alterSecurityIntegrationSaml2/ALTER_(SECURITY)?_INTEGRATION_ID_SET_TAG_ID_=_STRING_(,~d60bb335	ALTER INTEGRATION a SET TAG a = 's'
 accept	accept	docs	alterSecurityIntegrationSaml2/ALTER_(SECURITY)?_INTEGRATION_ID_UNSET_TAG_ID_(,_ID)*	ALTER INTEGRATION a UNSET TAG a
 reject	accept	docs	alterSecurityIntegrationSaml2(SECURITY)?/%empty	ALTER INTEGRATION a REFRESH
-reject	accept	docs	alterSecurityIntegrationSaml2(SECURITY)?/%empty!insert	ALTER zzz INTEGRATION a REFRESH
+reject	undocumented	docs	alterSecurityIntegrationSaml2(SECURITY)?/%empty!insert	ALTER zzz INTEGRATION a REFRESH
 reject	accept	docs	alterSecurityIntegrationSaml2(SECURITY)?/SECURITY	ALTER SECURITY INTEGRATION a REFRESH
 reject	undocumented	docs	alterSecurityIntegrationSaml2(SECURITY)?/SECURITY!insert	ALTER SECURITY zzz INTEGRATION a REFRESH
-reject	accept	docs	alterSecurityIntegrationSaml2(SECURITY)?/SECURITY!swap	ALTER SECURITY_INTEGRATION INTEGRATION a REFRESH
+reject	undocumented	docs	alterSecurityIntegrationSaml2(SECURITY)?/SECURITY!swap	ALTER SECURITY_INTEGRATION INTEGRATION a REFRESH
 accept	accept	docs	alterSecurityIntegrationSaml2(IF_EXISTS)?/%empty	ALTER INTEGRATION a SET TYPE = SAML2
 reject	undocumented	docs	alterSecurityIntegrationSaml2(IF_EXISTS)?/%empty!insert	ALTER INTEGRATION zzz a SET TYPE = SAML2
 accept	accept	docs	alterSecurityIntegrationSaml2(IF_EXISTS)?/IF_EXISTS	ALTER INTEGRATION IF EXISTS a SET TYPE = SAML2
@@ -32595,30 +32586,30 @@ reject	undocumented	docs	createExternalFunction(RESPONSE_TRANSLATOR_=_ID)?/RESPO
 reject	undocumented	docs	createExternalFunction(RESPONSE_TRANSLATOR_=_ID)?/RESPONSE_TRANSLATOR_=_ID!truncate	CREATE EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a RESPONSE_TRANSLATOR =
 accept	undocumented	docs	createExternalFunction(RESPONSE_TRANSLATOR_=_ID)?/RESPONSE_TRANSLATOR_=_ID!insert	CREATE EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a RESPONSE_TRANSLATOR = a zzz AS 's'
 accept	undocumented	docs	createExternalFunction(RESPONSE_TRANSLATOR_=_ID)?/RESPONSE_TRANSLATOR_=_ID!swap	CREATE EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a RESTART = a AS 's'
-reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~674e1f90	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-1	EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-2	CREATE TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-3	CREATE EXTERNAL a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-4	CREATE EXTERNAL TABLE() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-5	CREATE EXTERNAL TABLE a) LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-6	CREATE EXTERNAL TABLE a(LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-7	CREATE EXTERNAL TABLE a() = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-8	CREATE EXTERNAL TABLE a() LOCATION @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-9	CREATE EXTERNAL TABLE a() LOCATION = PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-10	CREATE EXTERNAL TABLE a() LOCATION = @a = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-11	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-12	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-13	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-14	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-15	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT = FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-16	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(= 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-17	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME 's')
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-18	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME =)
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!drop-19	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's'
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!insert	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') zzz
-reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~61134152!swap	CREATION EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~d5982fd1	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~c26cf136	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-1	EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-2	CREATE TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-3	CREATE EXTERNAL a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-4	CREATE EXTERNAL TABLE() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-5	CREATE EXTERNAL TABLE a) LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-6	CREATE EXTERNAL TABLE a(LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-7	CREATE EXTERNAL TABLE a() = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-8	CREATE EXTERNAL TABLE a() LOCATION @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-9	CREATE EXTERNAL TABLE a() LOCATION = PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-10	CREATE EXTERNAL TABLE a() LOCATION = @a = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-11	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-12	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-13	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-14	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-15	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT = FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-16	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(= 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-17	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME 's')
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-18	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME =)
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!drop-19	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's'
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!insert	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') zzz
+reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~5d06d95a!swap	CREATION EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
+reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~81914ecb	CREATE EXTERNAL TABLE a() LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable(OR_REPLACE)?/%empty	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(OR_REPLACE)?/%empty!insert	CREATE zzz EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -32635,44 +32626,31 @@ reject	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-
 reject	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE EXTERNAL TABLE IF NOT
 reject	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE EXTERNAL TABLE IF NOT EXISTS zzz a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE EXTERNAL TABLE IGNORE NOT EXISTS a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/%empty	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/%empty!insert	CREATE EXTERNAL TABLE a(zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!drop-1	CREATE EXTERNAL TABLE a(INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!drop-2	CREATE EXTERNAL TABLE a(a AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!drop-3	CREATE EXTERNAL TABLE a(a INT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!drop-4	CREATE EXTERNAL TABLE a(a INT AS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!truncate	CREATE EXTERNAL TABLE a(a INT AS
-reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!insert	CREATE EXTERNAL TABLE a(a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~48f3fc2c)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~880e5de9!swap	CREATE EXTERNAL TABLE a(a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	accept	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/%empty	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/%empty!insert	CREATE EXTERNAL TABLE a(zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!drop-1	CREATE EXTERNAL TABLE a(INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!drop-2	CREATE EXTERNAL TABLE a(a AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!drop-3	CREATE EXTERNAL TABLE a(a INT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!drop-4	CREATE EXTERNAL TABLE a(a INT AS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!truncate	CREATE EXTERNAL TABLE a(a INT AS
+reject	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!insert	CREATE EXTERNAL TABLE a(a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	undocumented	docs	createExternalTable(ID_DATA_TYPE_AS_EXPR_createExternalT~5b9999ad)?/ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConstra~ce516be3!swap	CREATE EXTERNAL TABLE a(a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable(createExternalTable_inlineConstraint)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable(createExternalTable_inlineConstraint)?/createExternalTable_inlineConstraint	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(createExternalTable_inlineConstraint)?/createExternalTable_inlineConstraint!truncate	CREATE EXTERNAL TABLE a(a INT AS 1
 reject	accept	docs	createExternalTable(createExternalTable_inlineConstraint)?/createExternalTable_inlineConstraint!insert	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(createExternalTable_inlineConstraint)?/createExternalTable_inlineConstraint!swap	CREATE EXTERNAL TABLE a(a INT AS 1 UNPUBLISH) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1, INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!drop-3	CREATE EXTERNAL TABLE a(a INT AS 1, a AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!drop-4	CREATE EXTERNAL TABLE a(a INT AS 1, a INT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!drop-5	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!truncate	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!insert	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/,_ID_DATA_TYPE_AS_EXPR!swap	CREATE EXTERNAL TABLE a(a INT AS 1, a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1 a AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!drop-3	CREATE EXTERNAL TABLE a(a INT AS 1 a INT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!drop-4	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!insert	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR|ID_DATA_TYPE_AS_EXPR+)?/ID_DATA_TYPE_AS_(EXPR)+!swap	CREATE EXTERNAL TABLE a(a INT AS 1 a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable(EXPR)+/EXPR	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable(EXPR)+/EXPR_(EXPR)+	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(EXPR)+/EXPR_(EXPR)+!truncate	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1
-reject	undocumented	docs	createExternalTable(EXPR)+/EXPR_(EXPR)+!insert	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~a386fefb)*/%empty	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~a386fefb)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~275a740d	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/%empty	CREATE EXTERNAL TABLE a(a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!drop-1	CREATE EXTERNAL TABLE a(a INT AS 1 a INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!drop-2	CREATE EXTERNAL TABLE a(a INT AS 1, INT AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!drop-3	CREATE EXTERNAL TABLE a(a INT AS 1, a AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!drop-4	CREATE EXTERNAL TABLE a(a INT AS 1, a INT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!drop-5	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!truncate	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS
+reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!insert	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!swap	CREATE EXTERNAL TABLE a(a INT AS 1, a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/%empty	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/%empty!insert	CREATE EXTERNAL TABLE a() zzz LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)	CREATE EXTERNAL TABLE a() PARTITION BY(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -32910,130 +32888,120 @@ reject	undocumented	docs	createExternalTable_cloudProviderParams(INTEGRATION_=_S
 reject	undocumented	docs	createExternalTable_cloudProviderParams(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!swap	CREATE EXTERNAL TABLE a() INTEGRATIONS = 's' LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	accept	docs	createExternalTable_externalStage/STAGE	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_externalStage/STAGE!truncate	CREATE EXTERNAL TABLE a() LOCATION =
-reject	accept	docs	createExternalTable_formatTypeOptions/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION = AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = AUTO COMPRESSION = AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION AUTO COMPRESSION = AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = COMPRESSION = AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-4	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO = AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-5	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION AUTO)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!drop-6	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION = AUTO zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)_(COMPRE~7318f8cf!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPUTE = AUTO COMPRESSION = AUTO)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's' zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/RECORD_DELIMITER_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECOVERY = 's')
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_DELIMITER_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_DELIMITER_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_DELIMITER_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_DELIMITER_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_DELIMITER_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER = 's' zzz)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/MULTI_LINE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_QUEUE = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER = 1)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = 1)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER 1)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER = 1 zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_HEADER_=_NUMBER!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SMALL = 1)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BYTE_ORDER_MARK = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD = 's' zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EVENT = 's')
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/TRIM_SPACE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRUE = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = 's' zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FILE = 's')
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s'))
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV =('s'))
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF('s'))
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF = 's'))
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-4	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =())
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-5	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s'
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s') zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NUMBER =('s'))
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENABLE = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING = 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING 's')
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING = 's' zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ENCODING_=_STRING!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCRYPTION = 's')
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_ID_TOKEN = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ELEMENT = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_NULL_VALUES_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES = TRUE zzz)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLICA = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF = 's' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-4	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =(COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-5	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-6	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-7	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-8	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-9	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-10	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-11	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-12	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!drop-13	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS =)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE zzz)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~50ff8112)/NULL_IF_=_(_STRING_(,_STRING)*_COMPRESSION_=_(AUTO|SNAP~2b337a24!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NUMBER =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION = AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = AUTO COMPRESSION = AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION AUTO COMPRESSION = AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = COMPRESSION = AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-4	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO = AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-5	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION AUTO)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!drop-6	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO COMPRESSION = AUTO zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)+/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)_(COMPRE~c365728d!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPUTE = AUTO COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's' zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/RECORD_DELIMITER_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV RECOVERY = 's')
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_DELIMITER_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_DELIMITER_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_DELIMITER_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_DELIMITER_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_DELIMITER_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_DELIMITER = 's' zzz)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_LINE = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/MULTI_LINE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV MULTI_QUEUE = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER = 1)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV = 1)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER 1)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_HEADER = 1 zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_HEADER_=_NUMBER!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SMALL = 1)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BLANK_LINES = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/SKIP_BLANK_LINES_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV SKIP_BYTE_ORDER_MARK = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ESCAPE_UNENCLOSED_FIELD = 's' zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ESCAPE_UNENCLOSED_FIELD_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EVENT = 's')
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRIM_SPACE = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/TRIM_SPACE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV TRUE = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = 's' zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/FIELD_OPTIONALLY_ENCLOSED_BY_=_(STRING|NONE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV FILE = 's')
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s'))
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-1	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV =('s'))
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF('s'))
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF = 's'))
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-4	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =())
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!drop-5	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s'
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s') zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/NULL_IF_=_(_STRING_(,_STRING)*_)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NUMBER =('s'))
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV EMPTY_FIELD_AS_NULL = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/EMPTY_FIELD_AS_NULL_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENABLE = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING = 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING 's')
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCODING = 's' zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ENCODING_=_STRING!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ENCRYPTION = 's')
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_DUPLICATE = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/ALLOW_DUPLICATE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV ALLOW_ID_TOKEN = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ARRAY = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_OUTER_ARRAY_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_OUTER_ELEMENT = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_NULL_VALUES_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/STRIP_NULL_VALUES_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV STRIP_NULL_VALUES = TRUE zzz)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLACE_INVALID_CHARACTERS = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/REPLACE_INVALID_CHARACTERS_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV REPLICA = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/COMPRESSION_=_(AUTO|SNAPPY|NONE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_AS_TEXT = TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_AS_TEXT TRUE)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_AS_TEXT =)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_AS_TEXT =
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_AS_TEXT = TRUE zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~58b11044)/BINARY_AS_TEXT_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV BINARY_FORMAT = TRUE)
 reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)/AUTO	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)/AUTO!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTOCOMMIT)
 reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)/GZIP	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = GZIP)
@@ -33073,16 +33041,11 @@ reject	undocumented	docs	createExternalTable_formatTypeOptions(,_STRING)*/,_STRI
 reject	undocumented	docs	createExternalTable_formatTypeOptions(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s',))
 reject	undocumented	docs	createExternalTable_formatTypeOptions(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s',
 reject	undocumented	docs	createExternalTable_formatTypeOptions(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s', 's' zzz))
-reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/AUTO	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/AUTO!truncate	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION =
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/AUTO!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTO zzz BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/AUTO!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = AUTOCOMMIT BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = SNAPPY BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = SNAPPY zzz BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = SNAPPY_COMPRESSION BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/NONE	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = NONE BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/NONE!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = NONE zzz BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
-reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/NONE!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV NULL_IF =('s' COMPRESSION = NOORDER BINARY_AS_TEXT = TRUE REPLACE_INVALID_CHARACTERS = TRUE)
+reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/AUTO	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
+reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = SNAPPY)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY!insert	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = SNAPPY zzz)
+reject	undocumented	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/SNAPPY!swap	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = SNAPPY_COMPRESSION)
+reject	accept	docs	createExternalTable_formatTypeOptions(AUTO|SNAPPY|NONE)/NONE	CREATE EXTERNAL TABLE a() LOCATION = @a FILE_FORMAT =(TYPE = CSV COMPRESSION = NONE)
 accept	accept	docs	createFailoverGroup/CREATE_FAILOVER_GROUP_(IF_NOT_EXISTS)?_ID_OBJECT_TYPES_~7abdd501	CREATE FAILOVER GROUP a OBJECT_TYPES = TABLE ALLOWED_ACCOUNTS = a.a
 accept	accept	docs	createFailoverGroup/CREATE_FAILOVER_GROUP_(IF_NOT_EXISTS)?_ID_AS_REPLICA_OF~252a39bb	CREATE FAILOVER GROUP a AS REPLICA OF a.a.a
 reject	undocumented	docs	createFailoverGroup/CREATE_FAILOVER_GROUP_(IF_NOT_EXISTS)?_ID_AS_REPLICA_OF~252a39bb!drop-1	FAILOVER GROUP a AS REPLICA OF a.a.a
@@ -55647,13 +55610,13 @@ accept	undocumented	docs	showMfaMethods(FOR_USER_ID)?/FOR_USER_ID!drop-2	SHOW MF
 accept	undocumented	docs	showMfaMethods(FOR_USER_ID)?/FOR_USER_ID!drop-3	SHOW MFA METHODS FOR USER
 reject	undocumented	docs	showMfaMethods(FOR_USER_ID)?/FOR_USER_ID!insert	SHOW MFA METHODS FOR USER a zzz
 accept	undocumented	docs	showMfaMethods(FOR_USER_ID)?/FOR_USER_ID!swap	SHOW MFA METHODS FORCE USER a
-accept	accept	docs	showModelMonitors/SHOW_MODEL_MONITORS_(LIKE_ID)?_(IN_(ACCOUNT|DATABASE|DA~311c0e59	SHOW MODEL MONITORS
-accept	accept	docs	showModelMonitors(LIKE_ID)?/%empty	SHOW MODEL MONITORS
-reject	accept	docs	showModelMonitors(LIKE_ID)?/LIKE_ID	SHOW MODEL MONITORS LIKE a
-accept	undocumented	docs	showModelMonitors(LIKE_ID)?/LIKE_ID!drop-1	SHOW MODEL MONITORS a
-reject	undocumented	docs	showModelMonitors(LIKE_ID)?/LIKE_ID!drop-2	SHOW MODEL MONITORS LIKE
-reject	undocumented	docs	showModelMonitors(LIKE_ID)?/LIKE_ID!insert	SHOW MODEL MONITORS LIKE a zzz
-reject	undocumented	docs	showModelMonitors(LIKE_ID)?/LIKE_ID!swap	SHOW MODEL MONITORS LIMIT a
+accept	accept	docs	showModelMonitors/SHOW_MODEL_MONITORS_(LIKE_STRING)?_(IN_(ACCOUNT|DATABAS~6d143f79	SHOW MODEL MONITORS
+accept	accept	docs	showModelMonitors(LIKE_STRING)?/%empty	SHOW MODEL MONITORS
+accept	accept	docs	showModelMonitors(LIKE_STRING)?/LIKE_STRING	SHOW MODEL MONITORS LIKE 's'
+reject	undocumented	docs	showModelMonitors(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW MODEL MONITORS 's'
+reject	undocumented	docs	showModelMonitors(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW MODEL MONITORS LIKE
+reject	undocumented	docs	showModelMonitors(LIKE_STRING)?/LIKE_STRING!insert	SHOW MODEL MONITORS LIKE 's' zzz
+reject	undocumented	docs	showModelMonitors(LIKE_STRING)?/LIKE_STRING!swap	SHOW MODEL MONITORS LIMIT 's'
 accept	accept	docs	showModelMonitors(IN_(ACCOUNT|DATABASE|DATABASE_ID|SCH~6543a548)?/%empty	SHOW MODEL MONITORS
 accept	accept	docs	showModelMonitors(IN_(ACCOUNT|DATABASE|DATABASE_ID|SCH~6543a548)?/IN_(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~e5254df4)	SHOW MODEL MONITORS IN ACCOUNT
 accept	undocumented	docs	showModelMonitors(IN_(ACCOUNT|DATABASE|DATABASE_ID|SCH~6543a548)?/IN_(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~e5254df4)!drop-1	SHOW MODEL MONITORS ACCOUNT

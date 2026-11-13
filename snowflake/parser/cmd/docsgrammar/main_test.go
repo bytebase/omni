@@ -147,6 +147,9 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 	if _, err := c.form("CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
 		t.Errorf("a placeholder for a type's keyword was converted")
 	}
+	if _, err := c.form("ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>"); err == nil {
+		t.Errorf("a bracketed placeholder for a type's keyword was converted")
+	}
 	if got, err := c.form("SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}

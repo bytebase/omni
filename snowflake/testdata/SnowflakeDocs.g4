@@ -83,7 +83,6 @@ statement
     | alterIcebergTableVersionTag
     | alterImageRepository
     | alterIngressPolicy
-    | alterIntegration
     | alterJoinPolicy
     | alterListing
     | alterMaintenancePolicy
@@ -1488,9 +1487,8 @@ alterIngressPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-integration
-alterIntegration
-    : 'ALTER' ID? 'INTEGRATION' ID ID
-    ;
+// not converted (form): <integration_type> stands for a type's keyword, whose page gives its syntax
+//   ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-join-policy
 alterJoinPolicy
@@ -2945,10 +2943,12 @@ createExternalFunction
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-external-table
+// fix: the ORC options' NULL_IF list is not closed; closed, as the CSV options write it
+// fix: each column, with its constraint, follows a comma, as the page's examples write them
 createExternalTable
-    : 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage ('REFRESH_ON_CREATE' '=' ('TRUE' | 'FALSE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('PATTERN' '=' STRING)? 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('AWS_SNS_TOPIC' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR | ID DATA_TYPE 'AS' EXPR+)?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('TABLE_FORMAT' '=' 'DELTA')? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage ('REFRESH_ON_CREATE' '=' ('TRUE' | 'FALSE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('PATTERN' '=' STRING)? 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('AWS_SNS_TOPIC' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
+    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
+    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')' createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET') createExternalTable_formatTypeOptions?) ')' ('TABLE_FORMAT' '=' 'DELTA')? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     ;
 createExternalTable_inlineConstraint
     : ('NOT' 'NULL')? ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID (',' ID)? ')')?) ID?
@@ -2960,7 +2960,7 @@ createExternalTable_externalStage
     : STAGE
     ;
 createExternalTable_formatTypeOptions
-    : ('COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BZ2' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'RECORD_DELIMITER' '=' (STRING | 'NONE') | 'FIELD_DELIMITER' '=' (STRING | 'NONE') | 'MULTI_LINE' '=' ('TRUE' | 'FALSE') | 'SKIP_HEADER' '=' NUMBER | 'SKIP_BLANK_LINES' '=' ('TRUE' | 'FALSE') | 'ESCAPE_UNENCLOSED_FIELD' '=' (STRING | 'NONE') | 'TRIM_SPACE' '=' ('TRUE' | 'FALSE') | 'FIELD_OPTIONALLY_ENCLOSED_BY' '=' (STRING | 'NONE') | 'NULL_IF' '=' '(' STRING (',' STRING)* ')' | 'EMPTY_FIELD_AS_NULL' '=' ('TRUE' | 'FALSE') | 'ENCODING' '=' STRING | 'ALLOW_DUPLICATE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE') | 'STRIP_NULL_VALUES' '=' ('TRUE' | 'FALSE') | 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE') | 'NULL_IF' '=' '(' STRING (',' STRING)* 'COMPRESSION' '=' ('AUTO' | 'SNAPPY' | 'NONE') 'BINARY_AS_TEXT' '=' ('TRUE' | 'FALSE') 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))+
+    : ('COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BZ2' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'RECORD_DELIMITER' '=' (STRING | 'NONE') | 'FIELD_DELIMITER' '=' (STRING | 'NONE') | 'MULTI_LINE' '=' ('TRUE' | 'FALSE') | 'SKIP_HEADER' '=' NUMBER | 'SKIP_BLANK_LINES' '=' ('TRUE' | 'FALSE') | 'ESCAPE_UNENCLOSED_FIELD' '=' (STRING | 'NONE') | 'TRIM_SPACE' '=' ('TRUE' | 'FALSE') | 'FIELD_OPTIONALLY_ENCLOSED_BY' '=' (STRING | 'NONE') | 'NULL_IF' '=' '(' STRING (',' STRING)* ')' | 'EMPTY_FIELD_AS_NULL' '=' ('TRUE' | 'FALSE') | 'ENCODING' '=' STRING | 'ALLOW_DUPLICATE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE') | 'STRIP_NULL_VALUES' '=' ('TRUE' | 'FALSE') | 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE') | 'COMPRESSION' '=' ('AUTO' | 'SNAPPY' | 'NONE') | 'BINARY_AS_TEXT' '=' ('TRUE' | 'FALSE'))+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-external-volume
@@ -5847,8 +5847,9 @@ showMfaMethods
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-model-monitors
+// fix: LIKE takes a quoted pattern, as the page's parameters and examples write it
 showModelMonitors
-    : 'SHOW' 'MODEL' 'MONITORS' ('LIKE' ID)? ('IN' ('ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID | ID | 'GATEWAY' ID))?
+    : 'SHOW' 'MODEL' 'MONITORS' ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' | 'DATABASE' ID | 'SCHEMA' | 'SCHEMA' ID | ID | 'GATEWAY' ID))?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-models

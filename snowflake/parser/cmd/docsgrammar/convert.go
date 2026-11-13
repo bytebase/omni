@@ -629,12 +629,17 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	if err := c.checkWords(toks); err != nil {
 		return nil, err
 	}
-	// CREATE <integration_type> INTEGRATION: a placeholder standing for the
-	// keyword of a type, whose own page gives its syntax. Not a value.
+	// CREATE <integration_type> INTEGRATION, ALTER [ <integration_type> ]
+	// INTEGRATION: a placeholder standing for the keyword of a type, whose
+	// own page gives its syntax. Not a value.
 	for i, t := range toks {
+		next := i + 1
+		if next < len(toks) && toks[next].kind == nClose && i > 0 && toks[i-1].kind == nOpen {
+			next++ // [ <integration_type> ] INTEGRATION
+		}
 		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && placeholderClass(t.text) == tName &&
 			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
-			i+1 < len(toks) && toks[i+1].kind == nKeyword {
+			next < len(toks) && toks[next].kind == nKeyword {
 			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
 		}
 	}
