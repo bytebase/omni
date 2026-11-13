@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -689,4 +691,68 @@ func TestBareColumnLabelsMatchPG(t *testing.T) {
 		return p.isBareColLabelStart()
 	}
 	assertPredicateMatchesPG(t, "BareColLabel via SELECT 1", outcomes, predicateProbe{onKeyword: label, onNonKeyword: label})
+}
+
+// TestSeqOptElemLeadTokensMatchPG holds seqOptElemLeadTokens, the lead set
+// isSeqOptElemStart reads after ALTER SEQUENCE name, to PostgreSQL's
+// SeqOptElem (gram.y: SeqOptElem).
+//
+// The template is CREATE SEQUENCE name <token> ...: there the name is
+// followed only by OptSeqOptList, so PostgreSQL takes the statement exactly
+// when the token starts a SeqOptElem, with none of alter_table_cmds'
+// alternatives competing. Each token is tried with every continuation a
+// SeqOptElem can need (a number, a type, BY NONE, NAME name, CYCLE).
+//
+// After ALTER SEQUENCE name, NO also starts alter_table_cmds' NO INHERIT and
+// NO FORCE; the second half holds isSeqOptElemStart's split there to
+// PostgreSQL and to the statement omni builds.
+func TestSeqOptElemLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	continuations := []string{"", " 1", " int", " BY NONE", " NAME omni_probe_name", " CYCLE"}
+	outcomes := runFirstSetProbe(t, o,
+		"CREATE SEQUENCE omni_probe_seq %s",
+		func(c candidateToken) []string {
+			forms := make([]string, 0, len(continuations))
+			for _, cont := range continuations {
+				forms = append(forms, c.probeSQL+cont)
+			}
+			return forms
+		},
+		filterKeywordsOnly,
+	)
+	// SEQUENCE NAME parses, but init_params (sequence.c) refuses it on
+	// execution with 42601, which the probe classifies as a syntax error.
+	for i := range outcomes {
+		if outcomes[i].candidate.token == SEQUENCE {
+			outcomes[i].accepted = true
+		}
+	}
+	lead := func(c candidateToken) bool { return slices.Contains(seqOptElemLeadTokens, c.token) }
+	assertPredicateMatchesPG(t, "SeqOptElem via CREATE SEQUENCE", outcomes, predicateProbe{onKeyword: lead})
+
+	// A slice, not a map: the tape replays the requests in order.
+	for _, tc := range []struct {
+		sql    string
+		seqOpt bool
+	}{
+		{"ALTER SEQUENCE omni_probe_seq NO CYCLE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO MAXVALUE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO MINVALUE", true},
+		{"ALTER SEQUENCE omni_probe_seq NO INHERIT omni_probe_table", false},
+		{"ALTER SEQUENCE omni_probe_seq NO FORCE ROW LEVEL SECURITY", false},
+	} {
+		sql, seqOpt := tc.sql, tc.seqOpt
+		if o.probe(t, sql) != probeAccept {
+			t.Errorf("PostgreSQL rejects %q", sql)
+		}
+		stmts, err := Parse(sql)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+			continue
+		}
+		_, isSeq := stmts.Items[0].(*nodes.RawStmt).Stmt.(*nodes.AlterSeqStmt)
+		if isSeq != seqOpt {
+			t.Errorf("Parse(%q) built %T, want AlterSeqStmt %v", sql, stmts.Items[0].(*nodes.RawStmt).Stmt, seqOpt)
+		}
+	}
 }

@@ -23,7 +23,10 @@ func (p *Parser) parseCreatedbStmt(stmtLoc int) (nodes.Node, error) {
 		p.advance()
 	}
 
-	options := p.parseCreatedbOptList()
+	options, err := p.parseCreatedbOptList()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.CreatedbStmt{
 		Dbname:  name,
@@ -36,19 +39,22 @@ func (p *Parser) parseCreatedbStmt(stmtLoc int) (nodes.Node, error) {
 //
 //	createdb_opt_list:
 //	    createdb_opt_items | EMPTY
-func (p *Parser) parseCreatedbOptList() *nodes.List {
+func (p *Parser) parseCreatedbOptList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		item := p.parseCreatedbOptItem()
+		item, err := p.parseCreatedbOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseCreatedbOptItem parses a single createdb_opt_item.
@@ -57,10 +63,10 @@ func (p *Parser) parseCreatedbOptList() *nodes.List {
 //	    createdb_opt_name opt_equal NumericOnly
 //	    | createdb_opt_name opt_equal opt_boolean_or_string
 //	    | createdb_opt_name opt_equal DEFAULT
-func (p *Parser) parseCreatedbOptItem() *nodes.DefElem {
-	optName := p.parseCreatedbOptName()
-	if optName == "" {
-		return nil
+func (p *Parser) parseCreatedbOptItem() (*nodes.DefElem, error) {
+	optName, err := p.parseCreatedbOptName()
+	if err != nil || optName == "" {
+		return nil, err
 	}
 
 	// opt_equal: '=' | EMPTY
@@ -68,21 +74,24 @@ func (p *Parser) parseCreatedbOptItem() *nodes.DefElem {
 		p.advance()
 	}
 
-	// Value: NumericOnly | opt_boolean_or_string | DEFAULT
-	if p.cur.Type == DEFAULT {
+	switch p.cur.Type {
+	case DEFAULT:
 		p.advance()
-		return makeDefElem(optName, nil)
+		return makeDefElem(optName, nil), nil
+	case ICONST, FCONST, '+', '-':
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem(optName, val), nil
+	case TRUE_P, FALSE_P, ON, SCONST:
+		return makeDefElem(optName, &nodes.String{Str: p.parseOptBooleanOrString()}), nil
 	}
-
-	// Try NumericOnly first (ICONST, FCONST, +/- followed by number)
-	if p.cur.Type == ICONST || p.cur.Type == FCONST || p.cur.Type == '+' || p.cur.Type == '-' {
-		val := p.parseNumericOnly()
-		return makeDefElem(optName, val)
+	// opt_boolean_or_string: ... | NonReservedWord_or_Sconst
+	if p.isNonReservedWord() {
+		return makeDefElem(optName, &nodes.String{Str: p.parseOptBooleanOrString()}), nil
 	}
-
-	// opt_boolean_or_string
-	val := p.parseOptBooleanOrString()
-	return makeDefElem(optName, &nodes.String{Str: val})
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseCreatedbOptName parses createdb_opt_name.
@@ -95,40 +104,42 @@ func (p *Parser) parseCreatedbOptItem() *nodes.DefElem {
 //	    | OWNER
 //	    | TABLESPACE
 //	    | TEMPLATE
-func (p *Parser) parseCreatedbOptName() string {
+func (p *Parser) parseCreatedbOptName() (string, error) {
 	switch p.cur.Type {
 	case COLLATE:
 		p.advance()
-		return "collate"
+		return "collate", nil
 	case CONNECTION:
 		p.advance() // consume CONNECTION
-		p.expect(LIMIT)
-		return "connection_limit"
+		if _, err := p.expect(LIMIT); err != nil {
+			return "", err
+		}
+		return "connection_limit", nil
 	case ENCODING:
 		p.advance()
-		return "encoding"
+		return "encoding", nil
 	case LOCATION:
 		p.advance()
-		return "location"
+		return "location", nil
 	case OWNER:
 		p.advance()
-		return "owner"
+		return "owner", nil
 	case ISOLATION:
 		p.advance()
 		p.expect(LEVEL)
-		return "isolation_level"
+		return "isolation_level", nil
 	case TABLESPACE:
 		p.advance()
-		return "tablespace"
+		return "tablespace", nil
 	case TEMPLATE:
 		p.advance()
-		return "template"
+		return "template", nil
 	case IDENT:
 		name := p.cur.Str
 		p.advance()
-		return name
+		return name, nil
 	default:
-		return ""
+		return "", nil
 	}
 }
 
@@ -170,7 +181,19 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 		}, nil
 
 	case OWNER:
-		// ALTER DATABASE name OWNER TO RoleSpec
+		// ALTER DATABASE name OWNER TO RoleSpec; without TO, OWNER is a
+		// createdb_opt_name (OWNER [=] value).
+		if p.peekNext().Type != TO && !p.completingAtNext() {
+			options, err := p.parseCreatedbOptList()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.AlterDatabaseStmt{
+				Dbname:  name,
+				Options: options,
+				Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
+			}, nil
+		}
 		p.advance() // consume OWNER
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
@@ -212,7 +235,10 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 	case WITH:
 		// ALTER DATABASE name WITH createdb_opt_list
 		p.advance() // consume WITH
-		options := p.parseCreatedbOptList()
+		options, err := p.parseCreatedbOptList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,
@@ -221,7 +247,10 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 
 	case CONNECTION:
 		// ALTER DATABASE name CONNECTION LIMIT connlimit
-		options := p.parseCreatedbOptList()
+		options, err := p.parseCreatedbOptList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,
@@ -244,7 +273,10 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 
 	default:
 		// ALTER DATABASE name createdb_opt_list (empty or options)
-		options := p.parseCreatedbOptList()
+		options, err := p.parseCreatedbOptList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,

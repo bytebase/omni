@@ -333,6 +333,38 @@ func (p *Parser) isCreateStmtTailStart() bool {
 	return createStmtTailLeadSet[p.cur.Type]
 }
 
+// seqOptElemLeadTokens is the FIRST set of SeqOptElem, what ALTER SEQUENCE
+// name takes as AlterSeqStmt's SeqOptList; any other token after the name
+// goes on with alter_table_cmds (AlterTableStmt: ALTER SEQUENCE
+// qualified_name alter_table_cmds). NO also starts NO INHERIT and NO FORCE
+// there, so isSeqOptElemStart asks the token after it.
+//
+// Grammar reference: AlterSeqStmt, SeqOptElem and AlterTableStmt in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseSeqOptElem in
+// sequence.go, and vice versa.
+var seqOptElemLeadTokens = []int{AS, CACHE, CYCLE, NO, INCREMENT, LOGGED, MAXVALUE, MINVALUE, OWNED, SEQUENCE, START, RESTART, UNLOGGED}
+
+// isSeqOptElemStart reports whether the current token starts a SeqOptElem
+// after ALTER SEQUENCE name.
+//
+// No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
+// against the whole Keywords table.
+func (p *Parser) isSeqOptElemStart() bool {
+	if !slices.Contains(seqOptElemLeadTokens, p.cur.Type) {
+		return false
+	}
+	if p.cur.Type == NO {
+		switch p.peekNext().Type {
+		case CYCLE, MAXVALUE, MINVALUE:
+			return true
+		}
+		return false
+	}
+	return true
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

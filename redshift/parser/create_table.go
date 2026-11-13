@@ -477,10 +477,18 @@ func (p *Parser) parseColConstraintBody() (nodes.Node, error) {
 			Loc:      nodes.NoLoc(),
 		}, nil
 	case COMPRESSION:
+		// column_compression: COMPRESSION ColId | COMPRESSION DEFAULT
 		p.advance()
-		id, err := p.parseColId()
-		if err != nil {
-			return nil, err
+		var id string
+		if p.cur.Type == DEFAULT {
+			p.advance()
+			id = "default"
+		} else {
+			var err error
+			id, err = p.parseColId()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !p.collectMode() && id == "" {
 			return nil, p.syntaxErrorAtCur()
@@ -491,10 +499,18 @@ func (p *Parser) parseColConstraintBody() (nodes.Node, error) {
 			Loc:     nodes.NoLoc(),
 		}, nil
 	case STORAGE:
+		// column_storage: STORAGE ColId | STORAGE DEFAULT
 		p.advance()
-		id, err := p.parseColId()
-		if err != nil {
-			return nil, err
+		var id string
+		if p.cur.Type == DEFAULT {
+			p.advance()
+			id = "default"
+		} else {
+			var err error
+			id, err = p.parseColId()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !p.collectMode() && id == "" {
 			return nil, p.syntaxErrorAtCur()

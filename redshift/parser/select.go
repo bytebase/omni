@@ -863,7 +863,8 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.cur.Type == RECURSIVE {
+	// RECURSIVE is unreserved: with no CTE name after it, it is the name.
+	if p.cur.Type == RECURSIVE && p.keywordLeads(isColIdToken) {
 		p.advance()
 		wc.Recursive = true
 	}
