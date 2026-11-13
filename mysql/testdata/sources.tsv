@@ -1,0 +1,6 @@
+# Vendor files mysql's tests read and the repo does not hold: MySQL's sources are
+# under the GPL v2, which is not this repo's license. A test downloads each file
+# once (enginetest.Fetched) and checks its SHA-256 on every use. Each URL names
+# the commit of the source tag in pins.tsv, mysql-8.0.46.
+# columns: name, sha256, url
+sql_yacc.yy	656404be2276fb1618ccb1dad20ab2acf3a9c88eb8f9a6766b803a125f02367f	https://raw.githubusercontent.com/mysql/mysql-server/0a7df2e4693d8f10901a26034ae6257699356e30/sql/sql_yacc.yy
