@@ -352,6 +352,13 @@ const constraintProperties = "[ [ NOT ] ENFORCED ] [ [ NOT ] DEFERRABLE ] [ INIT
 // every column takes the whole definition.
 var moreColumns = regexp.MustCompile(`(?s)(--\s*Column definition[^\n]*\n)(.*?)(\n[ \t]*\n[ \t]*-- Additional column definitions[^\n]*\n[ \t]*)\[ , <col_name> <col_type>[^\n]*\]`)
 
+// outOfLineKeys is the column list of an out-of-line UNIQUE, PRIMARY KEY
+// or FOREIGN KEY constraint, which the pages write optional because their
+// inline constraints share the syntax; out of line, it is required, as
+// https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
+// says.
+var outOfLineKeys = regexp.MustCompile(`\[ \( <col_name> \[ , <col_name> , \.\.\. \] \) \]`)
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -413,6 +420,25 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			blocks[i] = fixed
 			pg.fixes = append(pg.fixes, "read: a template argument's <value> is a constant, a string or JSON value, as the USING parameters say")
 		}
+	}
+	outOfLine := false
+	for i, b := range blocks {
+		at := strings.Index(b, "outoflineConstraint ::=")
+		if at < 0 {
+			continue
+		}
+		end := len(b)
+		if next := strings.Index(b[at+len("outoflineConstraint ::="):], "::="); next >= 0 {
+			end = at + len("outoflineConstraint ::=") + next
+		}
+		def := outOfLineKeys.ReplaceAllString(b[at:end], "( <col_name> [ , <col_name> , ... ] )")
+		if def != b[at:end] {
+			blocks[i] = b[:at] + def + b[end:]
+			outOfLine = true
+		}
+	}
+	if outOfLine {
+		pg.fixes = append(pg.fixes, "read: an out-of-line key constraint names its columns, as the constraint page says")
 	}
 	columns := false
 	for i, b := range blocks {

@@ -2246,6 +2246,7 @@ alterStreamlit
 // fix: list_of_properties is a space-delimited list of the properties the parameters name
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 alterTable
     : 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID 'SWAP' 'WITH' ID
@@ -2297,7 +2298,7 @@ alterTable_constraintAction
     : ('ADD' alterTable_outoflineConstraint | 'RENAME' 'CONSTRAINT' ID 'TO' ID | ('ALTER' | 'MODIFY') ('CONSTRAINT' ID | 'PRIMARY' 'KEY' | 'UNIQUE' | 'FOREIGN' 'KEY') '(' ID (',' ID)* ')' ('NOT'? 'ENFORCED')? ('VALIDATE' | 'NOVALIDATE')? ('RELY' | 'NORELY')? | 'DROP' ('CONSTRAINT' ID | 'PRIMARY' 'KEY' | 'UNIQUE' | 'FOREIGN' 'KEY') '(' ID (',' ID)* ')' ('CASCADE' | 'RESTRICT')?)
     ;
 alterTable_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 alterTable_searchOptimizationAction
     : ('ADD' 'SEARCH' 'OPTIMIZATION' ('ON' ID (',' ID)*)? | 'DROP' 'SEARCH' 'OPTIMIZATION' ('ON' (ID | EXPR) (',' (ID | EXPR))*)?)
@@ -2497,10 +2498,12 @@ alterVariable
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-view
 // fix: list_of_properties is a space-delimited list of the properties the parameters name
+// fix: a view's properties are set one at a time, as the SET parameter says
+// fix: a view's properties are unset one at a time, as the UNSET parameter says
 alterView
     : 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
-    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'SET' ('SECURE' ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CHANGE_TRACKING' '=' ('TRUE' | 'FALSE') ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
-    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'UNSET' ('SECURE' ('CONTACT' ID)? 'COMMENT'? | 'CONTACT' ID 'COMMENT'? | 'COMMENT')
+    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'SET' ('SECURE' | 'CHANGE_TRACKING' '=' ('TRUE' | 'FALSE') | 'CONTACT' ID '=' ID (',' ID '=' ID)* | 'COMMENT' '=' STRING)
+    | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'UNSET' ('SECURE' | 'CONTACT' ID | 'COMMENT')
     | 'ALTER' 'VIEW' ID alterView_dataMetricFunctionAction
     | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID alterView_dataGovnPolicyTagAction
     ;
@@ -3111,6 +3114,7 @@ createGitRepository
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-hybrid-table
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 createHybridTable
     : 'CREATE' ('OR' 'REPLACE')? 'HYBRID' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('NOT' 'NULL')? createHybridTable_inlineConstraint? ('COLLATE' STRING)? ('COMMENT' STRING)? (',' ID DATA_TYPE)* (',' createHybridTable_outoflineConstraint)? (',' createHybridTable_outoflineIndex)* ')' ('COMMENT' '=' STRING)?
     ;
@@ -3118,7 +3122,7 @@ createHybridTable_inlineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createHybridTable_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))? ('COMMENT' STRING)?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))? ('COMMENT' STRING)?
     ;
 createHybridTable_outoflineIndex
     : 'INDEX' ID '(' ID (',' ID)* ')' ('INCLUDE' '(' ID (',' ID)* ')')?
@@ -3134,6 +3138,7 @@ createHybridTable_outoflineIndex
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 // fix: read: the additional columns take the whole column definition, which their line abbreviates
 createIcebergTable
     : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTable_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? (',' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTable_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)?)* (',' createIcebergTable_outoflineConstraint)* ')' ('PARTITION' 'BY' '(' createIcebergTable_partitionExpression (',' createIcebergTable_partitionExpression)* ')')? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('CATALOG_SYNC' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ALLOW_V3_EXPRESSION_DEFAULTS' '=' ('TRUE' | 'FALSE'))? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))?
@@ -3150,8 +3155,8 @@ createIcebergTable_inlineConstraint
     | ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createIcebergTable_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
-    | ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
+    | ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createIcebergTable_partitionExpression
     : ID
@@ -3179,6 +3184,7 @@ createIcebergTableIcebergFiles
 // fix: each additional column, data, virtual or partition, follows a comma, as the page's examples write them
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 createIcebergTableParquet
     : 'CREATE' ('OR' 'REPLACE')? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('(' ID DATA_TYPE ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? createIcebergTableParquet_inlineConstraint? (',' (ID DATA_TYPE | ID DATA_TYPE 'AS' EXPR) createIcebergTableParquet_inlineConstraint?)* (',' createIcebergTableParquet_outoflineConstraint)* ')')? ('PARTITION' 'BY' '(' ID (',' ID)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' STRING)? 'BASE_LOCATION' '=' STRING ('ENABLE_SCHEMA_INFERENCE' '=' ('TRUE' | 'FALSE'))? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))? ('MATCH_BY_COLUMN_NAME' '=' ('CASE_INSENSITIVE' | 'CASE_SENSITIVE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('REFRESH_ON_CREATE' '=' ('TRUE' | 'FALSE'))? ('PATTERN' '=' STRING)? ('REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' STRING)?
     ;
@@ -3186,7 +3192,7 @@ createIcebergTableParquet_inlineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createIcebergTableParquet_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-rest
@@ -3197,6 +3203,7 @@ createIcebergTableRest
 // https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-snowflake
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 // fix: read: the additional columns take the whole column definition, which their line abbreviates
 createIcebergTableSnowflake
     : 'CREATE' ('OR' 'REPLACE')? 'TRANSIENT'? 'ICEBERG' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTableSnowflake_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? (',' ID DATA_TYPE ('DEFAULT' EXPR)? createIcebergTableSnowflake_inlineConstraint? ('NOT' 'NULL')? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)?)* (',' createIcebergTableSnowflake_outoflineConstraint)* ')' ('PARTITION' 'BY' '(' createIcebergTableSnowflake_partitionExpression (',' createIcebergTableSnowflake_partitionExpression)* ')')? ('PATH_LAYOUT' '=' ('FLAT' | 'HIERARCHICAL'))? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('EXTERNAL_VOLUME' '=' STRING)? ('CATALOG' '=' '\'SNOWFLAKE\'')? ('BASE_LOCATION' '=' STRING)? ('TARGET_FILE_SIZE' '=' ('\'AUTO\'' | '\'16MB\'' | '\'32MB\'' | '\'64MB\'' | '\'128MB\''))? ('CATALOG_SYNC' '=' STRING)? ('STORAGE_SERIALIZATION_POLICY' '=' ('COMPATIBLE' | 'OPTIMIZED'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ICEBERG_VERSION' '=' NUMBER)? ('ALLOW_V3_EXPRESSION_DEFAULTS' '=' ('TRUE' | 'FALSE'))? ('ICEBERG_MERGE_ON_READ_BEHAVIOR' '=' ('\'AUTO\'' | '\'ENABLED\'' | '\'DISABLED\''))? ('ENABLE_ICEBERG_MERGE_ON_READ' '=' ('TRUE' | 'FALSE'))? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('ENABLE_DATA_COMPACTION' '=' ('TRUE' | 'FALSE'))? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))?
@@ -3205,7 +3212,7 @@ createIcebergTableSnowflake_inlineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createIcebergTableSnowflake_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createIcebergTableSnowflake_partitionExpression
     : ID
@@ -3621,8 +3628,9 @@ createSecurityIntegrationOidc
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-saml2
+// fix: <idp_parameters> is SAML2_ISSUER, SAML2_SSO_URL, SAML2_PROVIDER and SAML2_X509_CERT, as the required parameters say
 createSecurityIntegrationSaml2
-    : 'CREATE' ('OR' 'REPLACE')? 'SECURITY' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'TYPE' '=' 'SAML2' 'ENABLED' '=' ('TRUE' | 'FALSE') ('METADATA_URL' '=' STRING | 'METADATA_URL' '=' ID) ('ALLOWED_USER_DOMAINS' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_EMAIL_PATTERNS' '=' '(' STRING (',' STRING)* ')')? ('SAML2_SP_INITIATED_LOGIN_PAGE_LABEL' '=' STRING)? ('SAML2_ENABLE_SP_INITIATED' '=' 'TRUE' | 'SAML2_ENABLE_SP_INITIATED' '=' 'FALSE')? ('SAML2_SNOWFLAKE_X509_CERT' '=' STRING)? ('SAML2_SIGN_REQUEST' '=' 'TRUE' | 'SAML2_SIGN_REQUEST' '=' 'FALSE')? ('SAML2_REQUESTED_NAMEID_FORMAT' '=' STRING)? ('SAML2_POST_LOGOUT_REDIRECT_URL' '=' STRING)? ('SAML2_FORCE_AUTHN' '=' 'TRUE' | 'SAML2_FORCE_AUTHN' '=' 'FALSE')? ('SAML2_SNOWFLAKE_ISSUER_URL' '=' STRING)? ('SAML2_SNOWFLAKE_ACS_URL' '=' STRING)? ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'SECURITY' 'INTEGRATION' ('IF' 'NOT' 'EXISTS')? ID 'TYPE' '=' 'SAML2' 'ENABLED' '=' ('TRUE' | 'FALSE') ('METADATA_URL' '=' STRING | 'SAML2_ISSUER' '=' STRING 'SAML2_SSO_URL' '=' STRING 'SAML2_PROVIDER' '=' STRING 'SAML2_X509_CERT' '=' STRING) ('ALLOWED_USER_DOMAINS' '=' '(' STRING (',' STRING)* ')')? ('ALLOWED_EMAIL_PATTERNS' '=' '(' STRING (',' STRING)* ')')? ('SAML2_SP_INITIATED_LOGIN_PAGE_LABEL' '=' STRING)? ('SAML2_ENABLE_SP_INITIATED' '=' 'TRUE' | 'SAML2_ENABLE_SP_INITIATED' '=' 'FALSE')? ('SAML2_SNOWFLAKE_X509_CERT' '=' STRING)? ('SAML2_SIGN_REQUEST' '=' 'TRUE' | 'SAML2_SIGN_REQUEST' '=' 'FALSE')? ('SAML2_REQUESTED_NAMEID_FORMAT' '=' STRING)? ('SAML2_POST_LOGOUT_REDIRECT_URL' '=' STRING)? ('SAML2_FORCE_AUTHN' '=' 'TRUE' | 'SAML2_FORCE_AUTHN' '=' 'FALSE')? ('SAML2_SNOWFLAKE_ISSUER_URL' '=' STRING)? ('SAML2_SNOWFLAKE_ACS_URL' '=' STRING)? ('COMMENT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-scim
@@ -3769,6 +3777,7 @@ createStreamlit
 // https://docs.snowflake.com/en/sql-reference/sql/create-table
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
+// fix: read: an out-of-line key constraint names its columns, as the constraint page says
 // fix: read: the additional columns take the whole column definition, which their line abbreviates
 createTable
     : 'CREATE' ('OR' 'REPLACE')? (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'VOLATILE' | 'TRANSIENT'))? 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE (('GENERATED' 'ALWAYS')? 'AS' '(' EXPR ')' 'VIRTUAL'?)? createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)? (',' ID DATA_TYPE (('GENERATED' 'ALWAYS')? 'AS' '(' EXPR ')' 'VIRTUAL'?)? createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('WITH'? 'MASKING' 'POLICY' ID ('USING' '(' ID ',' ID (',' ID)* ')')?)? ('WITH'? 'PROJECTION' 'POLICY' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' STRING)?)* (',' createTable_outoflineConstraint)* ')' ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('COPY' 'GRANTS')? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'AGGREGATION' 'POLICY' ID ('ENTITY' 'KEY' '(' ID (',' ID)* ')')?)? ('WITH'? 'JOIN' 'POLICY' ID ('ALLOWED' 'JOIN' 'KEYS' '(' ID (',' ID)* ')')?)? ('WITH'? 'STORAGE' 'LIFECYCLE' 'POLICY' ID 'ON' '(' ID (',' ID)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')? ('ROW_TIMESTAMP' '=' ('TRUE' | 'FALSE'))?
@@ -3778,7 +3787,7 @@ createTable_inlineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
     ;
 createTable_outoflineConstraint
-    : ('CONSTRAINT' ID)? ('UNIQUE' ('(' ID (',' ID)* ')')? | 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')? | ('FOREIGN' 'KEY')? ('(' ID (',' ID)* ')')? 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))? ('COMMENT' STRING)?
+    : ('CONSTRAINT' ID)? ('UNIQUE' '(' ID (',' ID)* ')' | 'PRIMARY' 'KEY' '(' ID (',' ID)* ')' | ('FOREIGN' 'KEY')? '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ID (',' ID)* ')')? | 'CHECK' '(' EXPR ')') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))? ('COMMENT' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
@@ -5682,8 +5691,9 @@ showDatabaseRoles
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-databases
+// fix: the privileges to filter by are each object type's, listed on Access control privileges rather than here; the filter is left out
 showDatabases
-    : 'SHOW' 'TERSE'? 'DATABASES' 'HISTORY'? ('LIKE' STRING)? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)? ('WITH' 'PRIVILEGES' ID (',' ID)*)?
+    : 'SHOW' 'TERSE'? 'DATABASES' 'HISTORY'? ('LIKE' STRING)? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-databases-in-failover-group
@@ -6248,8 +6258,9 @@ showSchemaVariables
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-schemas
+// fix: the privileges to filter by are each object type's, listed on Access control privileges rather than here; the filter is left out
 showSchemas
-    : 'SHOW' 'TERSE'? 'SCHEMAS' 'HISTORY'? ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' ID? | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)? ('WITH' 'PRIVILEGES' ID (',' ID)*)?
+    : 'SHOW' 'TERSE'? 'SCHEMAS' 'HISTORY'? ('LIKE' STRING)? ('IN' ('ACCOUNT' | 'DATABASE' ID? | 'APPLICATION' ID | 'APPLICATION' 'PACKAGE' ID))? ('STARTS' 'WITH' STRING)? ('LIMIT' NUMBER ('FROM' STRING)?)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-secrets
@@ -6505,9 +6516,9 @@ showViews
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-warehouses
-// fix: the parameters write object_privilege, a privilege to filter by, not a fragment
+// fix: the privileges to filter by are each object type's, listed on Access control privileges rather than here; the filter is left out
 showWarehouses
-    : 'SHOW' 'WAREHOUSES' ('LIKE' STRING)? ('WITH' 'PRIVILEGES' ID (',' ID)*)?
+    : 'SHOW' 'WAREHOUSES' ('LIKE' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/show-workspaces
