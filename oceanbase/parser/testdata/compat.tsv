@@ -11386,12 +11386,12 @@ reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-2	ANALYZE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-3	ANALYZE TABLE UPDATE HISTOGRAM ON a WITH 1 BUCKETS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-4	ANALYZE TABLE a HISTOGRAM ON a WITH 1 BUCKETS
-accept	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-5	ANALYZE TABLE a UPDATE ON a WITH 1 BUCKETS
+reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-5	ANALYZE TABLE a UPDATE ON a WITH 1 BUCKETS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-6	ANALYZE TABLE a UPDATE HISTOGRAM a WITH 1 BUCKETS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-7	ANALYZE TABLE a UPDATE HISTOGRAM ON WITH 1 BUCKETS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-8	ANALYZE TABLE a UPDATE HISTOGRAM ON a 1 BUCKETS
-accept	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-9	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH BUCKETS
-accept	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-10	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1
+reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-9	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH BUCKETS
+reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!drop-10	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS zzz
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list_WITH_INTNUM_BUCKETS!swap	AND TABLE a UPDATE HISTOGRAM ON a WITH 1 BUCKETS
 accept	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list	ANALYZE TABLE a UPDATE HISTOGRAM ON a
@@ -11399,7 +11399,7 @@ reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-2	ANALYZE a UPDATE HISTOGRAM ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-3	ANALYZE TABLE UPDATE HISTOGRAM ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-4	ANALYZE TABLE a HISTOGRAM ON a
-accept	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-5	ANALYZE TABLE a UPDATE ON a
+reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-5	ANALYZE TABLE a UPDATE ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-6	ANALYZE TABLE a UPDATE HISTOGRAM a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!drop-7	ANALYZE TABLE a UPDATE HISTOGRAM ON
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_UPDATE_HISTOGRAM_ON_column_name_list!insert	ANALYZE TABLE a UPDATE HISTOGRAM ON a zzz
@@ -11408,12 +11408,12 @@ accept	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_O
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-1	TABLE a DROP HISTOGRAM ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-2	ANALYZE a DROP HISTOGRAM ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-3	ANALYZE TABLE DROP HISTOGRAM ON a
-accept	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-5	ANALYZE TABLE a DROP ON a
+reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-5	ANALYZE TABLE a DROP ON a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-6	ANALYZE TABLE a DROP HISTOGRAM a
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!drop-7	ANALYZE TABLE a DROP HISTOGRAM ON
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!insert	ANALYZE TABLE a DROP HISTOGRAM ON a zzz
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_DROP_HISTOGRAM_ON_column_name_list!swap	AND TABLE a DROP HISTOGRAM ON a
-reject	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause	ANALYZE TABLE a COMPUTE STATISTICS
+accept	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause	ANALYZE TABLE a COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!drop-1	TABLE a COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!drop-2	ANALYZE a COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!drop-3	ANALYZE TABLE COMPUTE STATISTICS
@@ -11421,7 +11421,7 @@ reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statisti
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!drop-5	ANALYZE TABLE a COMPUTE
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!insert	ANALYZE TABLE a COMPUTE STATISTICS zzz
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_analyze_statistics_clause!swap	AND TABLE a COMPUTE STATISTICS
-reject	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause	ANALYZE TABLE a PARTITION(a) COMPUTE STATISTICS
+accept	accept	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause	ANALYZE TABLE a PARTITION(a) COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause!drop-1	TABLE a PARTITION(a) COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause!drop-2	ANALYZE a PARTITION(a) COMPUTE STATISTICS
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause!drop-3	ANALYZE TABLE PARTITION(a) COMPUTE STATISTICS
@@ -11434,39 +11434,39 @@ reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_an
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause!insert	ANALYZE TABLE a PARTITION(a) COMPUTE STATISTICS zzz
 reject	reject	engine	analyze_stmt/ANALYZE_TABLE_relation_factor_use_partition_analyze_statistics_clause!swap	AND TABLE a PARTITION(a) COMPUTE STATISTICS
 accept	accept	engine	analyze_stmt/ANALYZE_TABLE_table_list	ANALYZE TABLE a
-reject	accept	engine	analyze_statistics_clause/COMPUTE_STATISTICS_opt_analyze_for_clause	ANALYZE TABLE a COMPUTE STATISTICS
+accept	accept	engine	analyze_statistics_clause/COMPUTE_STATISTICS_opt_analyze_for_clause	ANALYZE TABLE a COMPUTE STATISTICS
 reject	reject	engine	analyze_statistics_clause/COMPUTE_STATISTICS_opt_analyze_for_clause!swap	ANALYZE TABLE a CONCURRENT STATISTICS
-reject	accept	engine	analyze_statistics_clause/ESTIMATE_STATISTICS_opt_analyze_for_clause_opt_analyze_sample_clause	ANALYZE TABLE a ESTIMATE STATISTICS
+accept	accept	engine	analyze_statistics_clause/ESTIMATE_STATISTICS_opt_analyze_for_clause_opt_analyze_sample_clause	ANALYZE TABLE a ESTIMATE STATISTICS
 reject	reject	engine	analyze_statistics_clause/ESTIMATE_STATISTICS_opt_analyze_for_clause_opt_analyze_sample_clause!drop-2	ANALYZE TABLE a ESTIMATE
 reject	reject	engine	analyze_statistics_clause/ESTIMATE_STATISTICS_opt_analyze_for_clause_opt_analyze_sample_clause!insert	ANALYZE TABLE a ESTIMATE STATISTICS zzz
 reject	reject	engine	analyze_statistics_clause/ESTIMATE_STATISTICS_opt_analyze_for_clause_opt_analyze_sample_clause!swap	ANALYZE TABLE a EUCLIDEAN STATISTICS
-reject	accept	engine	opt_analyze_for_clause/opt_analyze_for_clause_list	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
+accept	accept	engine	opt_analyze_for_clause/opt_analyze_for_clause_list	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
 reject	reject	engine	opt_analyze_for_clause/opt_analyze_for_clause_list!drop-1	ANALYZE TABLE a COMPUTE STATISTICS TABLE
 reject	reject	engine	opt_analyze_for_clause/opt_analyze_for_clause_list!drop-2	ANALYZE TABLE a COMPUTE STATISTICS FOR
 reject	reject	engine	opt_analyze_for_clause/opt_analyze_for_clause_list!insert	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE zzz
 reject	reject	engine	opt_analyze_for_clause/opt_analyze_for_clause_list!swap	ANALYZE TABLE a COMPUTE STATISTICS FORCE TABLE
-reject	accept	engine	opt_analyze_for_clause/%empty	ANALYZE TABLE a COMPUTE STATISTICS
-reject	accept	engine	opt_analyze_for_clause_list/opt_analyze_for_clause_element	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
-reject	accept	engine	opt_analyze_for_clause_element/FOR_TABLE	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
-reject	accept	engine	opt_analyze_for_clause_element/for_all	ANALYZE TABLE a COMPUTE STATISTICS FOR ALL COLUMNS
+accept	accept	engine	opt_analyze_for_clause/%empty	ANALYZE TABLE a COMPUTE STATISTICS
+accept	accept	engine	opt_analyze_for_clause_list/opt_analyze_for_clause_element	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
+accept	accept	engine	opt_analyze_for_clause_element/FOR_TABLE	ANALYZE TABLE a COMPUTE STATISTICS FOR TABLE
+accept	accept	engine	opt_analyze_for_clause_element/for_all	ANALYZE TABLE a COMPUTE STATISTICS FOR ALL COLUMNS
 reject	reject	engine	opt_analyze_for_clause_element/for_all!drop-1	ANALYZE TABLE a COMPUTE STATISTICS ALL COLUMNS
 reject	reject	engine	opt_analyze_for_clause_element/for_all!drop-3	ANALYZE TABLE a COMPUTE STATISTICS FOR ALL
 reject	reject	engine	opt_analyze_for_clause_element/for_all!insert	ANALYZE TABLE a COMPUTE STATISTICS FOR ALL COLUMNS zzz
 reject	reject	engine	opt_analyze_for_clause_element/for_all!swap	ANALYZE TABLE a COMPUTE STATISTICS FORCE ALL COLUMNS
-reject	accept	engine	opt_analyze_for_clause_element/for_columns	ANALYZE TABLE a COMPUTE STATISTICS FOR COLUMNS
+accept	accept	engine	opt_analyze_for_clause_element/for_columns	ANALYZE TABLE a COMPUTE STATISTICS FOR COLUMNS
 reject	reject	engine	opt_analyze_for_clause_element/for_columns!drop-1	ANALYZE TABLE a COMPUTE STATISTICS COLUMNS
-reject	accept	engine	opt_analyze_for_clause_element/for_columns!insert	ANALYZE TABLE a COMPUTE STATISTICS FOR COLUMNS zzz
+accept	accept	engine	opt_analyze_for_clause_element/for_columns!insert	ANALYZE TABLE a COMPUTE STATISTICS FOR COLUMNS zzz
 reject	reject	engine	opt_analyze_for_clause_element/for_columns!swap	ANALYZE TABLE a COMPUTE STATISTICS FORCE COLUMNS
-reject	accept	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROWS
+accept	accept	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROWS
 reject	reject	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option!drop-1	ANALYZE TABLE a ESTIMATE STATISTICS 1 ROWS
 reject	reject	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option!drop-2	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE ROWS
 reject	reject	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option!drop-3	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1
 reject	reject	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option!insert	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROWS zzz
 reject	reject	engine	opt_analyze_sample_clause/SAMPLE_INTNUM_sample_option!swap	ANALYZE TABLE a ESTIMATE STATISTICS SAVEPOINT 1 ROWS
-reject	accept	engine	opt_analyze_sample_clause/%empty	ANALYZE TABLE a ESTIMATE STATISTICS
-reject	accept	engine	sample_option/ROWS	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROWS
+accept	accept	engine	opt_analyze_sample_clause/%empty	ANALYZE TABLE a ESTIMATE STATISTICS
+accept	accept	engine	sample_option/ROWS	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROWS
 reject	reject	engine	sample_option/ROWS!swap	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 ROW_COUNT
-reject	accept	engine	sample_option/PERCENTAGE	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTAGE
+accept	accept	engine	sample_option/PERCENTAGE	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTAGE
 reject	reject	engine	sample_option/PERCENTAGE!insert	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTAGE zzz
 reject	reject	engine	sample_option/PERCENTAGE!swap	ANALYZE TABLE a ESTIMATE STATISTICS SAMPLE 1 PERCENTILE_CONT
 reject	accept	engine	create_outline_stmt/create_with_opt_hint_opt_replace_outline_type_OUTLINE_relation_name_ON_explainable_stmt_opt_outline_target	CREATE OUTLINE a ON SELECT a
