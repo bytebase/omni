@@ -13715,29 +13715,29 @@ accept	accept	engine	suite:lexer	SELECT E'A'
 accept	accept	engine	suite:lexer	SELECT E'\U00000041'
 accept	accept	engine	suite:lexer	SELECT E'\''
 accept	accept	engine	suite:lexer	SELECT E'a''b'
-accept	reject@9	engine	suite:lexer	SELECT E'\u00'
-accept	reject@9	engine	suite:lexer	SELECT E'\U0000004'
+reject@9	reject@9	engine	suite:lexer	SELECT E'\u00'
+reject@9	reject@9	engine	suite:lexer	SELECT E'\U0000004'
 accept	accept	engine	suite:lexer	SELECT E'😀'
-accept	reject@15	engine	suite:lexer	SELECT E'\uD83D'
-accept	reject@9	engine	suite:lexer	SELECT E'\uDE00'
-accept	reject@9	engine	suite:lexer	SELECT E'\u0000'
-accept	reject	engine	suite:lexer	SELECT E'\0'
-accept	reject	engine	suite:lexer	SELECT E'\xff'
+reject@15	reject@15	engine	suite:lexer	SELECT E'\uD83D'
+reject@9	reject@9	engine	suite:lexer	SELECT E'\uDE00'
+reject@9	reject@9	engine	suite:lexer	SELECT E'\u0000'
+reject	reject	engine	suite:lexer	SELECT E'\0'
+reject	reject	engine	suite:lexer	SELECT E'\xff'
 reject@7	reject@7	engine	suite:lexer	SELECT E'unterminated
 reject@7	reject@7	engine	suite:lexer	SELECT E'a\'
 accept	accept	engine	suite:lexer	SELECT U&'d\0061t\+000061'
 accept	accept	engine	suite:lexer	SELECT u&'a'
 accept	accept	engine	suite:lexer	SELECT U&'d!0061t' UESCAPE '!'
-reject@7	reject@10	engine	suite:lexer	SELECT U&'\00'
-reject@7	reject@10	engine	suite:lexer	SELECT U&'\+00006'
-accept	reject@10	engine	suite:lexer	SELECT U&'\0000'
+reject@10	reject@10	engine	suite:lexer	SELECT U&'\00'
+reject@10	reject@10	engine	suite:lexer	SELECT U&'\+00006'
+reject@10	reject@10	engine	suite:lexer	SELECT U&'\0000'
 accept	accept	engine	suite:lexer	SELECT U&'\D83D\DE00'
-accept	reject@15	engine	suite:lexer	SELECT U&'\D83D'
-accept	reject@21	engine	suite:lexer	SELECT U&'a' UESCAPE '+'
+reject@15	reject@15	engine	suite:lexer	SELECT U&'\D83D'
+reject@21	reject@21	engine	suite:lexer	SELECT U&'a' UESCAPE '+'
 reject@21	reject@21	engine	suite:lexer	SELECT U&'a' UESCAPE 'ab'
 reject@21	reject@21	engine	suite:lexer	SELECT U&'a' UESCAPE ''
 reject@21	reject@21	engine	suite:lexer	SELECT U&'a' UESCAPE a
-accept	reject@20	engine	suite:lexer	SELECT U&'a' UESCAPE
+reject@20	reject@20	engine	suite:lexer	SELECT U&'a' UESCAPE
 accept	accept	engine	suite:lexer	SELECT U& 'a'
 reject@7	reject@7	engine	suite:lexer	SELECT U&'unterminated
 accept	accept	engine	suite:lexer	SELECT N'a'
@@ -13783,8 +13783,8 @@ accept	accept	engine	suite:lexer	SELECT a123456789012345678901234567890123456789
 accept	accept	engine	suite:lexer	SELECT U&"d\0061t"
 accept	accept	engine	suite:lexer	SELECT u&"a"
 accept	accept	engine	suite:lexer	SELECT U&"d!0061t" UESCAPE '!'
-accept	reject@7	engine	suite:lexer	SELECT U&""
-reject@7	reject@10	engine	suite:lexer	SELECT U&"\00"
+reject@7	reject@7	engine	suite:lexer	SELECT U&""
+reject@10	reject@10	engine	suite:lexer	SELECT U&"\00"
 reject@7	reject@7	engine	suite:lexer	SELECT U&"a
 accept	accept	engine	suite:lexer	SELECT a.b.c
 accept	accept	engine	suite:lexer	SELECT a . b
@@ -13823,11 +13823,11 @@ accept	accept	engine	suite:lexer	SELECT 1_000.000_1
 accept	accept	engine	suite:lexer	SELECT 1_0e1_0
 accept	accept	engine	suite:lexer	SELECT 0x1_F
 accept	accept	engine	suite:lexer	SELECT 0x_1F
-accept	reject@7	engine	suite:lexer	SELECT 1__000
-accept	reject@7	engine	suite:lexer	SELECT 1_
+reject@7	reject@7	engine	suite:lexer	SELECT 1__000
+reject@7	reject@7	engine	suite:lexer	SELECT 1_
 accept	accept	engine	suite:lexer	SELECT _1
-accept	reject@7	engine	suite:lexer	SELECT 1._5
-accept	reject@7	engine	suite:lexer	SELECT 1_.5
+reject@7	reject@7	engine	suite:lexer	SELECT 1._5
+reject@7	reject@7	engine	suite:lexer	SELECT 1_.5
 reject@8	reject@8	engine	suite:lexer	SELECT 1..2
 accept	accept	engine	suite:lexer	SELECT 01
 accept	accept	engine	suite:lexer	SELECT 9223372036854775807
