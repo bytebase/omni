@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle apply-correctness proof for the foreign-key generator (correctness-protocol.md gate
-// 2), against the LIVE MySQL 8.0 engine. For representative (from, to) pairs covering every FK
+// 2), against OceanBase. For representative (from, to) pairs covering every FK
 // variant, the generated ALTER TABLE ... ADD/DROP FOREIGN KEY DDL applied to a real `from`
 // database must yield a child table whose canonical form equals `to`. This file ALSO proves the
 // index↔FK interaction explicitly (the contract with the merged index node):
@@ -22,7 +22,7 @@ import (
 // FKs always span a parent and a child, so the harness is multi-table: it sets up parent `p` +
 // child `c` in state `from`, runs the FULL plan (table/column/index DDL from the other nodes is
 // inert here since only the child's FK differs, but the FK ops include the PhasePost ordering and
-// backing-index drops), reads the child back, and compares. The harness reuses connectOracle /
+// backing-index drops), reads the child back, and compares. The harness reuses oceanBaseOracle /
 // serverCharsetFor from the shared oracle tests.
 
 // fkMigrationCase is one apply-correctness case: transform child `c` (referencing parent `p`) from
@@ -120,7 +120,7 @@ func fkMigrationCases() []fkMigrationCase {
 // readback), including the PhasePost ordering and backing-index handling.
 func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, fc := range fkMigrationCases() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), gapped(func(t testing.TB) {
@@ -143,32 +143,19 @@ func assertFKApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, fc fkMigra
 	// Build the from/to catalogs from engine readbacks, wrapped in a FIXED logical db so the FK
 	// references resolve and the plan qualifies tables consistently with the apply db.
 	const logicalDB = "fkapply"
-	fromCat := loadFKSchema(t, o, logicalDB, "fkapply_f_"+slug, fc.parentDDL, fc.fromChild)
 	toCat := loadFKSchema(t, o, logicalDB, "fkapply_t_"+slug, fc.parentDDL, fc.toChild)
+	// The `from` state is built in the apply database and read back from there, for the
+	// reason assertFKMultiApplyCorrect gives. loadFKSchema leaves that database selected.
+	fromCat := loadFKSchema(t, o, logicalDB, logicalDB, fc.parentDDL, fc.fromChild)
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
-	// Build a real database in state `from` on ONE dedicated connection (USE must stick).
 	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
 	defer func() { _ = conn.Close() }()
-
-	setup := []string{
-		"DROP DATABASE IF EXISTS " + logicalDB,
-		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", logicalDB, sc),
-		"USE " + logicalDB,
-		fc.parentDDL,
-		fc.fromChild,
-	}
-	for _, s := range setup {
-		if _, err := conn.ExecContext(ctx, s); err != nil {
-			o.refused(t, err, "could not set up `from` state for %s: %q", fc.id, s)
-			return
-		}
-	}
 
 	// Apply the migration statements one at a time on the same connection.
 	for _, op := range plan.Ops {
@@ -309,7 +296,7 @@ func fkMultiCases() []fkMultiCase {
 // `to` table's canonical form must match.
 func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, mc := range fkMultiCases() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), gapped(func(t testing.TB) {
@@ -330,8 +317,12 @@ func assertFKMultiApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, mc fk
 	ctx := context.Background()
 	const logicalDB = "fkmulti"
 
-	fromCat := loadMultiSchema(t, o, logicalDB, "fkmulti_f_"+slug, sc, mc.fromSQL)
 	toCat := loadMultiSchema(t, o, logicalDB, "fkmulti_t_"+slug, sc, mc.toSQL)
+	// The `from` state is built in the apply database and read back from there: a name
+	// the engine makes up for an unnamed foreign key is that database's alone, and a plan
+	// drawn from a readback taken elsewhere would drop a name this one does not have.
+	// loadMultiSchema leaves the apply database selected.
+	fromCat := loadMultiSchema(t, o, logicalDB, logicalDB, sc, mc.fromSQL)
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
@@ -342,18 +333,6 @@ func assertFKMultiApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, mc fk
 	}
 	defer func() { _ = conn.Close() }()
 
-	setup := []string{
-		"DROP DATABASE IF EXISTS " + logicalDB,
-		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", logicalDB, sc),
-		"USE " + logicalDB,
-	}
-	setup = append(setup, splitSemiStatements(mc.fromSQL)...)
-	for _, s := range setup {
-		if _, err := conn.ExecContext(ctx, s); err != nil {
-			o.refused(t, err, "could not set up `from` for %s: %q", mc.id, s)
-			return
-		}
-	}
 	for _, op := range plan.Ops {
 		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
 			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",

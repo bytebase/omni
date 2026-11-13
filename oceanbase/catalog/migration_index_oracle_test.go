@@ -10,15 +10,15 @@ import (
 )
 
 // The oracle apply-correctness proof for the index generator (correctness-protocol.md gate 2),
-// against the LIVE MySQL 8.0 engine. For representative (from, to) pairs covering every index
+// against OceanBase. For representative (from, to) pairs covering every index
 // variant, the generated ALTER TABLE ... ADD/DROP index DDL applied to a real `from` database
 // must yield a table whose canonical form equals `to`. Idempotence (gate 1) for index forms is
 // covered by extending the migration idempotence corpus is not needed here because the index
 // diff probes already prove the no-op plan is empty via TestOracle_IndexDiffIdempotence; this
 // file proves the EMITTED DDL is correct.
 //
-// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / connectOracle
-// from migration_oracle_test.go; it skips cleanly when the engines are unreachable.
+// The harness reuses assertApplyCorrect / catalogFromReadback / loadOneTable / oceanBaseOracle
+// from migration_oracle_test.go.
 
 // indexMigrationProbes enumerates the index ADD/DROP/MODIFY FORMS the generator covers. Each is a
 // single-table (from, to) pair (FK-backing indexes are proven separately — they need a parent and
@@ -186,7 +186,7 @@ func indexMigrationProbes() []migrationProbe {
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range indexMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {

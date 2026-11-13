@@ -9,7 +9,7 @@ import (
 )
 
 // The oracle proof for column SRID presence (correctness-protocol.md gates 1 & 2), against
-// the LIVE MySQL 8.0 engine.
+// OceanBase.
 //
 // The bug this locks in: the catalog used to model SRID as a plain int where 0 doubled as
 // "not set", gating every emit/diff site on `SRID != 0`. But MySQL keeps an explicit
@@ -26,10 +26,9 @@ import (
 //     distinct canonical keys, and add/remove/change of the SRID clause generates a MODIFY
 //     that, applied to a real from-state database, yields a to-equal table.
 //
-// The harness reuses connectOracle / showCreate / assertDiffEmptyAgainstReadback /
+// The harness reuses oceanBaseOracle / showCreate / assertDiffEmptyAgainstReadback /
 // assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable from
-// the sibling oracle tests. It falls back to a shared testcontainer when the local
-// engine is unreachable (oracle_fallback_test.go).
+// the sibling oracle tests.
 
 // sridIdempotenceProbes enumerates the spatial-column FORMS that must round-trip EMPTY: an
 // explicit `SRID 0`, a nonzero SRID, a no-SRID spatial column, and a spatial column with a
@@ -273,7 +272,7 @@ func sridMigrationProbes() []migrationProbe {
 // one, on MySQL 8.0. A non-empty result diff (or a failed apply) is a bug.
 func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range sridMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {

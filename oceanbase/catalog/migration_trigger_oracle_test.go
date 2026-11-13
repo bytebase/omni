@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle proof for the trigger differ + generator (correctness-protocol.md gates 1 & 2),
-// against the LIVE MySQL 8.0 engine (:13306). Triggers are database-
+// against OceanBase. Triggers are database-
 // level objects whose stored form is read from information_schema.triggers (the exact path the
 // bytebase MySQL driver syncs them with), so the table-centric harness in migration_oracle_test.go
 // does not fit — this file carries a trigger-shaped harness that:
@@ -28,8 +28,7 @@ import (
 // GATE 2 — APPLY-CORRECTNESS: for representative (from, to) pairs, GenerateMigration(from,to).SQL()
 // applied to a real `from` database yields a trigger set whose stored form equals `to`'s.
 //
-// The harness falls back to a shared testcontainer when the local engine
-// is unreachable (oracle_fallback_test.go).
+//
 
 // triggerOracleDB is the database the trigger harness applies generated plans into (mirrors the
 // table harness's diffdb convention but kept distinct so parallel oracle tests don't collide).
@@ -364,7 +363,7 @@ func triggerMigrationProbes() []triggerMigProbe {
 // reloaded and diffed).
 func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range triggerMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {

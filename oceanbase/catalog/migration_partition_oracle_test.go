@@ -10,7 +10,7 @@ import (
 )
 
 // The oracle proof for the partition generator (correctness-protocol.md gate 2 + the gate-1
-// spine), against the LIVE MySQL 8.0 engine (:13306). Two properties:
+// spine), against OceanBase. Two properties:
 //
 //  1. Apply-correctness: for each (from, to) partition transition the node covers, the generated
 //     plan applied to a real `from` database yields a table whose canonical form equals `to`
@@ -24,8 +24,8 @@ import (
 // instead of the harness-wide fixed `diffdb`. That keeps these tests hermetic when the whole
 // package runs together: the shared apply harness contends on one `diffdb` across the generate-core
 // and index apply suites (a pre-existing pooled-`USE` race), and adding more `diffdb` users widens
-// that window — a per-probe database sidesteps it entirely. The harness reuses connectOracle /
-// NormalizerFor / serverCharsetFor; it skips cleanly when the engines are unreachable.
+// that window — a per-probe database sidesteps it entirely. The harness reuses oceanBaseOracle /
+// NormalizerFor / serverCharsetFor.
 
 // loadOnePartTable wraps a CREATE TABLE in a NAMED database (so each probe gets an isolated apply
 // DB, not the shared `diffdb`) whose default charset matches the oracle box, and returns the named
@@ -277,7 +277,7 @@ func partitionMigrationProbes() []migrationProbe {
 // DDL, applied to a real `from` database, yields a table whose canonical form equals `to`.
 func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, p := range partitionMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {

@@ -9,7 +9,7 @@ import (
 )
 
 // The oracle proof for the CHECK-constraint differ (correctness-protocol.md gates 1 & 2), against
-// the LIVE MySQL 8.0 engine (:13306).
+// OceanBase.
 //
 // IDEMPOTENCE (the spine): a schema carrying CHECK constraints in its real stored form (the
 // engine's SHOW CREATE readback, reloaded into a catalog) self-diffs empty, and the user form
@@ -18,9 +18,8 @@ import (
 // / operator spacing the engine rewrites, and a NOT ENFORCED check must all canonicalize equal
 // to their readback. A non-empty diff is a normalization bug.
 //
-// The harness reuses diffProbe / assertDiffEmptyAgainstReadback / connectOracle / serverCharsetFor /
-// describeDiff from the diff + normalize oracle tests; it skips cleanly when the engines are
-// unreachable.
+// The harness reuses diffProbe / assertDiffEmptyAgainstReadback / oceanBaseOracle / serverCharsetFor /
+// describeDiff from the diff + normalize oracle tests.
 
 // checkDiffProbes enumerates the CHECK FORMS that must round-trip empty on 8.0: a user-form DDL
 // whose engine-stored form differs (auto-name, per-operand parens, `_utf8mb4` introducer, function

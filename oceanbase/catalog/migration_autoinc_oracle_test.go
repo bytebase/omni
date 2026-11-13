@@ -9,7 +9,7 @@ import (
 )
 
 // The oracle proof for the AUTO_INCREMENT / backing-key ALTER grouping (migration_autoinc.go),
-// against the LIVE MySQL 8.0 engine (5.7.25 and 8.0.32 showed identical errno-1075 behavior,
+// against OceanBase (5.7.25 and 8.0.32 showed identical errno-1075 behavior,
 // probed 2026-07). MySQL enforces, at the END OF EVERY STATEMENT, that a table has at most one
 // AUTO_INCREMENT column and that this column is the FIRST column of some index (errno 1075;
 // MyISAM alone also accepts a non-first position). A plan that adds an AUTO_INCREMENT column in
@@ -21,8 +21,8 @@ import (
 // The idempotence gate (gate 1) for the same forms is TestOracle_AutoIncGroupingIdempotence:
 // every `to` schema, read back from the engine, must self-plan to an empty migration.
 //
-// The harness reuses assertApplyCorrect / connectOracle from
-// migration_oracle_test.go and skips cleanly when the engines are unreachable.
+// The harness reuses assertApplyCorrect / oceanBaseOracle from
+// migration_oracle_test.go.
 func autoIncMigrationProbes() []migrationProbe {
 	return []migrationProbe{
 		// ---- ADD direction: AUTO_INCREMENT column arrives without a pre-existing key ----
@@ -227,7 +227,7 @@ func autoIncMigrationProbes() []migrationProbe {
 // Before the merge pass, the hazard probes fail on the first ungrouped statement (errno 1075).
 func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range autoIncMigrationProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
@@ -316,7 +316,7 @@ func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
 		},
 	}
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, mc := range cases {
 			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), gapped(func(t testing.TB) {

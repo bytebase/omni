@@ -9,8 +9,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// The oracle proof for diff-core (correctness-protocol.md gates 1 & 2), against the
-// LIVE MySQL 8.0 engine. Two properties are proven mechanically:
+// The oracle proof for diff-core (correctness-protocol.md gates 1 & 2), against
+// OceanBase. Two properties are proven mechanically:
 //
 //  1. Idempotence (the spine): for a schema in its real stored form (the engine's own
 //     SHOW CREATE readback, loaded into a catalog), Diff(c, c).IsEmpty() — and, more
@@ -24,8 +24,7 @@ import (
 //     compared surface tokens, these would phantom-diff forever.
 //
 // The harness reuses the connection + load helpers from normalize_oracle_test.go
-// (connectOracle, loadColumn's wrapping convention, serverCharsetFor). It skips cleanly
-// when the engines are unreachable, so the unit suite stays hermetic.
+// (oceanBaseOracle, loadColumn's wrapping convention, serverCharsetFor)., so the unit suite stays hermetic.
 
 // applyAndReadback applies a single CREATE TABLE in a throwaway database and returns the
 // SHOW CREATE TABLE readback (the engine's canonical stored form). It reuses oracleConn
