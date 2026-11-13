@@ -88,9 +88,9 @@ func TestCodecRoundTrips(t *testing.T) {
 func TestCodecStandIns(t *testing.T) {
 	var _ tape.Renamer = Codec{}
 	re := Codec{}.MadeUp()
-	const stored = "CONSTRAINT `c_OBFK_1794529609863994` FOREIGN KEY (`a`), CONSTRAINT `t_OBCHECK_1794529978914345` CHECK ((`a` > 0)), CONSTRAINT `fk_1794529609863994` FOREIGN KEY (`b`)"
+	const stored = "CONSTRAINT `c_OBFK_1794529609863994` FOREIGN KEY (`a`), CONSTRAINT `t_OBCHECK_1794529978914345` CHECK ((`a` > 0)), CONSTRAINT `fk_1794529609863994` FOREIGN KEY (`b`), __mv_container_502975, mv_container_1"
 	got := re.FindAllString(stored, -1)
-	if want := []string{"_OBFK_1794529609863994", "_OBCHECK_1794529978914345"}; !slices.Equal(got, want) {
+	if want := []string{"_OBFK_1794529609863994", "_OBCHECK_1794529978914345", "__mv_container_502975"}; !slices.Equal(got, want) {
 		t.Fatalf("made-up names in %q: %q, want %q", stored, got, want)
 	}
 	for i, name := range got {
@@ -101,5 +101,8 @@ func TestCodecStandIns(t *testing.T) {
 	}
 	if in := (Codec{}).StandIn("_OBCHECK_1794529978914345", 12); in != "_OBCHECK_0000000000000012" {
 		t.Errorf("stand-in 12 is %q", in)
+	}
+	if in := (Codec{}).StandIn("__mv_container_502975", 3); in != "__mv_container_0000000000000003" {
+		t.Errorf("a materialized view's storage table stands in as %q", in)
 	}
 }

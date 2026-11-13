@@ -1,9 +1,9 @@
 // Package testcontainer is how oceanbase's tests reach OceanBase. Open and its
 // kin give a test a connection through a tape (enginetest/tape), which replays
 // the pinned server's answers and starts nothing; in a recording
-// (OMNI_RECORD=1) the connection is to the pinned server itself. The review
-// walk, which is not on tapes yet, and the compat judge ask the server
-// directly, through DSN and OpenOceanBase.
+// (OMNI_RECORD=1) the connection is to the pinned server itself. The compat
+// judge, which runs only in a recording, asks the server directly, through
+// DSN and OpenOceanBase.
 //
 // The server is one testcontainer per test binary, started by the first test
 // that needs it and removed by Terminate, which the package's TestMain calls.
@@ -111,6 +111,26 @@ func OpenEmpty(t testing.TB) *sql.DB {
 		}
 	}
 	return OpenWith(t, Options{Database: "test", MultiStatements: true, ParseTime: true})
+}
+
+// Reset runs fn on the pinned server, in a recording only: it puts the server
+// into the state the requests after it start from, such as dropping what an
+// earlier test left, so a replay needs nothing. fn's connection is not
+// recorded.
+func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		return
+	}
+	pin, err := enginetest.LoadPin(Pins, "default")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	admin := sql.OpenDB(Options{}.live(t, pin))
+	defer admin.Close()
+	if err := fn(context.Background(), admin); err != nil {
+		t.Fatalf("reset OceanBase: %v", err)
+	}
 }
 
 // empty drops what tests created on the server and creates the database test.
@@ -253,17 +273,20 @@ func (Codec) DecodeError(text string) error {
 	return me
 }
 
-// madeUp matches the name OceanBase gives a foreign key or a CHECK written
-// without one: the table's name, _OBFK_ or _OBCHECK_, and the time it was made
-// in microseconds, so a different name on every run.
-var madeUp = regexp.MustCompile(`_OB(?:FK|CHECK)_\d{16}`)
+// madeUp matches the names OceanBase makes up. A foreign key or a CHECK
+// written without a name gets the table's name, _OBFK_ or _OBCHECK_, and the
+// time it was made in microseconds, so a different name on every run. The
+// table that stores a materialized view is __mv_container_ and the view's
+// table id, which counts everything the server has made before it.
+var madeUp = regexp.MustCompile(`_OB(?:FK|CHECK)_\d{16}|__mv_container_\d+`)
 
 // MadeUp and StandIn make Codec a tape.Renamer: a tape holds a stand-in for
 // each made-up name, and the test reads the stand-in too.
 func (Codec) MadeUp() *regexp.Regexp { return madeUp }
 
-// StandIn keeps the name's shape and counts where the engine wrote the time:
-// _OBFK_0000000000000001 for the first name a test meets.
+// StandIn keeps the name's shape and counts where the engine wrote the time
+// or the id: _OBFK_0000000000000001 for the first name a test meets. Sixteen
+// digits is no table id either: OceanBase writes one without leading zeros.
 func (Codec) StandIn(name string, n int) string {
 	return fmt.Sprintf("%s%016d", name[:strings.LastIndexByte(name, '_')+1], n)
 }

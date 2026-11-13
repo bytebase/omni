@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 has begun: `oceanbase/parser`, `oceanbase/validate` and 159 tests of `oceanbase/catalog` replay tapes (242 tapes, 7.4 MB) and start no server. The 159 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). What is left is `review`, the last package under `oceanbase/` that starts a server. A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 is done but for `simulate.tsv`: `oceanbase/parser`, `oceanbase/validate`, 159 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (246 tapes, 9.5 MB), and nothing under `oceanbase/` starts a server outside a recording. The 159 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -287,17 +287,16 @@ This is deliberate, and it is the design's main recurring cost: a PR that change
 | Completion | How the engine folds identifiers |
 | ScriptDOM | The AST shapes and error positions Microsoft's parser reports |
 
-**Walk-through needs one change to follow the rule.** Today, when a finding doesn't name the server's error code, `Holds` queries the server about the objects the finding claims (`walktest.go:177`). A change to the findings would then change what the test sends. Instead, the engine lists the database's objects before every statement, and `Holds` checks the claim against that list:
+**Walk-through lists the server's objects to follow the rule.** When a finding doesn't name the server's error code, a `walktest.Holder` queries the server about the objects the finding claims, so a change to the findings changes what the test sends. A `walktest.Lister` lists the database's objects before every statement instead, and `Judge` reads the claim off that list:
 
 ```go
-type Engine interface {
-	// ...Statements, Exec, Report, Violation, Codes as today
+type Lister interface {
 	Inventory(t testing.TB, change string) []Object // fixed queries, whatever the walk says
 	Same(claimed, stored walk.Key) bool             // the engine's name folding
 }
 ```
 
-The inventory's hash replaces `Digest`. Sweeps keep their fixed seeds, and the tape header records each sweep's size and seed.
+The list replaces `Digest` too: a statement the server rejects must leave it as it was. OceanBase's walk is a `Lister`, on tapes. The other engines' are `Holder`s and run live until their step 2. A sweep on tape has a fixed size and seed, constants beside its test: its tape holds one stream per change, so another size or seed fails replay.
 
 ### 4.5 Writing a replayable test
 
@@ -309,6 +308,8 @@ The inventory's hash replaces `Digest`. Sweeps keep their fixed seeds, and the t
 - Keep a test on one connection. A tape's stream is one, and a helper that asks the pool while its test holds that connection waits forever.
 - Read the stored form from the database the change is applied to. A name the engine makes up differs in every database.
 - Probe syntax with SQL's `PREPARE ... FROM '<text>'`, not the driver's `Prepare`: a tape holds no driver-level prepared statement.
+- Keep an id the server makes up out of the tape: a connection's, a table's. Resolve it inside the query (`CONNECTION_ID()`, `IS_USED_LOCK`), or give it a stand-in through the `Renamer`.
+- Read what a statement changes at once, not a view that settles later: OceanBase's `information_schema.EVENTS` keeps a dropped database's events for about 20 seconds.
 - Ask a verdict in one request, `PREPARE x FROM ?` with the statement as its argument. Setting a variable, preparing from it and deallocating is three requests, and a sweep of ten thousand statements pays for each: OceanBase's parser tapes went from 13.5 MB to 4.7 MB on this and the two forms below.
 
 A recording catches an answer that changes between runs, but not a request order that does, such as a map iterated while sending. Replay a fresh recording a few times (`-count=10`) before committing it.
@@ -530,6 +531,15 @@ After step 0 the engines are independent. Order:
 - **35 probes are recorded gaps** (`obGaps`), the work list. Stored form (21): `BETWEEN` stored as two comparisons, the default collation of `utf8mb4`, two forms the parser cannot read (`BINARY` before `CHARACTER SET`, and a multi-valued index as OceanBase prints it), seven rewrites of a view's body, and two routine comments `SHOW CREATE FUNCTION` prints unescaped. Migrations (14): 9 triggers the parser cannot read back once named with their database, 3 multi-valued indexes, and 2 of events.
 - **35 are recorded refusals** (`obRefused`): forms OceanBase will not take. 10 of them are changes it has no statement for (`REMOVE PARTITIONING`, a spatial column's SRID, a generated column's expression under a constraint): the plan keeps the statement MySQL would run and warns of it, and the test checks that OceanBase refuses what the plan warns of.
 - **Events** are read from `information_schema.EVENTS`: OceanBase has no `SHOW CREATE EVENT`.
+
+**OceanBase, review moved.** Its four oracle tests replay (2026-11-13): 4 tapes, 2.1 MB, 8,140 requests, recorded in 12 minutes and replayed in 0.3 s. Two recordings on fresh servers left the same tapes.
+
+- **The walk** runs 67 curated cases and a sweep of 40 changes, on three connections each: the setup, the catalog, and the change. It finds 223 of the 305 statements OceanBase rejects in the cases and 359 of 617 in the sweep, with no false finding. A walk made to report nothing replays the same 5,788 requests.
+- **Its inventory is one query.** Temporary tables come from `oceanbase.__all_table`, by the id of the change's session, which the catalog connection finds through a named lock (`IS_USED_LOCK`). Events come from the scheduler's jobs, by database id. A materialized view's storage table, `__mv_container_<table id>`, gets a stand-in.
+- **MySQL's walk oracles are gone:** `mysql:8.0` at `lower_case_table_names` 0 and 1, `mysql:8.4`, and their sweep ran the cases the OceanBase test runs. The pinned server has one tenant, at 1, and its 5 GiB are all assigned, so a tenant at 0 does not fit. Four cases whose setup OceanBase refuses (1193, 1422) were passed over before and are recorded as refused now.
+- **Scan rules:** 12 of the 15 cases run whole. OceanBase stops the other three (1235, 1091, 4028), which each case records. Three cases were added: two in the forms OceanBase takes, and the `DROP CONSTRAINT` of a unique key, which it refuses (3940).
+- **Column drops:** OceanBase leaves the table its key in all 118 cases: 70 stop at the drop (1235, `drop rowkey column is not supported`), 41 at another error before it, and 7 setups are refused. `ReviewOceanBase` reports nothing on any, since it judges no `DROP COLUMN`.
+- **Prior backup** was deleted: Bytebase takes none on OceanBase, and `ReviewOceanBase` answers the request before the rule that test held to MySQL runs.
 
 **OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 
