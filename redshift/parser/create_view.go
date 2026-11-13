@@ -21,7 +21,10 @@ const (
 //	    | CREATE OR REPLACE OptTemp RECURSIVE VIEW qualified_name '(' columnList ')' opt_reloptions AS SelectStmt opt_check_option
 func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	// OptTemp
-	relpersistence := p.parseOptTemp()
+	relpersistence, err := p.parseOptTemp()
+	if err != nil {
+		return nil, err
+	}
 
 	// RECURSIVE?
 	recursive := false
@@ -63,7 +66,10 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	}
 
 	// opt_reloptions
-	options := p.parseOptReloptions()
+	options, err := p.parseOptReloptions()
+	if err != nil {
+		return nil, err
+	}
 
 	// AS
 	if _, err := p.expect(AS); err != nil {
@@ -190,15 +196,12 @@ func (p *Parser) parseOptCheckOption() int {
 //	opt_reloptions:
 //	    WITH reloptions
 //	    | /* EMPTY */
-func (p *Parser) parseOptReloptions() *nodes.List {
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == '(' {
-			p.advance() // WITH
-			return p.parseReloptions()
-		}
+func (p *Parser) parseOptReloptions() (*nodes.List, error) {
+	if p.cur.Type == WITH && p.peekNext().Type == '(' {
+		p.advance() // WITH
+		return p.parseReloptions()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseCreateTableAsStmt parses a CREATE [TEMP] TABLE ... AS statement.
@@ -271,10 +274,22 @@ func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	colNames, _ := p.parseOptColumnList()
-	accessMethod := p.parseOptAccessMethod()
-	options := p.parseOptWith()
-	onCommit := p.parseOnCommitOption()
-	tableSpace := p.parseOptTableSpace()
+	accessMethod, err := p.parseOptAccessMethod()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseOptWith()
+	if err != nil {
+		return nil, err
+	}
+	onCommit, err := p.parseOnCommitOption()
+	if err != nil {
+		return nil, err
+	}
+	tableSpace, err := p.parseOptTableSpace()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.IntoClause{
 		Rel:            rv,
@@ -357,13 +372,22 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	colNames, _ := p.parseOptColumnList()
-	accessMethod := p.parseOptAccessMethod()
-	options := p.parseOptReloptions()
+	accessMethod, err := p.parseOptAccessMethod()
+	if err != nil {
+		return nil, err
+	}
+	options, err := p.parseOptReloptions()
+	if err != nil {
+		return nil, err
+	}
 	options, err = p.parseRedshiftMaterializedViewOptionsInto(options)
 	if err != nil {
 		return nil, err
 	}
-	tableSpace := p.parseOptTableSpace()
+	tableSpace, err := p.parseOptTableSpace()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.IntoClause{
 		Rel:            rv,

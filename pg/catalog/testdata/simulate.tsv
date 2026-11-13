@@ -121,7 +121,7 @@ ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	CreateStmt/CREATE_OptTe
 42704	42704	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
 42P01	42P01	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
 42P01	42P01	engine	one_table@missing	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
-42601	ok:39ee3639ad11	engine	one_table@missing	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+ok:39ee3639ad11	ok:39ee3639ad11	engine	one_table@missing	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
 42704	42704	engine	one_table@missing	OptTableElementList/TableElementList	CREATE TABLE a(a a)
 42704	42704	engine	one_table@missing	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
 42704	42704	engine	one_table@missing	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
@@ -161,13 +161,13 @@ ok	42804	engine	one_table@missing	TableElement/TableConstraint	CREATE TABLE a(CH
 42P01	42P01	engine	one_table@missing	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
 42P01	42P01	engine	one_table@missing	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
 ok	42704	engine	one_table@missing	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
-42601	22023	engine	one_table@missing	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+ok	22023	engine	one_table@missing	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 42601	42601	engine	one_table@missing	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
-42601	ok:d3c8832c5513	engine	one_table@missing	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
-42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
-42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
-42601	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
-42601	42704	engine	one_table@missing	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok	ok:d3c8832c5513	engine	one_table@missing	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+ok	42704	engine	one_table@missing	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
 ok	ok:d3c8832c5513	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 42703	42703	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 42P01	42P01	engine	one_table@missing	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
@@ -392,7 +392,7 @@ ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
 42P07	42P07	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
-42601	42P07	engine	one_table@table	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	one_table@table	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
 42P07	42P07	engine	one_table@table	OptTableElementList/TableElementList	CREATE TABLE a(a a)
 42P07	42809	engine	one_table@table	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
 42P07	42701	engine	one_table@table	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
@@ -432,13 +432,13 @@ ok	42P16	engine	one_table@table	TableConstraint/CONSTRAINT_name_ConstraintElem!s
 42703	42703	engine	one_table@table	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
 42P07	42P07	engine	one_table@table	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
 42P07	42P07	engine	one_table@table	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
-42601	42P07	engine	one_table@table	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	one_table@table	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 42P07	42P07	engine	one_table@table	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
-42601	42P07	engine	one_table@table	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
-42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
-42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
-42601	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
-42601	42P07	engine	one_table@table	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+42P07	42P07	engine	one_table@table	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	one_table@table	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	one_table@table	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 ok	42703	engine	one_table@table	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 42809	0A000	engine	one_table@table	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
@@ -663,7 +663,7 @@ ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTem
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
 42P07	42P07	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
-42601	42P07	engine	one_table@column	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	one_table@column	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
 42P07	42P07	engine	one_table@column	OptTableElementList/TableElementList	CREATE TABLE a(a a)
 42P07	42809	engine	one_table@column	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
 42P07	42701	engine	one_table@column	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
@@ -703,13 +703,13 @@ ok	42883	engine	one_table@column	ExclusionConstraintList/ExclusionConstraintList
 ok	42883	engine	one_table@column	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
 42P07	42P07	engine	one_table@column	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
 42P07	42P07	engine	one_table@column	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
-42601	42P07	engine	one_table@column	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	one_table@column	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 42P07	42P07	engine	one_table@column	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
-42601	42P07	engine	one_table@column	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
-42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
-42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
-42601	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
-42601	42P07	engine	one_table@column	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+42P07	42P07	engine	one_table@column	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	one_table@column	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	one_table@column	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 ok	42703	engine	one_table@column	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 42809	0A000	engine	one_table@column	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
@@ -934,7 +934,7 @@ ok	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_N
 42704	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
 42P01	42809	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
 42P01	ok:0904ba26408b	engine	one_table@index	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
-42601	42P07	engine	one_table@index	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42710	42P07	engine	one_table@index	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
 42704	42704	engine	one_table@index	OptTableElementList/TableElementList	CREATE TABLE a(a a)
 42704	42704	engine	one_table@index	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
 42704	42704	engine	one_table@index	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
@@ -974,13 +974,13 @@ ok	42P07	engine	one_table@index	TableElement/TableConstraint	CREATE TABLE a(CHEC
 42P01	42809	engine	one_table@index	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
 42P01	42809	engine	one_table@index	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
 ok	42P07	engine	one_table@index	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
-42601	42P07	engine	one_table@index	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+ok	42P07	engine	one_table@index	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 42601	42P07	engine	one_table@index	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
-42601	42P07	engine	one_table@index	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
-42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
-42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
-42601	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
-42601	42P07	engine	one_table@index	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok	42P07	engine	one_table@index	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+ok	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+ok	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+ok	42P07	engine	one_table@index	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+ok	42P07	engine	one_table@index	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
 ok	ok:0904ba26408b	engine	one_table@index	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 42703	42703	engine	one_table@index	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 42P01	42809	engine	one_table@index	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
